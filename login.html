@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>SASV WORKSPACE | Login</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    :root {
+      --primary: #005A8D;
+      --primary-dark: #004876;
+      --text: #333;
+      --bg: #f7f9fb;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      display: flex;
+      height: 100vh;
+      align-items: center;
+      justify-content: center;
+    }
+    .login-container {
+      background: #fff;
+      padding: 32px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      width: 320px;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 24px;
+      color: var(--primary);
+    }
+    .input-group {
+      margin-bottom: 16px;
+    }
+    .input-group label {
+      display: block;
+      font-size: 0.9em;
+      margin-bottom: 4px;
+    }
+    .input-group input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 0.9em;
+      box-sizing: border-box;
+    }
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+    .btn {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.9em;
+      cursor: pointer;
+      background-color: var(--primary);
+      color: #fff;
+      text-align: center;
+      transition: background-color 0.2s;
+    }
+    .btn:hover {
+      background-color: var(--primary-dark);
+    }
+    .reset-btn {
+      display: block;
+      margin: 16px auto 0;
+      background: none;
+      border: none;
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 0.85em;
+      cursor: pointer;
+      padding: 0;
+    }
+    /* remove any hover background */
+    .reset-btn:hover {
+      background: none;
+      opacity: 0.8;
+    }
+    .error {
+      margin-top: 16px;
+      color: #D32F2F;
+      font-size: 0.85em;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="login-container">
+    <h2>Sign In</h2>
+
+    <div class="input-group">
+      <label for="email">Email</label>
+      <input id="email" type="email" placeholder="you@example.com" />
+    </div>
+
+    <div class="input-group">
+      <label for="password">Password</label>
+      <input id="password" type="password" placeholder="••••••••" />
+    </div>
+
+    <div class="btn-group">
+      <button id="signInBtn"  class="btn">Sign In</button>
+      <button id="signUpBtn"  class="btn">Sign Up</button>
+    </div>
+
+    <button id="resetBtn" class="reset-btn">Forgot Password?</button>
+
+    <p id="errorMsg" class="error"></p>
+  </div>
+
+  <script type="module" src="js/supabaseClient.js"></script>
+  <script type="module" src="js/login.js"></script>
+</body>
+</html>

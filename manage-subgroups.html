@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Manage Sub-groups</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    body { font-family: Arial, sans-serif; padding:20px; }
+    h1 { text-align:center; color:#005A8D; }
+
+    .filters {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      max-width: 800px;
+      margin: 20px auto;
+    }
+    .filters select {
+      padding:8px;
+      font-size:14px;
+    }
+    .clear-link {
+      color: #005A8D;
+      text-decoration: none;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .clear-link:hover {
+      text-decoration: underline;
+    }
+
+    .section { max-width:800px; margin:40px auto; }
+    .section h2 {
+      margin-bottom:10px;
+      border-bottom:1px solid #ccc;
+      padding-bottom:4px;
+      color:#333;
+    }
+
+    table {
+      width:100%;
+      border-collapse:collapse;
+      margin-top:20px;
+    }
+    th, td {
+      border:1px solid #ccc;
+      padding:10px;
+      text-align:left;
+    }
+    .btn {
+      background:#005A8D;
+      color:#fff;
+      border:none;
+      border-radius:4px;
+      cursor:pointer;
+      padding:6px 12px;
+    }
+    .btn:hover { background:#00456b; }
+    .action-link {
+      background:none;
+      border:none;
+      color:#005A8D;
+      text-decoration:underline;
+      cursor:pointer;
+    }
+
+    /* Confirm modal */
+    #confirmOverlay {
+      position:fixed; top:0; left:0; right:0; bottom:0;
+      background:rgba(0,0,0,0.4);
+      display:none; align-items:center; justify-content:center;
+      z-index:1000;
+    }
+    #confirmBox {
+      background:var(--bg-color); color:var(--text-color);
+      padding:20px; border-radius:8px;
+      box-shadow:0 2px 10px rgba(0,0,0,0.3);
+      width:300px; text-align:center;
+    }
+    #confirmBox p { margin:0 0 20px; }
+    #confirmBox button {
+      margin:0 10px; padding:6px 12px; font-size:14px;
+      background:var(--btn-bg); color:var(--btn-text);
+      border:none; border-radius:4px; cursor:pointer;
+    }
+    #confirmBox button:hover { background:var(--btn-hover-bg); }
+
+    .home-icon {
+      position:fixed; top:20px; right:20px; font-size:28px; cursor:pointer;
+    }
+  </style>
+</head>
+<body data-theme="system">
+  <h1>Manage Sub-groups</h1>
+
+  <div class="filters">
+    <select id="categorySelect">
+      <option value="">-- Category --</option>
+    </select>
+    <select id="subcategorySelect" disabled>
+      <option value="">-- Sub-category --</option>
+    </select>
+    <select id="groupSelect" disabled>
+      <option value="">-- Product Group --</option>
+    </select>
+    <a id="clearFilters" class="clear-link">Clear</a>
+  </div>
+
+  <div class="section">
+    <h2>Existing Sub-groups</h2>
+    <table>
+      <thead>
+        <tr><th>Name</th><th>Actions</th></tr>
+      </thead>
+      <tbody id="subGroupTable"></tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Add New Sub-group</h2>
+    <form id="addSubGroupForm">
+      <input type="text" name="sub_group_name" placeholder="Enter sub-group name" required />
+      <button type="submit" class="btn">Add Sub-group</button>
+    </form>
+  </div>
+
+  <!-- In-page confirm modal -->
+  <div id="confirmOverlay">
+    <div id="confirmBox">
+      <p id="confirmMessage"></p>
+      <button id="confirmYes">Yes</button>
+      <button id="confirmNo">No</button>
+    </div>
+  </div>
+
+  <div class="home-icon" id="homeIcon">🏠</div>
+  <script type="module" src="js/subgroups.js"></script>
+</body>
+</html>

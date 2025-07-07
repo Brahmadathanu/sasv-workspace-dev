@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SASV WORKSPACE | Reports</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* ─── Page-level overrides for Reports ───────────────────────────────── */
+    body {
+      background: var(--bg-color);
+      color: var(--text-color);
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      transition: background 0.3s, color 0.3s;
+    }
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    .header-bar h2 {
+      margin: 0;
+      color: var(--primary);
+      font-size: 1.75rem;
+    }
+    .action-link {
+      font-size: 32px;
+      cursor: pointer;
+      user-select: none;
+      transition: opacity 0.2s;
+    }
+    .action-link:hover {
+      opacity: 0.7;
+    }
+
+    /* ─── Grid: max 3 columns, then 2, then 1 ──────────────────────────── */
+    .reports-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    @media (max-width: 900px) {
+      .reports-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    @media (max-width: 600px) {
+      .reports-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ─── Button tweaks: slightly smaller, bold text ───────────────────── */
+    .reports-grid .btn-report {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.9rem;
+      font-weight: bold;
+      border: none;
+      border-radius: 4px;
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      transition: background 0.2s, transform 0.1s;
+      cursor: pointer;
+    }
+    .reports-grid .btn-report:hover {
+      background: var(--btn-hover-bg);
+      transform: translateY(-2px);
+    }
+    .reports-grid .btn-report:active {
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body data-theme="system">
+
+  <div class="header-bar">
+    <h2>Reports</h2>
+    <span id="homeIcon" class="action-link" title="Home">🏠</span>
+  </div>
+
+  <div class="reports-grid">
+    <button class="btn-report" onclick="location.href='view-logs.html'">
+      View Log
+    </button>
+    <button class="btn-report" onclick="location.href='bmr-not-initiated.html'">
+      BMR Card – Not Initiated
+    </button>
+    <button class="btn-report" onclick="location.href='wip-stock.html'">
+      WIP Stock
+    </button>
+    <button class="btn-report" onclick="location.href='fg-bulk-stock.html'">
+      FG Bulk Stock
+    </button>
+    <button class="btn-report" onclick="location.href='bottled-stock.html'">
+      Bottled Stock
+    </button>
+    <button class="btn-report" onclick="location.href='plant-occupancy.html'">
+      Plant / Machinery Occupancy
+    </button>
+    <!-- Future report buttons will automatically flow into this 3-column layout -->
+  </div>
+
+  <script type="module" src="js/reports.js"></script>
+</body>
+</html>

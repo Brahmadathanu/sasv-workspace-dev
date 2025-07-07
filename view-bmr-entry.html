@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>SASV WORKSPACE | View BMR Entries</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .header-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .header-bar h2 { margin: 0; color: #005A8D; }
+    .action-link { font-size: 24px; cursor: pointer; transition: opacity 0.2s; }
+    .action-link:hover { opacity: 0.7; }
+
+    /* Filters: two grid rows */
+    .filter-row.first-row  { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .filter-row.second-row { display: grid; grid-template-columns: 2fr 1fr auto; gap: 12px; margin-top: 8px; align-items: center; }
+    form select, form input { padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
+
+    /* Clear as link, no hover bg */
+    .clear-link {
+      background: none; border: none; color: var(--btn-bg);
+      text-decoration: underline; cursor: pointer; padding: 0; font: inherit; outline: none;
+    }
+    .clear-link:hover { opacity: 0.7; background: none !important; }
+
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 8px; border: 1px solid #ccc; text-align: left; }
+  </style>
+</head>
+<body data-theme="system">
+
+  <div class="header-bar">
+    <h2>View BMR Entries</h2>
+    <span id="homeIcon" class="action-link" title="Home">🏠</span>
+  </div>
+
+  <form id="filterForm">
+    <div class="filter-row first-row">
+      <select id="filterCategory"><option value="">Category</option></select>
+      <select id="filterSubCategory" disabled><option value="">Subcategory</option></select>
+      <select id="filterGroup" disabled><option value="">Group</option></select>
+      <select id="filterSubGroup" disabled><option value="">Sub-group</option></select>
+    </div>
+    <div class="filter-row second-row">
+      <select id="filterItem"><option value="">Item</option></select>
+      <input id="filterBn" type="text" placeholder="BN" />
+      <button type="button" id="clearFilter" class="clear-link">Clear</button>
+    </div>
+  </form>
+
+  <table id="bmrViewTable">
+    <thead>
+      <tr>
+        <th>Item</th>
+        <th>BN</th>
+        <th>Batch Size</th>
+        <th>UOM</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script type="module" src="js/bmr-view.js"></script>
+</body>
+</html>

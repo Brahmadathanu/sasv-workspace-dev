@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>SASV WORKSPACE</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-theme="system">
+
+  <header>
+    <h1>SASV WORKSPACE</h1>
+    <div id="userBar">
+      <span id="userInfo">Loading…</span>
+      &nbsp;|&nbsp;
+      <a id="logoutLink">Log Out</a>
+    </div>
+  </header>
+
+  <!-- Work Log -->
+  <section class="panel">
+    <h2>Work Log</h2>
+    <div class="module-list">
+      <a class="module-link" data-module-id="add-log-entry" href="add-log-entry.html">Add Log Entry</a>
+      <a class="module-link" data-module-id="edit-log-entry" href="edit-log-entry.html">Edit Log Entry</a>
+      <a class="module-link" data-module-id="reports" href="reports.html">Reports</a>
+      <a class="module-link" data-module-id="manage-activities" href="manage-activities.html">Manage Activities</a>
+    </div>
+  </section>
+
+  <!-- Manufacturing Infrastructure -->
+  <section class="panel">
+    <h2>Manufacturing Infrastructure</h2>
+    <div class="module-list">
+      <a class="module-link" data-module-id="manage-sections" href="manage-sections.html">Sections</a>
+      <a class="module-link" data-module-id="manage-subsections" href="manage-subsections.html">Sub-sections</a>
+      <a class="module-link" data-module-id="manage-areas" href="manage-areas.html">Areas</a>
+      <a class="module-link" data-module-id="manage-plants" href="manage-plants.html">Plants/Machinery</a>
+      <a class="module-link" data-module-id="manage-machine-types" href="manage-machine-types.html">Machine Types</a>
+    </div>
+  </section>
+
+  <!-- BMR Details -->
+  <section class="panel">
+    <h2>BMR Details</h2>
+    <div class="module-list">
+      <a class="module-link" data-module-id="add-bmr-entry" href="add-bmr-entry.html">Add BMR</a>
+      <a class="module-link" data-module-id="edit-bmr-entry" href="edit-bmr-entry.html">Edit BMR</a>
+      <a class="module-link" data-module-id="view-bmr-entry" href="view-bmr-entry.html">View BMR</a>
+    </div>
+  </section>
+
+  <!-- Product Master -->
+  <section class="panel">
+    <h2>Product Master</h2>
+    <div class="module-list">
+      <a class="module-link" data-module-id="manage-categories" href="manage-categories.html">Categories</a>
+      <a class="module-link" data-module-id="manage-subcategories" href="manage-subcategories.html">Sub-categories</a>
+      <a class="module-link" data-module-id="manage-product-groups" href="manage-product-groups.html">Groups</a>
+      <a class="module-link" data-module-id="manage-subgroups" href="manage-subgroups.html">Sub-groups</a>
+      <a class="module-link" data-module-id="manage-products" href="manage-products.html">Products</a>
+      <a class="module-link" data-module-id="manage-references" href="manage-references.html">References</a>
+      <a class="module-link" data-module-id="manage-publications" href="manage-publications.html">Publications</a>
+      <a class="module-link" data-module-id="manage-chapters" href="manage-chapters.html">Chapters</a>
+    </div>
+  </section>
+
+  <!-- Supabase & Init -->
+  <script type="module" src="js/supabaseClient.js"></script>
+  <script type="module">
+    import { supabase } from './js/supabaseClient.js';
+
+    async function initApp() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return window.location.href='login.html';
+
+      const { data: { user } } = await supabase.auth.getUser();
+      document.getElementById('userInfo').textContent = `Logged in as ${user.email}`;
+      document.getElementById('logoutLink').onclick = async () => {
+        await supabase.auth.signOut();
+        window.location.href='login.html';
+      };
+
+      const { data: perms } = await supabase
+        .from('user_permissions')
+        .select('module_id,can_view')
+        .eq('user_id', user.id);
+
+      const permMap = Object.fromEntries(perms.map(p => [p.module_id, p.can_view]));
+      document.querySelectorAll('a.module-link').forEach(a => {
+        if (!permMap[a.dataset.moduleId]) a.style.display='none';
+      });
+    }
+
+    window.addEventListener('DOMContentLoaded', initApp);
+  </script>
+</body>
+</html>

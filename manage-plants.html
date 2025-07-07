@@ -1,0 +1,281 @@
+<!-- manage-plants.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SASV WORKSPACE | Manage Plant/Machinery</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    :root {
+      --bg-color: #f6f9fc;
+      --text-color: #333;
+      --input-bg: #fff;
+      --input-text: #000;
+      --btn-bg: #2b6cb0;
+      --btn-text: #fff;
+      --btn-hover-bg: #2c5282;
+    }
+    body {
+      background: var(--bg-color);
+      color: var(--text-color);
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    .header-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .header-bar h2 { margin: 0; color: #005A8D; }
+    .header-bar .action-link { font-size: 24px; cursor: pointer; }
+
+    /* Filters */
+    .filters {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 20px; width: 100%;
+    }
+    .filters select {
+      flex: 1; height: 36px; padding: 0 8px; font-size: 14px;
+      border: 1px solid #ccc; border-radius: 4px;
+      background: var(--input-bg); color: var(--input-text);
+    }
+    #clearFilters {
+      background: none; border: none; color: #007BFF;
+      text-decoration: underline; cursor: pointer;
+      font-size: 14px; height: 36px; line-height: 1.4;
+      padding: 0 8px;
+    }
+    #clearFilters:hover { color: #0056b3; }
+
+    /* Scrollable container for existing table */
+    #plantsTableContainer {
+      max-height: 400px;
+      overflow-y: auto;
+      margin-bottom: 20px;
+      border: 1px solid #ccc;
+    }
+
+    /* Existing table */
+    #plantsTable {
+      width: 100%; border-collapse: collapse;
+    }
+    /* full grid lines + left-align everything */
+    #plantsTable th,
+    #plantsTable td {
+      padding: 6px 8px;
+      border: 1px solid #ccc;
+      vertical-align: middle;
+      text-align: left;
+    }
+    /* stick the header row */
+    #plantsTable thead th {
+      position: sticky;
+      top: 0;
+      background: var(--bg-color);
+      z-index: 2;
+    }
+
+    .action-link {
+      background: none !important; border: none !important;
+      color: #007BFF !important; text-decoration: underline !important;
+      padding: 0 !important; margin: 0 4px !important;
+      cursor: pointer !important; font: inherit !important;
+    }
+    .action-link:hover { color: #0056b3 !important; }
+
+    /* Inline edit */
+    .edit-input, .edit-type, .edit-status {
+      width: 100%; box-sizing: border-box; padding: 4px 6px;
+      font-size: 14px; line-height: 1.4;
+      border: 1px solid #ccc; border-radius: 4px;
+      background: var(--input-bg); color: var(--input-text);
+    }
+
+    /* Multi-add table */
+    #multiPlantTable {
+      width: 100%; border-collapse: collapse; margin-bottom: 8px;
+    }
+    #multiPlantTable th, #multiPlantTable td {
+      border: 1px solid #ccc; padding: 6px 8px; vertical-align: middle;
+      text-align: left;
+    }
+    #multiPlantTable th:nth-child(1) { width: 50%; }
+    #multiPlantTable th:nth-child(2) { width: 20%; }
+    #multiPlantTable th:nth-child(3) { width: 20%; }
+    #multiPlantTable th:nth-child(4) { width: 10%; }
+
+    #multiPlantTable input[type="text"],
+    #multiPlantTable select {
+      width: 100%; box-sizing: border-box; padding: 4px 6px;
+      font-size: 14px; line-height: 1.4;
+      border: 1px solid #ccc; border-radius: 4px;
+      background: var(--input-bg); color: var(--input-text);
+    }
+    .row-controls {
+      display: flex; justify-content: center; align-items: center; gap: 4px;
+    }
+    .row-add, .row-remove {
+      width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; background: none; border: none;
+      cursor: pointer; line-height: 1;
+    }
+    .row-add { color: green; } .row-remove { color: red; }
+    .row-add:hover, .row-remove:hover { opacity: .7; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+      background: var(--btn-bg); color: var(--btn-text);
+      border: none; padding: 8px 16px; border-radius: 4px;
+      cursor: pointer; font-size: 14px; line-height: 1.4;
+      margin-right: 8px;
+    }
+    .btn:hover { background: var(--btn-hover-bg); }
+
+    /* Preview overlay */
+    #previewOverlay {
+      position: fixed; top:0; left:0; right:0; bottom:0;
+      background: rgba(0,0,0,0.5); display: none;
+      align-items: center; justify-content: center; z-index: 1000;
+    }
+    #previewBox {
+      background: var(--bg-color); color: var(--text-color);
+      padding: 20px; border-radius: 8px;
+      max-width: 80%; max-height: 80%; overflow: auto;
+    }
+    #previewTable {
+      width: 100%; border-collapse: collapse; margin-bottom: 20px;
+    }
+    #previewTable th, #previewTable td {
+      border: 1px solid #ccc; padding: 6px 8px; vertical-align: middle;
+      text-align: left;
+    }
+    .modal-actions {
+      display: flex; justify-content: flex-end; gap: 10px;
+    }
+
+    /* Dialog overlay */
+    #dialogOverlay {
+      position: fixed; top:0; left:0; right:0; bottom:0;
+      background: rgba(0,0,0,0.5); display: none;
+      align-items: center; justify-content: center; z-index: 1100;
+    }
+    #dialogBox {
+      background: var(--bg-color); color: var(--text-color);
+      padding: 20px; border-radius: 8px; max-width: 360px;
+      text-align: center;
+    }
+    #dialogMessage { margin-bottom: 20px; font-size: 15px; }
+    #dialogButtons button {
+      margin: 0 8px; padding: 6px 14px; border: none;
+      border-radius: 4px; cursor: pointer;
+      background: var(--btn-bg); color: var(--btn-text);
+      line-height: 1.4;
+    }
+    #dialogButtons button:hover { background: var(--btn-hover-bg); }
+  </style>
+</head>
+<body data-theme="system">
+
+  <div class="header-bar">
+    <h2>Manage Plant/Machinery</h2>
+    <span id="homeIcon" class="action-link" title="Home">🏠</span>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="filters">
+    <select id="sectionSelect"><option value="">-- Section --</option></select>
+    <select id="subSectionSelect" disabled><option value="">-- Sub-section --</option></select>
+    <select id="areaSelect" disabled><option value="">-- Area --</option></select>
+    <select id="typeSelect"><option value="">-- Type --</option></select>
+    <button id="clearFilters">Clear</button>
+  </div>
+
+  <!-- EXISTING TABLE -->
+  <section>
+    <h3>Existing Plant/Machinery</h3>
+    <div id="plantsTableContainer">
+      <table id="plantsTable">
+        <thead>
+          <tr>
+            <th>Plant Name</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- MULTI-ADD -->
+  <section class="add-section">
+    <h3>Add Plant/Machinery Entries</h3>
+    <table id="multiPlantTable">
+      <thead>
+        <tr><th>Plant Name</th><th>Type</th><th>Status</th><th> </th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><input type="text" class="m-name" /></td>
+          <td>
+            <select class="m-type">
+              <option value="">-- Type --</option>
+            </select>
+          </td>
+          <td>
+            <select class="m-status">
+              <option value="">Status</option>
+              <option value="O">Operational</option>
+              <option value="N">Non-operational</option>
+            </select>
+          </td>
+          <td>
+            <div class="row-controls">
+              <button class="row-add"    title="Add row">＋</button>
+              <button class="row-remove" title="Remove row">－</button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="controls">
+      <button id="multiAddBtn" class="btn">Add All</button>
+      <button id="multiClearBtn" class="btn">Clear</button>
+    </div>
+  </section>
+
+  <!-- PREVIEW OVERLAY -->
+  <div id="previewOverlay">
+    <div id="previewBox">
+      <h3>Confirm Entries</h3>
+      <table id="previewTable">
+        <thead>
+          <tr><th>#</th><th>Plant Name</th><th>Type</th><th>Status</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="modal-actions">
+        <button id="previewCancel" class="btn">Edit</button>
+        <button id="previewConfirm" class="btn">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DIALOG OVERLAY -->
+  <div id="dialogOverlay">
+    <div id="dialogBox">
+      <div id="dialogMessage"></div>
+      <div id="dialogButtons">
+        <button id="btnYes">Yes</button>
+        <button id="btnNo">No</button>
+        <button id="btnOk">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/supabaseClient.js"></script>
+  <script type="module" src="js/plants.js"></script>
+</body>
+</html>

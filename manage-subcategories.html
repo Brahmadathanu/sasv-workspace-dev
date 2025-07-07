@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Manage Sub-categories</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    h2 { color: #005A8D; }
+    h3 {
+      margin-top: 30px;
+      color: #00395D;
+      font-weight: 500;
+    }
+    .form-row {
+      margin-bottom: 10px;
+    }
+    .btn {
+      padding: 6px 12px;
+      background-color: #005A8D;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    .btn:hover {
+      background-color: #0070b8;
+    }
+    table {
+      width: 100%;
+      margin-top: 10px;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 8px;
+      border: 1px solid #ccc;
+      text-align: left;
+    }
+    .action-link {
+      cursor: pointer;
+      color: #005A8D;
+      text-decoration: underline;
+      background: none;
+      border: none;
+      padding: 0;
+      font: inherit;
+    }
+    #homeIcon {
+      position: fixed;
+      top: 20px;
+      right: 30px;
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    /* Confirmation overlay */
+    #confirmOverlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    #confirmBox {
+      background: var(--bg-color);
+      color: var(--text-color);
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      width: 300px;
+      text-align: center;
+    }
+    #confirmBox p {
+      margin: 0 0 20px;
+    }
+    #confirmBox button {
+      margin: 0 10px;
+      padding: 6px 12px;
+      font-size: 14px;
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #confirmBox button:hover {
+      background: var(--btn-hover-bg);
+    }
+  </style>
+</head>
+<body>
+  <div id="homeIcon">🏠</div>
+
+  <h2>Manage Sub-categories</h2>
+
+  <div class="form-row">
+    <label for="categorySelect">Select Category:</label>
+    <select id="categorySelect">
+      <option value="">-- Select --</option>
+    </select>
+  </div>
+
+  <div id="existingSubCategories">
+    <h3>Existing Sub-categories</h3>
+    <table id="subTable">
+      <thead>
+        <tr><th>Sub-category</th><th>Action</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div id="addNewSubCategory">
+    <h3>Add New Sub-category</h3>
+    <form id="addSubForm">
+      <input type="text" name="subcategory_name" placeholder="New sub-category name" required />
+      <button type="submit" class="btn">Add</button>
+    </form>
+  </div>
+
+  <!-- In-page confirm modal -->
+  <div id="confirmOverlay">
+    <div id="confirmBox">
+      <p id="confirmMessage"></p>
+      <button id="confirmYes">Yes</button>
+      <button id="confirmNo">No</button>
+    </div>
+  </div>
+
+  <script type="module" src="js/subcategories.js"></script>
+</body>
+</html>

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>SASV WORKSPACE | Manage Sub-sections</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* Table & buttons */
+    table { width:100%; border-collapse:collapse; margin-bottom:20px; }
+    th, td { padding:8px 12px; border:1px solid #ccc; }
+    .action-link {
+      color:#007BFF; text-decoration:underline; cursor:pointer;
+      background:none; border:none; font:inherit; padding:0;
+    }
+    .action-link:hover { color:#0056b3; }
+    .btn {
+      background:var(--btn-bg); color:var(--btn-text);
+      border:none; padding:8px 16px; border-radius:4px;
+      cursor:pointer; margin-left:8px;
+    }
+    .btn:hover { background:var(--btn-hover-bg); }
+    input[type="text"], select { padding:6px; font-size:14px; }
+
+    /* Confirmation overlay */
+    #confirmOverlay {
+      position:fixed; top:0; left:0; right:0; bottom:0;
+      background:rgba(0,0,0,0.4);
+      display:none; align-items:center; justify-content:center;
+      z-index:1000;
+    }
+    #confirmBox {
+      background:var(--bg-color); color:var(--text-color);
+      padding:20px; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.3);
+      width:280px; text-align:center;
+    }
+    #confirmBox p { margin:0 0 20px; }
+    #confirmBox button {
+      margin:0 10px; padding:6px 12px; font-size:14px;
+      background:var(--btn-bg); color:var(--btn-text);
+      border:none; border-radius:4px; cursor:pointer;
+    }
+    #confirmBox button:hover { background:var(--btn-hover-bg); }
+
+    /* Header bar */
+    .header-bar {
+      display:flex; align-items:center; justify-content:space-between;
+      margin-bottom:20px;
+    }
+    .header-bar .action-link { font-size:24px; }
+  </style>
+</head>
+<body>
+  <div class="header-bar">
+    <h2>Manage Sub-sections</h2>
+    <span id="homeIcon" class="action-link" title="Home">🏠</span>
+  </div>
+
+  <section>
+    <label for="sectionSelect"><strong>Section:</strong></label>
+    <select id="sectionSelect">
+      <option value="">-- Select Section --</option>
+    </select>
+  </section>
+
+  <section>
+    <h3>Existing Sub-sections</h3>
+    <table id="subsectionsTable">
+      <thead>
+        <tr><th>Sub-section Name</th><th>Actions</th></tr>
+      </thead>
+      <tbody><!-- injected by subsections.js --></tbody>
+    </table>
+  </section>
+
+  <section>
+    <h3>Add Sub-section</h3>
+    <form id="addSubForm">
+      <input
+        type="text"
+        name="subsection_name"
+        placeholder="New sub-section name"
+        required
+      />
+      <button type="submit" class="btn">Add</button>
+    </form>
+  </section>
+
+  <!-- Confirmation overlay -->
+  <div id="confirmOverlay">
+    <div id="confirmBox">
+      <p id="confirmMessage"></p>
+      <button id="confirmYes">Yes</button>
+      <button id="confirmNo">No</button>
+    </div>
+  </div>
+
+  <!-- minimal change: make this an ES module -->
+  <script type="module" src="js/subsections.js"></script>
+</body>
+</html>

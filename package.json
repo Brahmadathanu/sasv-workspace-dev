@@ -1,0 +1,46 @@
+{
+  "name": "daily-worklog-app",
+  "productName": "SASV Workspace",
+  "version": "1.0.0",
+  "description": "Pilot Electron + Supabase workspace application",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "build": {
+    "appId": "com.yourcompany.sasv",
+    "productName": "SASV Workspace",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.50.2",
+    "electron-prompt": "^1.7.0",
+    "express": "^5.1.0",
+    "pg": "^8.16.0"
+  },
+  "devDependencies": {
+    "electron": "^36.2.1",
+    "electron-builder": "^26.0.12"
+  }
+}

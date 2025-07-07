@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>SASV WORKSPACE | Manage Plant/Machinery Types</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    :root {
+      --bg-color: #f6f9fc;
+      --text-color: #333;
+      --input-bg: #fff;
+      --input-text: #000;
+      --btn-bg: #2b6cb0;
+      --btn-text: #fff;
+      --btn-hover-bg: #2c5282;
+    }
+    body {
+      background: var(--bg-color);
+      color: var(--text-color);
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    .header-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .header-bar h2 { margin: 0; color: #005A8D; }
+    .header-bar .action-link { font-size: 24px; cursor: pointer; }
+
+    /* Search bar */
+    .filters {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 20px; width: 100%;
+    }
+    .filters input[type="text"] {
+      flex: 1; height: 36px; padding: 0 8px; font-size: 14px;
+      border: 1px solid #ccc; border-radius: 4px;
+      background: var(--input-bg); color: var(--input-text);
+    }
+    .filters button {
+      background: none; border: none; color: #007BFF;
+      text-decoration: underline; cursor: pointer;
+      font-size: 14px; height: 36px; line-height: 1.4;
+      padding: 0 8px;
+    }
+    .filters button:hover { color: #0056b3; }
+
+    /* Existing table */
+    table { width:100%; border-collapse:collapse; margin-bottom:20px; }
+    th, td {
+      padding:6px 8px; border:1px solid #ccc; vertical-align:middle;
+    }
+    th:nth-child(1){width:70%;}
+    th:nth-child(2){width:30%;}
+    .action-link {
+      background:none!important; border:none!important;
+      color:#007BFF!important; text-decoration:underline!important;
+      padding:0!important; margin:0 4px!important;
+      cursor:pointer!important; font:inherit!important;
+    }
+    .action-link:hover { color:#0056b3!important; }
+
+    /* Inline edit */
+    .edit-input {
+      width:100%; box-sizing:border-box; padding:4px 6px;
+      font-size:14px; border:1px solid #ccc; border-radius:4px;
+      background: var(--input-bg); color: var(--input-text);
+    }
+
+    /* Multi-add */
+    #multiTypeTable {
+      width:100%; border-collapse:collapse; margin-bottom:8px;
+    }
+    #multiTypeTable th, #multiTypeTable td {
+      border:1px solid #ccc; padding:6px 8px; vertical-align:middle;
+    }
+    #multiTypeTable th:nth-child(1){width:80%;}
+    #multiTypeTable th:nth-child(2){width:20%;}
+    .row-controls {
+      display:flex; align-items:center; justify-content:center; gap:4px;
+    }
+    .row-add, .row-remove {
+      width:32px; height:32px;
+      display:flex; align-items:center; justify-content:center;
+      font-size:20px; background:none; border:none;
+      cursor:pointer; line-height:1;
+    }
+    .row-add { color:green; } .row-remove { color:red; }
+    .row-add:hover, .row-remove:hover { opacity:.7; }
+
+    /* Buttons */
+    .btn {
+      background:var(--btn-bg); color:var(--btn-text);
+      border:none; padding:8px 16px; border-radius:4px;
+      cursor:pointer; font-size:14px; line-height:1.4;
+      margin-right:8px;
+    }
+    .btn:hover { background:var(--btn-hover-bg); }
+
+    /* Dialog overlay */
+    #dialogOverlay {
+      position:fixed; top:0; left:0; right:0; bottom:0;
+      background:rgba(0,0,0,0.5); display:none;
+      align-items:center; justify-content:center; z-index:1000;
+    }
+    #dialogBox {
+      background: var(--bg-color); color: var(--text-color);
+      padding:20px; border-radius:8px; max-width:320px; text-align:center;
+    }
+    #dialogMessage { margin-bottom:20px; }
+    #dialogButtons button {
+      margin:0 8px; padding:6px 14px; border:none;
+      border-radius:4px; cursor:pointer;
+      background:var(--btn-bg); color:var(--btn-text);
+      line-height:1.4;
+    }
+    #dialogButtons button:hover { background:var(--btn-hover-bg); }
+  </style>
+</head>
+<body data-theme="system">
+
+  <div class="header-bar">
+    <h2>Manage Plant/Machinery Types</h2>
+    <span id="homeIcon" class="action-link" title="Home">🏠</span>
+  </div>
+
+  <!-- Live search -->
+  <div class="filters">
+    <input type="text" id="searchInput" placeholder="Filter types…">
+    <button id="clearSearch">Clear</button>
+  </div>
+
+  <!-- Existing Types -->
+  <section>
+    <h3>Existing Plant/Machinery Types</h3>
+    <table id="typesTable">
+      <thead>
+        <tr><th>Type Name</th><th>Actions</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- Multi-Add -->
+  <section>
+    <h3>Add New Types</h3>
+    <table id="multiTypeTable">
+      <thead>
+        <tr><th>Type Name</th><th> </th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><input type="text" class="m-name"></td>
+          <td>
+            <div class="row-controls">
+              <button class="row-add"    title="Add row">＋</button>
+              <button class="row-remove" title="Remove row">－</button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <div>
+      <button id="multiAddBtn" class="btn">Add All</button>
+      <button id="multiClearBtn" class="btn">Clear</button>
+    </div>
+  </section>
+
+  <!-- Confirm dialog -->
+  <div id="dialogOverlay">
+    <div id="dialogBox">
+      <div id="dialogMessage"></div>
+      <div id="dialogButtons">
+        <button id="btnYes">Yes</button>
+        <button id="btnNo">No</button>
+        <button id="btnOk">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/supabaseClient.js"></script>
+  <script type="module" src="js/machine-types.js"></script>
+</body>
+</html>

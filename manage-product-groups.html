@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Manage Product Groups</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: var(--bg-color);
+      color: var(--text-color);
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    h2 { margin: 0; color: #005a8d; }
+    #homeIcon { font-size: 24px; cursor: pointer; }
+
+    /* Filter bar */
+    .filter-bar {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .filter-bar select {
+      padding: 6px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .clear-link {
+      background: none;
+      border: none;
+      color: var(--btn-bg);
+      text-decoration: underline;
+      cursor: pointer;
+      padding: 0;
+      font: inherit;
+      outline: none;
+    }
+    .clear-link:hover { opacity: 0.7; background: none; }
+
+    /* Table */
+    table {
+      width:100%;
+      border-collapse:collapse;
+      margin-bottom:20px;
+    }
+    th, td {
+      border:1px solid #ccc;
+      padding:8px;
+      text-align:left;
+    }
+    th { background:#f2f2f2; }
+
+    /* Add section */
+    #addSection {
+      margin-bottom:20px;
+    }
+    #addSection h3 {
+      margin-bottom:8px;
+      color:#005a8d;
+    }
+    .add-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .add-row input {
+      flex: 1;
+      padding:6px;
+      font-size:14px;
+      border:1px solid #ccc;
+      border-radius:4px;
+    }
+    .btn {
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .btn:hover { background: var(--btn-hover-bg); }
+
+    /* Confirmation overlay */
+    .overlay {
+      position:fixed;
+      top:0; left:0; right:0; bottom:0;
+      background:rgba(0,0,0,0.5);
+      display:none;
+      justify-content:center;
+      align-items:center;
+      z-index:1000;
+    }
+    .modal {
+      background:white;
+      padding:20px;
+      border-radius:6px;
+      box-shadow:0 2px 10px rgba(0,0,0,0.3);
+      width:300px;
+    }
+    .modal p {
+      margin-bottom:20px;
+    }
+    .modal-actions {
+      display:flex;
+      justify-content:flex-end;
+      gap:8px;
+    }
+    .modal-actions button {
+      padding:6px 12px;
+      border:none;
+      border-radius:4px;
+      cursor:pointer;
+      font-size:14px;
+    }
+    .modal-actions .confirm {
+      background: var(--btn-bg);
+      color: var(--btn-text);
+    }
+    .modal-actions .cancel {
+      background: var(--btn-bg);
+      color: var(--btn-text);
+    }
+    .modal-actions .confirm:hover,
+    .modal-actions .cancel:hover {
+      background: var(--btn-hover-bg);
+    }
+
+    /* Inline action links */
+    .action-link {
+      color: blue;
+      cursor: pointer;
+      background: none;
+      border: none;
+      text-decoration: underline;
+      font-size: 14px;
+    }
+    .action-link:hover { opacity: 0.7; }
+  </style>
+</head>
+<body data-theme="system">
+
+  <header>
+    <h2>Manage Product Groups</h2>
+    <span id="homeIcon" title="Home">🏠</span>
+  </header>
+
+  <div class="filter-bar">
+    <select id="categorySelect">
+      <option value="">Category</option>
+    </select>
+    <select id="subcategorySelect" disabled>
+      <option value="">Sub-category</option>
+    </select>
+    <button id="clearFilters" class="clear-link">Clear</button>
+  </div>
+
+  <table id="groupTable">
+    <thead>
+      <tr>
+        <th>Product Group</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <section id="addSection">
+    <h3>Add New Product Group</h3>
+    <div class="add-row">
+      <input id="newGroupInput" placeholder="Product group name" />
+      <button id="addBtn" class="btn">Add</button>
+      <button id="clearNew" class="btn">Clear</button>
+    </div>
+  </section>
+
+  <!-- Confirmation Overlay -->
+  <div id="confirmOverlay" class="overlay">
+    <div class="modal">
+      <p id="confirmMsg"></p>
+      <div class="modal-actions">
+        <button id="confirmYes" class="confirm">Confirm</button>
+        <button id="confirmNo" class="cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/product-groups.js"></script>
+</body>
+</html>

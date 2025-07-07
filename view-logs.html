@@ -1,0 +1,208 @@
+<!-- view-logs.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SASV WORKSPACE | View Logs</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    body {
+      background: var(--bg-color);
+      color: var(--text-color);
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      transition: background 0.3s, color 0.3s;
+    }
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .header-bar h2 {
+      margin: 0;
+      color: var(--primary);
+    }
+    .action-link {
+      font-size: 32px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .action-link:hover { opacity: 0.7; }
+
+    /* Filters: responsive grid */
+    #filters .filters-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      max-width: 900px;
+      margin-bottom: 20px;
+    }
+    #filters label {
+      display: flex;
+      flex-direction: column;
+    }
+    #filters select {
+      height: 2rem;
+      margin-top: 4px;
+      padding: 2px 4px;
+    }
+    #filters button.clear-btn {
+      align-self: flex-end;
+      margin-top: 1.5rem;
+      padding: 6px 12px;
+      border: none;
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    #filters button.clear-btn:hover {
+      background: var(--btn-hover-bg);
+    }
+
+    /* Main table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    th, td {
+      padding: 8px;
+      border: 1px solid #ccc;
+    }
+    a.view-link {
+      color: var(--primary);
+      text-decoration: underline;
+      cursor: pointer;
+    }
+    a.view-link:hover {
+      color: var(--primary-hover);
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-box {
+      background: var(--panel-bg);
+      color: var(--text-color);
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 600px;
+      width: 90%;
+      max-height: 80vh;
+      overflow: auto;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+    .modal-box h3 {
+      margin-top: 0;
+      color: var(--primary);
+    }
+    .modal-box table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+    }
+    .modal-box th, .modal-box td {
+      padding: 6px;
+      border: 1px solid #ccc;
+      vertical-align: top;
+    }
+    .modal-actions {
+      text-align: right;
+      margin-top: 16px;
+    }
+    .modal-actions .btn {
+      padding: 6px 12px;
+      border: none;
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .modal-actions .btn:hover {
+      background: var(--btn-hover-bg);
+    }
+  </style>
+</head>
+<body data-theme="system">
+
+  <div class="header-bar">
+    <h2>View Logs</h2>
+    <span id="homeIcon" class="action-link" title="Home">🏠</span>
+  </div>
+
+  <section id="filters">
+    <div class="filters-grid">
+      <label>Section
+        <select id="filterSection"><option value="">Section</option></select>
+      </label>
+      <label>Sub-section
+        <select id="filterSubsection" disabled><option value="">Sub-section</option></select>
+      </label>
+      <label>Area
+        <select id="filterArea" disabled><option value="">Area</option></select>
+      </label>
+      <label>Plant / Machinery
+        <select id="filterPlant" disabled><option value="">Plant / Machinery</option></select>
+      </label>
+      <label>Item
+        <select id="filterItem"><option value="">Item</option></select>
+      </label>
+      <label>BN
+        <select id="filterBN" disabled><option value="">BN</option></select>
+      </label>
+      <label>Status
+        <select id="filterStatus">
+          <option value="">Status</option>
+          <option>Doing</option>
+          <option>Done</option>
+          <option>On Hold</option>
+        </select>
+      </label>
+      <button id="clearFilters" class="clear-btn">Clear</button>
+    </div>
+  </section>
+
+  <table id="logsTable">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Item</th>
+        <th>BN</th>
+        <th>Size</th>
+        <th>UOM</th>
+        <th>Activity</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="logsTableBody"></tbody>
+  </table>
+
+  <!-- DETAILS MODAL -->
+  <div id="viewOverlay" class="modal-overlay">
+    <div class="modal-box">
+      <h3>Log Entry Details</h3>
+      <table>
+        <tbody id="detailTable">
+          <!-- JS injects rows here -->
+        </tbody>
+      </table>
+      <div class="modal-actions">
+        <button id="closeView" class="btn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/log-view.js"></script>
+</body>
+</html>

@@ -1,0 +1,214 @@
+<!-- manage-categories.html -->
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>SASV WORKSPACE | Manage Categories</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* ===== Page layout ===== */
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .header-bar h2 {
+      margin: 0;
+      color: #005A8D;
+    }
+    #homeIcon {
+      font-size: 24px;
+      cursor: pointer;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    th, td {
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+    }
+    .action-link {
+      background: none;
+      border: none;
+      color: var(--btn-bg);
+      text-decoration: underline;
+      cursor: pointer;
+      font: inherit;
+      padding: 0;
+      margin: 0 4px;
+    }
+    .action-link:hover {
+      color: var(--btn-hover-bg);
+    }
+
+    /* ===== Add form ===== */
+    section {
+      margin-bottom: 30px;
+    }
+    section h3 {
+      margin-top: 0;
+      color: #005A8D;
+    }
+    form input[type="text"] {
+      padding: 6px;
+      font-size: 14px;
+      width: calc(100% - 120px);
+      box-sizing: border-box;
+    }
+    form button.btn {
+      padding: 6px 14px;
+      margin-left: 8px;
+    }
+
+    /* ===== Overlay for editing ===== */
+    #editOverlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    #editBox {
+      background: var(--bg-color);
+      color: var(--text-color);
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      width: 320px;
+    }
+    #editBox h3 {
+      margin-top: 0;
+    }
+    #editForm {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    #editInput {
+      padding: 8px;
+      font-size: 14px;
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: var(--input-bg);
+      color: var(--input-text);
+    }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    .modal-actions button {
+      padding: 6px 12px;
+      font-size: 14px;
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .modal-actions button:hover {
+      background: var(--btn-hover-bg);
+    }
+
+    /* ===== Overlay for confirmations ===== */
+    #confirmOverlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1001;
+    }
+    #confirmBox {
+      background: var(--bg-color);
+      color: var(--text-color);
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      width: 280px;
+      text-align: center;
+    }
+    #confirmBox p {
+      margin: 0 0 20px;
+      font-size: 16px;
+    }
+    #confirmBox button {
+      margin: 0 10px;
+      padding: 6px 12px;
+      font-size: 14px;
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #confirmBox button:hover {
+      background: var(--btn-hover-bg);
+    }
+  </style>
+</head>
+<body>
+  <!-- HEADER -->
+  <div class="header-bar">
+    <h2>Manage Categories</h2>
+    <span id="homeIcon" title="Home">🏠</span>
+  </div>
+
+  <!-- EXISTING CATEGORIES -->
+  <section>
+    <h3>Existing Categories</h3>
+    <table id="categoriesTable">
+      <thead>
+        <tr>
+          <th>Category Name</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody><!-- populated by JS --></tbody>
+    </table>
+  </section>
+
+  <!-- ADD NEW CATEGORY -->
+  <section>
+    <h3>Add Category</h3>
+    <form id="addCategoryForm">
+      <input type="text" name="category_name" placeholder="New category name" required />
+      <button type="submit" class="btn">Add Category</button>
+    </form>
+  </section>
+
+  <!-- EDIT OVERLAY -->
+  <div id="editOverlay">
+    <div id="editBox">
+      <h3>Edit Category</h3>
+      <form id="editForm">
+        <input id="editInput" name="edit_name" type="text" required />
+        <div class="modal-actions">
+          <button type="button" id="cancelEdit">Cancel</button>
+          <button type="submit" id="saveEdit">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- CONFIRM OVERLAY -->
+  <div id="confirmOverlay">
+    <div id="confirmBox">
+      <p id="confirmMessage"></p>
+      <button id="confirmYes">Yes</button>
+      <button id="confirmNo">No</button>
+    </div>
+  </div>
+
+  <!-- load as ES module -->
+  <script type="module" src="js/categories.js"></script>
+</body>
+</html>

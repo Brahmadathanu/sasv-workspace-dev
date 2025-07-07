@@ -1,0 +1,104 @@
+:root {
+  --primary: #005A8D;
+  --primary-hover: #004876;
+  --text-color: #333;
+  --bg-color: #f7f9fb;
+  --panel-bg: #ffffff;
+  --btn-bg: var(--primary);
+  --btn-text: #fff;
+  --btn-hover-bg: var(--primary-hover);
+}
+[data-theme="dark"] {
+  --bg-color: #1e1e1e;
+  --text-color: #e0e0e0;
+  --panel-bg: #2a2a2a;
+  --btn-bg: #3a3a3a;
+  --btn-text: #fff;
+  --btn-hover-bg: #555;
+}
+
+* { box-sizing:border-box; margin:0; padding:0; }
+body {
+  background: var(--bg-color);
+  color: var(--text-color);
+  font-family: Arial, sans-serif;
+  padding: 20px;
+  transition: background 0.3s, color 0.3s;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 16px;
+}
+h1 {
+  color: var(--primary);
+  font-size: 2em;
+}
+#userBar {
+  font-size: 0.9em;
+  margin-top: 4px;
+}
+#userBar a {
+  color: var(--primary);
+  text-decoration: underline;
+}
+#userBar a:hover { opacity: 0.8; }
+
+.panel {
+  background: var(--panel-bg);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 32px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.panel h2 {
+  margin-bottom: 12px;
+  color: var(--primary);
+  font-size: 1.3em;
+}
+
+.module-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.module-link {
+  display: inline-block;
+  padding: 8px 16px;
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  text-decoration: none;
+  border-radius: 20px;
+  font-size: 0.95em;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+.module-link:hover {
+  background: var(--btn-hover-bg);
+}
+
+/* ──────────────────────────────────────────────────────────────────────────── */
+/* Reports-module button override – only affects buttons inside `.reports-grid` */
+.reports-grid .btn-report {
+  display: block;
+  width: 100%;
+  padding: 1rem;
+  background-color: var(--btn-bg);
+  color: var(--btn-text);
+  text-align: center;
+  text-decoration: none;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 500;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  transition: background-color 0.2s, transform 0.1s;
+  cursor: pointer;
+}
+.reports-grid .btn-report:hover {
+  background-color: var(--btn-hover-bg);
+  transform: translateY(-2px);
+}
+.reports-grid .btn-report:active {
+  transform: translateY(0);
+}
