@@ -1,104 +1,168 @@
+/* ────────────────────────────────────────────────────────────────────────────
+   VARIABLES
+───────────────────────────────────────────────────────────────────────────── */
 :root {
-  --primary: #005A8D;
-  --primary-hover: #004876;
-  --text-color: #333;
-  --bg-color: #f7f9fb;
-  --panel-bg: #ffffff;
-  --btn-bg: var(--primary);
-  --btn-text: #fff;
-  --btn-hover-bg: var(--primary-hover);
-}
-[data-theme="dark"] {
-  --bg-color: #1e1e1e;
-  --text-color: #e0e0e0;
-  --panel-bg: #2a2a2a;
-  --btn-bg: #3a3a3a;
-  --btn-text: #fff;
-  --btn-hover-bg: #555;
+  --primary:               #005A8D;
+  --primary-hover:         #004876;
+
+  --text-color:            #333;
+  --bg-color:              #f7f9fb;
+  --panel-bg:              #ffffff;
+
+  --btn-bg:                var(--primary);
+  --btn-text:              #fff;
+  --btn-hover-bg:          var(--primary-hover);
+
+  --home-btn-bg:           #D32F2F;
+  --home-btn-hover-bg:     #B71C1C;
 }
 
-* { box-sizing:border-box; margin:0; padding:0; }
+[data-theme="dark"] {
+  --bg-color:              #1e1e1e;
+  --text-color:            #e0e0e0;
+  --panel-bg:              #2a2a2a;
+
+  --btn-bg:                #3a3a3a;
+  --btn-hover-bg:          #555;
+
+  /* Dark-mode home button variants */
+  --home-btn-bg:           #B71C1C;
+  --home-btn-hover-bg:     #A52714;
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   GLOBAL RESET & BASE
+───────────────────────────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 body {
+  margin: 0;
+  padding: 20px;
+  font-family: Arial, sans-serif;
   background: var(--bg-color);
   color: var(--text-color);
-  font-family: Arial, sans-serif;
-  padding: 20px;
   transition: background 0.3s, color 0.3s;
 }
 
+button {
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   TYPOGRAPHY & LAYOUT
+───────────────────────────────────────────────────────────────────────────── */
 header {
   text-align: center;
   margin-bottom: 16px;
 }
+
 h1 {
-  color: var(--primary);
+  margin: 0;
   font-size: 2em;
+  color: var(--primary);
 }
+
 #userBar {
-  font-size: 0.9em;
   margin-top: 4px;
+  font-size: 0.9em;
 }
+
 #userBar a {
   color: var(--primary);
   text-decoration: underline;
 }
-#userBar a:hover { opacity: 0.8; }
 
+#userBar a:hover {
+  opacity: 0.8;
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   HOME BUTTON
+───────────────────────────────────────────────────────────────────────────── */
+#homeBtn {
+  background:      var(--home-btn-bg);
+  color:           var(--btn-text);
+  border:          none;
+  padding:         8px 12px;
+  border-radius:   4px;
+  font-size:       1rem;
+}
+
+#homeBtn:hover {
+  background: var(--home-btn-hover-bg);
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   PANELS
+───────────────────────────────────────────────────────────────────────────── */
 .panel {
-  background: var(--panel-bg);
-  border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 32px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-}
-.panel h2 {
-  margin-bottom: 12px;
-  color: var(--primary);
-  font-size: 1.3em;
+  background:      var(--panel-bg);
+  border-radius:   8px;
+  padding:         20px;
+  margin-bottom:   32px;
+  box-shadow:      0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
+.panel h2 {
+  margin:         0 0 12px;
+  font-size:      1.3em;
+  color:          var(--primary);
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   MODULE LINKS
+───────────────────────────────────────────────────────────────────────────── */
 .module-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
+  display:         flex;
+  flex-wrap:       wrap;
+  gap:             12px;
 }
+
 .module-link {
-  display: inline-block;
-  padding: 8px 16px;
-  background: var(--btn-bg);
-  color: var(--btn-text);
+  display:         inline-block;
+  padding:         8px 16px;
+  background:      var(--btn-bg);
+  color:           var(--btn-text);
   text-decoration: none;
-  border-radius: 20px;
-  font-size: 0.95em;
-  transition: background 0.2s;
-  white-space: nowrap;
+  border-radius:   20px;
+  font-size:       0.95em;
+  white-space:     nowrap;
 }
+
 .module-link:hover {
   background: var(--btn-hover-bg);
 }
 
-/* ──────────────────────────────────────────────────────────────────────────── */
-/* Reports-module button override – only affects buttons inside `.reports-grid` */
+/* ────────────────────────────────────────────────────────────────────────────
+   REPORTS MODULE BUTTON
+───────────────────────────────────────────────────────────────────────────── */
 .reports-grid .btn-report {
-  display: block;
-  width: 100%;
-  padding: 1rem;
-  background-color: var(--btn-bg);
-  color: var(--btn-text);
-  text-align: center;
-  text-decoration: none;
-  border: none;
-  border-radius: 6px;
-  font-size: 1rem;
-  font-weight: 500;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-  transition: background-color 0.2s, transform 0.1s;
-  cursor: pointer;
+  display:           block;
+  width:             100%;
+  padding:           1rem;
+  background:        var(--btn-bg);
+  color:             var(--btn-text);
+  text-align:        center;
+  text-decoration:   none;
+  border:            none;
+  border-radius:     6px;
+  font-size:         1rem;
+  font-weight:       500;
+  box-shadow:        0 2px 6px rgba(0, 0, 0, 0.15);
+  transform:         translateY(0);
 }
+
 .reports-grid .btn-report:hover {
-  background-color: var(--btn-hover-bg);
-  transform: translateY(-2px);
+  background: var(--btn-hover-bg);
+  transform:  translateY(-2px);
 }
+
 .reports-grid .btn-report:active {
   transform: translateY(0);
 }
