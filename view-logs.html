@@ -23,13 +23,6 @@
       margin: 0;
       color: var(--primary);
     }
-    .action-link {
-      font-size: 32px;
-      cursor: pointer;
-      transition: opacity 0.2s;
-    }
-    .action-link:hover { opacity: 0.7; }
-
     /* Filters: responsive grid */
     #filters .filters-grid {
       display: grid;
@@ -46,6 +39,8 @@
       height: 2rem;
       margin-top: 4px;
       padding: 2px 4px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
     }
     #filters button.clear-btn {
       align-self: flex-end;
@@ -138,7 +133,7 @@
 
   <div class="header-bar">
     <h2>View Logs</h2>
-    <span id="homeIcon" class="action-link" title="Home">🏠</span>
+    <button id="homeBtn">HOME</button>
   </div>
 
   <section id="filters">
@@ -193,9 +188,7 @@
     <div class="modal-box">
       <h3>Log Entry Details</h3>
       <table>
-        <tbody id="detailTable">
-          <!-- JS injects rows here -->
-        </tbody>
+        <tbody id="detailTable"><!-- JS injects rows here --></tbody>
       </table>
       <div class="modal-actions">
         <button id="closeView" class="btn">Close</button>
