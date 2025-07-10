@@ -115,6 +115,9 @@
       border: 1px solid #ccc;
       text-align: left;
     }
+    td input[type="number"] {
+      width: 4em;
+    }
   </style>
 </head>
 <body data-theme="system">
@@ -309,12 +312,11 @@
       </label>
     </div>
 
-    <!-- Action buttons -->
     <button type="submit" class="icon-button">Submit Log</button>
     <button type="button" id="btnSubmitNew" class="icon-button">Submit & New</button>
   </form>
 
-  <!-- Dialog for alerts/confirms -->
+  <!-- Dialog overlay -->
   <div id="dialogOverlay">
     <div id="dialogBox">
       <div id="dialogMessage"></div>

@@ -1,3 +1,4 @@
+<!-- reports.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -24,15 +25,10 @@
       color: var(--primary);
       font-size: 1.75rem;
     }
-    .action-link {
-      font-size: 32px;
-      cursor: pointer;
-      user-select: none;
-      transition: opacity 0.2s;
-    }
-    .action-link:hover {
-      opacity: 0.7;
-    }
+
+    /* Use your global #homeBtn styles */
+    /* ──────────────────────────────────────────────────────────────────── */
+    /* #homeBtn is defined in your main css as a red button */
 
     /* ─── Grid: max 3 columns, then 2, then 1 ──────────────────────────── */
     .reports-grid {
@@ -80,7 +76,8 @@
 
   <div class="header-bar">
     <h2>Reports</h2>
-    <span id="homeIcon" class="action-link" title="Home">🏠</span>
+    <!-- replaced span with styled button -->
+    <button id="homeBtn" title="Home">HOME</button>
   </div>
 
   <div class="reports-grid">

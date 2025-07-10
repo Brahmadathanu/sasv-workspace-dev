@@ -3,173 +3,181 @@
 <head>
   <meta charset="UTF-8">
   <title>SASV WORKSPACE | WIP Stock</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="css/style.css">
-  <style>
-    body {
-      background: var(--bg-color);
-      color: var(--text-color);
-      font-family: Arial, sans-serif;
-      margin: 20px;
-      transition: background 0.3s, color 0.3s;
-    }
-    .header-bar {
-      display: flex; justify-content: space-between; align-items: center;
-      margin-bottom: 20px;
-    }
-    .header-bar h2 { margin:0; color: var(--primary); }
-    .action-link {
-      font-size:32px; cursor:pointer; user-select:none; transition:opacity .2s;
-    }
-    .action-link:hover { opacity:.7; }
 
-    /* Filters */
-    #filters {
-      display: flex; flex-wrap: wrap; gap: 20px;
-      margin-bottom: 20px;
+  <style>
+    /* ——— Layout base —————————————————————————— */
+    body{
+      margin:20px;
+      font-family:Arial, sans-serif;
+      background:var(--bg-color);
+      color:var(--text-color);
+      transition:background .3s, color .3s;
     }
-    .filter-control {
-      flex: 1 1 200px; min-width: 150px;
-      display: flex; flex-direction: column;
+
+    /* ——— Header bar —————————————————————————— */
+    .header-bar{
+      display:flex; justify-content:space-between;
+      align-items:center; margin-bottom:20px;
     }
-    .filter-control label { margin-bottom:4px; font-weight:500; }
-    .filter-control select {
-      height:2rem;
-      padding:6px 8px; font-size:14px;
+    .header-bar h2{
+      margin:0; font-size:1.5rem; color:var(--primary);
+    }
+    #homeBtn{
+      background:var(--home-btn-bg); color:var(--btn-text);
+      border:none; padding:8px 16px; border-radius:4px;
+      font-size:1rem; cursor:pointer; transition:background .2s;
+    }
+    #homeBtn:hover{ background:var(--home-btn-hover-bg); }
+
+    /* ——— Filters ———————————————————————————— */
+    #filters{
+      display:flex; flex-wrap:wrap; gap:16px;   /* slightly tighter gap */
+      margin-bottom:20px;
+    }
+    .filter-control{
+      flex:1 1 180px; min-width:140px;
+      display:flex; flex-direction:column;
+    }
+    .filter-control label{ margin-bottom:4px; font-weight:500; }
+    .filter-control select{
+      height:2rem; padding:6px 8px; font-size:14px;
       border:1px solid #ccc; border-radius:4px;
       background:var(--input-bg); color:var(--input-text);
     }
-    .filter-control.checkbox {
-      flex-direction: row; align-items: center;
+    .filter-control.checkbox{
+      flex-direction:row; align-items:center;
     }
-    .filter-control.checkbox input {
+    .filter-control.checkbox input{
       margin-right:8px; transform:scale(1.2);
     }
-    .filter-control.button {
-      justify-content: flex-end; align-items: flex-end;
+    .filter-control.button{
+      justify-content:flex-end; align-items:flex-end;
     }
-    .filter-control.button button {
-      padding:6px 12px; border:none;
+    .filter-control.button button{
+      padding:6px 12px; border:none; cursor:pointer;
       background:var(--btn-bg); color:var(--btn-text);
-      border-radius:4px; cursor:pointer; font-size:14px;
+      border-radius:4px; font-size:14px;
     }
-    .filter-control.button button:hover {
+    .filter-control.button button:hover{
       background:var(--btn-hover-bg);
     }
 
-    /* Export links */
-    #exportLinks {
-      display: flex; justify-content: space-between;
-      align-items: center; margin-bottom:8px;
+    /* ——— Export links ————————————————————————— */
+    #exportLinks{
+      display:flex; justify-content:space-between;
+      align-items:center; margin-bottom:8px;
     }
-    #exportLinks a {
-      color: var(--primary); text-decoration:underline; cursor:pointer;
-      font-size:14px;
+    #exportLinks a{
+      color:var(--primary); text-decoration:underline;
+      cursor:pointer; font-size:14px;
     }
-    #exportLinks a:hover { color: var(--primary-hover); }
+    #exportLinks a:hover{ color:var(--primary-hover); }
 
-    /* Table */
-    #wipTableContainer {
-      max-height:500px; overflow-y:auto;
-      margin-bottom:20px; border:1px solid #ccc;
+    /* ——— Table & container ———————————————————— */
+    #wipTableContainer{
+      width:100%;
+      /* fills viewport minus header / filters / margins */
+      max-height:calc(100vh - 320px);
+      overflow-y:auto; border:1px solid #ccc;
     }
-    #wipTable {
-      width:100%; border-collapse:collapse;
-    }
-    #wipTable th, #wipTable td {
+    #wipTable{ width:100%; border-collapse:collapse; }
+    #wipTable th, #wipTable td{
       padding:8px; border:1px solid #ccc; vertical-align:middle;
     }
-    #wipTable th {
-      text-align:center; position:sticky; top:0;
-      background:var(--bg-color); z-index:1;
+    #wipTable th{
+      background:var(--panel-bg);               /* matches theme */
+      position:sticky; top:0; z-index:1; text-align:center;
     }
-    #wipTable td { text-align:center; }
-    #wipTable td:nth-child(2) { text-align:left; }
+    #wipTable td{ text-align:center; }
+    #wipTable td:nth-child(2){ text-align:left; }
 
-    a.view-link {
-      color: var(--primary); text-decoration:underline; cursor:pointer;
+    a.view-link{
+      color:var(--primary); text-decoration:underline; cursor:pointer;
     }
-    a.view-link:hover { color: var(--primary-hover); }
+    a.view-link:hover{ color:var(--primary-hover); }
 
-    /* Modal */
-    .modal-overlay {
-      position:fixed; top:0; left:0; right:0; bottom:0;
-      background:rgba(0,0,0,0.4);
+    /* ——— Modal —————————————————————————————— */
+    .modal-overlay{
+      position:fixed; inset:0;
+      background:rgba(0,0,0,.4);
       display:none; align-items:center; justify-content:center;
       z-index:1000;
     }
-    .modal-box {
+    .modal-box{
       background:var(--panel-bg); color:var(--text-color);
-      padding:20px; border-radius:8px;
-      max-width:600px; width:90%; max-height:80%; overflow:auto;
-      box-shadow:0 2px 10px rgba(0,0,0,0.3);
+      padding:20px; border-radius:8px; width:90%; max-width:600px;
+      max-height:80%; overflow:auto; box-shadow:0 2px 10px rgba(0,0,0,.3);
     }
-    .modal-box h3 {
-      margin-top:0; color: var(--primary);
+    .modal-box h3{ margin:0 0 12px; color:var(--primary); }
+    .modal-box table{ width:100%; border-collapse:collapse; }
+    .modal-box th, .modal-box td{
+      padding:6px; border:1px solid #ccc; text-align:left;
     }
-    .modal-box table {
-      width:100%; border-collapse:collapse; margin-top:12px;
-    }
-    .modal-box th, .modal-box td {
-      padding:6px; border:1px solid #ccc; vertical-align:top;
-      text-align:left;
-    }
-    .modal-actions {
-      text-align:right; margin-top:12px;
-    }
-    .modal-actions .btn {
-      padding:6px 12px; border:none;
+    .modal-actions{ text-align:right; margin-top:12px; }
+    .modal-actions .btn{
+      padding:6px 12px; border:none; cursor:pointer;
       background:var(--btn-bg); color:var(--btn-text);
-      border-radius:4px; cursor:pointer;
+      border-radius:4px;
     }
-    .modal-actions .btn:hover { background:var(--btn-hover-bg); }
+    .modal-actions .btn:hover{ background:var(--btn-hover-bg); }
   </style>
 </head>
 <body data-theme="system">
 
+  <!-- ===== HEADER ====================================================== -->
   <div class="header-bar">
     <h2>WIP Stock</h2>
-    <span id="homeIcon" class="action-link" title="Home">🏠</span>
+    <button id="homeBtn">HOME</button>
   </div>
 
+  <!-- ===== FILTERS ===================================================== -->
   <section id="filters">
     <div class="filter-control">
       <label for="filterSection">Section</label>
       <select id="filterSection"><option value="">Section</option></select>
     </div>
+
     <div class="filter-control">
       <label for="filterSubsection">Sub-section</label>
-      <select id="filterSubsection" disabled><option value="">Sub-section</option></select>
+      <select id="filterSubsection" disabled>
+        <option value="">Sub-section</option>
+      </select>
     </div>
+
     <div class="filter-control">
       <label for="filterArea">Area</label>
       <select id="filterArea" disabled><option value="">Area</option></select>
     </div>
-    <div class="filter-control">
-      <label for="filterPlant">Plant/Machinery</label>
-      <select id="filterPlant" disabled><option value="">Plant/Machinery</option></select>
-    </div>
+
     <div class="filter-control">
       <label for="filterItem">Item</label>
       <select id="filterItem"><option value="">Item</option></select>
     </div>
+
     <div class="filter-control">
       <label for="filterBN">BN</label>
       <select id="filterBN" disabled><option value="">BN</option></select>
     </div>
+
     <div class="filter-control checkbox">
       <input type="checkbox" id="filterOverdue">
-      <label for="filterOverdue" style="margin:0;">Over Due</label>
+      <label for="filterOverdue">Over&nbsp;Due</label>
     </div>
+
     <div class="filter-control button">
       <button id="clearFilters">Clear</button>
     </div>
   </section>
 
+  <!-- ===== EXPORT LINKS ================================================= -->
   <div id="exportLinks">
     <a id="downloadCsv">Download as CSV</a>
     <a id="downloadPdf">Download as PDF</a>
   </div>
 
+  <!-- ===== WIP TABLE ==================================================== -->
   <div id="wipTableContainer">
     <table id="wipTable">
       <thead>
@@ -189,7 +197,7 @@
     </table>
   </div>
 
-  <!-- DETAILS MODAL -->
+  <!-- ===== DETAILS MODAL =============================================== -->
   <div id="wipOverlay" class="modal-overlay">
     <div class="modal-box">
       <h3>Log Entry Details</h3>
@@ -202,7 +210,7 @@
     </div>
   </div>
 
-  <!-- jsPDF & AutoTable -->
+  <!-- ===== SCRIPTS ====================================================== -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
   <script type="module" src="js/wip-stock.js"></script>

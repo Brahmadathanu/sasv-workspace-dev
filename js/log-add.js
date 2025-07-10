@@ -44,7 +44,7 @@ const skuActivities = [
   'capsule monocarton packing'
 ];
 
-// ── Modal helpers ──────────────────────────────────────────────────────
+// ── Modal helpers ────────────────────────────────────────────────
 function showAlert(msg) {
   return new Promise(res => {
     dialogMessage.textContent = msg;
@@ -58,6 +58,7 @@ function showAlert(msg) {
     };
   });
 }
+
 function askConfirm(msg) {
   return new Promise(res => {
     dialogMessage.textContent = msg;
@@ -70,18 +71,17 @@ function askConfirm(msg) {
   });
 }
 
-// ── Populate helpers ───────────────────────────────────────────────────
+// ── Populate helpers ─────────────────────────────────────────────
 function populate(sel, rows, vKey, tKey, placeholder) {
-  sel.innerHTML = `<option value="">${placeholder}</option>`
-    + rows.map(r => `<option value="${r[vKey]}">${r[tKey]}</option>`).join('');
-}
-function populateDataList(dl, items, key) {
-  dl.innerHTML = items
-    .map(i => `<option value="${i[key]}" style="font-weight:normal">`)
-    .join('');
+  sel.innerHTML = `<option value="">${placeholder}</option>` +
+    rows.map(r => `<option value="${r[vKey]}">${r[tKey]}</option>`).join('');
 }
 
-// ── Date helpers ───────────────────────────────────────────────────────
+function populateDataList(dl, items, key) {
+  dl.innerHTML = items.map(i => `<option value="${i[key]}" style="font-weight:normal">`).join('');
+}
+
+// ── Date helpers ──────────────────────────────────────────────────
 function computeDueFrom(start, days) {
   const d = new Date(start);
   let added = 0;
@@ -91,6 +91,7 @@ function computeDueFrom(start, days) {
   }
   return d.toISOString().slice(0,10);
 }
+
 function updateDueDate() {
   const act = activitySel.value, st = startInput.value;
   dueInput.value = (act && st && lastDurations[act] != null)
@@ -98,7 +99,7 @@ function updateDueDate() {
     : '';
 }
 
-// ── Render SKU & Transfer tables ───────────────────────────────────────
+// ── Render SKU table ─────────────────────────────────────────────
 function renderSkuTable() {
   skuTableBody.innerHTML = '';
   currentItemSkus.forEach(sku => {
@@ -110,6 +111,8 @@ function renderSkuTable() {
     skuTableBody.append(tr);
   });
 }
+
+// ── Render Transfer table ────────────────────────────────────────
 async function renderTransferTable() {
   transferTableBody.innerHTML = '';
   if (!batchSel.value) return;
@@ -129,46 +132,47 @@ async function renderTransferTable() {
   });
 }
 
-// ── Show/hide conditional sections ─────────────────────────────────────
+// ── Show/hide conditional sections ───────────────────────────────
 function updateSections() {
   const actNorm = (activitySel.value || '').trim().toLowerCase();
   const done    = statusSel.value === 'Done';
 
-  compOnSection.style.display      = done ? 'block' : 'none';
-  postProcSection.style.display    = (done
+  compOnSection.style.display    = done ? 'block' : 'none';
+  postProcSection.style.display  = done
     && !skuActivities.includes(actNorm)
     && actNorm !== 'transfer to fg store'
-    && actNorm !== 'finished goods quality assessment')
-    ? 'block' : 'none';
-  labRefSection.style.display      = (done && actNorm === 'finished goods quality assessment') ? 'block' : 'none';
-  skuSection.style.display         = (done && skuActivities.includes(actNorm))            ? 'block' : 'none';
-  transferSection.style.display    = (done && actNorm === 'transfer to fg store')         ? 'block' : 'none';
+    && actNorm !== 'finished goods quality assessment'
+      ? 'block' : 'none';
+  labRefSection.style.display    = (done && actNorm === 'finished goods quality assessment') ? 'block' : 'none';
+  skuSection.style.display       = (done && skuActivities.includes(actNorm))            ? 'block' : 'none';
+  transferSection.style.display  = (done && actNorm === 'transfer to fg store')         ? 'block' : 'none';
 
-  if (done && skuActivities.includes(actNorm))   renderSkuTable();
+  if (done && skuActivities.includes(actNorm))    renderSkuTable();
   if (done && actNorm === 'transfer to fg store') renderTransferTable();
 }
 
-// ── Load activities for section/sub/area ─────────────────────────────
+// ── Load activities ─────────────────────────────────────────────
 async function loadActivities() {
   activitySel.disabled = true;
   activitySel.innerHTML = '<option>-- Select Activity --</option>';
   let q = supabase.from('activities').select('activity_name,duration_days');
   if      (areaSel.value)    q = q.eq('area_id', areaSel.value);
   else if (subSel.value)     q = q.eq('sub_section_id', subSel.value).is('area_id', null);
-  else if (sectionSel.value) q = q.eq('section_id', sectionSel.value).is('sub_section_id', null).is('area_id', null);
+  else if (sectionSel.value) q = q.eq('section_id', sectionSel.value)
+                                    .is('sub_section_id', null)
+                                    .is('area_id', null);
   else return;
-
   const { data, error } = await q.order('activity_name');
   if (error) return console.error(error);
   lastDurations = {};
   data.forEach(r => lastDurations[r.activity_name] = r.duration_days);
   if (data.length) {
-    populate(activitySel, data, 'activity_name','activity_name','-- Select Activity --');
+    populate(activitySel, data, 'activity_name', 'activity_name', '-- Select Activity --');
     activitySel.disabled = false;
   }
 }
 
-// ── Carry-forward item & batch via URL ─────────────────────────────────
+// ── Carry-forward via URL ───────────────────────────────────────
 function applyCarryForward() {
   const p = new URLSearchParams(window.location.search);
   if (p.has('prefill_item')) {
@@ -178,28 +182,29 @@ function applyCarryForward() {
   if (p.has('prefill_bn')) {
     const bn = p.get('prefill_bn');
     const iv = setInterval(() => {
-      if (!batchSel.disabled && Array.from(batchSel.options).some(o => o.value === bn)) {
-        batchSel.value = bn;
-        batchSel.dispatchEvent(new Event('change'));
-        clearInterval(iv);
-      }
+      if (!Array.from(batchSel.options).some(o => o.value === bn)) return;
+      batchSel.value = bn;
+      batchSel.dispatchEvent(new Event('change'));
+      clearInterval(iv);
     }, 100);
   }
 }
 
-// ── INITIAL SETUP ─────────────────────────────────────────────────────
+// ── INITIAL SETUP ───────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
-  // fetch user
-  const { data:{ user } } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
   if (user) currentUserEmail = user.email;
 
   homeBtn.onclick = async () => {
     if (dirty && !await askConfirm('Unsaved changes—leave?')) return;
-    location.href = 'index.html';
+    window.location.href = 'index.html';
   };
-  btnSubmitNew.onclick = e => { e.preventDefault(); handleSubmit(true); };
 
-  // disable downstream
+  btnSubmitNew.onclick = e => {
+    e.preventDefault();
+    handleSubmit(true);
+  };
+
   [ subSel, areaSel, plantSel, batchSel, activitySel ].forEach(el => {
     el.disabled = true;
     el.innerHTML = '';
@@ -211,8 +216,9 @@ window.addEventListener('DOMContentLoaded', async () => {
       .from('sections')
       .select('id,section_name')
       .order('section_name');
-    if (!error) populate(sectionSel, data, 'id','section_name','-- Select Section --');
+    if (!error) populate(sectionSel, data, 'id', 'section_name', '-- Select Section --');
   }
+
   // load Items
   {
     const { data, error } = await supabase
@@ -229,7 +235,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   updateSections();
 });
 
-// ── Cascading selects ─────────────────────────────────────────────────
+// ── Cascading selects ───────────────────────────────────────────
 sectionSel.addEventListener('change', async () => {
   [ subSel, areaSel, plantSel, activitySel ].forEach(el => {
     el.disabled = true;
@@ -243,7 +249,7 @@ sectionSel.addEventListener('change', async () => {
     .eq('section_id', sectionSel.value)
     .order('subsection_name');
   if (!error && data.length) {
-    populate(subSel, data, 'id','subsection_name','-- Select Sub-section --');
+    populate(subSel, data, 'id', 'subsection_name', '-- Select Sub-section --');
     subSel.disabled = false;
   }
 });
@@ -262,7 +268,7 @@ subSel.addEventListener('change', async () => {
     .eq('subsection_id', subSel.value)
     .order('area_name');
   if (!error && data.length) {
-    populate(areaSel, data, 'id','area_name','-- Select Area --');
+    populate(areaSel, data, 'id', 'area_name', '-- Select Area --');
     areaSel.disabled = false;
   }
 });
@@ -280,12 +286,12 @@ areaSel.addEventListener('change', async () => {
     .eq('area_id', areaSel.value)
     .order('plant_name');
   if (!error && data.length) {
-    populate(plantSel, data, 'id','plant_name','-- Select Plant/Machinery --');
+    populate(plantSel, data, 'id', 'plant_name', '-- Select Plant/Machinery --');
     plantSel.disabled = false;
   }
 });
 
-// ── Item → Batch + SKUs ──────────────────────────────────────────────
+// ── Item → Batch + SKUs ─────────────────────────────────────────
 itemInput.addEventListener('change', async () => {
   if (!Array.from(itemList.options).map(o => o.value).includes(itemInput.value)) {
     await showAlert('Please select a valid item.');
@@ -296,6 +302,7 @@ itemInput.addEventListener('change', async () => {
     updateSections();
     return;
   }
+
   // batches
   const { data: bns } = await supabase
     .from('bmr_details')
@@ -303,7 +310,7 @@ itemInput.addEventListener('change', async () => {
     .eq('item', itemInput.value)
     .order('bn');
   const uniq = [...new Set(bns.map(r => r.bn))].map(bn => ({ bn }));
-  populate(batchSel, uniq, 'bn','bn','-- Select Batch Number --');
+  populate(batchSel, uniq, 'bn', 'bn', '-- Select Batch Number --');
   batchSel.disabled = !uniq.length;
 
   // SKUs
@@ -323,6 +330,7 @@ itemInput.addEventListener('change', async () => {
   } else {
     currentItemSkus = [];
   }
+
   updateSections();
 });
 
@@ -343,7 +351,7 @@ batchSel.addEventListener('change', async () => {
   updateSections();
 });
 
-// ── Activity change + QA guard ───────────────────────────────────────
+// ── Activity change + QA guard ───────────────────────────────────
 activitySel.addEventListener('change', async () => {
   const actNorm = (activitySel.value || '').trim().toLowerCase();
   if (skuActivities.includes(actNorm) && itemInput.value && batchSel.value) {
@@ -352,8 +360,8 @@ activitySel.addEventListener('change', async () => {
       .select('id')
       .eq('item', itemInput.value)
       .eq('batch_number', batchSel.value)
-      .eq('activity','Finished Goods Quality Assessment')
-      .eq('status','Done')
+      .eq('activity', 'Finished Goods Quality Assessment')
+      .eq('status', 'Done')
       .limit(1);
     if (!qa || qa.length === 0) {
       await showAlert('Finished Goods Quality Assessment not completed for this batch. Please complete QA first.');
@@ -364,7 +372,7 @@ activitySel.addEventListener('change', async () => {
   updateSections();
 });
 
-// ── Status & Started On listeners ───────────────────────────────────
+// ── Status & Started On listeners ───────────────────────────────
 statusSel.addEventListener('change', () => {
   if (statusSel.value === 'Done') {
     const c = form.querySelector('[name="completed_on"]');
@@ -374,14 +382,47 @@ statusSel.addEventListener('change', () => {
 });
 startInput.addEventListener('change', updateDueDate);
 
-// ── Track dirty ─────────────────────────────────────────────────────
+// ── Track dirty ─────────────────────────────────────────────────
 form.addEventListener('input', () => { dirty = true; });
 
-// ── Submit logic ─────────────────────────────────────────────────────
+// ── Submit logic ────────────────────────────────────────────────
 async function handleSubmit(isNew) {
-  if (dirty) dirty = false;
+  // Browser built-in validation
+  if (!form.checkValidity()) {
+    form.reportValidity();
+    return;
+  }
 
-  // build base row
+  const actNorm    = (activitySel.value || '').trim().toLowerCase();
+  const isTransfer = actNorm === 'transfer to fg store';
+  const isDone     = statusSel.value === 'Done';
+
+  // Transfer Qty must be > 0
+  if (isDone && isTransfer) {
+    const inputs = Array.from(transferTableBody.querySelectorAll('input[type="number"]'));
+    if (!inputs.some(i => Number(i.value) > 0)) {
+      inputs[0].setCustomValidity('Enter a Transfer Qty greater than zero.');
+      inputs[0].reportValidity();
+      inputs[0].setCustomValidity('');
+      return;
+    }
+  }
+
+  // Transfer Qty ≤ on-hand
+  if (isDone && isTransfer) {
+    for (const inp of transferTableBody.querySelectorAll('input[type="number"]')) {
+      const cnt = Number(inp.value) || 0;
+      const max = Number(inp.max) || 0;
+      if (cnt > max) {
+        inp.setCustomValidity(`Cannot exceed on-hand (${max}).`);
+        inp.reportValidity();
+        inp.setCustomValidity('');
+        return;
+      }
+    }
+  }
+
+  // Build payload skeleton
   const row = {
     log_date:            form.log_date.value,
     section_id:          sectionSel.value,
@@ -411,24 +452,26 @@ async function handleSubmit(isNew) {
     uploaded_by:         currentUserEmail
   };
 
-  const actNorm = row.activity.trim().toLowerCase();
-
-  // make qty mandatory for non-packaging/transfer/QA when done
-  if (row.status==='Done'
+  // OPTIONAL qty_after_process check with confirm
+  if (isDone
       && !skuActivities.includes(actNorm)
-      && actNorm!=='transfer to fg store'
-      && actNorm!=='finished goods quality assessment') {
+      && actNorm !== 'transfer to fg store'
+      && actNorm !== 'finished goods quality assessment') {
     const qv = form.querySelector('[name="qty_after_process"]').value;
     const uv = form.querySelector('[name="qty_after_process_uom"]').value;
     if (!qv || !uv) {
-      return showAlert('Please fill Qty after Process & UOM for this activity.');
+      const proceed = await askConfirm(
+        'You have not provided Qty After Process & UOM. If this is the final process at this section, it\'s required. Do you want to submit without these details?'
+      );
+      if (!proceed) return;
+    } else {
+      row.qty_after_process = qv;
+      row.qty_uom           = uv;
     }
-    row.qty_after_process = qv;
-    row.qty_uom           = uv;
   }
 
   // SKU breakdown for packaging
-  if (row.status==='Done' && skuActivities.includes(actNorm)) {
+  if (isDone && skuActivities.includes(actNorm)) {
     const parts = Array.from(skuTableBody.querySelectorAll('input')).map(i => {
       const cnt = Number(i.value);
       if (!cnt) return null;
@@ -439,10 +482,21 @@ async function handleSubmit(isNew) {
     row.qty_uom       = 'Nos';
   }
 
-  // insert base log
+  // SKU breakdown for transfer
+  if (isDone && isTransfer) {
+    const parts = Array.from(transferTableBody.querySelectorAll('input')).map(i => {
+      const cnt = Number(i.value);
+      if (!cnt) return null;
+      const sku = currentItemSkus.find(s => s.id == i.dataset.skuId);
+      return `${sku.pack_size} ${sku.uom} x ${cnt}`;
+    }).filter(p => p);
+    row.sku_breakdown = parts.join('; ');
+  }
+
+  // Insert into daily_work_log
   const { data: ins, error: insErr } = await supabase
     .from('daily_work_log')
-    .insert([row])
+    .insert([ row ])
     .select('id')
     .single();
   if (insErr) {
@@ -451,42 +505,42 @@ async function handleSubmit(isNew) {
   }
   const newId = ins.id;
 
-  // insert packaging_events + event_skus
-  if (row.status==='Done' && (skuActivities.includes(actNorm) || actNorm==='transfer to fg store')) {
+  // Insert packaging_event + event_skus if needed
+  if (isDone && (skuActivities.includes(actNorm) || isTransfer)) {
     const { data: pe, error: peErr } = await supabase
       .from('packaging_events')
-      .insert({ work_log_id: newId, event_type: row.activity })
+      .insert([{ work_log_id: newId, event_type: row.activity }])
       .select('id')
       .single();
-    if (peErr) {
-      console.error('PE insert error', peErr);
-    } else {
-      const evRows = [];
-      const sign = actNorm==='transfer to fg store' ? -1 : 1;
+    if (!peErr) {
+      const sign = 1;
       const inputs = skuActivities.includes(actNorm)
         ? skuTableBody.querySelectorAll('input')
         : transferTableBody.querySelectorAll('input');
+      const evRows = [];
       inputs.forEach(i => {
         const cnt = Number(i.value);
-        if (cnt>0) evRows.push({
+        if (cnt > 0) evRows.push({
           packaging_event_id: pe.id,
-          sku_id: +i.dataset.skuId,
-          count: sign * cnt
+          sku_id:             +i.dataset.skuId,
+          count:              sign * cnt
         });
       });
       if (evRows.length) {
         const { error: esErr } = await supabase.from('event_skus').insert(evRows);
         if (esErr) console.error('ES insert error', esErr);
       }
+    } else {
+      console.error('PE insert error:', peErr);
     }
   }
 
   await showAlert('Log saved successfully!');
   if (isNew) {
-    // reload page carrying item & bn
-    window.location.href = `add-log-entry.html?prefill_item=${encodeURIComponent(row.item)}&prefill_bn=${encodeURIComponent(row.batch_number)}`;
+    window.location.href =
+      `add-log-entry.html?prefill_item=${encodeURIComponent(row.item)}` +
+      `&prefill_bn=${encodeURIComponent(row.batch_number)}`;
   } else {
-    // reset form
     form.reset();
     skuTableBody.innerHTML      = '';
     transferTableBody.innerHTML = '';
@@ -495,5 +549,7 @@ async function handleSubmit(isNew) {
   }
 }
 
-// ── Wire up form events ───────────────────────────────────────────────
-form.addEventListener('submit', e => { e.preventDefault(); handleSubmit(false); });
+form.addEventListener('submit', e => {
+  e.preventDefault();
+  handleSubmit(false);
+});

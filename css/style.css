@@ -166,3 +166,18 @@ h1 {
 .reports-grid .btn-report:active {
   transform: translateY(0);
 }
+
+/* ────────────────────────────────────────────────────────────────────────────
+   FILTER‐ROW: unify select + text‐input heights
+───────────────────────────────────────────────────────────────────────────── */
+.filter-pair select,
+.filter-pair input[type="text"] {
+  /* same padding/border as before */
+  padding: 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+
+  /* explicitly set the height to match your selects */
+  height: 2.5em;
+  box-sizing: border-box;
+}

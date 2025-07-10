@@ -1,0 +1,151 @@
+<!-- bottled-stock.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SASV WORKSPACE | Bottled Stock</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="css/style.css">
+
+  <style>
+    body {
+      margin:20px;
+      font-family:Arial, sans-serif;
+      background:var(--bg-color);
+      color:var(--text-color);
+      transition:background .3s, color .3s;
+    }
+    .header-bar {
+      display:flex; justify-content:space-between;
+      align-items:center; margin-bottom:20px;
+    }
+    .header-bar h2 {
+      margin:0; font-size:1.5rem; color:var(--primary);
+    }
+    #homeBtn {
+      background:var(--home-btn-bg);
+      color:var(--btn-text);
+      border:none; padding:8px 16px; border-radius:4px;
+      font-size:1rem; cursor:pointer; transition:background .2s;
+    }
+    #homeBtn:hover { background:var(--home-btn-hover-bg); }
+
+    /* Filters */
+    #filters {
+      display:flex; flex-wrap:wrap; gap:16px;
+      margin-bottom:20px;
+    }
+    .filter-control {
+      flex:1 1 200px; min-width:140px;
+      display:flex; flex-direction:column;
+    }
+    .filter-control label { margin-bottom:4px; font-weight:500; }
+    .filter-control select {
+      height:2rem; padding:6px 8px; font-size:14px;
+      border:1px solid #ccc; border-radius:4px;
+      background:var(--input-bg);
+      color:var(--input-text);
+    }
+    .filter-control.button {
+      justify-content:flex-end; align-items:flex-end;
+    }
+    .filter-control.button a.clear-link {
+      font-size:14px; color:var(--primary);
+      text-decoration:underline; cursor:pointer;
+    }
+    .filter-control.button a.clear-link:hover {
+      color:var(--primary-hover);
+    }
+
+    /* Export links: CSV left, PDF right */
+    #exportLinks {
+      display:flex; justify-content:space-between;
+      width:100%; margin-bottom:8px;
+    }
+    #exportLinks a {
+      color:var(--primary); text-decoration:underline;
+      cursor:pointer; font-size:14px;
+    }
+    #exportLinks a:hover { color:var(--primary-hover); }
+
+    /* Table & container */
+    #bottledTableContainer {
+      width:100%;
+      max-height:calc(100vh - 300px);
+      overflow-y:auto; border:1px solid #ccc;
+    }
+    #bottledTable {
+      width:100%; border-collapse:collapse;
+    }
+    #bottledTable th,
+    #bottledTable td {
+      padding:8px; border:1px solid #ccc;
+      vertical-align: middle; /* vertical centering */
+      text-align: center;     /* default center */
+    }
+    #bottledTable th {
+      background:var(--panel-bg);
+      position:sticky; top:0; z-index:1;
+      font-weight:bold;
+    }
+    /* 1st col: ITEM left-aligned */
+    #bottledTable td:nth-child(1) {
+      text-align: left;
+      padding-left: 12px;
+    }
+    /* 2nd col: BN centered */
+    #bottledTable td:nth-child(2) {
+      text-align: center;
+      padding-left: 0;
+    }
+    .no-data td {
+      font-style:italic; color:#666; text-align:center;
+    }
+  </style>
+</head>
+<body data-theme="system">
+
+  <div class="header-bar">
+    <h2>Bottled Stock</h2>
+    <button id="homeBtn">HOME</button>
+  </div>
+
+  <section id="filters">
+    <div class="filter-control">
+      <label for="filterItem">Item</label>
+      <select id="filterItem"><option value="">Item</option></select>
+    </div>
+    <div class="filter-control">
+      <label for="filterBN">BN</label>
+      <select id="filterBN" disabled><option value="">BN</option></select>
+    </div>
+    <div class="filter-control button">
+      <a id="clearFilters" class="clear-link">Clear</a>
+    </div>
+  </section>
+
+  <div id="exportLinks">
+    <a id="downloadCsv">Download CSV</a>
+    <a id="downloadPdf">Download PDF</a>
+  </div>
+
+  <div id="bottledTableContainer">
+    <table id="bottledTable">
+      <thead>
+        <tr>
+          <th>ITEM</th>
+          <th>BN</th>
+          <th>PACK SIZE</th>
+          <th>UOM</th>
+          <th>STOCK ON HAND</th>
+        </tr>
+      </thead>
+      <tbody id="bottledTableBody"></tbody>
+    </table>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+  <script type="module" src="js/bottled-stock.js"></script>
+</body>
+</html>
