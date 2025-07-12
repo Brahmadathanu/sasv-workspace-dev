@@ -1,4 +1,3 @@
-<!-- view-logs.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -17,47 +16,67 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
     }
     .header-bar h2 {
       margin: 0;
       color: var(--primary);
     }
-    /* Filters: responsive grid */
-    #filters .filters-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 16px;
-      max-width: 900px;
-      margin-bottom: 20px;
+    #homeBtn {
+      background: var(--home-btn-bg);
+      color: var(--btn-text);
+      border: none;
+      padding: 8px 12px;
+      border-radius: 4px;
+      cursor: pointer;
     }
-    #filters label {
+    #homeBtn:hover {
+      background: var(--home-btn-hover-bg);
+    }
+
+    /* ── FILTERS ── */
+    #filters {
+      margin-bottom: 16px;
+    }
+    .filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .filter-pair {
+      flex: 1 1 200px;
       display: flex;
       flex-direction: column;
     }
-    #filters select {
-      height: 2rem;
-      margin-top: 4px;
-      padding: 2px 4px;
+    .filter-pair label {
+      margin-bottom: 4px;
+      font-weight: bold;
+    }
+    .filter-pair select {
+      padding: 6px;
       border: 1px solid #ccc;
       border-radius: 4px;
+      font-size: 14px;
     }
-    #filters button.clear-btn {
-      align-self: flex-end;
-      margin-top: 1.5rem;
-      padding: 6px 12px;
+    .filter-actions {
+      display: flex;
+      align-items: flex-end;
+    }
+    .link-btn, button.clear-btn {
+      background: none;
       border: none;
-      background: var(--btn-bg);
-      color: var(--btn-text);
-      border-radius: 4px;
+      color: #007BFF;
+      text-decoration: underline;
       cursor: pointer;
-      transition: background 0.2s;
+      padding: 0;
+      font-size: 14px;
+      margin-left: 8px;
     }
-    #filters button.clear-btn:hover {
-      background: var(--btn-hover-bg);
+    .link-btn:hover, button.clear-btn:hover {
+      opacity: 0.7;
     }
 
-    /* Main table */
+    /* ── MAIN TABLE ── */
     table {
       width: 100%;
       border-collapse: collapse;
@@ -66,6 +85,7 @@
     th, td {
       padding: 8px;
       border: 1px solid #ccc;
+      text-align: left;
     }
     a.view-link {
       color: var(--primary);
@@ -76,7 +96,7 @@
       color: var(--primary-hover);
     }
 
-    /* Modal */
+    /* ── MODAL ── */
     .modal-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -131,43 +151,55 @@
 </head>
 <body data-theme="system">
 
+  <!-- HEADER -->
   <div class="header-bar">
     <h2>View Logs</h2>
     <button id="homeBtn">HOME</button>
   </div>
 
+  <!-- FILTERS -->
   <section id="filters">
-    <div class="filters-grid">
-      <label>Section
+    <div class="filter-row">
+      <div class="filter-pair">
+        <label for="filterSection">Section</label>
         <select id="filterSection"><option value="">Section</option></select>
-      </label>
-      <label>Sub-section
+      </div>
+      <div class="filter-pair">
+        <label for="filterSubsection">Sub-section</label>
         <select id="filterSubsection" disabled><option value="">Sub-section</option></select>
-      </label>
-      <label>Area
+      </div>
+      <div class="filter-pair">
+        <label for="filterArea">Area</label>
         <select id="filterArea" disabled><option value="">Area</option></select>
-      </label>
-      <label>Plant / Machinery
+      </div>
+      <div class="filter-pair">
+        <label for="filterPlant">Plant / Machinery</label>
         <select id="filterPlant" disabled><option value="">Plant / Machinery</option></select>
-      </label>
-      <label>Item
+      </div>
+      <div class="filter-pair">
+        <label for="filterItem">Item</label>
         <select id="filterItem"><option value="">Item</option></select>
-      </label>
-      <label>BN
+      </div>
+      <div class="filter-pair">
+        <label for="filterBN">BN</label>
         <select id="filterBN" disabled><option value="">BN</option></select>
-      </label>
-      <label>Status
+      </div>
+      <div class="filter-pair">
+        <label for="filterStatus">Status</label>
         <select id="filterStatus">
           <option value="">Status</option>
           <option>Doing</option>
           <option>Done</option>
           <option>On Hold</option>
         </select>
-      </label>
-      <button id="clearFilters" class="clear-btn">Clear</button>
+      </div>
+      <div class="filter-actions">
+        <button id="clearFilters" class="link-btn">Clear</button>
+      </div>
     </div>
   </section>
 
+  <!-- LOGS TABLE -->
   <table id="logsTable">
     <thead>
       <tr>
@@ -176,6 +208,7 @@
         <th>BN</th>
         <th>Size</th>
         <th>UOM</th>
+        <th>Plant / Machinery</th>
         <th>Activity</th>
         <th>Action</th>
       </tr>

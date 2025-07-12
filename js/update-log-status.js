@@ -1,3 +1,5 @@
+// js/update-log-status.js
+
 import { supabase } from './supabaseClient.js';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -33,7 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const confirmYes   = document.getElementById('confirmYes');
   const confirmNo    = document.getElementById('confirmNo');
 
-  // All packaging events, incl. new Monocarton ones
+  // packaging-activity keys
   const skuActivities = [
     'bottling',
     'bottling and labelling',
@@ -42,6 +44,9 @@ document.addEventListener('DOMContentLoaded', () => {
     'monocarton packing',
     'monocarton packing and cartoning'
   ];
+
+  // map plant_id → plant_name
+  const plantMap = {};
 
   // ───── Utility ─────────────────────────────────────────────────
   function showModal(m) { m.style.display = 'flex'; }
@@ -78,7 +83,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // ───── Cascading filters ────────────────────────────────────────
+  // ───── Load all plant-machinery into plantMap ─────────────────
+  async function loadPlants() {
+    const { data: plants, error } = await supabase
+      .from('plant_machinery')
+      .select('id,plant_name');
+    if (!error && plants) {
+      plants.forEach(p => plantMap[p.id] = p.plant_name);
+    }
+  }
+
+  // ───── Filters cascading ───────────────────────────────────────
   sSection.onchange = async () => {
     if (!sSection.value) {
       populate(sSub, [], '', '', 'Sub-section');
@@ -86,12 +101,13 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       const { data: subs } = await supabase
         .from('subsections').select('id,subsection_name')
-        .eq('section_id', sSection.value).order('subsection_name');
+        .eq('section_id', sSection.value)
+        .order('subsection_name');
       populate(sSub, subs, 'id','subsection_name','Sub-section');
       sSub.disabled = false;
     }
-    populate(sArea, [], '', '', 'Area'); sArea.disabled = true;
-    sBN.innerHTML = '<option value="">BN</option>'; sBN.disabled = true;
+    populate(sArea, [], '', '', 'Area');  sArea.disabled = true;
+    sBN.innerHTML = '<option value="">BN</option>';          sBN.disabled = true;
     await loadStatus();
   };
 
@@ -125,7 +141,8 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       const { data: bns } = await supabase
         .from('bmr_details').select('bn')
-        .eq('item', sItem.value).order('bn');
+        .eq('item', sItem.value)
+        .order('bn');
       const uniq = [...new Set((bns||[]).map(r=>r.bn))];
       sBN.innerHTML = '<option value="">BN</option>' +
         uniq.map(bn=>`<option value="${bn}">${bn}</option>`).join('');
@@ -151,8 +168,8 @@ document.addEventListener('DOMContentLoaded', () => {
     doneLabRefSection.style.display =
     doneSkuSection.style.display =
     doneTransSection.style.display = 'none';
-    doneSkuBody.innerHTML    = '';
-    doneTransBody.innerHTML  = '';
+    doneSkuBody.innerHTML   = '';
+    doneTransBody.innerHTML = '';
 
     if (act === 'finished goods quality assessment') {
       doneLabRefSection.style.display = 'flex';
@@ -282,6 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
+      // build update object...
       const upd = {
         status:            'Done',
         completed_on:      r.completedOn,
@@ -306,6 +324,7 @@ document.addEventListener('DOMContentLoaded', () => {
         .update(upd)
         .eq('id', id);
 
+      // packaging_events upsert...
       if (skuActivities.includes(act) || act === 'transfer to fg store') {
         const { data: pe } = await supabase
           .from('packaging_events')
@@ -331,6 +350,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
     } else {
+      // clear done data
       await clearPackaging(id);
       await supabase
         .from('daily_work_log')
@@ -353,16 +373,15 @@ document.addEventListener('DOMContentLoaded', () => {
     statusBody.innerHTML = '';
     let q = supabase
       .from('daily_work_log')
-      .select('id,log_date,item,batch_number,activity,status,due_date')
+      .select('id,log_date,item,batch_number,plant_id,activity,status,due_date')
       .in('status', ['Doing','On Hold'])
       .order('log_date',{ascending:false});
 
-    if (sSection.value) q = q.eq('section_id', sSection.value);
+    if (sSection.value) q = q.eq('section_id',    sSection.value);
     if (sSub.value)     q = q.eq('subsection_id', sSub.value);
-    if (sArea.value)    q = q.eq('area_id', sArea.value);
-    if (sItem.value)    q = q.eq('item', sItem.value);
-    if (sBN.value)      q = q.eq('batch_number', sBN.value);
-
+    if (sArea.value)    q = q.eq('area_id',       sArea.value);
+    if (sItem.value)    q = q.eq('item',          sItem.value);
+    if (sBN.value)      q = q.eq('batch_number',  sBN.value);
     if (sOverdue.checked) {
       const today = new Date().toISOString().slice(0,10);
       q = q.lt('due_date', today);
@@ -370,11 +389,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const { data } = await q;
     (data||[]).forEach(r => {
+      const plantName = plantMap[r.plant_id] || '';
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${new Date(r.log_date).toLocaleDateString('en-GB')}</td>
         <td>${r.item}</td>
         <td>${r.batch_number}</td>
+        <td>${plantName}</td>
         <td>${r.activity}</td>
         <td>
           <select class="statSel"
@@ -399,11 +420,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ───── Init ────────────────────────────────────────────────────
   async function initStatus() {
+    await loadPlants();
+
+    // Sections → Sub
     const { data: secs } = await supabase
       .from('sections').select('id,section_name').order('section_name');
     populate(sSection, secs,'id','section_name','Section');
     [sSub,sArea,sBN].forEach(x=>x.disabled=true);
 
+    // Items → Item
     const { data: items } = await supabase
       .from('bmr_details').select('item',{distinct:true}).order('item');
     populate(sItem, items,'item','item','Item');

@@ -1,4 +1,3 @@
-// js/log-view.js
 import { supabase } from './supabaseClient.js';
 
 // — Helpers —
@@ -8,35 +7,33 @@ function fmtDate(val) {
   return isNaN(d) ? '—' : d.toLocaleDateString('en-GB');
 }
 
-// Populate a <select> with a placeholder and array of rows
 function populate(sel, rows, vKey, tKey, placeholder) {
   sel.innerHTML = `<option value="">${placeholder}</option>`;
   (rows || []).forEach(r => {
     const o = document.createElement('option');
-    o.value = r[vKey];
+    o.value       = r[vKey];
     o.textContent = r[tKey];
     sel.append(o);
   });
 }
 
-// Show/hide elements, tables vs. flex containers
 const show = el => el.style.display = el.tagName === 'TABLE' ? 'table' : 'flex';
 const hide = el => el.style.display = 'none';
 
 // — Element refs —
-const homeBtn    = document.getElementById('homeBtn');
-const fSection   = document.getElementById('filterSection');
-const fSub       = document.getElementById('filterSubsection');
-const fArea      = document.getElementById('filterArea');
-const fPlant     = document.getElementById('filterPlant');
-const fItem      = document.getElementById('filterItem');
-const fBN        = document.getElementById('filterBN');
-const fStatus    = document.getElementById('filterStatus');
-const btnClear   = document.getElementById('clearFilters');
-const tbody      = document.getElementById('logsTableBody');
-const overlay    = document.getElementById('viewOverlay');
-const btnClose   = document.getElementById('closeView');
-const detailBody = document.getElementById('detailTable');
+const homeBtn       = document.getElementById('homeBtn');
+const fSection      = document.getElementById('filterSection');
+const fSub          = document.getElementById('filterSubsection');
+const fArea         = document.getElementById('filterArea');
+const fPlant        = document.getElementById('filterPlant');
+const fItem         = document.getElementById('filterItem');
+const fBN           = document.getElementById('filterBN');
+const fStatus       = document.getElementById('filterStatus');
+const btnClear      = document.getElementById('clearFilters');
+const tbody         = document.getElementById('logsTableBody');
+const overlay       = document.getElementById('viewOverlay');
+const btnClose      = document.getElementById('closeView');
+const detailBody    = document.getElementById('detailTable');
 
 // — Initialization —
 async function init() {
@@ -50,7 +47,8 @@ async function init() {
   btnClear.onclick = () => {
     [fSection, fSub, fArea, fPlant, fItem, fBN, fStatus].forEach(s => {
       s.value = '';
-      s.disabled = (s !== fSection && s !== fItem && s !== fStatus);
+      // only Section, Item and Status stay enabled
+      s.disabled = !(s === fSection || s === fItem || s === fStatus);
     });
     cascadeSub();
     cascadeArea();
@@ -60,25 +58,36 @@ async function init() {
     loadTable();
   };
 
-  // Load sections
+  // Load Sections
   const { data: secs } = await supabase
     .from('sections')
     .select('id,section_name')
     .order('section_name');
   populate(fSection, secs, 'id', 'section_name', 'Section');
 
-  // Cascading
-  fSection.onchange = () => { cascadeSub(); cascadeArea(); cascadePlant(); loadItems(); loadBN(); loadTable(); };
-  fSub.onchange     = () => { cascadeArea(); cascadePlant(); loadItems(); loadBN(); loadTable(); };
-  fArea.onchange    = () => { cascadePlant(); loadItems(); loadBN(); loadTable(); };
-  fPlant.onchange   = () => { loadItems(); loadBN(); loadTable(); };
+  // Cascading filters
+  fSection.onchange = () => {
+    cascadeSub(); cascadeArea(); cascadePlant();
+    loadItems(); loadBN(); loadTable();
+  };
+  fSub.onchange     = () => {
+    cascadeArea(); cascadePlant();
+    loadItems(); loadBN(); loadTable();
+  };
+  fArea.onchange    = () => {
+    cascadePlant();
+    loadItems(); loadBN(); loadTable();
+  };
+  fPlant.onchange   = () => {
+    loadItems(); loadBN(); loadTable();
+  };
+  fItem.onchange    = () => {
+    loadBN(); loadTable();
+  };
+  fBN.onchange      = () => loadTable();
+  fStatus.onchange  = () => loadTable();
 
-  // Item → BN → table
-  fItem.onchange   = () => { loadBN(); loadTable(); };
-  fBN.onchange     = () => loadTable();
-  fStatus.onchange = () => loadTable();
-
-  // Initial
+  // First pass
   cascadeSub();
   cascadeArea();
   cascadePlant();
@@ -139,26 +148,25 @@ function cascadePlant() {
   }
 }
 
-// — Load and sort unique Items —
+// — Load unique Items —
 async function loadItems() {
   let q = supabase.from('daily_work_log').select('item');
-  if (fSection.value) q = q.eq('section_id', fSection.value);
+  if (fSection.value) q = q.eq('section_id',    fSection.value);
   if (fSub.value)     q = q.eq('subsection_id', fSub.value);
-  if (fArea.value)    q = q.eq('area_id', fArea.value);
-  if (fPlant.value)   q = q.eq('plant_id', fPlant.value);
+  if (fArea.value)    q = q.eq('area_id',       fArea.value);
+  if (fPlant.value)   q = q.eq('plant_id',      fPlant.value);
 
   const { data, error } = await q;
   if (error) return console.error(error);
 
-  // dedupe + sort alphabetically
-  const uniq = [ ...new Set((data||[]).map(r => r.item)) ]
+  const uniq = [...new Set((data||[]).map(r => r.item))]
     .map(item => ({ item }))
-    .sort((a,b) => a.item.localeCompare(b.item));
+    .sort((a, b) => a.item.localeCompare(b.item));
 
   populate(fItem, uniq, 'item', 'item', 'Item');
 }
 
-// — Load and sort unique BNs for selected Item —
+// — Load unique BNs for selected Item —
 async function loadBN() {
   if (!fItem.value) {
     populate(fBN, [], '', '', 'BN');
@@ -170,44 +178,55 @@ async function loadBN() {
     .from('daily_work_log')
     .select('batch_number')
     .eq('item', fItem.value);
-  if (fSection.value) q = q.eq('section_id', fSection.value);
+  if (fSection.value) q = q.eq('section_id',    fSection.value);
   if (fSub.value)     q = q.eq('subsection_id', fSub.value);
-  if (fArea.value)    q = q.eq('area_id', fArea.value);
-  if (fPlant.value)   q = q.eq('plant_id', fPlant.value);
+  if (fArea.value)    q = q.eq('area_id',       fArea.value);
+  if (fPlant.value)   q = q.eq('plant_id',      fPlant.value);
 
   const { data, error } = await q;
   if (error) return console.error(error);
 
-  // dedupe + sort ascending
-  const uniq = [ ...new Set((data||[]).map(r => r.batch_number)) ]
+  const uniq = [...new Set((data||[]).map(r => r.batch_number))]
     .map(bn => ({ batch_number: bn }))
-    .sort((a,b) => a.batch_number.toString().localeCompare(b.batch_number.toString(), undefined, { numeric: true }));
+    .sort((a, b) => a.batch_number.toString().localeCompare(b.batch_number.toString(), undefined, { numeric: true }));
 
   populate(fBN, uniq, 'batch_number', 'batch_number', 'BN');
   fBN.disabled = !uniq.length;
 }
 
-// — Render main table —
+// — Render main table with Plant / Machinery column —
 async function loadTable() {
   tbody.innerHTML = '';
 
   let q = supabase
     .from('daily_work_log')
-    .select('id,log_date,item,batch_number,batch_size,batch_uom,activity')
+    .select(`
+      id,
+      log_date,
+      item,
+      batch_number,
+      batch_size,
+      batch_uom,
+      activity,
+      plant_machinery (
+        plant_name
+      )
+    `)
     .order('log_date', { ascending: false });
 
-  if (fSection.value) q = q.eq('section_id', fSection.value);
+  if (fSection.value) q = q.eq('section_id',    fSection.value);
   if (fSub.value)     q = q.eq('subsection_id', fSub.value);
-  if (fArea.value)    q = q.eq('area_id', fArea.value);
-  if (fPlant.value)   q = q.eq('plant_id', fPlant.value);
-  if (fItem.value)    q = q.eq('item', fItem.value);
-  if (fBN.value)      q = q.eq('batch_number', fBN.value);
-  if (fStatus.value)  q = q.eq('status', fStatus.value);
+  if (fArea.value)    q = q.eq('area_id',       fArea.value);
+  if (fPlant.value)   q = q.eq('plant_id',      fPlant.value);
+  if (fItem.value)    q = q.eq('item',           fItem.value);
+  if (fBN.value)      q = q.eq('batch_number',   fBN.value);
+  if (fStatus.value)  q = q.eq('status',         fStatus.value);
 
   const { data, error } = await q;
   if (error) return console.error(error);
 
   (data||[]).forEach(r => {
+    const plantName = r.plant_machinery?.plant_name || '';
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${fmtDate(r.log_date)}</td>
@@ -215,6 +234,7 @@ async function loadTable() {
       <td>${r.batch_number}</td>
       <td>${r.batch_size}</td>
       <td>${r.batch_uom}</td>
+      <td>${plantName}</td>
       <td>${r.activity}</td>
       <td><a href="#" class="view-link" data-id="${r.id}">View</a></td>`;
     tbody.append(tr);
@@ -244,33 +264,33 @@ async function showDetails(e) {
 
   detailBody.innerHTML = '';
   const fields = [
-    ['Date',            fmtDate(log.log_date)],
-    ['Section',         log.sections?.section_name],
-    ['Sub-section',     log.subsections?.subsection_name],
-    ['Area',            log.areas?.area_name],
+    ['Date',              fmtDate(log.log_date)],
+    ['Section',           log.sections?.section_name],
+    ['Sub-section',       log.subsections?.subsection_name],
+    ['Area',              log.areas?.area_name],
     ['Plant / Machinery', log.plant_machinery?.plant_name],
-    ['Item',            log.item],
-    ['Batch #',         log.batch_number],
-    ['Batch Size',      log.batch_size],
-    ['Batch UOM',       log.batch_uom],
-    ['Activity',        log.activity],
-    ['Juice/Decoction', log.juice_or_decoction],
-    ['Specify',         log.specify],
-    ['Count Saravam',   log.count_of_saravam],
-    ['Fuel',            log.fuel],
-    ['Fuel Under',      log.fuel_under],
-    ['Fuel Over',       log.fuel_over],
-    ['Started On',      fmtDate(log.started_on)],
-    ['Due Date',        fmtDate(log.due_date)],
-    ['Status',          log.status],
-    ['Completed On',    fmtDate(log.completed_on)],
+    ['Item',              log.item],
+    ['Batch #',           log.batch_number],
+    ['Batch Size',        log.batch_size],
+    ['Batch UOM',         log.batch_uom],
+    ['Activity',          log.activity],
+    ['Juice/Decoction',   log.juice_or_decoction],
+    ['Specify',           log.specify],
+    ['Count Saravam',     log.count_of_saravam],
+    ['Fuel',              log.fuel],
+    ['Fuel Under',        log.fuel_under],
+    ['Fuel Over',         log.fuel_over],
+    ['Started On',        fmtDate(log.started_on)],
+    ['Due Date',          fmtDate(log.due_date)],
+    ['Status',            log.status],
+    ['Completed On',      fmtDate(log.completed_on)],
     ['Qty After Process', log.qty_after_process],
-    ['UOM After',        log.qty_uom],
-    ['Lab Ref Number',   log.lab_ref_number],
-    ['SKU Breakdown',    log.sku_breakdown],
-    ['Remarks',          log.remarks],
-    ['Uploaded By',      log.uploaded_by],
-    ['Created At',       fmtDate(log.created_at)]
+    ['UOM After',         log.qty_uom],
+    ['Lab Ref Number',    log.lab_ref_number],
+    ['SKU Breakdown',     log.sku_breakdown],
+    ['Remarks',           log.remarks],
+    ['Uploaded By',       log.uploaded_by],
+    ['Created At',        fmtDate(log.created_at)]
   ];
 
   fields.forEach(([label, val]) => {
