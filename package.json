@@ -1,7 +1,7 @@
 {
   "name": "daily-worklog-app",
   "productName": "SASV Workspace",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Pilot Electron + Supabase workspace application",
   "main": "main.js",
   "scripts": {
