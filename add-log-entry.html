@@ -1,6 +1,5 @@
-<!-- add-log-entry.html -->
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-GB">
 <head>
   <meta charset="UTF-8">
   <title>SASV WORKSPACE | Add Log Entry</title>
@@ -124,7 +123,8 @@
     <!-- 1) Log Date + Section -->
     <div class="form-row">
       <label>Log Date:
-        <input type="date" name="log_date" required>
+        <!-- force British format -->
+        <input lang="en-GB" type="date" name="log_date" required>
       </label>
       <label>Section:
         <select id="section" name="section_id" required>
@@ -227,10 +227,10 @@
     <!-- 8) Started On + Due Date -->
     <div class="form-row">
       <label>Started On:
-        <input id="started_on" name="started_on" type="date">
+        <input id="started_on" name="started_on" type="date" lang="en-GB">
       </label>
       <label>Due Date:
-        <input id="due_date" name="due_date" type="date" readonly>
+        <input id="due_date" name="due_date" type="date" readonly lang="en-GB">
       </label>
     </div>
 
@@ -249,7 +249,7 @@
     <div id="completedOnSection">
       <div class="form-row">
         <label>Completed On:
-          <input name="completed_on" type="date">
+          <input name="completed_on" type="date" lang="en-GB">
         </label>
       </div>
     </div>
