@@ -1,4 +1,3 @@
-<!-- edit-log-entry.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -13,59 +12,101 @@
       margin: 20px;
       transition: background .3s, color .3s;
     }
-    .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .header-bar {
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;
+    }
     .header-bar h2 { margin: 0; color: #005A8D; }
-    #homeBtn { background: var(--home-btn-bg); color: var(--btn-text); border: none; padding: 8px 12px; border-radius: 4px; font-size: 1rem; }
+    #homeBtn {
+      background: var(--home-btn-bg);
+      color: var(--btn-text);
+      border: none;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
     #homeBtn:hover { background: var(--home-btn-hover-bg); }
 
-    .mode-switch { margin-bottom: 16px; }
-    .mode-btn { padding: 8px 16px; border: none; border-radius: 4px; background: var(--btn-bg); color: var(--btn-text); cursor: pointer; margin-right: 8px; }
-    .mode-btn.active { background: var(--btn-hover-bg); }
-
-    .filter-row { display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 12px; }
-    .filter-pair { flex: 1 1 200px; display: flex; gap: 8px; align-items: center; }
-    .filter-pair select,
-    .filter-pair input[type="text"] { flex: 1; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
-    .link-btn, a.save-link { color: #007BFF; text-decoration: underline; cursor: pointer; }
-    .link-btn:hover, a.save-link:hover { opacity: .7; }
-
-    table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
-    th, td { padding: 8px; border: 1px solid #ccc; text-align: left; }
-
-    /* shrink Update Status rows */
-    #panelStatus table th,
-    #panelStatus table td {
-      padding: 4px 6px;
-      line-height: 1.2;
+    .filter-row {
+      display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 12px;
     }
-    #panelStatus table tr {
-      height: 28px;
+    .filter-pair {
+      flex: 1 1 200px; display: flex; gap: 8px; align-items: center;
+    }
+    .filter-pair select {
+      flex: 1; padding: 6px; border: 1px solid #ccc; border-radius: 4px;
+    }
+    .link-btn {
+      color: #007BFF; text-decoration: underline; cursor: pointer;
+    }
+    .link-btn:hover { opacity: .7; }
+
+    table {
+      width: 100%; border-collapse: collapse; margin-bottom: 24px;
+    }
+    th, td {
+      padding: 8px; border: 1px solid #ccc; text-align: left;
     }
 
-    .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); display: none; align-items: center; justify-content: center; z-index: 1000; }
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      display: none; align-items: center; justify-content: center;
+      z-index: 1000;
+    }
     .modal-box {
       background: var(--bg-color);
       color: var(--text-color);
       padding: 24px;
       border-radius: 8px;
-      width: 95%;
-      max-width: 520px;
-      max-height: 85vh;
+      width: 95%; max-width: 520px; max-height: 85vh;
       overflow-y: auto;
       box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
-    .modal-box h3 { margin-top: 0; margin-bottom: 16px; }
-    .modal-actions { margin-top: 24px; text-align: right; }
-    .modal-actions .mode-btn { margin-left: 8px; }
-
-    .form-row { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 16px; }
-    .form-row label { flex: 1; display: flex; flex-direction: column; }
-    input[type="date"], input[type="number"], select, textarea {
-      margin-top: 6px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; width: 100%;
+    .modal-box h3 {
+      margin-top: 0; margin-bottom: 16px;
     }
-    textarea { resize: vertical; min-height: 80px; }
+    .modal-actions {
+      margin-top: 24px; text-align: right;
+    }
+    /* blue modal buttons */
+    .mode-btn {
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      border: none;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      margin-left: 8px;
+    }
+    .mode-btn:hover { background: var(--btn-hover-bg); }
 
-    #editSuccess { display: none; color: green; margin-bottom: 12px; font-weight: bold; text-align: center; }
+    .form-row {
+      display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 16px;
+    }
+    .form-row label {
+      flex: 1; display: flex; flex-direction: column;
+    }
+    input[type="date"],
+    input[type="number"],
+    select,
+    textarea {
+      margin-top: 6px;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 14px;
+      width: 100%;
+    }
+    textarea {
+      resize: vertical; min-height: 80px;
+    }
+
+    #editSuccess {
+      display: none; color: green; margin-bottom: 12px;
+      font-weight: bold; text-align: center;
+    }
   </style>
 </head>
 <body data-theme="system">
@@ -76,49 +117,15 @@
     <button id="homeBtn">HOME</button>
   </div>
 
-  <!-- MODE SWITCH -->
-  <div class="mode-switch">
-    <button id="modeStatus" class="mode-btn active">Update Status</button>
-    <button id="modeFull" class="mode-btn">Full Edit</button>
-  </div>
-
-  <!-- STATUS FILTERS -->
-  <div id="statusFilters" class="filter-row">
-    <div class="filter-pair">
-      <select id="sSection"><option value="">Section</option></select>
-      <select id="sSub" disabled><option value="">Sub-section</option></select>
-    </div>
-    <div class="filter-pair">
-      <select id="sArea" disabled><option value="">Area</option></select>
-      <input type="text" id="sItemInput" list="sItemList" placeholder="Item" autocomplete="off">
-      <datalist id="sItemList"></datalist>
-    </div>
-    <div class="filter-pair">
-      <select id="sBN" disabled><option value="">BN</option></select>
-      <span id="clearStatus" class="link-btn">Clear</span>
-    </div>
-  </div>
-
-  <!-- UPDATE STATUS TABLE -->
-  <div id="panelStatus">
-    <table>
-      <thead>
-        <tr><th>Date</th><th>Item</th><th>BN</th><th>Activity</th><th>Status</th><th>Actions</th></tr>
-      </thead>
-      <tbody id="statusBody"></tbody>
-    </table>
-  </div>
-
   <!-- FULL EDIT FILTERS -->
-  <div id="fullFilters" class="filter-row" style="display:none">
+  <div id="fullFilters" class="filter-row">
     <div class="filter-pair">
       <select id="fSection"><option value="">Section</option></select>
       <select id="fSub" disabled><option value="">Sub-section</option></select>
     </div>
     <div class="filter-pair">
       <select id="fArea" disabled><option value="">Area</option></select>
-      <input type="text" id="fItemInput" list="fItemList" placeholder="Item" autocomplete="off">
-      <datalist id="fItemList"></datalist>
+      <select id="fItem"><option value="">Item</option></select>
     </div>
     <div class="filter-pair">
       <select id="fBN" disabled><option value="">BN</option></select>
@@ -127,10 +134,13 @@
   </div>
 
   <!-- FULL EDIT TABLE -->
-  <div id="panelFull" style="display:none">
+  <div id="panelFull">
     <table>
       <thead>
-        <tr><th>Date</th><th>Item</th><th>BN</th><th>Activity</th><th>Status</th><th>Actions</th></tr>
+        <tr>
+          <th>Date</th><th>Item</th><th>BN</th>
+          <th>Activity</th><th>Status</th><th>Actions</th>
+        </tr>
       </thead>
       <tbody id="fullBody"></tbody>
     </table>
@@ -152,7 +162,7 @@
           </label>
           <label>UOM
             <select id="doneUOM" name="qty_after_process_uom">
-              <option>Kg</option><option>L</option><option>Nos</option>
+              <option value="">—</option><option>Kg</option><option>L</option><option>Nos</option>
             </select>
           </label>
         </div>
@@ -178,7 +188,7 @@
         <div class="modal-actions">
           <button type="button" id="doneCancel" class="mode-btn">Cancel</button>
           <button type="button" id="doneJust"   class="mode-btn">Just Save</button>
-          <button type="button" id="doneNew"    class="mode-btn">Save & New</button>
+          <button type="button" id="doneNew"    class="mode-btn">Save &amp; New</button>
         </div>
       </form>
     </div>
@@ -210,6 +220,7 @@
         <div class="form-row">
           <label>Activity<select id="e_activity" name="activity" disabled></select></label>
         </div>
+
         <div id="juiceS" style="display:none">
           <div class="form-row">
             <label>Juice/Decoction<select id="e_juice" name="juice_or_decoction">
@@ -218,6 +229,7 @@
             <label>Specify<input id="e_specify" name="specify"></label>
           </div>
         </div>
+
         <div id="putamS" style="display:none">
           <div class="form-row">
             <label>Count<input id="e_count" name="count_of_saravam" type="number" min="0"></label>
@@ -230,27 +242,32 @@
             <label>Over<input id="e_fuel_over" name="fuel_over"></label>
           </div>
         </div>
+
         <div class="form-row">
           <label>Started On<input id="e_start" name="started_on" type="date"></label>
           <label>Due Date<input id="e_due" name="due_date" type="date" readonly></label>
           <label>Completed On<input id="e_comp" name="completed_on" type="date"></label>
         </div>
+
         <div class="form-row">
           <label>Status<select id="e_status" name="status">
             <option>Doing</option><option>On Hold</option><option>Done</option>
           </select></label>
         </div>
+
         <div id="editQtySection" class="form-row" style="display:none">
           <label>Qty After Process<input id="e_qty" name="qty_after_process" type="number" step="0.01" min="0"></label>
           <label>UOM<select id="e_qty_uom" name="qty_after_process_uom">
             <option>Kg</option><option>L</option><option>Nos</option>
           </select></label>
         </div>
+
         <div id="labRefSection" style="display:none">
           <div class="form-row">
             <label>Lab Ref Number<input id="e_lab_ref" name="lab_ref_number" type="text"></label>
           </div>
         </div>
+
         <div id="editSkuSection" style="display:none">
           <h4>SKU Breakdown</h4>
           <table id="editSkuTable">
@@ -258,6 +275,7 @@
             <tbody></tbody>
           </table>
         </div>
+
         <div id="editTransSection" style="display:none">
           <h4>Transfer to FG Store</h4>
           <table id="editTransTable">
@@ -265,12 +283,14 @@
             <tbody></tbody>
           </table>
         </div>
+
         <div class="form-row">
           <label>Remarks<textarea id="e_remarks" name="remarks"></textarea></label>
         </div>
+
         <div class="modal-actions">
           <button type="button" id="cancelEdit" class="mode-btn">Cancel</button>
-          <button type="submit" id="saveEdit" class="mode-btn">Save</button>
+          <button type="submit" id="saveEdit"   class="mode-btn">Save</button>
         </div>
       </form>
     </div>
@@ -282,7 +302,7 @@
       <div id="confirmText"></div>
       <div class="modal-actions">
         <button id="confirmYes" class="mode-btn">Yes</button>
-        <button id="confirmNo" class="mode-btn">No</button>
+        <button id="confirmNo"  class="mode-btn">No</button>
       </div>
     </div>
   </div>

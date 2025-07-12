@@ -36,12 +36,14 @@ let currentItemSkus  = [];
 let currentUserEmail = null;
 let dirty            = false;
 
-// packaging activities (lowercased)
+// packaging activities (lowercased), now including the two new ones
 const skuActivities = [
   'bottling',
   'bottling and labelling',
   'bottling, labelling and cartoning',
-  'capsule monocarton packing'
+  'capsule monocarton packing',
+  'monocarton packing',
+  'monocarton packing and cartoning'
 ];
 
 // ── Modal helpers ────────────────────────────────────────────────
@@ -67,7 +69,7 @@ function askConfirm(msg) {
     btnOk.style.display  = 'none';
     dialogOverlay.style.display = 'flex';
     btnYes.onclick = () => { dialogOverlay.style.display = 'none'; res(true); };
-    btnNo .onclick = () => { dialogOverlay.style.display = 'none'; res(false); };
+    btnNo.onclick  = () => { dialogOverlay.style.display = 'none'; res(false); };
   });
 }
 
@@ -76,7 +78,6 @@ function populate(sel, rows, vKey, tKey, placeholder) {
   sel.innerHTML = `<option value="">${placeholder}</option>` +
     rows.map(r => `<option value="${r[vKey]}">${r[tKey]}</option>`).join('');
 }
-
 function populateDataList(dl, items, key) {
   dl.innerHTML = items.map(i => `<option value="${i[key]}" style="font-weight:normal">`).join('');
 }
@@ -91,7 +92,6 @@ function computeDueFrom(start, days) {
   }
   return d.toISOString().slice(0,10);
 }
-
 function updateDueDate() {
   const act = activitySel.value, st = startInput.value;
   dueInput.value = (act && st && lastDurations[act] != null)
@@ -99,7 +99,7 @@ function updateDueDate() {
     : '';
 }
 
-// ── Render SKU table ─────────────────────────────────────────────
+// ── Render SKU & Transfer tables ────────────────────────────────
 function renderSkuTable() {
   skuTableBody.innerHTML = '';
   currentItemSkus.forEach(sku => {
@@ -111,17 +111,14 @@ function renderSkuTable() {
     skuTableBody.append(tr);
   });
 }
-
-// ── Render Transfer table ────────────────────────────────────────
 async function renderTransferTable() {
   transferTableBody.innerHTML = '';
   if (!batchSel.value) return;
-  const { data, error } = await supabase
+  const { data } = await supabase
     .from('bottled_stock_on_hand')
     .select('sku_id,pack_size,uom,on_hand')
     .eq('batch_number', batchSel.value);
-  if (error) return console.error(error);
-  data.forEach(r => {
+  (data || []).forEach(r => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${r.pack_size}</td>
@@ -161,7 +158,6 @@ async function loadActivities() {
   else if (sectionSel.value) q = q.eq('section_id', sectionSel.value)
                                     .is('sub_section_id', null)
                                     .is('area_id', null);
-  else return;
   const { data, error } = await q.order('activity_name');
   if (error) return console.error(error);
   lastDurations = {};
@@ -175,15 +171,17 @@ async function loadActivities() {
 // ── Carry-forward via URL ───────────────────────────────────────
 function applyCarryForward() {
   const p = new URLSearchParams(window.location.search);
-  if (p.has('prefill_item')) {
-    itemInput.value = p.get('prefill_item');
+  // support both ?prefill_item / ?prefill_bn and ?item / ?bn
+  const itemParam = p.get('prefill_item') || p.get('item');
+  const bnParam   = p.get('prefill_bn')   || p.get('bn');
+  if (itemParam) {
+    itemInput.value = itemParam;
     itemInput.dispatchEvent(new Event('change'));
   }
-  if (p.has('prefill_bn')) {
-    const bn = p.get('prefill_bn');
+  if (bnParam) {
     const iv = setInterval(() => {
-      if (!Array.from(batchSel.options).some(o => o.value === bn)) return;
-      batchSel.value = bn;
+      if (!Array.from(batchSel.options).some(o => o.value === bnParam)) return;
+      batchSel.value = bnParam;
       batchSel.dispatchEvent(new Event('change'));
       clearInterval(iv);
     }, 100);
@@ -192,7 +190,7 @@ function applyCarryForward() {
 
 // ── INITIAL SETUP ───────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data:{ user } } = await supabase.auth.getUser();
   if (user) currentUserEmail = user.email;
 
   homeBtn.onclick = async () => {
@@ -205,9 +203,10 @@ window.addEventListener('DOMContentLoaded', async () => {
     handleSubmit(true);
   };
 
+  // initially clear & disable
   [ subSel, areaSel, plantSel, batchSel, activitySel ].forEach(el => {
-    el.disabled = true;
-    el.innerHTML = '';
+    el.disabled   = true;
+    el.innerHTML  = '';
   });
 
   // load Sections
@@ -237,10 +236,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 // ── Cascading selects ───────────────────────────────────────────
 sectionSel.addEventListener('change', async () => {
-  [ subSel, areaSel, plantSel, activitySel ].forEach(el => {
-    el.disabled = true;
-    el.innerHTML = '';
-  });
+  [ subSel, areaSel, plantSel, activitySel ].forEach(el => { el.disabled = true; el.innerHTML = ''; });
   await loadActivities();
   if (!sectionSel.value) return;
   const { data, error } = await supabase
@@ -255,10 +251,7 @@ sectionSel.addEventListener('change', async () => {
 });
 
 subSel.addEventListener('change', async () => {
-  [ areaSel, plantSel, activitySel ].forEach(el => {
-    el.disabled = true;
-    el.innerHTML = '';
-  });
+  [ areaSel, plantSel, activitySel ].forEach(el => { el.disabled = true; el.innerHTML = ''; });
   await loadActivities();
   if (!subSel.value) return;
   const { data, error } = await supabase
@@ -274,10 +267,7 @@ subSel.addEventListener('change', async () => {
 });
 
 areaSel.addEventListener('change', async () => {
-  [ plantSel, activitySel ].forEach(el => {
-    el.disabled = true;
-    el.innerHTML = '';
-  });
+  [ plantSel, activitySel ].forEach(el => { el.disabled = true; el.innerHTML = ''; });
   await loadActivities();
   if (!areaSel.value) return;
   const { data, error } = await supabase
@@ -293,12 +283,14 @@ areaSel.addEventListener('change', async () => {
 
 // ── Item → Batch + SKUs ─────────────────────────────────────────
 itemInput.addEventListener('change', async () => {
-  if (!Array.from(itemList.options).map(o => o.value).includes(itemInput.value)) {
+  const val = itemInput.value.trim();
+  // validate against datalist
+  if (!Array.from(itemList.options).map(o => o.value).includes(val)) {
     await showAlert('Please select a valid item.');
-    itemInput.value = '';
-    batchSel.disabled = true;
-    batchSel.innerHTML = '';
-    currentItemSkus = [];
+    itemInput.value     = '';
+    batchSel.disabled   = true;
+    batchSel.innerHTML  = '<option value="">-- Select Batch Number --</option>';
+    currentItemSkus     = [];
     updateSections();
     return;
   }
@@ -307,7 +299,7 @@ itemInput.addEventListener('change', async () => {
   const { data: bns } = await supabase
     .from('bmr_details')
     .select('bn')
-    .eq('item', itemInput.value)
+    .eq('item', val)
     .order('bn');
   const uniq = [...new Set(bns.map(r => r.bn))].map(bn => ({ bn }));
   populate(batchSel, uniq, 'bn', 'bn', '-- Select Batch Number --');
@@ -317,7 +309,7 @@ itemInput.addEventListener('change', async () => {
   const { data: prod } = await supabase
     .from('products')
     .select('id')
-    .eq('item', itemInput.value)
+    .eq('item', val)
     .single();
   if (prod) {
     const { data: skus } = await supabase
@@ -336,7 +328,7 @@ itemInput.addEventListener('change', async () => {
 
 batchSel.addEventListener('change', async () => {
   sizeInput.value = '';
-  uomInput.value = '';
+  uomInput.value  = '';
   if (!itemInput.value || !batchSel.value) return;
   const { data } = await supabase
     .from('bmr_details')
@@ -346,7 +338,7 @@ batchSel.addEventListener('change', async () => {
     .limit(1);
   if (data && data.length) {
     sizeInput.value = data[0].batch_size;
-    uomInput.value = data[0].uom;
+    uomInput.value  = data[0].uom;
   }
   updateSections();
 });
@@ -387,7 +379,6 @@ form.addEventListener('input', () => { dirty = true; });
 
 // ── Submit logic ────────────────────────────────────────────────
 async function handleSubmit(isNew) {
-  // Browser built-in validation
   if (!form.checkValidity()) {
     form.reportValidity();
     return;
@@ -397,22 +388,17 @@ async function handleSubmit(isNew) {
   const isTransfer = actNorm === 'transfer to fg store';
   const isDone     = statusSel.value === 'Done';
 
-  // Transfer Qty must be > 0
+  // Transfer validations
   if (isDone && isTransfer) {
     const inputs = Array.from(transferTableBody.querySelectorAll('input[type="number"]'));
     if (!inputs.some(i => Number(i.value) > 0)) {
-      inputs[0].setCustomValidity('Enter a Transfer Qty greater than zero.');
+      inputs[0].setCustomValidity('Enter a Transfer Qty > 0.');
       inputs[0].reportValidity();
       inputs[0].setCustomValidity('');
       return;
     }
-  }
-
-  // Transfer Qty ≤ on-hand
-  if (isDone && isTransfer) {
-    for (const inp of transferTableBody.querySelectorAll('input[type="number"]')) {
-      const cnt = Number(inp.value) || 0;
-      const max = Number(inp.max) || 0;
+    for (const inp of inputs) {
+      const cnt = Number(inp.value) || 0, max = Number(inp.max) || 0;
       if (cnt > max) {
         inp.setCustomValidity(`Cannot exceed on-hand (${max}).`);
         inp.reportValidity();
@@ -422,7 +408,7 @@ async function handleSubmit(isNew) {
     }
   }
 
-  // Build payload skeleton
+  // Build payload
   const row = {
     log_date:            form.log_date.value,
     section_id:          sectionSel.value,
@@ -452,7 +438,7 @@ async function handleSubmit(isNew) {
     uploaded_by:         currentUserEmail
   };
 
-  // OPTIONAL qty_after_process check with confirm
+  // Optional Qty/UOM confirm
   if (isDone
       && !skuActivities.includes(actNorm)
       && actNorm !== 'transfer to fg store'
@@ -460,52 +446,46 @@ async function handleSubmit(isNew) {
     const qv = form.querySelector('[name="qty_after_process"]').value;
     const uv = form.querySelector('[name="qty_after_process_uom"]').value;
     if (!qv || !uv) {
-      const proceed = await askConfirm(
-        'You have not provided Qty After Process & UOM. If this is the final process at this section, it\'s required. Do you want to submit without these details?'
+      const ok = await askConfirm(
+        'You have not provided Qty After Process & UOM. Continue anyway?'
       );
-      if (!proceed) return;
+      if (!ok) return;
     } else {
       row.qty_after_process = qv;
       row.qty_uom           = uv;
     }
   }
 
-  // SKU breakdown for packaging
+  // SKU breakdown
   if (isDone && skuActivities.includes(actNorm)) {
     const parts = Array.from(skuTableBody.querySelectorAll('input')).map(i => {
-      const cnt = Number(i.value);
-      if (!cnt) return null;
-      const sku = currentItemSkus.find(s => s.id == i.dataset.skuId);
-      return `${sku.pack_size} ${sku.uom} x ${cnt}`;
-    }).filter(p => p);
+      const cnt = Number(i.value), sku = currentItemSkus.find(s=>s.id==i.dataset.skuId);
+      return cnt>0 ? `${sku.pack_size} ${sku.uom} x ${cnt}` : null;
+    }).filter(p=>p);
     row.sku_breakdown = parts.join('; ');
     row.qty_uom       = 'Nos';
   }
-
-  // SKU breakdown for transfer
   if (isDone && isTransfer) {
     const parts = Array.from(transferTableBody.querySelectorAll('input')).map(i => {
-      const cnt = Number(i.value);
-      if (!cnt) return null;
-      const sku = currentItemSkus.find(s => s.id == i.dataset.skuId);
-      return `${sku.pack_size} ${sku.uom} x ${cnt}`;
-    }).filter(p => p);
+      const cnt = Number(i.value), sku = currentItemSkus.find(s=>s.id==i.dataset.skuId);
+      return cnt>0 ? `${sku.pack_size} ${sku.uom} x ${cnt}` : null;
+    }).filter(p=>p);
     row.sku_breakdown = parts.join('; ');
   }
 
-  // Insert into daily_work_log
+  // Insert work log
   const { data: ins, error: insErr } = await supabase
     .from('daily_work_log')
     .insert([ row ])
     .select('id')
     .single();
   if (insErr) {
-    console.error('Insert error:', insErr);
-    return showAlert('Error saving log; check console.');
+    console.error(insErr);
+    return showAlert('Error saving; check console.');
   }
   const newId = ins.id;
 
-  // Insert packaging_event + event_skus if needed
+  // Insert packaging events
   if (isDone && (skuActivities.includes(actNorm) || isTransfer)) {
     const { data: pe, error: peErr } = await supabase
       .from('packaging_events')
@@ -513,33 +493,37 @@ async function handleSubmit(isNew) {
       .select('id')
       .single();
     if (!peErr) {
-      const sign = 1;
       const inputs = skuActivities.includes(actNorm)
         ? skuTableBody.querySelectorAll('input')
         : transferTableBody.querySelectorAll('input');
-      const evRows = [];
-      inputs.forEach(i => {
+      const evRows = Array.from(inputs).map(i => {
         const cnt = Number(i.value);
-        if (cnt > 0) evRows.push({
+        if (cnt <= 0) return null;
+        return {
           packaging_event_id: pe.id,
           sku_id:             +i.dataset.skuId,
-          count:              sign * cnt
-        });
-      });
+          count:              cnt
+        };
+      }).filter(x=>x);
       if (evRows.length) {
         const { error: esErr } = await supabase.from('event_skus').insert(evRows);
-        if (esErr) console.error('ES insert error', esErr);
+        if (esErr) console.error(esErr);
       }
     } else {
-      console.error('PE insert error:', peErr);
+      console.error(peErr);
     }
   }
 
+  // Success & next
   await showAlert('Log saved successfully!');
   if (isNew) {
-    window.location.href =
-      `add-log-entry.html?prefill_item=${encodeURIComponent(row.item)}` +
-      `&prefill_bn=${encodeURIComponent(row.batch_number)}`;
+    // pass both styles of params
+    const params = new URLSearchParams();
+    params.set('prefill_item', row.item);
+    params.set('prefill_bn',    row.batch_number);
+    params.set('item',          row.item);
+    params.set('bn',            row.batch_number);
+    window.location.href = `add-log-entry.html?${params.toString()}`;
   } else {
     form.reset();
     skuTableBody.innerHTML      = '';
@@ -549,6 +533,7 @@ async function handleSubmit(isNew) {
   }
 }
 
+// Attach form submit
 form.addEventListener('submit', e => {
   e.preventDefault();
   handleSubmit(false);
