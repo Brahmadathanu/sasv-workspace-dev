@@ -1,155 +1,156 @@
+/* ===========================================================================
+   log-view.js  —  View Logs dashboard
+   ---------------------------------------------------------------------------
+   • Adds a “Log Date” filter (dd-mm-yyyy) with flatpickr + input mask.
+   • Natural-order table sorting: Date ↑, Item A-Z, BN ↑, Plant natural ↑.
+   • Clean, fully validated cascading filters + clear-all.
+=========================================================================== */
+
 import { supabase } from './supabaseClient.js';
 
-// — Helpers —
-function fmtDate(val) {
-  if (!val) return '—';
-  const d = new Date(val);
-  return isNaN(d) ? '—' : d.toLocaleDateString('en-GB');
-}
+/* ── Flatpickr base config -------------------------------------------------- */
+const fpBase = {
+  dateFormat : 'd-m-Y',
+  allowInput : true,
+  clickOpens : true,
+  plugins    : [confirmDatePlugin({
+    showTodayButton   : true,
+    showClearButton   : true,
+    showConfirmButton : false,
+    todayText         : 'Today',
+    clearText         : 'Clear'
+  })]
+};
 
-function populate(sel, rows, vKey, tKey, placeholder) {
-  sel.innerHTML = `<option value="">${placeholder}</option>`;
-  (rows || []).forEach(r => {
-    const o = document.createElement('option');
-    o.value       = r[vKey];
-    o.textContent = r[tKey];
-    sel.append(o);
+/* DD-MM-YYYY helpers (avoid TZ pitfalls) */
+const parseDMY  = s => { const [d,m,y] = s.split('-').map(Number); return new Date(y, m-1, d); };
+const toISODate = s => { const [d,m,y] = s.split('-'); return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; };
+const fmtDMY    = d => `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
+
+/* Simple mask that inserts “-” while typing */
+const attachMask = el =>
+  el.addEventListener('input', () => {
+    let v = el.value.replace(/\D/g, '').slice(0, 8);
+    if (v.length > 2) v = v.slice(0, 2) + '-' + v.slice(2);
+    if (v.length > 5) v = v.slice(0, 5) + '-' + v.slice(5);
+    el.value = v;
   });
-}
 
+/* ── Short DOM helper ------------------------------------------------------- */
+const $ = s => document.querySelector(s);
+
+/* ── Element refs ----------------------------------------------------------- */
+const homeBtn  = $('#homeBtn');
+const fDate    = $('#filterDate');
+const fSection = $('#filterSection');
+const fSub     = $('#filterSubsection');
+const fArea    = $('#filterArea');
+const fPlant   = $('#filterPlant');
+const fItem    = $('#filterItem');
+const fBN      = $('#filterBN');
+const fStatus  = $('#filterStatus');
+const clearBtn = $('#clearFilters');
+
+const tbody      = $('#logsTableBody');
+const overlay    = $('#viewOverlay');
+const detailBody = $('#detailTable');
+const btnClose   = $('#closeView');
+
+/* ── Helpers ---------------------------------------------------------------- */
 const show = el => el.style.display = el.tagName === 'TABLE' ? 'table' : 'flex';
 const hide = el => el.style.display = 'none';
 
-// — Element refs —
-const homeBtn       = document.getElementById('homeBtn');
-const fSection      = document.getElementById('filterSection');
-const fSub          = document.getElementById('filterSubsection');
-const fArea         = document.getElementById('filterArea');
-const fPlant        = document.getElementById('filterPlant');
-const fItem         = document.getElementById('filterItem');
-const fBN           = document.getElementById('filterBN');
-const fStatus       = document.getElementById('filterStatus');
-const btnClear      = document.getElementById('clearFilters');
-const tbody         = document.getElementById('logsTableBody');
-const overlay       = document.getElementById('viewOverlay');
-const btnClose      = document.getElementById('closeView');
-const detailBody    = document.getElementById('detailTable');
+const fmtDate = v => v ? new Date(v).toLocaleDateString('en-GB') : '—';
 
-// — Initialization —
-async function init() {
-  // Home nav
+const populate = (sel, rows, valKey, txtKey, ph) =>
+  sel.innerHTML = `<option value="">${ph}</option>` +
+    rows.map(r => `<option value="${r[valKey]}">${r[txtKey]}</option>`).join('');
+
+/* Plant-name cache for natural sort */
+const plantMap = {};
+
+/* ── Initial bootstrap ------------------------------------------------------ */
+document.addEventListener('DOMContentLoaded', init);
+
+async function init () {
+  /* Home nav */
   homeBtn.onclick = () => location.href = 'index.html';
 
-  // Close detail modal
+  /* Date picker + mask */
+  attachMask(fDate);
+  flatpickr(fDate, fpBase);
+  fDate.addEventListener('change', loadTable);
+
+  /* Close details modal */
   btnClose.onclick = () => hide(overlay);
 
-  // Clear filters
-  btnClear.onclick = () => {
-    [fSection, fSub, fArea, fPlant, fItem, fBN, fStatus].forEach(s => {
-      s.value = '';
-      // only Section, Item and Status stay enabled
-      s.disabled = !(s === fSection || s === fItem || s === fStatus);
-    });
-    cascadeSub();
-    cascadeArea();
-    cascadePlant();
-    loadItems();
-    loadBN();
-    loadTable();
-  };
-
-  // Load Sections
-  const { data: secs } = await supabase
-    .from('sections')
-    .select('id,section_name')
-    .order('section_name');
-  populate(fSection, secs, 'id', 'section_name', 'Section');
-
-  // Cascading filters
-  fSection.onchange = () => {
+  /* Clear filters */
+  clearBtn.onclick = () => {
+    [fDate,fSection,fSub,fArea,fPlant,fItem,fBN,fStatus].forEach(el => el.value = '');
+    [fSub,fArea,fPlant,fBN].forEach(el => el.disabled = true);
     cascadeSub(); cascadeArea(); cascadePlant();
     loadItems(); loadBN(); loadTable();
   };
-  fSub.onchange     = () => {
-    cascadeArea(); cascadePlant();
-    loadItems(); loadBN(); loadTable();
-  };
-  fArea.onchange    = () => {
-    cascadePlant();
-    loadItems(); loadBN(); loadTable();
-  };
-  fPlant.onchange   = () => {
-    loadItems(); loadBN(); loadTable();
-  };
-  fItem.onchange    = () => {
-    loadBN(); loadTable();
-  };
-  fBN.onchange      = () => loadTable();
-  fStatus.onchange  = () => loadTable();
 
-  // First pass
-  cascadeSub();
-  cascadeArea();
-  cascadePlant();
-  await loadItems();
-  await loadBN();
-  await loadTable();
+  /* Plant lookup */
+  const { data: pl } = await supabase.from('plant_machinery').select('id,plant_name');
+  pl.forEach(p => plantMap[p.id] = p.plant_name);
+
+  /* Load Sections */
+  const { data: secs } = await supabase.from('sections')
+                                       .select('id,section_name').order('section_name');
+  populate(fSection, secs, 'id', 'section_name', 'Section');
+
+  /* Cascading wiring */
+  fSection.onchange = () => { cascadeSub(); cascadeArea(); cascadePlant(); loadItems(); loadBN(); loadTable(); };
+  fSub     .onchange = () => { cascadeArea(); cascadePlant();               loadItems(); loadBN(); loadTable(); };
+  fArea    .onchange = () => { cascadePlant();                               loadItems(); loadBN(); loadTable(); };
+  fPlant   .onchange = () => {                                               loadItems(); loadBN(); loadTable(); };
+  fItem    .onchange = () => {                                               loadBN();    loadTable(); };
+  fBN      .onchange = loadTable;
+  fStatus  .onchange = loadTable;
+
+  /* First pass */
+  cascadeSub(); cascadeArea(); cascadePlant();
+  await loadItems(); await loadBN(); await loadTable();
 }
 
-// — Cascades —
-function cascadeSub() {
+/* ── Cascades --------------------------------------------------------------- */
+function cascadeSub () {
   if (!fSection.value) {
-    populate(fSub, [], '', '', 'Sub-section');
-    fSub.disabled = true;
+    populate(fSub, [], '', '', 'Sub-section'); fSub.disabled = true;
   } else {
-    supabase
-      .from('subsections')
-      .select('id,subsection_name')
-      .eq('section_id', fSection.value)
+    supabase.from('subsections')
+      .select('id,subsection_name').eq('section_id', fSection.value)
       .order('subsection_name')
-      .then(({ data }) => {
-        populate(fSub, data, 'id', 'subsection_name', 'Sub-section');
-        fSub.disabled = false;
-      });
+      .then(({ data }) => { populate(fSub, data, 'id', 'subsection_name', 'Sub-section'); fSub.disabled = false; });
   }
 }
 
-function cascadeArea() {
+function cascadeArea () {
   if (!fSub.value) {
-    populate(fArea, [], '', '', 'Area');
-    fArea.disabled = true;
+    populate(fArea, [], '', '', 'Area'); fArea.disabled = true;
   } else {
-    supabase
-      .from('areas')
-      .select('id,area_name')
-      .eq('subsection_id', fSub.value)
+    supabase.from('areas')
+      .select('id,area_name').eq('subsection_id', fSub.value)
       .order('area_name')
-      .then(({ data }) => {
-        populate(fArea, data, 'id', 'area_name', 'Area');
-        fArea.disabled = false;
-      });
+      .then(({ data }) => { populate(fArea, data, 'id', 'area_name', 'Area'); fArea.disabled = false; });
   }
 }
 
-function cascadePlant() {
+function cascadePlant () {
   if (!fArea.value) {
-    populate(fPlant, [], '', '', 'Plant / Machinery');
-    fPlant.disabled = true;
+    populate(fPlant, [], '', '', 'Plant / Machinery'); fPlant.disabled = true;
   } else {
-    supabase
-      .from('plant_machinery')
-      .select('id,plant_name')
-      .eq('area_id', fArea.value)
+    supabase.from('plant_machinery')
+      .select('id,plant_name').eq('area_id', fArea.value)
       .order('plant_name')
-      .then(({ data }) => {
-        populate(fPlant, data, 'id', 'plant_name', 'Plant / Machinery');
-        fPlant.disabled = false;
-      });
+      .then(({ data }) => { populate(fPlant, data, 'id', 'plant_name', 'Plant / Machinery'); fPlant.disabled = false; });
   }
 }
 
-// — Load unique Items —
-async function loadItems() {
+/* ── Unique Item / BN loaders ---------------------------------------------- */
+async function loadItems () {
   let q = supabase.from('daily_work_log').select('item');
   if (fSection.value) q = q.eq('section_id',    fSection.value);
   if (fSub.value)     q = q.eq('subsection_id', fSub.value);
@@ -159,25 +160,19 @@ async function loadItems() {
   const { data, error } = await q;
   if (error) return console.error(error);
 
-  const uniq = [...new Set((data||[]).map(r => r.item))]
+  const uniq = [...new Set((data || []).map(r => r.item))]
     .map(item => ({ item }))
-    .sort((a, b) => a.item.localeCompare(b.item));
+    .sort((a, b) => a.item.localeCompare(b.item, undefined, { sensitivity: 'base' }));
 
   populate(fItem, uniq, 'item', 'item', 'Item');
 }
 
-// — Load unique BNs for selected Item —
-async function loadBN() {
+async function loadBN () {
   if (!fItem.value) {
-    populate(fBN, [], '', '', 'BN');
-    fBN.disabled = true;
-    return;
+    populate(fBN, [], '', '', 'BN'); fBN.disabled = true; return;
   }
 
-  let q = supabase
-    .from('daily_work_log')
-    .select('batch_number')
-    .eq('item', fItem.value);
+  let q = supabase.from('daily_work_log').select('batch_number').eq('item', fItem.value);
   if (fSection.value) q = q.eq('section_id',    fSection.value);
   if (fSub.value)     q = q.eq('subsection_id', fSub.value);
   if (fArea.value)    q = q.eq('area_id',       fArea.value);
@@ -186,84 +181,85 @@ async function loadBN() {
   const { data, error } = await q;
   if (error) return console.error(error);
 
-  const uniq = [...new Set((data||[]).map(r => r.batch_number))]
-    .map(bn => ({ batch_number: bn }))
-    .sort((a, b) => a.batch_number.toString().localeCompare(b.batch_number.toString(), undefined, { numeric: true }));
+  const uniq = [...new Set((data || []).map(r => r.batch_number))]
+    .map(bn => ({ bn }))
+    .sort((a, b) => a.bn.toString().localeCompare(b.bn.toString(), undefined, { numeric: true }));
 
-  populate(fBN, uniq, 'batch_number', 'batch_number', 'BN');
-  fBN.disabled = !uniq.length;
+  populate(fBN, uniq, 'bn', 'bn', 'BN'); fBN.disabled = !uniq.length;
 }
 
-// — Render main table with Plant / Machinery column —
-async function loadTable() {
-  tbody.innerHTML = '';
+/* ── Main table refresh ----------------------------------------------------- */
+async function loadTable () {
+  tbody.replaceChildren();
 
-  let q = supabase
-    .from('daily_work_log')
+  let q = supabase.from('daily_work_log')
     .select(`
-      id,
-      log_date,
-      item,
-      batch_number,
-      batch_size,
-      batch_uom,
-      activity,
-      plant_machinery (
-        plant_name
-      )
-    `)
-    .order('log_date', { ascending: false });
+      id,log_date,item,batch_number,batch_size,batch_uom,activity,plant_id,status,
+      plant_machinery(plant_name)
+    `);
 
+  /* Date filter */
+  if (fDate.value) q = q.eq('log_date', toISODate(fDate.value));
+
+  /* Other filters */
   if (fSection.value) q = q.eq('section_id',    fSection.value);
   if (fSub.value)     q = q.eq('subsection_id', fSub.value);
   if (fArea.value)    q = q.eq('area_id',       fArea.value);
   if (fPlant.value)   q = q.eq('plant_id',      fPlant.value);
-  if (fItem.value)    q = q.eq('item',           fItem.value);
-  if (fBN.value)      q = q.eq('batch_number',   fBN.value);
-  if (fStatus.value)  q = q.eq('status',         fStatus.value);
+  if (fItem.value)    q = q.eq('item',          fItem.value);
+  if (fBN.value)      q = q.eq('batch_number',  fBN.value);
+  if (fStatus.value)  q = q.eq('status',        fStatus.value);
 
   const { data, error } = await q;
   if (error) return console.error(error);
 
-  (data||[]).forEach(r => {
-    const plantName = r.plant_machinery?.plant_name || '';
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${fmtDate(r.log_date)}</td>
-      <td>${r.item}</td>
-      <td>${r.batch_number}</td>
-      <td>${r.batch_size}</td>
-      <td>${r.batch_uom}</td>
-      <td>${plantName}</td>
-      <td>${r.activity}</td>
-      <td><a href="#" class="view-link" data-id="${r.id}">View</a></td>`;
-    tbody.append(tr);
+  /* Natural sort: Date ↑, Item A-Z, BN ↑, Plant natural ↑ */
+  const coll = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
+  data.sort((a, b) => {
+    const dt  = new Date(a.log_date) - new Date(b.log_date); if (dt) return dt;
+    const itm = a.item.localeCompare(b.item, undefined, { sensitivity:'base' }); if (itm) return itm;
+    const bn  = a.batch_number.toString().localeCompare(b.batch_number.toString(), undefined, { numeric:true }); if (bn) return bn;
+    const pa  = a.plant_machinery?.plant_name || '';
+    const pb  = b.plant_machinery?.plant_name || '';
+    return coll.compare(pa, pb);
   });
 
-  document.querySelectorAll('.view-link')
-          .forEach(a => a.addEventListener('click', showDetails));
+  /* Render */
+  data.forEach(r => {
+    const plantName = r.plant_machinery?.plant_name || '';
+    tbody.insertAdjacentHTML('beforeend', `
+      <tr>
+        <td>${fmtDate(r.log_date)}</td>
+        <td>${r.item}</td>
+        <td>${r.batch_number}</td>
+        <td>${r.batch_size}</td>
+        <td>${r.batch_uom}</td>
+        <td>${plantName}</td>
+        <td>${r.activity}</td>
+        <td><a href="#" class="view-link" data-id="${r.id}">View</a></td>
+      </tr>`);
+  });
+
+  /* Detail handlers */
+  [...document.querySelectorAll('.view-link')]
+    .forEach(a => a.addEventListener('click', showDetails));
 }
 
-// — Show detail modal —
-async function showDetails(e) {
+/* ── Details modal ---------------------------------------------------------- */
+async function showDetails (e) {
   e.preventDefault();
   const id = e.currentTarget.dataset.id;
 
   const { data: log, error } = await supabase
     .from('daily_work_log')
     .select(`
-      *,
-      sections(section_name),
-      subsections(subsection_name),
-      areas(area_name),
-      plant_machinery(plant_name)
-    `)
-    .eq('id', id)
-    .single();
+      *,sections(section_name),subsections(subsection_name),
+      areas(area_name),plant_machinery(plant_name)
+    `).eq('id', id).single();
   if (error) return console.error(error);
 
   detailBody.innerHTML = '';
-  const fields = [
+  const rows = [
     ['Date',              fmtDate(log.log_date)],
     ['Section',           log.sections?.section_name],
     ['Sub-section',       log.subsections?.subsection_name],
@@ -293,15 +289,12 @@ async function showDetails(e) {
     ['Created At',        fmtDate(log.created_at)]
   ];
 
-  fields.forEach(([label, val]) => {
+  rows.forEach(([lbl, val]) => {
     if (val !== null && val !== undefined && val !== '') {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<th>${label}</th><td>${val}</td>`;
-      detailBody.append(tr);
+      detailBody.insertAdjacentHTML('beforeend',
+        `<tr><th>${lbl}</th><td>${val}</td></tr>`);
     }
   });
 
   show(overlay);
 }
-
-window.addEventListener('DOMContentLoaded', init);

@@ -1,442 +1,410 @@
-// js/update-log-status.js
+  /* ===========================================================================
+    update-log-status.js  —  Status dashboard
+    ---------------------------------------------------------------------------
+    • Adds a “Log Date” filter that behaves like dd-mm-yyyy everywhere else.
+    • Harmonises Completed-On date input with the same Flatpickr + mask stack.
+    • Client-side “ghost row” issue solved by clearing <tbody> before repop.
+  =========================================================================== */
 
-import { supabase } from './supabaseClient.js';
+  /* ── Supabase ---------------------------------------------------------------- */
+  import { supabase } from './supabaseClient.js';
 
-document.addEventListener('DOMContentLoaded', () => {
-  // ───────── Element refs ─────────────────────────────────────────
-  const homeBtn     = document.getElementById('homeBtn');
-  const statusBody  = document.getElementById('statusBody');
+  const fpBase = {
+    dateFormat : 'd-m-Y',
+    allowInput : true,
+    clickOpens : true,
+    plugins    : [confirmDatePlugin({
+      showTodayButton   : true,
+      showClearButton   : true,
+      showConfirmButton : false,
+      todayText         : 'Today',
+      clearText         : 'Clear'
+    })]
+  };
 
-  const sSection    = document.getElementById('sSection');
-  const sSub        = document.getElementById('sSub');
-  const sArea       = document.getElementById('sArea');
-  const sItem       = document.getElementById('sItem');
-  const sBN         = document.getElementById('sBN');
-  const sOverdue    = document.getElementById('sOverdue');
-  const clearStatus = document.getElementById('clearStatus');
+  /* Parse/format helpers for DD-MM-YYYY */
+  const parseDMY  = s => { const [d,m,y] = s.split('-').map(Number); return new Date(y, m-1, d); };
+  const formatDMY = d => `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
 
-  // Done-modal refs
-  const doneModal         = document.getElementById('doneModal');
-  const doneForm          = document.getElementById('doneForm');
-  const doneCompletedOn   = document.getElementById('doneCompletedOn');
-  const doneQtySection    = document.getElementById('doneQtySection');
-  const doneLabRefSection = document.getElementById('doneLabRefSection');
-  const doneSkuSection    = document.getElementById('doneSkuSection');
-  const doneSkuBody       = document.querySelector('#doneSkuTable tbody');
-  const doneTransSection  = document.getElementById('doneTransSection');
-  const doneTransBody     = document.querySelector('#doneTransTable tbody');
-  const doneCancel        = document.getElementById('doneCancel');
-  const doneJust          = document.getElementById('doneJust');
-  const doneNew           = document.getElementById('doneNew');
+  /* Simple auto-mask to insert “-” */
+  const attachMask = el =>
+    el.addEventListener('input', ()=> {
+      let v = el.value.replace(/\D/g,'').slice(0,8);
+      if (v.length>2) v = v.slice(0,2)+'-'+v.slice(2);
+      if (v.length>5) v = v.slice(0,5)+'-'+v.slice(5);
+      el.value = v;
+    });
 
-  // Confirm-modal refs
-  const confirmModal = document.getElementById('confirmModal');
-  const confirmText  = document.getElementById('confirmText');
-  const confirmYes   = document.getElementById('confirmYes');
-  const confirmNo    = document.getElementById('confirmNo');
+  /* ── Cached plant-name lookup ------------------------------------------------ */
+  const plantMap = {};          // id ➜ plant_name
 
-  // packaging-activity keys
+  /* ── Packaging activities that need SKU tables ----------------------------- */
   const skuActivities = [
-    'bottling',
-    'bottling and labelling',
-    'bottling, labelling and cartoning',
-    'capsule monocarton packing',
-    'monocarton packing',
+    'bottling','bottling and labelling','bottling, labelling and cartoning',
+    'capsule monocarton packing','monocarton packing',
     'monocarton packing and cartoning'
   ];
 
-  // map plant_id → plant_name
-  const plantMap = {};
+  /* ── Short DOM helper ------------------------------------------------------- */
+  const $ = s => document.querySelector(s);
 
-  // ───── Utility ─────────────────────────────────────────────────
-  function showModal(m) { m.style.display = 'flex'; }
-  function hideModal(m) { m.style.display = ''; }
+  /* ── Bootstrapping after DOMContentLoaded ---------------------------------- */
+  document.addEventListener('DOMContentLoaded', async () => {
 
-  function askConfirm(msg) {
-    confirmText.textContent = msg;
-    showModal(confirmModal);
-    return new Promise(res => {
-      confirmYes.onclick = () => { hideModal(confirmModal); res(true); };
-      confirmNo.onclick  = () => { hideModal(confirmModal); res(false); };
+    /* ---------- MAIN ELEMENT REFERENCES ----------------------------------- */
+    const homeBtn   = $('#homeBtn');
+    const bodyTbl   = $('#statusBody');
+
+    /* filter bar */
+    const sLogDate  = $('#sLogDate');
+    const sSection  = $('#sSection');
+    const sSub      = $('#sSub');
+    const sArea     = $('#sArea');
+    const sItem     = $('#sItem');
+    const sBN       = $('#sBN');
+    const sOverdue  = $('#sOverdue');
+    const clearBtn  = $('#clearStatus');
+
+    /* done modal */
+    const doneModal       = $('#doneModal');
+    const doneForm        = $('#doneForm');
+    const doneCompletedOn = $('#doneCompletedOn');
+    const doneQtySection  = $('#doneQtySection');
+    const doneLabRefSec   = $('#doneLabRefSection');
+    const doneSkuSec      = $('#doneSkuSection');
+    const doneSkuBody     = $('#doneSkuTable tbody');
+    const doneTransSec    = $('#doneTransSection');
+    const doneTransBody   = $('#doneTransTable tbody');
+    const doneCancel      = $('#doneCancel');
+    const doneJust        = $('#doneJust');
+    const doneNew         = $('#doneNew');
+
+    /* confirm modal */
+    const confirmModal = $('#confirmModal');
+    const confirmText  = $('#confirmText');
+    const confirmYes   = $('#confirmYes');
+    const confirmNo    = $('#confirmNo');
+
+    /* ---------- ONE-TIME INIT: Flatpickr + mask --------------------------- */
+    attachMask(sLogDate);
+    flatpickr(sLogDate, fpBase);        // no maxDate restriction
+    sLogDate.addEventListener('change', loadStatus);
+
+    attachMask(doneCompletedOn);
+    flatpickr(doneCompletedOn, {...fpBase, maxDate:'today'});
+    doneCompletedOn.addEventListener('blur', ()=> {
+      const d = parseDMY(doneCompletedOn.value);
+      const today = new Date();
+      if (+d > +today) doneCompletedOn.value = formatDMY(today);
     });
-  }
 
-  async function clearPackaging(logId) {
-    const { data: evts } = await supabase
-      .from('packaging_events')
-      .select('id')
-      .eq('work_log_id', logId);
-    const ids = (evts || []).map(e => e.id);
-    if (ids.length) {
-      await supabase.from('event_skus').delete().in('packaging_event_id', ids);
-      await supabase.from('packaging_events').delete().in('id', ids);
-    }
-  }
+    /* ---------- BASIC HELPERS -------------------------------------------- */
+    const show  = m => m.style.display = 'flex';
+    const hide  = m => m.style.display = 'none';
 
-  function populate(sel, rows, vKey, tKey, placeholder) {
-    sel.innerHTML = `<option value="">${placeholder}</option>`;
-    (rows || []).forEach(r => {
-      const o = document.createElement('option');
-      o.value       = r[vKey];
-      o.textContent = r[tKey];
-      sel.append(o);
-    });
-  }
-
-  // ───── Load all plant-machinery into plantMap ─────────────────
-  async function loadPlants() {
-    const { data: plants, error } = await supabase
-      .from('plant_machinery')
-      .select('id,plant_name');
-    if (!error && plants) {
-      plants.forEach(p => plantMap[p.id] = p.plant_name);
-    }
-  }
-
-  // ───── Filters cascading ───────────────────────────────────────
-  sSection.onchange = async () => {
-    if (!sSection.value) {
-      populate(sSub, [], '', '', 'Sub-section');
-      sSub.disabled = true;
-    } else {
-      const { data: subs } = await supabase
-        .from('subsections').select('id,subsection_name')
-        .eq('section_id', sSection.value)
-        .order('subsection_name');
-      populate(sSub, subs, 'id','subsection_name','Sub-section');
-      sSub.disabled = false;
-    }
-    populate(sArea, [], '', '', 'Area');  sArea.disabled = true;
-    sBN.innerHTML = '<option value="">BN</option>';          sBN.disabled = true;
-    await loadStatus();
-  };
-
-  sSub.onchange = async () => {
-    if (!sSub.value) {
-      populate(sArea, [], '', '', 'Area');
-      sArea.disabled = true;
-    } else {
-      const { data: areas } = await supabase
-        .from('areas').select('id,area_name')
-        .eq('section_id',    sSection.value)
-        .eq('subsection_id', sSub.value)
-        .order('area_name');
-      populate(sArea, areas, 'id','area_name','Area');
-      sArea.disabled = false;
-    }
-    sBN.innerHTML = '<option value="">BN</option>'; sBN.disabled = true;
-    await loadStatus();
-  };
-
-  sArea.onchange = () => {
-    sBN.innerHTML = '<option value="">BN</option>';
-    sBN.disabled = true;
-    loadStatus();
-  };
-
-  sItem.onchange = async () => {
-    if (!sItem.value) {
-      sBN.innerHTML = '<option value="">BN</option>';
-      sBN.disabled = true;
-    } else {
-      const { data: bns } = await supabase
-        .from('bmr_details').select('bn')
-        .eq('item', sItem.value)
-        .order('bn');
-      const uniq = [...new Set((bns||[]).map(r=>r.bn))];
-      sBN.innerHTML = '<option value="">BN</option>' +
-        uniq.map(bn=>`<option value="${bn}">${bn}</option>`).join('');
-      sBN.disabled = false;
-    }
-    await loadStatus();
-  };
-
-  sBN.onchange      = loadStatus;
-  sOverdue.onchange = loadStatus;
-
-  clearStatus.onclick = () => {
-    [sSection,sSub,sArea,sItem,sBN].forEach(x=>x.value='');
-    [sSub,sArea,sBN].forEach(x=>x.disabled=true);
-    sOverdue.checked = false;
-    loadStatus();
-  };
-
-  // ───── “Done?” modal ──────────────────────────────────────────
-  async function configureDoneModal(activity,item,batch) {
-    const act = activity.trim().toLowerCase();
-    doneQtySection.style.display =
-    doneLabRefSection.style.display =
-    doneSkuSection.style.display =
-    doneTransSection.style.display = 'none';
-    doneSkuBody.innerHTML   = '';
-    doneTransBody.innerHTML = '';
-
-    if (act === 'finished goods quality assessment') {
-      doneLabRefSection.style.display = 'flex';
-    }
-    else if (skuActivities.includes(act)) {
-      doneSkuSection.style.display = 'block';
-      const { data: prod } = await supabase
-        .from('products').select('id').eq('item', item).single();
-      if (prod) {
-        const { data: skus } = await supabase
-          .from('product_skus')
-          .select('id,pack_size,uom')
-          .eq('product_id', prod.id)
-          .eq('is_active', true)
-          .order('pack_size');
-        skus.forEach(sku => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${sku.pack_size}</td>
-            <td>${sku.uom}</td>
-            <td><input type="number" min="0"
-                       data-sku-id="${sku.id}"
-                       data-pack-size="${sku.pack_size}"
-                       data-uom="${sku.uom}"></td>`;
-          doneSkuBody.append(tr);
-        });
-      }
-    }
-    else if (act === 'transfer to fg store') {
-      doneTransSection.style.display = 'block';
-      const { data } = await supabase
-        .from('bottled_stock_on_hand')
-        .select('sku_id,pack_size,uom,on_hand')
-        .eq('batch_number', batch);
-      (data||[]).forEach(r => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${r.pack_size}</td>
-          <td>${r.uom}</td>
-          <td>${r.on_hand}</td>
-          <td><input type="number" min="0" max="${r.on_hand}"
-                     data-sku-id="${r.sku_id}"
-                     data-pack-size="${r.pack_size}"
-                     data-uom="${r.uom}"></td>`;
-        doneTransBody.append(tr);
+    async function askConfirm(msg){
+      confirmText.textContent = msg;
+      show(confirmModal);
+      return new Promise(res=>{
+        confirmYes.onclick = ()=>{ hide(confirmModal); res(true); };
+        confirmNo .onclick = ()=>{ hide(confirmModal); res(false); };
       });
     }
-    else {
-      doneQtySection.style.display = 'flex';
-      document.getElementById('doneUOM').value = '';
+
+    const populate = (sel, rows, valKey, txtKey, ph) =>
+      sel.innerHTML = `<option value="">${ph}</option>` +
+        rows.map(r=>`<option value="${r[valKey]}">${r[txtKey]}</option>`).join('');
+
+    /* ---------- Supabase helpers ----------------------------------------- */
+    async function clearPackaging(logId){
+      const {data} = await supabase.from('packaging_events')
+                                  .select('id').eq('work_log_id',logId);
+      if (data?.length){
+        const ids = data.map(x=>x.id);
+        await supabase.from('event_skus').delete().in('packaging_event_id',ids);
+        await supabase.from('packaging_events').delete().in('id',ids);
+      }
     }
-  }
 
-  async function promptDone(activity,item,batch) {
-    doneForm.reset();
-    doneCompletedOn.value = new Date().toISOString().slice(0,10);
-    await configureDoneModal(activity,item,batch);
-    showModal(doneModal);
-
-    return new Promise(resolve => {
-      doneCancel.onclick = () => {
-        hideModal(doneModal);
-        resolve({ choice:'cancel' });
-      };
-
-      const finish = choice => {
-        const act = activity.trim().toLowerCase();
-        let rows = [], qty = null, uom = null, labRef = null;
-
-        if (act === 'finished goods quality assessment') {
-          labRef = doneForm.lab_ref_number.value.trim();
-        }
-        else if (skuActivities.includes(act)) {
-          rows = Array.from(doneSkuBody.querySelectorAll('input')).map(i=>({
-            skuId:+i.dataset.skuId,
-            count:+i.value,
-            packSize:i.dataset.packSize,
-            uom:i.dataset.uom
-          })).filter(r=>r.count>0);
-        }
-        else if (act === 'transfer to fg store') {
-          rows = Array.from(doneTransBody.querySelectorAll('input')).map(i=>({
-            skuId:+i.dataset.skuId,
-            count:+i.value,
-            packSize:i.dataset.packSize,
-            uom:i.dataset.uom
-          })).filter(r=>r.count>0);
-        }
-        else {
-          qty = +doneForm.qty_after_process.value || null;
-          uom = doneForm.qty_after_process_uom.value.trim() || null;
-        }
-
-        hideModal(doneModal);
-        resolve({ choice, rows, completedOn: doneCompletedOn.value, qty, uom, labRef });
-      };
-
-      doneJust.onclick = () => finish('just');
-      doneNew.onclick  = () => finish('new');
-    });
-  }
-
-  // ───── Save logic ────────────────────────────────────────────
-  async function saveStatusUpdate(id, sel) {
-    const activity = sel.dataset.act;
-    const newStat  = sel.value;
-
-    if (newStat === 'Done') {
-      const r = await promptDone(activity, sel.dataset.item, sel.dataset.bn);
-      if (r.choice === 'cancel') {
-        sel.value = 'Doing';
-        return;
+    /* ---------- Cascading filter wiring ---------------------------------- */
+    sSection.onchange = async () => {
+      if (!sSection.value){
+        populate(sSub,[],'','','Sub-section'); sSub.disabled = true;
+      }else{
+        const {data} = await supabase.from('subsections')
+          .select('id,subsection_name').eq('section_id',sSection.value)
+          .order('subsection_name');
+        populate(sSub,data,'id','subsection_name','Sub-section'); sSub.disabled=false;
       }
+      resetAreaBN(); loadStatus();
+    };
 
-      const act = activity.trim().toLowerCase();
-      const needsQty = !skuActivities.includes(act)
-                     && act !== 'transfer to fg store'
-                     && act !== 'finished goods quality assessment';
+    sSub.onchange = async () => {
+      if (!sSub.value){ resetAreaBN(); }
+      else{
+        const {data} = await supabase.from('areas')
+          .select('id,area_name')
+          .eq('section_id',sSection.value).eq('subsection_id',sSub.value)
+          .order('area_name');
+        populate(sArea,data,'id','area_name','Area'); sArea.disabled=false;
+        resetBN();
+      }
+      loadStatus();
+    };
 
-      if (needsQty && (!r.qty || !r.uom)) {
-        const ok = await askConfirm(
-          'You are proceeding without Qty After Process & UOM. Continue anyway?'
-        );
-        if (!ok) {
-          sel.value = 'Doing';
-          return;
+    const resetAreaBN = ()=>{ populate(sArea,[],'','','Area'); sArea.disabled=true; resetBN(); };
+    const resetBN     = ()=>{ sBN.innerHTML='<option value="">BN</option>'; sBN.disabled=true; };
+
+    sArea.onchange = ()=>{ resetBN(); loadStatus(); };
+
+    sItem.onchange = async ()=>{
+      if (!sItem.value){ resetBN(); }
+      else{
+        const {data} = await supabase.from('bmr_details')
+          .select('bn').eq('item',sItem.value).order('bn');
+        const uniq = [...new Set(data.map(r=>r.bn))];
+        populate(sBN, uniq.map(bn=>({bn})), 'bn','bn','BN'); sBN.disabled=false;
+      }
+      loadStatus();
+    };
+
+    sBN     .onchange = loadStatus;
+    sOverdue.onchange = loadStatus;
+
+    clearBtn.onclick = ()=>{
+      [sSection,sSub,sArea,sItem,sBN].forEach(x=>x.value='');
+      [sSub,sArea,sBN].forEach(x=>x.disabled=true);
+      sOverdue.checked=false;
+      sLogDate.value='';
+      loadStatus();
+    };
+
+    /* ---------- “Done?” modal (identical logic to your working copy) ----- */
+    async function configureDoneModal(activity,item,batch){
+      const act = activity.toLowerCase().trim();
+      doneQtySection.style.display =
+      doneLabRefSec.style.display =
+      doneSkuSec.style.display =
+      doneTransSec.style.display = 'none';
+      doneSkuBody.innerHTML=''; doneTransBody.innerHTML='';
+
+      if (act==='finished goods quality assessment'){
+        doneLabRefSec.style.display='flex';
+      }else if (skuActivities.includes(act)){
+        doneSkuSec.style.display='block';
+        const {data:prod}=await supabase.from('products')
+                                        .select('id').eq('item',item).single();
+        if (prod){
+          const {data:skus}=await supabase.from('product_skus')
+            .select('id,pack_size,uom')
+            .eq('product_id',prod.id).eq('is_active',true).order('pack_size');
+          skus.forEach(s=>{
+            doneSkuBody.insertAdjacentHTML('beforeend',`
+              <tr><td>${s.pack_size}</td><td>${s.uom}</td>
+              <td><input type="number" min="0" data-sku-id="${s.id}"
+                        data-pack-size="${s.pack_size}" data-uom="${s.uom}"></td></tr>`);
+          });
         }
+      }else if (act==='transfer to fg store'){
+        doneTransSec.style.display='block';
+        const {data}=await supabase.from('bottled_stock_on_hand')
+          .select('sku_id,pack_size,uom,on_hand').eq('batch_number',batch);
+        data.forEach(r=>{
+          doneTransBody.insertAdjacentHTML('beforeend',`
+            <tr><td>${r.pack_size}</td><td>${r.uom}</td><td>${r.on_hand}</td>
+            <td><input type="number" min="0" max="${r.on_hand}" data-sku-id="${r.sku_id}"
+                      data-pack-size="${r.pack_size}" data-uom="${r.uom}"></td></tr>`);
+        });
+      }else{
+        doneQtySection.style.display='flex';
+        $('#doneUOM').value='';
       }
+    }
 
-      // build update object...
-      const upd = {
-        status:            'Done',
-        completed_on:      r.completedOn,
-        qty_after_process: null,
-        qty_uom:           null,
-        sku_breakdown:     null,
-        lab_ref_number:    null
-      };
-      if (act === 'finished goods quality assessment') {
-        upd.lab_ref_number = r.labRef;
-      }
-      else if (skuActivities.includes(act) || act === 'transfer to fg store') {
-        upd.sku_breakdown = r.rows.map(x=>`${x.packSize} ${x.uom} x ${x.count}`).join('; ');
-      }
-      else {
-        upd.qty_after_process = r.qty;
-        upd.qty_uom           = r.uom;
-      }
+    async function promptDone(activity,item,batch){
+      doneForm.reset();
+      doneCompletedOn.value = formatDMY(new Date());
+      await configureDoneModal(activity,item,batch);
+      show(doneModal);
+      return new Promise(res=>{
+        doneCancel.onclick = ()=>{ hide(doneModal); res({choice:'cancel'}); };
+        const finish=choice=>{
+          const act = activity.toLowerCase().trim();
+          let rows=[],qty=null,uom=null,lab=null;
+          if (act==='finished goods quality assessment'){
+            lab = $('#doneLabRef').value.trim();
+          }else if (skuActivities.includes(act)){
+            rows=[...doneSkuBody.querySelectorAll('input')].map(i=>({
+              skuId:+i.dataset.skuId,count:+i.value,packSize:i.dataset.packSize,uom:i.dataset.uom
+            })).filter(r=>r.count>0);
+          }else if (act==='transfer to fg store'){
+            rows=[...doneTransBody.querySelectorAll('input')].map(i=>({
+              skuId:+i.dataset.skuId,count:+i.value,packSize:i.dataset.packSize,uom:i.dataset.uom
+            })).filter(r=>r.count>0);
+          }else{
+            qty = +$('#doneQty').value||null;
+            uom = $('#doneUOM').value||null;
+          }
+          hide(doneModal);
+          res({choice,rows,completedOn:doneCompletedOn.value,qty,uom,labRef:lab});
+        };
+        doneJust.onclick = ()=>finish('just');
+        doneNew .onclick = ()=>finish('new');
+      });
+    }
 
-      await supabase
-        .from('daily_work_log')
-        .update(upd)
-        .eq('id', id);
+    /* ---------- row save handler ----------------------------------------- */
+    async function saveStatus(id,sel){
+      const {act,item,bn}=sel.dataset, newStat=sel.value;
+      if (newStat==='Done'){
+        const r = await promptDone(act,item,bn);
+        if (r.choice==='cancel'){ sel.value='Doing'; return; }
 
-      // packaging_events upsert...
-      if (skuActivities.includes(act) || act === 'transfer to fg store') {
-        const { data: pe } = await supabase
-          .from('packaging_events')
-          .upsert({ work_log_id: id, event_type: activity }, { onConflict:'work_log_id' })
-          .select('id').single();
-        if (pe) {
-          await supabase.from('event_skus').delete().eq('packaging_event_id', pe.id);
-          if (r.rows.length) {
-            await supabase.from('event_skus').insert(
-              r.rows.map(x=>({
-                packaging_event_id: pe.id,
-                sku_id:             x.skuId,
-                count:              x.count
-              }))
-            );
+        const actL = act.toLowerCase().trim();
+        const needsQty = !skuActivities.includes(actL)
+                      && actL!=='transfer to fg store'
+                      && actL!=='finished goods quality assessment';
+        if (needsQty && (!r.qty||!r.uom)){
+          if (!await askConfirm('No Qty/UOM provided. Continue anyway?')){
+            sel.value='Doing'; return;
           }
         }
-      }
 
-      if (r.choice === 'new') {
-        window.location.href =
-          `add-log-entry.html?item=${encodeURIComponent(sel.dataset.item)}&bn=${encodeURIComponent(sel.dataset.bn)}`;
-        return;
+        const upd = {
+          status:'Done', completed_on:r.completedOn,
+          qty_after_process:null, qty_uom:null,
+          sku_breakdown:null, lab_ref_number:null
+        };
+        if (actL==='finished goods quality assessment'){
+          upd.lab_ref_number = r.labRef;
+        }else if (skuActivities.includes(actL)||actL==='transfer to fg store'){
+          upd.sku_breakdown = r.rows.map(x=>`${x.packSize} ${x.uom} x ${x.count}`).join('; ');
+        }else{
+          upd.qty_after_process = r.qty; upd.qty_uom = r.uom;
+        }
+
+        await supabase.from('daily_work_log').update(upd).eq('id',id);
+
+        if (skuActivities.includes(actL)||actL==='transfer to fg store'){
+          const {data:pe}=await supabase.from('packaging_events')
+            .upsert({work_log_id:id,event_type:act},{onConflict:'work_log_id'})
+            .select('id').single();
+          if (pe){
+            await supabase.from('event_skus').delete().eq('packaging_event_id',pe.id);
+            if (r.rows.length){
+              await supabase.from('event_skus').insert(
+                r.rows.map(x=>({packaging_event_id:pe.id,sku_id:x.skuId,count:x.count}))
+              );
+            }
+          }
+        }
+
+        if (r.choice==='new'){
+          location.href=`add-log-entry.html?item=${encodeURIComponent(item)}&bn=${encodeURIComponent(bn)}`;
+          return;
+        }
+      }else{
+        await clearPackaging(id);
+        await supabase.from('daily_work_log').update({
+          status:newStat, completed_on:null,
+          qty_after_process:null, qty_uom:null, sku_breakdown:null, lab_ref_number:null
+        }).eq('id',id);
       }
-    } else {
-      // clear done data
-      await clearPackaging(id);
-      await supabase
-        .from('daily_work_log')
-        .update({
-          status:            newStat,
-          completed_on:      null,
-          qty_after_process: null,
-          qty_uom:           null,
-          sku_breakdown:     null,
-          lab_ref_number:    null
-        })
-        .eq('id', id);
+      loadStatus();
     }
 
-    loadStatus();
+    /* ---------- main table refresh --------------------------------------- */
+    async function loadStatus(){
+      /* purge previous rows to avoid duplicate rendering */
+      bodyTbl.replaceChildren();
+
+      let q = supabase.from('daily_work_log')
+        .select('id,log_date,item,batch_number,plant_id,activity,status,due_date')
+        .in('status',['Doing','On Hold']);
+
+  if (sLogDate.value) {
+    /* convert dd-mm-yyyy → yyyy-mm-dd without hitting Date() / UTC */
+    const [dd, mm, yyyy] = sLogDate.value.split('-');
+    const iso = `${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`;
+    q = q.eq('log_date', iso);
   }
 
-  // ───── Load & render table ────────────────────────────────────
-  async function loadStatus() {
-    statusBody.innerHTML = '';
-    let q = supabase
-      .from('daily_work_log')
-      .select('id,log_date,item,batch_number,plant_id,activity,status,due_date')
-      .in('status', ['Doing','On Hold'])
-      .order('log_date',{ascending:false});
+  if (sSection.value) q = q.eq('section_id',    sSection.value);
+  if (sSub.value)     q = q.eq('subsection_id', sSub.value);
+  if (sArea.value)    q = q.eq('area_id',       sArea.value);
+  if (sItem.value)    q = q.eq('item',          sItem.value);
+  if (sBN.value)      q = q.eq('batch_number',  sBN.value);
 
-    if (sSection.value) q = q.eq('section_id',    sSection.value);
-    if (sSub.value)     q = q.eq('subsection_id', sSub.value);
-    if (sArea.value)    q = q.eq('area_id',       sArea.value);
-    if (sItem.value)    q = q.eq('item',          sItem.value);
-    if (sBN.value)      q = q.eq('batch_number',  sBN.value);
-    if (sOverdue.checked) {
-      const today = new Date().toISOString().slice(0,10);
-      q = q.lt('due_date', today);
+  if (sOverdue.checked) {
+    const todayIso = new Date().toISOString().slice(0, 10); // yyyy-mm-dd
+    q = q.lt('due_date', todayIso);
+  }
+
+      const {data} = await q;
+      /* natural sort identical to Edit module */
+      const coll = new Intl.Collator('en',{numeric:true,sensitivity:'base'});
+      data.sort((a,b)=>{
+        const dt = new Date(a.log_date)-new Date(b.log_date); if (dt) return dt;
+        const itm=a.item.localeCompare(b.item,undefined,{sensitivity:'base'}); if(itm) return itm;
+        const bn = a.batch_number.localeCompare(b.batch_number,undefined,{numeric:true}); if(bn) return bn;
+        return coll.compare(plantMap[a.plant_id]||'',plantMap[b.plant_id]||'');
+      });
+
+      data.forEach(r=>{
+        bodyTbl.insertAdjacentHTML('beforeend',`
+          <tr>
+            <td>${new Date(r.log_date).toLocaleDateString('en-GB')}</td>
+            <td>${r.item}</td>
+            <td>${r.batch_number}</td>
+            <td>${plantMap[r.plant_id]||''}</td>
+            <td>${r.activity}</td>
+            <td>
+              <select class="statSel" data-id="${r.id}" data-act="${r.activity}"
+                      data-item="${r.item}" data-bn="${r.batch_number}">
+                <option${r.status==='Doing'?' selected':''}>Doing</option>
+                <option${r.status==='On Hold'?' selected':''}>On Hold</option>
+                <option${r.status==='Done'?' selected':''}>Done</option>
+              </select>
+            </td>
+            <td><a href="#" class="save-link" data-id="${r.id}">Save</a></td>
+          </tr>`);
+      });
+
+      [...document.querySelectorAll('.save-link')].forEach(a=>{
+        const sel = $(`.statSel[data-id="${a.dataset.id}"]`);
+        a.onclick = e=>{e.preventDefault(); saveStatus(a.dataset.id,sel);};
+      });
     }
 
-    const { data } = await q;
-    (data||[]).forEach(r => {
-      const plantName = plantMap[r.plant_id] || '';
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${new Date(r.log_date).toLocaleDateString('en-GB')}</td>
-        <td>${r.item}</td>
-        <td>${r.batch_number}</td>
-        <td>${plantName}</td>
-        <td>${r.activity}</td>
-        <td>
-          <select class="statSel"
-                  data-id="${r.id}"
-                  data-item="${r.item}"
-                  data-bn="${r.batch_number}"
-                  data-act="${r.activity}">
-            <option${r.status==='Doing'   ? ' selected':''}>Doing</option>
-            <option${r.status==='On Hold' ? ' selected':''}>On Hold</option>
-            <option${r.status==='Done'    ? ' selected':''}>Done</option>
-          </select>
-        </td>
-        <td><a href="#" class="save-link" data-id="${r.id}">Save</a></td>`;
-      statusBody.append(tr);
-    });
+    /* ---------- Initial bootstrap ---------------------------------------- */
+    async function init(){
+      /* plant lookup */
+      const {data:pl}=await supabase.from('plant_machinery').select('id,plant_name');
+      pl.forEach(p=>plantMap[p.id]=p.plant_name);
 
-    document.querySelectorAll('.save-link').forEach(a => {
-      const sel = document.querySelector(`.statSel[data-id="${a.dataset.id}"]`);
-      a.onclick = e => { e.preventDefault(); saveStatusUpdate(a.dataset.id, sel); };
-    });
-  }
+      /* section & item dropdowns */
+      const {data:secs}=await supabase.from('sections')
+        .select('id,section_name').order('section_name');
+      populate(sSection,secs,'id','section_name','Section');
 
-  // ───── Init ────────────────────────────────────────────────────
-  async function initStatus() {
-    await loadPlants();
+      // FETCH *ALL* ITEMS, DEDUPE CLIENT-SIDE
+      const { data: itemsRaw, error: itemsErr } = await supabase
+        .from('bmr_details')
+        .select('item')
+        .order('item');
+      if (itemsErr) {
+        console.error('Error loading items:', itemsErr);
+      } else {
+        // build a unique list of { item } objects
+        const uniqueItems = Array.from(
+          new Set(itemsRaw.map(r => r.item))
+        ).map(item => ({ item }));
+        populate(sItem, uniqueItems, 'item', 'item', 'Item');
+      }
 
-    // Sections → Sub
-    const { data: secs } = await supabase
-      .from('sections').select('id,section_name').order('section_name');
-    populate(sSection, secs,'id','section_name','Section');
-    [sSub,sArea,sBN].forEach(x=>x.disabled=true);
+      homeBtn.onclick = ()=>location.href='index.html';
+      await loadStatus();
+    }
 
-    // Items → Item
-    const { data: items } = await supabase
-      .from('bmr_details').select('item',{distinct:true}).order('item');
-    populate(sItem, items,'item','item','Item');
-
-    homeBtn.onclick = () => location.href='index.html';
-
-    await loadStatus();
-  }
-
-  initStatus();
-});
+    init();
+  });

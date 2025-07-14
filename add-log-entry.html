@@ -3,6 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <title>SASV WORKSPACE | Add Log Entry</title>
+
+  <!-- 1) Flatpickr CSS for consistent DD-MM-YYYY pickers -->
+  <link rel="stylesheet" href="css/flatpickr.min.css">
+  <!-- 1a) Confirm Date plugin CSS -->
+  <link rel="stylesheet" href="css/plugins/confirmDate/confirmDate.css">
+
+  <!-- 2) Your app styles -->
   <link rel="stylesheet" href="css/style.css">
   <style>
     /* Form controls */
@@ -123,8 +130,14 @@
     <!-- 1) Log Date + Section -->
     <div class="form-row">
       <label>Log Date:
-        <!-- force British format -->
-        <input lang="en-GB" type="date" name="log_date" required>
+        <!-- now flatpickr on a text field -->
+        <input
+          id="log_date"
+          name="log_date"
+          type="text"
+          placeholder="DD-MM-YYYY"
+          required
+        >
       </label>
       <label>Section:
         <select id="section" name="section_id" required>
@@ -155,7 +168,14 @@
         </select>
       </label>
       <label>Item:
-        <input id="itemInput" name="item" list="itemList" autocomplete="off" required placeholder="Type to search…">
+        <input
+          id="itemInput"
+          name="item"
+          list="itemList"
+          autocomplete="off"
+          required
+          placeholder="Type to search…"
+        >
         <datalist id="itemList"></datalist>
       </label>
     </div>
@@ -227,10 +247,21 @@
     <!-- 8) Started On + Due Date -->
     <div class="form-row">
       <label>Started On:
-        <input id="started_on" name="started_on" type="date" lang="en-GB">
+        <input
+          id="started_on"
+          name="started_on"
+          type="text"
+          placeholder="DD-MM-YYYY"
+        >
       </label>
       <label>Due Date:
-        <input id="due_date" name="due_date" type="date" readonly lang="en-GB">
+        <input
+          id="due_date"
+          name="due_date"
+          type="text"
+          placeholder="DD-MM-YYYY"
+          readonly
+        >
       </label>
     </div>
 
@@ -249,7 +280,12 @@
     <div id="completedOnSection">
       <div class="form-row">
         <label>Completed On:
-          <input name="completed_on" type="date" lang="en-GB">
+          <input
+            id="completed_on"
+            name="completed_on"
+            type="text"
+            placeholder="DD-MM-YYYY"
+          >
         </label>
       </div>
     </div>
@@ -284,7 +320,9 @@
     <div id="skuSection">
       <h3>SKU Breakdown</h3>
       <table id="skuTable">
-        <thead><tr><th>Pack Size</th><th>UOM</th><th>Count</th></tr></thead>
+        <thead>
+          <tr><th>Pack Size</th><th>UOM</th><th>Count</th></tr>
+        </thead>
         <tbody></tbody>
       </table>
     </div>
@@ -293,7 +331,9 @@
     <div id="transferSection">
       <h3>Transfer to FG Store</h3>
       <table id="transferTable">
-        <thead><tr><th>Pack Size</th><th>UOM</th><th>On-Hand</th><th>Transfer Qty</th></tr></thead>
+        <thead>
+          <tr><th>Pack Size</th><th>UOM</th><th>On-Hand</th><th>Transfer Qty</th></tr>
+        </thead>
         <tbody></tbody>
       </table>
     </div>
@@ -321,6 +361,11 @@
     </div>
   </div>
 
+  <!-- 3) Flatpickr JS + plugin -->
+  <script src="css/flatpickr.min.js"></script>
+  <script src="css/plugins/confirmDate/confirmDate.js"></script>
+
+  <!-- 4) Your renderer JS (init Flatpickr + all existing logic) -->
   <script type="module" src="js/log-add.js"></script>
 </body>
 </html>

@@ -8,21 +8,51 @@
     body { font-family: Arial, sans-serif; margin: 20px; }
     .header-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
     .header-bar h2 { margin: 0; color: #005A8D; }
-    .action-link { font-size: 24px; cursor: pointer; transition: opacity 0.2s; }
-    .action-link:hover { opacity: 0.7; }
 
-    /* Filters: two grid rows */
-    .filter-row.first-row  { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-    .filter-row.second-row { display: grid; grid-template-columns: 2fr 1fr auto; gap: 12px; margin-top: 8px; align-items: center; }
-    form select, form input { padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
+    /* ───────── HOME BUTTON ───────── */
+    #homeBtn {
+      background: var(--home-btn-bg);
+      color: var(--btn-text);
+      border: none;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 1rem;
+    }
+    #homeBtn:hover { background: var(--home-btn-hover-bg); }
 
-    /* Clear as link, no hover bg */
+    /* ───────── FILTERS ───────── */
+    .filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .filter-row.second-row {
+      margin-top: 8px;
+      align-items: center;
+    }
+    .filter-row select,
+    .filter-row button {
+      padding: 6px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      flex: 1 1 140px;
+      min-width: 120px;
+    }
+
+    /* Clear-as-link */
     .clear-link {
-      background: none; border: none; color: var(--btn-bg);
-      text-decoration: underline; cursor: pointer; padding: 0; font: inherit; outline: none;
+      background: none;
+      border: none;
+      color: var(--btn-bg);
+      text-decoration: underline;
+      cursor: pointer;
+      padding: 0;
+      font: inherit;
+      outline: none;
     }
     .clear-link:hover { opacity: 0.7; background: none !important; }
 
+    /* ───────── TABLE ───────── */
     table { width: 100%; border-collapse: collapse; margin-top: 10px; }
     th, td { padding: 8px; border: 1px solid #ccc; text-align: left; }
   </style>
@@ -31,7 +61,7 @@
 
   <div class="header-bar">
     <h2>View BMR Entries</h2>
-    <span id="homeIcon" class="action-link" title="Home">🏠</span>
+    <button id="homeBtn" title="Home">HOME</button>
   </div>
 
   <form id="filterForm">
@@ -43,7 +73,7 @@
     </div>
     <div class="filter-row second-row">
       <select id="filterItem"><option value="">Item</option></select>
-      <input id="filterBn" type="text" placeholder="BN" />
+      <select id="filterBn" disabled><option value="">BN</option></select>
       <button type="button" id="clearFilter" class="clear-link">Clear</button>
     </div>
   </form>
