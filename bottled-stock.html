@@ -30,45 +30,50 @@
     }
     #homeBtn:hover { background:var(--home-btn-hover-bg); }
 
-    /* Filters */
-    #filters {
-      display:flex; flex-wrap:wrap; gap:16px;
-      margin-bottom:20px;
+    /* ───────── FILTERS ───────── */
+    #filterForm { margin-bottom:20px; }
+    .filter-row {
+      display:flex; flex-wrap:wrap; gap:12px;
     }
-    .filter-control {
-      flex:1 1 200px; min-width:140px;
-      display:flex; flex-direction:column;
+    .filter-row.second-row {
+      margin-top:8px; align-items:center;
     }
-    .filter-control label { margin-bottom:4px; font-weight:500; }
-    .filter-control select {
-      height:2rem; padding:6px 8px; font-size:14px;
-      border:1px solid #ccc; border-radius:4px;
+    .filter-row select,
+    .filter-row button {
+      padding:6px;
+      border:1px solid #ccc;
+      border-radius:4px;
+      flex:1 1 140px;
+      min-width:120px;
       background:var(--input-bg);
       color:var(--input-text);
     }
-    .filter-control.button {
-      justify-content:flex-end; align-items:flex-end;
+    .clear-link {
+      background:none;
+      border:none;
+      color:var(--primary);
+      text-decoration:underline;
+      cursor:pointer;
+      padding:0;
+      font:inherit;
+      outline:none;
     }
-    .filter-control.button a.clear-link {
-      font-size:14px; color:var(--primary);
-      text-decoration:underline; cursor:pointer;
-    }
-    .filter-control.button a.clear-link:hover {
-      color:var(--primary-hover);
-    }
+    .clear-link:hover { opacity:0.7; }
 
-    /* Export links: CSV left, PDF right */
+    /* ───────── EXPORT LINKS ───────── */
     #exportLinks {
       display:flex; justify-content:space-between;
       width:100%; margin-bottom:8px;
     }
     #exportLinks a {
-      color:var(--primary); text-decoration:underline;
-      cursor:pointer; font-size:14px;
+      color:var(--primary);
+      text-decoration:underline;
+      cursor:pointer;
+      font-size:14px;
     }
     #exportLinks a:hover { color:var(--primary-hover); }
 
-    /* Table & container */
+    /* ───────── TABLE ───────── */
     #bottledTableContainer {
       width:100%;
       max-height:calc(100vh - 300px);
@@ -80,24 +85,16 @@
     #bottledTable th,
     #bottledTable td {
       padding:8px; border:1px solid #ccc;
-      vertical-align: middle; /* vertical centering */
-      text-align: center;     /* default center */
+      vertical-align: middle; text-align: center;
     }
     #bottledTable th {
       background:var(--panel-bg);
       position:sticky; top:0; z-index:1;
       font-weight:bold;
     }
-    /* 1st col: ITEM left-aligned */
-    #bottledTable td:nth-child(1) {
-      text-align: left;
-      padding-left: 12px;
-    }
-    /* 2nd col: BN centered */
-    #bottledTable td:nth-child(2) {
-      text-align: center;
-      padding-left: 0;
-    }
+    /* first two columns alignment */
+    #bottledTable td:nth-child(1) { text-align:left; padding-left:12px; }
+    #bottledTable td:nth-child(2) { text-align:center; padding-left:0; }
     .no-data td {
       font-style:italic; color:#666; text-align:center;
     }
@@ -110,19 +107,19 @@
     <button id="homeBtn">HOME</button>
   </div>
 
-  <section id="filters">
-    <div class="filter-control">
-      <label for="filterItem">Item</label>
+  <form id="filterForm">
+    <div class="filter-row first-row">
+      <select id="filterCategory"><option value="">Category</option></select>
+      <select id="filterSubCategory" disabled><option value="">Sub-category</option></select>
+      <select id="filterGroup" disabled><option value="">Group</option></select>
+      <select id="filterSubGroup" disabled><option value="">Sub-group</option></select>
+    </div>
+    <div class="filter-row second-row">
       <select id="filterItem"><option value="">Item</option></select>
-    </div>
-    <div class="filter-control">
-      <label for="filterBN">BN</label>
       <select id="filterBN" disabled><option value="">BN</option></select>
+      <button type="button" id="clearFilters" class="clear-link">Clear</button>
     </div>
-    <div class="filter-control button">
-      <a id="clearFilters" class="clear-link">Clear</a>
-    </div>
-  </section>
+  </form>
 
   <div id="exportLinks">
     <a id="downloadCsv">Download CSV</a>
@@ -138,6 +135,10 @@
           <th>PACK SIZE</th>
           <th>UOM</th>
           <th>STOCK ON HAND</th>
+          <th>CATEGORY</th>
+          <th>SUB-CATEGORY</th>
+          <th>GROUP</th>
+          <th>SUB-GROUP</th>
         </tr>
       </thead>
       <tbody id="bottledTableBody"></tbody>
