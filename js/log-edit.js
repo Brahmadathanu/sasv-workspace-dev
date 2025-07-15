@@ -267,18 +267,20 @@ async function clearPackaging(workLogId) {
     fullBody.innerHTML = '';
 
     // 1) Build base query
-    let q = supabase
-      .from('daily_work_log')
-      .select(`
-        id,
-        log_date,
-        item,
-        batch_number,
-        plant_id,
-        plant_machinery(plant_name),
-        activity,
-        status
-      `);
+let q = supabase
+  .from('daily_work_log')
+  .select(`
+    id,
+    log_date,
+    item,
+    batch_number,
+    batch_size,
+    batch_uom,
+    plant_id,
+    plant_machinery(plant_name),
+    activity,
+    status
+  `);
 
     // 2) Apply Log Date filter
     if (fLogDate.value) {
@@ -334,6 +336,8 @@ async function clearPackaging(workLogId) {
         <td>${new Date(r.log_date).toLocaleDateString('en-GB')}</td>
         <td>${r.item}</td>
         <td>${r.batch_number}</td>
+        <td>${r.batch_size   ?? ''}</td>
+        <td>${r.batch_uom    ?? ''}</td>
         <td>${r.plant_machinery?.plant_name || ''}</td>
         <td>${r.activity}</td>
         <td>${r.status}</td>
@@ -1007,44 +1011,49 @@ editForm.onsubmit = async ev => {
   const actLower    = originalAct.toLowerCase();
   const newStat     = e_status.value;
 
-  // ── 2) If switching *away* from “Done”, clear packaging + update ───
-  if (newStat !== 'Done') {
-    // 2a) clear any packaging records
-    await clearPackaging(id);
+// ── 2) If switching *away* from “Done”, clear packaging + update ───
+if (newStat !== 'Done') {
+  // 2a) clear any packaging records
+  await clearPackaging(id);
 
-    // 2b) attempt the update
-    const { error } = await supabase
-      .from('daily_work_log')
-      .update({
-        status            : newStat,
-        completed_on      : null,
-        qty_after_process : null,
-        qty_uom           : null,
-        sku_breakdown     : null,
-        lab_ref_number    : null
-      })
-      .eq('id', id);
+  // 2b) attempt the update
+  const { error } = await supabase
+    .from('daily_work_log')
+    .update({
+      status            : newStat,
+      completed_on      : null,
+      qty_after_process : null,
+      qty_uom           : null,
+      sku_breakdown     : null,
+      lab_ref_number    : null
+    })
+    .eq('id', id);
 
-    // 2c) handle duplicate or other errors
-    if (error) {
-      await showAlert(
-        isDuplicateError(error)
-          ? duplicateMessage({
-              item         : e_item.value,
-              batch_number : e_bn.value,
-              activity     : originalAct,
-              log_date     : '(unchanged)'
-            })
-          : `Unexpected error: ${error.message || error.details || 'see console'}`
-      );
-      return;  // abort on failure
-    }
-
-    // 2d) on real success, close + refresh
-    hideModal(doneModal);
-    loadFull();
-    return;
+  // 2c) handle duplicate or other errors
+  if (error) {
+    await showAlert(
+      isDuplicateError(error)
+        ? duplicateMessage({
+            item         : e_item.value,
+            batch_number : e_bn.value,
+            activity     : originalAct,
+            log_date     : '(unchanged)'
+          })
+        : `Unexpected error: ${error.message || error.details || 'see console'}`
+    );
+    return;  // abort on failure
   }
+
+  // 2d) on real success, show “saved” banner, close Edit modal & refresh
+  editSuccess.style.display = 'block';
+  setTimeout(() => {
+    editSuccess.style.display = 'none';
+    hideModal(editModal);
+    loadFull();
+  }, 1200);
+
+  return;
+}
 
 // ── 3) Else: saving *as* “Done” ────────────────────────────────────
 // 3a) Read post-Done values directly from the edit modal inputs
