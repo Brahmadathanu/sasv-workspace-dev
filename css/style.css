@@ -160,3 +160,54 @@ h1{margin:0;font-size:2em;color:var(--primary);}
 .flatpickr-confirm::before{
   display:none !important;
 }
+
+/* ────────────────────────────────────────────────────────────────────────────
+   DONE‑MODAL FORM LAYOUT (only grid for rows JS shows)
+──────────────────────────────────────────────────────────────────────────── */
+#doneModal .modal-box {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Only override those rows which JS set to flex or block */
+#doneModal .modal-box .form-row[style*="display: flex"],
+#doneModal .modal-box .form-row[style*="display: block"] {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
+  gap: 16px !important;
+  align-items: center !important;
+}
+
+/* Inputs & selects inside those visible rows get uniform sizing */
+#doneModal .modal-box .form-row[style*="display: flex"] input,
+#doneModal .modal-box .form-row[style*="display: flex"] select,
+#doneModal .modal-box .form-row[style*="display: block"] input,
+#doneModal .modal-box .form-row[style*="display: block"] select {
+  width: 100%;
+  min-height: 2.4em;
+  padding: 6px 8px;
+  line-height: 1.25;
+  box-sizing: border-box;
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   DONE‑MODAL TABLE STYLES
+──────────────────────────────────────────────────────────────────────────── */
+#doneModal .modal-box table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+}
+#doneModal .modal-box th,
+#doneModal .modal-box td {
+  padding: 6px 8px;
+  border: 1px solid #ccc;
+  text-align: left;
+}
+#doneModal .modal-box td input {
+  width: 100%;
+  min-height: 2.4em;
+  padding: 4px 6px;
+  box-sizing: border-box;
+}

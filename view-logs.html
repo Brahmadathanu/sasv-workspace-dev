@@ -32,6 +32,21 @@
     .link-btn{color:#007BFF;text-decoration:underline;cursor:pointer;font-size:14px}
     .link-btn:hover{opacity:.75}
 
+    /* ─── EXPORT LINKS ───────────────────────────────────────────────── */
+    #exportLinks{
+      display:flex;
+      justify-content:space-between;
+      width:100%;
+      margin:4px 0 12px;
+    }
+    #exportLinks span{
+      color:var(--primary);
+      text-decoration:underline;
+      cursor:pointer;
+      font-size:14px;
+    }
+    #exportLinks span:hover{color:var(--primary-hover);}
+
     /* ─── TABLE ──────────────────────────────────────────────────────── */
     table{width:100%;border-collapse:collapse;margin-bottom:24px}
     th,td{padding:8px;border:1px solid #ccc;text-align:left}
@@ -88,20 +103,35 @@
       <select id="filterBN" class="narrow" disabled><option value="">BN</option></select>
     </div>
 
+    <!-- Activity -->
+    <div class="filter-pair">
+      <select id="filterActivity"><option value="">Activity</option></select>
+    </div>
+
     <!-- Status + Clear -->
     <div class="filter-pair">
       <select id="filterStatus">
-        <option value="">Status</option><option>Doing</option><option>Done</option><option>On Hold</option>
+        <option value="">Status</option>
+        <option>Doing</option>
+        <option>Done</option>
+        <option>In Storage</option> <!-- NEW -->
+        <option>On Hold</option>
       </select>
       <span id="clearFilters" class="link-btn">Clear</span>
     </div>
   </section>
 
+  <!-- ===== Export links ===== -->
+<div id="exportLinks">
+  <span id="downloadCsv">Download CSV</span>
+  <span id="downloadPdf">Download PDF</span>
+</div>
+
   <!-- ===== Logs table ===== -->
   <table>
     <thead>
       <tr>
-        <th>Date</th><th>Item</th><th>BN</th><th>Size</th><th>UOM</th>
+        <th>Date</th><th>Item</th><th>BN</th><th>Batch Size</th><th>UOM</th><th>Section</th>
         <th>Plant&nbsp;/&nbsp;Machinery</th><th>Activity</th><th>Action</th>
       </tr>
     </thead>
@@ -120,6 +150,11 @@
   <!-- Runtime deps -->
   <script src="css/flatpickr.min.js"></script>
   <script src="css/plugins/confirmDate/confirmDate.js"></script>
+
+  <!-- PDF export libs (load BEFORE log-view.js) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
   <script type="module" src="js/log-view.js"></script>
+
 </body>
 </html>

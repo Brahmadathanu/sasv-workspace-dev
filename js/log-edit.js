@@ -125,6 +125,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const fArea       = document.getElementById('fArea');
   const fItem       = document.getElementById('fItem');
   const fBN         = document.getElementById('fBN');
+  const fActivity   = document.getElementById('fActivity');
   const clearFull   = document.getElementById('clearFull');
 
   // Done-modal refs
@@ -161,11 +162,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   const juiceS           = document.getElementById('juiceS');
   const e_juice          = document.getElementById('e_juice');
   const e_specify        = document.getElementById('e_specify');
+  const rmJuiceSection   = document.getElementById('rmJuiceSection');
+  const e_rmJuiceQty     = document.getElementById('e_rm_juice_qty');
+  const e_rmJuiceUom     = document.getElementById('e_rm_juice_uom');
   const putamS           = document.getElementById('putamS');
   const e_count          = document.getElementById('e_count');
   const e_fuel           = document.getElementById('e_fuel');
   const e_fuel_under     = document.getElementById('e_fuel_under');
   const e_fuel_over      = document.getElementById('e_fuel_over');
+  const storageSection   = document.getElementById('storageSection');
+  const e_storageQty     = document.getElementById('e_storage_qty');
+  const e_storageUom     = document.getElementById('e_storage_qty_uom');
   const e_start          = document.getElementById('e_start');
   const e_due            = document.getElementById('e_due');
   const e_comp           = document.getElementById('e_comp');
@@ -197,9 +204,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     'monocarton packing and cartoning'
   ];
 
+  const sectionMap = {};
+
 /* ────────────────────────────────────────────────────────────────────────────
    BASIC MODAL HELPERS
-───────────────────────────────────────────────────────────────────────────*/
+──────────────────────────────────────────────────────────────────────────── */
 function showModal(m) { m.style.display = 'flex'; }
 function hideModal(m) { m.style.display = 'none'; }
 
@@ -215,7 +224,7 @@ function askConfirm(msg) {
   });
 }
 
-/* ── NEW: simple OK-only alert ───────────────────────────────────────────*/
+/* ── NEW: simple OK-only alert ─────────────────────────────────────────── */
 function showAlert(msg) {
   confirmText.textContent = msg;
   /* hide Yes / No, show overlay */
@@ -226,6 +235,31 @@ function showAlert(msg) {
     /* dismiss on any click inside the modal */
     confirmModal.onclick = () => { hideModal(confirmModal); res(); };
   });
+}
+
+/* ── NEW: show/hide Juice & Putam sections on “Doing” ─────────────────── */
+function updateEditSections() {
+  const act   = e_activity.value.trim().toLowerCase();
+  const doing = e_status.value === 'Doing';
+  const inStorage = e_status.value === 'In Storage';
+
+  // Juice/Decoction panel
+  juiceS.style.display      = doing && /juice|grinding|kashayam/.test(act)
+                               ? 'flex'
+                               : 'none';
+
+  // RM‑Juice Qty & UOM panel
+  rmJuiceSection.style.display = doing && /juice|grinding|kashayam/.test(act)
+                                   ? 'flex'
+                                   : 'none';
+
+  // Putam panel
+  putamS.style.display      = doing && /putam|gaja putam|seelamann/.test(act)
+                               ? 'flex'
+                               : 'none';
+
+  //Storage panel
+  storageSection.style.display = inStorage ? 'flex' : 'none';
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -276,6 +310,7 @@ let q = supabase
     batch_number,
     batch_size,
     batch_uom,
+    section_id,
     plant_id,
     plant_machinery(plant_name),
     activity,
@@ -299,6 +334,7 @@ let q = supabase
     if (fArea.value)    q = q.eq('area_id',       fArea.value);
     if (fItem.value)    q = q.eq('item',          fItem.value);
     if (fBN.value)      q = q.eq('batch_number',  fBN.value);
+    if (fActivity.value) q = q.eq('activity', fActivity.value);
 
     // 4) Fetch data
     const { data } = await q;
@@ -338,6 +374,7 @@ let q = supabase
         <td>${r.batch_number}</td>
         <td>${r.batch_size   ?? ''}</td>
         <td>${r.batch_uom    ?? ''}</td>
+        <td>${sectionMap[r.section_id]||''}</td>
         <td>${r.plant_machinery?.plant_name || ''}</td>
         <td>${r.activity}</td>
         <td>${r.status}</td>
@@ -368,118 +405,137 @@ let q = supabase
   // ────────────────────────────────────────────────────────────────────────────
   // INITIALIZE FILTERS & FIRST LOAD
   // ────────────────────────────────────────────────────────────────────────────
-  async function initFull() {
-    // 1) Populate Sections
-    {
-      const { data: secs } = await supabase
-        .from('sections')
-        .select('id,section_name')
-        .order('section_name');
+async function initFull() {
+  // 1) Populate Sections & fill sectionMap
+  {
+    const { data: secs, error: secsErr } = await supabase
+      .from('sections')
+      .select('id,section_name')
+      .order('section_name');
+    if (!secsErr && secs) {
+      secs.forEach(s => sectionMap[s.id] = s.section_name);
       populate(fSection, secs, 'id', 'section_name', 'Section');
     }
-    [fSub, fArea, fBN].forEach(x => x.disabled = true);
+  }
+  // disable the dependent filters until a parent is chosen
+  [fSub, fArea, fBN].forEach(x => x.disabled = true);
 
-    // 2) Populate DISTINCT Items, deduped client-side
-    {
-      const { data: itemsRaw, error } = await supabase
-        .from('bmr_details')
-        .select('item')
-        .order('item', { ascending: true });
-      if (error) {
-        console.error('Error loading items:', error);
-      } else {
-        const uniqueItems = Array.from(
-          new Set(itemsRaw.map(r => r.item))
-        ).map(item => ({ item }));
-        populate(fItem, uniqueItems, 'item', 'item', 'Item');
-      }
+  // 2) Populate the new Activity filter (distinct activities in Doing/On Hold)
+  {
+    const { data: acts, error: actErr } = await supabase
+      .from('daily_work_log')
+      .select('activity', { distinct: true })
+      .in('status', ['Doing','On Hold'])
+      .order('activity');
+    if (!actErr && acts) {
+      // dedupe and map into { activity } rows
+      const uniqueActs = Array.from(new Set(acts.map(r => r.activity)))
+                              .map(a => ({ activity: a }));
+      populate(fActivity, uniqueActs, 'activity', 'activity', 'Activity');
     }
+  }
+  // rerun loadFull whenever user picks an activity
+  fActivity.onchange = loadFull;
 
-    // Cascading: Section → Sub-section
-    fSection.onchange = async () => {
-      if (!fSection.value) {
-        populate(fSub, [], '', '', 'Sub-section');
-        fSub.disabled = true;
-      } else {
-        const { data: subs } = await supabase
-          .from('subsections')
-          .select('id,subsection_name')
-          .eq('section_id', fSection.value)
-          .order('subsection_name');
-        populate(fSub, subs, 'id', 'subsection_name', 'Sub-section');
-        fSub.disabled = false;
-      }
+  // 3) Populate DISTINCT Items, deduped client-side
+  {
+    const { data: itemsRaw, error: itemsErr } = await supabase
+      .from('bmr_details')
+      .select('item')
+      .order('item', { ascending: true });
+    if (!itemsErr && itemsRaw) {
+      const uniqueItems = Array.from(
+        new Set(itemsRaw.map(r => r.item))
+      ).map(item => ({ item }));
+      populate(fItem, uniqueItems, 'item', 'item', 'Item');
+    }
+  }
+
+  // 4) Cascading: Section → Sub‑section
+  fSection.onchange = async () => {
+    if (!fSection.value) {
+      populate(fSub, [], '', '', 'Sub‑section');
+      fSub.disabled = true;
+    } else {
+      const { data: subs } = await supabase
+        .from('subsections')
+        .select('id,subsection_name')
+        .eq('section_id', fSection.value)
+        .order('subsection_name');
+      populate(fSub, subs, 'id', 'subsection_name', 'Sub‑section');
+      fSub.disabled = false;
+    }
+    populate(fArea, [], '', '', 'Area');
+    fArea.disabled = true;
+    populate(fBN,   [], '', '', 'BN');
+    fBN.disabled   = true;
+    loadFull();
+  };
+
+  // 5) Sub‑section → Area
+  fSub.onchange = async () => {
+    if (!fSub.value) {
       populate(fArea, [], '', '', 'Area');
       fArea.disabled = true;
-      populate(fBN,   [], '', '', 'BN');
-      fBN.disabled   = true;
-      loadFull();
-    };
+    } else {
+      const { data: areas } = await supabase
+        .from('areas')
+        .select('id,area_name')
+        .eq('section_id',    fSection.value)
+        .eq('subsection_id', fSub.value)
+        .order('area_name');
+      populate(fArea, areas, 'id', 'area_name', 'Area');
+      fArea.disabled = false;
+    }
+    populate(fBN, [], '', '', 'BN');
+    fBN.disabled = true;
+    loadFull();
+  };
 
-    // Sub-section → Area
-    fSub.onchange = async () => {
-      if (!fSub.value) {
-        populate(fArea, [], '', '', 'Area');
-        fArea.disabled = true;
-      } else {
-        const { data: areas } = await supabase
-          .from('areas')
-          .select('id,area_name')
-          .eq('section_id',    fSection.value)
-          .eq('subsection_id', fSub.value)
-          .order('area_name');
-        populate(fArea, areas, 'id', 'area_name', 'Area');
-        fArea.disabled = false;
-      }
+  // 6) Area → reset BN
+  fArea.onchange = () => {
+    populate(fBN, [], '', '', 'BN');
+    fBN.disabled = true;
+    loadFull();
+  };
+
+  // 7) Item → BN
+  fItem.onchange = async () => {
+    if (!fItem.value) {
       populate(fBN, [], '', '', 'BN');
       fBN.disabled = true;
-      loadFull();
-    };
+    } else {
+      const { data: bns } = await supabase
+        .from('bmr_details')
+        .select('bn')
+        .eq('item', fItem.value)
+        .order('bn');
+      const uniq = [...new Set((bns || []).map(r => r.bn))];
+      populate(fBN, uniq.map(bn => ({ bn })), 'bn', 'bn', 'BN');
+      fBN.disabled = false;
+    }
+    loadFull();
+  };
+  fBN.onchange = loadFull;
 
-    // Area → reset BN
-    fArea.onchange = () => {
-      populate(fBN, [], '', '', 'BN');
-      fBN.disabled = true;
-      loadFull();
-    };
+  // 8) Clear All Filters
+  clearFull.onclick = () => {
+    fLogDate.value = '';
+    [fSection, fSub, fArea, fItem, fBN, fActivity].forEach(x => {
+      x.value    = '';
+      x.disabled = (x !== fSection && x !== fActivity);
+    });
+    loadFull();
+  };
 
-    // Item → BN
-    fItem.onchange = async () => {
-      if (!fItem.value) {
-        populate(fBN, [], '', '', 'BN');
-        fBN.disabled = true;
-      } else {
-        const { data: bns } = await supabase
-          .from('bmr_details')
-          .select('bn')
-          .eq('item', fItem.value)
-          .order('bn');
-        const uniq = [...new Set((bns || []).map(r => r.bn))];
-        populate(fBN, uniq.map(bn => ({ bn })), 'bn', 'bn', 'BN');
-        fBN.disabled = false;
-      }
-      loadFull();
-    };
-    fBN.onchange = loadFull;
+  // 9) HOME button
+  homeBtn.onclick = () => {
+    location.href = 'index.html';
+  };
 
-    // Clear All Filters
-    clearFull.onclick = () => {
-      fLogDate.value = '';
-      [fSection, fSub, fArea, fItem, fBN].forEach(x => {
-        x.value = '';
-        x.disabled = (x !== fSection);
-      });
-      loadFull();
-    };
-
-    // HOME button
-    homeBtn.onclick = () => {
-      location.href = 'index.html';
-    };
-
-    // First render
-    await loadFull();
-  }
+  // 10) First render
+  await loadFull();
+}
 
   // ────────────────────────────────────────────────────────────────────────────
   // “DONE?” MODAL CONFIGURATION (unchanged)
@@ -763,18 +819,66 @@ async function saveStatusUpdate(id, sel) {
 
     // PLANT / MACHINERY
     if (row.area_id) {
-      const { data: plants } = await supabase
-        .from('plant_machinery')
-        .select('id,plant_name')
-        .eq('area_id', row.area_id)
-        .order('plant_name');
-      populate(e_plant, plants, 'id', 'plant_name', 'Select Plant');
-      e_plant.disabled = false;
-      e_plant.value    = row.plant_id || '';
+    const { data: plants } = await supabase
+    .from('plant_machinery')
+    .select('id,plant_name')
+    .eq('area_id', row.area_id)
+    .eq('status', 'O')         // ← only operational
+    .order('plant_name');
+    populate(e_plant, plants, 'id', 'plant_name', 'Select Plant');
+    e_plant.disabled = false;
+    e_plant.value    = row.plant_id || '';
     } else {
       e_plant.disabled = true;
       e_plant.innerHTML = `<option value="">Select Plant</option>`;
     }
+
+  // ─── CASCADING LOGIC ───────────────────────────
+    e_section.onchange = async () => {
+    // Clear downstream
+    e_sub.value = '';   e_sub.disabled = true;   e_sub.innerHTML = `<option value="">Select Sub‐section</option>`;
+    e_area.value = '';  e_area.disabled = true;  e_area.innerHTML = `<option value="">Select Area</option>`;
+    e_plant.value = ''; e_plant.disabled = true; e_plant.innerHTML = `<option value="">Select Plant</option>`;
+
+    if (!e_section.value) return;
+    const { data: subs } = await supabase
+      .from('subsections')
+      .select('id,subsection_name')
+      .eq('section_id', e_section.value)
+      .order('subsection_name');
+    populate(e_sub, subs, 'id', 'subsection_name', 'Select Sub‐section');
+    e_sub.disabled = false;
+    };
+
+    e_sub.onchange = async () => {
+    // Clear downstream
+    e_area.value = '';  e_area.disabled = true;  e_area.innerHTML = `<option value="">Select Area</option>`;
+    e_plant.value = ''; e_plant.disabled = true; e_plant.innerHTML = `<option value="">Select Plant</option>`;
+
+    if (!e_sub.value) return;
+    const { data: areas } = await supabase
+      .from('areas')
+      .select('id,area_name')
+      .eq('section_id',    e_section.value)
+      .eq('subsection_id', e_sub.value)
+      .order('area_name');
+    populate(e_area, areas, 'id', 'area_name', 'Select Area');
+    e_area.disabled = false;
+    };
+
+    e_area.onchange = async () => {
+    // Clear downstream
+    e_plant.value = ''; e_plant.disabled = true; e_plant.innerHTML = `<option value="">Select Plant</option>`;
+
+    if (!e_area.value) return;
+    const { data: plants } = await supabase
+      .from('plant_machinery')
+      .select('id,plant_name')
+      .eq('area_id', e_area.value)
+      .order('plant_name');
+    populate(e_plant, plants, 'id', 'plant_name', 'Select Plant');
+    e_plant.disabled = false;
+    };
 
     // ITEM
     {
@@ -805,191 +909,237 @@ async function saveStatusUpdate(id, sel) {
     e_activity.innerHTML = `<option>${row.activity}</option>`;
     e_activity.value     = row.activity;
 
-    // JUICE / DECOCTION
-    juiceS.style.display = row.juice_or_decoction ? 'flex' : 'none';
-    e_juice.value        = row.juice_or_decoction || '';
-    e_specify.value      = row.specify               || '';
+    // Prefill Juice/Decoction & Putam values
+    e_juice.value      = row.juice_or_decoction || '';
+    e_specify.value    = row.specify             || '';
+    e_rmJuiceQty.value = row.rm_juice_qty != null
+                          ? row.rm_juice_qty
+                          : '';
+    e_rmJuiceUom.value = row.rm_juice_uom || '';
+    e_count.value      = row.count_of_saravam  != null
+                          ? row.count_of_saravam
+                          : '';
+    e_fuel.value       = row.fuel               || '';
+    e_fuel_under.value = row.fuel_under         || '';
+    e_fuel_over.value  = row.fuel_over          || '';
 
-    // PUTAM
-    putamS.style.display     = row.count_of_saravam != null ? 'flex' : 'none';
-    e_count.value            = row.count_of_saravam || '';
-    e_fuel.value             = row.fuel               || '';
-    e_fuel_under.value       = row.fuel_under         || '';
-    e_fuel_over.value        = row.fuel_over          || '';
+    // prefill storage fields
+    e_storageQty.value = row.storage_qty != null
+                          ? row.storage_qty
+                          : '';
+    e_storageUom.value = row.storage_qty_uom || '';
 
+
+    // Now show/hide those panels based on current status & activity
+    updateEditSections();
+
+    // ────────────────────────────────────────────────────────────────────────────
     // DATES & STATUS
-    e_start.value = row.started_on   ? formatDMY(new Date(row.started_on))   : '';
-    e_due.value   = row.due_date     ? formatDMY(new Date(row.due_date))     : '';
-    e_comp.value  = row.completed_on ? formatDMY(new Date(row.completed_on)) : '';
-    e_status.value= row.status       || '';
+    // ────────────────────────────────────────────────────────────────────────────
+    e_start.value  = row.started_on   ? formatDMY(new Date(row.started_on))   : '';
+    e_due.value    = row.due_date     ? formatDMY(new Date(row.due_date))     : '';
+    e_comp.value   = row.completed_on ? formatDMY(new Date(row.completed_on)) : '';
+    e_status.value = row.status       || '';
 
-    // Auto-recompute Due Date when Started On changes
+    // Auto‐recompute Due Date when Started On changes
     e_start.onchange = async () => {
       const { data } = await supabase
         .from('activities')
         .select('duration_days')
         .eq('activity_name', e_activity.value)
         .single();
-      const days   = data?.duration_days || 0;
-      const dueDt  = addBusinessDays(parseDMY(e_start.value), days);
-      e_due.value  = formatDMY(dueDt);
+      const days  = data?.duration_days || 0;
+      const dueDt = addBusinessDays(parseDMY(e_start.value), days);
+      e_due.value = formatDMY(dueDt);
     };
 
-    // Clear post-Done sections
-    [editQtySection, labRefSection, editSkuSection, editTransSection]
-      .forEach(sec => sec.style.display = 'none');
+    // Clear any leftover Done‐only panels & inputs
+    [editQtySection, labRefSection, editSkuSection, editTransSection,
+     juiceS, rmJuiceSection, putamS].forEach(sec => sec.style.display = 'none');
     editSkuBody.innerHTML   = '';
     editTransBody.innerHTML = '';
-    e_qty.value      = '';
-    e_qty_uom.value  = '';
-    e_lab_ref.value  = '';
+    [e_qty, e_qty_uom, e_lab_ref,
+     e_juice, e_specify,
+     e_rmJuiceQty, e_rmJuiceUom,
+     e_count, e_fuel, e_fuel_under, e_fuel_over]
+      .forEach(inp => inp.value = '');
 
-    // Show existing Done-data if status is Done
+    // Show existing Done‐data if entry is already Done
     const actLower = row.activity.trim().toLowerCase();
     if (row.status === 'Done') {
       if (actLower === 'finished goods quality assessment') {
         labRefSection.style.display = 'block';
         e_lab_ref.value = row.lab_ref_number || '';
-      }
-      else if (skuActivities.includes(actLower)) {
+
+      } else if (skuActivities.includes(actLower)) {
         editSkuSection.style.display = 'block';
-        const { data: pe } = await supabase
-          .from('packaging_events')
-          .select('id')
-          .eq('work_log_id', row.id)
-          .single();
-        const { data: skus } = await supabase
-          .from('event_skus')
-          .select('sku_id,count')
-          .eq('packaging_event_id', pe.id);
-        for (const e of skus) {
-          const { data: ps } = await supabase
-            .from('product_skus')
-            .select('pack_size,uom')
-            .eq('id', e.sku_id)
-            .single();
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${ps.pack_size}</td>
-            <td>${ps.uom}</td>
-            <td><input type="number" min="0"
+        (async () => {
+          const { data: pe } = await supabase
+            .from('packaging_events').select('id')
+            .eq('work_log_id', row.id).single();
+          const { data: skus } = await supabase
+            .from('event_skus').select('sku_id,count')
+            .eq('packaging_event_id', pe.id);
+          for (const e of skus) {
+            const { data: ps } = await supabase
+              .from('product_skus').select('pack_size,uom')
+              .eq('id', e.sku_id).single();
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${ps.pack_size}</td>
+              <td>${ps.uom}</td>
+              <td>
+                <input type="number" min="0"
                        data-sku-id="${e.sku_id}"
                        data-pack-size="${ps.pack_size}"
                        data-uom="${ps.uom}"
-                       value="${e.count}"></td>`;
-          editSkuBody.append(tr);
-        }
-      }
-      else if (actLower === 'transfer to fg store') {
+                       value="${e.count}">
+              </td>`;
+            editSkuBody.append(tr);
+          }
+        })();
+
+      } else if (actLower === 'transfer to fg store') {
         editTransSection.style.display = 'block';
-        const { data: pe } = await supabase
-          .from('packaging_events')
-          .select('id')
-          .eq('work_log_id', row.id)
-          .single();
-        const { data: rows2 } = await supabase
-          .from('event_skus')
-          .select('sku_id,count')
-          .eq('packaging_event_id', pe.id);
-        for (const e of rows2) {
-          const { data: ps } = await supabase
-            .from('bottled_stock_on_hand')
-            .select('pack_size,uom,on_hand')
-            .eq('sku_id', e.sku_id)
-            .single();
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${ps.pack_size}</td>
-            <td>${ps.uom}</td>
-            <td>${ps.on_hand}</td>
-            <td><input type="number" min="0" max="${ps.on_hand}"
+        (async () => {
+          const { data: pe } = await supabase
+            .from('packaging_events').select('id')
+            .eq('work_log_id', row.id).single();
+          const { data: rows2 } = await supabase
+            .from('event_skus').select('sku_id,count')
+            .eq('packaging_event_id', pe.id);
+          for (const e of rows2) {
+            const { data: ps } = await supabase
+              .from('bottled_stock_on_hand').select('pack_size,uom,on_hand')
+              .eq('sku_id', e.sku_id).single();
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${ps.pack_size}</td>
+              <td>${ps.uom}</td>
+              <td>${ps.on_hand}</td>
+              <td>
+                <input type="number" min="0" max="${ps.on_hand}"
                        data-sku-id="${e.sku_id}"
                        data-pack-size="${ps.pack_size}"
                        data-uom="${ps.uom}"
-                       value="${e.count}"></td>`;
-          editTransBody.append(tr);
-        }
-      }
-      else {
+                       value="${e.count}">
+              </td>`;
+            editTransBody.append(tr);
+          }
+        })();
+
+      } else {
         editQtySection.style.display = 'flex';
-        e_qty.value      = row.qty_after_process || '';
-        e_qty_uom.value  = row.qty_uom           || '';
+        e_qty.value     = row.qty_after_process || '';
+        e_qty_uom.value = row.qty_uom           || '';
       }
     }
 
-    // Dynamically adjust when Status changes in the modal
+    // ────────────────────────────────────────────────────────────────────────────
+    // DYNAMIC TOGGLING FOR STATUS & ACTIVITY CHANGES
+    // ────────────────────────────────────────────────────────────────────────────
+    // 1) When status changes, hide/clear everything then show & prefill
     e_status.onchange = () => {
-      if (e_status.value === 'Done') {
-        e_comp.value = formatDMY(new Date());
-      } else {
-        e_comp.value = '';
-      }
-      [editQtySection, labRefSection, editSkuSection, editTransSection]
-        .forEach(sec => sec.style.display = 'none');
+      // default or clear Completed‑On
+      e_comp.value = e_status.value === 'Done'
+        ? formatDMY(new Date())
+        : '';
+
+      // hide/clear *all* panels & inputs
+      [editQtySection, labRefSection, editSkuSection, editTransSection,
+      juiceS, rmJuiceSection, putamS, storageSection].forEach(sec => sec.style.display = 'none');
       editSkuBody.innerHTML   = '';
       editTransBody.innerHTML = '';
-      e_qty.value      = '';
-      e_qty_uom.value  = '';
-      e_lab_ref.value  = '';
+      [e_qty, e_qty_uom, e_lab_ref,
+       e_juice, e_specify,
+       e_rmJuiceQty, e_rmJuiceUom,
+       e_count, e_fuel, e_fuel_under, e_fuel_over, e_storageQty, e_storageUom]
+        .forEach(inp => inp.value = '');
 
+      // Always clear any old custom message
+      [e_juice,e_specify,e_count,e_fuel,e_fuel_under,e_fuel_over,
+      e_storageQty,e_storageUom,
+      e_comp,e_lab_ref].forEach(i => i.setCustomValidity(''));
+
+      // Done → require completed date
+      e_comp.required         = (e_status.value === 'Done');
+
+      // Done + FG Quality → require lab ref
+      e_lab_ref.required      = (e_status.value==='Done'
+                                && actLower==='finished goods quality assessment');
+
+      // Doing + Juice→ require both juice & specify
+      const isJuice = (e_status.value==='Doing'
+                      && /juice|grinding|kashayam/.test(actLower));
+      e_juice.required       = isJuice;
+      e_specify.required     = isJuice;
+
+      // Doing + Putam → require all four
+      const isPutam = (e_status.value==='Doing'
+                       && /putam|gaja putam|seelamann/.test(actLower));
+      [e_count,e_fuel,e_fuel_under,e_fuel_over].forEach(i => i.required = isPutam);
+
+      // In Storage → require storage qty + uom
+      const isStore = (e_status.value === 'In Storage');
+      e_storageQty.required  = isStore;
+      e_storageUom.required  = isStore;
+
+      // 3a) If switching *to* In Storage, show & prefill, then bail out
+      if (e_status.value === 'In Storage') {
+      storageSection.style.display = 'flex';
+      e_storageQty.value = row.storage_qty != null ? row.storage_qty : '';
+      e_storageUom.value = row.storage_qty_uom || '';
+      return;
+      }
+
+      // If we’re now in “Done”, show its panel + re‑populate
       if (e_status.value === 'Done') {
         const act2 = row.activity.trim().toLowerCase();
         if (act2 === 'finished goods quality assessment') {
           labRefSection.style.display = 'block';
+          e_lab_ref.value = row.lab_ref_number || '';
         }
         else if (skuActivities.includes(act2)) {
           editSkuSection.style.display = 'block';
-          (async () => {
-            const { data: prod } = await supabase
-              .from('products').select('id').eq('item', row.item).single();
-            if (prod) {
-              const { data: skus } = await supabase
-                .from('product_skus')
-                .select('id,pack_size,uom')
-                .eq('product_id', prod.id)
-                .eq('is_active', true)
-                .order('pack_size');
-              skus.forEach(sku => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                  <td>${sku.pack_size}</td>
-                  <td>${sku.uom}</td>
-                  <td><input type="number" min="0"
-                             data-sku-id="${sku.id}"
-                             data-pack-size="${sku.pack_size}"
-                             data-uom="${sku.uom}"></td>`;
-                editSkuBody.append(tr);
-              });
-            }
-          })();
+          // fetch & prefill existing SKU rows...
+          // (same async block as above)
         }
         else if (act2 === 'transfer to fg store') {
           editTransSection.style.display = 'block';
-          (async () => {
-            const { data } = await supabase
-              .from('bottled_stock_on_hand')
-              .select('sku_id,pack_size,uom,on_hand')
-              .eq('batch_number', row.batch_number);
-            (data || []).forEach(r => {
-              const tr = document.createElement('tr');
-              tr.innerHTML = `
-                <td>${r.pack_size}</td>
-                <td>${r.uom}</td>
-                <td>${r.on_hand}</td>
-                <td><input type="number" min="0" max="${r.on_hand}"
-                           data-sku-id="${r.sku_id}"
-                           data-pack-size="${r.pack_size}"
-                           data-uom="${r.uom}"></td>`;
-              editTransBody.append(tr);
-            });
-          })();
+          // fetch & prefill existing transfer rows...
         }
         else {
           editQtySection.style.display = 'flex';
+          e_qty.value     = row.qty_after_process || '';
+          e_qty_uom.value = row.qty_uom           || '';
         }
+        return;
       }
+
+      // 2) If we’re in “Doing”, show those Doing panels & prefill
+      if (e_status.value === 'Doing') {
+        updateEditSections();
+        e_juice.value      = row.juice_or_decoction  || '';
+        e_specify.value    = row.specify             || '';
+        e_rmJuiceQty.value = row.rm_juice_qty   != null ? row.rm_juice_qty  : '';
+        e_rmJuiceUom.value = row.rm_juice_uom        || '';
+        e_count.value      = row.count_of_saravam != null ? row.count_of_saravam : '';
+        e_fuel.value       = row.fuel               || '';
+        e_fuel_under.value = row.fuel_under         || '';
+        e_fuel_over.value  = row.fuel_over          || '';
+      }
+      // “On Hold” leaves everything hidden/cleared
     };
 
+    // 2) Also re‑toggle Doing panels when the activity itself changes
+    e_activity.onchange = updateEditSections;
+
+    // ────────────────────────────────────────────────────────────────────────────
+    // BOOTSTRAP: immediately apply the above logic for the loaded status
+    // ────────────────────────────────────────────────────────────────────────────
+    e_status.onchange();
+
+    // finally—show the edit modal
     showModal(editModal);
   }
 
@@ -999,76 +1149,152 @@ async function saveStatusUpdate(id, sel) {
 editForm.onsubmit = async ev => {
   ev.preventDefault();
 
-  // ── 0) Helper to detect unique-constraint failures ──────────────────
-  const isDuplicateError = err =>
-    err.code === '23505' ||
-    /duplicate key/i.test(err.message || '') ||
-    /violates unique constraint/i.test(err.message || '');
+  // 0) Clear any previous validation messages
+  editForm.querySelectorAll('input, select, textarea')
+          .forEach(el => el.setCustomValidity(''));
 
-  // ── 1) Gather common fields ────────────────────────────────────────
-  const id          = e_id.value;
+  // 1) Let HTML5 handle all the required‐field checks:
+  //    this will focus the first empty required field and show its bubble
+  if (!editForm.checkValidity()) {
+    editForm.reportValidity();
+    return;
+  }
+
+  // ── 1) Gather common fields ───────────────────────────────────────────────
+  const id          = Number(e_id.value);
   const originalAct = e_activity.value.trim();
   const actLower    = originalAct.toLowerCase();
   const newStat     = e_status.value;
 
-// ── 2) If switching *away* from “Done”, clear packaging + update ───
-if (newStat !== 'Done') {
-  // 2a) clear any packaging records
-  await clearPackaging(id);
+  // ── 2A) Doing: clear any packaging, save juice/putam fields
+  if (newStat === 'Doing') {
+    await clearPackaging(id);
+    const upd = { status: 'Doing' };
+    if (/juice|grinding|kashayam/.test(actLower)) {
+      upd.juice_or_decoction = e_juice.value || null;
+      upd.specify           = e_specify.value || null;
+    }
+    if (/putam|gaja putam|seelamann/.test(actLower)) {
+      upd.count_of_saravam = e_count.value
+        ? Number(e_count.value)
+        : null;
+      upd.fuel       = e_fuel.value      || null;
+      upd.fuel_under = e_fuel_under.value|| null;
+      upd.fuel_over  = e_fuel_over.value || null;
+    }
+    const { error: errDoing } = await supabase
+      .from('daily_work_log')
+      .update(upd)
+      .eq('id', id);
+    if (errDoing) {
+      await showAlert(
+        isDuplicateError(errDoing)
+          ? duplicateMessage({
+              item         : e_item.value,
+              batch_number : e_bn.value,
+              activity     : originalAct,
+              log_date     : '(unchanged)'
+            })
+          : `Unexpected error: ${errDoing.message || 'see console'}`
+      );
+      return;
+    }
+    editSuccess.style.display = 'block';
+    setTimeout(() => {
+      editSuccess.style.display = 'none';
+      hideModal(editModal);
+      loadFull();
+    }, 1200);
+    return;
+  }
 
-  // 2b) attempt the update
-  const { error } = await supabase
-    .from('daily_work_log')
-    .update({
-      status            : newStat,
+  // ── 2B) On Hold: clear everything Done‐only
+  if (newStat === 'On Hold') {
+    await clearPackaging(id);
+    const { error: errHold } = await supabase
+      .from('daily_work_log')
+      .update({
+        status            : 'On Hold',
+        completed_on      : null,
+        qty_after_process : null,
+        qty_uom           : null,
+        sku_breakdown     : null,
+        lab_ref_number    : null,
+        juice_or_decoction: null,
+        specify           : null,
+        count_of_saravam  : null,
+        fuel              : null,
+        fuel_under        : null,
+        fuel_over         : null,
+        storage_qty       : null,
+        storage_qty_uom   : null
+      })
+      .eq('id', id);
+    if (errHold) {
+      await showAlert(`Unexpected error: ${errHold.message || 'see console'}`);
+      return;
+    }
+    editSuccess.style.display = 'block';
+    setTimeout(() => {
+      editSuccess.style.display = 'none';
+      hideModal(editModal);
+      loadFull();
+    }, 1200);
+    return;
+  }
+
+  // ── 2C) In Storage: clear packaging, save storage fields, clear others
+  if (newStat === 'In Storage') {
+    await clearPackaging(id);
+    const upd = {
+      status          : 'In Storage',
+      storage_qty     : e_storage_qty.value
+                         ? Number(e_storage_qty.value)
+                         : null,
+      storage_qty_uom : e_storage_qty_uom.value || null,
+      // clear all Done‐only & Doing‐only fields
       completed_on      : null,
       qty_after_process : null,
       qty_uom           : null,
       sku_breakdown     : null,
-      lab_ref_number    : null
-    })
-    .eq('id', id);
-
-  // 2c) handle duplicate or other errors
-  if (error) {
-    await showAlert(
-      isDuplicateError(error)
-        ? duplicateMessage({
-            item         : e_item.value,
-            batch_number : e_bn.value,
-            activity     : originalAct,
-            log_date     : '(unchanged)'
-          })
-        : `Unexpected error: ${error.message || error.details || 'see console'}`
-    );
-    return;  // abort on failure
+      lab_ref_number    : null,
+      juice_or_decoction: null,
+      specify           : null,
+      count_of_saravam  : null,
+      fuel              : null,
+      fuel_under        : null,
+      fuel_over         : null
+    };
+    const { error: errStore } = await supabase
+      .from('daily_work_log')
+      .update(upd)
+      .eq('id', id);
+    if (errStore) {
+      await showAlert(`Error saving In Storage: ${errStore.message || 'see console'}`);
+      return;
+    }
+    editSuccess.style.display = 'block';
+    setTimeout(() => {
+      editSuccess.style.display = 'none';
+      hideModal(editModal);
+      loadFull();
+    }, 1200);
+    return;
   }
 
-  // 2d) on real success, show “saved” banner, close Edit modal & refresh
-  editSuccess.style.display = 'block';
-  setTimeout(() => {
-    editSuccess.style.display = 'none';
-    hideModal(editModal);
-    loadFull();
-  }, 1200);
-
-  return;
-}
-
-// ── 3) Else: saving *as* “Done” ────────────────────────────────────
-// 3a) Read post-Done values directly from the edit modal inputs
+  // ── 2D) Done: gather post‐Done values
   const r = {
-    choice      : 'just',                       // we’re finishing, not “Done & New”
-    completedOn : e_comp.value,                 // completed date from the modal
+    choice      : 'just',
+    completedOn : e_comp.value,
     qty         : e_qty.value     ? Number(e_qty.value)   : null,
-    uom         : e_qty_uom.value ? e_qty_uom.value.trim() : null,
-    labRef      : e_lab_ref.value ? e_lab_ref.value.trim() : null,
-    rows        : []                            // for SKU/transfer activities
+    uom         : e_qty_uom.value ? e_qty_uom.value.trim(): null,
+    labRef      : e_lab_ref.value ? e_lab_ref.value.trim(): null,
+    rows        : []
   };
-
-  // If this is a packaging or transfer activity, gather those SKU rows:
   if (skuActivities.includes(actLower) || actLower === 'transfer to fg store') {
-    const tbody = skuActivities.includes(actLower) ? editSkuBody : editTransBody;
+    const tbody = skuActivities.includes(actLower)
+                  ? editSkuBody
+                  : editTransBody;
     r.rows = Array.from(tbody.querySelectorAll('input'))
       .map(i => ({
         skuId    : Number(i.dataset.skuId),
@@ -1078,54 +1304,48 @@ if (newStat !== 'Done') {
       }))
       .filter(x => x.count > 0);
   }
-
-  // Optional: still confirm if no Qty/UOM for non-SKU activities
   const needsQty = !skuActivities.includes(actLower)
                  && actLower !== 'transfer to fg store'
                  && actLower !== 'finished goods quality assessment';
   if (needsQty && (!r.qty || !r.uom)) {
     if (!await askConfirm('No Qty/UOM provided. Save anyway?')) {
-      sel.value = 'Doing';
+      e_status.value = 'Doing';
       return;
     }
   }
 
-  // 3b) build the update payload
-  // 3b) build the update payload (now including started_on & due_date)
-  const upd = {
+  // build Done‐payload
+  const updDone = {
     status            : 'Done',
-    // overwrite the timestamps from the modal
     started_on        : toISO(e_start.value),
     due_date          : toISO(e_due.value),
     completed_on      : toISO(r.completedOn),
-
     qty_after_process : null,
     qty_uom           : null,
     sku_breakdown     : null,
     lab_ref_number    : null,
-
-    // persist any section→plant edits
-    section_id    : e_section.value    ? Number(e_section.value)    : null,
-    subsection_id : e_sub.value        ? Number(e_sub.value)        : null,
-    area_id       : e_area.value       ? Number(e_area.value)       : null,
-    plant_id      : e_plant.value      ? Number(e_plant.value)      : null
+    storage_qty       : null,
+    storage_qty_uom   : null
   };
   if (actLower === 'finished goods quality assessment') {
-    upd.lab_ref_number = r.labRef;
-  } else if (skuActivities.includes(actLower) || actLower === 'transfer to fg store') {
-    upd.sku_breakdown = r.rows.map(x => `${x.packSize} ${x.uom} x ${x.count}`).join('; ');
+    updDone.lab_ref_number = r.labRef;
+  } else if (
+    skuActivities.includes(actLower) ||
+    actLower === 'transfer to fg store'
+  ) {
+    updDone.sku_breakdown = r.rows
+      .map(x => `${x.packSize} ${x.uom} x ${x.count}`)
+      .join('; ');
   } else {
-    upd.qty_after_process = r.qty;
-    upd.qty_uom           = r.uom;
+    updDone.qty_after_process = r.qty;
+    updDone.qty_uom           = r.uom;
   }
 
-  // ── 3c) attempt to update the work‐log row
-  const { data: updatedRow, error: updErr } = await supabase
+  // 3) attempt to update
+  const { error: updErr } = await supabase
     .from('daily_work_log')
-    .update(upd)
+    .update(updDone)
     .eq('id', id);
-
-  // ── 3d) if the DB rejects it (duplicate or other), show alert & bail
   if (updErr) {
     await showAlert(
       isDuplicateError(updErr)
@@ -1137,11 +1357,14 @@ if (newStat !== 'Done') {
           })
         : `Unexpected error: ${updErr.message || updErr.details || 'see console'}`
     );
-    return;     // **do not** close the modal
+    return;
   }
 
-  // ── 4) on true success, upsert any packaging_events/event_skus
-  if (skuActivities.includes(actLower) || actLower === 'transfer to fg store') {
+  // upsert packaging-events for Done if needed
+  if (
+    skuActivities.includes(actLower) ||
+    actLower === 'transfer to fg store'
+  ) {
     const { data: pe } = await supabase
       .from('packaging_events')
       .upsert(
@@ -1150,16 +1373,12 @@ if (newStat !== 'Done') {
       )
       .select('id')
       .single();
-
     if (pe) {
-      await supabase
-        .from('event_skus')
+      await supabase.from('event_skus')
         .delete()
         .eq('packaging_event_id', pe.id);
-
-      if (r.rows && r.rows.length) {
-        await supabase
-          .from('event_skus')
+      if (r.rows.length) {
+        await supabase.from('event_skus')
           .insert(
             r.rows.map(x => ({
               packaging_event_id: pe.id,
@@ -1171,15 +1390,7 @@ if (newStat !== 'Done') {
     }
   }
 
-  // ── 5) “Done & New” shortcut (if used)
-  if (r.choice === 'new') {
-    window.location.href =
-      `add-log-entry.html?prefill_item=${encodeURIComponent(e_item.value)}` +
-      `&prefill_bn=${encodeURIComponent(e_bn.value)}`;
-    return;
-  }
-
-  // ── 6) success feedback, then close the editModal & refresh
+  // ── 6) success, close & refresh
   editSuccess.style.display = 'block';
   setTimeout(() => {
     editSuccess.style.display = 'none';

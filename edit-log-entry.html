@@ -96,12 +96,22 @@
       <select id="fItem"><option value="">Item</option></select>
     </div>
 
-    <!-- BN + Clear -->
+    <!-- BN -->
+    <div class="filter-pair narrow">
+      <select id="fBN" disabled><option value="">BN</option></select>
+    </div>
+
+    <!-- Activity -->
     <div class="filter-pair">
-      <select id="fBN" class="narrow" disabled><option value="">BN</option></select>
+      <select id="fActivity"><option value="">Activity</option></select>
+    </div>
+
+    <!-- Clear -->
+    <div class="filter-pair clear-pair">
       <span id="clearFull" class="link-btn">Clear</span>
     </div>
-  </div>
+
+</div>
 
   <!-- ===== MAIN TABLE ===================================================== -->
   <div id="panelFull">
@@ -113,6 +123,7 @@
     <th>BN</th>
     <th>Batch Size</th>
     <th>UOM</th>
+    <th>Section</th>
     <th>Plant / Machinery</th>
     <th>Activity</th>
     <th>Status</th>
@@ -227,11 +238,14 @@
           </label>
         </div>
 
+        <!-- Juice/Decoction (Doing-only) -->
         <div id="juiceS" style="display:none">
           <div class="form-row">
             <label>Juice/Decoction
               <select id="e_juice" name="juice_or_decoction">
-                <option value=""></option><option>Juice</option><option>Decoction</option>
+                <option value=""></option>
+                <option>Juice</option>
+                <option>Decoction</option>
               </select>
             </label>
             <label>Specify
@@ -240,23 +254,63 @@
           </div>
         </div>
 
+        <!-- RM Juice Qty & UOM (Doing-only) -->
+        <div id="rmJuiceSection" style="display:none">
+          <div class="form-row">
+            <label>RM Juice Qty
+              <input id="e_rm_juice_qty"
+                     name="rm_juice_qty"
+                     type="number"
+                     step="0.01"
+                     min="0" />
+            </label>
+            <label>RM Juice UOM
+              <select id="e_rm_juice_uom" name="rm_juice_uom">
+                <option value="">—</option>
+                <option>Kg</option>
+                <option>L</option>
+                <option>Nos</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <!-- Putam (Doing-only) -->
         <div id="putamS" style="display:none">
           <div class="form-row">
-            <label>Count
+            <label>Count of Saravam
               <input id="e_count" name="count_of_saravam" type="number" min="0" />
             </label>
-            <label>Fuel
+            <label>Fuel Type
               <select id="e_fuel" name="fuel">
-                <option value=""></option><option>Varali</option><option>Firewood</option>
+                <option value=""></option>
+                <option>Varali</option>
+                <option>Firewood</option>
               </select>
             </label>
           </div>
           <div class="form-row">
-            <label>Under
+            <label>Fuel Under
               <input id="e_fuel_under" name="fuel_under" />
             </label>
-            <label>Over
+            <label>Fuel Over
               <input id="e_fuel_over" name="fuel_over" />
+            </label>
+          </div>
+        </div>
+
+        <div id="storageSection" style="display:none">
+          <div class="form-row">
+            <label>Storage Qty
+              <input id="e_storage_qty" name="storage_qty" type="number" step="0.01" min="0"/>
+            </label>
+            <label>Storage UOM
+              <select id="e_storage_qty_uom" name="storage_qty_uom">
+                <option value="">—</option>
+                <option>Kg</option>
+                <option>L</option>
+                <option>Nos</option>
+              </select>
             </label>
           </div>
         </div>
@@ -276,7 +330,10 @@
         <div class="form-row">
           <label>Status
             <select id="e_status" name="status">
-              <option>Doing</option><option>On Hold</option><option>Done</option>
+              <option>Doing</option>
+              <option>On Hold</option>
+              <option>In Storage</option>
+              <option>Done</option>
             </select>
           </label>
         </div>
@@ -287,7 +344,9 @@
           </label>
           <label>UOM
             <select id="e_qty_uom" name="qty_after_process_uom">
-              <option>Kg</option><option>L</option><option>Nos</option>
+              <option>Kg</option>
+              <option>L</option>
+              <option>Nos</option>
             </select>
           </label>
         </div>
@@ -326,6 +385,7 @@
           <button type="button" id="cancelEdit" class="mode-btn">Cancel</button>
           <button type="submit" id="saveEdit" class="mode-btn">Save</button>
         </div>
+
         <div id="editSuccess">Changes saved successfully!</div>
       </form>
     </div>

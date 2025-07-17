@@ -1,0 +1,151 @@
+<!-- bmr-card-not-initiated.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SASV WORKSPACE | BMR Card – Not Initiated</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="css/style.css">
+
+  <style>
+    body {
+      margin:20px;
+      font-family:Arial, sans-serif;
+      background:var(--bg-color);
+      color:var(--text-color);
+      transition:background .3s, color .3s;
+    }
+    .header-bar {
+      display:flex; justify-content:space-between;
+      align-items:center; margin-bottom:20px;
+    }
+    .header-bar h2 {
+      margin:0; font-size:1.5rem; color:var(--primary);
+    }
+    #homeBtn {
+      background:var(--home-btn-bg);
+      color:var(--btn-text);
+      border:none; padding:8px 16px; border-radius:4px;
+      font-size:1rem; cursor:pointer; transition:background .2s;
+    }
+    #homeBtn:hover { background:var(--home-btn-hover-bg); }
+
+    /* ───────── FILTERS ───────── */
+    #filterForm { margin-bottom:20px; }
+    .filter-row {
+      display:flex; flex-wrap:wrap; gap:12px;
+    }
+    .filter-row.second-row {
+      margin-top:8px; align-items:center;
+    }
+    .filter-row select,
+    .filter-row button {
+      padding:6px;
+      border:1px solid #ccc;
+      border-radius:4px;
+      flex:1 1 140px;
+      min-width:120px;
+      background:var(--input-bg);
+      color:var(--input-text);
+    }
+    .clear-link {
+      background:none;
+      border:none;
+      color:var(--primary);
+      text-decoration:underline;
+      cursor:pointer;
+      padding:0;
+      font:inherit;
+      outline:none;
+    }
+    .clear-link:hover { opacity:0.7; }
+
+    /* ───────── EXPORT LINKS ───────── */
+    #exportLinks {
+      display:flex; justify-content:space-between;
+      width:100%; margin-bottom:8px;
+    }
+    #exportLinks a {
+      color:var(--primary);
+      text-decoration:underline;
+      cursor:pointer;
+      font-size:14px;
+    }
+    #exportLinks a:hover { color:var(--primary-hover); }
+
+    /* ───────── TABLE ───────── */
+    #bmrCardTableContainer {
+      width:100%;
+      max-height:calc(100vh - 300px);
+      overflow-y:auto; border:1px solid #ccc;
+    }
+    #bmrCardTable {
+      width:100%; border-collapse:collapse;
+    }
+    #bmrCardTable th,
+    #bmrCardTable td {
+      padding:8px; border:1px solid #ccc;
+      vertical-align: middle; text-align: center;
+    }
+    #bmrCardTable th {
+      background:var(--panel-bg);
+      position:sticky; top:0; z-index:1;
+      font-weight:bold;
+    }
+    /* first two columns alignment */
+    #bmrCardTable td:nth-child(1) { text-align:left; padding-left:12px; }
+    #bmrCardTable td:nth-child(2) { text-align:center; padding-left:0; }
+    .no-data td {
+      font-style:italic; color:#666; text-align:center;
+    }
+  </style>
+</head>
+<body data-theme="system">
+
+  <div class="header-bar">
+    <h2>BMR Card – Not Initiated</h2>
+    <button id="homeBtn">HOME</button>
+  </div>
+
+  <form id="filterForm">
+    <div class="filter-row first-row">
+      <select id="filterCategory"><option value="">Category</option></select>
+      <select id="filterSubCategory" disabled><option value="">Sub-category</option></select>
+      <select id="filterGroup" disabled><option value="">Group</option></select>
+      <select id="filterSubGroup" disabled><option value="">Sub-group</option></select>
+    </div>
+    <div class="filter-row second-row">
+      <select id="filterItem"><option value="">Item</option></select>
+      <select id="filterBN" disabled><option value="">BN</option></select>
+      <button type="button" id="clearFilters" class="clear-link">Clear</button>
+    </div>
+  </form>
+
+  <div id="exportLinks">
+    <a id="downloadCsv">Download CSV</a>
+    <a id="downloadPdf">Download PDF</a>
+  </div>
+
+  <div id="bmrCardTableContainer">
+    <table id="bmrCardTable">
+      <thead>
+        <tr>
+          <th>ITEM</th>
+          <th>BN</th>
+          <th>BATCH SIZE</th>
+          <th>UOM</th>
+          <th>CATEGORY</th>
+          <th>SUB-CATEGORY</th>
+          <th>PRODUCT GROUP</th>
+          <th>SUB-GROUP</th>
+        </tr>
+      </thead>
+      <tbody id="bmrCardTableBody"></tbody>
+    </table>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+  <script type="module" src="js/bmr-card-not-initiated.js"></script>
+</body>
+</html>

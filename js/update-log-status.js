@@ -1,5 +1,8 @@
 import { supabase } from './supabaseClient.js';
 
+/**
+ * Base Flatpickr configuration shared across date inputs.
+ */
 const fpBase = {
   dateFormat: 'd-m-Y',
   allowInput: true,
@@ -15,14 +18,29 @@ const fpBase = {
   ]
 };
 
+/**
+ * Parse a string in "DD-MM-YYYY" format into a Date object.
+ * @param {string} s - The date string.
+ * @returns {Date}
+ */
 const parseDMY = s => {
   const [d, m, y] = s.split('-').map(Number);
   return new Date(y, m - 1, d);
 };
 
+/**
+ * Format a Date object into "DD-MM-YYYY" string.
+ * @param {Date} d - The date to format.
+ * @returns {string}
+ */
 const formatDMY = d =>
   `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
 
+/**
+ * Attach an input mask to a text field so that only digits and hyphens
+ * can be entered, formatted as DD-MM-YYYY.
+ * @param {HTMLInputElement} el
+ */
 const attachMask = el => {
   el.addEventListener('input', () => {
     let v = el.value.replace(/\D/g, '').slice(0, 8);
@@ -33,6 +51,9 @@ const attachMask = el => {
 };
 
 const plantMap = {};
+
+const sectionMap = {};
+
 const skuActivities = [
   'bottling',
   'bottling and labelling',
@@ -45,20 +66,41 @@ const skuActivities = [
 const $ = sel => document.querySelector(sel);
 
 let homeBtn, bodyTbl;
-let sLogDate, sSection, sSub, sArea, sItem, sBN, sOverdue, clearBtn;
+let sLogDate, sSection, sSub, sArea, sItem, sBN, sActivity, sOverdue, clearBtn;
+
 let doneModal, doneForm, doneCompletedOn, doneQtySection, doneLabRefSec;
 let doneSkuSec, doneSkuBody, doneTransSec, doneTransBody;
 let doneCancel, doneJust, doneNew;
+
+let doneJuiceSection, donePutamSection;
+let doneJuiceOrDecoction, doneSpecify;
+let doneCountSaravam, doneFuel, doneFuelUnder, doneFuelOver;
+let doneCompletedOnSection;
+
 let confirmModal, confirmText, confirmYes, confirmNo;
 
+/**
+ * Show an element by setting its display to 'flex'.
+ * @param {HTMLElement} el
+ */
 function show(el) {
   el.style.display = 'flex';
 }
 
+/**
+ * Hide an element by setting its display to 'none'.
+ * @param {HTMLElement} el
+ */
 function hide(el) {
   el.style.display = 'none';
 }
 
+/**
+ * Display a confirmation modal with the given message,
+ * and resolve to true/false based on user choice.
+ * @param {string} msg
+ * @returns {Promise<boolean>}
+ */
 async function askConfirm(msg) {
   confirmText.textContent = msg;
   show(confirmModal);
@@ -74,6 +116,10 @@ async function askConfirm(msg) {
   });
 }
 
+/**
+ * Remove any existing packaging events and their SKUs for a given logId.
+ * @param {number|string} logId
+ */
 async function clearPackaging(logId) {
   const { data } = await supabase
     .from('packaging_events')
@@ -86,36 +132,87 @@ async function clearPackaging(logId) {
   }
 }
 
+/**
+ * Populate a <select> element with an array of row objects.
+ * @param {HTMLSelectElement} sel
+ * @param {Array<Object>} rows
+ * @param {string} vKey - object key for option value
+ * @param {string} tKey - object key for option text
+ * @param {string} ph - placeholder text
+ */
 function populate(sel, rows, vKey, tKey, ph) {
   sel.innerHTML =
     `<option value="">${ph}</option>` +
     rows.map(r => `<option value="${r[vKey]}">${r[tKey]}</option>`).join('');
 }
 
+/**
+ * Reset and disable the Area and Batch Number filters.
+ */
 function resetAreaBN() {
   populate(sArea, [], '', '', 'Area');
   sArea.disabled = true;
   resetBN();
 }
 
+/**
+ * Reset and disable the Batch Number filter.
+ */
 function resetBN() {
   sBN.innerHTML = '<option value="">BN</option>';
   sBN.disabled = true;
 }
 
-async function configureDoneModal(activity, item, batch) {
+/**
+ * Configure, prefill, and show/hide the Done‐modal sections.
+ * @param {string} activity
+ * @param {string} item
+ * @param {string} batch
+ * @param {string|number} id   // record ID
+ */
+/**
+ * Configure, prefill, and show/hide the Done-modal sections based on activity.
+ * @param {string} activity
+ * @param {string} item
+ * @param {string} batch
+ * @param {string|number} id     // record ID
+ */
+async function configureDoneModal(activity, item, batch, id) {
   const act = activity.toLowerCase().trim();
-  doneQtySection.style.display =
-    doneLabRefSec.style.display =
-    doneSkuSec.style.display =
-    doneTransSec.style.display =
-      'none';
-  doneSkuBody.innerHTML = '';
-  doneTransBody.innerHTML = '';
 
+  // 1) Fetch existing Done-fields
+  const { data: rec, error: recErr } = await supabase
+    .from('daily_work_log')
+    .select(`
+      completed_on,
+      qty_after_process,
+      qty_uom,
+      lab_ref_number,
+      sku_breakdown
+    `)
+    .eq('id', id)
+    .single();
+  if (recErr) console.error("Prefill error:", recErr);
+
+  // 2) Hide all optional panels
+  [
+    doneLabRefSec,
+    doneSkuSec,
+    doneTransSec,
+    doneQtySection,
+    doneJuiceSection,
+    donePutamSection
+  ].forEach(el => el.style.display = 'none');
+  doneSkuBody.innerHTML = "";
+  doneTransBody.innerHTML = "";
+
+  // 3) Show & prefill the right panel(s)
   if (act === 'finished goods quality assessment') {
     doneLabRefSec.style.display = 'flex';
+    document.getElementById('doneLabRef').value = rec?.lab_ref_number || '';
+
   } else if (skuActivities.includes(act)) {
+    // SKU breakdown
     doneSkuSec.style.display = 'block';
     const { data: prod } = await supabase
       .from('products')
@@ -130,243 +227,402 @@ async function configureDoneModal(activity, item, batch) {
         .eq('is_active', true)
         .order('pack_size');
       skus.forEach(s => {
-        doneSkuBody.insertAdjacentHTML(
-          'beforeend',
-          `<tr>
-             <td>${s.pack_size}</td>
-             <td>${s.uom}</td>
-             <td>
-               <input type="number" min="0"
-                      data-sku-id="${s.id}"
-                      data-pack-size="${s.pack_size}"
-                      data-uom="${s.uom}">
-             </td>
-           </tr>`
-        );
+        doneSkuBody.insertAdjacentHTML('beforeend', `
+          <tr>
+            <td>${s.pack_size}</td>
+            <td>${s.uom}</td>
+            <td>
+              <input type="number" min="0"
+                     data-sku-id="${s.id}"
+                     data-pack-size="${s.pack_size}"
+                     data-uom="${s.uom}">
+            </td>
+          </tr>`);
       });
+      // prefill counts
+      if (rec?.sku_breakdown) {
+        rec.sku_breakdown.split(';').forEach(entry => {
+          const [ps, uom, , cnt] = entry.trim().split(' ');
+          const inp = doneSkuBody.querySelector(
+            `input[data-pack-size="${ps}"][data-uom="${uom}"]`
+          );
+          if (inp) inp.value = cnt;
+        });
+      }
     }
+
   } else if (act === 'transfer to fg store') {
+    // Transfer table
     doneTransSec.style.display = 'block';
     const { data } = await supabase
       .from('bottled_stock_on_hand')
       .select('sku_id,pack_size,uom,on_hand')
       .eq('batch_number', batch);
     data.forEach(r => {
-      doneTransBody.insertAdjacentHTML(
-        'beforeend',
-        `<tr>
-           <td>${r.pack_size}</td>
-           <td>${r.uom}</td>
-           <td>${r.on_hand}</td>
-           <td>
-             <input type="number"
-                    min="0"
-                    max="${r.on_hand}"
-                    data-sku-id="${r.sku_id}"
-                    data-pack-size="${r.pack_size}"
-                    data-uom="${r.uom}">
-           </td>
-         </tr>`
-      );
+      doneTransBody.insertAdjacentHTML('beforeend', `
+        <tr>
+          <td>${r.pack_size}</td>
+          <td>${r.uom}</td>
+          <td>${r.on_hand}</td>
+          <td>
+            <input type="number"
+                   min="0"
+                   max="${r.on_hand}"
+                   data-sku-id="${r.sku_id}"
+                   data-pack-size="${r.pack_size}"
+                   data-uom="${r.uom}">
+          </td>
+        </tr>`);
     });
+    // prefill transfer counts
+    if (rec?.sku_breakdown) {
+      rec.sku_breakdown.split(';').forEach(entry => {
+        const [ps, uom, , cnt] = entry.trim().split(' ');
+        const inp = doneTransBody.querySelector(
+          `input[data-pack-size="${ps}"][data-uom="${uom}"]`
+        );
+        if (inp) inp.value = cnt;
+      });
+    }
+
   } else {
+    // Post-process qty/UOM
     doneQtySection.style.display = 'flex';
-    $('#doneUOM').value = '';
+    document.getElementById('doneQty').value = rec?.qty_after_process ?? '';
+    document.getElementById('doneUOM').value = rec?.qty_uom           || '';
+  }
+
+  // 4) Prefill Completed On
+  if (rec?.completed_on) {
+    doneCompletedOn.value = formatDMY(new Date(rec.completed_on));
   }
 }
 
-async function promptDone(activity, item, batch) {
+/**
+ * Prompt the Done modal and return the user's choice plus entered values.
+ * @param {string} activity
+ * @param {string} item
+ * @param {string} batch
+ * @returns {Promise<{
+ *   choice: string,
+ *   completedOn: string,
+ *   rows: Array<{skuId:number,packSize:string,uom:string,count:number}>,
+ *   qty: number|null,
+ *   uom: string|null,
+ *   labRef: string|null
+ * }>}
+ */
+async function promptDone(activity, item, id) {
   doneForm.reset();
+  // Default Completed On to today
   doneCompletedOn.value = formatDMY(new Date());
-  await configureDoneModal(activity, item, batch);
+  await configureDoneModal(activity, item, id);
   show(doneModal);
+
   return new Promise(res => {
     doneCancel.onclick = () => {
       hide(doneModal);
       res({ choice: 'cancel' });
     };
+
     const finish = choice => {
-      const actL = activity.toLowerCase().trim();
+      // gather completed date
+      const completedOn = doneCompletedOn.value;
+
+      // gather lab reference if present
+      const labRef = document.querySelector('#doneLabRef')?.value.trim() || null;
+
+      // gather SKU or transfer rows if applicable
       let rows = [];
-      let qty = null;
-      let uom = null;
-      let lab = null;
-      if (actL === 'finished goods quality assessment') {
-        lab = $('#doneLabRef').value.trim();
-      } else if (skuActivities.includes(actL)) {
-        rows = [...doneSkuBody.querySelectorAll('input')]
+      const actL = activity.toLowerCase().trim();
+      if (skuActivities.includes(actL)) {
+        rows = Array.from(doneSkuBody.querySelectorAll('input'))
           .map(i => ({
             skuId: +i.dataset.skuId,
-            count: +i.value,
             packSize: i.dataset.packSize,
-            uom: i.dataset.uom
+            uom: i.dataset.uom,
+            count: +i.value
           }))
           .filter(r => r.count > 0);
       } else if (actL === 'transfer to fg store') {
-        rows = [...doneTransBody.querySelectorAll('input')]
+        rows = Array.from(doneTransBody.querySelectorAll('input'))
           .map(i => ({
             skuId: +i.dataset.skuId,
-            count: +i.value,
             packSize: i.dataset.packSize,
-            uom: i.dataset.uom
+            uom: i.dataset.uom,
+            count: +i.value
           }))
           .filter(r => r.count > 0);
-      } else {
-        qty = +$('#doneQty').value || null;
-        uom = $('#doneUOM').value || null;
       }
+
+      // gather qty & uom for non‑SKU activities
+      const qty = Number(document.querySelector('#doneQty')?.value) || null;
+      const uom = document.querySelector('#doneUOM')?.value || null;
+
       hide(doneModal);
-      res({ choice, rows, completedOn: doneCompletedOn.value, qty, uom, labRef: lab });
+      res({ choice, completedOn, rows, qty, uom, labRef });
     };
+
     doneJust.onclick = () => finish('just');
-    doneNew.onclick = () => finish('new');
+    doneNew .onclick = () => finish('new');
   });
 }
 
+/**
+ * Configure and hide/show the Doing‐modal sections, and prefill existing values.
+ */
+async function configureDoingModal(activity, item, batch, id) {
+  // Reset & hide Done‐only panels
+  doneForm.reset();
+  doneCompletedOnSection.style.display = 'none';
+  [doneLabRefSec, doneSkuSec, doneTransSec, doneQtySection]
+    .forEach(el => el.style.display = 'none');
+
+  // Show only the relevant Doing panels
+  const act = activity.toLowerCase().trim();
+  doneJuiceSection.style.display = /juice|grinding|kashayam/.test(act) ? 'flex' : 'none';
+  donePutamSection.style.display = /putam|gaja putam|seelamann/.test(act) ? 'flex' : 'none';
+
+  // Pull the current values for these fields from the DB
+  const { data: rec, error } = await supabase
+    .from('daily_work_log')
+    .select('juice_or_decoction,specify,count_of_saravam,fuel,fuel_under,fuel_over')
+    .eq('id', id)
+    .single();
+  if (!error && rec) {
+    doneJuiceOrDecoction.value = rec.juice_or_decoction || '';
+    doneSpecify.value          = rec.specify            || '';
+    doneCountSaravam.value     = rec.count_of_saravam   ?? '';
+    doneFuel.value             = rec.fuel               || '';
+    doneFuelUnder.value        = rec.fuel_under         || '';
+    doneFuelOver.value         = rec.fuel_over          || '';
+  }
+}
+
+/**
+ * Prompt the modal for Doing-transition fields (Juice/Putam).
+ * @param {string} activity
+ * @param {string} item
+ * @param {string} batch
+ * @param {string} prevStatus
+ * @returns {Promise<{choice: string}>}
+ */
+/**
+ * Prompt the Doing modal, prefill existing values, and return the user's choice.
+ * @param {string} activity
+ * @param {string} item
+ * @param {string} batch
+ * @param {number|string} id    // log record ID
+ * @returns {Promise<{choice: string}>}
+ */
+async function promptDoing(activity, item, batch, id) {
+  // Configure & prefill the Doing-only panels
+  await configureDoingModal(activity, item, batch, id);
+
+  // Show the modal
+  show(doneModal);
+
+  // Return a promise that resolves when the user clicks Cancel/Just Save/Save & New
+  return new Promise(res => {
+    doneCancel.onclick = () => {
+      hide(doneModal);
+      res({ choice: 'cancel' });
+    };
+    const finish = () => {
+      hide(doneModal);
+      res({ choice: 'ok' });
+    };
+    doneJust.onclick = finish;
+    doneNew.onclick  = finish;
+  });
+}
+
+/**
+ * Handle saving status changes, including prompting for Done or Doing transitions.
+ * @param {string|number} id
+ * @param {HTMLSelectElement} sel
+ */
 async function saveStatus(id, sel) {
   const newStat = sel.value;
-  const { act, item, bn, prevStatus } = sel.dataset;
+  const { act: activity, item, bn, prevStatus } = sel.dataset;
+  const actL = activity.toLowerCase().trim();
+
   if (newStat === 'Done') {
-    const r = await promptDone(act, item, bn);
-    if (r.choice === 'cancel') {
-      sel.value = prevStatus;
-      return;
+  const r = await promptDone(activity, item, bn, id);
+  if (r.choice === 'cancel') {
+    sel.value = prevStatus;
+    return;
+  }
+
+  // parse & build payload
+  const [d, m, y] = r.completedOn.split('-').map(Number);
+  const isoDate = new Date(y, m - 1, d).toISOString().slice(0, 10);
+  const upd = {
+    status: 'Done',
+    completed_on: isoDate,
+    qty_after_process: null,
+    qty_uom: null,
+    sku_breakdown: null,
+    lab_ref_number: null
+  };
+
+  if (actL === 'finished goods quality assessment') {
+    upd.lab_ref_number = r.labRef;
+  } else if (
+    skuActivities.includes(actL) ||
+    actL === 'transfer to fg store'
+  ) {
+    upd.sku_breakdown = r.rows
+      .map(x => `${x.packSize} ${x.uom} x ${x.count}`)
+      .join('; ');
+  } else {
+    upd.qty_after_process = r.qty;
+    upd.qty_uom           = r.uom;
+  }
+
+  // update main record
+  const { error: updErr } = await supabase
+    .from('daily_work_log')
+    .update(upd)
+    .eq('id', id);
+  if (updErr) {
+    console.error('Update failed:', updErr);
+    sel.value = prevStatus;
+    return;
+  }
+
+  // upsert packaging events if needed
+  if (skuActivities.includes(actL) || actL === 'transfer to fg store') {
+    const { data: pe } = await supabase
+      .from('packaging_events')
+      .upsert(
+        { work_log_id: id, event_type: activity },
+        { onConflict: 'work_log_id' }
+      )
+      .select('id')
+      .single();
+    if (pe) {
+      await supabase.from('event_skus').delete().eq('packaging_event_id', pe.id);
+      if (r.rows.length) {
+        await supabase
+          .from('event_skus')
+          .insert(
+            r.rows.map(x => ({
+              packaging_event_id: pe.id,
+              sku_id: x.skuId,
+              count: x.count
+            }))
+          );
+      }
     }
-    const [d, m, y] = r.completedOn.split('-').map(Number);
-    const isoDate = new Date(y, m - 1, d).toISOString().slice(0, 10);
-    const upd = {
-      status: 'Done',
-      completed_on: isoDate,
+  }
+
+  // if user wants "Save & New", go to add-log-entry
+  if (r.choice === 'new') {
+    window.location.href =
+      `add-log-entry.html?item=${encodeURIComponent(item)}&bn=${encodeURIComponent(bn)}`;
+    return;
+  }
+
+  await loadStatus();
+
+  return;
+}
+
+  if (newStat === 'Doing') {
+    await clearPackaging(id);
+
+    if (/juice|grinding|kashayam/.test(actL) || /putam|gaja putam|seelamann/.test(actL)) {
+      const r = await promptDoing(activity, item, bn, id);
+      if (r.choice === 'cancel') {
+        sel.value = prevStatus;
+        return;
+      }
+
+      const upd = { status: 'Doing' };
+      if (/juice|grinding|kashayam/.test(actL)) {
+        upd.juice_or_decoction = doneJuiceOrDecoction.value || null;
+        upd.specify            = doneSpecify.value            || null;
+      }
+      if (/putam|gaja putam|seelamann/.test(actL)) {
+        upd.count_of_saravam = doneCountSaravam.value
+          ? Number(doneCountSaravam.value)
+          : null;
+        upd.fuel       = doneFuel.value       || null;
+        upd.fuel_under = doneFuelUnder.value  || null;
+        upd.fuel_over  = doneFuelOver.value   || null;
+      }
+
+      const { error } = await supabase
+        .from('daily_work_log')
+        .update(upd)
+        .eq('id', id);
+      if (error) {
+        console.error('Update failed:', error);
+        sel.value = prevStatus;
+      }
+    } else {
+      const { error } = await supabase
+        .from('daily_work_log')
+        .update({ status: 'Doing' })
+        .eq('id', id);
+      if (error) {
+        console.error('Update failed:', error);
+        sel.value = prevStatus;
+      }
+    }
+
+    loadStatus();
+    return;
+  }
+
+  // On Hold & other transitions
+  await clearPackaging(id);
+  const { error } = await supabase
+    .from('daily_work_log')
+    .update({
+      status: newStat,
+      completed_on: null,
       qty_after_process: null,
       qty_uom: null,
       sku_breakdown: null,
       lab_ref_number: null
-    };
-    const actL = act.toLowerCase().trim();
-    if (actL === 'finished goods quality assessment') {
-      upd.lab_ref_number = r.labRef;
-    } else if (
-      skuActivities.includes(actL) ||
-      actL === 'transfer to fg store'
-    ) {
-      upd.sku_breakdown = r.rows
-        .map(x => `${x.packSize} ${x.uom} x ${x.count}`)
-        .join('; ');
-    } else {
-      upd.qty_after_process = r.qty;
-      upd.qty_uom = r.uom;
-    }
-    const { error: updErr } = await supabase
-      .from('daily_work_log')
-      .update(upd)
-      .eq('id', id);
-    if (updErr) {
-      console.error('Update failed:', updErr);
-      sel.value = prevStatus;
-      return;
-    }
-    if (
-      skuActivities.includes(actL) ||
-      actL === 'transfer to fg store'
-    ) {
-      const { data: pe } = await supabase
-        .from('packaging_events')
-        .upsert(
-          { work_log_id: id, event_type: act },
-          { onConflict: 'work_log_id' }
-        )
-        .select('id')
-        .single();
-      if (pe) {
-        await supabase
-          .from('event_skus')
-          .delete()
-          .eq('packaging_event_id', pe.id);
-        if (r.rows.length) {
-          await supabase
-            .from('event_skus')
-            .insert(
-              r.rows.map(x => ({
-                packaging_event_id: pe.id,
-                sku_id: x.skuId,
-                count: x.count
-              }))
-            );
-        }
-      }
-    }
-    if (r.choice === 'new') {
-      window.location.href = `add-log-entry.html?item=${encodeURIComponent(
-        item
-      )}&bn=${encodeURIComponent(bn)}`;
-      return;
-    }
-  } else {
-    await clearPackaging(id);
-    const { error: updErr } = await supabase
-      .from('daily_work_log')
-      .update({
-        status: newStat,
-        completed_on: null,
-        qty_after_process: null,
-        qty_uom: null,
-        sku_breakdown: null,
-        lab_ref_number: null
-      })
-      .eq('id', id);
-    if (updErr) {
-      console.error('Update failed:', updErr);
-    }
-  }
+    })
+    .eq('id', id);
+  if (error) console.error('Update failed:', error);
+
   loadStatus();
 }
 
+/**
+ * Load and render the status table based on current filters.
+ */
 async function loadStatus() {
-  // 1. Clear existing rows
   bodyTbl.replaceChildren();
 
-  // 2. Fetch from daily_work_log, including batch_size & batch_uom
   let q = supabase
     .from('daily_work_log')
-    .select(`
-      id,
-      log_date,
-      item,
-      batch_number,
-      batch_size,
-      batch_uom,
-      plant_id,
-      activity,
-      status,
-      due_date
-    `)
+    .select('id,log_date,item,batch_number,batch_size,batch_uom,section_id,plant_id,activity,status,due_date')
     .in('status', ['Doing','On Hold']);
 
-  // 3. Apply filters
   if (sLogDate.value) {
-    const [dd, mm, yyyy] = sLogDate.value
-      .split('-')
-      .map(n => n.padStart(2, '0'));
+    const [dd, mm, yyyy] = sLogDate.value.split('-').map(n => n.padStart(2, '0'));
     q = q.eq('log_date', `${yyyy}-${mm}-${dd}`);
   }
-  if (sSection.value) q = q.eq('section_id',    sSection.value);
+  if (sSection.value) q = q.eq('section_id', sSection.value);
   if (sSub.value)     q = q.eq('subsection_id', sSub.value);
-  if (sArea.value)    q = q.eq('area_id',       sArea.value);
-  if (sItem.value)    q = q.eq('item',          sItem.value);
-  if (sBN.value)      q = q.eq('batch_number',  sBN.value);
+  if (sArea.value)    q = q.eq('area_id', sArea.value);
+  if (sItem.value)    q = q.eq('item', sItem.value);
+  if (sBN.value)      q = q.eq('batch_number', sBN.value);
+  if (sActivity.value) q = q.eq('activity', sActivity.value);
   if (sOverdue.checked) {
     const today = new Date().toISOString().slice(0,10);
     q = q.lt('due_date', today);
   }
 
-  // 4. Execute
   const { data, error } = await q;
-  if (error) {
-    console.error('loadStatus error:', error);
-    return;
-  }
+  if (error) return console.error('loadStatus error:', error);
 
-  // 5. Sort: date → item → bn → plant
   const coll = new Intl.Collator('en',{ numeric:true, sensitivity:'base' });
   data.sort((a,b) => {
     const da = new Date(a.log_date) - new Date(b.log_date);
@@ -378,15 +634,15 @@ async function loadStatus() {
     return coll.compare(plantMap[a.plant_id]||'', plantMap[b.plant_id]||'');
   });
 
-  // 6. Render rows (now has r.batch_size & r.batch_uom)
   data.forEach(r => {
     bodyTbl.insertAdjacentHTML('beforeend', `
       <tr>
         <td>${new Date(r.log_date).toLocaleDateString('en-GB')}</td>
         <td>${r.item}</td>
         <td>${r.batch_number}</td>
-        <td>${r.batch_size  ?? ''}</td>
-        <td>${r.batch_uom   ?? ''}</td>
+        <td>${r.batch_size ?? ''}</td>
+        <td>${r.batch_uom  ?? ''}</td>
+        <td>${sectionMap[r.section_id]||''}</td>
         <td>${plantMap[r.plant_id]||''}</td>
         <td>${r.activity}</td>
         <td>
@@ -407,57 +663,67 @@ async function loadStatus() {
       </tr>`);
   });
 
-  // 7. Re‑attach Save handlers
   document.querySelectorAll('.save-link').forEach(a => {
     const sel = document.querySelector(`.statSel[data-id="${a.dataset.id}"]`);
     a.onclick = e => { e.preventDefault(); saveStatus(a.dataset.id, sel); };
   });
 }
 
+/**
+ * Initialize DOM references, event handlers, and load initial data.
+ */
 async function init() {
-  homeBtn = $('#homeBtn');
-  bodyTbl = $('#statusBody');
-  sLogDate = $('#sLogDate');
-  sSection = $('#sSection');
-  sSub = $('#sSub');
-  sArea = $('#sArea');
-  sItem = $('#sItem');
-  sBN = $('#sBN');
-  sOverdue = $('#sOverdue');
-  clearBtn = $('#clearStatus');
+  homeBtn               = $('#homeBtn');
+  bodyTbl               = $('#statusBody');
+  sLogDate              = $('#sLogDate');
+  sSection              = $('#sSection');
+  sSub                  = $('#sSub');
+  sArea                 = $('#sArea');
+  sItem                 = $('#sItem');
+  sBN                   = $('#sBN');
+  sActivity             = $('#sActivity');
+  sOverdue              = $('#sOverdue');
+  clearBtn              = $('#clearStatus');
 
-  doneModal = $('#doneModal');
-  doneForm = $('#doneForm');
-  doneCompletedOn = $('#doneCompletedOn');
-  doneQtySection = $('#doneQtySection');
-  doneLabRefSec = $('#doneLabRefSection');
-  doneSkuSec = $('#doneSkuSection');
-  doneSkuBody = $('#doneSkuTable tbody');
-  doneTransSec = $('#doneTransSection');
-  doneTransBody = $('#doneTransTable tbody');
-  doneCancel = $('#doneCancel');
-  doneJust = $('#doneJust');
-  doneNew = $('#doneNew');
+  doneModal             = $('#doneModal');
+  doneForm              = $('#doneForm');
+  doneCompletedOn       = $('#doneCompletedOn');
+  doneCompletedOnSection= $('#doneCompletedOn').closest('.form-row');
+  doneQtySection        = $('#doneQtySection');
+  doneLabRefSec         = $('#doneLabRefSection');
+  doneSkuSec            = $('#doneSkuSection');
+  doneSkuBody           = $('#doneSkuTable tbody');
+  doneTransSec          = $('#doneTransSection');
+  doneTransBody         = $('#doneTransTable tbody');
+  doneCancel            = $('#doneCancel');
+  doneJust              = $('#doneJust');
+  doneNew               = $('#doneNew');
 
-  confirmModal = $('#confirmModal');
-  confirmText = $('#confirmText');
-  confirmYes = $('#confirmYes');
-  confirmNo = $('#confirmNo');
+  doneJuiceSection      = $('#doneJuiceSection');
+  donePutamSection      = $('#donePutamSection');
+  doneJuiceOrDecoction  = $('#doneJuiceOrDecoction');
+  doneSpecify           = $('#doneSpecify');
+  doneCountSaravam      = $('#doneCountSaravam');
+  doneFuel              = $('#doneFuel');
+  doneFuelUnder         = $('#doneFuelUnder');
+  doneFuelOver          = $('#doneFuelOver');
+
+  confirmModal          = $('#confirmModal');
+  confirmText           = $('#confirmText');
+  confirmYes            = $('#confirmYes');
+  confirmNo             = $('#confirmNo');
 
   const { data: pl, error: plErr } = await supabase
     .from('plant_machinery')
     .select('id,plant_name');
-  if (!plErr) {
-    pl.forEach(p => {
-      plantMap[p.id] = p.plant_name;
-    });
-  }
+  if (!plErr) pl.forEach(p => plantMap[p.id] = p.plant_name);
 
   const { data: secs, error: secsErr } = await supabase
     .from('sections')
     .select('id,section_name')
     .order('section_name');
   if (!secsErr) {
+    secs.forEach(s => sectionMap[s.id] = s.section_name);
     populate(sSection, secs, 'id', 'section_name', 'Section');
   }
 
@@ -466,15 +732,23 @@ async function init() {
     .select('item')
     .order('item');
   if (!itemsErr) {
-    const uniqueItems = Array.from(new Set(itemsRaw.map(r => r.item))).map(
-      i => ({ item: i })
-    );
+    const uniqueItems = Array.from(new Set(itemsRaw.map(r => r.item)))
+                             .map(i => ({ item: i }));
     populate(sItem, uniqueItems, 'item', 'item', 'Item');
   }
 
-  homeBtn.addEventListener('click', () => {
-    window.location.href = 'index.html';
-  });
+  const { data: acts, error: actsErr } = await supabase
+    .from('daily_work_log')
+    .select('activity', { distinct: true })
+    .in('status', ['Doing','On Hold'])
+    .order('activity');
+  if (!actsErr) {
+    populate(sActivity, acts, 'activity','activity','Activity');
+  }
+
+  sActivity.addEventListener('change', loadStatus);
+
+  homeBtn.addEventListener('click', () => window.location.href = 'index.html');
 
   sSection.addEventListener('change', () => {
     if (!sSection.value) {
@@ -540,14 +814,10 @@ async function init() {
   sOverdue.addEventListener('change', loadStatus);
 
   clearBtn.addEventListener('click', () => {
-    [sSection, sSub, sArea, sItem, sBN].forEach(x => {
-      x.value = '';
-    });
-    [sSub, sArea, sBN].forEach(x => {
-      x.disabled = true;
-    });
+    [sSection, sSub, sArea, sItem, sBN, sActivity].forEach(x => x.value = '');
+    [sSub, sArea, sBN].forEach(x => x.disabled = true);
     sOverdue.checked = false;
-    sLogDate.value = '';
+    sLogDate.value   = '';
     loadStatus();
   });
 
@@ -559,9 +829,7 @@ async function init() {
   doneCompletedOn.addEventListener('blur', () => {
     const d = parseDMY(doneCompletedOn.value);
     const today = new Date();
-    if (+d > +today) {
-      doneCompletedOn.value = formatDMY(today);
-    }
+    if (+d > +today) doneCompletedOn.value = formatDMY(today);
   });
 
   await loadStatus();

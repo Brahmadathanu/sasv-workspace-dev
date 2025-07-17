@@ -204,7 +204,7 @@
       </label>
     </div>
 
-    <!-- 6) Juice/Decoction -->
+    <!-- 6) Juice/Decoction + RM QTY/UOM -->
     <div id="juiceSection">
       <div class="form-row">
         <label>Juice/Decoction:
@@ -216,6 +216,18 @@
         </label>
         <label>Specify:
           <input name="specify" type="text">
+        </label>
+      </div>
+      <div class="form-row">
+        <label>RM Qty:
+          <input id="rm_juice_qty" name="rm_juice_qty" type="number" step="0.01" min="0">
+        </label>
+        <label>RM UOM:
+          <select id="rm_juice_uom" name="rm_juice_uom">
+            <option value="">--</option>
+            <option>Kg</option>
+            <option>L</option>
+          </select>
         </label>
       </div>
     </div>
@@ -265,16 +277,34 @@
       </label>
     </div>
 
-    <!-- 9) Status -->
-    <div class="form-row">
-      <label>Status:
-        <select id="status" name="status" required>
-          <option>Doing</option>
-          <option>On Hold</option>
-          <option>Done</option>
-        </select>
-      </label>
-    </div>
+<!-- 9) Status -->
+<div class="form-row">
+  <label>Status:
+    <select id="status" name="status" required>
+      <option>Doing</option>
+      <option>On Hold</option>
+      <option>Done</option>
+      <option>In Storage</option>
+    </select>
+  </label>
+</div>
+
+<!-- 9b) Storage Qty + UOM (shown only when “In Storage” is selected) -->
+<div id="storageSection" style="display:none; margin-bottom:16px;">
+  <div class="form-row">
+    <label>Storage Qty:
+      <input id="storage_qty" name="storage_qty" type="number" step="0.01" min="0">
+    </label>
+    <label>UOM:
+      <select id="storage_qty_uom" name="storage_qty_uom">
+        <option value="">--</option>
+        <option>Kg</option>
+        <option>L</option>
+        <option>Nos</option>
+      </select>
+    </label>
+  </div>
+</div>
 
     <!-- 10) Completed On -->
     <div id="completedOnSection">

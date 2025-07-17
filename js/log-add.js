@@ -47,42 +47,50 @@ const attachMask = el => el.addEventListener("input", () => {
 /* ────────────────────────────  DOM SHORTCUTS  ────────────────────────── */
 const $ = id => document.getElementById(id);
 
-const form          = $("logForm");
-const homeBtn       = $("homeBtn");
-const btnSubmitNew  = $("btnSubmitNew");
+const form             = $("logForm");
+const homeBtn          = $("homeBtn");
+const btnSubmitNew     = $("btnSubmitNew");
 
-const sectionSel    = $("section");
-const subSel        = $("sub_section");
-const areaSel       = $("area");
-const plantSel      = $("plant_or_machinery");
-const activitySel   = $("activity");
+const sectionSel       = $("section");
+const subSel           = $("sub_section");
+const areaSel          = $("area");
+const plantSel         = $("plant_or_machinery");
+const activitySel      = $("activity");
 
-const itemInput     = $("itemInput");
-const itemList      = $("itemList");
-const batchSel      = $("batch_number");
-const sizeInput     = $("batch_size");
-const uomInput      = $("batch_uom");
+const itemInput        = $("itemInput");
+const itemList         = $("itemList");
+const batchSel         = $("batch_number");
+const sizeInput        = $("batch_size");
+const uomInput         = $("batch_uom");
 
-const logDateInput  = $("log_date");
-const startInput    = $("started_on");
-const dueInput      = $("due_date");
-const statusSel     = $("status");
-const compOnInput   = $("completed_on");
+const logDateInput     = $("log_date");
+const startInput       = $("started_on");
+const dueInput         = $("due_date");
+const statusSel        = $("status");
+const compOnInput      = $("completed_on");
 
-const compOnSection   = $("completedOnSection");
-const postProcSection = $("postProcessingSection");
-const labRefSection   = $("labRefSection");
-const skuSection      = $("skuSection");
-const transferSection = $("transferSection");
+const compOnSection    = $("completedOnSection");
+const postProcSection  = $("postProcessingSection");
+const labRefSection    = $("labRefSection");
+const skuSection       = $("skuSection");
+const transferSection  = $("transferSection");
+
+const juiceSection     = $("juiceSection");
+const putamSection     = $("putamSection");
+const rmJuiceQtyInput = $("rm_juice_qty");
+const rmJuiceUomSel   = $("rm_juice_uom");
 
 const skuTableBody      = document.querySelector("#skuTable tbody");
 const transferTableBody = document.querySelector("#transferTable tbody");
 
-const dialogOverlay = $("dialogOverlay");
-const dialogMessage = $("dialogMessage");
-const btnYes = $("btnYes");
-const btnNo  = $("btnNo");
-const btnOk  = $("btnOk");
+const dialogOverlay     = $("dialogOverlay");
+const dialogMessage     = $("dialogMessage");
+const btnYes            = $("btnYes");
+const btnNo             = $("btnNo");
+const btnOk             = $("btnOk");
+const storageSection    = $("storageSection");
+const storageQtyInput   = $("storage_qty");
+const storageUomSel     = $("storage_qty_uom");
 
 /* ─────────────────────────────  STATE  ───────────────────────────────── */
 let lastDurations    = {};
@@ -166,21 +174,55 @@ async function loadActivities() {
 
 /* ───────────────────────────  SECTION VISIBILITY  ───────────────────── */
 function updateSections() {
-  const actNorm = (activitySel.value || "").trim().toLowerCase();
-  const done    = statusSel.value === "Done";
+  const actNorm   = (activitySel.value || "").trim().toLowerCase();
+  const done      = statusSel.value === "Done";
+  const doing     = statusSel.value === "Doing";
+  const inStorage = statusSel.value === "In Storage";
 
+  // — Juice/Decoction (and its RM fields) only when Doing + juice‑type activity
+  juiceSection.style.display =
+    (doing && /juice|grinding|kashayam/.test(actNorm))
+      ? "block"
+      : "none";
+
+  // — Putam only when Doing + putam‑type activity
+  putamSection.style.display =
+    (doing && /putam|gaja putam|seelamann/.test(actNorm))
+      ? "block"
+      : "none";
+
+  // — Storage section only when In Storage
+  storageSection.style.display = inStorage ? "block" : "none";
+
+  // — Completed On always when Done
   compOnSection.style.display = done ? "block" : "none";
 
+  // — Post‑processing (Qty/UOM) when Done, but NOT for SKU activities or QA/Transfer
   postProcSection.style.display =
-    done && !skuActivities.includes(actNorm) &&
-    !["transfer to fg store", "finished goods quality assessment"].includes(actNorm)
-      ? "block" : "none";
+    done
+    && !skuActivities.includes(actNorm)
+    && !["transfer to fg store","finished goods quality assessment"].includes(actNorm)
+      ? "block"
+      : "none";
 
-  labRefSection.style.display   = done && actNorm === "finished goods quality assessment" ? "block" : "none";
-  skuSection.style.display      = done && skuActivities.includes(actNorm) ? "block" : "none";
-  transferSection.style.display = done && actNorm === "transfer to fg store" ? "block" : "none";
+  // — Lab Ref only when Done + FG QA activity
+  labRefSection.style.display =
+    (done && actNorm === "finished goods quality assessment")
+      ? "block"
+      : "none";
 
-  if (done && skuActivities.includes(actNorm))    renderSkuTable();
+  // — SKU Breakdown only when Done + SKU activity
+  skuSection.style.display =
+    (done && skuActivities.includes(actNorm))
+      ? "block"
+      : "none";
+  if (done && skuActivities.includes(actNorm)) renderSkuTable();
+
+  // — Transfer table only when Done + Transfer activity
+  transferSection.style.display =
+    (done && actNorm === "transfer to fg store")
+      ? "block"
+      : "none";
   if (done && actNorm === "transfer to fg store") renderTransferTable();
 }
 
@@ -313,12 +355,19 @@ subSel.addEventListener("change", async () => {
 
 areaSel.addEventListener("change", async () => {
   await loadActivities();
+  plantSel.disabled = true;
+  plantSel.innerHTML = "";
   if (!areaSel.value) return;
+  //Only fetch Operational Plant / Machinery
   const { data } = await supabase
-    .from("plant_machinery").select("id,plant_name")
-    .eq("area_id", areaSel.value);
+    .from("plant_machinery")
+    .select("id,plant_name")
+    .eq("area_id", areaSel.value)
+    .eq("status","O");
+
   if (data?.length) {
-    data.sort((a,b)=>a.plant_name.localeCompare(
+    data.sort((a,b)=>
+      a.plant_name.localeCompare(
       b.plant_name, undefined, { numeric:true, sensitivity:"base" }));
     populate(plantSel, data, "id", "plant_name", "-- Select Plant/Machinery --");
     plantSel.disabled = false;
@@ -389,8 +438,24 @@ activitySel.addEventListener("change", async () => {
 });
 
 statusSel.addEventListener("change", () => {
-  if (statusSel.value==="Done" && !compOnInput.value)
-    compOnInput.value = formatDMY(new Date());
+  const done = statusSel.value === "Done";
+
+  if (done) {
+    // Auto‑fill Completed On when switching into Done
+    if (!compOnInput.value) {
+      compOnInput.value = formatDMY(new Date());
+    }
+  } else {
+    // Clear Completed On
+    compOnInput.value = "";
+
+    // Clear Post‑Processing fields
+    const qtyInput = form.querySelector("input[name='qty_after_process']");
+    const uomSelect = form.querySelector("select[name='qty_after_process_uom']");
+    if (qtyInput)  qtyInput.value = "";
+    if (uomSelect) uomSelect.value = "";
+  }
+
   updateSections();
 });
 
@@ -404,6 +469,7 @@ async function handleSubmit(isNew) {
   const actNorm    = (activitySel.value||"").trim().toLowerCase();
   const isTransfer = actNorm === "transfer to fg store";
   const isDone     = statusSel.value === "Done";
+  const isStorage  = statusSel.value === "In Storage";
 
   /* ---- Transfer qty validations -------------------------------------- */
   if (isDone && isTransfer) {
@@ -425,35 +491,41 @@ async function handleSubmit(isNew) {
     }
   }
 
-  /* ---- Build payload -------------------------------------------------- */
-  const row = {
-    log_date           : toISO(form.log_date.value),
-    section_id         : sectionSel.value,
-    subsection_id      : subSel.value || null,
-    area_id            : areaSel.value || null,
-    plant_id           : plantSel.value || null,
-    item               : itemInput.value,
-    batch_number       : batchSel.value,
-    batch_size         : sizeInput.value || null,
-    batch_uom          : uomInput.value || null,
-    activity           : activitySel.value,
-    juice_or_decoction : form.juice_or_decoction?.value || null,
-    specify            : form.specify?.value || null,
-    count_of_saravam   : form.count_of_saravam?.value || null,
-    fuel               : form.fuel?.value || null,
-    fuel_under         : form.fuel_under?.value || null,
-    fuel_over          : form.fuel_over?.value || null,
-    started_on         : toISO(form.started_on?.value) || null,
-    due_date           : toISO(form.due_date?.value) || null,
-    status             : form.status?.value,
-    completed_on       : toISO(form.completed_on?.value) || null,
-    qty_after_process  : null,
-    qty_uom            : null,
-    sku_breakdown      : null,
-    lab_ref_number     : form.lab_ref_number?.value || null,
-    remarks            : form.remarks?.value || null,
-    uploaded_by        : currentUserEmail
-  };
+/* ---- Build payload -------------------------------------------------- */
+const row = {
+  log_date           : toISO(form.log_date.value),
+  section_id         : sectionSel.value,
+  subsection_id      : subSel.value || null,
+  area_id            : areaSel.value || null,
+  plant_id           : plantSel.value || null,
+  item               : itemInput.value,
+  batch_number       : batchSel.value,
+  batch_size         : sizeInput.value || null,
+  batch_uom          : uomInput.value || null,
+  activity           : activitySel.value,
+  juice_or_decoction : form.juice_or_decoction?.value || null,
+  specify            : form.specify?.value         || null,
+  
+  rm_juice_qty       : form.rm_juice_qty?.value ? Number(form.rm_juice_qty.value) : null,
+  rm_juice_uom       : form.rm_juice_uom?.value   || null,
+
+  count_of_saravam   : form.count_of_saravam?.value || null,
+  fuel               : form.fuel?.value || null,
+  fuel_under         : form.fuel_under?.value || null,
+  fuel_over          : form.fuel_over?.value || null,
+  started_on         : toISO(form.started_on?.value) || null,
+  due_date           : toISO(form.due_date?.value) || null,
+  status             : form.status?.value,
+  storage_qty        : isStorage ? Number(storageQtyInput.value) || null : null,
+  storage_qty_uom    : isStorage ? storageUomSel.value         || null : null,
+  completed_on       : toISO(form.completed_on?.value) || null,
+  qty_after_process  : null,
+  qty_uom            : null,
+  sku_breakdown      : null,
+  lab_ref_number     : form.lab_ref_number?.value || null,
+  remarks            : form.remarks?.value || null,
+  uploaded_by        : currentUserEmail
+};
 
   /* ---- Optional Qty/UOM ---------------------------------------------- */
   const needsQty = isDone && !skuActivities.includes(actNorm) &&
@@ -525,6 +597,9 @@ async function handleSubmit(isNew) {
 
   /* ---- SUCCESS -------------------------------------------------------- */
   await showAlert("Log saved successfully!");
+    // ← RESET dirty flag so “unsaved changes” won’t fire after saving
+    dirty = false;
+    
   if (isNew) {
     const p = new URLSearchParams();
     p.set("prefill_item", row.item);

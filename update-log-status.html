@@ -142,13 +142,18 @@
       <select id="sArea" disabled><option value="">Area</option></select>
       <select id="sItem"><option value="">Item</option></select>
     </div>
-    <div class="filter-pair">
-      <select id="sBN" class="narrow" disabled><option value="">BN</option></select>
-      <label style="display:flex;align-items:center;gap:6px">
-        <input type="checkbox" id="sOverdue">Overdue
-      </label>
-      <span id="clearStatus" class="link-btn">Clear</span>
-    </div>
+  <div class="filter-pair">
+    <select id="sBN" class="narrow" disabled>
+      <option value="">BN</option>
+    </select>
+    <select id="sActivity">
+      <option value="">Activity</option>
+    </select>
+
+    <label style="display:flex;align-items:center;gap:6px">
+      <input type="checkbox" id="sOverdue">Overdue
+    </label>
+    <span id="clearStatus" class="link-btn">Clear</span>
   </div>
 
   <!-- Status Table -->
@@ -161,6 +166,7 @@
           <th>BN</th>
           <th>Batch Size</th>
           <th>UOM</th>
+          <th>Section</th>
           <th>Plant / Machinery</th>
           <th>Activity</th>
           <th>Status</th>
@@ -199,6 +205,39 @@
             <input id="doneLabRef" name="lab_ref_number" type="text" required>
           </label>
         </div>
+    <!-- Juice/Decoction (only for juice‑type activities) -->
+  <div id="doneJuiceSection" class="form-row" style="display:none">
+    <label>Juice/Decoction:
+      <select id="doneJuiceOrDecoction" name="juice_or_decoction">
+        <option value="">—</option>
+        <option>Juice</option>
+        <option>Decoction</option>
+      </select>
+    </label>
+    <label>Specify:
+      <input id="doneSpecify" name="specify" type="text" placeholder="Name of juice/decoction">
+    </label>
+  </div>
+
+  <!-- Putam (only for putam‑type activities) -->
+  <div id="donePutamSection" class="form-row" style="display:none">
+    <label>Count of Saravam:
+      <input id="doneCountSaravam" name="count_of_saravam" type="number" min="0">
+    </label>
+    <label>Fuel Type:
+      <select id="doneFuel" name="fuel">
+        <option value="">—</option>
+        <option>Varali</option>
+        <option>Firewood</option>
+      </select>
+    </label>
+    <label>Fuel Under:
+      <input id="doneFuelUnder" name="fuel_under" type="text">
+    </label>
+    <label>Fuel Over:
+      <input id="doneFuelOver" name="fuel_over" type="text">
+    </label>
+  </div>
         <div id="doneSkuSection" style="display:none">
           <h4>SKU Breakdown</h4>
           <table id="doneSkuTable">
