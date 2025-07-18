@@ -1,152 +1,95 @@
-<!-- bottled-stock.html -->
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8">
-  <title>SASV WORKSPACE | Bottled Stock</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SASV WORKSPACE | View BMR Entries</title>
   <link rel="stylesheet" href="css/style.css">
-
   <style>
-    body {
-      margin:20px;
-      font-family:Arial, sans-serif;
-      background:var(--bg-color);
-      color:var(--text-color);
-      transition:background .3s, color .3s;
-    }
-    .header-bar {
-      display:flex; justify-content:space-between;
-      align-items:center; margin-bottom:20px;
-    }
-    .header-bar h2 {
-      margin:0; font-size:1.5rem; color:var(--primary);
-    }
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .header-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .header-bar h2 { margin: 0; color: #005A8D; }
+
+    /* ───────── HOME BUTTON ───────── */
     #homeBtn {
-      background:var(--home-btn-bg);
-      color:var(--btn-text);
-      border:none; padding:8px 16px; border-radius:4px;
-      font-size:1rem; cursor:pointer; transition:background .2s;
+      background: var(--home-btn-bg);
+      color: var(--btn-text);
+      border: none;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 1rem;
     }
-    #homeBtn:hover { background:var(--home-btn-hover-bg); }
+    #homeBtn:hover { background: var(--home-btn-hover-bg); }
 
     /* ───────── FILTERS ───────── */
-    #filterForm { margin-bottom:20px; }
     .filter-row {
-      display:flex; flex-wrap:wrap; gap:12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
     }
     .filter-row.second-row {
-      margin-top:8px; align-items:center;
+      margin-top: 8px;
+      align-items: center;
     }
     .filter-row select,
     .filter-row button {
-      padding:6px;
-      border:1px solid #ccc;
-      border-radius:4px;
-      flex:1 1 140px;
-      min-width:120px;
-      background:var(--input-bg);
-      color:var(--input-text);
+      padding: 6px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      flex: 1 1 140px;
+      min-width: 120px;
     }
-    .clear-link {
-      background:none;
-      border:none;
-      color:var(--primary);
-      text-decoration:underline;
-      cursor:pointer;
-      padding:0;
-      font:inherit;
-      outline:none;
-    }
-    .clear-link:hover { opacity:0.7; }
 
-    /* ───────── EXPORT LINKS ───────── */
-    #exportLinks {
-      display:flex; justify-content:space-between;
-      width:100%; margin-bottom:8px;
+    /* Clear-as-link */
+    .clear-link {
+      background: none;
+      border: none;
+      color: var(--btn-bg);
+      text-decoration: underline;
+      cursor: pointer;
+      padding: 0;
+      font: inherit;
+      outline: none;
     }
-    #exportLinks a {
-      color:var(--primary);
-      text-decoration:underline;
-      cursor:pointer;
-      font-size:14px;
-    }
-    #exportLinks a:hover { color:var(--primary-hover); }
+    .clear-link:hover { opacity: 0.7; background: none !important; }
 
     /* ───────── TABLE ───────── */
-    #bottledTableContainer {
-      width:100%;
-      max-height:calc(100vh - 300px);
-      overflow-y:auto; border:1px solid #ccc;
-    }
-    #bottledTable {
-      width:100%; border-collapse:collapse;
-    }
-    #bottledTable th,
-    #bottledTable td {
-      padding:8px; border:1px solid #ccc;
-      vertical-align: middle; text-align: center;
-    }
-    #bottledTable th {
-      background:var(--panel-bg);
-      position:sticky; top:0; z-index:1;
-      font-weight:bold;
-    }
-    /* first two columns alignment */
-    #bottledTable td:nth-child(1) { text-align:left; padding-left:12px; }
-    #bottledTable td:nth-child(2) { text-align:center; padding-left:0; }
-    .no-data td {
-      font-style:italic; color:#666; text-align:center;
-    }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 8px; border: 1px solid #ccc; text-align: left; }
   </style>
 </head>
 <body data-theme="system">
 
   <div class="header-bar">
-    <h2>Bottled Stock</h2>
-    <button id="homeBtn">HOME</button>
+    <h2>View BMR Entries</h2>
+    <button id="homeBtn" title="Home">HOME</button>
   </div>
 
   <form id="filterForm">
     <div class="filter-row first-row">
       <select id="filterCategory"><option value="">Category</option></select>
-      <select id="filterSubCategory" disabled><option value="">Sub-category</option></select>
+      <select id="filterSubCategory" disabled><option value="">Subcategory</option></select>
       <select id="filterGroup" disabled><option value="">Group</option></select>
       <select id="filterSubGroup" disabled><option value="">Sub-group</option></select>
     </div>
     <div class="filter-row second-row">
       <select id="filterItem"><option value="">Item</option></select>
-      <select id="filterBN" disabled><option value="">BN</option></select>
-      <button type="button" id="clearFilters" class="clear-link">Clear</button>
+      <select id="filterBn" disabled><option value="">BN</option></select>
+      <button type="button" id="clearFilter" class="clear-link">Clear</button>
     </div>
   </form>
 
-  <div id="exportLinks">
-    <a id="downloadCsv">Download CSV</a>
-    <a id="downloadPdf">Download PDF</a>
-  </div>
+  <table id="bmrViewTable">
+    <thead>
+      <tr>
+        <th>Item</th>
+        <th>BN</th>
+        <th>Batch Size</th>
+        <th>UOM</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 
-  <div id="bottledTableContainer">
-    <table id="bottledTable">
-      <thead>
-        <tr>
-          <th>ITEM</th>
-          <th>BN</th>
-          <th>PACK SIZE</th>
-          <th>UOM</th>
-          <th>STOCK ON HAND</th>
-          <th>CATEGORY</th>
-          <th>SUB-CATEGORY</th>
-          <th>GROUP</th>
-          <th>SUB-GROUP</th>
-        </tr>
-      </thead>
-      <tbody id="bottledTableBody"></tbody>
-    </table>
-  </div>
-
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
-  <script type="module" src="js/bottled-stock.js"></script>
+  <script type="module" src="js/bmr-view.js"></script>
 </body>
 </html>
