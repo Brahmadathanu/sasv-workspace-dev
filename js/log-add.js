@@ -224,6 +224,18 @@ function updateSections() {
       ? "block"
       : "none";
   if (done && actNorm === "transfer to fg store") renderTransferTable();
+
+  // — DISABLE “In Storage” in status dropdown unless storage activity
+  const allowStorage = ["intermediate storage", "fg bulk storage"].includes(actNorm);
+  const storageOpt = Array.from(statusSel.options)
+                          .find(opt => opt.value === "In Storage");
+  if (storageOpt) storageOpt.disabled = !allowStorage;
+
+  // — If it was selected but now disallowed, clear it & hide fields
+  if (!allowStorage && statusSel.value === "In Storage") {
+    statusSel.value = "";         // or set to "Doing" if you prefer
+    storageSection.style.display = "none";
+  }
 }
 
 /* ─────────────────────────────  TABLES  ──────────────────────────────── */
@@ -421,20 +433,39 @@ batchSel.addEventListener("change", async () => {
 
 activitySel.addEventListener("change", async () => {
   const actNorm = (activitySel.value||"").trim().toLowerCase();
+
+  // — your existing “Finished Goods QA” guard
   if (skuActivities.includes(actNorm) && itemInput.value && batchSel.value) {
     const { data: qa } = await supabase
       .from("daily_work_log").select("id")
       .eq("item", itemInput.value)
       .eq("batch_number", batchSel.value)
       .eq("activity", "Finished Goods Quality Assessment")
-      .eq("status", "Done").limit(1);
+      .eq("status", "Done")
+      .limit(1);
     if (!qa?.length) {
       await showAlert("Finished Goods Quality Assessment not completed for this batch.");
-      activitySel.value="";
+      activitySel.value = "";
     }
   }
+
+  // — recompute dates & show/hide sections
   updateDueDate();
   updateSections();
+
+  // — only allow “In Storage” on these two activities
+  const allowStorage = ["intermediate storage", "fg bulk storage"].includes(actNorm);
+
+  // find by .value (which in absence of a value-attribute is the option’s text)
+  const storageOpt = Array.from(statusSel.options)
+                          .find(opt => opt.value === "In Storage");
+  if (storageOpt) storageOpt.disabled = !allowStorage;
+
+  // if it was selected and now disallowed, clear it immediately
+  if (!allowStorage && statusSel.value === "In Storage") {
+    statusSel.value = "";       // or choose a default like “Doing”
+    updateSections();           // hide the storage inputs right away
+  }
 });
 
 statusSel.addEventListener("change", () => {
@@ -464,17 +495,94 @@ form.addEventListener("input", ()=>{ dirty=true; });
 
 /* ──────────────────────────  SUBMIT HANDLER  ─────────────────────────── */
 async function handleSubmit(isNew) {
-  if (!form.checkValidity()) { form.reportValidity(); return; }
+  // 1) Basic HTML5 validation
+  if (!form.checkValidity()) {
+    form.reportValidity();
+    return;
+  }
 
-  const actNorm    = (activitySel.value||"").trim().toLowerCase();
+  // 2) Derive flags
+  const actNorm    = (activitySel.value || "").trim().toLowerCase();
   const isTransfer = actNorm === "transfer to fg store";
   const isDone     = statusSel.value === "Done";
   const isStorage  = statusSel.value === "In Storage";
+  const doing      = statusSel.value === "Doing";
 
-  /* ---- Transfer qty validations -------------------------------------- */
+  // 3) Juice/Decoction required when visible
+  if (doing && /juice|grinding|kashayam/.test(actNorm)) {
+    if (!form.juice_or_decoction.value) {
+      await showAlert("Please select Juice/Decoction type.");
+      return;
+    }
+    if (!form.rm_juice_qty.value) {
+      await showAlert("Please enter RM Qty.");
+      return;
+    }
+    if (!form.rm_juice_uom.value) {
+      await showAlert("Please select RM UOM.");
+      return;
+    }
+  }
+
+  // 4) Putam required when visible
+  if (doing && /putam|gaja putam|seelamann/.test(actNorm)) {
+    if (!form.count_of_saravam.value) {
+      await showAlert("Please enter Count of Saravam.");
+      return;
+    }
+    if (!form.fuel.value) {
+      await showAlert("Please select Fuel Type.");
+      return;
+    }
+    if (!form.fuel_under.value) {
+      await showAlert("Please enter Fuel Under.");
+      return;
+    }
+    if (!form.fuel_over.value) {
+      await showAlert("Please enter Fuel Over.");
+      return;
+    }
+  }
+
+  // 5) Completed On required whenever Done
+  if (isDone) {
+    if (!form.completed_on.value) {
+      await showAlert("Please enter Completed On date.");
+      return;
+    }
+  }
+
+  // 6) Lab Ref Number required for FG QA
+  if (isDone && actNorm === "finished goods quality assessment") {
+    if (!form.lab_ref_number.value) {
+      await showAlert("Please enter Lab Ref Number.");
+      return;
+    }
+  }
+
+  // 7) SKU Breakdown must have at least one count > 0
+  if (isDone && skuActivities.includes(actNorm)) {
+    const skuInputs = Array.from(skuTableBody.querySelectorAll("input"));
+    if (!skuInputs.some(i => +i.value > 0)) {
+      await showAlert("Enter at least one SKU count greater than zero.");
+      return;
+    }
+  }
+
+  // 8) Storage Qty & UOM for FG bulk storage
+  if (isStorage && actNorm === "fg bulk storage") {
+    if (!storageQtyInput.value || !storageUomSel.value) {
+      await showAlert(
+        "Storage Qty and UOM are required when Activity is “FG bulk storage” and Status is “In Storage.”"
+      );
+      return;
+    }
+  }
+
+  // 9) Transfer qty validations
   if (isDone && isTransfer) {
     const inputs = [...transferTableBody.querySelectorAll("input")];
-    if (!inputs.some(i=>+i.value>0)) {
+    if (!inputs.some(i => +i.value > 0)) {
       inputs[0].setCustomValidity("Enter a Transfer Qty > 0.");
       inputs[0].reportValidity();
       inputs[0].setCustomValidity("");
@@ -482,7 +590,7 @@ async function handleSubmit(isNew) {
     }
     for (const inp of inputs) {
       const cnt = +inp.value || 0, max = +inp.max || 0;
-      if (cnt>max) {
+      if (cnt > max) {
         inp.setCustomValidity(`Cannot exceed on-hand (${max}).`);
         inp.reportValidity();
         inp.setCustomValidity("");
@@ -491,45 +599,44 @@ async function handleSubmit(isNew) {
     }
   }
 
-/* ---- Build payload -------------------------------------------------- */
-const row = {
-  log_date           : toISO(form.log_date.value),
-  section_id         : sectionSel.value,
-  subsection_id      : subSel.value || null,
-  area_id            : areaSel.value || null,
-  plant_id           : plantSel.value || null,
-  item               : itemInput.value,
-  batch_number       : batchSel.value,
-  batch_size         : sizeInput.value || null,
-  batch_uom          : uomInput.value || null,
-  activity           : activitySel.value,
-  juice_or_decoction : form.juice_or_decoction?.value || null,
-  specify            : form.specify?.value         || null,
-  
-  rm_juice_qty       : form.rm_juice_qty?.value ? Number(form.rm_juice_qty.value) : null,
-  rm_juice_uom       : form.rm_juice_uom?.value   || null,
-
-  count_of_saravam   : form.count_of_saravam?.value || null,
-  fuel               : form.fuel?.value || null,
-  fuel_under         : form.fuel_under?.value || null,
-  fuel_over          : form.fuel_over?.value || null,
-  started_on         : toISO(form.started_on?.value) || null,
-  due_date           : toISO(form.due_date?.value) || null,
-  status             : form.status?.value,
-  storage_qty        : isStorage ? Number(storageQtyInput.value) || null : null,
-  storage_qty_uom    : isStorage ? storageUomSel.value         || null : null,
-  completed_on       : toISO(form.completed_on?.value) || null,
-  qty_after_process  : null,
-  qty_uom            : null,
-  sku_breakdown      : null,
-  lab_ref_number     : form.lab_ref_number?.value || null,
-  remarks            : form.remarks?.value || null,
-  uploaded_by        : currentUserEmail
-};
+  /* ---- Build payload -------------------------------------------------- */
+  const row = {
+    log_date           : toISO(form.log_date.value),
+    section_id         : sectionSel.value,
+    subsection_id      : subSel.value || null,
+    area_id            : areaSel.value || null,
+    plant_id           : plantSel.value || null,
+    item               : itemInput.value,
+    batch_number       : batchSel.value,
+    batch_size         : sizeInput.value || null,
+    batch_uom          : uomInput.value || null,
+    activity           : activitySel.value,
+    juice_or_decoction : form.juice_or_decoction?.value || null,
+    specify            : form.specify?.value || null,
+    rm_juice_qty       : form.rm_juice_qty?.value ? Number(form.rm_juice_qty.value) : null,
+    rm_juice_uom       : form.rm_juice_uom?.value || null,
+    count_of_saravam   : form.count_of_saravam?.value || null,
+    fuel               : form.fuel?.value || null,
+    fuel_under         : form.fuel_under?.value || null,
+    fuel_over          : form.fuel_over?.value || null,
+    started_on         : toISO(form.started_on?.value) || null,
+    due_date           : toISO(form.due_date?.value) || null,
+    status             : form.status?.value,
+    storage_qty        : isStorage ? Number(storageQtyInput.value) || null : null,
+    storage_qty_uom    : isStorage ? storageUomSel.value || null : null,
+    completed_on       : toISO(form.completed_on?.value) || null,
+    qty_after_process  : null,
+    qty_uom            : null,
+    sku_breakdown      : null,
+    lab_ref_number     : form.lab_ref_number?.value || null,
+    remarks            : form.remarks?.value || null,
+    uploaded_by        : currentUserEmail
+  };
 
   /* ---- Optional Qty/UOM ---------------------------------------------- */
-  const needsQty = isDone && !skuActivities.includes(actNorm) &&
-    !["transfer to fg store","finished goods quality assessment"].includes(actNorm);
+  const needsQty = isDone
+    && !skuActivities.includes(actNorm)
+    && !["transfer to fg store", "finished goods quality assessment"].includes(actNorm);
 
   if (needsQty) {
     const qv = form.querySelector("[name=\"qty_after_process\"]").value;
@@ -542,19 +649,21 @@ const row = {
     }
   }
 
-  /* ---- SKU breakdown -------------------------------------------------- */
+  /* ---- SKU / Transfer breakdown -------------------------------------- */
   if (isDone && skuActivities.includes(actNorm)) {
-    const parts = [...skuTableBody.querySelectorAll("input")].map(i=>{
-      const cnt=+i.value; const sku=currentItemSkus.find(s=>s.id==i.dataset.skuId);
-      return cnt>0 ? `${sku.pack_size} ${sku.uom} x ${cnt}` : null;
+    const parts = [...skuTableBody.querySelectorAll("input")].map(i => {
+      const cnt = +i.value;
+      const sku = currentItemSkus.find(s => s.id == i.dataset.skuId);
+      return cnt > 0 ? `${sku.pack_size} ${sku.uom} x ${cnt}` : null;
     }).filter(Boolean);
     row.sku_breakdown = parts.join("; ");
-    row.qty_uom = "Nos";
+    row.qty_uom       = "Nos";
   }
   if (isDone && isTransfer) {
-    const parts = [...transferTableBody.querySelectorAll("input")].map(i=>{
-      const cnt=+i.value; const sku=currentItemSkus.find(s=>s.id==i.dataset.skuId);
-      return cnt>0 ? `${sku.pack_size} ${sku.uom} x ${cnt}` : null;
+    const parts = [...transferTableBody.querySelectorAll("input")].map(i => {
+      const cnt = +i.value;
+      const sku = currentItemSkus.find(s => s.id == i.dataset.skuId);
+      return cnt > 0 ? `${sku.pack_size} ${sku.uom} x ${cnt}` : null;
     }).filter(Boolean);
     row.sku_breakdown = parts.join("; ");
   }

@@ -66,7 +66,7 @@ const skuActivities = [
 const $ = sel => document.querySelector(sel);
 
 let homeBtn, bodyTbl;
-let sLogDate, sSection, sSub, sArea, sItem, sBN, sActivity, sOverdue, clearBtn;
+let sLogDate, sSection, sSub, sArea, sItem, sBN, sActivity, sStatusFilter, sOverdue, clearBtn;
 
 let doneModal, doneForm, doneCompletedOn, doneQtySection, doneLabRefSec;
 let doneSkuSec, doneSkuBody, doneTransSec, doneTransBody;
@@ -325,43 +325,71 @@ async function promptDone(activity, item, id) {
       res({ choice: 'cancel' });
     };
 
-    const finish = choice => {
-      // gather completed date
-      const completedOn = doneCompletedOn.value;
+const finish = async choice => {
+  // 1) always require Completed On
+  if (!doneCompletedOn.value) {
+    await askConfirm("Please enter Completed On date.");
+    return;
+  }
 
-      // gather lab reference if present
-      const labRef = document.querySelector('#doneLabRef')?.value.trim() || null;
+  // 2) Lab Ref if shown
+  if (doneLabRefSec.style.display !== 'none' && !document.querySelector('#doneLabRef').value.trim()) {
+    await askConfirm("Please enter Lab Ref Number.");
+    return;
+  }
 
-      // gather SKU or transfer rows if applicable
-      let rows = [];
-      const actL = activity.toLowerCase().trim();
-      if (skuActivities.includes(actL)) {
-        rows = Array.from(doneSkuBody.querySelectorAll('input'))
-          .map(i => ({
-            skuId: +i.dataset.skuId,
-            packSize: i.dataset.packSize,
-            uom: i.dataset.uom,
-            count: +i.value
-          }))
-          .filter(r => r.count > 0);
-      } else if (actL === 'transfer to fg store') {
-        rows = Array.from(doneTransBody.querySelectorAll('input'))
-          .map(i => ({
-            skuId: +i.dataset.skuId,
-            packSize: i.dataset.packSize,
-            uom: i.dataset.uom,
-            count: +i.value
-          }))
-          .filter(r => r.count > 0);
+  // 3) Post‑processing if shown
+  if (doneQtySection.style.display !== 'none') {
+    if (!document.querySelector('#doneQty').value || !document.querySelector('#doneUOM').value) {
+      if (!await askConfirm("Qty After Process & UOM not entered. Continue?")) return;
+    }
+  }
+
+  // 4) SKU breakdown if shown
+  if (doneSkuSec.style.display !== 'none') {
+    const anySku = Array.from(doneSkuBody.querySelectorAll('input'))
+                        .some(i => +i.value > 0);
+    if (!anySku) {
+      await askConfirm("Enter at least one SKU count greater than zero.");
+      return;
+    }
+  }
+
+  // 5) Transfer if shown
+  if (doneTransSec.style.display !== 'none') {
+    const inputs = Array.from(doneTransBody.querySelectorAll('input'));
+    if (!inputs.some(i => +i.value > 0)) {
+      await askConfirm("Enter at least one Transfer Qty > 0.");
+      return;
+    }
+    for (let inp of inputs) {
+      if (+inp.value > +inp.max) {
+        await askConfirm(`Cannot exceed on-hand (${inp.max}).`);
+        return;
       }
+    }
+  }
 
-      // gather qty & uom for non‑SKU activities
-      const qty = Number(document.querySelector('#doneQty')?.value) || null;
-      const uom = document.querySelector('#doneUOM')?.value || null;
+  // all good → hide & resolve
+  const completedOn = doneCompletedOn.value;
+  const labRef      = document.querySelector('#doneLabRef')?.value.trim() || null;
+  let rows = [];
+  const actL = activity.toLowerCase().trim();
+  if (skuActivities.includes(actL)) {
+    rows = Array.from(doneSkuBody.querySelectorAll('input'))
+      .map(i => ({ skuId:+i.dataset.skuId, packSize:i.dataset.packSize, uom:i.dataset.uom, count:+i.value }))
+      .filter(r => r.count>0);
+  } else if (actL === 'transfer to fg store') {
+    rows = Array.from(doneTransBody.querySelectorAll('input'))
+      .map(i => ({ skuId:+i.dataset.skuId, packSize:i.dataset.packSize, uom:i.dataset.uom, count:+i.value }))
+      .filter(r => r.count>0);
+  }
+  const qty = Number(document.querySelector('#doneQty')?.value) || null;
+  const uom = document.querySelector('#doneUOM')?.value || null;
 
-      hide(doneModal);
-      res({ choice, completedOn, rows, qty, uom, labRef });
-    };
+  hide(doneModal);
+  res({ choice, completedOn, rows, qty, uom, labRef });
+};
 
     doneJust.onclick = () => finish('just');
     doneNew .onclick = () => finish('new');
@@ -428,10 +456,43 @@ async function promptDoing(activity, item, batch, id) {
       hide(doneModal);
       res({ choice: 'cancel' });
     };
-    const finish = () => {
-      hide(doneModal);
-      res({ choice: 'ok' });
-    };
+const finish = async () => {
+  // Juice/Decoction panel?
+  if (doneJuiceSection.style.display !== 'none') {
+    if (!doneJuiceOrDecoction.value) {
+      await askConfirm("Please select Juice/Decoction type.");
+      return;
+    }
+    if (!doneSpecify.value.trim()) {
+      await askConfirm("Please enter Specify field.");
+      return;
+    }
+  }
+
+  // Putam panel?
+  if (donePutamSection.style.display !== 'none') {
+    if (!doneCountSaravam.value) {
+      await askConfirm("Please enter Count of Saravam.");
+      return;
+    }
+    if (!doneFuel.value) {
+      await askConfirm("Please select Fuel Type.");
+      return;
+    }
+    if (!doneFuelUnder.value.trim()) {
+      await askConfirm("Please enter Fuel Under.");
+      return;
+    }
+    if (!doneFuelOver.value.trim()) {
+      await askConfirm("Please enter Fuel Over.");
+      return;
+    }
+  }
+
+  // all good → hide & resolve
+  hide(doneModal);
+  res({ choice: 'ok' });
+};
     doneJust.onclick = finish;
     doneNew.onclick  = finish;
   });
@@ -603,18 +664,19 @@ async function loadStatus() {
   let q = supabase
     .from('daily_work_log')
     .select('id,log_date,item,batch_number,batch_size,batch_uom,section_id,plant_id,activity,status,due_date')
-    .in('status', ['Doing','On Hold']);
+    .in('status', ['Doing','On Hold','In Storage']);
 
   if (sLogDate.value) {
     const [dd, mm, yyyy] = sLogDate.value.split('-').map(n => n.padStart(2, '0'));
     q = q.eq('log_date', `${yyyy}-${mm}-${dd}`);
   }
-  if (sSection.value) q = q.eq('section_id', sSection.value);
-  if (sSub.value)     q = q.eq('subsection_id', sSub.value);
-  if (sArea.value)    q = q.eq('area_id', sArea.value);
-  if (sItem.value)    q = q.eq('item', sItem.value);
-  if (sBN.value)      q = q.eq('batch_number', sBN.value);
-  if (sActivity.value) q = q.eq('activity', sActivity.value);
+  if (sSection.value)      q = q.eq('section_id', sSection.value);
+  if (sSub.value)          q = q.eq('subsection_id', sSub.value);
+  if (sArea.value)         q = q.eq('area_id', sArea.value);
+  if (sItem.value)         q = q.eq('item', sItem.value);
+  if (sBN.value)           q = q.eq('batch_number', sBN.value);
+  if (sActivity.value)     q = q.eq('activity', sActivity.value);
+  if (sStatusFilter.value) q = q.eq('status', sStatusFilter.value);
   if (sOverdue.checked) {
     const today = new Date().toISOString().slice(0,10);
     q = q.lt('due_date', today);
@@ -634,34 +696,42 @@ async function loadStatus() {
     return coll.compare(plantMap[a.plant_id]||'', plantMap[b.plant_id]||'');
   });
 
-  data.forEach(r => {
-    bodyTbl.insertAdjacentHTML('beforeend', `
-      <tr>
-        <td>${new Date(r.log_date).toLocaleDateString('en-GB')}</td>
-        <td>${r.item}</td>
-        <td>${r.batch_number}</td>
-        <td>${r.batch_size ?? ''}</td>
-        <td>${r.batch_uom  ?? ''}</td>
-        <td>${sectionMap[r.section_id]||''}</td>
-        <td>${plantMap[r.plant_id]||''}</td>
-        <td>${r.activity}</td>
-        <td>
-          <select class="statSel"
-                  data-id="${r.id}"
-                  data-act="${r.activity}"
-                  data-item="${r.item}"
-                  data-bn="${r.batch_number}"
-                  data-prev-status="${r.status}">
-            <option${r.status==='Doing'   ? ' selected' : ''}>Doing</option>
-            <option${r.status==='On Hold' ? ' selected' : ''}>On Hold</option>
-            <option${r.status==='Done'    ? ' selected' : ''}>Done</option>
-          </select>
-        </td>
-        <td>
-          <a href="#" class="save-link" data-id="${r.id}">Save</a>
-        </td>
-      </tr>`);
-  });
+data.forEach(r => {
+  const act = r.activity.toLowerCase().trim();
+  const allowStorage = ['intermediate storage','fg bulk storage'].includes(act);
+
+  bodyTbl.insertAdjacentHTML('beforeend', `
+    <tr>
+      <td>${new Date(r.log_date).toLocaleDateString('en-GB')}</td>
+      <td>${r.item}</td>
+      <td>${r.batch_number}</td>
+      <td>${r.batch_size ?? ''}</td>
+      <td>${r.batch_uom  ?? ''}</td>
+      <td>${sectionMap[r.section_id]||''}</td>
+      <td>${plantMap[r.plant_id]||''}</td>
+      <td>${r.activity}</td>
+      <td>
+        <select class="statSel"
+                data-id="${r.id}"
+                data-act="${r.activity}"
+                data-item="${r.item}"
+                data-bn="${r.batch_number}"
+                data-prev-status="${r.status}">
+          <option${r.status==='Doing'    ? ' selected' : ''}>Doing</option>
+          <option${r.status==='On Hold'  ? ' selected' : ''}>On Hold</option>
+          <option
+            ${r.status==='In Storage' ? ' selected' : ''}
+            ${allowStorage         ? ''          : ' disabled'}>
+              In Storage
+          </option>
+          <option${r.status==='Done'     ? ' selected' : ''}>Done</option>
+        </select>
+      </td>
+      <td>
+        <a href="#" class="save-link" data-id="${r.id}">Save</a>
+      </td>
+    </tr>`);
+});
 
   document.querySelectorAll('.save-link').forEach(a => {
     const sel = document.querySelector(`.statSel[data-id="${a.dataset.id}"]`);
@@ -682,8 +752,12 @@ async function init() {
   sItem                 = $('#sItem');
   sBN                   = $('#sBN');
   sActivity             = $('#sActivity');
+  sStatusFilter         = $('#sStatusFilter')
   sOverdue              = $('#sOverdue');
   clearBtn              = $('#clearStatus');
+
+  const toggleAdvanced  = $('#toggleAdvanced');
+  const advancedFilters = $('#advancedFilters');
 
   doneModal             = $('#doneModal');
   doneForm              = $('#doneForm');
@@ -737,16 +811,25 @@ async function init() {
     populate(sItem, uniqueItems, 'item', 'item', 'Item');
   }
 
-  const { data: acts, error: actsErr } = await supabase
+  // Fetch all activities for Doing/On Hold
+  const { data: allActs, error: actsErr } = await supabase
     .from('daily_work_log')
-    .select('activity', { distinct: true })
-    .in('status', ['Doing','On Hold'])
+    .select('activity')
+    .in('status', ['Doing','On Hold','In Storage'])
     .order('activity');
+
   if (!actsErr) {
-    populate(sActivity, acts, 'activity','activity','Activity');
+    // Deduplicate & sort in JS
+    const uniqueActs = Array
+      .from(new Set(allActs.map(r => r.activity)))  // Set → unique strings
+      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+      .map(a => ({ activity: a }));                 // back to [{activity}...]
+
+    populate(sActivity, uniqueActs, 'activity', 'activity', 'Activity');
   }
 
   sActivity.addEventListener('change', loadStatus);
+  sStatusFilter.addEventListener('change',loadStatus);
 
   homeBtn.addEventListener('click', () => window.location.href = 'index.html');
 
@@ -814,11 +897,20 @@ async function init() {
   sOverdue.addEventListener('change', loadStatus);
 
   clearBtn.addEventListener('click', () => {
-    [sSection, sSub, sArea, sItem, sBN, sActivity].forEach(x => x.value = '');
+    [sSection, sSub, sArea, sItem, sBN, sActivity, sStatusFilter].forEach(x => x.value = '');
     [sSub, sArea, sBN].forEach(x => x.disabled = true);
     sOverdue.checked = false;
     sLogDate.value   = '';
+    advancedFilters.style.display = 'none';
+    toggleAdvanced.textContent    = 'Advanced ▾';
+
     loadStatus();
+  });
+
+  toggleAdvanced.addEventListener('click', () => {
+    const isOpen = advancedFilters.style.display === 'flex';
+    advancedFilters.style.display = isOpen ? 'none' : 'flex';
+    toggleAdvanced.textContent = isOpen ? 'Advanced ▾' : 'Advanced ▴';
   });
 
   attachMask(sLogDate);
