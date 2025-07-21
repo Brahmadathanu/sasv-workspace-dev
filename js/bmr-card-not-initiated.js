@@ -2,6 +2,7 @@
 import { supabase } from './supabaseClient.js';
 
 const homeBtn        = document.getElementById('homeBtn');
+const backBtn        = document.getElementById('backBtn');
 const filterCategory = document.getElementById('filterCategory');
 const filterSubCat   = document.getElementById('filterSubCategory');
 const filterGroup    = document.getElementById('filterGroup');
@@ -12,6 +13,8 @@ const clearBtn       = document.getElementById('clearFilters');
 const downloadCsv    = document.getElementById('downloadCsv');
 const downloadPdf    = document.getElementById('downloadPdf');
 const tbody          = document.getElementById('bmrCardTableBody');
+const toggleAdvanced  = document.getElementById('toggleAdvanced');
+const filtersAdvanced = document.getElementById('filtersAdvanced');
 
 let allRows = [];
 
@@ -187,12 +190,19 @@ function renderTable() {
 
 /** Clear all filters */
 function clearFilters() {
+  // 1) Reset values & disable cascades (only Category remains enabled)
   [ filterCategory, filterSubCat, filterGroup, filterSubGrp,
     filterItem, filterBN
-  ].forEach((el,i) => {
-    el.value = '';
+  ].forEach((el, i) => {
+    el.value    = '';
     el.disabled = (i !== 0);
   });
+
+  // 2) Collapse advanced filters & reset toggle text
+  filtersAdvanced.style.display = 'none';
+  toggleAdvanced.textContent    = 'Advanced ▾';
+
+  // 3) Repopulate & rerender
   populateCategory();
   populateItem();
   renderTable();
@@ -307,16 +317,34 @@ async function exportPdf() {
 
 /** Init */
 window.addEventListener('DOMContentLoaded', async () => {
+  // ─── Home, clear & export hooks ────────────────────────────────
   homeBtn.onclick     = () => location.href = 'index.html';
-  clearBtn.onclick    = clearFilters;
+  backBtn.onclick     = () => window.history.back();
+  clearBtn.onclick    = () => {
+    clearFilters();
+    // also collapse advanced on clear
+    filtersAdvanced.style.display = 'none';
+    toggleAdvanced.textContent    = 'Advanced ▾';
+  };
   downloadCsv.onclick = exportCsv;
   downloadPdf.onclick = exportPdf;
 
+  // ─── Advanced toggle init ─────────────────────────────────────
+  filtersAdvanced.style.display = 'none';
+  toggleAdvanced.textContent    = 'Advanced ▾';
+  toggleAdvanced.addEventListener('click', () => {
+    const isOpen = filtersAdvanced.style.display === 'flex';
+    filtersAdvanced.style.display = isOpen ? 'none' : 'flex';
+    toggleAdvanced.textContent    = isOpen ? 'Advanced ▾' : 'Advanced ▴';
+  });
+
+  // ─── Load & render data ────────────────────────────────────────
   await fetchData();
   populateCategory();
   populateItem();
   renderTable();
 
+  // ─── Wire up cascading & render on filter change ───────────────
   filterCategory.addEventListener('change', () => {
     populateSubCategory();
     populateItem();

@@ -19,10 +19,48 @@ const todayStamp = () => {
 const show = el => { el.style.display = el.tagName === 'TABLE' ? 'table' : 'flex'; };
 const hide = el => { el.style.display = 'none'; };
 
+/* ─── FLATPICKR & INPUT‑MASK FOR DD‑MM‑YYYY ─────────────────── */
+// Base date‑picker options
+const fpBase = {
+  dateFormat: 'd-m-Y',
+  allowInput: true,
+  clickOpens: true,
+  plugins: [
+    confirmDatePlugin({
+      showTodayButton: true,
+      showClearButton: true,
+      showConfirmButton: false,
+      todayText: 'Today',
+      clearText: 'Clear'
+    })
+  ]
+};
+
+// Parse "DD-MM-YYYY" → Date
+function parseDMY(s) {
+  const [d, m, y] = s.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+// Format Date → "DD-MM-YYYY"
+function formatDMY(d) {
+  return `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth()+1).padStart(2, '0')}-${d.getFullYear()}`;
+}
+
+// Enforce digit‑hyphen mask on an <input>
+function attachMask(el) {
+  el.addEventListener('input', () => {
+    let v = el.value.replace(/\D/g, '').slice(0, 8);
+    if (v.length > 2) v = v.slice(0,2) + '-' + v.slice(2);
+    if (v.length > 5) v = v.slice(0,5) + '-' + v.slice(5);
+    el.value = v;
+  });
+}
+
 /* ══════════════════════════════════════════════════════════════
    2.  DOM REFERENCES
    ══════════════════════════════════════════════════════════════ */
 const homeBtn     = document.getElementById('homeBtn');
+const backBtn     = document.getElementById('backBtn');
 const fSection    = document.getElementById('filterSection');
 const fSub        = document.getElementById('filterSubsection');
 const fArea       = document.getElementById('filterArea');
@@ -131,9 +169,11 @@ async function loadBNs() {
    5.  MAIN TABLE RENDER (WITH DE-DUPLICATION)
    ══════════════════════════════════════════════════════════════ */
 
-async function renderTable () {
+async function renderTable() {
+  // 0️⃣ clear existing rows
   tbody.innerHTML = '';
 
+  // Fetch all “Doing” entries
   const { data: raw = [], error } = await supabase
     .from('daily_work_log')
     .select(`
@@ -141,53 +181,60 @@ async function renderTable () {
       item, batch_number, batch_size, batch_uom,
       activity, started_on, due_date
     `)
-    .eq('status', 'Doing');
-  if (error) { console.error(error); return; }
+    .in('status', ['Doing','In Storage']);
+  if (error) {
+    console.error('loadStatus error:', error);
+    return;
+  }
 
-  /* 1️⃣  Deduplicate on composite key */
+  // 1️⃣ Deduplicate on composite key
   const uniq = new Map();
   raw.forEach(r => {
-    const key = [
-      r.item, r.batch_number,
-      r.batch_size, r.batch_uom, r.activity
-    ].join('|');
-
+    const key = [r.item, r.batch_number, r.batch_size, r.batch_uom, r.activity].join('|');
     if (!uniq.has(key)) {
       uniq.set(key, { ...r });
     } else {
       const ex = uniq.get(key);
-      /* keep earliest Started / Due */
-      if (r.started_on && (!ex.started_on || r.started_on < ex.started_on))
-        ex.started_on = r.started_on;
-      if (r.due_date && (!ex.due_date || r.due_date < ex.due_date))
-        ex.due_date = r.due_date;
+      // keep earliest started_on / due_date
+      if (r.started_on && (!ex.started_on || r.started_on < ex.started_on)) ex.started_on = r.started_on;
+      if (r.due_date    && (!ex.due_date    || r.due_date    < ex.due_date))    ex.due_date    = r.due_date;
     }
   });
-
-  /* 2️⃣  Array for the rest of the pipeline */
   let rows = Array.from(uniq.values());
 
-  /* 3️⃣  FILTERING  — Over-Due now removes non-overdue rows */
-  const todayISO = new Date().toISOString().slice(0, 10);
+  // 2️⃣ Apply filters
+  const dateFilter = document.getElementById('sLogDate').value;    // "DD-MM-YYYY"
+  const actFilter  = document.getElementById('sActivity').value;   // activity string
+  const todayISO   = new Date().toISOString().slice(0,10);
 
   rows = rows.filter(r => {
+    // Log‑Date filter
+    if (dateFilter) {
+      const [dd, mm, yyyy] = dateFilter.split('-');
+      if (r.log_date !== `${yyyy}-${mm}-${dd}`) return false;
+    }
+    // Activity filter
+    if (actFilter && r.activity !== actFilter) return false;
+
+    // Overdue filter
     if (fOverdue.checked && (!r.due_date || r.due_date >= todayISO)) return false;
+    // Section / Sub‑section / Area
     if (fSection.value && r.section_id    !== +fSection.value) return false;
     if (fSub.value     && r.subsection_id !== +fSub.value)     return false;
     if (fArea.value    && r.area_id       !== +fArea.value)    return false;
+    // Item / BN
     if (fItem.value    && r.item          !== fItem.value)     return false;
     if (fBN.value      && r.batch_number  !== fBN.value)       return false;
+
     return true;
   });
 
-  /* 4️⃣  SORTING */
+  // 3️⃣ Sort
   rows.sort((a, b) => {
     if (fOverdue.checked) {
-      /* overdue mode – earliest due first */
       const da = new Date(a.due_date), db = new Date(b.due_date);
       if (da - db) return da - db;
     } else {
-      /* normal mode – earliest log_date first */
       const la = new Date(a.log_date), lb = new Date(b.log_date);
       if (la - lb) return la - lb;
     }
@@ -196,15 +243,15 @@ async function renderTable () {
     return a.activity.localeCompare(b.activity);
   });
 
-  /* 5️⃣  RENDER */
+  // 4️⃣ Render rows
   rows.forEach(r => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${fmtDate(r.log_date)}</td>
       <td>${r.item}</td>
       <td>${r.batch_number}</td>
-      <td>${r.batch_size}</td>
-      <td>${r.batch_uom}</td>
+      <td>${r.batch_size ?? ''}</td>
+      <td>${r.batch_uom  ?? ''}</td>
       <td>${r.activity}</td>
       <td>${fmtDate(r.started_on)}</td>
       <td>${fmtDate(r.due_date)}</td>
@@ -213,8 +260,10 @@ async function renderTable () {
     tbody.append(tr);
   });
 
-  tbody.querySelectorAll('.view-link')
-       .forEach(a => a.addEventListener('click', showDetails));
+  // 5️⃣ Wire up the “View” links
+  tbody.querySelectorAll('.view-link').forEach(a => {
+    a.addEventListener('click', showDetails);
+  });
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -237,23 +286,44 @@ async function showDetails(evt) {
 
   detailBody.innerHTML = '';
   const fields = [
-    ['Date',        fmtDate(d.log_date)],
-    ['Section',     d.sections?.section_name],
-    ['Sub-section', d.subsections?.subsection_name],
-    ['Area',        d.areas?.area_name],
-    ['Item',        d.item],
-    ['BN',          d.batch_number],
-    ['Batch Size',  d.batch_size],
-    ['Batch UOM',   d.batch_uom],
-    ['Activity',    d.activity],
-    ['Started On',  fmtDate(d.started_on)],
-    ['Due Date',    fmtDate(d.due_date)]
+    ['Date',              fmtDate(d.log_date)],
+    ['Section',           d.sections?.section_name],
+    ['Sub-section',       d.subsections?.subsection_name],
+    ['Area',              d.areas?.area_name],
+    ['Item',              d.item],
+    ['Batch #',           d.batch_number],
+    ['Batch Size',        d.batch_size],
+    ['Batch UOM',         d.batch_uom],
+    ['Activity',          d.activity],
+    ['Juice/Decoction',   d.juice_or_decoction],
+    ['Specify',           d.specify],
+    ['RM Juice Qty',      d.rm_juice_qty],
+    ['RM Juice UOM',      d.rm_juice_uom],
+    ['Count Saravam',     d.count_of_saravam],
+    ['Fuel',              d.fuel],
+    ['Fuel Under',        d.fuel_under],
+    ['Fuel Over',         d.fuel_over],
+    ['Started On',        fmtDate(d.started_on)],
+    ['Due Date',          fmtDate(d.due_date)],
+    ['Status',            d.status],
+    ['Completed On',      fmtDate(d.completed_on)],
+    ['Qty After Process', d.qty_after_process],
+    ['UOM After',         d.qty_uom],
+    ['Lab Ref Number',    d.lab_ref_number],
+    ['SKU Breakdown',     d.sku_breakdown],
+    ['Storage Qty',       d.storage_qty],
+    ['Storage UOM',       d.storage_qty_uom],
+    ['Remarks',           d.remarks],
+    ['Uploaded By',       d.uploaded_by],
+    ['Created At',        fmtDate(d.created_at)]
   ];
-  fields.forEach(([label,val]) => {
-    if (val && val !== '—') {
+
+  detailBody.innerHTML = '';
+  fields.forEach(([lbl, val]) => {
+    if (val !== null && val !== undefined && val !== '') {
       detailBody.insertAdjacentHTML(
         'beforeend',
-        `<tr><th>${label}</th><td>${val}</td></tr>`
+        `<tr><th>${lbl}</th><td>${val}</td></tr>`
       );
     }
   });
@@ -343,11 +413,21 @@ async function exportPdf() {
    8.  CLEAR FILTERS
    ══════════════════════════════════════════════════════════════ */
 function clearAll() {
+  // Reset the new filters
+  document.getElementById('sLogDate').value    = '';
+  document.getElementById('sActivity').value   = '';
+
+  // Reset Section → Sub → Area → Item → BN
   [fSection, fSub, fArea, fItem, fBN].forEach(sel => {
     sel.value = '';
+    // only Section and Item stay enabled
     sel.disabled = sel !== fSection && sel !== fItem;
   });
+
+  // Reset Overdue checkbox
   fOverdue.checked = false;
+
+  // Re-render
   renderTable();
 }
 
@@ -355,34 +435,78 @@ function clearAll() {
    9.  INITIALISATION
    ══════════════════════════════════════════════════════════════ */
 async function init() {
-  /* Events */
-  homeBtn.onclick     = () => (location.href = 'index.html');
+  // ─── Grab new controls ───────────────────────────────────────
+  const sLogDate       = document.getElementById('sLogDate');
+  const sActivity      = document.getElementById('sActivity');
+  const toggleAdvanced = document.getElementById('toggleAdvanced');
+  const advancedFilters= document.getElementById('advancedFilters');
+
+  // ─── Date‑picker & mask ──────────────────────────────────────
+  attachMask(sLogDate);
+  flatpickr(sLogDate, fpBase);
+
+  // ─── Core buttons ────────────────────────────────────────────
+  homeBtn.onclick     = () => location.href = 'index.html';
+  backBtn.onclick     = () => window.history.back();
   closeWip.onclick    = () => hide(overlay);
   downloadCsv.onclick = exportCsv;
   downloadPdf.onclick = exportPdf;
-  btnClear.onclick    = clearAll;
 
-  /* Disable dependent selects initially */
-  fSub.disabled = true; fArea.disabled = true; fBN.disabled = true;
+  // ─── Clear filters + collapse Advanced ───────────────────────
+  btnClear.onclick = () => {
+    clearAll();
+    advancedFilters.style.display = 'none';
+    toggleAdvanced.textContent     = 'Advanced ▾';
+  };
 
+  // ─── Toggle Advanced filters row ─────────────────────────────
+  toggleAdvanced.onclick = () => {
+    const isOpen = advancedFilters.style.display === 'flex';
+    advancedFilters.style.display = isOpen ? 'none' : 'flex';
+    toggleAdvanced.textContent   = isOpen ? 'Advanced ▾' : 'Advanced ▴';
+  };
+
+  // ─── Disable dependent selects initially ────────────────────
+  fSub.disabled = fArea.disabled = fBN.disabled = true;
+
+  // ─── Load initial dropdowns ──────────────────────────────────
   await loadSections();
   await loadItems();
 
-  /* Cascade listeners */
+  // ─── Populate Activity dropdown ─────────────────────────────
+  {
+    const { data: actsRaw, error: actErr } = await supabase
+      .from('daily_work_log')
+      .select('activity', { distinct: true })
+      .order('activity');
+    if (!actErr) {
+      const uniqueActs = Array.from(new Set(actsRaw.map(r => r.activity)))
+                              .map(a => ({ activity: a }));
+      populate(sActivity, uniqueActs, 'activity', 'activity', 'Activity');
+    }
+  }
+
+  // ─── Re‑render table on date or activity change ────────────
+  sLogDate .addEventListener('change', renderTable);
+  sActivity.addEventListener('change', renderTable);
+
+  // ─── Cascade listeners: Section → Sub → Area ────────────────
   fSection.onchange = async () => {
     await loadSubsections();
     fArea.innerHTML = '<option value="">Area</option>';
     fArea.disabled  = true;
     renderTable();
   };
-  fSub.onchange     = async () => { await loadAreas(); renderTable(); };
-  fArea.onchange    = renderTable;
+  fSub.onchange  = async () => { await loadAreas(); renderTable(); };
+  fArea.onchange = renderTable;
+
+  // ─── Other filters: Item, BN, Overdue ────────────────────────
   fItem.onchange    = async () => { await loadBNs(); renderTable(); };
   fBN.onchange      = renderTable;
   fOverdue.onchange = renderTable;
 
-  /* First paint */
+  // ─── First paint ─────────────────────────────────────────────
   await renderTable();
 }
 
-window.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', init);

@@ -432,40 +432,46 @@ batchSel.addEventListener("change", async () => {
 });
 
 activitySel.addEventListener("change", async () => {
-  const actNorm = (activitySel.value||"").trim().toLowerCase();
+  const actNorm      = (activitySel.value||"").trim().toLowerCase();
+  const isStorageAct = ["intermediate storage","fg bulk storage"].includes(actNorm);
 
-  // — your existing “Finished Goods QA” guard
+  // ─── Restrict Status options ───────────────────────────────────────────
+  Array.from(statusSel.options).forEach(opt => {
+    const v = opt.value;
+    if (isStorageAct) {
+      // only Done or In Storage allowed
+      opt.disabled = !(v === "Done" || v === "In Storage");
+    } else {
+      // for non-storage activities, disallow In Storage
+      opt.disabled = (v === "In Storage");
+    }
+  });
+  // If the currently selected status is now disabled, clear it
+  if (statusSel.value && statusSel.selectedOptions[0].disabled) {
+    statusSel.value = "";
+  }
+
+  // ─── Finished Goods QA guard (existing logic) ─────────────────────────
   if (skuActivities.includes(actNorm) && itemInput.value && batchSel.value) {
     const { data: qa } = await supabase
-      .from("daily_work_log").select("id")
+      .from("daily_work_log")
+      .select("id")
       .eq("item", itemInput.value)
       .eq("batch_number", batchSel.value)
       .eq("activity", "Finished Goods Quality Assessment")
       .eq("status", "Done")
       .limit(1);
     if (!qa?.length) {
-      await showAlert("Finished Goods Quality Assessment not completed for this batch.");
+      await showAlert(
+        "Finished Goods Quality Assessment not completed for this batch."
+      );
       activitySel.value = "";
     }
   }
 
-  // — recompute dates & show/hide sections
+  // ─── Recompute dates & show/hide sections ─────────────────────────────
   updateDueDate();
   updateSections();
-
-  // — only allow “In Storage” on these two activities
-  const allowStorage = ["intermediate storage", "fg bulk storage"].includes(actNorm);
-
-  // find by .value (which in absence of a value-attribute is the option’s text)
-  const storageOpt = Array.from(statusSel.options)
-                          .find(opt => opt.value === "In Storage");
-  if (storageOpt) storageOpt.disabled = !allowStorage;
-
-  // if it was selected and now disallowed, clear it immediately
-  if (!allowStorage && statusSel.value === "In Storage") {
-    statusSel.value = "";       // or choose a default like “Doing”
-    updateSections();           // hide the storage inputs right away
-  }
 });
 
 statusSel.addEventListener("change", () => {
@@ -666,6 +672,57 @@ async function handleSubmit(isNew) {
       return cnt > 0 ? `${sku.pack_size} ${sku.uom} x ${cnt}` : null;
     }).filter(Boolean);
     row.sku_breakdown = parts.join("; ");
+  }
+
+    // ── PRE‑FLIGHT STOCK CHECK (multi‑SKU + tiny‑residual) ───────────────
+  if (isDone && (skuActivities.includes(actNorm) || isTransfer)) {
+    // 1) sum all pack_size × count
+    let totalUnits = 0;
+    const inputs = skuActivities.includes(actNorm)
+      ? skuTableBody.querySelectorAll("input")
+      : transferTableBody.querySelectorAll("input");
+    inputs.forEach(i => {
+      const cnt = Number(i.value) || 0;
+      if (cnt > 0) {
+        const sku = currentItemSkus.find(s => s.id == i.dataset.skuId);
+        totalUnits += sku.pack_size * cnt;
+      }
+    });
+
+    // 2) fetch conversion factor & base‑uom
+    const { data: prod } = await supabase
+      .from("products")
+      .select("conversion_to_base,uom_base")
+      .eq("item", row.item)
+      .single();
+    const factor = prod?.conversion_to_base || 1;
+
+    // 3) compute total in base units
+    const totalBase = totalUnits * factor;
+
+    // 4) fetch current FG‑bulk stock from our view
+    const { data: st } = await supabase
+      .from("fg_bulk_stock")
+      .select("qty_on_hand")
+      .eq("item", row.item)
+      .eq("bn",   row.batch_number)
+      .single();
+    const avail = st?.qty_on_hand ?? 0;
+
+    // 5) allow a tiny epsilon (0.001); otherwise block
+    const eps = 0.001;
+    if (totalBase - avail > eps) {
+      await showAlert(
+        `Cannot package ${totalBase.toFixed(3)} ${prod.uom_base}; ` +
+        `only ${avail.toFixed(3)} ${prod.uom_base} available.`
+      );
+      return;
+    }
+    // if it would leave a teeny bit (<eps), treat it as exact
+    if (avail - totalBase < eps) {
+      // automatically bump the qty to exactly avail so DB ends at zero
+      totalUnits = avail / factor;
+    }
   }
 
   /* ---- INSERT --------------------------------------------------------- */

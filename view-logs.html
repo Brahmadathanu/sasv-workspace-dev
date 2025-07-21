@@ -22,15 +22,105 @@
     #homeBtn{background:var(--home-btn-bg);color:var(--btn-text);border:none;padding:8px 12px;
              border-radius:4px;font-size:1rem;cursor:pointer}
     #homeBtn:hover{background:var(--home-btn-hover-bg)}
+        /* group BACK + HOME at right edge */
+    .header-actions {
+      display: flex;
+      gap: 8px;
+      margin-left: auto;
+    }
 
-    /* ─── FILTER BAR ─────────────────────────────────────────────────── */
-    .filter-row{display:flex;flex-wrap:wrap;gap:20px;margin-bottom:12px}
-    .filter-pair{flex:1 1 200px;display:flex;gap:8px;align-items:center}
-    .filter-pair select{flex:1;padding:6px;border:1px solid #ccc;border-radius:4px;font-size:14px}
-    .log-date{flex:0 0 140px}
+    /* BACK = secondary gray */
+    #backBtn {
+      background: #6c757d;
+      color: #fff;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    #backBtn:hover {
+      background: #5a6268;
+    }
 
-    .link-btn{color:#007BFF;text-decoration:underline;cursor:pointer;font-size:14px}
-    .link-btn:hover{opacity:.75}
+/* ─── PRIMARY FILTER STRIP ─────────────────────────────────────────── */
+.filter-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.filter-strip .filter-pair {
+  /* base width but can shrink/grow */
+  flex: 1 1 140px;
+  min-width: 100px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* make the date input sit nicely */
+.log-date {
+  min-width: 120px;
+}
+
+/* a handy narrow class for the BN dropdown */
+.narrow {
+  min-width: 80px;
+}
+
+/* ─── ADVANCED FILTER ROW ──────────────────────────────────────────── */
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-bottom: 12px;
+}
+.filter-row .filter-pair {
+  /* wider base for your two‑col selects */
+  flex: 1 1 200px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* shared inputs/select styling */
+.filter-pair select,
+.filter-pair input[type="text"] {
+  flex: 1;
+  padding: 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+/* ─── ACTION BUTTON GROUP ───────────────────────────────────────────── */
+.filter-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+  align-items: center;
+}
+
+/* hyperlink‑style buttons */
+.link-btn {
+  background: none;
+  border: none;
+  padding: 4px 8px;
+  color: #007BFF;
+  text-decoration: none;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.link-btn:hover {
+  background: rgba(0, 123, 255, 0.1);
+}
+.link-btn:focus {
+  outline: 2px solid rgba(0, 123, 255, 0.6);
+  outline-offset: 2px;
+}
 
     /* ─── EXPORT LINKS ───────────────────────────────────────────────── */
     #exportLinks{
@@ -49,7 +139,8 @@
 
     /* ─── TABLE ──────────────────────────────────────────────────────── */
     table{width:100%;border-collapse:collapse;margin-bottom:24px}
-    th,td{padding:8px;border:1px solid #ccc;text-align:left}
+    th,td{padding:4px 6px;border:1px solid #ccc;text-align:left;font-size: 14px;line-height: 1.2;}
+    tr{height: 28px;}
     a.view-link{color:var(--primary);text-decoration:underline;cursor:pointer}
     a.view-link:hover{color:var(--primary-hover)}
 
@@ -71,55 +162,66 @@
   <!-- ===== Header bar ===== -->
   <div class="header-bar">
     <h2>View Logs</h2>
-    <button id="homeBtn">HOME</button>
+    <div Class = "header-actions">
+      <button id="backBtn">BACK</button>
+      <button id="homeBtn">HOME</button>
+    </div>
   </div>
 
-  <!-- ===== Filter bar ===== -->
-  <section id="filters" class="filter-row">
-    <!-- Log Date -->
-    <div class="filter-pair">
-      <input id="filterDate"
-             class="log-date"
-             type="text"
-             placeholder="dd-mm-yyyy"
-             autocomplete="off">
-    </div>
+<!-- ===== Primary Filter Strip ===== -->
+<div id="filtersPrimary" class="filter-strip">
+  <!-- Log Date -->
+  <div class="filter-pair">
+    <input id="filterDate"
+           class="log-date"
+           type="text"
+           placeholder="dd-mm-yyyy"
+           autocomplete="off">
+  </div>
 
-    <!-- Section / Sub-section -->
-    <div class="filter-pair">
-      <select id="filterSection"><option value="">Section</option></select>
-      <select id="filterSubsection" disabled><option value="">Sub-section</option></select>
-    </div>
+  <!-- Item / BN -->
+  <div class="filter-pair">
+    <select id="filterItem"><option value="">Item</option></select>
+    <select id="filterBN" class="narrow" disabled><option value="">BN</option></select>
+  </div>
 
-    <!-- Area / Plant -->
-    <div class="filter-pair">
-      <select id="filterArea"  disabled><option value="">Area</option></select>
-      <select id="filterPlant" disabled><option value="">Plant / Machinery</option></select>
-    </div>
+  <!-- Activity -->
+  <div class="filter-pair">
+    <select id="filterActivity"><option value="">Activity</option></select>
+  </div>
 
-    <!-- Item / BN -->
-    <div class="filter-pair">
-      <select id="filterItem"><option value="">Item</option></select>
-      <select id="filterBN" class="narrow" disabled><option value="">BN</option></select>
-    </div>
+  <!-- Status -->
+  <div class="filter-pair">
+    <select id="filterStatus">
+      <option value="">Status</option>
+      <option>Doing</option>
+      <option>Done</option>
+      <option>In Storage</option>
+      <option>On Hold</option>
+    </select>
+  </div>
 
-    <!-- Activity -->
-    <div class="filter-pair">
-      <select id="filterActivity"><option value="">Activity</option></select>
-    </div>
+  <!-- Actions: Advanced toggle + Clear -->
+  <div class="filter-actions">
+    <button id="toggleAdvanced" class="link-btn">Advanced ▾</button>
+    <span   id="clearFilters"   class="link-btn">Clear</span>
+  </div>
+</div>
 
-    <!-- Status + Clear -->
-    <div class="filter-pair">
-      <select id="filterStatus">
-        <option value="">Status</option>
-        <option>Doing</option>
-        <option>Done</option>
-        <option>In Storage</option> <!-- NEW -->
-        <option>On Hold</option>
-      </select>
-      <span id="clearFilters" class="link-btn">Clear</span>
-    </div>
-  </section>
+<!-- ===== Advanced Filter Row ===== -->
+<div id="filtersAdvanced" class="filter-row" style="display:none;">
+  <!-- Section / Sub‑section -->
+  <div class="filter-pair">
+    <select id="filterSection"><option value="">Section</option></select>
+    <select id="filterSubsection" disabled><option value="">Sub‑section</option></select>
+  </div>
+
+  <!-- Area / Plant -->
+  <div class="filter-pair">
+    <select id="filterArea" disabled><option value="">Area</option></select>
+    <select id="filterPlant" disabled><option value="">Plant / Machinery</option></select>
+  </div>
+</div>
 
   <!-- ===== Export links ===== -->
 <div id="exportLinks">

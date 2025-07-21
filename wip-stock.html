@@ -5,171 +5,284 @@
   <title>SASV WORKSPACE | WIP Stock</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/flatpickr.min.css">
 
-  <style>
-    /* ——— Layout base —————————————————————————— */
-    body{
-      margin:20px;
-      font-family:Arial, sans-serif;
-      background:var(--bg-color);
-      color:var(--text-color);
-      transition:background .3s, color .3s;
-    }
+<style>
+  /* ─── FULL‑HEIGHT FLEX LAYOUT ─────────────────────────── */
+  html, body {
+    height: 100%;
+    margin: 0;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    margin: 20px;
+    font-family: Arial, sans-serif;
+    background: var(--bg-color);
+    color: var(--text-color);
+    transition: background .3s, color .3s;
+  }
 
-    /* ——— Header bar —————————————————————————— */
-    .header-bar{
-      display:flex; justify-content:space-between;
-      align-items:center; margin-bottom:20px;
-    }
-    .header-bar h2{
-      margin:0; font-size:1.5rem; color:var(--primary);
-    }
-    #homeBtn{
-      background:var(--home-btn-bg); color:var(--btn-text);
-      border:none; padding:8px 16px; border-radius:4px;
-      font-size:1rem; cursor:pointer; transition:background .2s;
-    }
-    #homeBtn:hover{ background:var(--home-btn-hover-bg); }
+  /* ─── HEADER BAR ───────────────────────────────────────── */
+  .header-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .header-bar h2 {
+    margin: 0;
+    color: #005A8D;
+  }
+  .header-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;   /* push this group to the far right */
+}
+  #homeBtn {
+    background: var(--home-btn-bg);
+    color: var(--btn-text);
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+  #homeBtn:hover {
+    background: var(--home-btn-hover-bg);
+  }
+  #backBtn {
+    background: #6c757d;       /* muted gray */
+    color: #ffffff;            /* white text */
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background .2s;
+  }
+  #backBtn:hover {
+    background: #5a6268;       /* slightly darker gray */
+  }
 
-    /* ——— Filters ———————————————————————————— */
-    #filters{
-      display:flex; flex-wrap:wrap; gap:16px;   /* slightly tighter gap */
-      margin-bottom:20px;
-    }
-    .filter-control{
-      flex:1 1 180px; min-width:140px;
-      display:flex; flex-direction:column;
-    }
-    .filter-control label{ margin-bottom:4px; font-weight:500; }
-    .filter-control select{
-      height:2rem; padding:6px 8px; font-size:14px;
-      border:1px solid #ccc; border-radius:4px;
-      background:var(--input-bg); color:var(--input-text);
-    }
-    .filter-control.checkbox{
-      flex-direction:row; align-items:center;
-    }
-    .filter-control.checkbox input{
-      margin-right:8px; transform:scale(1.2);
-    }
-    .filter-control.button{
-      justify-content:flex-end; align-items:flex-end;
-    }
-    .filter-control.button button{
-      padding:6px 12px; border:none; cursor:pointer;
-      background:var(--btn-bg); color:var(--btn-text);
-      border-radius:4px; font-size:14px;
-    }
-    .filter-control.button button:hover{
-      background:var(--btn-hover-bg);
-    }
+  /* ─── PRIMARY & ADVANCED FILTER STRIP ──────────────────── */
+  .filter-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .filter-strip .filter-pair {
+    flex: 1 1 140px;
+    min-width: 100px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .filter-pair select,
+  .filter-pair input[type="text"] {
+    flex: 1;
+    padding: 6px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    width: 100%;
+    background: var(--input-bg);
+    color: var(--input-text);
+  }
+  .log-date { flex: 0 0 120px; }
+  .narrow   { flex: 0 0 80px; }
 
-    /* ——— Export links ————————————————————————— */
-    #exportLinks{
-      display:flex; justify-content:space-between;
-      align-items:center; margin-bottom:8px;
-    }
-    #exportLinks a{
-      color:var(--primary); text-decoration:underline;
-      cursor:pointer; font-size:14px;
-    }
-    #exportLinks a:hover{ color:var(--primary-hover); }
+  /* ADVANCED filter row hidden by default; JS toggles inline display:flex */
+  #advancedFilters {
+    display: none;
+  }
 
-    /* ——— Table & container ———————————————————— */
-    #wipTableContainer{
-      width:100%;
-      /* fills viewport minus header / filters / margins */
-      max-height:calc(100vh - 320px);
-      overflow-y:auto; border:1px solid #ccc;
-    }
-    #wipTable{ width:100%; border-collapse:collapse; }
-    #wipTable th, #wipTable td{
-      padding:8px; border:1px solid #ccc; vertical-align:middle;
-    }
-    #wipTable th{
-      background:var(--panel-bg);               /* matches theme */
-      position:sticky; top:0; z-index:1; text-align:center;
-    }
-    #wipTable td{ text-align:center; }
-    #wipTable td:nth-child(2){ text-align:left; }
+  /* ─── ACTION BUTTON GROUP ──────────────────────────────── */
+  .filter-actions {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+    align-items: center;
+  }
+  .link-btn {
+    background: none;
+    border: none;
+    padding: 4px 8px;
+    color: var(--link-color, #007BFF);
+    text-decoration: none;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+  .link-btn:hover {
+    background: rgba(0, 123, 255, 0.1);
+  }
 
-    a.view-link{
-      color:var(--primary); text-decoration:underline; cursor:pointer;
-    }
-    a.view-link:hover{ color:var(--primary-hover); }
+  /* ─── EXPORT LINKS ───────────────────────────────────── */
+  #exportLinks {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    margin-bottom: 8px;
+  }
+  #exportLinks a {
+    color: var(--primary);
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  #exportLinks a:hover {
+    color: var(--primary-hover);
+  }
 
-    /* ——— Modal —————————————————————————————— */
-    .modal-overlay{
-      position:fixed; inset:0;
-      background:rgba(0,0,0,.4);
-      display:none; align-items:center; justify-content:center;
-      z-index:1000;
-    }
-    .modal-box{
-      background:var(--panel-bg); color:var(--text-color);
-      padding:20px; border-radius:8px; width:90%; max-width:600px;
-      max-height:80%; overflow:auto; box-shadow:0 2px 10px rgba(0,0,0,.3);
-    }
-    .modal-box h3{ margin:0 0 12px; color:var(--primary); }
-    .modal-box table{ width:100%; border-collapse:collapse; }
-    .modal-box th, .modal-box td{
-      padding:6px; border:1px solid #ccc; text-align:left;
-    }
-    .modal-actions{ text-align:right; margin-top:12px; }
-    .modal-actions .btn{
-      padding:6px 12px; border:none; cursor:pointer;
-      background:var(--btn-bg); color:var(--btn-text);
-      border-radius:4px;
-    }
-    .modal-actions .btn:hover{ background:var(--btn-hover-bg); }
-  </style>
+  /* ─── WIP TABLE CONTAINER ──────────────────────────────── */
+  #wipTableContainer {
+    flex: 1 1 auto;          /* fill remaining vertical space */
+    overflow-y: auto;
+    border: 1px solid #ccc;
+  }
+
+  /* ─── WIP TABLE STYLING ────────────────────────────────── */
+  #wipTableContainer table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 24px;
+  }
+  #wipTableContainer table th,
+  #wipTableContainer table td {
+    padding: 4px 6px;
+    border: 1px solid #ccc;
+    text-align: left;
+    font-size: 0.9rem;
+    line-height: 1.2;
+  }
+  #wipTableContainer table tr {
+    height: 28px;
+  }
+  #wipTableContainer table th {
+    position: sticky;
+    top: 0;
+    background: var(--panel-bg);
+    z-index: 1;
+    font-weight: bold;
+  }
+
+  /* ─── MODALS ──────────────────────────────────────────── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.4);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+  .modal-box {
+    background: var(--bg-color);
+    color: var(--text-color);
+    padding: 24px;
+    border-radius: 8px;
+    width: 95%;
+    max-width: 520px;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 12px rgba(0,0,0,.2);
+  }
+  .modal-actions {
+    text-align: right;
+    margin-top: 24px;
+  }
+  .modal-actions .btn {
+    padding: 6px 12px;
+    border: none;
+    cursor: pointer;
+    background: var(--btn-bg);
+    color: var(--btn-text);
+    border-radius: 4px;
+  }
+  .modal-actions .btn:hover {
+    background: var(--btn-hover-bg);
+  }
+</style>
+
 </head>
+
 <body data-theme="system">
 
   <!-- ===== HEADER ====================================================== -->
   <div class="header-bar">
     <h2>WIP Stock</h2>
-    <button id="homeBtn">HOME</button>
+    <div Class="header-actions">
+      <button id="backBtn">BACK</button>
+      <button id="homeBtn">HOME</button>
+    </div>
   </div>
 
-  <!-- ===== FILTERS ===================================================== -->
-  <section id="filters">
-    <div class="filter-control">
-      <label for="filterSection">Section</label>
-      <select id="filterSection"><option value="">Section</option></select>
-    </div>
+<!-- ===== FILTERS ===================================================== -->
 
-    <div class="filter-control">
-      <label for="filterSubsection">Sub-section</label>
-      <select id="filterSubsection" disabled>
-        <option value="">Sub-section</option>
-      </select>
-    </div>
+<!-- Primary filter row -->
+<div id="filters" class="filter-strip">
+  <!-- Log‑Date -->
+  <div class="filter-pair">
+    <input
+      id="sLogDate"
+      class="log-date"
+      type="text"
+      placeholder="dd-mm-yyyy"
+      autocomplete="off">
+  </div>
 
-    <div class="filter-control">
-      <label for="filterArea">Area</label>
-      <select id="filterArea" disabled><option value="">Area</option></select>
-    </div>
+  <!-- Item -->
+  <div class="filter-pair">
+    <select id="filterItem">
+      <option value="">Item</option>
+    </select>
+  </div>
 
-    <div class="filter-control">
-      <label for="filterItem">Item</label>
-      <select id="filterItem"><option value="">Item</option></select>
-    </div>
+  <!-- BN -->
+  <div class="filter-pair">
+    <select id="filterBN" disabled>
+      <option value="">BN</option>
+    </select>
+  </div>
 
-    <div class="filter-control">
-      <label for="filterBN">BN</label>
-      <select id="filterBN" disabled><option value="">BN</option></select>
-    </div>
+  <!-- Activity (moved here) -->
+  <div class="filter-pair">
+    <select id="sActivity">
+      <option value="">Activity</option>
+    </select>
+  </div>
 
-    <div class="filter-control checkbox">
-      <input type="checkbox" id="filterOverdue">
-      <label for="filterOverdue">Over&nbsp;Due</label>
-    </div>
+  <!-- Overdue -->
+  <div class="filter-pair">
+    <label><input type="checkbox" id="filterOverdue"> Overdue</label>
+  </div>
 
-    <div class="filter-control button">
-      <button id="clearFilters">Clear</button>
-    </div>
-  </section>
+  <!-- Actions -->
+  <div class="filter-actions">
+    <button id="toggleAdvanced" class="link-btn">Advanced ▾</button>
+    <button id="clearFilters" class="link-btn">Clear</button>
+  </div>
+</div>
+
+<!-- Advanced filter row (sibling) -->
+<div id="advancedFilters" class="filter-strip" style="display:none;">
+  <div class="filter-pair">
+    <select id="filterSection">
+      <option value="">Section</option>
+    </select>
+  </div>
+  <div class="filter-pair">
+    <select id="filterSubsection" disabled>
+      <option value="">Sub‑section</option>
+    </select>
+  </div>
+  <div class="filter-pair">
+    <select id="filterArea" disabled>
+      <option value="">Area</option>
+    </select>
+  </div>
+</div>
 
   <!-- ===== EXPORT LINKS ================================================= -->
   <div id="exportLinks">
@@ -213,6 +326,10 @@
   <!-- ===== SCRIPTS ====================================================== -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+  <!-- Flatpickr scripts -->
+  <script src="css/flatpickr.min.js"></script>
+  <script src="css/plugins/confirmDate/confirmDate.js"></script>
+
   <script type="module" src="js/wip-stock.js"></script>
 </body>
 </html>

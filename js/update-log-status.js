@@ -79,6 +79,9 @@ let doneCompletedOnSection;
 
 let confirmModal, confirmText, confirmYes, confirmNo;
 
+let storageModal, storageForm, storageQty, storageUom, storageCancel, storageSave;
+
+
 /**
  * Show an element by setting its display to 'flex'.
  * @param {HTMLElement} el
@@ -499,6 +502,33 @@ const finish = async () => {
 }
 
 /**
+ * Prompt user for Storage Qty + UOM.
+ * @returns {Promise<{choice:string,storageQty:number,storageUom:string}>}
+ */
+function promptStorage() {
+  storageForm.reset();
+  show(storageModal);
+  return new Promise(res => {
+    storageCancel.onclick = () => {
+      hide(storageModal);
+      res({ choice: 'cancel' });
+    };
+    storageSave.onclick = async () => {
+      if (!storageQty.value || !storageUom.value) {
+        await askConfirm("Please enter both Storage Qty and UOM.");
+        return;
+      }
+      hide(storageModal);
+      res({
+        choice:     'save',
+        storageQty: Number(storageQty.value),
+        storageUom: storageUom.value
+      });
+    };
+  });
+}
+
+/**
  * Handle saving status changes, including prompting for Done or Doing transitions.
  * @param {string|number} id
  * @param {HTMLSelectElement} sel
@@ -508,11 +538,48 @@ async function saveStatus(id, sel) {
   const { act: activity, item, bn, prevStatus } = sel.dataset;
   const actL = activity.toLowerCase().trim();
 
-  if (newStat === 'Done') {
+if (newStat === 'Done') {
   const r = await promptDone(activity, item, bn, id);
   if (r.choice === 'cancel') {
     sel.value = prevStatus;
     return;
+  }
+
+  // ── PRE‑FLIGHT PACKAGING STOCK CHECK ────────────────────────────────
+  if (skuActivities.includes(actL) || actL === 'transfer to fg store') {
+    // 1) Fetch conversion factors for each SKU
+    const skuIds = r.rows.map(x => x.skuId);
+    const { data: skuInfos, error: skuErr } = await supabase
+      .from('product_skus')
+      .select('id,conversion_to_base')
+      .in('id', skuIds);
+    if (skuErr) console.error('SKU lookup error:', skuErr);
+
+    // 2) Sum total in base units
+    const convMap = {};
+    skuInfos.forEach(s => { convMap[s.id] = s.conversion_to_base; });
+    const totalBaseQty = r.rows.reduce(
+      (sum, x) => sum + (x.count * (convMap[x.skuId] || 0)),
+      0
+    );
+
+    // 3) Get available FG bulk stock (base units)
+    const { data: bulk, error: bulkErr } = await supabase
+      .from('fg_bulk_stock')
+      .select('on_hand')
+      .eq('batch_number', bn)
+      .single();
+    if (bulkErr) console.error('FG stock lookup error:', bulkErr);
+    const available = bulk?.on_hand || 0;
+
+    // 4) Abort if we’d go negative
+    if (totalBaseQty > available + 0.001) {
+      await askConfirm(
+        `Cannot mark Done: requested packaging quantity (${totalBaseQty.toFixed(2)}) exceeds available FG stock (${available.toFixed(2)}).`
+      );
+      sel.value = prevStatus;
+      return;
+    }
   }
 
   // parse & build payload
@@ -586,7 +653,6 @@ async function saveStatus(id, sel) {
   }
 
   await loadStatus();
-
   return;
 }
 
@@ -633,6 +699,43 @@ async function saveStatus(id, sel) {
       }
     }
 
+    loadStatus();
+    return;
+  }
+
+    // ── In Storage branch ────────────────────────────────────────────────────
+  if (newStat === 'In Storage') {
+    const r = await promptStorage();
+    if (r.choice === 'cancel') {
+      sel.value = prevStatus;
+      return;
+    }
+    // build payload: reset all other fields
+    const payload = {
+      status:            'In Storage',
+      storage_qty:       r.storageQty,
+      storage_qty_uom:   r.storageUom,
+      completed_on:      null,
+      qty_after_process: null,
+      qty_uom:           null,
+      sku_breakdown:     null,
+      lab_ref_number:    null,
+      juice_or_decoction:null,
+      specify:           null,
+      count_of_saravam:  null,
+      fuel:              null,
+      fuel_under:        null,
+      fuel_over:         null
+    };
+    const { error: updErr } = await supabase
+      .from('daily_work_log')
+      .update(payload)
+      .eq('id', id);
+    if (updErr) {
+      console.error('Update failed:', updErr);
+      sel.value = prevStatus;
+      return;
+    }
     loadStatus();
     return;
   }
@@ -717,8 +820,12 @@ data.forEach(r => {
                 data-item="${r.item}"
                 data-bn="${r.batch_number}"
                 data-prev-status="${r.status}">
-          <option${r.status==='Doing'    ? ' selected' : ''}>Doing</option>
-          <option${r.status==='On Hold'  ? ' selected' : ''}>On Hold</option>
+          <option${r.status==='Doing'    ? ' selected' : ''}${allowStorage ? ' disabled' : ''}>
+             Doing
+           </option>
+           <option${r.status==='On Hold'  ? ' selected' : ''}${allowStorage ? ' disabled' : ''}>
+             On Hold
+           </option>
           <option
             ${r.status==='In Storage' ? ' selected' : ''}
             ${allowStorage         ? ''          : ' disabled'}>
@@ -786,6 +893,13 @@ async function init() {
   confirmText           = $('#confirmText');
   confirmYes            = $('#confirmYes');
   confirmNo             = $('#confirmNo');
+
+  storageModal  = $('#storageModal');
+  storageForm   = $('#storageForm');
+  storageQty    = $('#storageQty');
+  storageUom    = $('#storageUom');
+  storageCancel = $('#storageCancel');
+  storageSave   = $('#storageSave');
 
   const { data: pl, error: plErr } = await supabase
     .from('plant_machinery')

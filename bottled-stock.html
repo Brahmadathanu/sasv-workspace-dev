@@ -7,119 +7,227 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="css/style.css">
 
-  <style>
-    body {
-      margin:20px;
-      font-family:Arial, sans-serif;
-      background:var(--bg-color);
-      color:var(--text-color);
-      transition:background .3s, color .3s;
-    }
-    .header-bar {
-      display:flex; justify-content:space-between;
-      align-items:center; margin-bottom:20px;
-    }
-    .header-bar h2 {
-      margin:0; font-size:1.5rem; color:var(--primary);
-    }
-    #homeBtn {
-      background:var(--home-btn-bg);
-      color:var(--btn-text);
-      border:none; padding:8px 16px; border-radius:4px;
-      font-size:1rem; cursor:pointer; transition:background .2s;
-    }
-    #homeBtn:hover { background:var(--home-btn-hover-bg); }
+<style>
+  html, body {
+    height: 100%;
+    margin: 0;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    margin: 20px;
+    font-family: Arial, sans-serif;
+    background: var(--bg-color);
+    color: var(--text-color);
+    transition: background .3s, color .3s;
+  }
+  .header-bar {
+    display:flex; justify-content:space-between;
+    align-items:center; margin-bottom:20px;
+  }
+  .header-bar h2 {
+    margin:0; font-size:1.5rem; color:var(--primary);
+  }
+  .header-actions {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;    /* push buttons to the right */
+  }
+  #homeBtn {
+    background:var(--home-btn-bg);
+    color:var(--btn-text);
+    border:none; padding:8px 16px; border-radius:4px;
+    font-size:1rem; cursor:pointer; transition:background .2s;
+  }
+  #homeBtn:hover { background:var(--home-btn-hover-bg); }
+  #backBtn {
+    background: #6c757d;   /* secondary gray */
+    color: #ffffff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background .2s;
+  }
+  #backBtn:hover {
+    background: #5a6268;   /* darker gray on hover */
+  }
 
-    /* ───────── FILTERS ───────── */
-    #filterForm { margin-bottom:20px; }
-    .filter-row {
-      display:flex; flex-wrap:wrap; gap:12px;
-    }
-    .filter-row.second-row {
-      margin-top:8px; align-items:center;
-    }
-    .filter-row select,
-    .filter-row button {
-      padding:6px;
-      border:1px solid #ccc;
-      border-radius:4px;
-      flex:1 1 140px;
-      min-width:120px;
-      background:var(--input-bg);
-      color:var(--input-text);
-    }
-    .clear-link {
-      background:none;
-      border:none;
-      color:var(--primary);
-      text-decoration:underline;
-      cursor:pointer;
-      padding:0;
-      font:inherit;
-      outline:none;
-    }
-    .clear-link:hover { opacity:0.7; }
+  /* ───────── FILTERS ───────── */
+  #filterForm { margin-bottom:20px; }
+  .filter-row {
+    display:flex; flex-wrap:wrap; gap:12px;
+  }
+  .filter-row.second-row {
+    margin-top:8px; align-items:center;
+  }
+  .filter-row.advanced-row {
+    display: none;   /* hidden by default, shown via JS */
+    gap: 12px;
+  }
+  .filter-row select,
+  .filter-row button {
+    padding:6px;
+    border:1px solid #ccc;
+    border-radius:4px;
+    flex:1 1 140px;
+    min-width:120px;
+    background:var(--input-bg);
+    color:var(--input-text);
+  }
+  /* --- Filter action buttons --- */
+  .filter-actions {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+    align-items: center;
+  }
+  .filter-actions .link-btn,
+  .filter-actions .clear-link {
+    background: none;
+    border: none;
+    padding: 4px 12px;
+    font-size: 0.95rem;
+    color: #007BFF;         /* bright blue (like other modules) */
+    text-decoration: none;  /* REMOVE underline */
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.15s, color 0.15s;
+  }
+  .filter-actions .link-btn:hover,
+  .filter-actions .clear-link:hover {
+    background: rgba(0,123,255,0.07); /* subtle blue bg */
+    color: #0056b3;
+  }
+  .filter-actions .link-btn:focus,
+  .filter-actions .clear-link:focus {
+    outline: 2px solid #80bdff;
+    outline-offset: 1px;
+  }
+  /* (Legacy, safe to keep for now) */
+  .clear-link {
+    background:none;
+    border:none;
+    color:var(--primary);
+    text-decoration:underline;
+    cursor:pointer;
+    padding:0;
+    font:inherit;
+    outline:none;
+  }
+  .clear-link:hover { opacity:0.7; }
 
-    /* ───────── EXPORT LINKS ───────── */
-    #exportLinks {
-      display:flex; justify-content:space-between;
-      width:100%; margin-bottom:8px;
-    }
-    #exportLinks a {
-      color:var(--primary);
-      text-decoration:underline;
-      cursor:pointer;
-      font-size:14px;
-    }
-    #exportLinks a:hover { color:var(--primary-hover); }
+  /* ───────── EXPORT LINKS ───────── */
+  #exportLinks {
+    display:flex; justify-content:space-between;
+    width:100%; margin-bottom:8px;
+  }
+  #exportLinks a {
+    color:var(--primary);
+    text-decoration:underline;
+    cursor:pointer;
+    font-size:14px;
+  }
+  #exportLinks a:hover { color:var(--primary-hover); }
 
-    /* ───────── TABLE ───────── */
-    #bottledTableContainer {
-      width:100%;
-      max-height:calc(100vh - 300px);
-      overflow-y:auto; border:1px solid #ccc;
-    }
-    #bottledTable {
-      width:100%; border-collapse:collapse;
-    }
-    #bottledTable th,
-    #bottledTable td {
-      padding:8px; border:1px solid #ccc;
-      vertical-align: middle; text-align: center;
-    }
-    #bottledTable th {
-      background:var(--panel-bg);
-      position:sticky; top:0; z-index:1;
-      font-weight:bold;
-    }
-    /* first two columns alignment */
-    #bottledTable td:nth-child(1) { text-align:left; padding-left:12px; }
-    #bottledTable td:nth-child(2) { text-align:center; padding-left:0; }
-    .no-data td {
-      font-style:italic; color:#666; text-align:center;
-    }
-  </style>
+  /* ───────── TABLE CONTAINER ───────── */
+  #bottledTableContainer {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;   /* Important for flex shrink */
+    border: 1px solid #ccc;
+    background: var(--panel-bg, #fff);
+    overflow-y: auto;
+    width: 100%;
+    /* Remove min-height/max-height here to allow proper flex growth */
+  }
+
+  /* ───────── TABLE ───────── */
+  #bottledTable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  #bottledTable th,
+  #bottledTable td {
+    padding: 8px;
+    border: 1px solid #ccc;
+    vertical-align: middle;
+    text-align: center;
+    transition: background 0.18s;
+  }
+  #bottledTable th {
+    background: var(--panel-bg);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    font-weight: bold;
+    text-align: center;
+    border-bottom: 2px solid #bbb;
+  }
+  /* Zebra striping */
+  #bottledTable tbody tr:nth-child(even) {
+    background: #f6f9fb;
+  }
+  /* Row hover */
+  #bottledTable tbody tr:hover {
+    background: #e9f3fc;
+  }
+  /* first two columns alignment */
+  #bottledTable td:nth-child(1) {
+    text-align: left;
+    padding-left: 12px;
+  }
+  
+  #bottledTable th:nth-child(2),
+  #bottledTable td:nth-child(2) {
+    text-align: center !important;
+    padding-left: 0 !important;
+  }
+
+  .no-data td {
+    font-style: italic;
+    color: #666;
+    text-align: center;
+    background: #fafbfc;
+  }
+  #bottledTable tr {
+    height: 28px;
+  }
+</style>
+
 </head>
 <body data-theme="system">
 
   <div class="header-bar">
     <h2>Bottled Stock</h2>
-    <button id="homeBtn">HOME</button>
+    <div Class = "header-actions">
+      <button id="backBtn">BACK</button>
+      <button id="homeBtn">HOME</button>
+    </div>
   </div>
 
-  <form id="filterForm">
-    <div class="filter-row first-row">
-      <select id="filterCategory"><option value="">Category</option></select>
-      <select id="filterSubCategory" disabled><option value="">Sub-category</option></select>
-      <select id="filterGroup" disabled><option value="">Group</option></select>
-      <select id="filterSubGroup" disabled><option value="">Sub-group</option></select>
+<form id="filterForm">
+  <!-- Primary Filter Row: always visible -->
+  <div class="filter-row primary-row">
+    <select id="filterItem"><option value="">Item</option></select>
+    <select id="filterBN" disabled><option value="">BN</option></select>
+    <div class="filter-actions">
+      <button type="button" id="toggleAdvanced" class="link-btn">Advanced ▾</button>
+      <button type="button" id="clearFilters" class="link-btn">Clear</button>
     </div>
-    <div class="filter-row second-row">
-      <select id="filterItem"><option value="">Item</option></select>
-      <select id="filterBN" disabled><option value="">BN</option></select>
-      <button type="button" id="clearFilters" class="clear-link">Clear</button>
-    </div>
-  </form>
+  </div>
+  <!-- Advanced Filter Row: toggled -->
+  <div class="filter-row advanced-row" id="advancedFilters" style="display: none;">
+    <select id="filterCategory"><option value="">Category</option></select>
+    <select id="filterSubCategory" disabled><option value="">Sub-category</option></select>
+    <select id="filterGroup" disabled><option value="">Group</option></select>
+    <select id="filterSubGroup" disabled><option value="">Sub-group</option></select>
+  </div>
+</form>
 
   <div id="exportLinks">
     <a id="downloadCsv">Download CSV</a>

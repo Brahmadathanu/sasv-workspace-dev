@@ -230,7 +230,7 @@
   </div>
 
   <!-- Advanced filters (collapsed by default) -->
-  <div id="advancedFilters" class="filter-row" style="display:none;">
+  <div id="advancedFilters" class="filter-strip" style="display:none;">
     <div class="filter-pair">
       <select id="sSection"><option value="">Section</option></select>
     </div>
@@ -357,6 +357,33 @@
       </div>
     </div>
   </div>
+
+  <!-- Storage Modal -->
+  <div id="storageModal" class="modal-overlay">
+    <div class="modal-box">
+      <h3>Enter Storage Details</h3>
+      <form id="storageForm">
+        <div class="form-row">
+          <label>Storage Qty:
+            <input id="storageQty" name="storage_qty" type="number" step="0.01" min="0" required>
+          </label>
+          <label>UOM:
+            <select id="storageUom" name="storage_qty_uom" required>
+              <option value="">—</option>
+              <option>Kg</option>
+              <option>L</option>
+              <option>Nos</option>
+            </select>
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="storageCancel" class="mode-btn">Cancel</button>
+          <button type="button" id="storageSave"   class="mode-btn">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</body>
 
   <!-- Scripts -->
   <script src="css/flatpickr.min.js"></script>

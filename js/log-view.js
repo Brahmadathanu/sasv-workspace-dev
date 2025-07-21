@@ -41,6 +41,7 @@ const $ = s => document.querySelector(s);
 
 /* ── Element refs ----------------------------------------------------------- */
 const homeBtn  = $('#homeBtn');
+const backBtn  = $('#backBtn');
 const fDate    = $('#filterDate');
 const fSection = $('#filterSection');
 const fSub     = $('#filterSubsection');
@@ -51,6 +52,9 @@ const fBN      = $('#filterBN');
 const fAct     = $('#filterActivity');
 const fStatus  = $('#filterStatus');
 const clearBtn = $('#clearFilters');
+
+const toggleAdvanced   = $('#toggleAdvanced');
+const filtersAdvanced  = $('#filtersAdvanced');
 
 const dlCsv    = $('#downloadCsv');
 const dlPdf    = $('#downloadPdf');
@@ -90,6 +94,7 @@ document.addEventListener('DOMContentLoaded', init);
 async function init () {
   /* Home nav */
   homeBtn.onclick = () => location.href = 'index.html';
+  backBtn.onclick = () => window.history.back();
 
   /* Date picker + mask */
   attachMask(fDate);
@@ -99,13 +104,31 @@ async function init () {
   /* Close details modal */
   btnClose.onclick = () => hide(overlay);
 
-  /* Clear filters */
-  clearBtn.onclick = () => {
-  [fDate,fSection,fSub,fArea,fPlant,fItem,fBN,fAct,fStatus].forEach(el => el.value = '');
-  [fSub,fArea,fPlant,fBN].forEach(el => el.disabled = true);
-  cascadeSub(); cascadeArea(); cascadePlant();
-  loadItems(); loadBN(); loadActivities();  // NEW
+/* Clear filters */
+clearBtn.onclick = () => {
+  // 1) Reset all filter values
+  [fDate, fSection, fSub, fArea, fPlant, fItem, fBN, fAct, fStatus].forEach(el => el.value = '');
+  // 2) Disable cascading selects
+  [fSub, fArea, fPlant, fBN].forEach(el => el.disabled = true);
+  // 3) Re‐populate dependents
+  cascadeSub();
+  cascadeArea();
+  cascadePlant();
+  loadItems();
+  loadBN();
+  loadActivities();
+  // 4) Collapse advanced filters and reset toggle text
+  filtersAdvanced.style.display = 'none';
+  toggleAdvanced.textContent    = 'Advanced ▾';
+  // 5) Reload the table
   loadTable();
+};
+
+  // ─── Wire up Advanced ▾/▴ toggle ────────────────────────────────────
+  toggleAdvanced.onclick = () => {
+    const isOpen = filtersAdvanced.style.display === 'flex';
+    filtersAdvanced.style.display = isOpen ? 'none' : 'flex';
+    toggleAdvanced.textContent    = isOpen ? 'Advanced ▾' : 'Advanced ▴';
   };
 
   /* Export links */

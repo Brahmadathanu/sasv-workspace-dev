@@ -2,6 +2,7 @@
 import { supabase } from './supabaseClient.js';
 
 const homeBtn        = document.getElementById('homeBtn');
+const backBtn        = document.getElementById('backBtn');
 const filterCategory = document.getElementById('filterCategory');
 const filterSubCat   = document.getElementById('filterSubCategory');
 const filterGroup    = document.getElementById('filterGroup');
@@ -9,6 +10,8 @@ const filterSubGrp   = document.getElementById('filterSubGroup');
 const filterItem     = document.getElementById('filterItem');
 const filterBN       = document.getElementById('filterBN');
 const clearBtn       = document.getElementById('clearFilters');
+const toggleAdvanced  = document.getElementById('toggleAdvanced');
+const advancedFilters = document.getElementById('advancedFilters');
 const downloadCsv    = document.getElementById('downloadCsv');
 const downloadPdf    = document.getElementById('downloadPdf');
 const tbody          = document.getElementById('bottledTableBody');
@@ -192,7 +195,7 @@ function clearFilters() {
     filterItem, filterBN
   ].forEach((el, i) => {
     el.value = '';
-    el.disabled = (i !== 0); // only Category remains enabled
+    el.disabled = (i !== 0 && i !== 4); // only Category remains enabled
   });
   populateCategory();
   populateItem();
@@ -306,7 +309,20 @@ async function exportPdf() {
 /** Initialize everything */
 window.addEventListener('DOMContentLoaded', async () => {
   homeBtn.onclick     = () => location.href = 'index.html';
-  clearBtn.onclick    = clearFilters;
+  backBtn.onclick     = () => window.history.back();
+  
+  toggleAdvanced.onclick = () => {
+  const isOpen = advancedFilters.style.display === 'flex';
+  advancedFilters.style.display = isOpen ? 'none' : 'flex';
+  toggleAdvanced.textContent    = isOpen ? 'Advanced ▾' : 'Advanced ▴';
+  };
+
+  clearBtn.onclick = () => {
+  clearFilters();
+  advancedFilters.style.display = 'none';
+  toggleAdvanced.textContent    = 'Advanced ▾';
+  };
+
   downloadCsv.onclick = exportCsv;
   downloadPdf.onclick = exportPdf;
 

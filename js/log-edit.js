@@ -973,16 +973,18 @@ if (!e_section || !e_bn) {
   e_comp.value   = row.completed_on ? formatDMY(new Date(row.completed_on)) : '';
   e_status.value = row.status || '';
 
-  // disallow “In Storage” unless activity is one of the two allowed
-  const inStorageOpt = Array
-    .from(e_status.options)
-    .find(o => o.text === 'In Storage');
-
-  if (inStorageOpt) {
-    inStorageOpt.disabled = 
-      !/^(fg bulk storage|intermediate storage)$/i
-        .test(row.activity.trim());
-  }
+  // ── Restrict status options based on storage activities ────────────────────
+  const isStorageActivity = /^(fg bulk storage|intermediate storage)$/i
+    .test(row.activity.trim());
+  Array.from(e_status.options).forEach(opt => {
+    if (isStorageActivity) {
+      // only allow In Storage or Done
+      opt.disabled = !(opt.value === 'In Storage' || opt.value === 'Done');
+    } else {
+      // for non-storage, only disable In Storage
+      opt.disabled = (opt.value === 'In Storage');
+    }
+  });
 
   /* 10) Helper that recalculates which optional panels are shown ---------------- */
 function reToggleOptionalPanels() {
@@ -1304,6 +1306,46 @@ editForm.onsubmit = async ev => {
                  && actLower !== 'finished goods quality assessment';
   if (needsQty && (!r.qty || !r.uom)) {
     if (!await askConfirm('No Qty/UOM provided. Save anyway?')) {
+      e_status.value = 'Doing';
+      return;
+    }
+  }
+
+  // ── PRE‑FLIGHT PACKAGING‑STOCK CHECK ───────────────────────────────────
+  if (skuActivities.includes(actLower) || actLower === 'transfer to fg store') {
+    // 1) gather all SKU IDs
+    const skuIds = r.rows.map(x => x.skuId);
+
+    // 2) fetch conversion_to_base for each SKU
+    const { data: skuInfos, error: skuErr } = await supabase
+      .from('product_skus')
+      .select('id,conversion_to_base')
+      .in('id', skuIds);
+    if (skuErr) console.error('SKU lookup error:', skuErr);
+
+    // 3) compute total in base units
+    const convMap = Object.fromEntries(
+      (skuInfos || []).map(s => [s.id, s.conversion_to_base])
+    );
+    const totalBaseQty = r.rows.reduce(
+      (sum, x) => sum + x.count * (convMap[x.skuId] || 0),
+      0
+    );
+
+    // 4) fetch available FG bulk stock (base units)
+    const { data: bulk, error: bulkErr } = await supabase
+      .from('fg_bulk_stock')
+      .select('on_hand')
+      .eq('batch_number', e_bn.value)
+      .single();
+    if (bulkErr) console.error('FG stock lookup error:', bulkErr);
+    const available = bulk?.on_hand || 0;
+
+    // 5) abort if we’d go negative
+    if (totalBaseQty > available + 0.001) {
+      await showAlert(
+        `Cannot save Done: requested packaging (${totalBaseQty.toFixed(2)}) > available (${available.toFixed(2)}).`
+      );
       e_status.value = 'Doing';
       return;
     }
