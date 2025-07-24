@@ -58,6 +58,12 @@
       flex-direction: column;
     }
 
+    .locked-field {
+      background: var(--disabled-bg, #f3f3f3);
+      color: var(--disabled-fg, #f3f3f3);
+      cursor: not-allowed;
+    }
+
     /* Buttons */
     .icon-button {
       background: #004d99;
@@ -117,6 +123,14 @@
       text-align: left;
     }
     td input[type="number"] { width: 4em; }
+
+    /* Anything marked inert won’t receive clicks/tab */
+    [inert] {
+      pointer-events: none;
+      user-select: none;
+    }
+    /* Optional: stop background scroll when modal is up */
+    body.modal-open { overflow: hidden; }
   </style>
 </head>
 <body data-theme="system">
@@ -188,14 +202,14 @@
         </select>
       </label>
       <label>Batch Size:
-        <input id="batch_size" name="batch_size" type="number" readonly>
+        <input id="batch_size" name="batch_size" type="number" readonly disabled tabindex="-1" class="locked-field">
       </label>
     </div>
 
     <!-- 5) UOM + Activity -->
     <div class="form-row">
       <label>UOM:
-        <input id="batch_uom" name="batch_uom" type="text" readonly>
+        <input id="batch_uom" name="batch_uom" type="text" readonly disabled tabindex="-1" class="locked-field">
       </label>
       <label>Activity:
         <select id="activity" name="activity" required>
@@ -375,21 +389,50 @@
       </label>
     </div>
 
-    <button type="submit" class="icon-button">Submit Log</button>
-    <button type="button" id="btnSubmitNew" class="icon-button">Submit & New</button>
+    <!-- 12) Form actions -->
+    <div class="form-actions">
+      <button id="btnSubmit"      type="submit"  class="primary-btn">Submit Log</button>
+      <button id="btnSubmitNew"   type="button"  class="primary-btn">Submit &amp; New</button>
+      <button id="btnClear"       type="button"  class="clear-btn push-right">Clear</button>
+    </div>
   </form>
 
   <!-- Dialog overlay -->
-  <div id="dialogOverlay">
-    <div id="dialogBox">
-      <div id="dialogMessage"></div>
-      <div id="dialogButtons">
-        <button id="btnYes">Yes</button>
-        <button id="btnNo">No</button>
-        <button id="btnOk">OK</button>
+    <div id="dialogOverlay">
+     <div id="dialogBox">
+        <div id="dialogMessage"></div>
+        <div id="dialogButtons">
+          <button id="btnYes">Yes</button>
+          <button id="btnNo">No</button>
+          <button id="btnOk">OK</button>
+        </div>
       </div>
     </div>
+
+  <!-- Overlay for “open Doing/In Storage rows” -->
+<div id="openRowsOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1001; align-items:center; justify-content:center;">
+  <div style="background:var(--bg-color); color:var(--text-color); padding:20px; border-radius:8px; max-width:520px; width:90%;">
+    <h3 style="margin-top:0;">Existing Open Logs Found</h3>
+    <p id="openRowsMsg" style="margin:8px 0 12px;"></p>
+    <div style="max-height:220px; overflow:auto;">
+      <table style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Activity</th>
+            <th>Section</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="openRowsTbody"></tbody>
+      </table>
+    </div>
+    <div style="text-align:right; margin-top:14px;">
+      <button id="btnOpenRowGo"   class="icon-button">Go to Update</button>
+      <button id="btnOpenRowSkip" class="icon-button">Continue Anyway</button>
+    </div>
   </div>
+</div>
 
   <!-- 3) Flatpickr JS + plugin -->
   <script src="css/flatpickr.min.js"></script>

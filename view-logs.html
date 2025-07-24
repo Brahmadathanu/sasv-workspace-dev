@@ -71,6 +71,16 @@
   min-width: 80px;
 }
 
+/* Allow children to shrink instead of overflowing/overlapping */
+.filter-pair > * { min-width: 0; }
+
+/* Make the Item/BN pair a fixed 2‑column grid */
+.filter-pair.item-bn {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 90px; /* Item grows, BN stays narrow */
+  gap: 8px;
+}
+
 /* ─── ADVANCED FILTER ROW ──────────────────────────────────────────── */
 .filter-row {
   display: flex;
@@ -180,7 +190,7 @@
   </div>
 
   <!-- Item / BN -->
-  <div class="filter-pair">
+  <div class="filter-pair item-bn">
     <select id="filterItem"><option value="">Item</option></select>
     <select id="filterBN" class="narrow" disabled><option value="">BN</option></select>
   </div>

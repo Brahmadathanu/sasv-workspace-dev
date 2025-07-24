@@ -54,14 +54,26 @@ const plantMap = {};
 
 const sectionMap = {};
 
-const skuActivities = [
-  'bottling',
-  'bottling and labelling',
-  'bottling, labelling and cartoning',
-  'capsule monocarton packing',
-  'monocarton packing',
-  'monocarton packing and cartoning'
-];
+let skuActSet = new Set();
+
+async function loadSkuActivities() {
+  const { data, error } = await supabase
+    .from('event_type_lkp')
+    .select('label')
+    .eq('active', true)
+    .eq('affects_bottled_stock', 1);  // adjust to true if boolean
+
+  if (error) {
+    console.error('loadSkuActivities error:', error);
+    skuActSet = new Set();
+    return;
+  }
+  skuActSet = new Set(
+    (data || [])
+      .map(r => (r.label || '').trim().toLowerCase())
+      .filter(Boolean)
+  );
+}
 
 const $ = sel => document.querySelector(sel);
 
@@ -214,7 +226,7 @@ async function configureDoneModal(activity, item, batch, id) {
     doneLabRefSec.style.display = 'flex';
     document.getElementById('doneLabRef').value = rec?.lab_ref_number || '';
 
-  } else if (skuActivities.includes(act)) {
+  } else if (skuActSet.has(act)) {
     // SKU breakdown
     doneSkuSec.style.display = 'block';
     const { data: prod } = await supabase
@@ -288,12 +300,15 @@ async function configureDoneModal(activity, item, batch, id) {
       });
     }
 
-  } else {
-    // Post-process qty/UOM
-    doneQtySection.style.display = 'flex';
-    document.getElementById('doneQty').value = rec?.qty_after_process ?? '';
-    document.getElementById('doneUOM').value = rec?.qty_uom           || '';
-  }
+  } else if (/stock\s*transfer/i.test(act)) {
+  // Stock Transfer → we collect Storage Qty in a separate modal; hide qty panel here
+  doneQtySection.style.display = 'none';
+} else {
+  // Post-process qty/UOM
+  doneQtySection.style.display = 'flex';
+  document.getElementById('doneQty').value = rec?.qty_after_process ?? '';
+  document.getElementById('doneUOM').value = rec?.qty_uom           || '';
+}
 
   // 4) Prefill Completed On
   if (rec?.completed_on) {
@@ -306,6 +321,7 @@ async function configureDoneModal(activity, item, batch, id) {
  * @param {string} activity
  * @param {string} item
  * @param {string} batch
+ * @param {string} id
  * @returns {Promise<{
  *   choice: string,
  *   completedOn: string,
@@ -315,11 +331,11 @@ async function configureDoneModal(activity, item, batch, id) {
  *   labRef: string|null
  * }>}
  */
-async function promptDone(activity, item, id) {
+async function promptDone(activity, item, batch, id) {
   doneForm.reset();
   // Default Completed On to today
   doneCompletedOn.value = formatDMY(new Date());
-  await configureDoneModal(activity, item, id);
+  await configureDoneModal(activity, item, batch, id);
   show(doneModal);
 
   return new Promise(res => {
@@ -378,7 +394,9 @@ const finish = async choice => {
   const labRef      = document.querySelector('#doneLabRef')?.value.trim() || null;
   let rows = [];
   const actL = activity.toLowerCase().trim();
-  if (skuActivities.includes(actL)) {
+  const isStockTransfer = /stock\s*transfer/i.test(actL);
+
+  if (skuActSet.has(actL)) {
     rows = Array.from(doneSkuBody.querySelectorAll('input'))
       .map(i => ({ skuId:+i.dataset.skuId, packSize:i.dataset.packSize, uom:i.dataset.uom, count:+i.value }))
       .filter(r => r.count>0);
@@ -545,42 +563,59 @@ if (newStat === 'Done') {
     return;
   }
 
-  // ── PRE‑FLIGHT PACKAGING STOCK CHECK ────────────────────────────────
-  if (skuActivities.includes(actL) || actL === 'transfer to fg store') {
-    // 1) Fetch conversion factors for each SKU
-    const skuIds = r.rows.map(x => x.skuId);
-    const { data: skuInfos, error: skuErr } = await supabase
-      .from('product_skus')
-      .select('id,conversion_to_base')
-      .in('id', skuIds);
-    if (skuErr) console.error('SKU lookup error:', skuErr);
+  // Ask for Storage Qty/UOM only for Stock Transfer
+let storageData = null;
+if (isStockTransfer) {
+  storageData = await promptStorage();
+  if (storageData.choice === 'cancel') {
+    sel.value = prevStatus;
+    return;
+  }
+}
 
-    // 2) Sum total in base units
-    const convMap = {};
-    skuInfos.forEach(s => { convMap[s.id] = s.conversion_to_base; });
-    const totalBaseQty = r.rows.reduce(
-      (sum, x) => sum + (x.count * (convMap[x.skuId] || 0)),
-      0
-    );
+   // ── PRE-FLIGHT FG BULK STOCK CHECK (client-side) ─────────────────────
+if (skuActSet.has(actL)) {
+  // 1) Sum pack_size × count (rows are already numbers)
+  const totalUnits = r.rows.reduce(
+    (sum, x) => sum + (Number(x.packSize) || 0) * (Number(x.count) || 0),
+    0
+  );
 
-    // 3) Get available FG bulk stock (base units)
-    const { data: bulk, error: bulkErr } = await supabase
-      .from('fg_bulk_stock')
-      .select('on_hand')
-      .eq('batch_number', bn)
-      .single();
-    if (bulkErr) console.error('FG stock lookup error:', bulkErr);
-    const available = bulk?.on_hand || 0;
+  // 2) Product-level conversion factor to base unit
+  const { data: prod, error: prodErr } = await supabase
+    .from('products')
+    .select('conversion_to_base, uom_base')
+    .eq('item', item)
+    .maybeSingle();
+  if (prodErr) console.error('Product lookup error:', prodErr);
 
-    // 4) Abort if we’d go negative
-    if (totalBaseQty > available + 0.001) {
+  const factor = Number(prod?.conversion_to_base) || 1;
+  const totalBaseQty = totalUnits * factor;
+
+  // 3) Current FG bulk stock row (skip if none)
+  const { data: bulk, error: bulkErr } = await supabase
+    .from('fg_bulk_stock')
+    .select('qty_on_hand')
+    .eq('item', item)
+    .eq('bn', bn)
+    .maybeSingle();
+  if (bulkErr) console.error('FG stock lookup error:', bulkErr);
+
+  if (bulk) {
+    const available = Number(bulk.qty_on_hand) || 0;
+    const EPS = 0.001;
+
+    if (totalBaseQty > available + EPS) {
       await askConfirm(
-        `Cannot mark Done: requested packaging quantity (${totalBaseQty.toFixed(2)}) exceeds available FG stock (${available.toFixed(2)}).`
+        `Cannot mark Done: packaging ${totalBaseQty.toFixed(3)} ${prod?.uom_base || ''} `
+        + `> available ${available.toFixed(3)} ${prod?.uom_base || ''} in FG bulk stock.`
       );
       sel.value = prevStatus;
       return;
     }
   }
+  // If no bulk row, let it pass — DB trigger will ignore/adjust anyway.
+}
 
   // parse & build payload
   const [d, m, y] = r.completedOn.split('-').map(Number);
@@ -591,13 +626,15 @@ if (newStat === 'Done') {
     qty_after_process: null,
     qty_uom: null,
     sku_breakdown: null,
-    lab_ref_number: null
+    lab_ref_number: null,
+    storage_qty       : storageData ? storageData.storageQty     : null,
+    storage_qty_uom   : storageData ? storageData.storageUom     : null
   };
 
   if (actL === 'finished goods quality assessment') {
     upd.lab_ref_number = r.labRef;
   } else if (
-    skuActivities.includes(actL) ||
+    skuActSet.has(actL) ||
     actL === 'transfer to fg store'
   ) {
     upd.sku_breakdown = r.rows
@@ -620,7 +657,7 @@ if (newStat === 'Done') {
   }
 
   // upsert packaging events if needed
-  if (skuActivities.includes(actL) || actL === 'transfer to fg store') {
+  if (skuActSet.has(actL) || actL === 'transfer to fg store') {
     const { data: pe } = await supabase
       .from('packaging_events')
       .upsert(
@@ -1038,6 +1075,7 @@ async function init() {
     if (+d > +today) doneCompletedOn.value = formatDMY(today);
   });
 
+  await loadSkuActivities();
   await loadStatus();
 }
 

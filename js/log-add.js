@@ -50,6 +50,7 @@ const $ = id => document.getElementById(id);
 const form             = $("logForm");
 const homeBtn          = $("homeBtn");
 const btnSubmitNew     = $("btnSubmitNew");
+const btnClear         = $("btnClear");
 
 const sectionSel       = $("section");
 const subSel           = $("sub_section");
@@ -77,8 +78,6 @@ const transferSection  = $("transferSection");
 
 const juiceSection     = $("juiceSection");
 const putamSection     = $("putamSection");
-const rmJuiceQtyInput = $("rm_juice_qty");
-const rmJuiceUomSel   = $("rm_juice_uom");
 
 const skuTableBody      = document.querySelector("#skuTable tbody");
 const transferTableBody = document.querySelector("#transferTable tbody");
@@ -93,35 +92,134 @@ const storageQtyInput   = $("storage_qty");
 const storageUomSel     = $("storage_qty_uom");
 
 /* ─────────────────────────────  STATE  ───────────────────────────────── */
-let lastDurations    = {};
-let currentItemSkus  = [];
-let currentUserEmail = null;
-let dirty            = false;
+let lastDurations     = {};
+let currentItemSkus   = [];
+let currentUserEmail  = null;
+let dirty             = false;
+let skipStockWarnActs = new Set();
+let openRowChecked    = false;
+let shouldSaveDraft   = false;
+let skuActivities     = [];          // raw array of strings (lower‑cased)
+let skuActSet         = new Set();   // quick lookup: skuActSet.has(actNorm)
+let lastWarnedSkuAct  = null;   // remember which SKU activity we already warned for
 
-const skuActivities = [
-  "bottling",
-  "bottling and labelling",
-  "bottling, labelling and cartoning",
-  "capsule monocarton packing",
-  "monocarton packing",
-  "monocarton packing and cartoning"
-];
+// ── STEP1: open-row guard helpers ───────────────────────────────────────
+function saveDraft() {
+  const fd  = new FormData(form);
+  const obj = Object.fromEntries(fd.entries());
+  try { sessionStorage.setItem("addLogDraft", JSON.stringify(obj)); }
+  catch(e){ console.warn("saveDraft failed", e); }
+}
+
+function restoreDraft() {
+  if (sessionStorage.getItem("draft_reason") !== "openRowUpdate") return;
+  const raw = sessionStorage.getItem("addLogDraft");
+  if (!raw) return;
+  try {
+    const obj = JSON.parse(raw);
+    for (const [k, v] of Object.entries(obj)) {
+      const el = form.elements[k];
+      if (!el) continue;
+      if (el.type === "checkbox" || el.type === "radio") {
+        el.checked = !!v;
+      } else {
+        el.value = v;
+      }
+    }
+  } catch(e){ console.warn("restoreDraft failed", e); }
+  updateSections();
+  updateDueDate();
+  shouldSaveDraft = false;
+}
+
+// Activities that use RM juice/kashayam inputs
+const JUICE_RE  = /juice|grinding|kashayam|kashaya bhavana|swarasa bhavana/;
+
+// Map bhavana activities to the ONLY values allowed by the DB CHECK
+const JUICE_MAP = {
+  "kashaya bhavana" : "Kashayam",
+  "swarasa bhavana" : "Swarasam"
+};
+
+const getJuiceValue = (actNorm, formVal) => {
+  const v = (formVal || "").toLowerCase();
+
+  // Any Kashaya* act OR user picked something like Decoction → force Kashayam
+  if (/kashaya/.test(actNorm) || v === "decoction") return "Kashayam";
+
+  // Any Swarasa* act
+  if (/swarasa/.test(actNorm)) return "Swarasam";
+
+  // If activity doesn't need juice, return null
+  return null;
+};
+
+/* ───────────────────────────  OPEN-ROW FETCH  ────────────────────────── */
+async function fetchOpenLogs(item, bn) {
+  if (!item || !bn) return [];
+
+  const { data, error } = await supabase
+    .from("daily_work_log")
+    .select("id, activity, section_id, status")
+    .eq("item", item)
+    .eq("batch_number", bn)
+    .in("status", ["Doing", "In Storage"]);
+
+  if (error) {
+    console.error("fetchOpenLogs error:", error);
+    return [];
+  }
+
+  if (!data || !data.length) return [];
+
+  // Get section names (if you only have ids)
+  const secIds = [...new Set(data.map(r => r.section_id).filter(Boolean))];
+  let secMap = {};
+  if (secIds.length) {
+    const { data: secs } = await supabase
+      .from("sections")
+      .select("id, section_name")
+      .in("id", secIds);
+    secs?.forEach(s => (secMap[s.id] = s.section_name));
+  }
+
+  // Return normalized rows
+  return data.map(r => ({
+    id       : r.id,
+    activity : r.activity,
+    section  : secMap[r.section_id] || r.section_id || "—",
+    status   : r.status
+  }));
+}
 
 /* ─────────────────────────────  MODALS  ──────────────────────────────── */
 const showAlert   = msg => new Promise(res => {
   dialogMessage.textContent = msg;
   btnYes.style.display = btnNo.style.display = "none";
   btnOk.style.display  = "inline-block";
+  form.setAttribute('inert','');
+  document.body.classList.add('modal-open');
   dialogOverlay.style.display = "flex";
-  btnOk.onclick = () => { dialogOverlay.style.display="none"; res(); };
+  btnOk.onclick = () => { dialogOverlay.style.display="none";
+  form.removeAttribute('inert');
+  document.body.classList.remove('modal-open');
+    res(); };
 });
 const askConfirm = msg => new Promise(res => {
   dialogMessage.textContent = msg;
   btnYes.style.display = btnNo.style.display = "inline-block";
   btnOk.style.display  = "none";
+  form.setAttribute('inert','');
+  document.body.classList.add('modal-open');
   dialogOverlay.style.display = "flex";
-  btnYes.onclick = () => { dialogOverlay.style.display="none"; res(true); };
-  btnNo.onclick  = () => { dialogOverlay.style.display="none"; res(false); };
+  btnYes.onclick = () => { dialogOverlay.style.display="none";
+      form.removeAttribute('inert');
+      document.body.classList.remove('modal-open');
+      res(true); };
+  btnNo.onclick  = () => { dialogOverlay.style.display="none";
+      form.removeAttribute('inert');
+      document.body.classList.remove('modal-open');
+      res(false); };
 });
 
 /* ────────────────────────────  UTIL POPULATE  ───────────────────────── */
@@ -172,6 +270,100 @@ async function loadActivities() {
   }
 }
 
+/* ───────────────────────────  LOAD SKU ACTIVITIES  ───────────────────── */
+async function loadSkuActivities() {
+  const { data, error } = await supabase
+    .from("event_type_lkp")
+    .select("label")
+    .eq("active", true)
+    .eq("affects_bottled_stock", 1);  // adjust to true if column is boolean
+
+  if (error) {
+    console.error("loadSkuActivities error:", error);
+    skuActivities = [];
+    skuActSet = new Set();
+    return;
+  }
+
+  skuActivities = (data || [])
+    .map(r => (r.label || "").trim().toLowerCase())
+    .filter(Boolean);
+
+  skuActSet = new Set(skuActivities);
+
+  if (!skuActivities.length) {
+    console.warn("No SKU activities returned from event_type_lkp.");
+  }
+}
+
+/* ─────────────────────  OPEN-ROW MODAL (radio list)  ─────────────────── */
+function showOpenLogsModal(rows) {
+  return new Promise(resolve => {
+    const overlay = $("openRowsOverlay");
+    const tbody   = $("openRowsTbody");
+    const msg     = $("openRowsMsg");
+    const btnGo   = $("btnOpenRowGo");
+    const btnSkip = $("btnOpenRowSkip");
+
+
+    // Build message
+    msg.textContent =
+      "There are existing activities for this Item/Batch that are still open. " +
+      "Would you like to update one of them before adding a new log?";
+
+    // Build rows
+    tbody.innerHTML = rows.map(r => `
+      <tr>
+        <td style="text-align:center;">
+          <input type="radio" name="openRowPick" value="${r.id}">
+        </td>
+        <td>${r.activity}</td>
+        <td>${r.section}</td>
+        <td>${r.status}</td>
+      </tr>
+    `).join("");
+
+    // Ensure none selected initially
+    const clearSelection = () => {
+      [...tbody.querySelectorAll("input[name='openRowPick']")]
+        .forEach(r => (r.checked = false));
+    };
+    clearSelection();
+
+    form.setAttribute('inert','');
+    document.body.classList.add('modal-open');
+
+    overlay.style.display = "flex";
+
+    // Handlers
+    btnGo.onclick = () => {
+      const picked = tbody.querySelector("input[name='openRowPick']:checked");
+      if (!picked) {
+        // Require a selection
+        alert("Please select a row to update.");
+        return;
+      }
+      overlay.style.display = "none";
+
+      form.removeAttribute('inert');
+      document.body.classList.remove('modal-open');
+
+      resolve({ action: "update", id: picked.value });
+    };
+    btnSkip.onclick = () => {
+      overlay.style.display = "none";
+
+      form.removeAttribute('inert');
+      document.body.classList.remove('modal-open');
+
+      resolve({ action: "continue" });
+    };
+
+    // Show
+    overlay.style.display = "flex";
+  });
+}
+
 /* ───────────────────────────  SECTION VISIBILITY  ───────────────────── */
 function updateSections() {
   const actNorm   = (activitySel.value || "").trim().toLowerCase();
@@ -179,11 +371,29 @@ function updateSections() {
   const doing     = statusSel.value === "Doing";
   const inStorage = statusSel.value === "In Storage";
 
-  // — Juice/Decoction (and its RM fields) only when Doing + juice‑type activity
-  juiceSection.style.display =
-    (doing && /juice|grinding|kashayam/.test(actNorm))
-      ? "block"
-      : "none";
+  const isStockTransfer = /stock\s*transfer/i.test(actNorm);
+  const isStockTransferDone = done && isStockTransfer;
+
+// Does this activity belong to the juice group?
+const juiceNeededByAct = JUICE_RE.test(actNorm);
+
+// Do we already have any juice values filled?
+const juiceFilled =
+  !!(form.juice_or_decoction?.value ||
+     form.rm_juice_qty?.value ||
+     form.rm_juice_uom?.value);
+
+// Show rules:
+//  - Doing  → show if activity needs it
+//  - Done   → show ONLY if it needs it AND something is already filled
+const showJuice = (doing && juiceNeededByAct) ||
+                  (done  && juiceNeededByAct && juiceFilled);
+
+juiceSection.style.display = showJuice ? "block" : "none";
+
+// Disable fields when hidden so browser won't validate them
+juiceSection.querySelectorAll("input, select, textarea")
+  .forEach(el => el.disabled = !showJuice);
 
   // — Putam only when Doing + putam‑type activity
   putamSection.style.display =
@@ -191,19 +401,26 @@ function updateSections() {
       ? "block"
       : "none";
 
-  // — Storage section only when In Storage
-  storageSection.style.display = inStorage ? "block" : "none";
+  // — Storage section for In Storage OR Stock transfer (Done)
+  const showStorage = inStorage || isStockTransferDone;
+  storageSection.style.display = showStorage ? "block" : "none";
+  storageSection.querySelectorAll("input, select")
+    .forEach(el => el.disabled = !showStorage);
 
   // — Completed On always when Done
   compOnSection.style.display = done ? "block" : "none";
 
-  // — Post‑processing (Qty/UOM) when Done, but NOT for SKU activities or QA/Transfer
-  postProcSection.style.display =
-    done
-    && !skuActivities.includes(actNorm)
-    && !["transfer to fg store","finished goods quality assessment"].includes(actNorm)
-      ? "block"
-      : "none";
+  // — Post‑processing (Qty/UOM) when Done, but NOT for SKU acts, QA, Transfer or Stock transfer
+  const showPostProc =
+    done &&
+   !skuActSet.has(actNorm) &&
+   actNorm !== "finished goods quality assessment" &&
+   actNorm !== "transfer to fg store" &&
+   !isStockTransfer;
+
+  postProcSection.style.display = showPostProc ? "block" : "none";
+  postProcSection.querySelectorAll("input, select, textarea")
+    .forEach(el => el.disabled = !showPostProc);
 
   // — Lab Ref only when Done + FG QA activity
   labRefSection.style.display =
@@ -213,10 +430,10 @@ function updateSections() {
 
   // — SKU Breakdown only when Done + SKU activity
   skuSection.style.display =
-    (done && skuActivities.includes(actNorm))
+    (done && skuActSet.has(actNorm))
       ? "block"
       : "none";
-  if (done && skuActivities.includes(actNorm)) renderSkuTable();
+  if (done && skuActSet.has(actNorm)) renderSkuTable();
 
   // — Transfer table only when Done + Transfer activity
   transferSection.style.display =
@@ -278,6 +495,55 @@ const updateDueDate = () => {
     dueInput.value = "";
 };
 
+// ───────────────────────────  CLEAR FORM  ─────────────────────────────
+function clearForm() {
+  // 1. Reset the form
+  form.reset();
+
+  // 2. Kill any saved draft unless we explicitly saved it
+  sessionStorage.removeItem("addLogDraft");
+  sessionStorage.removeItem("draft_reason");
+  shouldSaveDraft = false;
+  dirty = false;
+  openRowChecked = false;
+  lastWarnedSkuAct = null;
+
+  // 3. Empty dynamic tables
+  skuTableBody.innerHTML      = "";
+  transferTableBody.innerHTML = "";
+
+  // 4. Hide conditional sections
+  [
+    compOnSection,
+    postProcSection,
+    labRefSection,
+    skuSection,
+    transferSection,
+    juiceSection,
+    putamSection,
+    storageSection
+  ].forEach(sec => sec.style.display = "none");
+
+  // 5. Reset cascading selects & related fields
+  [subSel, areaSel, plantSel, activitySel, batchSel].forEach(el => {
+    el.disabled  = true;
+    el.innerHTML = "";
+  });
+  itemInput.value = "";
+  sizeInput.value = "";
+  uomInput.value  = "";
+
+  // 6. Re-set today’s dates
+  const today = formatDMY(new Date());
+  logDateInput.value = today;
+  startInput.value   = today;
+  dueInput.value     = "";
+  compOnInput.value  = "";
+
+  // 7. Recompute visibility
+  updateSections();
+}
+
 /* ───────────────────────────  CARRY-FORWARD  ────────────────────────── */
 function applyCarryForward() {
   const p = new URLSearchParams(window.location.search);
@@ -310,11 +576,24 @@ window.addEventListener("DOMContentLoaded", async () => {
   const { data:{ user } } = await supabase.auth.getUser();
   if (user) currentUserEmail = user.email;
 
-  homeBtn.onclick      = async()=>{
+  homeBtn.onclick = async()=>{
     if (dirty && !(await askConfirm("Unsaved changes—leave?"))) return;
+    sessionStorage.removeItem("addLogDraft");
+    sessionStorage.removeItem("draft_reason");
     window.location.href = "index.html";
   };
   btnSubmitNew.onclick = e => { e.preventDefault(); handleSubmit(true); };
+
+    if (btnClear) {
+  btnClear.onclick = async e => {
+    e.preventDefault();   // <— stop any default form action
+    if (dirty) {
+      const ok = await askConfirm("Clear all fields?");
+      if (!ok) return;
+    }
+    clearForm();
+  };
+}
 
   [subSel,areaSel,plantSel,batchSel,activitySel]
     .forEach(el=>{ el.disabled=true; el.innerHTML=""; });
@@ -332,6 +611,27 @@ window.addEventListener("DOMContentLoaded", async () => {
       populateDataList(itemList, uniq, "item");
     }
   }
+
+  // ── Build skip list from event_type_lkp -------------------------------
+  {
+    const { data: skipActs, error: skipErr } = await supabase
+      .from("event_type_lkp")
+      .select("label")
+      .eq("is_packaging", true)
+      .eq("active", true)
+      .eq("affects_bulk_stock", 0);
+
+    if (!skipErr && skipActs) {
+      skipStockWarnActs = new Set(
+        skipActs.map(r => (r.label || "").trim().toLowerCase())
+      );
+    } else {
+      console.error("skip list load failed:", skipErr);
+    }
+  }
+
+  await loadSkuActivities();
+  restoreDraft();
   applyCarryForward();
   updateSections();
 });
@@ -387,6 +687,7 @@ areaSel.addEventListener("change", async () => {
 });
 
 itemInput.addEventListener("change", async () => {
+  openRowChecked = false;
   const val = itemInput.value.trim();
   if (!Array.from(itemList.options).some(o=>o.value===val)) {
     await showAlert("Please select a valid item.");
@@ -419,6 +720,7 @@ itemInput.addEventListener("change", async () => {
 });
 
 batchSel.addEventListener("change", async () => {
+  openRowChecked = false;
   sizeInput.value = uomInput.value = "";
   if (!itemInput.value || !batchSel.value) return;
   const { data } = await supabase
@@ -434,6 +736,30 @@ batchSel.addEventListener("change", async () => {
 activitySel.addEventListener("change", async () => {
   const actNorm      = (activitySel.value||"").trim().toLowerCase();
   const isStorageAct = ["intermediate storage","fg bulk storage"].includes(actNorm);
+
+// ─── SKU activity stock-impact warning ─────────────────────────────────
+if (skuActSet.has(actNorm) && lastWarnedSkuAct !== actNorm) {
+  await showAlert(
+    "This activity will affect Bottled SOH and the quantity available for “Transfer to FG Store”. Please make sure this log really needs to be saved."
+  );
+  lastWarnedSkuAct = actNorm;
+} else if (!skuActSet.has(actNorm)) {
+  // switched to a non‑SKU activity → reset so next SKU act will warn again
+  lastWarnedSkuAct = null;
+}
+
+  const autoJ =
+    /kashaya/.test(actNorm) ? "Kashayam" :
+    /swarasa/.test(actNorm) ? "Swarasam" :
+    JUICE_MAP[actNorm] || null;
+
+  // Force correct value for bhavana acts (even if user picked 'Decoction')
+  if (/kashaya|swarasa/.test(actNorm)) {
+    form.juice_or_decoction.value = getJuiceValue(actNorm, form.juice_or_decoction.value);
+  } else if (autoJ && !form.juice_or_decoction.value) {
+    form.juice_or_decoction.value = autoJ;
+  }
+
 
   // ─── Restrict Status options ───────────────────────────────────────────
   Array.from(statusSel.options).forEach(opt => {
@@ -452,7 +778,7 @@ activitySel.addEventListener("change", async () => {
   }
 
   // ─── Finished Goods QA guard (existing logic) ─────────────────────────
-  if (skuActivities.includes(actNorm) && itemInput.value && batchSel.value) {
+  if (skuActSet.has(actNorm) && itemInput.value && batchSel.value) {
     const { data: qa } = await supabase
       .from("daily_work_log")
       .select("id")
@@ -497,7 +823,10 @@ statusSel.addEventListener("change", () => {
 });
 
 startInput.addEventListener("change", updateDueDate);
-form.addEventListener("input", ()=>{ dirty=true; });
+form.addEventListener("input", () => {
+  dirty = true;
+  if (shouldSaveDraft) saveDraft();   // only when we decided to preserve it
+});
 
 /* ──────────────────────────  SUBMIT HANDLER  ─────────────────────────── */
 async function handleSubmit(isNew) {
@@ -507,15 +836,38 @@ async function handleSubmit(isNew) {
     return;
   }
 
+/* ── OPEN-ROW GUARD (same Item+BN still Doing/In Storage) ──────────── */
+if(!openRowChecked) {
+const openRows = await fetchOpenLogs(itemInput.value, batchSel.value);
+if (openRows.length) {
+  const choice = await showOpenLogsModal(openRows);
+if (choice.action === "update") {
+  shouldSaveDraft = true;          // enable one-time saving
+  saveDraft();                     // actually save
+  sessionStorage.setItem("draft_reason", "openRowUpdate"); // mark why
+  window.open(`update-log-status.html?id=${choice.id}`, "_blank");
+  return;
+}
+openRowChecked = true;
+sessionStorage.removeItem("addLogDraft");
+sessionStorage.removeItem("draft_reason");
+shouldSaveDraft = false;
+ }
+}
+
   // 2) Derive flags
   const actNorm    = (activitySel.value || "").trim().toLowerCase();
   const isTransfer = actNorm === "transfer to fg store";
   const isDone     = statusSel.value === "Done";
   const isStorage  = statusSel.value === "In Storage";
+  const isStockTransfer = /stock\s*transfer/i.test(actNorm);
+  const isStockTransferDone = isDone && isStockTransfer;
   const doing      = statusSel.value === "Doing";
+  const juiceVal = getJuiceValue(actNorm, form.juice_or_decoction?.value);
 
-  // 3) Juice/Decoction required when visible
-  if (doing && /juice|grinding|kashayam/.test(actNorm)) {
+const needJuiceSubmit = ((doing || isDone) && JUICE_RE.test(actNorm));
+  // 3) Juice/Decoction required (Doing or Done)
+  if (needJuiceSubmit) {
     if (!form.juice_or_decoction.value) {
       await showAlert("Please select Juice/Decoction type.");
       return;
@@ -567,7 +919,7 @@ async function handleSubmit(isNew) {
   }
 
   // 7) SKU Breakdown must have at least one count > 0
-  if (isDone && skuActivities.includes(actNorm)) {
+  if (isDone && skuActSet.has(actNorm)) {
     const skuInputs = Array.from(skuTableBody.querySelectorAll("input"));
     if (!skuInputs.some(i => +i.value > 0)) {
       await showAlert("Enter at least one SKU count greater than zero.");
@@ -581,6 +933,14 @@ async function handleSubmit(isNew) {
       await showAlert(
         "Storage Qty and UOM are required when Activity is “FG bulk storage” and Status is “In Storage.”"
       );
+      return;
+    }
+  }
+
+ // 8b) Storage Qty & UOM for Stock transfer (Done)
+  if (isDone && isStockTransfer) {
+    if (!storageQtyInput.value || !storageUomSel.value) {
+      await showAlert("Storage Qty and UOM are required for Stock transfer.");
       return;
     }
   }
@@ -617,7 +977,7 @@ async function handleSubmit(isNew) {
     batch_size         : sizeInput.value || null,
     batch_uom          : uomInput.value || null,
     activity           : activitySel.value,
-    juice_or_decoction : form.juice_or_decoction?.value || null,
+    juice_or_decoction : juiceVal,
     specify            : form.specify?.value || null,
     rm_juice_qty       : form.rm_juice_qty?.value ? Number(form.rm_juice_qty.value) : null,
     rm_juice_uom       : form.rm_juice_uom?.value || null,
@@ -628,8 +988,8 @@ async function handleSubmit(isNew) {
     started_on         : toISO(form.started_on?.value) || null,
     due_date           : toISO(form.due_date?.value) || null,
     status             : form.status?.value,
-    storage_qty        : isStorage ? Number(storageQtyInput.value) || null : null,
-    storage_qty_uom    : isStorage ? storageUomSel.value || null : null,
+    storage_qty        : (isStorage || isStockTransferDone) ? Number(storageQtyInput.value) || null : null,
+    storage_qty_uom    : (isStorage || isStockTransferDone) ? storageUomSel.value || null : null,
     completed_on       : toISO(form.completed_on?.value) || null,
     qty_after_process  : null,
     qty_uom            : null,
@@ -640,9 +1000,12 @@ async function handleSubmit(isNew) {
   };
 
   /* ---- Optional Qty/UOM ---------------------------------------------- */
-  const needsQty = isDone
-    && !skuActivities.includes(actNorm)
-    && !["transfer to fg store", "finished goods quality assessment"].includes(actNorm);
+  const needsQty =
+   isDone &&
+   !skuActSet.has(actNorm) &&
+   actNorm !== "finished goods quality assessment" &&
+   actNorm !== "transfer to fg store" &&
+   !isStockTransfer;
 
   if (needsQty) {
     const qv = form.querySelector("[name=\"qty_after_process\"]").value;
@@ -656,7 +1019,7 @@ async function handleSubmit(isNew) {
   }
 
   /* ---- SKU / Transfer breakdown -------------------------------------- */
-  if (isDone && skuActivities.includes(actNorm)) {
+  if (isDone && skuActSet.has(actNorm)) {
     const parts = [...skuTableBody.querySelectorAll("input")].map(i => {
       const cnt = +i.value;
       const sku = currentItemSkus.find(s => s.id == i.dataset.skuId);
@@ -674,59 +1037,57 @@ async function handleSubmit(isNew) {
     row.sku_breakdown = parts.join("; ");
   }
 
-    // ── PRE‑FLIGHT STOCK CHECK (multi‑SKU + tiny‑residual) ───────────────
-  if (isDone && (skuActivities.includes(actNorm) || isTransfer)) {
-    // 1) sum all pack_size × count
-    let totalUnits = 0;
-    const inputs = skuActivities.includes(actNorm)
-      ? skuTableBody.querySelectorAll("input")
-      : transferTableBody.querySelectorAll("input");
-    inputs.forEach(i => {
-      const cnt = Number(i.value) || 0;
-      if (cnt > 0) {
-        const sku = currentItemSkus.find(s => s.id == i.dataset.skuId);
-        totalUnits += sku.pack_size * cnt;
-      }
-    });
-
-    // 2) fetch conversion factor & base‑uom
-    const { data: prod } = await supabase
-      .from("products")
-      .select("conversion_to_base,uom_base")
-      .eq("item", row.item)
-      .single();
-    const factor = prod?.conversion_to_base || 1;
-
-    // 3) compute total in base units
-    const totalBase = totalUnits * factor;
-
-    // 4) fetch current FG‑bulk stock from our view
-    const { data: st } = await supabase
-      .from("fg_bulk_stock")
-      .select("qty_on_hand")
-      .eq("item", row.item)
-      .eq("bn",   row.batch_number)
-      .single();
-    const avail = st?.qty_on_hand ?? 0;
-
-    // 5) allow a tiny epsilon (0.001); otherwise block
-    const eps = 0.001;
-    if (totalBase - avail > eps) {
-      await showAlert(
-        `Cannot package ${totalBase.toFixed(3)} ${prod.uom_base}; ` +
-        `only ${avail.toFixed(3)} ${prod.uom_base} available.`
-      );
-      return;
+  // ── PRE‑FLIGHT STOCK CHECK (bulk view) ──────────────────────────────
+if (
+  isDone &&
+  skuActSet.has(actNorm) &&          // only packaging acts
+  !skipStockWarnActs.has(actNorm)    // except those flagged “no‑bulk”
+) {
+  /* 1) total units requested (pack_size × count) */
+  let totalUnits = 0;
+  skuTableBody.querySelectorAll("input").forEach(i => {
+    const cnt = Number(i.value) || 0;
+    if (cnt > 0) {
+      const sku = currentItemSkus.find(s => s.id == i.dataset.skuId);
+      totalUnits += sku.pack_size * cnt;
     }
-    // if it would leave a teeny bit (<eps), treat it as exact
-    if (avail - totalBase < eps) {
-      // automatically bump the qty to exactly avail so DB ends at zero
-      totalUnits = avail / factor;
+  });
+
+  /* 2) product’s base‑UOM + conversion factor */
+  const { data: prod } = await supabase
+    .from("products")
+    .select("conversion_to_base,uom_base")
+    .eq("item", row.item)
+    .single();
+  const factor  = (prod && Number(prod.conversion_to_base)) || 1;
+  const baseUom = (prod && prod.uom_base) || row.batch_uom || "";
+
+  /* 3) convert to base units */
+  const totalBase = totalUnits * factor;
+
+  /* 4) fetch available bulk stock from the **new view** */
+  const { data: st } = await supabase
+    .from("fg_bulk_stock")
+    .select("qty_on_hand")
+    .eq("item", row.item)
+    .eq("bn", row.batch_number)
+    .single();
+
+  if (st && st.qty_on_hand != null) {
+    const avail = st.qty_on_hand;
+    if (totalBase > avail + 0.0001) {
+      await showAlert(
+        `Cannot package ${totalBase.toFixed(3)} ${baseUom}; ` +
+        `only ${avail.toFixed(3)} ${baseUom} available.`
+      );
+      return;               // abort Submit
     }
   }
+}
 
   /* ---- INSERT --------------------------------------------------------- */
   let newId;
+
   const { data, error } = await supabase
     .from("daily_work_log")
     .insert([row])
@@ -744,13 +1105,13 @@ async function handleSubmit(isNew) {
   newId = data[0].id;
 
   /* ---- Packaging events ---------------------------------------------- */
-  if (isDone && (skuActivities.includes(actNorm) || isTransfer)) {
+  if (isDone && (skuActSet.has(actNorm) || isTransfer)) {
     const { data: pe } = await supabase
       .from("packaging_events")
       .insert([{ work_log_id:newId, event_type:row.activity }])
       .select("id");
     if (pe?.length) {
-      const inputs = skuActivities.includes(actNorm)
+      const inputs = skuActSet.has(actNorm)
         ? skuTableBody.querySelectorAll("input")
         : transferTableBody.querySelectorAll("input");
       const evRows = [...inputs].map(i=>{
@@ -763,7 +1124,8 @@ async function handleSubmit(isNew) {
 
   /* ---- SUCCESS -------------------------------------------------------- */
   await showAlert("Log saved successfully!");
-    // ← RESET dirty flag so “unsaved changes” won’t fire after saving
+
+  // ← RESET dirty flag so “unsaved changes” won’t fire after saving
     dirty = false;
     
   if (isNew) {
@@ -772,10 +1134,7 @@ async function handleSubmit(isNew) {
     p.set("prefill_bn",   row.batch_number);
     window.location.href = `add-log-entry.html?${p.toString()}`;
   } else {
-    form.reset();
-    skuTableBody.innerHTML = transferTableBody.innerHTML = "";
-    [compOnSection,postProcSection,labRefSection,skuSection,transferSection]
-      .forEach(sec=>sec.style.display="none");
+  clearForm();
   }
 }
 

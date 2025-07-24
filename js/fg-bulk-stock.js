@@ -39,19 +39,19 @@ const localDateTime = iso =>
 /* ─── DATA LOAD ------------------------------------------------- */
 async function fetchData() {
   const { data, error } = await supabase
-    .from('fg_bulk_stock')
-    .select('item,bn,qty_on_hand,on_hand_qty_uom,category,subcategory,product_group,subgroup,last_updated');
+  .from('fg_bulk_stock')
+  .select('item,bn,qty_on_hand,on_hand_qty_uom,category_name,subcategory,product_group,subgroup,last_updated');
   if (error) {
     console.error(error);
     tbody.innerHTML = `<tr class="no-data"><td colspan="9">Failed to load data</td></tr>`;
     return;
   }
-  allRows = data || [];
+  allRows = (data || []).filter(r => r.qty_on_hand !== 0);
 }
 
 /* ─── POPULATE CASCADE ----------------------------------------- */
 function populateCategory() {
-  const cats = [...new Set(allRows.map(r => r.category).filter(Boolean))].sort();
+  const cats = [...new Set(allRows.map(r => r.category_name).filter(Boolean))].sort();
   fillSelect(filterCategory, cats, 'Category');
   fillSelect(filterSubCat, [], 'Subcategory'); filterSubCat.disabled = true;
   fillSelect(filterGroup, [], 'Group');        filterGroup.disabled  = true;
@@ -60,7 +60,7 @@ function populateCategory() {
 
 function populateSubCategory() {
   if (!filterCategory.value) return;
-  const subs = [...new Set(allRows.filter(r => r.category === filterCategory.value)
+  const subs = [...new Set(allRows.filter(r => r.category_name === filterCategory.value)
                                   .map(r => r.subcategory).filter(Boolean))].sort();
   fillSelect(filterSubCat, subs, 'Subcategory');
   filterSubCat.disabled = false;
@@ -71,7 +71,7 @@ function populateSubCategory() {
 function populateGroup() {
   if (!filterSubCat.value) return;
   const grs = [...new Set(allRows.filter(r =>
-                 r.category === filterCategory.value &&
+                 r.category_name === filterCategory.value &&
                  r.subcategory === filterSubCat.value)
                .map(r => r.product_group).filter(Boolean))].sort();
   fillSelect(filterGroup, grs, 'Group');
@@ -82,7 +82,7 @@ function populateGroup() {
 function populateSubGroup() {
   if (!filterGroup.value) return;
   const sgs = [...new Set(allRows.filter(r =>
-                 r.category === filterCategory.value &&
+                 r.category_name === filterCategory.value &&
                  r.subcategory === filterSubCat.value &&
                  r.product_group === filterGroup.value)
                .map(r => r.subgroup).filter(Boolean))].sort();
@@ -92,7 +92,7 @@ function populateSubGroup() {
 
 function populateItem() {
   let rows = allRows;
-  if (filterCategory.value) rows = rows.filter(r => r.category === filterCategory.value);
+  if (filterCategory.value) rows = rows.filter(r => r.category_name === filterCategory.value);
   if (filterSubCat.value)   rows = rows.filter(r => r.subcategory === filterSubCat.value);
   if (filterGroup.value)    rows = rows.filter(r => r.product_group === filterGroup.value);
   if (filterSubGroup.value) rows = rows.filter(r => r.subgroup === filterSubGroup.value);
@@ -115,7 +115,7 @@ function renderTable() {
   let rows = allRows
     .filter(r => !filterItem.value     || r.item === filterItem.value)
     .filter(r => !filterBN.value       || r.bn === filterBN.value)
-    .filter(r => !filterCategory.value || r.category === filterCategory.value)
+    .filter(r => !filterCategory.value || r.category_name === filterCategory.value)
     .filter(r => !filterSubCat.value   || r.subcategory === filterSubCat.value)
     .filter(r => !filterGroup.value    || r.product_group === filterGroup.value)
     .filter(r => !filterSubGroup.value || r.subgroup === filterSubGroup.value);
@@ -146,7 +146,7 @@ function renderTable() {
         <td>${r.bn}</td>
         <td>${r.qty_on_hand}</td>
         <td>${r.on_hand_qty_uom}</td>
-        <td>${r.category||''}</td>
+        <td>${r.category_name||''}</td>
         <td>${r.subcategory||''}</td>
         <td>${r.product_group||''}</td>
         <td>${r.subgroup||''}</td>

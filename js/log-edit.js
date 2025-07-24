@@ -83,6 +83,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     .flatpickr-confirm, .flatpickr-confirm::before {
       display: none !important;
     }
+    /* make locked fields visibly greyed */
+    .locked{
+      pointer-events:none;
+      background:#eee !important;
+      color:#666 !important;
+      opacity:.7;
+    }
   `;
   document.head.append(css);
 
@@ -126,6 +133,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const fItem       = document.getElementById('fItem');
   const fBN         = document.getElementById('fBN');
   const fActivity   = document.getElementById('fActivity');
+  const fStatus     = document.getElementById('fStatus');
   const clearFull   = document.getElementById('clearFull');
 
   // Done-modal refs
@@ -188,17 +196,38 @@ document.addEventListener('DOMContentLoaded', async () => {
   const confirmYes       = document.getElementById('confirmYes');
   const confirmNo        = document.getElementById('confirmNo');
 
-  // Packaging activities (lowercased)
-  const skuActivities = [
-    'bottling',
-    'bottling and labelling',
-    'bottling, labelling and cartoning',
-    'capsule monocarton packing',
-    'monocarton packing',
-    'monocarton packing and cartoning'
-  ];
-
+// Dynamic packaging activities (lowercased)
   const sectionMap = {};
+  let skuActivities = [];     // filled by loadSkuActivities()
+  let skuActSet     = new Set();
+// Duration of current activity (business days) for auto due-date calc
+let currentActDuration = null;
+
+// ───────────────────────────  LOAD SKU ACTIVITIES (dynamic)  ───────────────────────────
+async function loadSkuActivities() {
+  const { data, error } = await supabase
+    .from('event_type_lkp')
+    .select('label')
+    .eq('active', true)
+    .eq('affects_bottled_stock', 1);   // change to true if column is boolean
+
+  if (error) {
+    console.error('loadSkuActivities error:', error);
+    skuActivities = [];
+    skuActSet     = new Set();
+    return;
+  }
+
+  skuActivities = (data || [])
+    .map(r => (r.label || '').trim().toLowerCase())
+    .filter(Boolean);
+
+  skuActSet = new Set(skuActivities);
+
+  if (!skuActivities.length) {
+    console.warn('No SKU activities returned from event_type_lkp.');
+  }
+}
 
 /* ────────────────────────────────────────────────────────────────────────────
    BASIC MODAL HELPERS
@@ -221,13 +250,16 @@ function askConfirm(msg) {
 /* ── NEW: simple OK-only alert ─────────────────────────────────────────── */
 function showAlert(msg) {
   confirmText.textContent = msg;
-  /* hide Yes / No, show overlay */
   confirmYes.style.display = 'none';
   confirmNo.style.display  = 'none';
   showModal(confirmModal);
   return new Promise(res => {
-    /* dismiss on any click inside the modal */
-    confirmModal.onclick = () => { hideModal(confirmModal); res(); };
+    const handler = () => {
+      hideModal(confirmModal);
+      confirmModal.removeEventListener('click', handler);
+      res();
+    };
+    confirmModal.addEventListener('click', handler, { once: true });
   });
 }
 
@@ -254,6 +286,15 @@ function updateEditSections() {
 
   //Storage panel
   storageSection.style.display = inStorage ? 'flex' : 'none';
+}
+
+function recalcDueDate() {
+  if (currentActDuration == null || !e_start.value) {
+    return; // keep whatever is in e_due
+  }
+  const start = parseDMY(e_start.value);
+  const due   = addBusinessDays(start, Number(currentActDuration));
+  e_due.value = formatDMY(due);
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -290,6 +331,16 @@ async function clearPackaging(workLogId) {
     .in('id', ids);
 }
 
+// helper to detect unique-constraint failures
+  const isDuplicateError = err =>
+    err.code === '23505' ||
+    /duplicate key/i.test(err.message || '') ||
+    /violates unique constraint/i.test(err.message || '');
+    
+// helper to detect our ledger negative‑stock trigger message
+const isFgNegError = err =>
+  /would make stock negative/i.test(err?.message || '');
+
 // ────────────────────────────────────────────────────────────────────────────
   // LOAD & RENDER FULL EDIT TABLE
   // ────────────────────────────────────────────────────────────────────────────
@@ -302,6 +353,7 @@ let q = supabase
   .select(`
     id,
     log_date,
+    created_at,
     item,
     batch_number,
     batch_size,
@@ -356,7 +408,15 @@ let q = supabase
         const cbn = a.batch_number.localeCompare(b.batch_number, undefined, { numeric: true });
         if (cbn !== 0) return cbn;
       }
-      // d) Plant natural α
+
+      // d) created_at ascending
+      if (a.created_at && b.created_at) {
+        const ca = new Date(a.created_at), cb = new Date(b.created_at);
+        if (ca < cb) return -1;
+        if (ca > cb) return  1;
+      }
+
+      // e) Plant natural α
       const pa = a.plant_machinery?.plant_name || '';
       const pb = b.plant_machinery?.plant_name || '';
       return coll.compare(pa, pb);
@@ -407,19 +467,8 @@ let q = supabase
   // ────────────────────────────────────────────────────────────────────────────
   // INITIALIZE FILTERS & FIRST LOAD
   // ────────────────────────────────────────────────────────────────────────────
-async function initFull() {
+  async function initFull() {
   // ───────── Element references ────────────────────────────────────────────
-  const fLogDate    = document.getElementById('fLogDate');
-  const fSection    = document.getElementById('fSection');
-  const fSub        = document.getElementById('fSub');
-  const fArea       = document.getElementById('fArea');
-  const fItem       = document.getElementById('fItem');
-  const fBN         = document.getElementById('fBN');
-  const fActivity   = document.getElementById('fActivity');
-  const fStatus     = document.getElementById('fStatus');
-  const clearFull   = document.getElementById('clearFull');
-  const homeBtn     = document.getElementById('homeBtn');
-
   const toggleAdvancedFull   = document.getElementById('toggleAdvancedFull');
   const advancedFiltersFull  = document.getElementById('advancedFiltersFull');
 
@@ -577,7 +626,7 @@ clearFull.onclick = () => {
   // ────────────────────────────────────────────────────────────────────────────
   // “DONE?” MODAL CONFIGURATION (unchanged)
   // ────────────────────────────────────────────────────────────────────────────
-  async function configureDoneModal(activity, item, batch) {
+  async function configureDoneModal(activity, item, batch, id) {
     const act = activity.trim().toLowerCase();
     doneQtySection.style.display =
     doneLabRefSection.style.display =
@@ -586,62 +635,120 @@ clearFull.onclick = () => {
     doneSkuBody.innerHTML   = '';
     doneTransBody.innerHTML = '';
 
-    if (act === 'finished goods quality assessment') {
-      doneLabRefSection.style.display = 'flex';
+if (act === 'finished goods quality assessment') {
+  doneLabRefSection.style.display = 'flex';
+}
+else if (skuActSet.has(act)) {
+  doneSkuSection.style.display = 'block';
+
+  // 1) In parallel, load the product record & any existing packaging_event
+  const [{ data: prod }, { data: pe }] = await Promise.all([
+    supabase
+      .from('products')
+      .select('id')
+      .eq('item', item)
+      .single(),
+    supabase
+      .from('packaging_events')
+      .select('id')
+      .eq('work_log_id', id)
+      .maybeSingle()    // returns null if no event yet
+  ]);
+
+  // 2) If we have a product, grab its active SKUs
+  if (prod) {
+    const { data: skus } = await supabase
+      .from('product_skus')
+      .select('id,pack_size,uom')
+      .eq('product_id', prod.id)
+      .eq('is_active', true)
+      .order('pack_size');
+
+    // 3) If there is an existing packaging_event, get its SKUs/counts
+    let existing = [];
+    if (pe?.id) {
+      ({ data: existing } = await supabase
+        .from('event_skus')
+        .select('sku_id,count')
+        .eq('packaging_event_id', pe.id));
     }
-    else if (skuActivities.includes(act)) {
-      doneSkuSection.style.display = 'block';
-      const { data: prod } = await supabase
-        .from('products').select('id').eq('item', item).single();
-      if (prod) {
-        const { data: skus } = await supabase
-          .from('product_skus')
-          .select('id,pack_size,uom')
-          .eq('product_id', prod.id)
-          .eq('is_active', true)
-          .order('pack_size');
-        skus.forEach(sku => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${sku.pack_size}</td>
-            <td>${sku.uom}</td>
-            <td><input type="number" min="0"
-                       data-sku-id="${sku.id}"
-                       data-pack-size="${sku.pack_size}"
-                       data-uom="${sku.uom}"></td>`;
-          doneSkuBody.append(tr);
-        });
-      }
+
+    // 4) Render one row per SKU, pre‑filling the previous count if present
+    skus.forEach(sku => {
+      const prev = existing.find(e => e.sku_id === sku.id);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${sku.pack_size}</td>
+        <td>${sku.uom}</td>
+        <td>
+          <input
+            type="number"
+            min="0"
+            data-sku-id="${sku.id}"
+            data-pack-size="${sku.pack_size}"
+            data-uom="${sku.uom}"
+            value="${prev?.count || ''}"
+          >
+        </td>`;
+      doneSkuBody.append(tr);
+    });
+  }
+}
+  else if (act === 'transfer to fg store') {
+    doneTransSection.style.display = 'block';
+
+    // 1) What SKUs *could* be transferred (from on-hand)
+    const { data: stocked } = await supabase
+      .from('bottled_stock_on_hand')
+      .select('sku_id,pack_size,uom,on_hand')
+      .eq('batch_number', batch);
+
+    // 2) What *has* already been transferred?
+    const { data: pe } = await supabase
+      .from('packaging_events')
+      .select('id')
+      .eq('work_log_id', id)
+      .single();
+
+    let existing = [];
+    if (pe) {
+      ({ data: existing } = await supabase
+        .from('event_skus')
+        .select('sku_id,count')
+        .eq('packaging_event_id', pe.id));
     }
-    else if (act === 'transfer to fg store') {
-      doneTransSection.style.display = 'block';
-      const { data } = await supabase
-        .from('bottled_stock_on_hand')
-        .select('sku_id,pack_size,uom,on_hand')
-        .eq('batch_number', batch);
-      (data || []).forEach(r => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${r.pack_size}</td>
-          <td>${r.uom}</td>
-          <td>${r.on_hand}</td>
-          <td><input type="number" min="0" max="${r.on_hand}"
-                     data-sku-id="${r.sku_id}"
-                     data-pack-size="${r.pack_size}"
-                     data-uom="${r.uom}"></td>`;
-        doneTransBody.append(tr);
-      });
-    }
+
+    // 3) Render one row per stocked SKU, pre‑filling count
+    stocked.forEach(r => {
+      const prev = existing.find(e => e.sku_id === r.sku_id);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${r.pack_size}</td>
+        <td>${r.uom}</td>
+        <td>${r.on_hand}</td>
+        <td>
+          <input type="number"
+                 min="0"
+                 max="${r.on_hand}"
+                 data-sku-id="${r.sku_id}"
+                 data-pack-size="${r.pack_size}"
+                 data-uom="${r.uom}"
+                 value="${prev?.count || ''}">
+        </td>`;
+      doneTransBody.append(tr);
+    });
+  }
+
     else {
       doneQtySection.style.display = 'flex';
       doneForm.qty_after_process_uom.value = '';
     }
   }
 
-  async function promptDone(activity, item, batch) {
+  async function promptDone(activity, item, batch, id) {
     doneForm.reset();
     doneCompletedOn.value = formatDMY(new Date());
-    await configureDoneModal(activity, item, batch);
+    await configureDoneModal(activity, item, batch, id);
     showModal(doneModal);
     return new Promise(resolve => {
       doneCancel.onclick = () => { hideModal(doneModal); resolve({ choice: 'cancel' }); };
@@ -651,7 +758,7 @@ clearFull.onclick = () => {
         if (act === 'finished goods quality assessment') {
           labRef = doneForm.lab_ref_number.value.trim();
         }
-        else if (skuActivities.includes(act)) {
+        else if (skuActSet.has(act)) {
           rows = Array.from(doneSkuBody.querySelectorAll('input')).map(i => ({
             skuId: i.dataset.skuId,
             count: i.value,
@@ -684,23 +791,17 @@ async function saveStatusUpdate(id, sel) {
   const newStat   = sel.value;
   const actLower  = activity.trim().toLowerCase();
 
-  // helper to detect unique-constraint failures
-  const isDuplicateError = err =>
-    err.code === '23505' ||
-    /duplicate key/i.test(err.message || '') ||
-    /violates unique constraint/i.test(err.message || '');
-
   // If they clicked “Done?”, collect the post-done info first
   let doneData = null;
   if (newStat === 'Done') {
-    doneData = await promptDone(activity, sel.dataset.item, sel.dataset.bn);
+    doneData = await promptDone(activity, sel.dataset.item, sel.dataset.bn, id);
     if (doneData.choice === 'cancel') {
       sel.value = 'Doing';
       return;
     }
 
     // enforce qty/UOM when required
-    const needsQty = !skuActivities.includes(actLower)
+    const needsQty = !skuActSet.has(actLower)
                    && actLower !== 'transfer to fg store'
                    && actLower !== 'finished goods quality assessment';
     if (needsQty && (!doneData.qty || !doneData.uom)) {
@@ -716,15 +817,15 @@ async function saveStatusUpdate(id, sel) {
     status            : newStat,
     completed_on      : newStat === 'Done' ? toISO(doneData.completedOn) : null,
     qty_after_process : (newStat === 'Done'
-                         && !skuActivities.includes(actLower))
+                         && !skuActSet.has(actLower))
                          ? Number(doneData.qty) || null
                          : null,
     qty_uom           : (newStat === 'Done'
-                         && !skuActivities.includes(actLower))
+                         && !skuActSet.has(actLower))
                          ? doneData.uom || null
                          : null,
     sku_breakdown     : (newStat === 'Done'
-                         && (skuActivities.includes(actLower)
+                         && (skuActSet.has(actLower)
                              || actLower === 'transfer to fg store'))
                          ? doneData.rows
                              .map(r => `${r.packSize} ${r.uom} x ${r.count}`)
@@ -736,6 +837,44 @@ async function saveStatusUpdate(id, sel) {
                          : null
   };
 
+  // Client-side FG bulk stock ceiling for SKU activities
+if (newStat === 'Done' && skuActSet.has(actLower)) {
+  // 1) product factor
+  const { data: prod } = await supabase
+    .from('products')
+    .select('conversion_to_base,uom_base')
+    .eq('item', sel.dataset.item)
+    .single();
+
+  const factor = Number(prod?.conversion_to_base) || 1;
+
+  // 2) total in base units
+  let totalUnits = 0;
+  doneData.rows.forEach(r => { totalUnits += (Number(r.packSize)||0) * (Number(r.count)||0); });
+  const totalBaseQty = totalUnits * factor;
+
+  // 3) current FG bulk
+  const { data: stock } = await supabase
+    .from('fg_bulk_stock')
+    .select('qty_on_hand')
+    .eq('item', sel.dataset.item)
+    .eq('bn', sel.dataset.bn)
+    .maybeSingle();
+
+  if (stock) {
+    const available = Number(stock.qty_on_hand) || 0;
+    const EPS = 0.001;
+    if (totalBaseQty > available + EPS) {
+      await showAlert(
+        `Cannot save Done: packaging ${totalBaseQty.toFixed(3)} ${prod?.uom_base||''} `
+        + `> available ${available.toFixed(3)} ${prod?.uom_base||''}.`
+      );
+      sel.value = 'Doing';
+      return;
+    }
+  }
+}
+
   // ── 1) Attempt to update the work‐log row ───────────────────────────
   const { data: updatedRow, error: updErr } = await supabase
     .from('daily_work_log')
@@ -744,24 +883,28 @@ async function saveStatusUpdate(id, sel) {
 
   // ── 2) If the DB rejected it, show alert & bail (modal stays open) ─
   if (updErr) {
-    await showAlert(
-      isDuplicateError(updErr)
-        ? duplicateMessage({
-            item         : sel.dataset.item,
-            batch_number : sel.dataset.bn,
-            activity     : activity,
-            log_date     : '(unchanged)'
-          })
-        : `Unexpected error: ${updErr.message || 'see console'}`
-    );
-    // roll the dropdown back to its previous state
-    sel.value = newStat === 'Done' ? 'Doing' : 'Done';
-    return;
+   if (isFgNegError(updErr)) {
+     await showAlert(updErr.message);        // show trigger text verbatim
+     sel.value = 'Doing';                    // roll back
+     return;
+   }
+   await showAlert(
+     isDuplicateError(updErr)
+       ? duplicateMessage({
+           item         : sel.dataset.item,
+           batch_number : sel.dataset.bn,
+           activity     : activity,
+           log_date     : '(unchanged)'
+         })
+       : `Unexpected error: ${updErr.message || 'see console'}`
+   );
+   sel.value = newStat === 'Done' ? 'Doing' : 'Done';
+   return;
   }
 
   // ── 3) On real success, upsert packaging events if needed ────────────
   if (newStat === 'Done'
-      && (skuActivities.includes(actLower)
+      && (skuActSet.has(actLower)
           || actLower === 'transfer to fg store')) {
     const { data: pe } = await supabase
       .from('packaging_events')
@@ -794,20 +937,19 @@ async function saveStatusUpdate(id, sel) {
 
   // ── 4) Finally show success, close modal & refresh ────────────────────
   editSuccess.style.display = 'block';
-  setTimeout(() => {
+    setTimeout(() => {
     editSuccess.style.display = 'none';
     hideModal(editModal);
     loadFull();
-  }, 1200)};
+  }, 1200);
+}
 
 // ────────────────────────────────────────────────────────────────────────────
-// OPEN & POPULATE EDIT MODAL   ← replace the whole old block with this one
+// OPEN & POPULATE EDIT MODAL
 // ────────────────────────────────────────────────────────────────────────────
 async function openEditModal(id) {
-  /* 1) Make the modal visible before we start poking it ------------------------- */
-  showModal(editModal);
 
-  /* 2) local shortcuts – they stay scoped to this function----------------------- */
+  // 2) Local refs inside the modal
   const e_section = editModal.querySelector('#e_section');
   const e_sub     = editModal.querySelector('#e_sub');
   const e_area    = editModal.querySelector('#e_area');
@@ -815,103 +957,119 @@ async function openEditModal(id) {
   const e_item    = editModal.querySelector('#e_item');
   const e_bn      = editModal.querySelector('#e_bn');
 
-  console.log('bn‑lookup:', e_bn);
+  if (!e_section || !e_bn) {
+    console.error('Missing edit‑modal elements:', { e_section, e_bn });
+    hideModal(editModal);
+    return;
+  }
 
-if (!e_section || !e_bn) {
-  console.error('Missing edit‑modal elements:', { e_section, e_bn });
-  hideModal(editModal);
-  return;
-}
-
-  /* 3) Download the work‑log row ------------------------------------------------ */
+  // 3) Fetch the row
   const { data: row, error } = await supabase
     .from('daily_work_log')
     .select('*')
     .eq('id', id)
     .single();
-  if (error) { console.error(error); return; }
-  if (!row)  return;
+  if (error || !row) { console.error(error); hideModal(editModal); return; }
 
-  /* 4) Basic fields ------------------------------------------------------------- */
-  e_id.value     = row.id;
-  e_item.value   = row.item      || '';
-  e_size.value   = row.batch_size|| '';
-  e_uom.value    = row.batch_uom || '';
-  e_bn.disabled  = true;   // will be enabled after populate() below
+  // Look up duration_days; fall back to existing due-start diff if needed
+currentActDuration = null;
+  try {
+    const { data: actRow } = await supabase
+      .from('activities')            // <== adjust table/column names to yours
+      .select('duration_days')
+      .eq('activity_name', row.activity)
+      .maybeSingle();
 
-  /* 5) SECTION → SUB → AREA → PLANT (with cascading) --------------------------- */
-  // SECTION
-  {
-    const { data: secs } = await supabase
-      .from('sections')
-      .select('id,section_name')
-      .order('section_name');
-    populate(e_section, secs, 'id', 'section_name', 'Select Section');
-    e_section.value = row.section_id || '';
-  }
+    if (actRow?.duration_days != null) {
+      currentActDuration = Number(actRow.duration_days);
+    } else if (row.started_on && row.due_date) {
+      // fallback: compute diff in business days between stored start & due
+      const s = new Date(row.started_on);
+      const d = new Date(row.due_date);
+      let diff = 0;
+      const day = new Date(s);
+      while (day < d) {
+        day.setDate(day.getDate() + 1);
+        if (day.getDay() !== 0) diff++;
+      }
+      currentActDuration = diff || null;
+    }
+} catch (e) {
+  console.error('duration lookup failed:', e);
+}
 
-  // SUB‑SECTION
-  async function loadSubs(sectionId, preselect = null) {
+  // 4) Basic fields
+  e_id.value   = row.id;
+  e_item.value = row.item || '';
+  e_size.value = row.batch_size || '';
+  e_uom.value  = row.batch_uom || '';
+  e_bn.disabled = true;
+
+  // 5) Section → Sub → Area → Plant cascades
+  const { data: secs } = await supabase
+    .from('sections')
+    .select('id,section_name')
+    .order('section_name');
+  populate(e_section, secs || [], 'id', 'section_name', 'Select Section');
+  e_section.value = row.section_id || '';
+
+  async function loadSubs(sectionId, pre = null) {
     if (!sectionId) {
       populate(e_sub, [], '', '', 'Select Sub‑section');
       e_sub.disabled = true;
       return;
     }
-    const { data: subs } = await supabase
+    const { data } = await supabase
       .from('subsections')
       .select('id,subsection_name')
       .eq('section_id', sectionId)
       .order('subsection_name');
-    populate(e_sub, subs, 'id', 'subsection_name', 'Select Sub‑section');
+    populate(e_sub, data || [], 'id', 'subsection_name', 'Select Sub‑section');
     e_sub.disabled = false;
-    if (preselect) e_sub.value = preselect;
+    if (pre) e_sub.value = pre;
   }
 
-  // AREA
-  async function loadAreas(sectionId, subId, preselect = null) {
+  async function loadAreas(sectionId, subId, pre = null) {
     if (!sectionId || !subId) {
       populate(e_area, [], '', '', 'Select Area');
       e_area.disabled = true;
       return;
     }
-    const { data: areas } = await supabase
+    const { data } = await supabase
       .from('areas')
       .select('id,area_name')
       .eq('section_id', sectionId)
       .eq('subsection_id', subId)
       .order('area_name');
-    populate(e_area, areas, 'id', 'area_name', 'Select Area');
+    populate(e_area, data || [], 'id', 'area_name', 'Select Area');
     e_area.disabled = false;
-    if (preselect) e_area.value = preselect;
+    if (pre) e_area.value = pre;
   }
 
-  // PLANT
-  async function loadPlants(areaId, preselect = null) {
+  async function loadPlants(areaId, pre = null) {
     if (!areaId) {
       populate(e_plant, [], '', '', 'Select Plant');
       e_plant.disabled = true;
       return;
     }
-    const { data: plants } = await supabase
+    const { data } = await supabase
       .from('plant_machinery')
       .select('id,plant_name')
       .eq('area_id', areaId)
       .eq('status', 'O')
       .order('plant_name');
-    populate(e_plant, plants, 'id', 'plant_name', 'Select Plant');
+    populate(e_plant, data || [], 'id', 'plant_name', 'Select Plant');
     e_plant.disabled = false;
-    if (preselect) e_plant.value = preselect;
+    if (pre) e_plant.value = pre;
   }
 
-  /* prime the three dropdowns with the record’s stored values */
   await loadSubs  (row.section_id,    row.subsection_id);
   await loadAreas (row.section_id,    row.subsection_id, row.area_id);
   await loadPlants(row.area_id,       row.plant_id);
 
-  /* cascades */
   e_section.onchange = () => {
     loadSubs(e_section.value).then(() => {
-      loadAreas(e_section.value, e_sub.value);   // e_sub.value may be ''
+      loadAreas(e_section.value, e_sub.value);
       loadPlants(null);
     });
   };
@@ -921,191 +1079,223 @@ if (!e_section || !e_bn) {
   };
   e_area.onchange = () => loadPlants(e_area.value);
 
-  /* 6)  ITEM → BN --------------------------------------------------------------- */
+  // 6) Item → BN
   const allItems = (await supabase
-      .from('bmr_details')
-      .select('item', { distinct: true })
-      .order('item')
-    ).data;
+    .from('bmr_details')
+    .select('item', { distinct: true })
+    .order('item')).data || [];
   populate(e_item, allItems, 'item', 'item', 'Select Item');
   e_item.value = row.item;
 
-  async function loadBNs(item, preselect = null) {
+  async function loadBNs(item, pre = null) {
     if (!item) {
       populate(e_bn, [], '', '', 'Select Batch Number');
       e_bn.disabled = true;
       return;
     }
-    const uniqBNs = [
-      ...new Set(
-        (await supabase
-          .from('bmr_details')
-          .select('bn')
-          .eq('item', item)).data.map(r => r.bn)
-      )
-    ].map(bn => ({ bn }));
-    populate(e_bn, uniqBNs, 'bn', 'bn', 'Select Batch Number');
+    const bns = (await supabase
+      .from('bmr_details')
+      .select('bn')
+      .eq('item', item)
+      .order('bn')).data || [];
+    const uniq = [...new Set(bns.map(r => r.bn))].map(bn => ({ bn }));
+    populate(e_bn, uniq, 'bn', 'bn', 'Select Batch Number');
     e_bn.disabled = false;
-    if (preselect) e_bn.value = preselect;
+    if (pre) e_bn.value = pre;
   }
   await loadBNs(row.item, row.batch_number);
   e_item.onchange = () => loadBNs(e_item.value);
 
-  /* 7) Activity dropdown (single‑option ‑ we don’t change it here) -------------- */
+  // 7) Activity (display only)
   e_activity.innerHTML = `<option>${row.activity}</option>`;
   e_activity.value     = row.activity;
 
-  /* 8) Juice / Putam / Storage prelim values ----------------------------------- */
+  // 8) Misc fields
   e_juice.value       = row.juice_or_decoction || '';
   e_specify.value     = row.specify            || '';
   e_rmJuiceQty.value  = row.rm_juice_qty ?? '';
   e_rmJuiceUom.value  = row.rm_juice_uom || '';
   e_count.value       = row.count_of_saravam ?? '';
-  e_fuel.value        = row.fuel            || '';
-  e_fuel_under.value  = row.fuel_under      || '';
-  e_fuel_over.value   = row.fuel_over       || '';
+  e_fuel.value        = row.fuel || '';
+  e_fuel_under.value  = row.fuel_under || '';
+  e_fuel_over.value   = row.fuel_over  || '';
   e_storageQty.value  = row.storage_qty     ?? '';
   e_storageUom.value  = row.storage_qty_uom || '';
 
-  /* 9) Dates & Status ----------------------------------------------------------- */
   e_start.value  = row.started_on   ? formatDMY(new Date(row.started_on))   : '';
   e_due.value    = row.due_date     ? formatDMY(new Date(row.due_date))     : '';
   e_comp.value   = row.completed_on ? formatDMY(new Date(row.completed_on)) : '';
   e_status.value = row.status || '';
 
-  // ── Restrict status options based on storage activities ────────────────────
-  const isStorageActivity = /^(fg bulk storage|intermediate storage)$/i
-    .test(row.activity.trim());
+  // Recalc due when start changes
+  e_start.addEventListener('change', recalcDueDate);
+  e_start.addEventListener('blur',   recalcDueDate);
+  e_start.addEventListener('input',  recalcDueDate);
+  if (e_start._flatpickr) {
+    e_start._flatpickr.config.onChange.push(recalcDueDate);
+  }
+  // run once now (after duration is known)
+  recalcDueDate();
+
+  // 9) Restrict status options if storage activity
+  const isStorageAct = /^(fg bulk storage|intermediate storage)$/i.test(row.activity.trim());
   Array.from(e_status.options).forEach(opt => {
-    if (isStorageActivity) {
-      // only allow In Storage or Done
-      opt.disabled = !(opt.value === 'In Storage' || opt.value === 'Done');
-    } else {
-      // for non-storage, only disable In Storage
-      opt.disabled = (opt.value === 'In Storage');
-    }
+    opt.disabled = isStorageAct
+      ? !(opt.value === 'In Storage' || opt.value === 'Done')
+      : (opt.value === 'In Storage');
   });
 
-  /* 10) Helper that recalculates which optional panels are shown ---------------- */
-function reToggleOptionalPanels() {
-  const currentStat     = e_status.value;                        
-  const currentActLower = e_activity.value.trim().toLowerCase();
+  // 10) Toggle helper
+  function reToggleOptionalPanels() {
+    const currentStat     = e_status.value;
+    const currentActLower = e_activity.value.trim().toLowerCase();
 
-  // master-hide all panels
-  [editQtySection, labRefSection, editSkuSection, editTransSection,
-   juiceS, rmJuiceSection, putamS, storageSection]
-    .forEach(sec => sec.style.display = 'none');
+    [
+      editQtySection,
+      labRefSection,
+      editSkuSection,
+      editTransSection,
+      juiceS,
+      rmJuiceSection,
+      putamS,
+      storageSection
+    ].forEach(sec => sec.style.display = 'none');
 
-  // if we just moved back to Doing, clear out anything from a previous Done
-  if (currentStat === 'Doing') {
-    // clear post-Done values
-    e_comp.value        = '';
-    e_qty.value         = '';
-    e_qty_uom.value     = '';
-    e_lab_ref.value     = '';
-    editSkuBody.innerHTML   = '';
-    editTransBody.innerHTML = '';
+    if (currentStat === 'Doing') {
+      // wipe Done-only bits
+      e_comp.value     = '';
+      e_qty.value      = '';
+      e_qty_uom.value  = '';
+      e_lab_ref.value  = '';
+      editSkuBody.innerHTML   = '';
+      editTransBody.innerHTML = '';
 
-    // then show the correct Doing panels
-    juiceS.style.display         =
-    rmJuiceSection.style.display =
-      /juice|grinding|kashayam/.test(currentActLower) ? 'flex' : 'none';
+      const isJuice = /juice|grinding|kashayam/.test(currentActLower);
+      const isPutam = /putam|gaja putam|seelamann/.test(currentActLower);
 
-    putamS.style.display =
-      /putam|gaja putam|seelamann/.test(currentActLower) ? 'flex' : 'none';
-
-    // always hide storage when doing
-    storageSection.style.display = 'none';
-    return;
-  }
-
-  // In Storage
-  if (currentStat === 'In Storage') {
-    storageSection.style.display = 'flex';
-    e_storageQty.required = e_storageUom.required =
-      (currentActLower === 'fg bulk storage');
-    return;
-  }
-
-  // Done
-  if (currentStat === 'Done') {
-    if (currentActLower === 'finished goods quality assessment') {
-      labRefSection.style.display = 'block';
-    } else if (skuActivities.includes(currentActLower)) {
-      editSkuSection.style.display = 'block';
-    } else if (currentActLower === 'transfer to fg store') {
-      editTransSection.style.display = 'block';
-    } else {
-      editQtySection.style.display = 'flex';
+      juiceS.style.display         = isJuice ? 'flex' : 'none';
+      rmJuiceSection.style.display = isJuice ? 'flex' : 'none';
+      putamS.style.display         = isPutam ? 'flex' : 'none';
+      return;
     }
-  }
+
+    if (currentStat === 'In Storage') {
+      storageSection.style.display = 'flex';
+      const req = /fg bulk storage/i.test(currentActLower);
+      e_storageQty.required = req;
+      e_storageUom.required = req;
+      return;
+    }
+
+// Done
+if (!e_comp.value) e_comp.value = formatDMY(new Date());
+
+// helper booleans for this block
+const isStockTransfer = /stock\s*transfer/i.test(currentActLower);
+const isFGTransfer    = currentActLower === 'transfer to fg store';
+
+if (currentActLower === 'finished goods quality assessment') {
+  labRefSection.style.display = 'block';
+
+} else if (skuActSet.has(currentActLower)) {
+  // Packaging (affects bottled stock)
+  editSkuSection.style.display = 'block';
+
+} else if (isFGTransfer) {
+  // Existing FG transfer table
+  editTransSection.style.display = 'block';
+
+} else if (isStockTransfer) {
+  // NEW: Stock transfer → show Storage fields, hide Qty After Process
+  storageSection.style.display = 'flex';
+  e_storageQty.required  = true;
+  e_storageUom.required  = true;
+
+  // Make sure Qty After Process panel stays hidden
+  editQtySection.style.display = 'none';
+
+} else {
+  // Regular Done → Qty After Process panel
+  editQtySection.style.display = 'flex';
 }
 
-  /* 11) Pre‑select any existing DONE data -------------------------------------- */
+  }
+
+  // 11) Prefill existing Done data
   if (row.status === 'Done') {
     const actLowerInit = row.activity.trim().toLowerCase();
+
     if (actLowerInit === 'finished goods quality assessment') {
       labRefSection.style.display = 'block';
       e_lab_ref.value = row.lab_ref_number || '';
-    } else if (skuActivities.includes(actLowerInit)) {
+    } else if (skuActSet.has(actLowerInit)) {
       editSkuSection.style.display = 'block';
-      // fetch SKU breakdown rows …
+
       const { data: pe } = await supabase
         .from('packaging_events')
         .select('id')
         .eq('work_log_id', row.id)
-        .single();
-      if (pe) {
+        .maybeSingle();
+      if (pe?.id) {
         const { data: skus } = await supabase
           .from('event_skus')
           .select('sku_id,count')
           .eq('packaging_event_id', pe.id);
-        for (const e of skus) {
+
+        for (const es of skus || []) {
           const { data: ps } = await supabase
             .from('product_skus')
             .select('pack_size,uom')
-            .eq('id', e.sku_id)
+            .eq('id', es.sku_id)
             .single();
+          if (!ps) continue;
           const tr = document.createElement('tr');
           tr.innerHTML = `
             <td>${ps.pack_size}</td>
             <td>${ps.uom}</td>
-            <td><input type="number" min="0"
-                       data-sku-id="${e.sku_id}"
-                       data-pack-size="${ps.pack_size}"
-                       data-uom="${ps.uom}"
-                       value="${e.count}"></td>`;
+            <td>
+              <input type="number" min="0"
+                     data-sku-id="${es.sku_id}"
+                     data-pack-size="${ps.pack_size}"
+                     data-uom="${ps.uom}"
+                     value="${es.count || ''}">
+            </td>`;
           editSkuBody.append(tr);
         }
       }
     } else if (actLowerInit === 'transfer to fg store') {
       editTransSection.style.display = 'block';
+
       const { data: pe } = await supabase
         .from('packaging_events')
         .select('id')
         .eq('work_log_id', row.id)
-        .single();
-      if (pe) {
-        const { data: rows2 } = await supabase
+        .maybeSingle();
+      if (pe?.id) {
+        const { data: skus } = await supabase
           .from('event_skus')
           .select('sku_id,count')
           .eq('packaging_event_id', pe.id);
-        for (const e of rows2) {
-          const { data: ps } = await supabase
+
+        for (const es of skus || []) {
+          const { data: stock } = await supabase
             .from('bottled_stock_on_hand')
-            .select('pack_size,uom,on_hand')
-            .eq('sku_id', e.sku_id)
-            .single();
+            .select('sku_id,pack_size,uom,on_hand')
+            .eq('sku_id', es.sku_id)
+            .maybeSingle();
+          if (!stock) continue;
           const tr = document.createElement('tr');
           tr.innerHTML = `
-            <td>${ps.pack_size}</td>
-            <td>${ps.uom}</td>
-            <td>${ps.on_hand}</td>
-            <td><input type="number" min="0" max="${ps.on_hand}"
-                       data-sku-id="${e.sku_id}"
-                       data-pack-size="${ps.pack_size}"
-                       data-uom="${ps.uom}"
-                       value="${e.count}"></td>`;
+            <td>${stock.pack_size}</td>
+            <td>${stock.uom}</td>
+            <td>${stock.on_hand}</td>
+            <td>
+              <input type="number" min="0" max="${stock.on_hand}"
+                     data-sku-id="${stock.sku_id}"
+                     data-pack-size="${stock.pack_size}"
+                     data-uom="${stock.uom}"
+                     value="${es.count || ''}">
+            </td>`;
           editTransBody.append(tr);
         }
       }
@@ -1116,12 +1306,35 @@ function reToggleOptionalPanels() {
     }
   }
 
-  /* 12) Wire dynamic handlers --------------------------------------------------- */
-  e_status.onchange    = reToggleOptionalPanels;
-  e_activity.onchange  = reToggleOptionalPanels;
+// ---- LOCK HELPERS ---------------------------------------------------------
+function lock(el){
+  if (!el) return;
+  if (el.tagName === 'SELECT' || el.tagName === 'BUTTON') {
+    el.disabled = true;
+  } else {
+    el.readOnly = true;
+    el.tabIndex = -1;
+  }
+  el.classList.add('locked');
+}
 
-  /* 13) Initial toggle pass ----------------------------------------------------- */
+function lockStaticFields(){
+  [
+    e_section, e_sub, e_area, e_plant, e_item, e_bn,
+    e_activity, e_size, e_uom
+  ].forEach(lock);
+}
+
+  // 12) Wire handlers & initial toggle
+  e_status.onchange   = reToggleOptionalPanels;
+  e_activity.onchange = reToggleOptionalPanels;
   reToggleOptionalPanels();
+
+  // lock the uneditable fields once everything is ready
+  lockStaticFields();
+
+  // reveal modal only after fields are populated & locked
+  showModal(editModal);
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -1146,6 +1359,9 @@ editForm.onsubmit = async ev => {
   const originalAct = e_activity.value.trim();
   const actLower    = originalAct.toLowerCase();
   const newStat     = e_status.value;
+  // helper flags we'll reuse
+  const isStockTransfer = /stock\s*transfer/i.test(actLower);
+  const isFGTransfer    = actLower === 'transfer to fg store';
 
   // ── 2A) Doing: clear packaging, clear all Done‑only & storage fields, then save juice/putam
   if (newStat === 'Doing') {
@@ -1245,10 +1461,10 @@ editForm.onsubmit = async ev => {
     await clearPackaging(id);
     const upd = {
       status          : 'In Storage',
-      storage_qty     : e_storage_qty.value
-                         ? Number(e_storage_qty.value)
+      storage_qty     : e_storageQty.value
+                         ? Number(e_storageQty.value)
                          : null,
-      storage_qty_uom : e_storage_qty_uom.value || null,
+      storage_qty_uom : e_storageUom.value || null,
       // clear all Done‐only & Doing‐only fields
       completed_on      : null,
       qty_after_process : null,
@@ -1288,8 +1504,8 @@ editForm.onsubmit = async ev => {
     labRef      : e_lab_ref.value ? e_lab_ref.value.trim(): null,
     rows        : []
   };
-  if (skuActivities.includes(actLower) || actLower === 'transfer to fg store') {
-    const tbody = skuActivities.includes(actLower)
+  if (skuActSet.has(actLower) || actLower === 'transfer to fg store') {
+    const tbody = skuActSet.has(actLower)
                   ? editSkuBody
                   : editTransBody;
     r.rows = Array.from(tbody.querySelectorAll('input'))
@@ -1301,7 +1517,7 @@ editForm.onsubmit = async ev => {
       }))
       .filter(x => x.count > 0);
   }
-  const needsQty = !skuActivities.includes(actLower)
+  const needsQty = !skuActSet.has(actLower)
                  && actLower !== 'transfer to fg store'
                  && actLower !== 'finished goods quality assessment';
   if (needsQty && (!r.qty || !r.uom)) {
@@ -1311,95 +1527,135 @@ editForm.onsubmit = async ev => {
     }
   }
 
-  // ── PRE‑FLIGHT PACKAGING‑STOCK CHECK ───────────────────────────────────
-  if (skuActivities.includes(actLower) || actLower === 'transfer to fg store') {
-    // 1) gather all SKU IDs
-    const skuIds = r.rows.map(x => x.skuId);
+  // NEW: Stock transfer requires storage qty/uom
+if (newStat === 'Done' && isStockTransfer) {
+  if (!e_storageQty.value || !e_storageUom.value) {
+    await showAlert('Storage Qty and UOM are required for Stock transfer.');
+    e_status.value = 'Doing';
+    return;
+  }
+}
 
-    // 2) fetch conversion_to_base for each SKU
-    const { data: skuInfos, error: skuErr } = await supabase
-      .from('product_skus')
-      .select('id,conversion_to_base')
-      .in('id', skuIds);
-    if (skuErr) console.error('SKU lookup error:', skuErr);
-
-    // 3) compute total in base units
-    const convMap = Object.fromEntries(
-      (skuInfos || []).map(s => [s.id, s.conversion_to_base])
-    );
-    const totalBaseQty = r.rows.reduce(
-      (sum, x) => sum + x.count * (convMap[x.skuId] || 0),
-      0
-    );
-
-    // 4) fetch available FG bulk stock (base units)
-    const { data: bulk, error: bulkErr } = await supabase
-      .from('fg_bulk_stock')
-      .select('on_hand')
-      .eq('batch_number', e_bn.value)
+  // ── PRE-FLIGHT PACKAGING-STOCK CHECK (client-side guard; no tiny-residual bump) ──
+  if (skuActSet.has(actLower)) {
+    // 1) Get product conversion factor once
+    const { data: prod, error: prodErr } = await supabase
+     .from('products')
+      .select('id, conversion_to_base, uom_base')
+      .eq('item', e_item.value)
       .single();
-    if (bulkErr) console.error('FG stock lookup error:', bulkErr);
-    const available = bulk?.on_hand || 0;
 
-    // 5) abort if we’d go negative
-    if (totalBaseQty > available + 0.001) {
-      await showAlert(
-        `Cannot save Done: requested packaging (${totalBaseQty.toFixed(2)}) > available (${available.toFixed(2)}).`
-      );
-      e_status.value = 'Doing';
-      return;
-    }
+    if (prodErr || !prod) {
+     console.error('Product lookup failed', prodErr);
+    } else {
+      const factor = Number(prod.conversion_to_base) || 1;
+
+      // 2) Sum all SKU pack_size * count (event units), then convert to base
+      let totalUnits = 0;
+      for (const row of r.rows) {
+        // row.packSize comes from the table’s data-* attributes
+        totalUnits += (Number(row.packSize) || 0) * (Number(row.count) || 0);
+     }
+      const totalBaseQty = totalUnits * factor;
+
+      // 3) Read current FG bulk stock (if present)
+      //    NOTE: fg_bulk_stock view exposes: item, bn, qty_on_hand
+      const { data: stock, error: stockErr } = await supabase
+        .from('fg_bulk_stock')
+        .select('qty_on_hand')
+        .eq('item', e_item.value)
+        .eq('bn', e_bn.value)
+        .maybeSingle();
+
+      if (stockErr) {
+        console.error('fg_bulk_stock lookup error:', stockErr);
+      }
+
+     // If a stock record exists, enforce the ceiling
+      if (stock) {
+        const available = Number(stock.qty_on_hand) || 0;
+        const EPS = 0.001;
+
+        if (totalBaseQty > available + EPS) {
+         await showAlert(
+           `Cannot save Done: packaging ${totalBaseQty.toFixed(3)} ${prod.uom_base} ` +
+           `> available ${available.toFixed(3)} ${prod.uom_base} in FG bulk stock.`
+         );
+         e_status.value = 'Doing';
+         return;
+       }
+     }
+     // If there’s no row in fg_bulk_stock, we let it pass — DB trigger will ignore it anyway.
+   }
   }
 
-  // build Done‐payload
-  const updDone = {
-    status            : 'Done',
-    started_on        : toISO(e_start.value),
-    due_date          : toISO(e_due.value),
-    completed_on      : toISO(r.completedOn),
-    qty_after_process : null,
-    qty_uom           : null,
-    sku_breakdown     : null,
-    lab_ref_number    : null,
-    storage_qty       : null,
-    storage_qty_uom   : null
-  };
-  if (actLower === 'finished goods quality assessment') {
-    updDone.lab_ref_number = r.labRef;
-  } else if (
-    skuActivities.includes(actLower) ||
-    actLower === 'transfer to fg store'
-  ) {
-    updDone.sku_breakdown = r.rows
-      .map(x => `${x.packSize} ${x.uom} x ${x.count}`)
-      .join('; ');
-  } else {
-    updDone.qty_after_process = r.qty;
-    updDone.qty_uom           = r.uom;
+const updDone = {
+  status       : 'Done',
+  started_on   : toISO(e_start.value),
+  due_date     : toISO(e_due.value),
+  completed_on : toISO(r.completedOn),
+
+  // defaults – override below
+  qty_after_process : null,
+  qty_uom           : null,
+  sku_breakdown     : null,
+  lab_ref_number    : null,
+  storage_qty       : null,
+  storage_qty_uom   : null
+};
+
+if (actLower === 'finished goods quality assessment') {
+  updDone.lab_ref_number = r.labRef;
+
+} else if (skuActSet.has(actLower) || isFGTransfer || isStockTransfer) {
+  // all transfer/packaging type activities get an SKU breakdown
+  updDone.sku_breakdown = r.rows
+    .map(x => `${x.packSize} ${x.uom} x ${x.count}`)
+    .join('; ');
+
+  // NEW: for stock transfer (Done) also persist storage qty/uom
+  if (isStockTransfer) {
+    updDone.storage_qty     = e_storage_qty.value
+                                ? Number(e_storage_qty.value)
+                                : null;
+    updDone.storage_qty_uom = e_storage_qty_uom.value || null;
   }
+
+} else {
+  // “normal” Done: keep Qty After Process
+  updDone.qty_after_process = r.qty;
+  updDone.qty_uom           = r.uom;
+}
 
   // 3) attempt to update
   const { error: updErr } = await supabase
-    .from('daily_work_log')
-    .update(updDone)
-    .eq('id', id);
+   .from('daily_work_log')
+   .update(updDone)
+   .eq('id', id);
+
   if (updErr) {
-    await showAlert(
-      isDuplicateError(updErr)
+   if (isFgNegError(updErr)) {
+     await showAlert(updErr.message);
+     e_status.value = 'Doing';   // revert UI
+     return;
+   }
+   await showAlert(
+     isDuplicateError(updErr)
         ? duplicateMessage({
-            item         : e_item.value,
-            batch_number : e_bn.value,
-            activity     : originalAct,
-            log_date     : '(unchanged)'
+           item         : e_item.value,
+           batch_number : e_bn.value,
+           activity     : originalAct,
+           log_date     : '(unchanged)'
           })
         : `Unexpected error: ${updErr.message || updErr.details || 'see console'}`
-    );
+   );
     return;
   }
+  // ← success path continues below (NO extra alert, NO extra brace)
 
   // upsert packaging-events for Done if needed
   if (
-    skuActivities.includes(actLower) ||
+    skuActSet.has(actLower) ||
     actLower === 'transfer to fg store'
   ) {
     const { data: pe } = await supabase
@@ -1435,5 +1691,6 @@ editForm.onsubmit = async ev => {
     loadFull();
   }, 1200);
 };
+await loadSkuActivities();
 await initFull();
 });
