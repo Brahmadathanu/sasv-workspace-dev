@@ -555,6 +555,7 @@ async function saveStatus(id, sel) {
   const newStat = sel.value;
   const { act: activity, item, bn, prevStatus } = sel.dataset;
   const actL = activity.toLowerCase().trim();
+  const isStockTransfer = /stock\s*transfer/i.test(actL);
 
 if (newStat === 'Done') {
   const r = await promptDone(activity, item, bn, id);
