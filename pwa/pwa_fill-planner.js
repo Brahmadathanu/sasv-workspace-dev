@@ -1,7 +1,7 @@
 /***************************************************************************
  * fill‑planner.js  –  pivoted table with emergency SKU deduction
  ***************************************************************************/
-import { supabase } from "../js/supabaseClient.js";
+import { supabase } from "./supabaseClient.js";
 
 const $ = id => document.getElementById(id);
 
