@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="UTF-8">
+  <title>SASV WORKSPACE | Fill Planner</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="../css/style.css">
+<style>
+  /* ───────── page chrome ─────────────────────────────────────────── */
+  body  { padding:20px; font-family:Arial, sans-serif; }
+  h2    { margin-top:0;  color:#005A8D; }
+  label { margin-right:1rem; }
+
+  /* subtitles: Urgent orders & Suggested Fill Plan */
+  .fp-subtitle{
+    margin:0.8rem 0 0.4rem 0;
+    font-size:1.17em;          /* same as default <h3> (≈18 px) */
+    font-weight:600;
+    color:#333;                /* neutral text colour */
+  }
+
+  /* ───────── tables (Suggested Fill Plan & Urgent orders) ────────── */
+  table{
+    width:100%;
+    border-collapse:collapse;
+    margin:1rem 0 0 0;
+  }
+  th, td{
+    border:1px solid #ccc;
+    padding:6px 10px;
+    text-align:center;         /* horizontal centre */
+    vertical-align:middle;     /* vertical centre   */
+  }
+  th{ background:#f3f6fa; }
+
+  /* row highlight on hover */
+  tbody tr:hover{ background:#eef6ff; }
+
+  /* ───────── control bar (product / bulk / button row) ───────────── */
+  .fp-controls{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:1rem;
+    margin:0.8rem 0;
+  }
+  .fp-controls label{
+    display:inline-flex;
+    align-items:center;
+    gap:0.4rem;
+    margin:0;                  /* override generic label margin */
+  }
+  /* taller inputs / selects */
+  .fp-controls select,
+  .fp-controls input[type="number"]{
+    height:32px;
+    padding:4px 6px;
+    font-size:14px;
+  }
+
+  /* Calculate button */
+  #fp-run{
+    background:#0a62c3;          /* slightly brighter blue */
+    color:#ffffff;
+    border:none;
+    padding:10px 28px;
+    font-size:15px;
+    border-radius:9999px;        /* pill */
+    cursor:pointer;
+    box-shadow:0 2px 6px rgba(0,0,0,.15);
+    transition:background .18s ease, box-shadow .18s ease,
+              transform .18s ease;
+  }
+  #fp-run:hover{
+   background:#084e9c;
+   box-shadow:0 4px 10px rgba(0,0,0,.18);
+   transform:translateY(-2px);
+  }
+  #fp-run:active{
+    background:#073f7d;
+    box-shadow:0 2px 6px rgba(0,0,0,.15);
+    transform:translateY(0);
+  }
+
+  /* message line */
+  #msg{ color:#d00; margin-top:0.5rem; }
+
+  /* ───────── Urgent‑orders table specific fixes ──────────────────── */
+  /* centre the first column in case an older rule forces left‑align */
+  #fp-emg-table th:first-child,
+  #fp-emg-table td:first-child{
+    text-align:center;
+  }
+  /* centre the number text inside Qty boxes */
+  #fp-emg-table input.emg-qty{
+    text-align:center;
+  }
+  /* force SKU column and Qty value to centre, override inline style */
+  #fp-emg-table th:first-child{ text-align:center !important; }
+  #fp-emg-table input.emg-qty { text-align:center  !important; }
+
+  /* centre the Calculate button wrapper */
+  .fp-run-wrap{
+    display:flex;               /* makes wrapper a flex container  */
+    justify-content:center;     /* centres its child horizontally  */
+    margin:1rem 0 0.4rem;       /* keep the same vertical spacing   */
+  }
+  /* make Qty input fill the cell neatly */
+  /* wider, neat Qty box */
+  #fp-emg-table input.emg-qty{
+   width:90%;               /* fill the cell but leave tiny padding */
+   max-width:140px;          /* won’t grow absurdly on very wide screens */
+   height:28px;
+   padding:4px 6px;
+   font-size:14px;
+    text-align:center;        /* keep number centred */
+    box-sizing:border-box;    /* include padding in width calc */
+  }
+
+</style>
+</head>
+<body data-theme="system">
+
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <h2 style="margin:0;">Fill Planner</h2>
+    <button id="homeBtn" class="icon-button">HOME</button>
+  </div>
+
+  <div class="fp-controls">
+    <label>
+      Product&nbsp;
+      <select id="fp-product"><option>Loading…</option></select>
+    </label>
+
+    <label>
+      Bulk&nbsp;<input id="fp-bulk" type="number" step="0.01" style="width:6rem;">
+      <span id="fp-uom">(base UOM)</span>
+    </label>
+
+    <label>
+      <input id="fp-overshoot" type="checkbox" checked> allow overshoot
+    </label>
+
+  </div>
+
+<!-- ─── SKU Metrics table (appears after product pick) ───────────── -->
+<h3 class="fp-subtitle" id="fp-metrics-title" style="display:none;">
+  SKU Metrics
+</h3>
+
+<table id="fp-metrics-table" style="display:none;">
+  <thead id="fp-metrics-head"></thead>
+  <tbody id="fp-metrics-body"></tbody>
+</table>
+
+  <!-- Urgent / ad-hoc orders ----------------------------------------->
+<h3 id="fp-emg-title" class="fp-subtitle" style="display:none;">
+  Urgent Orders (optional)
+</h3>
+
+<table id="fp-emg-table" style="display:none; margin-bottom:0.6rem;">
+  <thead>
+    <tr>
+      <th style="text-align:left;">SKU</th>
+      <th>Qty&nbsp;(Nos)</th>
+    </tr>
+  </thead>
+  <tbody id="fp-emg-body"><!-- rows injected by JS --></tbody>
+</table>
+
+<!-- centred Calculate button -->
+<div id="fp-run-wrap" class="fp-run-wrap" style="display:none;">
+  <button id="fp-run">Calculate</button>
+</div>
+
+<div id="msg"></div>
+
+  <!-- Suggested fill plan heading -->
+<h3 id="fp-title"
+    style="text-align:left;margin:1.2rem 0 0.4rem 0;display:none;">
+  Fill Plan for Remaining Bulk (after urgent orders)
+</h3>
+
+  <table id="fp-table" style="display:none;">
+  <thead><tr id="fp-head"><th>Region</th></tr></thead>
+  <tbody id="fp-body"></tbody>
+  </table>
+
+  <!-- Supabase client + module logic -->
+  <script type="module" src="./pwa_fill-planner.js"></script>
+  <script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js')
+      .catch(err => console.error('SW registration failed', err));
+  }
+</script>
+</body>
+</html>
