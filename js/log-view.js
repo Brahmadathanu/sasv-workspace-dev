@@ -293,68 +293,102 @@ async function loadBN () {
 }
 
 /* ── Main table refresh ----------------------------------------------------- */
-async function loadTable () {
+async function loadTable() {
+  // 1) Clear out the old rows
   tbody.replaceChildren();
 
-  let q = supabase.from('daily_work_log').select(`
-    id,
-    log_date,
-    item,
-    batch_number,
-    batch_size,
-    batch_uom,
-    section_id,
-    activity,
-    plant_id,
-    status,
-    plant_machinery(plant_name)
-  `);
+  // 2) Detect whether any filter is active
+  const hasFilter = Boolean(
+    fDate.value    ||
+    fSection.value ||
+    fSub.value     ||
+    fArea.value    ||
+    fPlant.value   ||
+    fItem.value    ||
+    fBN.value      ||
+    fAct.value     ||
+    fStatus.value
+  );
 
-  /* Date filter */
-  if (fDate.value) q = q.eq('log_date', toISODate(fDate.value));
+  // 3) Build base query
+  let q = supabase
+    .from('daily_work_log')
+    .select(`
+      id,
+      log_date,
+      item,
+      batch_number,
+      batch_size,
+      batch_uom,
+      section_id,
+      activity,
+      plant_id,
+      status,
+      created_at,
+      plant_machinery(plant_name)
+    `);
 
-  /* Other filters */
-  if (fSection.value) q = q.eq('section_id',    fSection.value);
-  if (fSub.value)     q = q.eq('subsection_id', fSub.value);
-  if (fArea.value)    q = q.eq('area_id',       fArea.value);
-  if (fPlant.value)   q = q.eq('plant_id',      fPlant.value);
-  if (fItem.value)    q = q.eq('item',          fItem.value);
-  if (fBN.value)      q = q.eq('batch_number',  fBN.value);
-  if (fAct.value)     q = q.eq('activity',      fAct.value);  // Activity filter
-  if (fStatus.value)  q = q.eq('status',        fStatus.value);
+  // 4) Apply filters
+  if (fDate.value)    q = q.eq('log_date',     toISODate(fDate.value));
+  if (fSection.value) q = q.eq('section_id',   fSection.value);
+  if (fSub.value)     q = q.eq('subsection_id',fSub.value);
+  if (fArea.value)    q = q.eq('area_id',      fArea.value);
+  if (fPlant.value)   q = q.eq('plant_id',     fPlant.value);
+  if (fItem.value)    q = q.eq('item',         fItem.value);
+  if (fBN.value)      q = q.eq('batch_number', fBN.value);
+  if (fAct.value)     q = q.eq('activity',     fAct.value);
+  if (fStatus.value)  q = q.eq('status',       fStatus.value);
 
+  // 5) Always pull newest‑first
+  q = q
+    .order('log_date',   { ascending: false })
+    .order('created_at', { ascending: false });
+
+  // 6) If no filters, limit to the 10 most recent rows
+  if (!hasFilter) {
+    q = q.limit(10);
+  }
+
+  // 7) Execute
   const { data, error } = await q;
   if (error) {
     console.error(error);
     return;
   }
+
+  // 8) Copy into an array for client‑side sorting
   const rows = data ? data.slice() : [];
 
-  /* Natural sort: Date ↑, Item A‑Z, BN ↑, Section A‑Z, Plant natural ↑ */
+  // 9) Natural‑order sort ascending for display
   const coll = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
-
   rows.sort((a, b) => {
-    const dt  = new Date(a.log_date) - new Date(b.log_date);
-    if (dt) return dt;
-
-    const itm = a.item.localeCompare(b.item, undefined, { sensitivity: 'base' });
-    if (itm) return itm;
-
-    const bn  = a.batch_number.toString()
-                 .localeCompare(b.batch_number.toString(), undefined, { numeric: true });
-    if (bn) return bn;
-
-    const sa  = sectionMap[a.section_id] || '';
-    const sb  = sectionMap[b.section_id] || '';
-    const sc  = sa.localeCompare(sb, undefined, { sensitivity: 'base' });
-    if (sc) return sc;
-
-    const pa  = a.plant_machinery?.plant_name || '';
-    const pb  = b.plant_machinery?.plant_name || '';
-    return coll.compare(pa, pb);
+    // 1) by log_date
+    let diff = new Date(a.log_date) - new Date(b.log_date);
+    if (diff) return diff;
+    // 2) by created_at
+    diff = new Date(a.created_at) - new Date(b.created_at);
+    if (diff) return diff;
+    // 3) by item A→Z
+    diff = a.item.localeCompare(b.item, undefined, { sensitivity: 'base' });
+    if (diff) return diff;
+    // 4) by batch_number numerically
+    diff = a.batch_number
+      .toString()
+      .localeCompare(b.batch_number.toString(), undefined, { numeric: true });
+    if (diff) return diff;
+    // 5) by section_name A→Z
+    const sa = sectionMap[a.section_id] || '';
+    const sb = sectionMap[b.section_id] || '';
+    diff = sa.localeCompare(sb, undefined, { sensitivity: 'base' });
+    if (diff) return diff;
+    // 6) by plant_name natural ↑
+    const pa = a.plant_machinery?.plant_name || '';
+    const pb = b.plant_machinery?.plant_name || '';
+    diff = coll.compare(pa, pb);
+    return diff;
   });
 
-  /* Render */
+  // 10) Render into the table
   rows.forEach(r => {
     const plantName   = r.plant_machinery?.plant_name || '';
     const sectionName = sectionMap[r.section_id] || '';
@@ -373,8 +407,8 @@ async function loadTable () {
     `);
   });
 
-  /* Detail handlers */
-  [...document.querySelectorAll('.view-link')]
+  // 11) Attach the “View” click handlers
+  document.querySelectorAll('.view-link')
     .forEach(a => a.addEventListener('click', showDetails));
 }
 

@@ -74,12 +74,18 @@
 /* Allow children to shrink instead of overflowing/overlapping */
 .filter-pair > * { min-width: 0; }
 
-/* Make the Item/BN pair a fixed 2‑column grid */
+/* /* Make the Item/BN pair responsive */
 .filter-pair.item-bn {
-  display: grid;
-  grid-template-columns: minmax(180px, 1fr) 90px; /* Item grows, BN stays narrow */
-  gap: 8px;
-}
+   display: grid;
+   grid-template-columns: 1fr auto; /* first column fills remaining, second hugs content */
+   gap: 8px;
+   min-width: 0;                    /* allow it to shrink below its own content if needed */
+ }
+
+ /* ensure the children themselves can shrink inside the grid */
+ .filter-pair.item-bn > * {
+   min-width: 0;
+ }
 
 /* ─── ADVANCED FILTER ROW ──────────────────────────────────────────── */
 .filter-row {
@@ -153,6 +159,17 @@
     tr{height: 28px;}
     a.view-link{color:var(--primary);text-decoration:underline;cursor:pointer}
     a.view-link:hover{color:var(--primary-hover)}
+
+    /* Zebra striping */
+    table tbody tr:nth-child(even) {
+      background-color: #f6f9fb;
+    }
+
+    /* Hover highlight */
+    table tbody tr:hover {
+      background-color: #e9f3fc;
+      cursor: pointer;
+    }
 
     /* ─── MODAL ──────────────────────────────────────────────────────── */
     .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);

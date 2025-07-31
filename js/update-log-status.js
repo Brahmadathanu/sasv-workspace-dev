@@ -802,6 +802,17 @@ if (skuActSet.has(actL)) {
 async function loadStatus() {
   bodyTbl.replaceChildren();
 
+  // ① decide which statuses to fetch
+  const filter = sStatusFilter.value;               // your dropdown
+  const statuses = filter
+    ? [ filter ]                                    // if they chose “Done” (or any single)
+    : [ 'Doing', 'On Hold', 'In Storage', 'Done' ];  // otherwise include all 4
+
+  let q = supabase
+    .from('daily_work_log')
+    .select('…')
+    .in('status', statuses);
+
   let q = supabase
     .from('daily_work_log')
     .select('id,log_date,item,batch_number,batch_size,batch_uom,section_id,plant_id,activity,status,due_date')
@@ -1067,6 +1078,7 @@ async function init() {
 
   attachMask(sLogDate);
   flatpickr(sLogDate, fpBase);
+  sLogDate.addEventListener('change', loadStatus);
 
   attachMask(doneCompletedOn);
   flatpickr(doneCompletedOn, { ...fpBase, maxDate: 'today' });

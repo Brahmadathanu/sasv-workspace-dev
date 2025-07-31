@@ -143,6 +143,7 @@
   }
 
   /* ─── WIP TABLE STYLING ────────────────────────────────── */
+  
   #wipTableContainer table {
     width: 100%;
     border-collapse: collapse;
@@ -165,6 +166,19 @@
     background: var(--panel-bg);
     z-index: 1;
     font-weight: bold;
+  }
+  
+  /* Zebra striping */
+  #wipTable tbody tr:nth-child(even),
+  #wipTable tbody tr:nth-child(even) {
+    background-color: #f6f9fb;
+  }
+
+  /* Hover highlight */
+  #wipTable tbody tr:hover,
+  #wipTable tbody tr:hover {
+    background-color: #e9f3fc;
+    cursor: pointer;
   }
 
   /* ─── MODALS ──────────────────────────────────────────── */
