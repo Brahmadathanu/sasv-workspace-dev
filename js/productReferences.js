@@ -1,5 +1,5 @@
 // ES module using Supabase
-import { supabase } from './supabaseClient.js';
+import { supabase } from '../shared/js/supabaseClient.js';
 
 // DOM refs
 const addNewBtn           = document.getElementById('addNewBtn');

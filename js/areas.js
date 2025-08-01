@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient.js';
+import { supabase } from '../shared/js/supabaseClient.js';
 
 //
 // 1) In-page confirmation dialog

@@ -1,6 +1,6 @@
 // js/log-edit.js
 
-import { supabase } from './supabaseClient.js';
+import { supabase } from '../shared/js/supabaseClient.js';
 
 /* ────────────────────────────────────────────────────────────────────────────
    DATE HELPERS & FLATPICKR SETUP

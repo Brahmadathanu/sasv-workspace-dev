@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient.js';
+import { supabase } from '../shared/js/supabaseClient.js';
 
 // DOM elements
 const addNewBtn   = document.getElementById('addNewBtn');

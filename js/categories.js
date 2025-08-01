@@ -1,5 +1,5 @@
 // js/categories.js
-import { supabase } from './supabaseClient.js'
+import { supabase } from '../shared/js/supabaseClient.js'
 
 //
 // In-page confirmation helper

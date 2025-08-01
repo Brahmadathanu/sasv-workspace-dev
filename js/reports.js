@@ -1,5 +1,5 @@
 // js/reports.js
-import { supabase } from './supabaseClient.js';
+import { supabase } from '../shared/js/supabaseClient.js';
 
 // Home-button nav (now targets the red HOME button)
 document.getElementById('homeBtn').addEventListener('click', () => {

@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient.js';
+import { supabase } from '../shared/js/supabaseClient.js';
 
 const categorySelect    = document.getElementById('categorySelect');
 const subcategorySelect = document.getElementById('subcategorySelect');

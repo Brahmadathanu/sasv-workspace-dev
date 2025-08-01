@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient.js';
+import { supabase } from '../shared/js/supabaseClient.js';
 
 // DOM refs
 const sectionFilter = document.getElementById('sectionFilter');

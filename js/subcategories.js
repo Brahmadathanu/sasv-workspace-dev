@@ -1,5 +1,5 @@
 // subcategories.js
-import { supabase } from './supabaseClient.js';
+import { supabase } from '../shared/js/supabaseClient.js';
 
 const catSelect     = document.getElementById('categorySelect');
 const addForm       = document.getElementById('addSubForm');
