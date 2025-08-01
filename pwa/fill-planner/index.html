@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="UTF-8" />
+  <title>SASV WORKSPACE | Fill Planner (PWA)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- PWA manifest -->
+  <link rel="manifest" href="manifest.webmanifest" />
+
+  <!-- Shared styling -->
+  <link rel="stylesheet" href="../../shared/css/style.css" />
+
+  <!-- Minimal platform flag -->
+  <script>
+    document.documentElement.dataset.platform = 'web';
+  </script>
+</head>
+<body data-theme="system">
+  <!-- Header & container (you can mirror minimal structure; the shared fill-planner logic will populate) -->
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <h2 style="margin:0;">Fill Planner</h2>
+    <button id="homeBtn" class="icon-button">HOME</button>
+  </div>
+
+  <!-- placeholder containers, same IDs expected by shared JS -->
+  <div class="fp-controls">
+    <label>
+      Product&nbsp;
+      <input id="fp-product" list="fp-product-list" placeholder="Type or select…" autocomplete="off"/>
+      <datalist id="fp-product-list"></datalist>
+    </label>
+
+    <label>
+      Bulk&nbsp;
+      <input id="fp-bulk" type="number" step="0.01" inputmode="decimal" />
+      <span id="fp-uom">(base UOM)</span>
+    </label>
+
+    <label>
+      <input id="fp-overshoot" type="checkbox" checked> allow overshoot
+    </label>
+  </div>
+
+  <div id="fp-metrics-header" class="fp-metrics-header" style="display:none;">
+    <h3 class="fp-subtitle" id="fp-metrics-title">SKU Metrics</h3>
+    <span id="fp-stock-updated" class="fp-stock-updated"></span>
+  </div>
+
+  <table id="fp-metrics-table" style="display:none;">
+    <thead id="fp-metrics-head"></thead>
+    <tbody id="fp-metrics-body"></tbody>
+  </table>
+
+  <h3 id="fp-emg-title" class="fp-subtitle" style="display:none;">
+    Urgent Orders (optional)
+  </h3>
+  <table id="fp-emg-table" style="display:none; margin-bottom:0.6rem;">
+    <thead>
+      <tr>
+        <th style="text-align:left;">SKU</th>
+        <th>Qty&nbsp;(Nos)</th>
+      </tr>
+    </thead>
+    <tbody id="fp-emg-body"></tbody>
+  </table>
+
+  <div id="fp-run-wrap" class="fp-run-wrap" style="display:none;">
+    <button id="fp-run">Calculate</button>
+  </div>
+
+  <div id="msg"></div>
+
+  <h3 id="fp-title" style="text-align:left;margin:1.2rem 0 0.4rem 0;display:none;">
+    Fill Plan for Remaining Bulk (after urgent orders)
+  </h3>
+
+  <table id="fp-table" style="display:none;">
+    <thead><tr id="fp-head"><th>Region</th></tr></thead>
+    <tbody id="fp-body"></tbody>
+  </table>
+
+  <!-- Shared logic -->
+  <script type="module" src="../../shared/js/supabaseClient.js"></script>
+  <script type="module" src="../../shared/js/fill-planner.js"></script>
+
+  <!-- Service worker registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW reg failed', e));
+    }
+  </script>
+</body>
+</html>
