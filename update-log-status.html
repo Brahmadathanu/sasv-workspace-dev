@@ -221,10 +221,12 @@
       <select id="sActivity"><option value="">Activity</option></select>
     </div>
     <div class="filter-pair">
-      <select id="sStatusFilter"><option value="">Status</option>
-        <option>Doing</option><option>On Hold</option>
-        <option>In Storage</option><option>Done</option>
-      </select>
+      <select id="sStatusFilter">
+  <option value="">Status</option>
+  <option value="Doing">Doing</option>
+  <option value="On Hold">On Hold</option>
+  <option value="In Storage">In Storage</option>
+</select>
     </div>
     <div class="filter-pair">
       <label><input type="checkbox" id="sOverdue"> Overdue</label>
@@ -365,6 +367,17 @@
       </div>
     </div>
   </div>
+
+<!-- Stock Negative Warning Modal -->
+<div id="stockWarningModal" class="modal-overlay">
+  <div class="modal-box">
+    <h3>Insufficient FG Bulk Stock</h3>
+    <div id="stockWarningText" style="margin: 12px 0; white-space: pre-wrap;"></div>
+    <div class="modal-actions">
+      <button id="stockWarningOk" class="mode-btn">OK</button>
+    </div>
+  </div>
+</div>
 
   <!-- Storage Modal -->
   <div id="storageModal" class="modal-overlay">

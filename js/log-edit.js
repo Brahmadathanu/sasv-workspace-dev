@@ -200,16 +200,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   const sectionMap = {};
   let skuActivities = [];     // filled by loadSkuActivities()
   let skuActSet     = new Set();
+  let pkgActSet     = new Set();
 // Duration of current activity (business days) for auto due-date calc
 let currentActDuration = null;
 
 // ───────────────────────────  LOAD SKU ACTIVITIES (dynamic)  ───────────────────────────
 async function loadSkuActivities() {
-  const { data, error } = await supabase
-    .from('event_type_lkp')
-    .select('label')
-    .eq('active', true)
-    .eq('affects_bottled_stock', 1);   // change to true if column is boolean
+const { data, error } = await supabase
+  .from('event_type_lkp')
+  .select('label, is_packaging, affects_bottled_stock')
+  .eq('active', true);
+
+// All packaging activities (need a packaging_event row)
+const pkgActivities = (data || [])
+  .filter(r => r.is_packaging)          // <— NEW
+  .map(r => (r.label || '').trim().toLowerCase())
+  .filter(Boolean);
+
+pkgActSet = new Set(pkgActivities);      // <— NEW
 
   if (error) {
     console.error('loadSkuActivities error:', error);
@@ -219,14 +227,10 @@ async function loadSkuActivities() {
   }
 
   skuActivities = (data || [])
-    .map(r => (r.label || '').trim().toLowerCase())
-    .filter(Boolean);
-
-  skuActSet = new Set(skuActivities);
-
-  if (!skuActivities.length) {
-    console.warn('No SKU activities returned from event_type_lkp.');
-  }
+     .filter(r => r.affects_bottled_stock == 1)
+     .map(r => (r.label || '').trim().toLowerCase())
+     .filter(Boolean);
+   skuActSet = new Set(skuActivities);
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -340,6 +344,62 @@ async function clearPackaging(workLogId) {
 // helper to detect our ledger negative‑stock trigger message
 const isFgNegError = err =>
   /would make stock negative/i.test(err?.message || '');
+
+// === NEW HELPER: render a SKU-style tbody with given rows ===
+function renderSkuTable(tbody, rows, includeOnHand = false) {
+  tbody.innerHTML = ''; // clear existing content
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    let inner = `
+      <td>${r.pack_size}</td>
+      <td>${r.uom}</td>`;
+    if (includeOnHand) {
+      inner += `<td>${r.on_hand}</td>`;
+    }
+    inner += `
+      <td>
+        <input type="number" min="0"
+               ${includeOnHand ? `max="${r.on_hand}"` : ''}
+               data-sku-id="${r.sku_id}"
+               data-pack-size="${r.pack_size}"
+               data-uom="${r.uom}"
+               value="${r.count || ''}">
+      </td>`;
+    tr.innerHTML = inner;
+    tbody.append(tr);
+  });
+}
+
+/* ── Refresh the Activity <select> so it ALWAYS matches current filters ── */
+async function refreshActivityFilter() {
+  // Build the same query the main table will use, but select only activity
+  let q = supabase.from('daily_work_log').select('activity');
+
+  // Apply all *up-stream* filters (leave out status & activity themselves)
+  if (fLogDate.value)  q = q.eq('log_date', toISO(fLogDate.value));
+  if (fSection.value)  q = q.eq('section_id',    fSection.value);
+  if (fSub.value)      q = q.eq('subsection_id', fSub.value);
+  if (fArea.value)     q = q.eq('area_id',       fArea.value);
+  if (fItem.value)     q = q.eq('item',          fItem.value);
+  if (fBN.value)       q = q.eq('batch_number',  fBN.value);
+
+  const { data, error } = await q;
+  if (error) { console.error('refreshActivityFilter:', error); return; }
+
+  const uniqueActs = [...new Set(
+                        (data || [])
+                          .map(r => (r.activity || '').trim())
+                          .filter(Boolean)
+                      )]
+                      .sort((a,b) => a.localeCompare(b, undefined, { sensitivity:'base' }))
+                      .map(a => ({ activity: a }));
+
+  // DEBUG – watch what the filter *thinks* is available
+  console.log('Activity filter rebuilt →', uniqueActs.length, 'options:', uniqueActs);
+
+  populate(fActivity, uniqueActs, 'activity', 'activity', 'Activity');
+  fActivity.disabled = !uniqueActs.length;
+}
 
 // ────────────────────────────────────────────────────────────────────────────
   // LOAD & RENDER FULL EDIT TABLE
@@ -486,21 +546,6 @@ let q = supabase
   // disable dependent filters
   [fSub, fArea, fBN].forEach(x => x.disabled = true);
 
-  // ───────── 2) Populate Activity & Status filters ────────────────────────
-  {
-    const { data: acts } = await supabase
-      .from('daily_work_log')
-      .select('activity', { distinct: true })
-      .in('status', ['Doing','On Hold','In Storage','Done'])
-      .order('activity');
-    if (acts) {
-      const uniqueActs = Array.from(new Set(acts.map(r => r.activity)))
-                              .map(a => ({ activity: a }));
-      populate(fActivity, uniqueActs, 'activity','activity','Activity');
-    }
-  }
-  fActivity.onchange = loadFull;
-
   // Status is a static list, just hook its onchange
   fStatus.onchange   = loadFull;
 
@@ -535,6 +580,7 @@ let q = supabase
     fArea.disabled = true;
     populate(fBN,   [], '', '', 'BN');
     fBN.disabled   = true;
+    await refreshActivityFilter();
     loadFull();
   };
 
@@ -555,13 +601,15 @@ let q = supabase
     }
     populate(fBN, [], '', '', 'BN');
     fBN.disabled = true;
+    await refreshActivityFilter();
     loadFull();
   };
 
   // ───────── 6) Area → reset BN ───────────────────────────────────────────
-  fArea.onchange = () => {
+  fArea.onchange = async () => {
     populate(fBN, [], '', '', 'BN');
     fBN.disabled = true;
+    await refreshActivityFilter();
     loadFull();
   };
 
@@ -580,6 +628,7 @@ let q = supabase
       populate(fBN, uniq.map(bn=>({ bn })), 'bn','bn','BN');
       fBN.disabled = false;
     }
+    await refreshActivityFilter();
     loadFull();
   };
   fBN.onchange = loadFull;
@@ -618,6 +667,10 @@ clearFull.onclick = () => {
     advancedFiltersFull.style.display = open ? 'none' : 'flex';
     toggleAdvancedFull.textContent    = open ? 'Advanced ▾' : 'Advanced ▴';
   });
+
+  // ───────── 10a) Build Activity filter once, then wire its change handler
+  await refreshActivityFilter();   // fills <select id="fActivity">
+  fActivity.onchange = loadFull;   // run table refresh when user chooses one
 
   // ───────── 11) First render ───────────────────────────────────────────────
   await loadFull();
@@ -674,69 +727,57 @@ else if (skuActSet.has(act)) {
     }
 
     // 4) Render one row per SKU, pre‑filling the previous count if present
-    skus.forEach(sku => {
-      const prev = existing.find(e => e.sku_id === sku.id);
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${sku.pack_size}</td>
-        <td>${sku.uom}</td>
-        <td>
-          <input
-            type="number"
-            min="0"
-            data-sku-id="${sku.id}"
-            data-pack-size="${sku.pack_size}"
-            data-uom="${sku.uom}"
-            value="${prev?.count || ''}"
-          >
-        </td>`;
-      doneSkuBody.append(tr);
-    });
+const doneSkuRows = skus.map(sku => {
+  const prev = existing.find(e => e.sku_id === sku.id);
+  return {
+    pack_size: sku.pack_size,
+    uom: sku.uom,
+    sku_id: sku.id,
+    count: prev?.count || ''
+  };
+});
+renderSkuTable(doneSkuBody, doneSkuRows);
   }
 }
   else if (act === 'transfer to fg store') {
     doneTransSection.style.display = 'block';
 
-    // 1) What SKUs *could* be transferred (from on-hand)
-    const { data: stocked } = await supabase
-      .from('bottled_stock_on_hand')
-      .select('sku_id,pack_size,uom,on_hand')
-      .eq('batch_number', batch);
+// 1) What SKUs *could* be transferred (from on-hand)
+const batchValue = String(batch).trim();      // ← ensure text-to-text comparison
+const { data: stocked, error: stockErr } = await supabase
+  .from('bottled_stock_on_hand')
+  .select('sku_id, pack_size, uom, on_hand')
+  .eq('batch_number', batchValue);            // always a string
+
+if (stockErr) console.error('bottled_stock_on_hand lookup:', stockErr);
 
     // 2) What *has* already been transferred?
-    const { data: pe } = await supabase
-      .from('packaging_events')
-      .select('id')
-      .eq('work_log_id', id)
-      .single();
+const { data: pe } = await supabase
+  .from('packaging_events')
+  .select('id')
+  .eq('work_log_id', id)
+  .maybeSingle();          // safe if none yet
 
-    let existing = [];
-    if (pe) {
-      ({ data: existing } = await supabase
-        .from('event_skus')
-        .select('sku_id,count')
-        .eq('packaging_event_id', pe.id));
-    }
+let existing = [];
+if (pe?.id) {
+  ({ data: existing } = await supabase
+    .from('event_skus')
+    .select('sku_id,count')
+    .eq('packaging_event_id', pe.id));
+}
 
     // 3) Render one row per stocked SKU, pre‑filling count
-    stocked.forEach(r => {
-      const prev = existing.find(e => e.sku_id === r.sku_id);
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${r.pack_size}</td>
-        <td>${r.uom}</td>
-        <td>${r.on_hand}</td>
-        <td>
-          <input type="number"
-                 min="0"
-                 max="${r.on_hand}"
-                 data-sku-id="${r.sku_id}"
-                 data-pack-size="${r.pack_size}"
-                 data-uom="${r.uom}"
-                 value="${prev?.count || ''}">
-        </td>`;
-      doneTransBody.append(tr);
-    });
+const doneTransRows = stocked.map(r => {
+  const prev = existing.find(e => e.sku_id === r.sku_id);
+  return {
+    pack_size: r.pack_size,
+    uom: r.uom,
+    sku_id: r.sku_id,
+    on_hand: r.on_hand,
+    count: prev?.count || ''
+  };
+});
+renderSkuTable(doneTransBody, doneTransRows, true); // include on_hand column
   }
 
     else {
@@ -748,6 +789,8 @@ else if (skuActSet.has(act)) {
   async function promptDone(activity, item, batch, id) {
     doneForm.reset();
     doneCompletedOn.value = formatDMY(new Date());
+    doneSkuBody.innerHTML = '';
+    doneTransBody.innerHTML = '';
     await configureDoneModal(activity, item, batch, id);
     showModal(doneModal);
     return new Promise(resolve => {
@@ -825,7 +868,7 @@ async function saveStatusUpdate(id, sel) {
                          ? doneData.uom || null
                          : null,
     sku_breakdown     : (newStat === 'Done'
-                         && (skuActSet.has(actLower)
+                         && (pkgActSet.has(actLower)
                              || actLower === 'transfer to fg store'))
                          ? doneData.rows
                              .map(r => `${r.packSize} ${r.uom} x ${r.count}`)
@@ -904,16 +947,15 @@ if (newStat === 'Done' && skuActSet.has(actLower)) {
 
   // ── 3) On real success, upsert packaging events if needed ────────────
   if (newStat === 'Done'
-      && (skuActSet.has(actLower)
+      && (pkgActSet.has(actLower)
           || actLower === 'transfer to fg store')) {
     const { data: pe } = await supabase
       .from('packaging_events')
       .upsert(
         { work_log_id: id, event_type: activity },
-        { onConflict: 'work_log_id' }
-      )
+        { onConflict: ['work_log_id']})
       .select('id')
-      .single();
+      .maybeSingle();
 
     if (pe) {
       await supabase
@@ -956,6 +998,9 @@ async function openEditModal(id) {
   const e_plant   = editModal.querySelector('#e_plant');
   const e_item    = editModal.querySelector('#e_item');
   const e_bn      = editModal.querySelector('#e_bn');
+
+  editSkuBody.innerHTML = '';
+  editTransBody.innerHTML = '';
 
   if (!e_section || !e_bn) {
     console.error('Missing edit‑modal elements:', { e_section, e_bn });
@@ -1106,6 +1151,8 @@ currentActDuration = null;
   await loadBNs(row.item, row.batch_number);
   e_item.onchange = () => loadBNs(e_item.value);
 
+  await refreshActivityFilter();
+
   // 7) Activity (display only)
   e_activity.innerHTML = `<option>${row.activity}</option>`;
   e_activity.value     = row.activity;
@@ -1242,26 +1289,22 @@ if (currentActLower === 'finished goods quality assessment') {
           .select('sku_id,count')
           .eq('packaging_event_id', pe.id);
 
-        for (const es of skus || []) {
-          const { data: ps } = await supabase
-            .from('product_skus')
-            .select('pack_size,uom')
-            .eq('id', es.sku_id)
-            .single();
-          if (!ps) continue;
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${ps.pack_size}</td>
-            <td>${ps.uom}</td>
-            <td>
-              <input type="number" min="0"
-                     data-sku-id="${es.sku_id}"
-                     data-pack-size="${ps.pack_size}"
-                     data-uom="${ps.uom}"
-                     value="${es.count || ''}">
-            </td>`;
-          editSkuBody.append(tr);
-        }
+        const skuRows = [];
+for (const es of skus || []) {
+  const { data: ps } = await supabase
+    .from('product_skus')
+    .select('pack_size,uom')
+    .eq('id', es.sku_id)
+    .single();
+  if (!ps) continue;
+  skuRows.push({
+    pack_size: ps.pack_size,
+    uom: ps.uom,
+    sku_id: es.sku_id,
+    count: es.count || ''
+  });
+}
+renderSkuTable(editSkuBody, skuRows);
       }
     } else if (actLowerInit === 'transfer to fg store') {
       editTransSection.style.display = 'block';
@@ -1277,27 +1320,49 @@ if (currentActLower === 'finished goods quality assessment') {
           .select('sku_id,count')
           .eq('packaging_event_id', pe.id);
 
-        for (const es of skus || []) {
-          const { data: stock } = await supabase
-            .from('bottled_stock_on_hand')
-            .select('sku_id,pack_size,uom,on_hand')
-            .eq('sku_id', es.sku_id)
-            .maybeSingle();
-          if (!stock) continue;
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${stock.pack_size}</td>
-            <td>${stock.uom}</td>
-            <td>${stock.on_hand}</td>
-            <td>
-              <input type="number" min="0" max="${stock.on_hand}"
-                     data-sku-id="${stock.sku_id}"
-                     data-pack-size="${stock.pack_size}"
-                     data-uom="${stock.uom}"
-                     value="${es.count || ''}">
-            </td>`;
-          editTransBody.append(tr);
-        }
+        const transRows = [];
+
+// ---------------------------------------------------------------
+// Build the rows for the “Transfer to FG Store” edit-modal table
+// ---------------------------------------------------------------
+for (const es of skus || []) {
+  /* 1. Look for the SKU in bottled_stock_on_hand
+       (batch filter makes sure we fetch the correct lot) */
+  const { data: stock } = await supabase
+    .from('bottled_stock_on_hand')
+    .select('pack_size,uom,on_hand')
+    .eq('sku_id',       es.sku_id)
+    .eq('batch_number', row.batch_number)      // ← add this line
+    .maybeSingle();                            // may legitimately be null
+
+  /* 2. If not found in stock view, fall back to product_skus
+        so we still have pack-size & UOM for display. */
+  let packSize, uom, onHand;
+  if (stock) {
+    ({ pack_size: packSize, uom, on_hand: onHand } = stock);
+  } else {
+    const { data: ps } = await supabase
+      .from('product_skus')
+      .select('pack_size,uom')
+      .eq('id', es.sku_id)
+      .single();                               // always exists
+    packSize = ps.pack_size;
+    uom      = ps.uom;
+    onHand   = 0;                              // nothing on-hand for this BN
+  }
+
+  /* 3. Push the row – even when onHand is 0 – so the table
+        always shows what was transferred earlier. */
+  transRows.push({
+    pack_size : packSize,
+    uom       : uom,
+    sku_id    : es.sku_id,
+    on_hand   : onHand,        // could be 0 or actual quantity
+    count     : es.count || ''
+  });
+}
+
+renderSkuTable(editTransBody, transRows, true); // includeOnHand = true
       }
     } else {
       editQtySection.style.display = 'flex';
@@ -1457,15 +1522,14 @@ editForm.onsubmit = async ev => {
   }
 
   // ── 2C) In Storage: clear packaging, save storage fields, clear others
-  if (newStat === 'In Storage') {
+    if (newStat === 'In Storage') {
     await clearPackaging(id);
+
     const upd = {
       status          : 'In Storage',
-      storage_qty     : e_storageQty.value
-                         ? Number(e_storageQty.value)
-                         : null,
+      storage_qty     : e_storageQty.value ? Number(e_storageQty.value) : null,
       storage_qty_uom : e_storageUom.value || null,
-      // clear all Done‐only & Doing‐only fields
+      // clear all Done-only & Doing-only fields
       completed_on      : null,
       qty_after_process : null,
       qty_uom           : null,
@@ -1478,14 +1542,22 @@ editForm.onsubmit = async ev => {
       fuel_under        : null,
       fuel_over         : null
     };
+
+    // DEBUG: show what is being sent
+    console.log('[EDIT] In Storage payload for id', id, upd);
+
     const { error: errStore } = await supabase
       .from('daily_work_log')
       .update(upd)
       .eq('id', id);
+
     if (errStore) {
-      await showAlert(`Error saving In Storage: ${errStore.message || 'see console'}`);
+      // surface error visibly
+      console.error('Error saving In Storage:', errStore);
+      await showAlert(`Error saving In Storage: ${errStore.message || errStore.details || 'see console'}`);
       return;
     }
+
     editSuccess.style.display = 'block';
     setTimeout(() => {
       editSuccess.style.display = 'none';
@@ -1504,7 +1576,7 @@ editForm.onsubmit = async ev => {
     labRef      : e_lab_ref.value ? e_lab_ref.value.trim(): null,
     rows        : []
   };
-  if (skuActSet.has(actLower) || actLower === 'transfer to fg store') {
+  if (pkgActSet.has(actLower) || actLower === 'transfer to fg store') {
     const tbody = skuActSet.has(actLower)
                   ? editSkuBody
                   : editTransBody;
@@ -1615,11 +1687,11 @@ if (actLower === 'finished goods quality assessment') {
 
   // NEW: for stock transfer (Done) also persist storage qty/uom
   if (isStockTransfer) {
-    updDone.storage_qty     = e_storage_qty.value
-                                ? Number(e_storage_qty.value)
-                                : null;
-    updDone.storage_qty_uom = e_storage_qty_uom.value || null;
-  }
+  updDone.storage_qty     = e_storageQty.value
+                              ? Number(e_storageQty.value)
+                              : null;
+  updDone.storage_qty_uom = e_storageUom.value || null;
+}
 
 } else {
   // “normal” Done: keep Qty After Process
@@ -1655,17 +1727,17 @@ if (actLower === 'finished goods quality assessment') {
 
   // upsert packaging-events for Done if needed
   if (
-    skuActSet.has(actLower) ||
+    pkgActSet.has(actLower) ||
     actLower === 'transfer to fg store'
   ) {
     const { data: pe } = await supabase
       .from('packaging_events')
       .upsert(
         { work_log_id: id, event_type: originalAct },
-        { onConflict: 'work_log_id' }
+        { onConflict: ['work_log_id'] }
       )
       .select('id')
-      .single();
+      .maybeSingle();
     if (pe) {
       await supabase.from('event_skus')
         .delete()

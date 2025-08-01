@@ -552,7 +552,7 @@ function promptStorage() {
  * @param {HTMLSelectElement} sel
  */
 async function saveStatus(id, sel) {
-  const newStat = sel.value;
+  const newStat = sel.value.trim();
   const { act: activity, item, bn, prevStatus } = sel.dataset;
   const actL = activity.toLowerCase().trim();
   const isStockTransfer = /stock\s*transfer/i.test(actL);
@@ -607,13 +607,14 @@ if (skuActSet.has(actL)) {
     const EPS = 0.001;
 
     if (totalBaseQty > available + EPS) {
-      await askConfirm(
-        `Cannot mark Done: packaging ${totalBaseQty.toFixed(3)} ${prod?.uom_base || ''} `
-        + `> available ${available.toFixed(3)} ${prod?.uom_base || ''} in FG bulk stock.`
-      );
-      sel.value = prevStatus;
-      return;
-    }
+  // show in-page warning modal instead of alert/confirm
+  stockWarningText.textContent = 
+    `Cannot mark Done: packaging ${totalBaseQty.toFixed(3)} ${prod?.uom_base || ''} ` +
+    `> available ${available.toFixed(3)} ${prod?.uom_base || ''} in FG bulk stock.`;
+  show(stockWarningModal);
+  sel.value = prevStatus;
+  return;
+}
   }
   // If no bulk row, let it pass — DB trigger will ignore/adjust anyway.
 }
@@ -650,12 +651,13 @@ if (skuActSet.has(actL)) {
   const { error: updErr } = await supabase
     .from('daily_work_log')
     .update(upd)
-    .eq('id', id);
+    .eq('id', Number(id));
   if (updErr) {
-    console.error('Update failed:', updErr);
-    sel.value = prevStatus;
-    return;
-  }
+      console.error('Update failed:', updErr);
+      alert(`Could not update record ${id} to Done:\n${updErr.message}`);
+      sel.value = prevStatus;
+      return;
+    }
 
   // upsert packaging events if needed
   if (skuActSet.has(actL) || actL === 'transfer to fg store') {
@@ -802,21 +804,17 @@ if (skuActSet.has(actL)) {
 async function loadStatus() {
   bodyTbl.replaceChildren();
 
-  // ① decide which statuses to fetch
-  const filter = sStatusFilter.value;               // your dropdown
-  const statuses = filter
-    ? [ filter ]                                    // if they chose “Done” (or any single)
-    : [ 'Doing', 'On Hold', 'In Storage', 'Done' ];  // otherwise include all 4
+// Base: only show in-progress statuses in this module.
+let q = supabase
+  .from('daily_work_log')
+  .select('id,log_date,item,batch_number,batch_size,batch_uom,section_id,plant_id,activity,status,due_date')
+  .in('status', ['Doing', 'On Hold', 'In Storage']);
 
-  let q = supabase
-    .from('daily_work_log')
-    .select('…')
-    .in('status', statuses);
-
-  let q = supabase
-    .from('daily_work_log')
-    .select('id,log_date,item,batch_number,batch_size,batch_uom,section_id,plant_id,activity,status,due_date')
-    .in('status', ['Doing','On Hold','In Storage']);
+// Apply the user-picked filter if it’s one of the allowed statuses.
+const filter = (sStatusFilter.value || '').trim();
+if (['Doing', 'On Hold', 'In Storage'].includes(filter)) {
+  q = q.eq('status', filter);
+}
 
   if (sLogDate.value) {
     const [dd, mm, yyyy] = sLogDate.value.split('-').map(n => n.padStart(2, '0'));
@@ -828,7 +826,6 @@ async function loadStatus() {
   if (sItem.value)         q = q.eq('item', sItem.value);
   if (sBN.value)           q = q.eq('batch_number', sBN.value);
   if (sActivity.value)     q = q.eq('activity', sActivity.value);
-  if (sStatusFilter.value) q = q.eq('status', sStatusFilter.value);
   if (sOverdue.checked) {
     const today = new Date().toISOString().slice(0,10);
     q = q.lt('due_date', today);
@@ -864,24 +861,16 @@ data.forEach(r => {
       <td>${r.activity}</td>
       <td>
         <select class="statSel"
-                data-id="${r.id}"
-                data-act="${r.activity}"
-                data-item="${r.item}"
-                data-bn="${r.batch_number}"
-                data-prev-status="${r.status}">
-          <option${r.status==='Doing'    ? ' selected' : ''}${allowStorage ? ' disabled' : ''}>
-             Doing
-           </option>
-           <option${r.status==='On Hold'  ? ' selected' : ''}${allowStorage ? ' disabled' : ''}>
-             On Hold
-           </option>
-          <option
-            ${r.status==='In Storage' ? ' selected' : ''}
-            ${allowStorage         ? ''          : ' disabled'}>
-              In Storage
-          </option>
-          <option${r.status==='Done'     ? ' selected' : ''}>Done</option>
-        </select>
+        data-id="${r.id}"
+        data-act="${r.activity}"
+        data-item="${r.item}"
+        data-bn="${r.batch_number}"
+        data-prev-status="${r.status}">
+  <option value="Doing"      ${r.status === 'Doing'      ? 'selected' : ''} ${allowStorage ? 'disabled' : ''}>Doing</option>
+  <option value="On Hold"    ${r.status === 'On Hold'    ? 'selected' : ''} ${allowStorage ? 'disabled' : ''}>On Hold</option>
+  <option value="In Storage" ${r.status === 'In Storage' ? 'selected' : ''} ${allowStorage ? '' : 'disabled'}>In Storage</option>
+  <option value="Done"       ${r.status === 'Done'       ? 'selected' : ''}>Done</option>
+</select>
       </td>
       <td>
         <a href="#" class="save-link" data-id="${r.id}">Save</a>
@@ -898,6 +887,8 @@ data.forEach(r => {
 /**
  * Initialize DOM references, event handlers, and load initial data.
  */
+let stockWarningModal, stockWarningOk, stockWarningText;
+
 async function init() {
   homeBtn               = $('#homeBtn');
   bodyTbl               = $('#statusBody');
@@ -949,6 +940,14 @@ async function init() {
   storageUom    = $('#storageUom');
   storageCancel = $('#storageCancel');
   storageSave   = $('#storageSave');
+
+  stockWarningModal = $('#stockWarningModal');
+  stockWarningOk = $('#stockWarningOk');
+  stockWarningText = $('#stockWarningText');
+
+  stockWarningOk.onclick = () => {
+    hide(stockWarningModal);
+  };
 
   const { data: pl, error: plErr } = await supabase
     .from('plant_machinery')

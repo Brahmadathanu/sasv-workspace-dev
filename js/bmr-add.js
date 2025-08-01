@@ -1,6 +1,6 @@
 // js/bmr-add.js
 
-import { supabase } from './supabaseClient.js';
+import { supabase } from '../shared/js/supabaseClient.js';
 
 // — Element references —
 const homeBtn       = document.getElementById('homeBtn');
