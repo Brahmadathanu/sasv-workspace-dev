@@ -16,7 +16,7 @@ self.addEventListener('install', event => {
   self.skipWaiting();
 });
 
-// Activate: clean old caches
+// ... rest unchanged but ensure fetch handler is safe as before ...
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
@@ -28,14 +28,19 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-// Fetch: network first, fallback to cache
 self.addEventListener('fetch', event => {
+  const url = new URL(event.request.url);
+  if (!['http:', 'https:'].includes(url.protocol)) return;
+
   event.respondWith(
     fetch(event.request)
       .then(resp => {
-        // update cache in background
-        const copy = resp.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+        if (event.request.method === 'GET') {
+          const copy = resp.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, copy).catch(()=>{});
+          });
+        }
         return resp;
       })
       .catch(() => caches.match(event.request))
