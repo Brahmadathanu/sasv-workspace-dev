@@ -1,6 +1,7 @@
 const CACHE_NAME = 'fill-planner-v1';
 const TO_CACHE = [
   './index.html',
+  '../shared/fill-planner.html',   // add this
   '../shared/css/style.css',
   '../shared/js/supabaseClient.js',
   '../shared/js/fill-planner.js'
