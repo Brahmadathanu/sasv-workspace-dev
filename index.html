@@ -82,7 +82,10 @@
 <body data-theme="system">
 
   <header>
-    <h1>SASV WORKSPACE</h1>
+    <h1>SASV WORKSPACE
+      <small id="appVersion"></small>   <!-- ✨ new -->
+    </h1>
+    
     <div id="userBar">
       <span id="userInfo">Loading…</span>
       &nbsp;|&nbsp;
@@ -316,6 +319,16 @@ freshLogoutEl.addEventListener('click', async (e) => {
 }
 
 window.addEventListener('DOMContentLoaded', initApp);
+</script>
+<script>
+  window.addEventListener('DOMContentLoaded', async () => {
+    try {
+      const v = await window.electronAPI.getAppVersion();   // provided by preload.js
+      document.getElementById('appVersion').textContent = `v${v}`;
+    } catch (err) {
+      console.error('Could not obtain app version:', err);
+    }
+  });
 </script>
 </body>
 </html>

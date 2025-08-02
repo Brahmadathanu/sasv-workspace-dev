@@ -5,9 +5,9 @@
   "description": "Pilot Electron + Supabase workspace application",
   "main": "main.js",
   "scripts": {
-    "start": "electron .",
-    "dist": "electron-builder",
-    "gen-shared-status": "node scripts/gen-shared-status.js"
+    "dev": "electron .",
+    "build": "electron-builder",
+    "start": "electron ."
   },
   "author": "",
   "license": "ISC",
@@ -15,6 +15,15 @@
   "build": {
     "appId": "com.yourcompany.sasv",
     "productName": "SASV Workspace",
+
+  "publish": [
+      {
+        "provider": "github",
+        "owner": "Brahmadathanu",
+        "repo": "sasv-workspace-dev"
+      }
+    ],
+
     "directories": {
       "output": "dist"
     },
@@ -37,6 +46,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.50.2",
     "electron-prompt": "^1.7.0",
+    "electron-updater": "^6.6.2",
     "express": "^5.1.0",
     "flatpickr": "^4.6.13",
     "pg": "^8.16.0"
@@ -44,6 +54,7 @@
   "devDependencies": {
     "electron": "^36.2.1",
     "electron-builder": "^26.0.12",
+    "electron-reload": "^2.0.0-alpha.1",
     "glob": "^11.0.3"
   }
 }

@@ -19,3 +19,6 @@ Thumbs.db
 .vscode/
 *.suo
 *.ntvs*
+
+# electron-reload cache
+.reload
