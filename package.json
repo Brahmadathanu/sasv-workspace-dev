@@ -1,7 +1,7 @@
 {
   "name": "daily-worklog-app",
   "productName": "SASV Workspace",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "description": "Pilot Electron + Supabase workspace application",
   "main": "main.js",
   "scripts": {
@@ -15,15 +15,13 @@
   "build": {
     "appId": "com.yourcompany.sasv",
     "productName": "SASV Workspace",
-
-  "publish": [
+    "publish": [
       {
         "provider": "github",
         "owner": "Brahmadathanu",
         "repo": "sasv-workspace-dev"
       }
     ],
-
     "directories": {
       "output": "dist"
     },
