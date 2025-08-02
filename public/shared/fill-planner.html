@@ -7,150 +7,75 @@
   <link rel="stylesheet" href="css/style.css">
 <style>
   /* ───────── page chrome ─────────────────────────────────────────── */
-  body {
-    padding: 20px;
-    font-family: Arial, sans-serif;
-  }
-  h2 {
-    margin: 0;
-    color: #005A8D;
-  }
+  body { padding:20px; font-family:Arial,sans-serif; }
+  h2   { margin:0; color:#005A8D; }
 
-  /* ───────── control bar (Product / Bulk / Overshoot) ───────────── */
-  .fp-controls {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 1rem;
-    margin: 1rem 0;
-  }
-  .fp-controls label {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    margin: 0;
-  }
-  /* finger‑friendly inputs/selects */
+  /* ───────── control bar ─────────────────────────────────────────── */
+  .fp-controls{display:flex;flex-wrap:wrap;align-items:center;gap:1rem;margin:1rem 0;}
+  .fp-controls label{display:inline-flex;align-items:center;gap:.4rem;margin:0;}
   .fp-controls select,
   .fp-controls input[type="number"],
-  .fp-controls input[list] {
-    height: 48px;
-    font-size: 16px;
-    padding: 8px 12px;
-    min-width: 120px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    box-sizing: border-box;
-  }
+  .fp-controls input[list]{height:48px;font-size:16px;padding:8px 12px;min-width:120px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;}
 
-  /* ───────── button wrapper & “Calculate” pill ──────────────────── */
-  .fp-run-wrap {
-    display: flex;
-    justify-content: center;
-    margin: 1rem 0 0.4rem;
-  }
-  #fp-run {
-    background: #0a62c3;
-    color: #fff;
-    border: none;
-    padding: 12px 32px;
-    font-size: 16px;
-    border-radius: 9999px;
-    cursor: pointer;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-    transition:
-      background 0.18s ease,
-      box-shadow 0.18s ease,
-      transform 0.18s ease;
-  }
-  #fp-run:hover {
-    background: #084e9c;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.18);
-    transform: translateY(-2px);
-  }
-  #fp-run:active {
-    background: #073f7d;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-    transform: translateY(0);
-  }
+  /* ───────── Calculate pill ─────────────────────────────────────── */
+  .fp-run-wrap{display:flex;justify-content:center;margin:1rem 0 .4rem;}
+  #fp-run{background:#0a62c3;color:#fff;border:none;padding:12px 32px;font-size:16px;border-radius:9999px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.15);transition:background .18s,box-shadow .18s,transform .18s;}
+  #fp-run:hover{background:#084e9c;box-shadow:0 4px 10px rgba(0,0,0,.18);transform:translateY(-2px);}
+  #fp-run:active{background:#073f7d;box-shadow:0 2px 6px rgba(0,0,0,.15);transform:none;}
 
-  /* ───────── subtitles (Urgent orders / Fill Plan) ──────────────── */
-  .fp-subtitle {
-    margin: 0.8rem 0 0.4rem;
-    font-size: 1.17em;     /* ≈ 18px */
-    font-weight: 600;
-    color: #333;
+  /* ───────── subtitles / section titles (now sticky) ────────────── */
+  .fp-subtitle,
+  #fp-metrics-header,
+  #fp-emg-title,
+  #fp-title{
+    margin:.8rem 0 .4rem;
+    font-size:1.17em;
+    font-weight:600;
+    color:#333;
+    position:sticky;
+    top:0;                           /* sticks to viewport top        */
+    background:none;                 /* covers rows while scrolling   */
+    z-index:3;                       /* above table cells             */
+    padding:4px 0;                   /* small cushion                 */
   }
+  /* keep flex layout for metrics header */
+  #fp-metrics-header{display:flex;justify-content:space-between;align-items:baseline;}
 
-  /* ───────── generic tables ──────────────────────────────────────── */
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 0.6rem 0 0 0;
-  }
-  th, td {
-    border: 1px solid #ccc;
-    padding: 8px 12px;
-    text-align: center;
-    vertical-align: middle;
-  }
-  th {
-    background: #f3f6fa;
-  }
-  /* zebra‑stripe on hover */
-  tbody tr:hover {
-    background: #eef6ff;
-  }
+  #fp-stock-updated{font-size:1em;font-weight:600;color:#d00;}
 
-  /* ───────── urgent‑orders tweaks ───────────────────────────────── */
+  /* ───────── generic tables ─────────────────────────────────────── */
+  table{width:100%;border-collapse:collapse;margin:.6rem 0 0;}
+  th,td{border:1px solid #ccc;padding:8px 12px;text-align:center;vertical-align:middle;}
+  th{background:#f3f6fa;}
+  tbody tr:hover{background:#eef6ff;}
+
+  /* ───────── urgent-orders tweaks ───────────────────────────────── */
   #fp-emg-table th:first-child,
-  #fp-emg-table td:first-child {
-    text-align: center !important;
-  }
-  #fp-emg-table input.emg-qty {
-    width: 90%;
-    max-width: 140px;
-    height: 32px;
-    padding: 6px 8px;
-    font-size: 14px;
-    text-align: center;
-    box-sizing: border-box;
-  }
-
-  /* ───────── SKU Metrics header (title + date) ──────────────────── */
-  #fp-metrics-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    margin: 1rem 0 0.4rem;
-  }
-  /* fallback if you need to target a class instead of an ID: */
-  .fp-metrics-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    margin: 1rem 0 0.4rem;
-  }
-  #fp-stock-updated,
-  .fp-stock-updated {
-    font-size: 1em;
-    font-weight: 600;
-    color: #d00;
-  }
+  #fp-emg-table td:first-child{text-align:center!important;}
+  #fp-emg-table input.emg-qty{width:90%;max-width:140px;height:32px;padding:6px 8px;font-size:14px;text-align:center;box-sizing:border-box;}
 
   /* ───────── responsive tweaks ──────────────────────────────────── */
-  @media (max-width: 600px) {
-    .fp-controls {
-      flex-direction: column;
-      align-items: stretch;
-    }
-    .fp-controls label {
-      width: 100%;
-    }
-    #fp-emg-table input.emg-qty {
-      max-width: none;
-    }
+  @media(max-width:600px){
+    .fp-controls{flex-direction:column;align-items:stretch;}
+    .fp-controls label{width:100%;}
+    #fp-emg-table input.emg-qty{max-width:none;}
   }
+
+  /* ── scrollable table wrappers ─────────────────────────────────── */
+  .fp-table-wrap{
+    overflow:auto;
+    max-height:60vh;                 /* JS can shrink further         */
+    -webkit-overflow-scrolling:touch;
+    position:relative;
+  }
+  /* add neat edges only when wrapper actually scrolls (class toggled by JS) */
+  .fp-table-wrap.has-scroll{box-shadow:inset 1px 0 #ccc,inset -1px 0 #ccc;}
+
+  /* remove top margin so table touches wrapper */
+  .fp-table-wrap table{margin:0;}
+
+  /* allow horizontal scroll on very wide tables */
+  .fp-table-wrap table{width:100%;min-width:600px;}
 </style>
 </head>
 <body data-theme="system">

@@ -28,20 +28,62 @@ const metricsBody  = $("fp-metrics-body");
 const metricsHeader = $("fp-metrics-header");
 const stockUpdated  = $("fp-stock-updated");
 
+/* ─── make tables scrollable with sticky headers ─────────────────── */
+function wrapTable(el) {
+  const wrap = document.createElement('div');
+  wrap.className = 'fp-table-wrap';
+  el.parentNode.insertBefore(wrap, el);
+  wrap.appendChild(el);
+  // keep wrapper hidden initially (tables already start hidden)
+  wrap.style.display = 'none';
+  return wrap;
+}
+
+const metricsWrap = wrapTable(metricsTable);  // SKU Metrics
+const emgWrap     = wrapTable(emgTable);      // Urgent Orders
+const planWrap    = wrapTable(elTable);       // Fill Plan
+
+/* resize helpers: keep wrapper within viewport height */
+function fitWrap(wrap) {
+  if (!wrap || wrap.style.display === 'none' || wrap.offsetParent === null) return;
+
+  const rect  = wrap.getBoundingClientRect();
+  const gap   = 16;                                     // breathing room at bottom
+  const avail = Math.max(200, window.innerHeight - rect.top - gap);
+  wrap.style.maxHeight = `${avail}px`;
+
+  /* toggle edge lines only if vertical scrollbar is present */
+  if (wrap.scrollHeight > wrap.clientHeight + 1) {
+    wrap.classList.add('has-scroll');
+  } else {
+    wrap.classList.remove('has-scroll');
+  }
+}
+function fitVisibleWraps() {
+  [metricsWrap, emgWrap, planWrap].forEach(fitWrap);
+}
+window.addEventListener('resize', fitVisibleWraps);
+
 async function onProductInput() {
   const name = elProd.value.trim();
   const rec  = productMap[name];
   if (!rec) {
     // no valid product selected → hide all the downstream sections
     elUom.textContent =
-      emgTitle.style.display =
-      emgTable.style.display =
-      runWrap.style.display =
-      metricsHeader.style.display =
-      metricsTable.style.display =
-      fpTitle.style.display =
-      elTable.style.display =
-        "none";
+  emgTitle.style.display =
+  runWrap.style.display =
+  metricsHeader.style.display =
+  fpTitle.style.display =
+    "none";
+
+emgTable.style.display =
+metricsTable.style.display =
+elTable.style.display = "none";   // keep for safety
+
+// hide wrappers too
+emgWrap.style.display =
+metricsWrap.style.display =
+planWrap.style.display = "none";
     return;
   }
 
@@ -96,16 +138,21 @@ async function loadForProduct(productId) {
       <td><input class="emg-qty" data-sku-id="${s.id}" type="number" min="0"></td>
     </tr>
   `).join("");
-  emgTitle.style.display =
-    emgTable.style.display =
-    runWrap.style.display = "";
+
+  emgTitle.style.display = "";
+emgTable.style.display = "";
+emgWrap.style.display  = "";   // show wrapper
+runWrap.style.display  = "";
+fitVisibleWraps();
 
   // --- build your SKU Metrics ---
   await loadMetrics(skus, productId);
 
   // --- reveal your Fill Plan title, keep table hidden until calculate ---
   fpTitle.style.display = "";
-  elTable.style.display = "none";
+  elTable.style.display = "";
+planWrap.style.display = "";
+fitVisibleWraps();
 }
 
 /* ─── helper: pack/UOM + price map for a set of SKU ids ────────────── */
@@ -156,21 +203,32 @@ async function loadMetrics(skus, productId){
 /* 2+3) stock & forecast from existing v_fill_inputs ------------------ */
 const { data: vfRows, error: vfErr } = await supabase
   .from("v_fill_inputs")
-  .select("sku_id, region_code, stock_units, forecast_units_pm")
+  .select("sku_id, region_code, godown_code, stock_units, forecast_units_pm")
   .eq("product_id", productId)                 /* only this product */
   .in("region_code", ["IK","KKD","OK"]);          /* three depots     */
 
 if (vfErr){ elMsg.textContent = vfErr.message; return; }
 
-/* split into maps ---------------------------------------------------- */
-const stockIK={}, stockOK={}, fsum={}, fcount={};
+// ─── split stock: IK, KKD, OK ────────────────────────────────
+const stockIK  = {};   // Inver Kerala
+const stockKKD = {};   // Kozhikode
+const stockOK  = {};   // Out-Kerala
+const fsum     = {};
+const fcount   = {};
 
 vfRows.forEach(r=>{
-  /* STOCK ------------------------------------------------------------ */
-  if (r.region_code === "OK"){
-    stockOK[r.sku_id] = (stockOK[r.sku_id]||0) + (+r.stock_units||0);
-  }else{                       /* IK + KKD combined */
-    stockIK[r.sku_id] = (stockIK[r.sku_id]||0) + (+r.stock_units||0);
+/* STOCK buckets ──────────────────────────────────────────── */
+  /* ── STOCK by godown ─────────────────────────────────────────── */
+  const g = (r.godown_code || "").trim().toUpperCase();
+
+  if (g === "HO_IK") {                 // Inside-Kerala godown
+    stockIK[r.sku_id]  = (stockIK[r.sku_id]  || 0) + (+r.stock_units || 0);
+
+  } else if (g === "KKD") {            // Kozhikode Depot
+    stockKKD[r.sku_id] = (stockKKD[r.sku_id] || 0) + (+r.stock_units || 0);
+
+  } else if (g === "HO_OK") {          // Outside-Kerala godown
+    stockOK[r.sku_id]  = (stockOK[r.sku_id]  || 0) + (+r.stock_units || 0);
   }
 
   /* FORECAST (Average of all months in view) ------------------------- */
@@ -184,22 +242,25 @@ const ave = k => fcount[k] ? Math.round(fsum[k] / fcount[k]) : "—";
 
   /* 4) render */
   metricsHead.innerHTML = `
-    <tr>
-      <th>SKU</th>
-      <th>MRP&nbsp;IK</th><th>MRP&nbsp;OK</th>
-      <th>Stock&nbsp;IK</th><th>Stock&nbsp;OK</th>
-      <th>Forecast&nbsp;IK</th><th>Forecast&nbsp;OK</th>
-    </tr>`;
+  <tr>
+    <th>SKU</th>
+    <th>MRP&nbsp;IK</th><th>MRP&nbsp;OK</th>
+    <th>Stock&nbsp;IK</th><th>Stock&nbsp;KKD</th><th>Stock&nbsp;OK</th>
+    <th>Forecast&nbsp;IK</th><th>Forecast&nbsp;OK</th>
+  </tr>`;
 
-  metricsBody.innerHTML = skus.map(s=>{
-    const p = priceMap[s.id] || {};
-    return `
-      <tr>
-        <td>${s.pack_size}&nbsp;${s.uom}</td>
-        <td>${p.ik}</td><td>${p.ok}</td>
-        <td>${(stockIK[s.id]||0)}</td><td>${(stockOK[s.id]||0)}</td>
-        <td>${ave(s.id+"_IK")}</td><td>${ave(s.id+"_OK")}</td>
-      </tr>`;
+  metricsBody.innerHTML = skus.map(s => {
+  const p = priceMap[s.id] || {};
+  return `
+    <tr>
+      <td>${s.pack_size}&nbsp;${s.uom}</td>
+      <td>${p.ik}</td><td>${p.ok}</td>
+      <td>${stockIK[s.id]  || 0}</td>
+      <td>${stockKKD[s.id] || 0}</td>
+      <td>${stockOK[s.id]  || 0}</td>
+      <td>${ave(s.id + "_IK")}</td>
+      <td>${ave(s.id + "_OK")}</td>
+    </tr>`;
   }).join("");
 
 // fetch the most‑recent as_of_date for any of these SKUs
@@ -228,8 +289,10 @@ if (luErr) {
     stockUpdated.textContent = '';
   }
 
-  metricsHeader.style.display="";
-  metricsTable.style.display="";
+  metricsHeader.style.display = "";
+metricsTable.style.display  = "";
+metricsWrap.style.display   = "";
+fitVisibleWraps();
 }
 
 /* ─── Calculate button ─────────────────────────────────────────────── */
