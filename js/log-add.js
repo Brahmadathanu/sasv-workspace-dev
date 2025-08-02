@@ -10,7 +10,7 @@
  *  • Duplicate-row guard (handles 23505 & “duplicate key” text)            *
  ***************************************************************************/
 
-import { supabase } from "../shared/js/supabaseClient.js";
+import { supabase } from "../public/shared/js/supabaseClient.js";
 
 /* ─────────────────────────────  DATE HELPERS  ────────────────────────── */
 const parseDMY  = s => { const [d,m,y] = s.split("-").map(Number); return new Date(y, m-1, d); };

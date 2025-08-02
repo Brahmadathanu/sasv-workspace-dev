@@ -1,5 +1,5 @@
 // js/bmr-view.js
-import { supabase } from '../shared/js/supabaseClient.js';
+import { supabase } from '../public/shared/js/supabaseClient.js';
 
 const filterCategory = document.getElementById('filterCategory');
 const filterSubCat   = document.getElementById('filterSubCategory');

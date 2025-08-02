@@ -336,5 +336,19 @@ if (bulk === 0) {
   }
 });
 
-/* ─── Home button ──────────────────────────────────────────────────── */
-homeBtn.addEventListener("click", ()=> window.location.href="index.html");
+/* ─── Platform-aware button (HOME in Electron, CLEAR in PWA) ───────── */
+const runningInIframe = window.top !== window.self; // true only in PWA
+
+if (runningInIframe) {
+  homeBtn.textContent = 'CLEAR';
+  homeBtn.addEventListener('click', () => {
+    elProd.value = '';
+    elBulk.value = '';
+    onProductInput();            // collapse everything
+  });
+} else {
+  // Electron: navigate two levels up to the app's real home page
+  homeBtn.addEventListener('click', () => {
+    window.location.href = '../../index.html';
+  });
+}

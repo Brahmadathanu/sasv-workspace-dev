@@ -1,5 +1,5 @@
 // subsections.js
-import { supabase } from '../shared/js/supabaseClient.js';
+import { supabase } from '../public/shared/js/supabaseClient.js';
 
 //
 // 1) In-page confirm

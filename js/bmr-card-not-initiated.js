@@ -1,5 +1,5 @@
 // js/bmr-card-not-initiated.js
-import { supabase } from '../shared/js/supabaseClient.js';
+import { supabase } from '../public/shared/js/supabaseClient.js';
 
 const homeBtn        = document.getElementById('homeBtn');
 const backBtn        = document.getElementById('backBtn');

@@ -1,5 +1,5 @@
 // js/reset-password.js
-import { supabase } from '../shared/js/supabaseClient.js';
+import { supabase } from '../public/shared/js/supabaseClient.js';
 
 const errorDiv       = document.getElementById('error');
 const formDiv        = document.getElementById('form');

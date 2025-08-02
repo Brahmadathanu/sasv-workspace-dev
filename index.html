@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>SASV WORKSPACE</title>
-  <link rel="stylesheet" href="shared/css/style.css">
+  <link rel="stylesheet" href="public/shared/css/style.css">
   <style>
   /* Make the logout button look link-like and show pointer */
   #logoutLink {
@@ -146,14 +146,14 @@
 <section class="panel">
   <h2>Utilities</h2>
   <div class="module-list">
-    <a class="module-link" data-module-id="fill-planner" href="shared/fill-planner.html">Fill Planner</a>
+    <a class="module-link" data-module-id="fill-planner" href="public/shared/fill-planner.html">Fill Planner</a>
   </div>
 </section>
 
   <!-- Supabase & Init -->
-<script type="module" src="shared/js/supabaseClient.js"></script>
+<script type="module" src="public/shared/js/supabaseClient.js"></script>
 <script type="module">
-  import { supabase } from './shared/js/supabaseClient.js';
+  import { supabase } from '../public/shared/js/supabaseClient.js';
 
 async function initApp() {
   try {

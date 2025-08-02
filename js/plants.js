@@ -1,5 +1,5 @@
 // js/plants.js
-import { supabase } from '../shared/js/supabaseClient.js';
+import { supabase } from '../public/shared/js/supabaseClient.js';
 
 // — Dialog helpers —
 const dialogOverlay   = document.getElementById('dialogOverlay');

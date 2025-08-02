@@ -1,4 +1,4 @@
-import { supabase } from '../shared/js/supabaseClient.js';
+import { supabase } from '../public/shared/js/supabaseClient.js';
 
 const textSelect        = document.getElementById('textSelect');
 const clearTextBtn      = document.getElementById('clearText');

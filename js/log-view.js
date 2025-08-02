@@ -6,7 +6,7 @@
    • Clean, fully validated cascading filters + clear-all.
 =========================================================================== */
 
-import { supabase } from '../shared/js/supabaseClient.js';
+import { supabase } from '../public/shared/js/supabaseClient.js';
 
 /* ── Flatpickr base config -------------------------------------------------- */
 const fpBase = {

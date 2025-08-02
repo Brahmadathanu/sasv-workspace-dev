@@ -1,5 +1,5 @@
 // js/sections.js
-import { supabase } from '../shared/js/supabaseClient.js';
+import { supabase } from '../public/shared/js/supabaseClient.js';
 
 // In-page confirm dialog
 function showConfirm(message) {
