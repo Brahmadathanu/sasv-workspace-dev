@@ -181,7 +181,7 @@ async function renderTable() {
       item, batch_number, batch_size, batch_uom,
       activity, started_on, due_date
     `)
-    .in('status', ['Doing','In Storage']);
+    .or('status.eq.Doing,status.eq.In Storage.and(activity.eq.Intermediate storage)');
   if (error) {
     console.error('loadStatus error:', error);
     return;

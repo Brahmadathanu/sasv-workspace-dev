@@ -48,14 +48,14 @@
 .filter-strip {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 16px;
+  gap: 8px 8px;
   align-items: center;
   margin-bottom: 12px;
 }
 .filter-strip .filter-pair {
   /* base width but can shrink/grow */
-  flex: 1 1 140px;
-  min-width: 100px;
+  flex: 1 1 180px;
+  min-width: 120px;
   display: flex;
   gap: 8px;
   align-items: center;
@@ -72,12 +72,15 @@
 }
 
 /* Allow children to shrink instead of overflowing/overlapping */
-.filter-pair > * { min-width: 0; }
+.filter-pair > * {
+  min-width: 0 !important;
+  flex: 1 1 0;
+}
 
 /* /* Make the Item/BN pair responsive */
 .filter-pair.item-bn {
    display: grid;
-   grid-template-columns: 1fr auto; /* first column fills remaining, second hugs content */
+   grid-template-columns: 1.5fr 0.8fr; /* first column fills remaining, second hugs content */
    gap: 8px;
    min-width: 0;                    /* allow it to shrink below its own content if needed */
  }
@@ -87,6 +90,11 @@
    min-width: 0;
  }
 
+ .narrow {
+  min-width: 60px;      /* Slightly narrower for BN */
+  max-width: 110px;
+}
+
 /* ─── ADVANCED FILTER ROW ──────────────────────────────────────────── */
 .filter-row {
   display: flex;
@@ -95,11 +103,13 @@
   margin-bottom: 12px;
 }
 .filter-row .filter-pair {
-  /* wider base for your two‑col selects */
-  flex: 1 1 200px;
-  display: flex;
+  flex: 1 1 280px;   /* Slightly wider base */
+  min-width: 220px;
   gap: 8px;
-  align-items: center;
+}
+.filter-row .filter-pair select {
+  min-width: 0;
+  flex: 1 1 50%;
 }
 
 /* shared inputs/select styling */
@@ -182,6 +192,25 @@
     .btn{background:var(--btn-bg);color:var(--btn-text);border:none;padding:8px 12px;
          border-radius:4px;font-size:14px;cursor:pointer}
     .btn:hover{background:var(--btn-hover-bg)}
+
+    /* === Tom Select Field Uniformity === */
+.ts-wrapper, .ts-control {
+  width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+}
+.ts-control {
+  min-height: 34px;
+  padding: 0 6px;
+  font-size: 14px;
+  background: #fff;
+  border-radius: 4px;
+}
+.ts-dropdown {
+  font-size: 14px;
+}
   </style>
 </head>
 
@@ -208,13 +237,13 @@
 
   <!-- Item / BN -->
   <div class="filter-pair item-bn">
-    <select id="filterItem"><option value="">Item</option></select>
+    <select id="filterItem" placeholder="Item"></select>
     <select id="filterBN" class="narrow" disabled><option value="">BN</option></select>
   </div>
 
   <!-- Activity -->
   <div class="filter-pair">
-    <select id="filterActivity"><option value="">Activity</option></select>
+    <select id="filterActivity" placeholder="Activity"></select>
   </div>
 
   <!-- Status -->
@@ -261,7 +290,7 @@
     <thead>
       <tr>
         <th>Date</th><th>Item</th><th>BN</th><th>Batch Size</th><th>UOM</th><th>Section</th>
-        <th>Plant&nbsp;/&nbsp;Machinery</th><th>Activity</th><th>Action</th>
+        <th>Plant&nbsp;/&nbsp;Machinery</th><th>Activity</th><th>Status</th><th>Action</th>
       </tr>
     </thead>
     <tbody id="logsTableBody"></tbody>
@@ -283,6 +312,11 @@
   <!-- PDF export libs (load BEFORE log-view.js) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+
+<!-- Tom Select CSS & JS -->
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+
   <script type="module" src="js/log-view.js"></script>
 
 </body>

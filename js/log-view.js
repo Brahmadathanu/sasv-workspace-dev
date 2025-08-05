@@ -106,21 +106,31 @@ async function init () {
 
 /* Clear filters */
 clearBtn.onclick = () => {
-  // 1) Reset all filter values
-  [fDate, fSection, fSub, fArea, fPlant, fItem, fBN, fAct, fStatus].forEach(el => el.value = '');
-  // 2) Disable cascading selects
-  [fSub, fArea, fPlant, fBN].forEach(el => el.disabled = true);
-  // 3) Re‐populate dependents
+  // 1) Reset native filter values
+  [fDate, fSection, fSub, fArea, fStatus].forEach(el => el.value = '');
+
+  // 2) Reset Tom Select fields using Tom Select API (except BN)
+  itemTomSelect.clear();
+  activityTomSelect.clear();
+  plantTomSelect.clear();
+
+  // 3) Reset BN dropdown to empty and disable
+  populate(fBN, [], '', '', 'BN');
+  fBN.disabled = true;
+
+  // 4) Disable cascading selects (Sub-section, Area)
+  [fSub, fArea].forEach(el => el.disabled = true);
+
+  // 5) Repopulate dependents
   cascadeSub();
   cascadeArea();
-  cascadePlant();
-  loadItems();
-  loadBN();
-  loadActivities();
-  // 4) Collapse advanced filters and reset toggle text
+  loadBNs();
+
+  // 6) Collapse advanced filters and reset toggle text
   filtersAdvanced.style.display = 'none';
-  toggleAdvanced.textContent    = 'Advanced ▾';
-  // 5) Reload the table
+  toggleAdvanced.textContent = 'Advanced ▾';
+
+  // 7) Reload the table
   loadTable();
 };
 
@@ -132,8 +142,8 @@ clearBtn.onclick = () => {
   };
 
   /* Export links */
-  dlCsv.onclick = exportCsv;
-  dlPdf.onclick = exportPdf;
+  dlCsv.addEventListener('click', exportCsv);
+  dlPdf.addEventListener('click', exportPdf);
 
   /* Plant lookup */
   const { data: pl } = await supabase.from('plant_machinery').select('id,plant_name');
@@ -150,39 +160,139 @@ clearBtn.onclick = () => {
 
   /* Cascading wiring */
   fSection.onchange = () => {
-    cascadeSub(); cascadeArea(); cascadePlant();
-    loadItems(); loadBN(); loadActivities(); // NEW
+    cascadeSub(); cascadeArea();
+    loadBNs();
     loadTable();
   };
   fSub.onchange = () => {
-    cascadeArea(); cascadePlant();
-    loadItems(); loadBN(); loadActivities(); // NEW
-    loadTable();
-  };
-  fArea.onchange = () => {
-    cascadePlant();
-    loadItems(); loadBN(); loadActivities(); // NEW
+    cascadeArea();
     loadTable();
   };
   fPlant.onchange = () => {
-    loadItems(); loadBN(); loadActivities(); // NEW
     loadTable();
   };
-  fItem.onchange = () => {
-    loadBN(); loadActivities();              // NEW (activities often item-specific)
-    loadTable();
-  };
-  fBN.onchange     = () => { loadActivities(); loadTable(); }; // BN may narrow activities
-  fAct.onchange    = loadTable;                                // NEW
+
+  fBN.onchange = loadTable;
+  fAct.onchange    = loadTable;
   fStatus.onchange = loadTable;
 
   /* First pass */
-  cascadeSub(); cascadeArea(); cascadePlant();
-  await loadItems();
-  await loadBN();
-  await loadActivities();   // NEW
+  cascadeSub(); cascadeArea();
+
   await loadTable();
 }
+
+// ========== AUTOCOMPLETE FOR ITEM FIELD ==========
+
+// Helper function: fetch matching items from Supabase
+async function fetchItemsFromSupabase(query) {
+  let sbQuery = supabase
+      .from('daily_work_log')
+      .select('item', { distinct: true })
+      .ilike('item', `%${query}%`)
+      .limit(20);
+
+  // Optional: add other filters here if needed
+
+  const { data, error } = await sbQuery;
+  if (error) {
+    console.error('Supabase item fetch error:', error);
+    return [];
+  }
+  // Remove duplicates and empty
+  return [...new Set((data || []).map(r => r.item).filter(Boolean))]
+    .map(item => ({item: item}));
+}
+
+// Initialize Tom Select for the Item filter
+const itemTomSelect = new TomSelect("#filterItem", {
+  valueField: 'item',
+  labelField: 'item',
+  searchField: ['item'],
+  load: function(query, callback) {
+    // Only fetch if user typed something
+    if (!query.length) return callback();
+    fetchItemsFromSupabase(query).then(items => {
+      callback(items);
+    });
+  },
+  maxOptions: 20,
+  create: false
+});
+
+// When Item changes, reload BN dropdown and table
+fItem.addEventListener('change', () => {
+  loadBNs();
+  activityTomSelect.clear();
+  loadTable();
+});
+fBN.addEventListener('change', () => {
+  activityTomSelect.clear();
+  loadTable();
+});
+
+// Load BN options for the selected item
+async function loadBNs() {
+  // If no item is selected, clear and disable BN dropdown
+  if (!fItem.value) {
+    populate(fBN, [], '', '', 'BN');
+    fBN.disabled = true;
+    return;
+  }
+  // Fetch unique BNs for the selected item
+  const { data, error } = await supabase
+    .from('daily_work_log')
+    .select('batch_number', { distinct: true })
+    .eq('item', fItem.value)
+    .order('batch_number', { ascending: true });
+  if (error) {
+    console.error('BN fetch error', error);
+    populate(fBN, [], '', '', 'BN');
+    fBN.disabled = true;
+    return;
+  }
+  const uniqueBNs = [...new Set((data || []).map(r => r.batch_number).filter(Boolean))]
+    .map(bn => ({ bn }));
+  populate(fBN, uniqueBNs, 'bn', 'bn', 'BN');
+  fBN.disabled = !uniqueBNs.length;
+}
+
+// Helper: fetch matching Activity from Supabase based on current filters and input
+async function fetchActivitiesFromSupabase(query) {
+  let sbQuery = supabase.from('daily_work_log')
+    .select('activity', { distinct: true })
+    .ilike('activity', `%${query}%`)
+    .limit(20);
+
+  // Apply filters for Item and BN
+  if (fItem.value) sbQuery = sbQuery.eq('item', fItem.value);
+  if (fBN.value) sbQuery = sbQuery.eq('batch_number', fBN.value);
+
+  const { data, error } = await sbQuery;
+  if (error) {
+    console.error('Supabase Activity fetch error:', error);
+    return [];
+  }
+  return [...new Set((data || []).map(r => r.activity).filter(Boolean))]
+    .map(activity => ({activity: activity}));
+}
+
+const activityTomSelect = new TomSelect("#filterActivity", {
+  valueField: 'activity',
+  labelField: 'activity',
+  searchField: ['activity'],
+  load: function(query, callback) {
+    if (!query.length) return callback();
+    fetchActivitiesFromSupabase(query).then(acts => {
+      callback(acts);
+    });
+  },
+  maxOptions: 20,
+  create: false
+});
+
+document.getElementById('filterActivity').addEventListener('change', loadTable);
+
 
 /* ── Cascades --------------------------------------------------------------- */
 function cascadeSub () {
@@ -213,84 +323,40 @@ function cascadeArea () {
   }
 }
 
-function cascadePlant () {
-  if (!fArea.value) {
-    populate(fPlant, [], '', '', 'Plant / Machinery');
-    fPlant.disabled = true;
-  } else {
-    supabase.from('plant_machinery')
-      .select('id,plant_name')
-      .eq('area_id', fArea.value)
-      .eq('status',  'O')              // NEW: only operational
-      .order('plant_name')
-      .then(({ data }) => {
-        populate(fPlant, data || [], 'id', 'plant_name', 'Plant / Machinery');
-        fPlant.disabled = false;
-      });
+// Helper: fetch matching Plant/Machinery from Supabase based on current filters and input
+async function fetchPlantsFromSupabase(query) {
+  let sbQuery = supabase.from('plant_machinery')
+    .select('id, plant_name')
+    .ilike('plant_name', `%${query}%`)
+    .eq('status', 'O')  // Only operational
+    .limit(20);
+
+  // You may want to filter by Area, Section, Sub-section, etc.
+  if (fArea.value) sbQuery = sbQuery.eq('area_id', fArea.value);
+
+  const { data, error } = await sbQuery;
+  if (error) {
+    console.error('Supabase Plant fetch error:', error);
+    return [];
   }
+  return data.map(r => ({ id: r.id, plant_name: r.plant_name }));
 }
 
-/* ── Unique Item / BN loaders ---------------------------------------------- */
-async function loadItems () {
-  let q = supabase.from('daily_work_log').select('item');
-  if (fSection.value) q = q.eq('section_id',    fSection.value);
-  if (fSub.value)     q = q.eq('subsection_id', fSub.value);
-  if (fArea.value)    q = q.eq('area_id',       fArea.value);
-  if (fPlant.value)   q = q.eq('plant_id',      fPlant.value);
+const plantTomSelect = new TomSelect("#filterPlant", {
+  valueField: 'id',
+  labelField: 'plant_name',
+  searchField: ['plant_name'],
+  load: function(query, callback) {
+    if (!query.length) return callback();
+    fetchPlantsFromSupabase(query).then(plants => {
+      callback(plants);
+    });
+  },
+  maxOptions: 20,
+  create: false
+});
 
-  const { data, error } = await q;
-  if (error) return console.error(error);
-
-  const uniq = [...new Set((data || []).map(r => r.item))]
-    .map(item => ({ item }))
-    .sort((a, b) => a.item.localeCompare(b.item, undefined, { sensitivity: 'base' }));
-
-  populate(fItem, uniq, 'item', 'item', 'Item');
-}
-
-async function loadActivities () {
-  // Build base query for activities in daily_work_log
-  let q = supabase.from('daily_work_log').select('activity');
-
-  // Apply upstream filters (everything *except* status & activity itself)
-  if (fSection.value) q = q.eq('section_id',    fSection.value);
-  if (fSub.value)     q = q.eq('subsection_id', fSub.value);
-  if (fArea.value)    q = q.eq('area_id',       fArea.value);
-  if (fPlant.value)   q = q.eq('plant_id',      fPlant.value);
-  if (fItem.value)    q = q.eq('item',          fItem.value);
-  if (fBN.value)      q = q.eq('batch_number',  fBN.value);
-
-  const { data, error } = await q;
-  if (error) { console.error(error); return; }
-
-  const uniq = [...new Set((data || []).map(r => r.activity))]
-    .map(activity => ({ activity }))
-    .sort((a,b) => a.activity.localeCompare(b.activity, undefined, { sensitivity:'base' }));
-
-  populate(fAct, uniq, 'activity', 'activity', 'Activity');
-  fAct.disabled = !uniq.length;
-}
-
-async function loadBN () {
-  if (!fItem.value) {
-    populate(fBN, [], '', '', 'BN'); fBN.disabled = true; return;
-  }
-
-  let q = supabase.from('daily_work_log').select('batch_number').eq('item', fItem.value);
-  if (fSection.value) q = q.eq('section_id',    fSection.value);
-  if (fSub.value)     q = q.eq('subsection_id', fSub.value);
-  if (fArea.value)    q = q.eq('area_id',       fArea.value);
-  if (fPlant.value)   q = q.eq('plant_id',      fPlant.value);
-
-  const { data, error } = await q;
-  if (error) return console.error(error);
-
-  const uniq = [...new Set((data || []).map(r => r.batch_number))]
-    .map(bn => ({ bn }))
-    .sort((a, b) => a.bn.toString().localeCompare(b.bn.toString(), undefined, { numeric: true }));
-
-  populate(fBN, uniq, 'bn', 'bn', 'BN'); fBN.disabled = !uniq.length;
-}
+document.getElementById('filterPlant').addEventListener('change', loadTable);
 
 /* ── Main table refresh ----------------------------------------------------- */
 async function loadTable() {
@@ -402,6 +468,7 @@ async function loadTable() {
         <td>${sectionName}</td>
         <td>${plantName}</td>
         <td>${r.activity}</td>
+        <td>${r.status ?? ''}</td>
         <td><a href="#" class="view-link" data-id="${r.id}">View</a></td>
       </tr>
     `);
@@ -412,26 +479,91 @@ async function loadTable() {
     .forEach(a => a.addEventListener('click', showDetails));
 }
 
+// Helper to fetch all logs (ADD THIS before exportCsv)
+async function fetchAllLogs() {
+  let { data, error } = await supabase
+    .from('daily_work_log')
+    .select(`
+      log_date,
+      item,
+      batch_number,
+      batch_size,
+      batch_uom,
+      section_id,
+      activity,
+      plant_id,
+      status,
+      plant_machinery(plant_name)
+    `)
+    .order('log_date', { ascending: false })
+    .order('created_at', { ascending: false });
+  if (error) {
+    console.error('Fetch all logs error:', error);
+    return [];
+  }
+  return data;
+}
+
 /* ── Export: CSV (visible table rows) --------------------------------------- */
-function exportCsv () {
+async function exportCsv () {
   // Table header labels (skip Action column)
   const headers = [
     'Date','Item','BN','Batch Size','UOM',
-    'Section','Plant / Machinery','Activity'
+    'Section','Plant / Machinery','Activity','Status'
   ].map(h => `"${h}"`).join(',');
 
-  // Grab current visible rows from tbody
-  const rows = [...tbody.rows].map(tr => {
-    // slice(0, -1) drops the last "Action" column
-    const cells = [...tr.cells].slice(0, -1);
-    return cells.map(td => {
-      // Escape embedded quotes by doubling them
-      const txt = td.textContent.replace(/"/g,'""');
-      return `"${txt}"`;
-    }).join(',');
-  });
+  // Check if any filter is active
+  const hasFilter = Boolean(
+    fDate.value    ||
+    fSection.value ||
+    fSub.value     ||
+    fArea.value    ||
+    fPlant.value   ||
+    fItem.value    ||
+    fBN.value      ||
+    fAct.value     ||
+    fStatus.value
+  );
 
-  const csv = [headers, ...rows].join('\r\n');
+  let rowsData;
+
+  if (!hasFilter) {
+    // No filters: fetch all from DB
+    rowsData = await fetchAllLogs();
+  } else {
+    // Filters applied: use current visible rows
+    rowsData = [...tbody.rows].map(tr => {
+    // slice(0, -1) drops the last "Action" column
+      const cells = [...tr.cells].slice(0, -1);
+      return cells.map(td => td.textContent.trim());
+    });
+  }
+
+  // Prepare CSV data
+  const csvRows = [];
+  if (!hasFilter) {
+    // For full DB, format data
+    for (const r of rowsData) {
+      csvRows.push([
+        fmtDate(r.log_date),
+        r.item,
+        r.batch_number,
+        r.batch_size ?? '',
+        r.batch_uom ?? '',
+        sectionMap[r.section_id] || '',
+        r.plant_machinery?.plant_name || '',
+        r.activity,
+        r.status ?? ''
+      ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(','));
+    }
+  } else {
+    // For visible, already processed above
+    csvRows.push(...rowsData.map(rowArr => rowArr.map(txt =>
+      `"${txt.replace(/"/g,'""')}"`
+    ).join(',')));
+  }
+
+  const csv = [headers, ...csvRows].join('\r\n');
   const blob = new Blob([csv], { type: 'text/csv' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
@@ -444,20 +576,17 @@ function exportCsv () {
 }
 
 /* ── Export: PDF (visible table rows) --------------------------------------- */
-function exportPdf () {
-  // jsPDF UMD exposes window.jspdf.jsPDF; destructure safely
+async function exportPdf () {
   const jsPDFCtor = window.jspdf?.jsPDF || window.jspdf?.jsPDF || window.jsPDF;
   if (!jsPDFCtor) {
     console.error('jsPDF not found. Did the script load?');
     return;
   }
 
-  // Landscape to fit 8 columns comfortably
   const doc = new jsPDFCtor({ orientation:'landscape', unit:'pt', format:'a4' });
   const pw  = doc.internal.pageSize.getWidth();
   const ph  = doc.internal.pageSize.getHeight();
 
-  // Header block
   doc.setFont('helvetica','normal').setFontSize(10)
      .text('Gurucharanam Saranam', pw/2, 30, { align:'center' });
   doc.setFont('helvetica','bold').setFontSize(12)
@@ -466,22 +595,54 @@ function exportPdf () {
      .text(`DAILY WORK LOGS AS ON ${new Date().toLocaleDateString('en-GB')}`,
            pw/2, 75, { align:'center' });
 
-  // Collect table data (skip Action column)
-  const data = [...tbody.rows].map(tr => {
-    const c = [...tr.cells];
-    return {
-      date:    c[0].textContent.trim(),
-      item:    c[1].textContent.trim(),
-      bn:      c[2].textContent.trim(),
-      size:    c[3].textContent.trim(),
-      uom:     c[4].textContent.trim(),
-      section: c[5].textContent.trim(),
-      plant:   c[6].textContent.trim(),
-      act:     c[7].textContent.trim()
-    };
-  });
+  // Check filters
+  const hasFilter = Boolean(
+    fDate.value    ||
+    fSection.value ||
+    fSub.value     ||
+    fArea.value    ||
+    fPlant.value   ||
+    fItem.value    ||
+    fBN.value      ||
+    fAct.value     ||
+    fStatus.value
+  );
 
-  // Optional: show active filters line
+  let data = [];
+
+  if (!hasFilter) {
+    // No filters: fetch all logs
+    const allRows = await fetchAllLogs();
+    data = allRows.map(r => ({
+      date:    fmtDate(r.log_date),
+      item:    r.item,
+      bn:      r.batch_number,
+      size:    r.batch_size ?? '',
+      uom:     r.batch_uom ?? '',
+      section: sectionMap[r.section_id] || '',
+      plant:   r.plant_machinery?.plant_name || '',
+      act:     r.activity,
+      status:  r.status ?? ''
+    }));
+  } else {
+    // Filters: use visible
+    data = [...tbody.rows].map(tr => {
+      const c = [...tr.cells];
+      return {
+        date:    c[0].textContent.trim(),
+        item:    c[1].textContent.trim(),
+        bn:      c[2].textContent.trim(),
+        size:    c[3].textContent.trim(),
+        uom:     c[4].textContent.trim(),
+        section: c[5].textContent.trim(),
+        plant:   c[6].textContent.trim(),
+        act:     c[7].textContent.trim(),
+        status:  c[8].textContent.trim()
+      };
+    });
+  }
+
+  // (keep rest of your PDF formatting code unchanged)
   const filtBits = [];
   if (fDate.value)    filtBits.push(`Date=${fDate.value}`);
   if (fSection.value) filtBits.push(`Section=${sectionMap[fSection.value]||fSection.value}`);
@@ -498,22 +659,21 @@ function exportPdf () {
        .text(filtBits.join(' | '), pw/2, 88, { align:'center', maxWidth: pw-80 });
   }
 
-
-  // Build table
   doc.autoTable({
     startY: 95,
     margin: { left:40, right:40 },
     theme: 'grid',
     columns: [
-      { header:'Date',                dataKey:'date'    },
-      { header:'Item',                dataKey:'item'    },
-      { header:'BN',                  dataKey:'bn'      },
-      { header:'Batch Size',          dataKey:'size'    },
-      { header:'UOM',                 dataKey:'uom'     },
-      { header:'Section',             dataKey:'section' },
-      { header:'Plant / Machinery',   dataKey:'plant'   },
-      { header:'Activity',            dataKey:'act'     }
-    ],
+  { header:'Date',                dataKey:'date'    },
+  { header:'Item',                dataKey:'item'    },
+  { header:'BN',                  dataKey:'bn'      },
+  { header:'Batch Size',          dataKey:'size'    },
+  { header:'UOM',                 dataKey:'uom'     },
+  { header:'Section',             dataKey:'section' },
+  { header:'Plant / Machinery',   dataKey:'plant'   },
+  { header:'Activity',            dataKey:'act'     },
+  { header:'Status',              dataKey:'status'  }
+],
     body: data,
     styles: {
       font:'helvetica',
@@ -542,20 +702,18 @@ function exportPdf () {
     },
     rowPageBreak:'avoid',
 
-  didParseCell: data => {
-  if (data.section === 'head') {
-    data.cell.styles.fontStyle = 'bold';
-  }
-  },
-
-  willDrawCell: data => {
-  if (data.section === 'head') {
-    doc.setFont('helvetica','bold');
-  } else {
-    doc.setFont('helvetica','normal');
-  }
-  },
-
+    didParseCell: data => {
+      if (data.section === 'head') {
+        data.cell.styles.fontStyle = 'bold';
+      }
+    },
+    willDrawCell: data => {
+      if (data.section === 'head') {
+        doc.setFont('helvetica','bold');
+      } else {
+        doc.setFont('helvetica','normal');
+      }
+    },
     didDrawPage: (data) => {
       doc.setFont('Helvetica','normal').setFontSize(9);
       doc.text(
