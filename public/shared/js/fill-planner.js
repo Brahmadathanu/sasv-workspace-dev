@@ -28,6 +28,68 @@ const metricsBody  = $("fp-metrics-body");
 const metricsHeader = $("fp-metrics-header");
 const stockUpdated  = $("fp-stock-updated");
 
+// --- AJAX Tom Select Product Picker ---
+const productTomSelect = new TomSelect('#fp-product', {
+  /* ────────── behaviour ────────── */
+  valueField   : 'id',
+  labelField   : 'item',
+  searchField  : ['item'],
+  placeholder  : 'Type to select…',
+  preload      : false,
+  loadThrottle : 350,
+  maxOptions   : 100,
+  maxItems     : 1,
+  hideSelected : true,
+  closeAfterSelect : true,          // collapse list immediately
+  create       : false,
+  persist      : false,
+
+  /* ────────── class hooks (ties to your CSS) ────────── */
+  wrapperClass  : 'ts-wrapper fp-product',
+  controlClass  : 'ts-control fp-product',
+  dropdownClass : 'ts-dropdown fp-product',
+
+  /* ────────── AJAX loader (Supabase) ────────── */
+  load: async (query, cb) => {
+    if (!query.length) return cb();
+    const { data, error } = await supabase
+      .from('products')
+      .select('id, item, uom_base')
+      .ilike('item', `%${query}%`)
+      .eq('status', 'Active')
+      .order('item')
+      .limit(30);
+
+    if (error) return cb();                 // silent fail
+    data.forEach(p => (productMap[p.id] = { name: p.item, uom: p.uom_base }));
+    cb(data);
+  },
+
+  /* ────────── render templates ────────── */
+  render: {
+    option(item, esc) { return `<div>${esc(item.item)}</div>`; },
+    item  (item, esc) { return `<div>${esc(item.item)}</div>`; }
+  },
+
+  /* ────────── fix: remove the hidden newline ────────── */
+  onItemAdd() {
+    this.setTextboxValue('');   // wipe Tom-Select’s internal textbox
+  },
+
+  onKeyDown(evt) {
+    /* If the list is already closed, block <Enter>
+       so it can’t insert a new line. */
+    if (evt.key === 'Enter' && !this.isOpen) {
+      evt.preventDefault();
+      this.blur();              // optional: move focus away
+    }
+  }
+});
+
+// fire our handler whenever a product is chosen / cleared
+document.getElementById("fp-product")
+        .addEventListener("change", onProductSelect);
+
 /* ─── make tables scrollable with sticky headers ─────────────────── */
 function wrapTable(el) {
   const wrap = document.createElement('div');
@@ -64,63 +126,30 @@ function fitVisibleWraps() {
 }
 window.addEventListener('resize', fitVisibleWraps);
 
-async function onProductInput() {
-  const name = elProd.value.trim();
-  const rec  = productMap[name];
+async function onProductSelect() {
+  const prodId = elProd.value;
+  const rec = productMap[prodId];
   if (!rec) {
-    // no valid product selected → hide all the downstream sections
+    // hide all downstream, as before
     elUom.textContent =
-  emgTitle.style.display =
-  runWrap.style.display =
-  metricsHeader.style.display =
-  fpTitle.style.display =
-    "none";
-
-emgTable.style.display =
-metricsTable.style.display =
-elTable.style.display = "none";   // keep for safety
-
-// hide wrappers too
-emgWrap.style.display =
-metricsWrap.style.display =
-planWrap.style.display = "none";
+      emgTitle.style.display =
+      runWrap.style.display =
+      metricsHeader.style.display =
+      fpTitle.style.display =
+      "none";
+    emgTable.style.display =
+      metricsTable.style.display =
+      elTable.style.display = "none";
+    emgWrap.style.display =
+      metricsWrap.style.display =
+      planWrap.style.display = "none";
     return;
   }
-
-  // valid product!  show its UOM label
   elUom.textContent = rec.uom;
-
-  // now fetch SKUs & metrics for rec.id
-  await loadForProduct(rec.id);
+  await loadForProduct(prodId);
 }
 
-/* ─── populate product list ───────────────────────────────────────── */
-
-window.addEventListener("DOMContentLoaded", async () => {
-  const { data, error } = await supabase
-    .from("products")
-    .select("id,item,uom_base")
-    .eq("status","Active")
-    .order("item");
-
-  if (error) {
-    elMsg.textContent = error.message;
-    return;
-  }
-  // build a name→{id,uom} map and fill datalist
-    productMap = {};
-
-  // populate datalist and map
-  const dl = document.getElementById("fp-product-list");
-  dl.innerHTML = data.map(p => {
-    productMap[p.item] = { id: p.id, uom: p.uom_base };
-    return `<option value="${p.item}">`;
-  }).join("");
-});
-
 /* ─── update UOM & emergency dropdown on product change ───────────── */
-// when the user types or picks from the datalist:
-elProd.addEventListener("input", onProductInput);
 
 async function loadForProduct(productId) {
   // --- build your Urgent orders rows ---
@@ -301,19 +330,18 @@ elRunBtn.addEventListener("click", async () => {
   elBody.innerHTML  = "";
   elTable.style.display = "none";
 
-  const rec    = productMap[ elProd.value.trim() ];
+  const prodId = elProd.value;
+  const rec = productMap[prodId];
   if (!rec) {
     elMsg.textContent = "Choose a valid product.";
     return;
   }
-  const prodId = rec.id;
 
   let   bulk   = +elBulk.value;
   const over   = $("fp-overshoot").checked;
 
   if (!prodId) { elMsg.textContent = "Choose a product."; return; }
   if (!bulk)   { elMsg.textContent = "Enter bulk quantity."; return; }
-
 
 /* --- deduct emergency requirements (all rows) ---------------------- */
 const qtyInputs = document.querySelectorAll(".emg-qty");
@@ -407,7 +435,7 @@ if (runningInIframe) {
   homeBtn.addEventListener('click', () => {
     elProd.value = '';
     elBulk.value = '';
-    onProductInput();            // collapse everything
+    onProductSelect();            // collapse everything
   });
 } else {
   // Electron: navigate two levels up to the app's real home page
