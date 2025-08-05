@@ -28,61 +28,77 @@ const metricsBody  = $("fp-metrics-body");
 const metricsHeader = $("fp-metrics-header");
 const stockUpdated  = $("fp-stock-updated");
 
-// --- AJAX Tom Select Product Picker ---
+/* ──────────────────────────────────────────────────────────────
+   AJAX Tom-Select  ▸  Product picker
+   – single-select, remote search (Supabase)
+   – clears hidden textbox to stop newline / wrap
+   – shifts focus to #fp-bulk after the user picks / hits <Enter>
+──────────────────────────────────────────────────────────────── */
 const productTomSelect = new TomSelect('#fp-product', {
-  /* ────────── behaviour ────────── */
-  valueField   : 'id',
-  labelField   : 'item',
-  searchField  : ['item'],
-  placeholder  : 'Type to select…',
-  preload      : false,
-  loadThrottle : 350,
-  maxOptions   : 100,
-  maxItems     : 1,
-  hideSelected : true,
-  closeAfterSelect : true,          // collapse list immediately
-  create       : false,
-  persist      : false,
+  /* —— behaviour / limits —— */
+  valueField      : 'id',
+  labelField      : 'item',
+  searchField     : ['item'],
+  placeholder     : 'Type to select…',
+  maxItems        : 1,
+  maxOptions      : 100,
+  hideSelected    : true,
+  closeAfterSelect: true,
+  create          : false,
+  persist         : false,
+  delimiter       : '',          // (single token)
 
-  /* ────────── class hooks (ties to your CSS) ────────── */
+  /* —— CSS hooks (matches your style block) —— */
   wrapperClass  : 'ts-wrapper fp-product',
   controlClass  : 'ts-control fp-product',
   dropdownClass : 'ts-dropdown fp-product',
 
-  /* ────────── AJAX loader (Supabase) ────────── */
-  load: async (query, cb) => {
+  /* —— remote loader —— */
+  loadThrottle : 350,
+  preload      : false,
+  load : async (query, cb) => {
     if (!query.length) return cb();
     const { data, error } = await supabase
       .from('products')
-      .select('id, item, uom_base')
+      .select('id,item,uom_base')
       .ilike('item', `%${query}%`)
       .eq('status', 'Active')
       .order('item')
       .limit(30);
 
-    if (error) return cb();                 // silent fail
-    data.forEach(p => (productMap[p.id] = { name: p.item, uom: p.uom_base }));
+    if (error) return cb();                // silent fail
+    data.forEach(p => productMap[p.id] = { name:p.item, uom:p.uom_base });
     cb(data);
   },
 
-  /* ────────── render templates ────────── */
+  /* —— simple renderers —— */
   render: {
-    option(item, esc) { return `<div>${esc(item.item)}</div>`; },
-    item  (item, esc) { return `<div>${esc(item.item)}</div>`; }
+    option(item, esc){ return `<div>${esc(item.item)}</div>`; },
+    item  (item, esc){ return `<div>${esc(item.item)}</div>`; }
   },
 
-  /* ────────── fix: remove the hidden newline ────────── */
-  onItemAdd() {
-    this.setTextboxValue('');   // wipe Tom-Select’s internal textbox
+  /* —— common fix-ups (newline, caret, jump-to-Bulk) —— */
+  onInitialize(){
+    this.control_input.style.width = '0';   // zerowidth caret from the start
   },
+  onItemAdd(value, item){
+    /* 1) never leave residual text that can wrap */
+    this.setTextboxValue('');
+    /* 2) keep caret zerowidth for future edits */
+    this.control_input.style.width = '0';
+    /* 3) put focus on Bulk immediately (mobile friendly) */
+    document.getElementById('fp-bulk')?.focus();
+  },
+  onClear(){
+    this.control_input.style.width = '0';
+  }
+});
 
-  onKeyDown(evt) {
-    /* If the list is already closed, block <Enter>
-       so it can’t insert a new line. */
-    if (evt.key === 'Enter' && !this.isOpen) {
-      evt.preventDefault();
-      this.blur();              // optional: move focus away
-    }
+/* —— extra guard: block native <Enter> newline —— */
+productTomSelect.control_input.addEventListener('keydown', e=>{
+  if (e.key === 'Enter'){
+    e.preventDefault();                 // stop newline / form submit
+    productTomSelect.onEnterKey?.();    // commit highlighted option
   }
 });
 

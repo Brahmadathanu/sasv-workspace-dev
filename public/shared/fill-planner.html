@@ -7,11 +7,11 @@
   <link rel="stylesheet" href="css/style.css">
   <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
 <style>
-/* ═══════  PAGE CHROME  ═══════ */
+/* ───────────  PAGE CHROME  ─────────── */
 body{padding:20px;font-family:Arial,sans-serif}
 h2  {margin:0;color:#005A8D}
 
-/* ═══════  CONTROL BAR  ═══════ */
+/* ───────────  CONTROL BAR  ─────────── */
 .fp-controls{
   display:flex;flex-wrap:wrap;align-items:center;
   gap:1rem;margin:1rem 0;
@@ -19,89 +19,72 @@ h2  {margin:0;color:#005A8D}
 .fp-controls label{
   display:inline-flex;align-items:center;gap:.4rem;margin:0;
 }
-/* shared size for every input/select — including Tom-Select */
+/* unified pill dimensions (native + TS) */
 .fp-controls select,
 .fp-controls input[type="number"],
-.fp-controls .ts-control{                   /* ← kept height for Bulk */
-  height:48px;font-size:16px;
-  padding:8px 12px;
-  min-width:120px;
-  border:1px solid #ccc;border-radius:4px;
-  box-sizing:border-box;
+.fp-controls .ts-control{
+  height:48px;font-size:16px;padding:8px 12px;
+  min-width:120px;border:1px solid #ccc;border-radius:4px;
+  box-sizing:border-box
 }
 
-/* ═══════  CALCULATE PILL  ═══════ */
+/* ───────────  CALCULATE PILL  ─────────── */
 .fp-run-wrap{display:flex;justify-content:center;margin:1rem 0 .4rem}
 #fp-run{
   background:#0a62c3;color:#fff;border:none;padding:12px 32px;
   font-size:16px;border-radius:9999px;cursor:pointer;
   box-shadow:0 2px 6px rgba(0,0,0,.15);
-  transition:background .18s,box-shadow .18s,transform .18s;
+  transition:background .18s,box-shadow .18s,transform .18s
 }
 #fp-run:hover {background:#084e9c;box-shadow:0 4px 10px rgba(0,0,0,.18);transform:translateY(-2px)}
 #fp-run:active{background:#073f7d;box-shadow:0 2px 6px rgba(0,0,0,.15);transform:none}
 
-/* ═══════  TITLES / SUB-HEADS  ═══════ */
+/* ───────────  SECTION TITLES  ─────────── */
 .fp-subtitle,
 #fp-metrics-header,
 #fp-emg-title,
 #fp-title{
   margin:.8rem 0 .4rem;font-size:1.17em;font-weight:600;color:#333;
-  position:sticky;top:0;z-index:3;padding:4px 0;
+  position:sticky;top:0;z-index:3;padding:4px 0
 }
 #fp-metrics-header{display:flex;justify-content:space-between;align-items:baseline}
-#fp-stock-updated{font-size:1em;font-weight:600;color:#d00}
+#fp-stock-updated{font-weight:600;color:#d00}
 
-/* ═══════  TABLES  ═══════ */
+/* ───────────  TABLES  ─────────── */
 table{width:100%;border-collapse:collapse;margin:.6rem 0 0}
 th,td{border:1px solid #ccc;padding:8px 12px;text-align:center;vertical-align:middle}
 th{background:#f3f6fa} tbody tr:hover{background:#eef6ff}
 
-/* Urgent orders tweaks */
-#fp-emg-table th:first-child,
-#fp-emg-table td:first-child{text-align:center!important}
+/* urgent-order qty box */
 #fp-emg-table input.emg-qty{
   width:90%;max-width:140px;height:32px;
-  padding:6px 8px;font-size:14px;text-align:center;box-sizing:border-box;
+  padding:6px 8px;font-size:14px;text-align:center;box-sizing:border-box
 }
 
-/* ═══════  RESPONSIVE  ═══════ */
-@media(max-width:600px){
-  .fp-controls{flex-direction:column;align-items:stretch}
-  .fp-controls label{width:100%}
-  #fp-emg-table input.emg-qty{max-width:none}
-}
-
-/* ═══════  SCROLLABLE WRAPS  ═══════ */
-.fp-table-wrap{
-  overflow:auto;max-height:60vh;
-  -webkit-overflow-scrolling:touch;position:relative;
-}
+/* scroll wrappers */
+.fp-table-wrap{overflow:auto;max-height:60vh;-webkit-overflow-scrolling:touch}
 .fp-table-wrap.has-scroll{box-shadow:inset 1px 0 #ccc,inset -1px 0 #ccc}
-.fp-table-wrap table{margin:0;width:100%;min-width:600px}
+.fp-table-wrap table{margin:0;min-width:600px}
 
-/* ═══════  TOM-SELECT  (Product picker)  ═══════ */
+/* ───────────  TOM-SELECT (Product)  ─────────── */
 .ts-control.fp-product{
-  /* let it GROW — no max-width; fills remaining row room */
-  flex:1 0 auto;            /* flex-grow   flex-shrink  flex-basis */
-  min-width:220px;
-  font-size:16px;line-height:1.35;
-  padding:10px 12px;
-  border:1px solid #ccc;border-radius:4px;
-  background:#fff;color:#222;
-  white-space:nowrap;       /* keep the token on one line          */
-  overflow-x:auto;          /* sideways scroll only if page edge   */
-  transition:border-color .18s;
+  /* desktop behaviour — single row, side-scroll if needed */
+  flex:1 0 auto;min-width:220px;
+  display:flex;flex-wrap:nowrap;overflow-x:auto;white-space:nowrap;
+
+  height:48px;font-size:16px;line-height:1.35;padding:10px 12px;
+  border:1px solid #ccc;border-radius:4px;background:#fff;color:#222;
+  transition:border-color .18s
 }
 .ts-control.fp-product.focus{border-color:#0a62c3}
 
-.ts-control.fp-product .item{               /* selected token          */
-  max-width:100%;
-  overflow:hidden;text-overflow:ellipsis;
-  white-space:nowrap;padding-right:4px;
+/* selected token */
+.ts-control.fp-product .item{
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:4px
 }
-.ts-control.fp-product .ts-input{           /* caret / user typing     */
-  flex:0 0 1px;min-width:1px;padding:0;margin:0;
+/* hidden caret / typing area — zero width (prevents phantom line) */
+.ts-control.fp-product .ts-input{
+  flex:0 0 0!important;width:0!important;padding:0!important;margin:0
 }
 
 /* dropdown list */
@@ -109,9 +92,22 @@ th{background:#f3f6fa} tbody tr:hover{background:#eef6ff}
 .ts-dropdown.fp-product .option.active,
 .ts-dropdown.fp-product .option:hover{background:#eef6ff;color:#0a62c3}
 
-/* wrapper flex behaviour */
-.fp-controls label>.ts-wrapper{
-  flex:1 1 260px;min-width:0;      /* let parent flex decide width */
+/* flex wrapper so Product can grow */
+.fp-controls label>.ts-wrapper{flex:1 1 260px;min-width:0}
+
+/* ── MOBILE (<600 px) — allow wrapping instead of truncation ── */
+@media (max-width:600px){
+  .fp-controls{flex-direction:column;align-items:stretch}
+  .fp-controls label{width:100%}
+
+  .ts-control.fp-product{
+    flex-wrap:wrap;white-space:normal;overflow:visible        /* allow wrap   */
+  }
+  .ts-control.fp-product .item{white-space:normal}            /* token wraps  */
+  .ts-control.fp-product .ts-input{
+    flex:0 0 4px!important;width:4px!important                /* tiny caret   */
+  }
+  #fp-emg-table input.emg-qty{max-width:none}
 }
 </style>
 </head>
