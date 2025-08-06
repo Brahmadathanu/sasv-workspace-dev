@@ -88,6 +88,11 @@ const plantMap = {};
 /* Section-name cache (for table render) */
 const sectionMap = {};
 
+/* ─── Render-race guard ──────────────────────────────────────────────── */
+/* Every time we start a new table refresh we bump this number. Only the
+   request that finishes _last_ is allowed to update the DOM.            */
+let queryVersion = 0;
+
 /* ── Initial bootstrap ------------------------------------------------------ */
 document.addEventListener('DOMContentLoaded', init);
 
@@ -359,11 +364,12 @@ const plantTomSelect = new TomSelect("#filterPlant", {
 document.getElementById('filterPlant').addEventListener('change', loadTable);
 
 /* ── Main table refresh ----------------------------------------------------- */
-async function loadTable() {
-  // 1) Clear out the old rows
-  tbody.replaceChildren();
+async function loadTable () {
 
-  // 2) Detect whether any filter is active
+  /* 1️⃣ – stamp THIS request and mark it as “latest so far” */
+  const myVersion = ++queryVersion;           // bump the global counter
+
+  /* 2️⃣ – Detect whether any filter is active (unchanged) */
   const hasFilter = Boolean(
     fDate.value    ||
     fSection.value ||
@@ -376,7 +382,7 @@ async function loadTable() {
     fStatus.value
   );
 
-  // 3) Build base query
+  /* 3️⃣ – Build the Supabase query (unchanged) */
   let q = supabase
     .from('daily_work_log')
     .select(`
@@ -394,7 +400,6 @@ async function loadTable() {
       plant_machinery(plant_name)
     `);
 
-  // 4) Apply filters
   if (fDate.value)    q = q.eq('log_date',     toISODate(fDate.value));
   if (fSection.value) q = q.eq('section_id',   fSection.value);
   if (fSub.value)     q = q.eq('subsection_id',fSub.value);
@@ -405,56 +410,47 @@ async function loadTable() {
   if (fAct.value)     q = q.eq('activity',     fAct.value);
   if (fStatus.value)  q = q.eq('status',       fStatus.value);
 
-  // 5) Always pull newest‑first
   q = q
     .order('log_date',   { ascending: false })
     .order('created_at', { ascending: false });
 
-  // 6) If no filters, limit to the 10 most recent rows
-  if (!hasFilter) {
-    q = q.limit(10);
-  }
+  if (!hasFilter) q = q.limit(10);
 
-  // 7) Execute
+  /* 4️⃣ – Run the query */
   const { data, error } = await q;
-  if (error) {
-    console.error(error);
-    return;
-  }
+  if (error) { console.error(error); return; }
 
-  // 8) Copy into an array for client‑side sorting
+  /* 5️⃣ – ABANDON if a newer request has started meanwhile */
+  if (myVersion !== queryVersion) return;
+
+  /* 6️⃣ – We are still the newest ➜ clear and render */
+  tbody.replaceChildren();
+
   const rows = data ? data.slice() : [];
 
-  // 9) Natural‑order sort ascending for display
+  /* 7️⃣ – Natural-order sort (unchanged) */
   const coll = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
   rows.sort((a, b) => {
-    // 1) by log_date
     let diff = new Date(a.log_date) - new Date(b.log_date);
     if (diff) return diff;
-    // 2) by created_at
     diff = new Date(a.created_at) - new Date(b.created_at);
     if (diff) return diff;
-    // 3) by item A→Z
     diff = a.item.localeCompare(b.item, undefined, { sensitivity: 'base' });
     if (diff) return diff;
-    // 4) by batch_number numerically
     diff = a.batch_number
       .toString()
       .localeCompare(b.batch_number.toString(), undefined, { numeric: true });
     if (diff) return diff;
-    // 5) by section_name A→Z
     const sa = sectionMap[a.section_id] || '';
     const sb = sectionMap[b.section_id] || '';
     diff = sa.localeCompare(sb, undefined, { sensitivity: 'base' });
     if (diff) return diff;
-    // 6) by plant_name natural ↑
     const pa = a.plant_machinery?.plant_name || '';
     const pb = b.plant_machinery?.plant_name || '';
-    diff = coll.compare(pa, pb);
-    return diff;
+    return coll.compare(pa, pb);
   });
 
-  // 10) Render into the table
+  /* 8️⃣ – Render rows (unchanged) */
   rows.forEach(r => {
     const plantName   = r.plant_machinery?.plant_name || '';
     const sectionName = sectionMap[r.section_id] || '';
@@ -474,7 +470,7 @@ async function loadTable() {
     `);
   });
 
-  // 11) Attach the “View” click handlers
+  /* 9️⃣ – Attach “View” links (unchanged) */
   document.querySelectorAll('.view-link')
     .forEach(a => a.addEventListener('click', showDetails));
 }

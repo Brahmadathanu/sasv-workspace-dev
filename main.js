@@ -1,4 +1,5 @@
 // main.js
+
 // Auto-reload the app when any file under the project changes (dev only)
 try {
   require('electron-reload')(__dirname, {
@@ -8,14 +9,53 @@ try {
   });
 } catch (_) { /* ignore when packaged */ }
 
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const express = require('express');
 
 // Auto-update (checks GitHub Releases)
 const { autoUpdater } = require('electron-updater');
 
-// ── serve files over HTTP on port 3000 ──
+//
+// ── AUTO‐UPDATE EVENT LISTENERS ───────────────────────────────────────
+//
+autoUpdater.on('checking-for-update', () => {
+  dialog.showMessageBox({ type: 'info', message: 'Checking for updates…' });
+});
+autoUpdater.on('update-available', info => {
+  dialog.showMessageBox({
+    type: 'info',
+    message: `Update available: v${info.version}. Downloading…`
+  });
+});
+autoUpdater.on('update-not-available', () => {
+  dialog.showMessageBox({
+    type: 'info',
+    message: 'No update available (you’re on the latest version).'
+  });
+});
+autoUpdater.on('error', err => {
+  dialog.showErrorBox('Update error', (err && err.message) || 'Unknown error');
+});
+autoUpdater.on('download-progress', progress => {
+  console.log(`Download speed: ${progress.bytesPerSecond}
+Downloaded ${Math.round(progress.percent)}%
+(${progress.transferred}/${progress.total})`);
+});
+autoUpdater.on('update-downloaded', info => {
+  dialog.showMessageBox({
+    type: 'question',
+    buttons: ['Restart now', 'Later'],
+    defaultId: 0,
+    message: `v${info.version} downloaded — restart to install?`
+  }).then(({ response }) => {
+    if (response === 0) autoUpdater.quitAndInstall();
+  });
+});
+
+//
+// ── serve files over HTTP on port 3000 ────────────────────────────────
+//
 const webApp = express();
 webApp.use(express.static(path.join(__dirname)));
 webApp.listen(3000, () => {
@@ -23,7 +63,7 @@ webApp.listen(3000, () => {
 });
 
 let mainWindow;
-function createWindow () {
+function createWindow() {
   mainWindow = new BrowserWindow({
     width: 900,
     height: 700,
@@ -38,7 +78,7 @@ function createWindow () {
   mainWindow.loadURL('http://localhost:3000/login.html');
 }
 
-ipcMain.on('focus-window', (event) => {
+ipcMain.on('focus-window', event => {
   const win = BrowserWindow.fromWebContents(event.sender);
   if (win) win.focus();
 });
@@ -46,21 +86,20 @@ ipcMain.on('focus-window', (event) => {
 // ── make app version available to renderer ──
 ipcMain.handle('get-app-version', () => app.getVersion());
 
-app.whenReady().then(
-  () => {
-     // 1) create the main window
-     createWindow();
- 
-     // 2) in packaged builds, check GitHub for a newer version
-     try {
-       autoUpdater.checkForUpdatesAndNotify();
-     } catch (err) {
-       // During `npm run dev` this will throw because the app isn’t packaged.
-       // We log and keep going so it won’t spam your console.
-       console.log('Auto-update skipped (dev mode):', err.message);
-     }
-   }
- );
+app.whenReady().then(() => {
+  // 1) create the main window
+  createWindow();
+
+  // 2) in packaged builds, check GitHub for a newer version
+  try {
+    autoUpdater.checkForUpdatesAndNotify();
+  } catch (err) {
+    // During `npm run dev` this will throw because the app isn’t packaged.
+    // We log and keep going so it won’t spam your console.
+    console.log('Auto-update skipped (dev mode):', err.message);
+  }
+});
+
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });

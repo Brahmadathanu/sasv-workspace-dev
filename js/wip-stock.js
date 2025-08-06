@@ -56,6 +56,9 @@ function attachMask(el) {
   });
 }
 
+/* --- render-race guard -------------------------------------- */
+let tableVersion = 0;     // bump every time we start a new refresh
+
 /* ══════════════════════════════════════════════════════════════
    2.  DOM REFERENCES
    ══════════════════════════════════════════════════════════════ */
@@ -170,6 +173,9 @@ async function loadBNs() {
    ══════════════════════════════════════════════════════════════ */
 
 async function renderTable() {
+
+  const myVersion = ++tableVersion;
+
   // 0️⃣ clear existing rows
   tbody.innerHTML = '';
 
@@ -181,11 +187,16 @@ async function renderTable() {
       item, batch_number, batch_size, batch_uom,
       activity, started_on, due_date
     `)
-    .or('status.eq.Doing,status.eq.In Storage.and(activity.eq.Intermediate storage)');
+    .or(
+      'status.eq.Doing,' +
+      'and(status.eq."In Storage",activity.eq."Intermediate storage")'
+    );
   if (error) {
     console.error('loadStatus error:', error);
     return;
   }
+
+  if (myVersion !== tableVersion) return;
 
   // 1️⃣ Deduplicate on composite key
   const uniq = new Map();
@@ -432,6 +443,88 @@ function clearAll() {
 }
 
 /* ══════════════════════════════════════════════════════════════
+   TOM SELECT  (Item  +  Activity)
+   ══════════════════════════════════════════════════════════════ */
+
+/* ---------- Item (Tom Select) -------------------------------- */
+async function fetchItemsTS (q) {
+  const { data, error } = await supabase
+    .from('daily_work_log')
+    .select('item', { distinct: true })
+    .ilike('item', `%${q}%`)
+    .limit(20);
+
+  if (error) { console.error('Item fetch', error); return []; }
+
+  return [...new Set(data.map(r => r.item).filter(Boolean))]
+           .map(item => ({ item }));
+}
+
+const itemTS = new TomSelect('#filterItem', {
+  valueField  : 'item',
+  labelField  : 'item',
+  searchField : ['item'],
+  load        : (q, cb) => q ? fetchItemsTS(q).then(cb) : cb(),
+  maxOptions  : 20,
+  create      : false
+});
+
+/* ---------- Item change handling ------------------------------------ */
+
+/* when an Item is actually chosen (click **or** Enter) */
+itemTS.on('item_add', async () => {
+  await loadBNs();          // repopulate BN list (enables #filterBN)
+  renderTable();            // refresh the grid
+
+  /* 1️⃣  tell Tom Select to release focus right away */
+  itemTS.control_input.blur();   // its hidden input
+  itemTS.blur();                 // wrapper div (safety)
+
+  /* 2️⃣  on the next paint-tick move focus to the BN dropdown */
+  requestAnimationFrame(() => {
+    const bn = document.getElementById('filterBN');
+    if (!bn.disabled) bn.focus();
+  });
+});
+
+/* safeguard: programmatic value changes */
+document.getElementById('filterItem').addEventListener('change', async () => {
+  await loadBNs();
+  renderTable();
+});
+
+/* ---------- Activity ---------------------------------------- */
+async function fetchActsTS(q){
+  let sb = supabase
+             .from('daily_work_log')
+             .select('activity',{ distinct:true })
+             .ilike('activity', `%${q}%`)
+             .limit(20);
+
+  const itm = document.getElementById('filterItem').value;
+  const bn  = document.getElementById('filterBN').value;
+  if(itm) sb = sb.eq('item', itm);
+  if(bn)  sb = sb.eq('batch_number', bn);
+
+  const { data, error } = await sb;
+  if(error){ console.error('Activity fetch', error); return []; }
+  return [...new Set(data.map(r=>r.activity).filter(Boolean))]
+         .map(activity => ({ activity }));
+}
+
+const actTS = new TomSelect('#sActivity',{
+  valueField : 'activity',
+  labelField : 'activity',
+  searchField: ['activity'],
+  load       : (q, cb) => q ? fetchActsTS(q).then(cb) : cb(),
+  maxOptions : 20,
+  create     : false
+});
+
+document.getElementById('sActivity')
+        .addEventListener('change', renderTable);
+
+/* ══════════════════════════════════════════════════════════════
    9.  INITIALISATION
    ══════════════════════════════════════════════════════════════ */
 async function init() {
@@ -471,7 +564,6 @@ async function init() {
 
   // ─── Load initial dropdowns ──────────────────────────────────
   await loadSections();
-  await loadItems();
 
   // ─── Populate Activity dropdown ─────────────────────────────
   {
@@ -482,7 +574,6 @@ async function init() {
     if (!actErr) {
       const uniqueActs = Array.from(new Set(actsRaw.map(r => r.activity)))
                               .map(a => ({ activity: a }));
-      populate(sActivity, uniqueActs, 'activity', 'activity', 'Activity');
     }
   }
 

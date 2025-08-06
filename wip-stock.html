@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="public/shared/css/style.css">
   <link rel="stylesheet" href="css/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css">
 
 <style>
   /* ─── FULL‑HEIGHT FLEX LAYOUT ─────────────────────────── */
@@ -217,6 +218,20 @@
   .modal-actions .btn:hover {
     background: var(--btn-hover-bg);
   }
+
+/* make Tom Select look like the other inputs */
+.ts-wrapper, .ts-control {
+  width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box;
+}
+.ts-control {
+  min-height: 34px;
+  padding: 0 6px;
+  font-size: 14px;
+  border-radius: 4px;
+}
+
 </style>
 
 </head>
@@ -337,13 +352,15 @@
     </div>
   </div>
 
-  <!-- ===== SCRIPTS ====================================================== -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
-  <!-- Flatpickr scripts -->
-  <script src="css/flatpickr.min.js"></script>
-  <script src="css/plugins/confirmDate/confirmDate.js"></script>
+<!-- ===== SCRIPTS ====================================================== -->
+<!-- 1. third-party libs that MUST be ready first -->
+<script defer src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+<script defer src="css/flatpickr.min.js"></script>
+<script defer src="css/plugins/confirmDate/confirmDate.js"></script>
 
-  <script type="module" src="js/wip-stock.js"></script>
+<!-- 2. *your* module – runs after everything above -->
+<script type="module" defer src="js/wip-stock.js"></script>
 </body>
 </html>
