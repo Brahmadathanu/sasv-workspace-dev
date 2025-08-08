@@ -5,10 +5,9 @@ import { supabase } from "./supabaseClient.js";
 
 const $ = id => document.getElementById(id);
 
-const elProd       = $("fp-product");
+const elProdInput  = $("fp-product-input");   // the visible input
+const elProdList   = $("fp-product-list");    // the <datalist>
 const elBulk       = $("fp-bulk");
-// global map for hybrid “type‑or‑select” product input
-let productMap     = {};
 const elUom        = $("fp-uom");
 const elRunBtn     = $("fp-run");
 const elMsg        = $("msg");
@@ -28,42 +27,42 @@ const metricsBody  = $("fp-metrics-body");
 const metricsHeader = $("fp-metrics-header");
 const stockUpdated  = $("fp-stock-updated");
 
-initProductSelect();
+let allProducts = [];
+let productMap    = {};   // id -> { name, uom }
+let productByName = {};   // lowercase name -> { id, uom }
 
-// Load ALL products into the native <select> once at startup
-async function initProductSelect() {
-  elProd.disabled = true;
-  elProd.innerHTML = `<option value="">Loading…</option>`;
+initProductList();
 
-  const { data, error } = await supabase
-    .from('products')
-    .select('id,item,uom_base,status')
-    .eq('status','Active')
-    .order('item');
-
-  if (error) {
-    console.error('Product load error:', error);
-    elProd.innerHTML = `<option value="">(Failed to load products)</option>`;
-    return;
+// When user finishes typing or picks an option, resolve -> product id
+elProdInput.addEventListener('change', resolveAndGo);
+elProdInput.addEventListener('blur',   resolveAndGo);
+elProdInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    resolveAndGo();
   }
-
-  // Build local map for quick lookups later
-  productMap = {};
-  const opts = ['<option value="">Type to select…</option>'];
-  (data || []).forEach(p => {
-    productMap[p.id] = { name: p.item, uom: p.uom_base };
-    opts.push(`<option value="${p.id}">${p.item}</option>`);
-  });
-
-  elProd.innerHTML = opts.join('');
-  elProd.disabled = false;
-}
-
-// When a product is chosen, jump focus to Bulk and continue as before
-elProd.addEventListener('change', () => {
-  if (elProd.value) $('fp-bulk')?.focus();
-  onProductSelect(); // uses productMap + elProd.value
 });
+
+function resolveAndGo() {
+  const typed = (elProdInput.value || '').trim().toLowerCase();
+  const hit   = typed ? productByName[typed] : null;
+
+  if (hit) {
+    // store chosen id on the input
+    elProdInput.dataset.id = hit.id;
+    // set the UOM immediately (nice UX)
+    const rec = productMap[hit.id];
+    if (rec) elUom.textContent = rec.uom || '(base UOM)';
+    // drive the rest
+    onProductSelect();
+    // move focus to Bulk for convenience
+    $("fp-bulk")?.focus();
+  } else {
+    // unknown text → clear selection and collapse UI
+    delete elProdInput.dataset.id;
+    onProductSelect(); // will hide the downstream sections
+  }
+}
 
 /* ─── make tables scrollable with sticky headers ─────────────────── */
 function wrapTable(el) {
@@ -74,6 +73,48 @@ function wrapTable(el) {
   // keep wrapper hidden initially (tables already start hidden)
   wrap.style.display = 'none';
   return wrap;
+}
+
+// Load ALL products once and populate the datalist
+async function initProductList() {
+  // show a temporary option while loading (harmless in datalist)
+  elProdList.innerHTML = `<option value="Loading…"></option>`;
+
+  const { data, error } = await supabase
+    .from('products')
+    .select('id,item,uom_base,status')
+    .eq('status','Active')
+    .order('item');
+
+  if (error) {
+    console.error('Product load error:', error);
+    elMsg.textContent = 'Failed to load products.';
+    elProdList.innerHTML = '';
+    return;
+  }
+
+  allProducts   = data || [];
+  productMap    = {};
+  productByName = {};
+
+  // Build <option>s for the datalist and the lookup maps
+  const opts = [];
+  allProducts.forEach(p => {
+    const name = p.item || '';
+    opts.push(`<option value="${escapeHtml(name)}"></option>`);
+    productMap[p.id] = { name, uom: p.uom_base };
+    productByName[name.toLowerCase()] = { id: String(p.id), uom: p.uom_base };
+  });
+  elProdList.innerHTML = opts.join('');
+}
+
+// tiny helper to safely inject text into HTML
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
 }
 
 const metricsWrap = wrapTable(metricsTable);  // SKU Metrics
@@ -102,8 +143,8 @@ function fitVisibleWraps() {
 window.addEventListener('resize', fitVisibleWraps);
 
 async function onProductSelect() {
-  const prodId = elProd.value;
-  const rec = productMap[prodId];
+  const prodId = elProdInput.dataset.id || '';
+  const rec    = prodId ? productMap[prodId] : null;
   if (!rec) {
     // hide all downstream, as before
     elUom.textContent =
@@ -305,8 +346,8 @@ elRunBtn.addEventListener("click", async () => {
   elBody.innerHTML  = "";
   elTable.style.display = "none";
 
-  const prodId = elProd.value;
-  const rec = productMap[prodId];
+  const prodId = elProdInput.dataset.id || '';
+  const rec    = prodId ? productMap[prodId] : null;
   if (!rec) {
     elMsg.textContent = "Choose a valid product.";
     return;
@@ -408,9 +449,16 @@ const runningInIframe = window.top !== window.self; // true only in PWA
 if (runningInIframe) {
   homeBtn.textContent = 'CLEAR';
   homeBtn.addEventListener('click', () => {
-    elProd.value = '';
+    // clear the type-to-search input + chosen id
+    elProdInput.value = '';
+    delete elProdInput.dataset.id;
+
+    // clear downstream
     elBulk.value = '';
-    onProductSelect();            // collapse everything
+    elUom.textContent = '(base UOM)';
+    elRunBtn.disabled = true;
+
+    onProductSelect(); // collapses tables/sections
   });
 } else {
   // Electron: navigate two levels up to the app's real home page

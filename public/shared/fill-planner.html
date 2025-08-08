@@ -90,11 +90,17 @@ tbody tr:hover{background:#eef6ff}
 
   <div class="fp-controls">
     <label>
-      Product 
-      <select id="fp-product">
-        <option value="">Type to select...</option>
-      </select>
-    </label>
+  Product&nbsp;
+  <!-- single field: type + dropdown suggestions -->
+  <input
+    id="fp-product-input"
+    list="fp-product-list"
+    placeholder="Type to select…"
+    autocomplete="off"
+    style="height:48px;font-size:16px;padding:8px 12px;min-width:220px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;flex:1 1 260px;max-width:100%;"
+  >
+  <datalist id="fp-product-list"></datalist>
+</label>
 
     <label>
       Bulk 
