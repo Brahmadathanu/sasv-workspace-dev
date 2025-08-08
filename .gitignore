@@ -1,15 +1,19 @@
-# Node modules
+# dependencies
 node_modules/
 
-# Logs
+# logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Build output
+# build output
 dist/
 *.exe
 *.zip
+
+# dotenv secret files
+.env
+.env.*.local
 
 # OS files
 .DS_Store
@@ -17,8 +21,14 @@ Thumbs.db
 
 # IDE/editor folders
 .vscode/
+.idea/       # if you ever use IntelliJ/WebStorm
 *.suo
 *.ntvs*
+*.user
+*.cache
 
 # electron-reload cache
 .reload
+
+# Coverage reports (if you ever add tests)
+coverage/

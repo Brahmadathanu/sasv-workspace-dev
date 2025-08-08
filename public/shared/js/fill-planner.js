@@ -28,83 +28,42 @@ const metricsBody  = $("fp-metrics-body");
 const metricsHeader = $("fp-metrics-header");
 const stockUpdated  = $("fp-stock-updated");
 
-/* ──────────────────────────────────────────────────────────────
-   AJAX Tom-Select  ▸  Product picker
-   – single-select, remote search (Supabase)
-   – clears hidden textbox to stop newline / wrap
-   – shifts focus to #fp-bulk after the user picks / hits <Enter>
-──────────────────────────────────────────────────────────────── */
-const productTomSelect = new TomSelect('#fp-product', {
-  /* —— behaviour / limits —— */
-  valueField      : 'id',
-  labelField      : 'item',
-  searchField     : ['item'],
-  placeholder     : 'Type to select…',
-  maxItems        : 1,
-  maxOptions      : 100,
-  hideSelected    : true,
-  closeAfterSelect: true,
-  create          : false,
-  persist         : false,
-  delimiter       : '',          // (single token)
+initProductSelect();
 
-  /* —— CSS hooks (matches your style block) —— */
-  wrapperClass  : 'ts-wrapper fp-product',
-  controlClass  : 'ts-control fp-product',
-  dropdownClass : 'ts-dropdown fp-product',
+// Load ALL products into the native <select> once at startup
+async function initProductSelect() {
+  elProd.disabled = true;
+  elProd.innerHTML = `<option value="">Loading…</option>`;
 
-  /* —— remote loader —— */
-  loadThrottle : 350,
-  preload      : false,
-  load : async (query, cb) => {
-    if (!query.length) return cb();
-    const { data, error } = await supabase
-      .from('products')
-      .select('id,item,uom_base')
-      .ilike('item', `%${query}%`)
-      .eq('status', 'Active')
-      .order('item')
-      .limit(30);
+  const { data, error } = await supabase
+    .from('products')
+    .select('id,item,uom_base,status')
+    .eq('status','Active')
+    .order('item');
 
-    if (error) return cb();                // silent fail
-    data.forEach(p => productMap[p.id] = { name:p.item, uom:p.uom_base });
-    cb(data);
-  },
-
-  /* —— simple renderers —— */
-  render: {
-    option(item, esc){ return `<div>${esc(item.item)}</div>`; },
-    item  (item, esc){ return `<div>${esc(item.item)}</div>`; }
-  },
-
-  /* —— common fix-ups (newline, caret, jump-to-Bulk) —— */
-  onInitialize(){
-    this.control_input.style.width = '0';   // zerowidth caret from the start
-  },
-  onItemAdd(value, item){
-    /* 1) never leave residual text that can wrap */
-    this.setTextboxValue('');
-    /* 2) keep caret zerowidth for future edits */
-    this.control_input.style.width = '0';
-    /* 3) put focus on Bulk immediately (mobile friendly) */
-    document.getElementById('fp-bulk')?.focus();
-  },
-  onClear(){
-    this.control_input.style.width = '0';
+  if (error) {
+    console.error('Product load error:', error);
+    elProd.innerHTML = `<option value="">(Failed to load products)</option>`;
+    return;
   }
-});
 
-/* —— extra guard: block native <Enter> newline —— */
-productTomSelect.control_input.addEventListener('keydown', e=>{
-  if (e.key === 'Enter'){
-    e.preventDefault();                 // stop newline / form submit
-    productTomSelect.onEnterKey?.();    // commit highlighted option
-  }
-});
+  // Build local map for quick lookups later
+  productMap = {};
+  const opts = ['<option value="">Type to select…</option>'];
+  (data || []).forEach(p => {
+    productMap[p.id] = { name: p.item, uom: p.uom_base };
+    opts.push(`<option value="${p.id}">${p.item}</option>`);
+  });
 
-// fire our handler whenever a product is chosen / cleared
-document.getElementById("fp-product")
-        .addEventListener("change", onProductSelect);
+  elProd.innerHTML = opts.join('');
+  elProd.disabled = false;
+}
+
+// When a product is chosen, jump focus to Bulk and continue as before
+elProd.addEventListener('change', () => {
+  if (elProd.value) $('fp-bulk')?.focus();
+  onProductSelect(); // uses productMap + elProd.value
+});
 
 /* ─── make tables scrollable with sticky headers ─────────────────── */
 function wrapTable(el) {

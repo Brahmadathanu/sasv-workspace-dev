@@ -92,6 +92,13 @@ app.whenReady().then(() => {
 
   // 2) in packaged builds, check GitHub for a newer version
   try {
+    autoUpdater.setFeedURL({
+    provider: 'github',
+    owner: 'Brahmadathanu',
+    repo: 'sasv-workspace-dev',
+    private: false,
+    token: null
+    });
     autoUpdater.checkForUpdatesAndNotify();
   } catch (err) {
     // During `npm run dev` this will throw because the app isn’t packaged.

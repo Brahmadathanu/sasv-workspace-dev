@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>SASV WORKSPACE | Fill Planner</title>
   <link rel="stylesheet" href="css/style.css">
-  <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
 <style>
 /* ───────────  PAGE CHROME  ─────────── */
 body{padding:20px;font-family:Arial,sans-serif}
@@ -19,13 +18,18 @@ h2  {margin:0;color:#005A8D}
 .fp-controls label{
   display:inline-flex;align-items:center;gap:.4rem;margin:0;
 }
-/* unified pill dimensions (native + TS) */
+
+/* unified pill dimensions (native controls only) */
 .fp-controls select,
-.fp-controls input[type="number"],
-.fp-controls .ts-control{
+.fp-controls input[type="number"]{
   height:48px;font-size:16px;padding:8px 12px;
   min-width:120px;border:1px solid #ccc;border-radius:4px;
   box-sizing:border-box
+}
+
+/* Make the Product select grow like the old TS control */
+.fp-controls label > select#fp-product{
+  flex:1 1 260px;min-width:220px;max-width:100%;
 }
 
 /* ───────────  CALCULATE PILL  ─────────── */
@@ -53,7 +57,8 @@ h2  {margin:0;color:#005A8D}
 /* ───────────  TABLES  ─────────── */
 table{width:100%;border-collapse:collapse;margin:.6rem 0 0}
 th,td{border:1px solid #ccc;padding:8px 12px;text-align:center;vertical-align:middle}
-th{background:#f3f6fa} tbody tr:hover{background:#eef6ff}
+th{background:#f3f6fa}
+tbody tr:hover{background:#eef6ff}
 
 /* urgent-order qty box */
 #fp-emg-table input.emg-qty{
@@ -66,48 +71,13 @@ th{background:#f3f6fa} tbody tr:hover{background:#eef6ff}
 .fp-table-wrap.has-scroll{box-shadow:inset 1px 0 #ccc,inset -1px 0 #ccc}
 .fp-table-wrap table{margin:0;min-width:600px}
 
-/* ───────────  TOM-SELECT (Product)  ─────────── */
-.ts-control.fp-product{
-  /* desktop behaviour — single row, side-scroll if needed */
-  flex:1 0 auto;min-width:220px;
-  display:flex;flex-wrap:nowrap;overflow-x:auto;white-space:nowrap;
-
-  height:48px;font-size:16px;line-height:1.35;padding:10px 12px;
-  border:1px solid #ccc;border-radius:4px;background:#fff;color:#222;
-  transition:border-color .18s
-}
-.ts-control.fp-product.focus{border-color:#0a62c3}
-
-/* selected token */
-.ts-control.fp-product .item{
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:4px
-}
-/* hidden caret / typing area — zero width (prevents phantom line) */
-.ts-control.fp-product .ts-input{
-  flex:0 0 0!important;width:0!important;padding:0!important;margin:0
-}
-
-/* dropdown list */
-.ts-dropdown.fp-product .option{padding:6px 10px;font-size:15px}
-.ts-dropdown.fp-product .option.active,
-.ts-dropdown.fp-product .option:hover{background:#eef6ff;color:#0a62c3}
-
-/* flex wrapper so Product can grow */
-.fp-controls label>.ts-wrapper{flex:1 1 260px;min-width:0}
-
-/* ── MOBILE (<600 px) — allow wrapping instead of truncation ── */
+/* ───────────  MOBILE (<600 px)  ─────────── */
 @media (max-width:600px){
   .fp-controls{flex-direction:column;align-items:stretch}
   .fp-controls label{width:100%}
-
-  .ts-control.fp-product{
-    flex-wrap:wrap;white-space:normal;overflow:visible        /* allow wrap   */
-  }
-  .ts-control.fp-product .item{white-space:normal}            /* token wraps  */
-  .ts-control.fp-product .ts-input{
-    flex:0 0 4px!important;width:4px!important                /* tiny caret   */
-  }
   #fp-emg-table input.emg-qty{max-width:none}
+  /* Let the Product select wrap naturally on small screens */
+  .fp-controls label > select#fp-product{min-width:0;flex:1 1 auto}
 }
 </style>
 </head>
@@ -186,9 +156,6 @@ th{background:#f3f6fa} tbody tr:hover{background:#eef6ff}
   <thead><tr id="fp-head"><th>Region</th></tr></thead>
   <tbody id="fp-body"></tbody>
   </table>
-
-<!-- Tom Select CSS & JS -->
-<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
 
 <!-- Supabase client + module logic -->
   <script type="module" src="js/fill-planner.js"></script>
