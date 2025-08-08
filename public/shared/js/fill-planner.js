@@ -26,6 +26,9 @@ const metricsHead  = $("fp-metrics-head");
 const metricsBody  = $("fp-metrics-body");
 const metricsHeader = $("fp-metrics-header");
 const stockUpdated  = $("fp-stock-updated");
+const metricsWrap = wrapTable(metricsTable);  // SKU Metrics
+const emgWrap     = wrapTable(emgTable);      // Urgent Orders
+const planWrap    = wrapTable(elTable);       // Fill Plan
 
 let allProducts = [];
 let productMap    = {};   // id -> { name, uom }
@@ -116,10 +119,6 @@ function escapeHtml(s) {
     .replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;');
 }
-
-const metricsWrap = wrapTable(metricsTable);  // SKU Metrics
-const emgWrap     = wrapTable(emgTable);      // Urgent Orders
-const planWrap    = wrapTable(elTable);       // Fill Plan
 
 /* resize helpers: keep wrapper within viewport height */
 function fitWrap(wrap) {
