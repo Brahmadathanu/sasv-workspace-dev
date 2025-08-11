@@ -694,23 +694,38 @@ function applyCarryForward() {
   const item = p.get("prefill_item") || p.get("item");
   const bn = p.get("prefill_bn") || p.get("bn");
 
+  // Prefill ITEM
   if (item) {
     if (itemTS) {
-      // DO NOT pass 'true' (silent). We WANT the 'change' event.
-      itemTS.setValue(item);
+      // Make sure Tom Select knows about this option BEFORE selecting it
+      itemTS.addOption({ item }); // valueField = labelField = "item"
+      itemTS.refreshOptions(false);
+      itemTS.setValue(item); // not silent → fires 'change'
     } else {
       itemInput.value = item;
       itemInput.dispatchEvent(new Event("change"));
     }
   }
 
+  // Prefill BN (after the BN list is populated by the Item 'change' handler)
   if (bn) {
-    const iv = setInterval(() => {
-      if (!Array.from(batchSel.options).some((o) => o.value === bn)) return;
+    const trySetBn = () => {
+      const hasIt = Array.from(batchSel.options).some((o) => o.value === bn);
+      if (!hasIt) return false;
       batchSel.value = bn;
       batchSel.dispatchEvent(new Event("change"));
-      clearInterval(iv);
-    }, 100);
+      batchSel.focus(); // optional nicety
+      return true;
+    };
+
+    // Try immediately; if BN options aren’t ready yet, poll briefly
+    if (!trySetBn()) {
+      const iv = setInterval(() => {
+        if (trySetBn()) clearInterval(iv);
+      }, 150);
+      // safety stop after ~5s
+      setTimeout(() => clearInterval(iv), 5000);
+    }
   }
 }
 
