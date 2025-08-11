@@ -655,16 +655,27 @@ function clearForm() {
     el.innerHTML = "";
   });
 
-  // Keep Tom Select in sync with disabled state
+  // Keep Tom Selects in sync with disabled state
   if (actTS) {
     actTS.clear(true);
     actTS.clearOptions();
     actTS.disable();
   }
 
-  itemInput.value = "";
+  // Clear Item (Tom Select or native)
+  if (itemTS) {
+    itemTS.clear(true); // remove current selection (silent)
+    // no need to clearOptions; it loads on demand as you type
+  } else {
+    itemInput.value = "";
+  }
+
   sizeInput.value = "";
   uomInput.value = "";
+
+  // Also reset BN
+  batchSel.disabled = true;
+  batchSel.innerHTML = '<option value="">-- Select Batch Number --</option>';
 
   // 6. Re-set today’s dates
   const today = formatDMY(new Date());
@@ -685,10 +696,9 @@ function applyCarryForward() {
 
   if (item) {
     if (itemTS) {
-      // Tom Select path – sets value and fires 'change'
-      itemTS.setValue(item, true);
+      // DO NOT pass 'true' (silent). We WANT the 'change' event.
+      itemTS.setValue(item);
     } else {
-      // Fallback to native input
       itemInput.value = item;
       itemInput.dispatchEvent(new Event("change"));
     }
