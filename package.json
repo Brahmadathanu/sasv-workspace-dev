@@ -47,12 +47,25 @@
     "electron-updater": "^6.6.2",
     "express": "^5.1.0",
     "flatpickr": "^4.6.13",
-    "pg": "^8.16.0"
+    "pg": "^8.16.0",
+    "tom-select": "^2.4.3"
   },
   "devDependencies": {
+    "@eslint/js": "^9.33.0",
     "electron": "^36.2.1",
     "electron-builder": "^26.0.12",
     "electron-reload": "^2.0.0-alpha.1",
-    "glob": "^11.0.3"
-  }
+    "eslint": "^9.33.0",
+    "glob": "^11.0.3",
+    "globals": "^16.3.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Brahmadathanu/sasv-workspace-dev.git"
+  },
+  "keywords": [],
+  "bugs": {
+    "url": "https://github.com/Brahmadathanu/sasv-workspace-dev/issues"
+  },
+  "homepage": "https://github.com/Brahmadathanu/sasv-workspace-dev#readme"
 }
