@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+  <head>
+    <meta charset="UTF-8" />
+    <title>SASV WORKSPACE | SOP Dashboard</title>
+    <link rel="stylesheet" href="public/shared/css/style.css" />
+    <link rel="stylesheet" href="css/sop-dashboard.css" />
+  </head>
+  <body data-theme="system">
+    <header>
+      <h1>SOP Dashboard</h1>
+      <button id="homeBtn" class="btn" type="button">HOME</button>
+    </header>
+
+    <!-- Filters -->
+    <section class="panel">
+      <div class="toolbar">
+        <div class="field">
+          <label for="filterSeries">Series</label>
+          <select id="filterSeries">
+            <option value="">All Series</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="filterActivity">Activity Kind</label>
+          <select id="filterActivity">
+            <option value="">All Activities</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="filterStatus">Status</label>
+          <select id="filterStatus">
+            <option value="">Any Status</option>
+            <option value="draft">Draft</option>
+            <option value="under_review">Under review</option>
+            <option value="approved">Approved</option>
+            <option value="active">Active</option>
+            <option value="superseded">Superseded</option>
+            <option value="obsolete">Obsolete</option>
+          </select>
+        </div>
+
+        <div class="field" style="min-width: 280px">
+          <label for="filterSearch">Search (Code/Title)</label>
+          <input
+            id="filterSearch"
+            type="text"
+            placeholder="e.g., MF.014-013 or Maintenance…"
+          />
+        </div>
+
+        <div style="flex: 1"></div>
+
+        <div class="field">
+          <label>&nbsp;</label>
+          <button id="btnNew" class="btn btn--blue" type="button">
+            + New SOP
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Results -->
+    <section class="panel">
+      <div class="count" id="resultCount">Loading…</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 160px">SOP Code</th>
+              <th>Title</th>
+              <th style="width: 180px">Activity</th>
+              <th style="width: 80px">Ver</th>
+              <th style="width: 110px">Status</th>
+              <th style="width: 140px">Effective</th>
+              <th style="width: 160px">Updated</th>
+              <th style="width: 160px">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="rows">
+            <tr>
+              <td colspan="8" class="empty">Loading…</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="pagination">
+          <button class="btn btn--blue" id="prevPage" type="button">
+            Prev
+          </button>
+          <span id="pageInfo">Page 1</span>
+          <button class="btn btn--blue" id="nextPage" type="button">
+            Next
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <script type="module" src="public/shared/js/supabaseClient.js"></script>
+    <script type="module" src="js/sop-dashboard.js"></script>
+  </body>
+</html>

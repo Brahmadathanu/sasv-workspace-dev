@@ -1,334 +1,484 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset="UTF-8">
-  <title>SASV WORKSPACE</title>
-  <link rel="stylesheet" href="public/shared/css/style.css">
-  <style>
-  /* Make the logout button look link-like and show pointer */
-  #logoutLink {
-    background: none;
-    border: none;
-    padding: 0;
-    font: inherit;
-    color: blue;
-    text-decoration: underline;
-    cursor: pointer;
-  }
-
-  #logoutLink:hover {
-    opacity: 0.8;
-  }
-
-  #logoutLink:focus {
-    outline: 2px solid #007cff;
-    outline-offset: 2px;
-  }
-  .online-bubble {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: var(--bubble-bg);
-    color: #fff;
-    font-size: 12px;
-    margin-right: 4px;
-    position: relative;
-    cursor: default;
-    user-select: none;
-  }
-
-  .online-bubble .tooltip {
-   position: absolute;
-   top: -32px;
-   left: 50%;
-   transform: translateX(-50%);
-   background: #333;
-   color: #fff;
-   padding: 4px 8px;
-   border-radius: 4px;
-   white-space: nowrap;
-   font-size: 11px;
-   visibility: hidden;     /* was display:none */
-    opacity: 0;
-    z-index: 10;
-    transition: opacity 0.1s;
-  }
-
-  .online-bubble:hover .tooltip {
-    visibility: visible;
-    opacity: 1;
-  }
-
-  /* Prevent tooltips that hang off the right edge from showing a scroll bar */
-  body {
-    overflow-x: hidden;
-  }
-
-/* make the user bar a flex row */
-#userBar {
-  display: flex;
-  align-items: center;
-}
-
-/* push the bubble row to the far right */
-#onlineUsersContainer {
-  margin-left: auto;     /* takes up remaining space */
-}
-</style>
-</head>
-<body data-theme="system">
-
-  <header>
-    <h1>SASV WORKSPACE
-      <small id="appVersion"></small>   <!-- ✨ new -->
-    </h1>
-    
-    <div id="userBar">
-      <span id="userInfo">Loading…</span>
-      &nbsp;|&nbsp;
-      <button id="logoutLink" type="button">Log Out</button>
-      <span id="onlineUsersContainer">
-        <!-- bubbles appear here -->
-      </span>
-    </div>
-  </header>
-
-  <!-- Work Log -->
-  <section class="panel">
-    <h2>Work Log</h2>
-    <div class="module-list">
-      <a class="module-link" data-module-id="add-log-entry" href="add-log-entry.html">Add Log Entry</a>
-      <a class="module-link" data-module-id="update-log-status" href="update-log-status.html">Update Log Status</a>
-      <a class="module-link" data-module-id="edit-log-entry" href="edit-log-entry.html">Edit Log Entry</a>
-      <a class="module-link" data-module-id="reports" href="reports.html">Reports</a>
-      <a class="module-link" data-module-id="manage-activities" href="manage-activities.html">Manage Activities</a>
-    </div>
-  </section>
-
-  <!-- Manufacturing Infrastructure -->
-  <section class="panel">
-    <h2>Manufacturing Infrastructure</h2>
-    <div class="module-list">
-      <a class="module-link" data-module-id="manage-sections" href="manage-sections.html">Sections</a>
-      <a class="module-link" data-module-id="manage-subsections" href="manage-subsections.html">Sub-sections</a>
-      <a class="module-link" data-module-id="manage-areas" href="manage-areas.html">Areas</a>
-      <a class="module-link" data-module-id="manage-plants" href="manage-plants.html">Plants/Machinery</a>
-      <a class="module-link" data-module-id="manage-machine-types" href="manage-machine-types.html">Machine Types</a>
-    </div>
-  </section>
-
-  <!-- BMR Details -->
-  <section class="panel">
-    <h2>BMR Details</h2>
-    <div class="module-list">
-      <a class="module-link" data-module-id="add-bmr-entry" href="add-bmr-entry.html">Add BMR</a>
-      <a class="module-link" data-module-id="edit-bmr-entry" href="edit-bmr-entry.html">Edit BMR</a>
-      <a class="module-link" data-module-id="view-bmr-entry" href="view-bmr-entry.html">View BMR</a>
-    </div>
-  </section>
-
-  <!-- Product Master -->
-  <section class="panel">
-    <h2>Product Master</h2>
-    <div class="module-list">
-      <a class="module-link" data-module-id="manage-categories" href="manage-categories.html">Categories</a>
-      <a class="module-link" data-module-id="manage-subcategories" href="manage-subcategories.html">Sub-categories</a>
-      <a class="module-link" data-module-id="manage-product-groups" href="manage-product-groups.html">Groups</a>
-      <a class="module-link" data-module-id="manage-subgroups" href="manage-subgroups.html">Sub-groups</a>
-      <a class="module-link" data-module-id="manage-products" href="manage-products.html">Products</a>
-      <a class="module-link" data-module-id="manage-references" href="manage-references.html">References</a>
-      <a class="module-link" data-module-id="manage-publications" href="manage-publications.html">Publications</a>
-      <a class="module-link" data-module-id="manage-chapters" href="manage-chapters.html">Chapters</a>
-    </div>
-  </section>
-
-  <!--  Small Utilities  -->
-<section class="panel">
-  <h2>Utilities</h2>
-  <div class="module-list">
-    <a class="module-link" data-module-id="fill-planner" href="public/shared/fill-planner.html">Fill Planner</a>
-  </div>
-</section>
-
-  <!-- Supabase & Init -->
-<script type="module" src="public/shared/js/supabaseClient.js"></script>
-<script type="module">
-  import { supabase } from '../public/shared/js/supabaseClient.js';
-
-async function initApp() {
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return window.location.href = 'login.html';
-
-    const { data: { user } } = await supabase.auth.getUser();
-
-    // --- presence constants ---
-    const PRESENCE_REFRESH_MS = 20_000; // how often we update our own heartbeat
-    const ONLINE_THRESHOLD_MS = 60_000; // window to consider someone "online"
-
-    // upsert our own presence row
-    async function sendHeartbeat(user) {
-      await supabase
-        .from('user_presence')
-        .upsert({
-          user_id: user.id,
-          email: user.email,
-          last_seen: new Date().toISOString()
-        }, { onConflict: 'user_id' });
-    }
-
-    // get current online users (those seen in the last threshold)
-    async function getOnlineUsers() {
-      const cutoff = new Date(Date.now() - ONLINE_THRESHOLD_MS).toISOString();
-      const { data: users, error } = await supabase
-        .from('user_presence')
-        .select('user_id,email,last_seen')
-        .gt('last_seen', cutoff)
-        .order('last_seen', { ascending: false });
-
-      if (error) {
-        console.error('Failed to fetch online users', error);
-        return [];
+  <head>
+    <meta charset="UTF-8" />
+    <title>SASV WORKSPACE</title>
+    <link rel="stylesheet" href="public/shared/css/style.css" />
+    <style>
+      /* Make the logout button look link-like and show pointer */
+      #logoutLink {
+        background: none;
+        border: none;
+        padding: 0;
+        font: inherit;
+        color: blue;
+        text-decoration: underline;
+        cursor: pointer;
       }
-      return users || [];
-    }
 
-/* -------- colour helper: consistent HSL from any string -------- */
-function colorFromString(str) {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const hue = Math.abs(hash) % 360;      // 0‒359
-  return `hsl(${hue}, 65%, 60%)`;        // bright, readable colour
-}
+      #logoutLink:hover {
+        opacity: 0.8;
+      }
 
-/* -------- initials helper -------- */
-function initialsFromEmail(email) {
-  const name = email.split('@')[0];
-  const parts = name.split(/[._-]/).filter(Boolean);
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-  return name.slice(0, 2).toUpperCase();
-}
+      #logoutLink:focus {
+        outline: 2px solid #007cff;
+        outline-offset: 2px;
+      }
+      .online-bubble {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: var(--bubble-bg);
+        color: #fff;
+        font-size: 12px;
+        margin-right: 4px;
+        position: relative;
+        cursor: default;
+        user-select: none;
+      }
 
-/* -------- render bubbles -------- */
-function renderOnlineBubbles(users) {
-  const container = document.getElementById('onlineUsersContainer');
-  if (!container) return;
-  container.innerHTML = '';
+      .online-bubble .tooltip {
+        position: absolute;
+        top: -32px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #333;
+        color: #fff;
+        padding: 4px 8px;
+        border-radius: 4px;
+        white-space: nowrap;
+        font-size: 11px;
+        visibility: hidden; /* was display:none */
+        opacity: 0;
+        z-index: 10;
+        transition: opacity 0.1s;
+      }
 
-  users.forEach(u => {
-    const bubble = document.createElement('div');
-    bubble.className = 'online-bubble';
-    bubble.textContent = initialsFromEmail(u.email);
+      .online-bubble:hover .tooltip {
+        visibility: visible;
+        opacity: 1;
+      }
 
-    /* give this user a unique colour */
-    bubble.style.setProperty('--bubble-bg', colorFromString(u.email));
+      /* Prevent tooltips that hang off the right edge from showing a scroll bar */
+      body {
+        overflow-x: hidden;
+      }
 
-    const tooltip = document.createElement('div');
-    tooltip.className = 'tooltip';
-    tooltip.textContent = u.email;
-    bubble.appendChild(tooltip);
+      /* make the user bar a flex row */
+      #userBar {
+        display: flex;
+        align-items: center;
+      }
 
-    /* run fitTooltip when the tooltip becomes visible */
-    bubble.addEventListener('mouseenter', () => fitTooltip(tooltip));
-    bubble.addEventListener('focus', () => fitTooltip(tooltip));  // keyboard nav
+      /* push the bubble row to the far right */
+      #onlineUsersContainer {
+        margin-left: auto; /* takes up remaining space */
+      }
+    </style>
+  </head>
+  <body data-theme="system">
+    <header>
+      <h1>
+        SASV WORKSPACE <small id="appVersion"></small>
+        <!-- ✨ new -->
+      </h1>
 
-    container.appendChild(bubble);
-    fitTooltip(tooltip);
-  });
-}
+      <div id="userBar">
+        <span id="userInfo">Loading…</span>
+        &nbsp;|&nbsp;
+        <button id="logoutLink" type="button">Log Out</button>
+        <span id="onlineUsersContainer">
+          <!-- bubbles appear here -->
+        </span>
+      </div>
+    </header>
 
-/* -------- helper: keep tooltip on-screen -------- */
-function fitTooltip(tooltip) {
-  const rect = tooltip.getBoundingClientRect();
-  const gap  = 6;                     // keep a tiny gap from the edge
+    <!-- Work Log -->
+    <section class="panel">
+      <h2>Work Log</h2>
+      <div class="module-list">
+        <a
+          class="module-link"
+          data-module-id="add-log-entry"
+          href="add-log-entry.html"
+          >Add Log Entry</a
+        >
+        <a
+          class="module-link"
+          data-module-id="update-log-status"
+          href="update-log-status.html"
+          >Update Log Status</a
+        >
+        <a
+          class="module-link"
+          data-module-id="edit-log-entry"
+          href="edit-log-entry.html"
+          >Edit Log Entry</a
+        >
+        <a class="module-link" data-module-id="reports" href="reports.html"
+          >Reports</a
+        >
+        <a
+          class="module-link"
+          data-module-id="manage-activities"
+          href="manage-activities.html"
+          >Manage Activities</a
+        >
+      </div>
+    </section>
 
-  // Shift right-overflowing tooltips left
-  if (rect.right > window.innerWidth) {
-    const overshoot = rect.right - window.innerWidth + gap;
-    tooltip.style.transform = `translateX(calc(-50% - ${overshoot}px))`;
-  }
+    <!-- Manufacturing Infrastructure -->
+    <section class="panel">
+      <h2>Manufacturing Infrastructure</h2>
+      <div class="module-list">
+        <a
+          class="module-link"
+          data-module-id="manage-sections"
+          href="manage-sections.html"
+          >Sections</a
+        >
+        <a
+          class="module-link"
+          data-module-id="manage-subsections"
+          href="manage-subsections.html"
+          >Sub-sections</a
+        >
+        <a
+          class="module-link"
+          data-module-id="manage-areas"
+          href="manage-areas.html"
+          >Areas</a
+        >
+        <a
+          class="module-link"
+          data-module-id="manage-plants"
+          href="manage-plants.html"
+          >Plants/Machinery</a
+        >
+        <a
+          class="module-link"
+          data-module-id="manage-machine-types"
+          href="manage-machine-types.html"
+          >Machine Types</a
+        >
+      </div>
+    </section>
 
-  // Shift left-overflowing tooltips right
-  if (rect.left < 0) {
-    const overshoot = Math.abs(rect.left) + gap;
-    tooltip.style.transform = `translateX(calc(-50% + ${overshoot}px))`;
-  }
-}
+    <!-- BMR Details -->
+    <section class="panel">
+      <h2>BMR Details</h2>
+      <div class="module-list">
+        <a
+          class="module-link"
+          data-module-id="add-bmr-entry"
+          href="add-bmr-entry.html"
+          >Add BMR</a
+        >
+        <a
+          class="module-link"
+          data-module-id="edit-bmr-entry"
+          href="edit-bmr-entry.html"
+          >Edit BMR</a
+        >
+        <a
+          class="module-link"
+          data-module-id="view-bmr-entry"
+          href="view-bmr-entry.html"
+          >View BMR</a
+        >
+      </div>
+    </section>
 
-    const userInfoEl = document.getElementById('userInfo');
-    const logoutEl = document.getElementById('logoutLink');
-    if (!userInfoEl || !logoutEl) return; // safety
+    <!-- Product Master -->
+    <section class="panel">
+      <h2>Product Master</h2>
+      <div class="module-list">
+        <a
+          class="module-link"
+          data-module-id="manage-categories"
+          href="manage-categories.html"
+          >Categories</a
+        >
+        <a
+          class="module-link"
+          data-module-id="manage-subcategories"
+          href="manage-subcategories.html"
+          >Sub-categories</a
+        >
+        <a
+          class="module-link"
+          data-module-id="manage-product-groups"
+          href="manage-product-groups.html"
+          >Groups</a
+        >
+        <a
+          class="module-link"
+          data-module-id="manage-subgroups"
+          href="manage-subgroups.html"
+          >Sub-groups</a
+        >
+        <a
+          class="module-link"
+          data-module-id="manage-products"
+          href="manage-products.html"
+          >Products</a
+        >
+        <a
+          class="module-link"
+          data-module-id="manage-references"
+          href="manage-references.html"
+          >References</a
+        >
+        <a
+          class="module-link"
+          data-module-id="manage-publications"
+          href="manage-publications.html"
+          >Publications</a
+        >
+        <a
+          class="module-link"
+          data-module-id="manage-chapters"
+          href="manage-chapters.html"
+          >Chapters</a
+        >
+      </div>
+    </section>
 
-    userInfoEl.textContent = `Logged in as ${user.email}`;
+    <!--  Small Utilities  -->
+    <section class="panel">
+      <h2>Utilities</h2>
+      <div class="module-list">
+        <a
+          class="module-link"
+          data-module-id="fill-planner"
+          href="public/shared/fill-planner.html"
+          >Fill Planner</a
+        >
+      </div>
+    </section>
 
-    logoutEl.addEventListener('click', async (e) => {
-      e.preventDefault();
-      // delete our presence entry (best-effort)
-      await supabase.from('user_presence').delete().eq('user_id', user.id);
-      await supabase.auth.signOut();
-      window.location.href = 'login.html';
+    <!-- SOPs -->
+    <section class="panel">
+      <h2>Standard Operating Procedures (SOPs)</h2>
+      <div class="module-list">
+        <a
+          class="module-link"
+          data-module-id="sop-dashboard"
+          href="sop-dashboard.html"
+          >SOP Dashboard</a
+        >
+        <a
+          class="module-link"
+          data-module-id="sop-editor"
+          href="sop-editor.html"
+          >New / Edit SOP</a
+        >
+        <a
+          class="module-link"
+          data-module-id="sop-viewer"
+          href="sop-viewer.html"
+          >View SOP</a
+        >
+        <!-- <a class="module-link" data-module-id="sop-types" href="sop-types.html"
+          >SOP Types</a
+        >  -->
+      </div>
+    </section>
 
-    });
+    <!-- Supabase & Init -->
+    <script type="module" src="public/shared/js/supabaseClient.js"></script>
+    <script type="module">
+      import { supabase } from "../public/shared/js/supabaseClient.js";
 
-    const { data: perms } = await supabase
-      .from('user_permissions')
-      .select('module_id,can_view')
-      .eq('user_id', user.id);
+      async function initApp() {
+        try {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          if (!session) return (window.location.href = "login.html");
 
-    const permMap = Object.fromEntries((perms || []).map(p => [p.module_id, p.can_view]));
-    document.querySelectorAll('a.module-link').forEach(a => {
-      if (!permMap[a.dataset.moduleId]) a.style.display = 'none';
-    });
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
 
-// ---- presence startup & polling ----
-await sendHeartbeat(user); // immediate heartbeat
-setInterval(() => sendHeartbeat(user), PRESENCE_REFRESH_MS); // periodic update
+          // --- presence constants ---
+          const PRESENCE_REFRESH_MS = 20_000; // how often we update our own heartbeat
+          const ONLINE_THRESHOLD_MS = 60_000; // window to consider someone "online"
 
-async function refreshOnlineDisplay() {
-  const onlineUsers = await getOnlineUsers();
-  renderOnlineBubbles(onlineUsers);
-}
-refreshOnlineDisplay(); // initial display
-setInterval(refreshOnlineDisplay, 30_000); // refresh every 30s
+          // upsert our own presence row
+          async function sendHeartbeat(user) {
+            await supabase.from("user_presence").upsert(
+              {
+                user_id: user.id,
+                email: user.email,
+                last_seen: new Date().toISOString(),
+              },
+              { onConflict: "user_id" }
+            );
+          }
 
-// cleanup on window close (best-effort)
-window.addEventListener('beforeunload', () => {
-  // best effort; may not complete if unload is abrupt
-  supabase.from('user_presence').delete().eq('user_id', user.id);
-});
+          // get current online users (those seen in the last threshold)
+          async function getOnlineUsers() {
+            const cutoff = new Date(
+              Date.now() - ONLINE_THRESHOLD_MS
+            ).toISOString();
+            const { data: users, error } = await supabase
+              .from("user_presence")
+              .select("user_id,email,last_seen")
+              .gt("last_seen", cutoff)
+              .order("last_seen", { ascending: false });
 
-// override logout handler here to ensure presence is removed first
-logoutEl.replaceWith(logoutEl.cloneNode(true)); // remove previous listeners
-const freshLogoutEl = document.getElementById('logoutLink');
-freshLogoutEl.addEventListener('click', async (e) => {
-  e.preventDefault();
-  await supabase.from('user_presence').delete().eq('user_id', user.id);
-  await supabase.auth.signOut();
-  window.location.href = 'login.html';
-});
-} catch (err) {
-  console.error('initApp error', err);
-  const userInfoEl = document.getElementById('userInfo');
-  if (userInfoEl) userInfoEl.textContent = 'Error loading user';
-}
-}
+            if (error) {
+              console.error("Failed to fetch online users", error);
+              return [];
+            }
+            return users || [];
+          }
 
-window.addEventListener('DOMContentLoaded', initApp);
-</script>
-<script>
-  window.addEventListener('DOMContentLoaded', async () => {
-    try {
-      const v = await window.electronAPI.getAppVersion();   // provided by preload.js
-      document.getElementById('appVersion').textContent = `v${v}`;
-    } catch (err) {
-      console.error('Could not obtain app version:', err);
-    }
-  });
-</script>
-</body>
+          /* -------- colour helper: consistent HSL from any string -------- */
+          function colorFromString(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+              hash = str.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const hue = Math.abs(hash) % 360; // 0‒359
+            return `hsl(${hue}, 65%, 60%)`; // bright, readable colour
+          }
+
+          /* -------- initials helper -------- */
+          function initialsFromEmail(email) {
+            const name = email.split("@")[0];
+            const parts = name.split(/[._-]/).filter(Boolean);
+            if (parts.length >= 2)
+              return (parts[0][0] + parts[1][0]).toUpperCase();
+            return name.slice(0, 2).toUpperCase();
+          }
+
+          /* -------- render bubbles -------- */
+          function renderOnlineBubbles(users) {
+            const container = document.getElementById("onlineUsersContainer");
+            if (!container) return;
+            container.innerHTML = "";
+
+            users.forEach((u) => {
+              const bubble = document.createElement("div");
+              bubble.className = "online-bubble";
+              bubble.textContent = initialsFromEmail(u.email);
+
+              /* give this user a unique colour */
+              bubble.style.setProperty("--bubble-bg", colorFromString(u.email));
+
+              const tooltip = document.createElement("div");
+              tooltip.className = "tooltip";
+              tooltip.textContent = u.email;
+              bubble.appendChild(tooltip);
+
+              /* run fitTooltip when the tooltip becomes visible */
+              bubble.addEventListener("mouseenter", () => fitTooltip(tooltip));
+              bubble.addEventListener("focus", () => fitTooltip(tooltip)); // keyboard nav
+
+              container.appendChild(bubble);
+              fitTooltip(tooltip);
+            });
+          }
+
+          /* -------- helper: keep tooltip on-screen -------- */
+          function fitTooltip(tooltip) {
+            const rect = tooltip.getBoundingClientRect();
+            const gap = 6; // keep a tiny gap from the edge
+
+            // Shift right-overflowing tooltips left
+            if (rect.right > window.innerWidth) {
+              const overshoot = rect.right - window.innerWidth + gap;
+              tooltip.style.transform = `translateX(calc(-50% - ${overshoot}px))`;
+            }
+
+            // Shift left-overflowing tooltips right
+            if (rect.left < 0) {
+              const overshoot = Math.abs(rect.left) + gap;
+              tooltip.style.transform = `translateX(calc(-50% + ${overshoot}px))`;
+            }
+          }
+
+          const userInfoEl = document.getElementById("userInfo");
+          const logoutEl = document.getElementById("logoutLink");
+          if (!userInfoEl || !logoutEl) return; // safety
+
+          userInfoEl.textContent = `Logged in as ${user.email}`;
+
+          logoutEl.addEventListener("click", async (e) => {
+            e.preventDefault();
+            // delete our presence entry (best-effort)
+            await supabase
+              .from("user_presence")
+              .delete()
+              .eq("user_id", user.id);
+            await supabase.auth.signOut();
+            window.location.href = "login.html";
+          });
+
+          const { data: perms } = await supabase
+            .from("user_permissions")
+            .select("module_id,can_view")
+            .eq("user_id", user.id);
+
+          const permMap = Object.fromEntries(
+            (perms || []).map((p) => [p.module_id, p.can_view])
+          );
+          document.querySelectorAll("a.module-link").forEach((a) => {
+            if (!permMap[a.dataset.moduleId]) a.style.display = "none";
+          });
+
+          // ---- presence startup & polling ----
+          await sendHeartbeat(user); // immediate heartbeat
+          setInterval(() => sendHeartbeat(user), PRESENCE_REFRESH_MS); // periodic update
+
+          async function refreshOnlineDisplay() {
+            const onlineUsers = await getOnlineUsers();
+            renderOnlineBubbles(onlineUsers);
+          }
+          refreshOnlineDisplay(); // initial display
+          setInterval(refreshOnlineDisplay, 30_000); // refresh every 30s
+
+          // cleanup on window close (best-effort)
+          window.addEventListener("beforeunload", () => {
+            // best effort; may not complete if unload is abrupt
+            supabase.from("user_presence").delete().eq("user_id", user.id);
+          });
+
+          // override logout handler here to ensure presence is removed first
+          logoutEl.replaceWith(logoutEl.cloneNode(true)); // remove previous listeners
+          const freshLogoutEl = document.getElementById("logoutLink");
+          freshLogoutEl.addEventListener("click", async (e) => {
+            e.preventDefault();
+            await supabase
+              .from("user_presence")
+              .delete()
+              .eq("user_id", user.id);
+            await supabase.auth.signOut();
+            window.location.href = "login.html";
+          });
+        } catch (err) {
+          console.error("initApp error", err);
+          const userInfoEl = document.getElementById("userInfo");
+          if (userInfoEl) userInfoEl.textContent = "Error loading user";
+        }
+      }
+
+      window.addEventListener("DOMContentLoaded", initApp);
+    </script>
+    <script>
+      window.addEventListener("DOMContentLoaded", async () => {
+        try {
+          const v = await window.electronAPI.getAppVersion(); // provided by preload.js
+          document.getElementById("appVersion").textContent = `v${v}`;
+        } catch (err) {
+          console.error("Could not obtain app version:", err);
+        }
+      });
+    </script>
+  </body>
 </html>

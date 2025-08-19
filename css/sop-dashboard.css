@@ -1,0 +1,154 @@
+/* Layout */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 16px 0;
+}
+.panel {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 16px;
+}
+.toolbar {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: end;
+}
+.toolbar .field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 220px;
+}
+.toolbar input,
+.toolbar select {
+  padding: 8px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+.count {
+  font-size: 0.95rem;
+  color: #555;
+  margin-bottom: 8px;
+}
+
+/* Table */
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th,
+td {
+  border-bottom: 1px solid #eee;
+  padding: 10px;
+  text-align: left;
+  vertical-align: top;
+}
+th {
+  font-size: 0.85rem;
+  color: #475569;
+  white-space: nowrap;
+}
+tr:hover {
+  background: #fafafa;
+}
+.empty {
+  padding: 24px;
+  text-align: center;
+  color: #777;
+}
+
+/* Badges */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  border: 1px solid #e5e7eb;
+}
+.badge.draft {
+  background: #fff7ed;
+  color: #9a6b00;
+  border-color: #ffe08a;
+}
+.badge.under_review {
+  background: #eef2ff;
+  color: #1e3a8a;
+  border-color: #e0e7ff;
+}
+.badge.approved {
+  background: #ecfdf5;
+  color: #065f46;
+  border-color: #bbf7d0;
+}
+.badge.active {
+  background: #d1f7c4;
+  color: #2f6f1a;
+  border-color: #a7ec91;
+}
+.badge.superseded {
+  background: #f8fafc;
+  color: #475569;
+  border-color: #e5e7eb;
+}
+.badge.obsolete {
+  background: #f8d7da;
+  color: #842029;
+  border-color: #f1aeb5;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #111827;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  user-select: none;
+}
+.btn:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.btn--blue {
+  background: #005a8d;
+  color: #fff;
+  border-color: #005a8d;
+}
+.btn--blue:hover {
+  background: #024e79;
+  border-color: #024e79;
+}
+
+.actions a {
+  margin-right: 8px;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono";
+}

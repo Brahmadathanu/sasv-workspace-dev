@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>SOP Workspace | New / Edit SOP</title>
+    <link rel="stylesheet" href="public/shared/css/style.css" />
+    <link rel="stylesheet" href="css/sop-editor.css" />
+  </head>
+  <body>
+    <main class="container">
+      <div class="flex" style="justify-content: space-between; gap: 12px">
+        <h1 id="pageTitle">New / Edit SOP</h1>
+        <div class="form-actions">
+          <button id="homeBtn" title="Home">HOME</button>
+        </div>
+      </div>
+
+      <!-- CREATE MODE -->
+      <section id="createBlock" class="card">
+        <div class="grid-2 row">
+          <label for="series"
+            >Series<span class="muted"> (required)</span></label
+          >
+          <select id="series"></select>
+        </div>
+
+        <div class="grid-2 row">
+          <label for="activity"
+            >Activity<span class="muted"> (required)</span></label
+          >
+          <select id="activity"></select>
+        </div>
+
+        <div class="grid-2 row">
+          <label for="groupKind"
+            >Product Group <span class="muted">(optional)</span></label
+          >
+          <select id="groupKind"></select>
+        </div>
+
+        <div class="grid-2 row">
+          <label for="policy"
+            >Review Policy<span class="muted"> (required)</span></label
+          >
+          <select id="policy"></select>
+        </div>
+
+        <div class="grid-2 row">
+          <label for="plannedEff">Planned Effective From</label>
+          <input id="plannedEff" type="date" />
+        </div>
+
+        <div class="grid-2 row">
+          <label for="title">Title<span class="muted"> (required)</span></label>
+          <input
+            id="title"
+            type="text"
+            placeholder="Short, descriptive title"
+          />
+        </div>
+
+        <div class="grid-2 row">
+          <label for="summary">Change Summary</label>
+          <textarea
+            id="summary"
+            rows="3"
+            placeholder="e.g., Initial creation"
+          ></textarea>
+        </div>
+
+        <div class="row muted">
+          <strong>Preview:</strong>
+          <span class="mono">v1.0</span><strong> • Status: </strong>
+          <span class="mono">Draft</span><strong> • Next review: </strong>
+          <span id="metaNextRevisionCreate" class="mono">—</span>
+        </div>
+
+        <div class="form-actions" style="margin-top: 10px">
+          <button id="btnClear">Clear</button>
+          <span id="msgCreate" class="status" style="margin-left: 8px"></span>
+          <div class="push-right"></div>
+          <button id="btnCreate" class="btn-primary">Create SOP</button>
+        </div>
+
+        <div id="resultCreate" class="card" style="display: none"></div>
+      </section>
+
+      <!-- EDIT MODE -->
+      <section id="editBlock" class="card" style="display: none">
+        <div class="sop-header">
+          <div class="flex">
+            <div class="sop-title-area">
+              <input
+                id="hdrTitle"
+                type="text"
+                class="sop-title-input"
+                placeholder="Enter SOP title"
+              />
+              <div class="sop-subline">
+                <span class="mono" id="hdrSopCode"></span>
+                <span
+                  id="hdrActivity"
+                  class="activity-badge"
+                  title="Activity"
+                  style="margin-left: 8px"
+                ></span>
+              </div>
+            </div>
+            <div class="right">
+              <span id="hdrStatus" class="sop-status">draft</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Meta bar -->
+        <div id="metaBar" class="card meta-bar">
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Version</span>
+              <span id="metaVersion" class="meta-value">—</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Created</span>
+              <span id="metaCreatedAt" class="meta-value">—</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Updated</span>
+              <span id="metaUpdatedAt" class="meta-value">—</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Effective From</span>
+              <span id="metaEffectiveFrom" class="meta-value">—</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Next Review</span>
+              <span id="metaNextRevision" class="meta-value">—</span>
+            </div>
+            <div class="meta-item">
+              <div class="meta-label">Created by</div>
+              <div id="metaCreatedBy" class="meta-value">—</div>
+            </div>
+
+            <div class="meta-item">
+              <div class="meta-label">Updated by</div>
+              <div id="metaUpdatedBy" class="meta-value">—</div>
+            </div>
+
+            <div class="meta-item">
+              <div class="meta-label">Policy</div>
+              <div class="meta-value"><span id="metaPolicyName">—</span></div>
+            </div>
+          </div>
+          <div
+            class="meta-actions"
+            style="
+              display: flex;
+              gap: 8px;
+              justify-content: flex-end;
+              margin-top: 8px;
+            "
+          >
+            <button
+              id="btnSubmitReview"
+              class="btn-primary"
+              style="display: none"
+            >
+              Submit for Review
+            </button>
+            <button id="btnPublish" class="btn-primary" style="display: none">
+              Publish as Active
+            </button>
+            <button id="btnObsolete" class="btn-danger">Mark Obsolete</button>
+          </div>
+        </div>
+
+        <!-- Planner -->
+        <div class="card" id="plannerCard">
+          <h3>Planner</h3>
+          <div class="grid-2 row">
+            <label for="policyEdit">Review Policy</label>
+            <select id="policyEdit"></select>
+          </div>
+          <div class="grid-2 row">
+            <label for="plannedEffEdit">Planned Effective From</label>
+            <input id="plannedEffEdit" type="date" />
+          </div>
+          <div class="grid-2 row">
+            <label>Next review (computed)</label>
+            <div id="nextReviewEdit" class="mono muted">—</div>
+          </div>
+          <div class="grid-2 row">
+            <label for="pgkEdit">Product Group</label>
+            <div class="flex" style="gap: 8px">
+              <select id="pgkEdit" style="flex: 1"></select>
+            </div>
+          </div>
+          <div class="actions" style="justify-content: flex-end">
+            <button id="btnPlannerSave">Save Planner</button>
+          </div>
+        </div>
+
+        <!-- Approvals -->
+
+        <div class="card" id="approvalsCard" style="display: none">
+          <h3 style="margin-top: 0">Approvals</h3>
+          <div id="approvalsHelp" class="muted" style="margin-bottom: 8px">
+            Required roles must approve before publishing.
+          </div>
+          <div id="approvalsList"></div>
+        </div>
+
+        <!-- Start new draft -->
+        <div class="card" id="startDraftRow" style="display: none">
+          <div class="draft-grid">
+            <div class="draft-left">
+              <div class="draft-title">Start New Draft</div>
+              <div class="muted">
+                Create a new draft revision from this SOP.
+              </div>
+              <label class="draft-inline" for="cloneFromActive">
+                <input type="checkbox" id="cloneFromActive" checked />
+                <span class="draft-inline-label">
+                  Clone sections from current
+                  <span class="mono">active</span> revision
+                </span>
+              </label>
+            </div>
+            <div class="draft-right">
+              <button id="btnStartMinor">Start Minor Draft (v+0.1)</button>
+              <button id="btnStartMajor">Start Major Draft (v+1.0)</button>
+            </div>
+          </div>
+          <div class="status" id="msgStart"></div>
+        </div>
+
+        <!-- Sections -->
+        <div class="row"><h3>Sections</h3></div>
+        <div id="sectionsHelp" class="muted" style="margin: 6px 0 2px">
+          Add or edit sections below. Use ↑/↓ to reorder. Click "Edit body" to
+          write the content.
+        </div>
+        <!-- Sections list -->
+        <div id="sectionsList" class="card"></div>
+
+        <!-- Add section card (hidden when not draft) -->
+        <div id="addSectionCard" class="card">
+          <div class="row">
+            <label for="secTitle">Section title</label>
+            <input id="secTitle" placeholder="e.g., Quality Checks" />
+          </div>
+          <div class="row">
+            <label for="secBody">Content (Markdown or HTML)</label>
+            <textarea
+              id="secBody"
+              rows="6"
+              placeholder="Type content here…"
+            ></textarea>
+          </div>
+          <div class="actions">
+            <button id="btnAddSection" class="btn-primary">Add Section</button>
+            <span id="msgSections" class="status"></span>
+          </div>
+        </div>
+
+        <!-- Attachments -->
+        <div class="row"><h3>Attachments</h3></div>
+        <div id="attList" class="card"></div>
+
+        <!-- Add attachment card (hidden when not draft) -->
+        <div id="attachmentsAddCard" class="card">
+          <div class="row">
+            <em
+              >Upload to Supabase Storage or add by URL (we’ll record the
+              storage path or URL).</em
+            >
+          </div>
+          <div class="grid-2">
+            <label>Upload file</label>
+            <input type="file" id="attFile" />
+          </div>
+          <div class="grid-2">
+            <label>Or paste URL</label>
+            <input id="attUrl" placeholder="https://example.com/file.pdf" />
+          </div>
+          <div class="actions">
+            <button id="btnAddAttachment" class="btn-primary">
+              Add Attachment
+            </button>
+            <span id="msgAttach" class="status"></span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Supabase client (ensure it exports an initialized `supabase` object) -->
+    <script type="module" src="js/sop-editor.js"></script>
+
+    <!-- In-page modal -->
+    <div id="modalOverlay" class="modal-overlay" hidden>
+      <div class="modal-card">
+        <h3 id="modalTitle" class="modal-title"></h3>
+        <div id="modalBody" class="modal-body"></div>
+        <div class="modal-actions">
+          <button id="modalCancel">Cancel</button>
+          <button id="modalOk" class="btn-primary">OK</button>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
