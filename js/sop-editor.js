@@ -272,6 +272,10 @@ function dateOnly(ts) {
   return `${y}-${m}-${day}`;
 }
 
+function syncSectionsToolbar() {
+  if (btnRestoreDefault) btnRestoreDefault.disabled = currentStatus !== "draft";
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 /** Elements */
 // ────────────────────────────────────────────────────────────────────────────
@@ -309,6 +313,7 @@ const elMetaUpdatedBy = $("metaUpdatedBy");
 const elMetaPolicyName = $("metaPolicyName");
 const btnPublish = $("btnPublish");
 const btnObsolete = $("btnObsolete");
+const btnRestoreDefault = $("btnRestoreDefault");
 
 // Planner
 const policyEdit = $("policyEdit");
@@ -662,6 +667,7 @@ async function loadRevision() {
   sectionsHelp?.classList.toggle("hidden", readOnly);
 
   enforceDraftLocks();
+  syncSectionsToolbar();
   updateActionButtons();
   await loadApprovals();
 
@@ -1204,9 +1210,12 @@ function renderSectionPreviewRow(row) {
 }
 
 function renderSectionRow(row) {
+  // Non-draft revisions keep the read-only preview
   if (currentStatus !== "draft") {
     return renderSectionPreviewRow(row);
   }
+
+  // ── Header / controls row (full width) ───────────────────────────────
   const wrap = document.createElement("div");
   wrap.className = "section-row card";
   wrap.dataset.id = row.id;
@@ -1225,20 +1234,34 @@ function renderSectionRow(row) {
   const btnSave = mkBtn("Save", "btn btn-small btn-save");
   const btnDel = mkBtn("Delete", "btn btn-small btn-danger");
 
-  const bodyCard = document.createElement("div");
-  bodyCard.className = "section-body card";
-  bodyCard.style.display = "none";
+  btnUp.onclick = () => nudge(row.id, -1);
+  btnDown.onclick = () => nudge(row.id, +1);
+
+  wrap.append(pos, title, btnUp, btnDown, btnEdit, btnSave, btnDel);
+  sectionsList.appendChild(wrap);
+
+  // ── Full-width editor row that sits UNDER the header; hidden by default ──
+  const editorRow = document.createElement("div");
+  editorRow.className = "card section-editor-row";
+  editorRow.style.display = "none"; // IMPORTANT: start hidden
+  editorRow.style.padding = "12px";
+  editorRow.style.marginTop = "8px";
+  editorRow.style.gridColumn = "1 / -1"; // in case a grid parent appears
+  editorRow.style.width = "100%";
+  editorRow.style.flexBasis = "100%";
+  editorRow.style.alignSelf = "stretch";
 
   const ta = document.createElement("textarea");
-  ta.placeholder = getSampleFor(row.title);
   ta.className = "section-textarea";
-  ta.rows = 8;
   ta.value = row.content || "";
   ta.placeholder = getGuidanceFor(row.title);
+  ta.style.width = "100%";
+  ta.style.minHeight = "360px";
+  ta.style.boxSizing = "border-box";
   wirePlaceholderOnFocus(ta);
-  bodyCard.appendChild(ta);
+  editorRow.appendChild(ta);
 
-  if (currentStatus === "draft" && !(row.content || "").trim()) {
+  if (!(row.content || "").trim()) {
     const sampleBtn = document.createElement("button");
     sampleBtn.className = "btn btn-small";
     sampleBtn.textContent = "Insert sample";
@@ -1247,12 +1270,20 @@ function renderSectionRow(row) {
       ta.value = getSampleFor(row.title);
       ta.focus();
     };
-    bodyCard.appendChild(sampleBtn);
+    editorRow.appendChild(sampleBtn);
   }
 
+  // Place editor row directly after the header row
+  sectionsList.insertBefore(editorRow, wrap.nextSibling);
+
+  // ── Wire buttons to toggle/save/delete ────────────────────────────────
   btnEdit.onclick = () => {
-    bodyCard.style.display =
-      bodyCard.style.display === "none" ? "block" : "none";
+    const show = editorRow.style.display === "none";
+    editorRow.style.display = show ? "block" : "none";
+    if (show) {
+      ta.focus();
+      editorRow.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   };
 
   btnSave.onclick = async () => {
@@ -1261,8 +1292,10 @@ function renderSectionRow(row) {
       .update({ title: title.value.trim(), content: ta.value })
       .eq("id", row.id);
     if (error) return say(msgSections, "err", error.message);
+
     await toast("Section saved", "ok");
-    await loadSections();
+    editorRow.style.display = "none"; // close after save
+    await loadSections(); // refresh list
   };
 
   btnDel.onclick = async () => {
@@ -1281,20 +1314,6 @@ function renderSectionRow(row) {
     await toast("Section deleted", "ok", "Deleted");
     await loadSections();
   };
-
-  btnUp.onclick = () => nudge(row.id, -1);
-  btnDown.onclick = () => nudge(row.id, +1);
-
-  wrap.appendChild(pos);
-  wrap.appendChild(title);
-  wrap.appendChild(btnUp);
-  wrap.appendChild(btnDown);
-  wrap.appendChild(btnEdit);
-  wrap.appendChild(btnSave);
-  wrap.appendChild(btnDel);
-  wrap.appendChild(bodyCard);
-
-  sectionsList.appendChild(wrap);
 }
 const mkBtn = (txt, cls) => {
   const b = document.createElement("button");
@@ -1683,6 +1702,46 @@ elPgkEdit?.addEventListener("change", async () => {
       body: "Product Group can be changed only on a Draft revision.",
     });
     return;
+  }
+});
+
+btnRestoreDefault?.addEventListener("click", async () => {
+  // Only allow on Draft
+  if (currentStatus !== "draft") {
+    await showModal({
+      title: "Locked",
+      body: "You can restore the default order only on a Draft revision.",
+    });
+    return;
+  }
+
+  const go = await confirmModal({
+    title: "Restore default section order?",
+    body:
+      "This will reorder titles to the standard template:\n" +
+      "Purpose → Scope → Responsibilities → Procedure → Records → References.\n\n" +
+      "• Your content is preserved.\n" +
+      "• Any non-template sections will be placed after these.\n" +
+      "• Section numbers will be renumbered (1.0, 2.0, …).",
+    okText: "Restore",
+  });
+  if (!go) return;
+
+  try {
+    await supabase.rpc("sop_sections_reset_to_template", {
+      p_revision_id: revisionId,
+    });
+    await loadSections();
+    toast("Sections restored to default order and renumbered.", "ok");
+    // Optional: scroll to the list
+    document
+      .getElementById("sectionsList")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (e) {
+    await showModal({
+      title: "Failed",
+      body: e?.message || "Could not restore order.",
+    });
   }
 });
 

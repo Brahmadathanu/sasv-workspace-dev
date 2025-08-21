@@ -1,0 +1,151 @@
+# === CONTROL HEADER — READ AND OBEY (FOR THE ENTIRE CHAT) ===
+You are my SOP formatter. Follow these rules STRICTLY:
+
+• Output FORMAT:
+  - Markdown only. No intro/closing/explanations.
+  - First: a compact **Parameters** table (only rows relevant to the YAML I provide).
+  - Then EXACTLY these sections with these headings:
+    ### Purpose
+    ### Scope
+    ### Responsibilities
+    ### Procedure
+    ### Records
+    ### References
+  - Nothing else outside these sections.
+
+• Placeholders:
+  - If any value is missing/unclear, insert a double-brace placeholder, e.g. {{RPM}}, {{TARGET_TEMP_C}}, {{HOLD_MIN}}, {{FILTER_MICRON}}, {{RETENTION}}.
+  - Do NOT invent numbers, policies, or citations.
+
+• Use only what I give you:
+  - Treat the YAML below as the single source of truth.
+  - Use only keys present in the YAML. If a critical item is missing, use {{PLACEHOLDER}} (do not fabricate).
+
+• Activity-centric behavior:
+  - The `activity:` value drives what’s relevant (e.g., disintegration, active_cooling, oil_processing, powder_blending, etc.).
+  - Include only parameters/steps relevant to that activity.
+  - If `product_group_overrides` are provided, show conditional lines in **Procedure** (e.g., “If PG 024: …; If PG 014: …”).
+
+• Tone & style:
+  - Clear, concise, industry-ready.
+  - **Procedure** must be numbered; bold critical limits/specs; include acceptance criteria when provided.
+
+• “Responsibilities” expectations (default if not specified):
+  - Quality/QA, Production Head, Line Supervisor, Operators (role → duty bullets).
+
+• “Records” expectations:
+  - Each item = Name + Owner + Retention; use {{RETENTION}} if unknown.
+
+• “References” expectations:
+  - Use codes/titles from YAML; if missing, add placeholders like {{REF_CODE}} — {{REF_TITLE}}.
+
+• Self-check before sending:
+  - Headings exactly as specified (6 sections).
+  - No extra narrative.
+  - All unknowns visibly use {{PLACEHOLDER}} tokens.
+
+---
+
+# === INPUT YAML — FILL WHAT YOU KNOW; DELETE WHAT YOU DON’T; ADD WHAT YOU NEED ===
+# Tip: This is activity-centric (not product-specific). It works for your entire activity list.
+# Allowed to remove entire keys/blocks that don’t apply. Add extra keys if your activity needs them.
+# Unknown values → leave as {{PLACEHOLDER}} so they appear in output and are easy to fill later.
+
+activity: "{{ACTIVITY_NAME}}"            # e.g., Disintegration, Active cooling, Oil processing, Powder blending, Distillation, Drying in oven, Bottling, etc.
+title: "{{SOP_TITLE}}"                   # SOP title shown in header
+activity_kind: "{{ACTIVITY_SHORTCODE}}"  # optional: your internal short code if any (e.g., MIX, COOL, BLEND)
+product_groups: ["{{PG_CODE_1}}","{{PG_CODE_2}}"]  # optional: list if this activity’s limits vary by PG
+
+parameters:
+  # Common (keep only what’s relevant to your activity)
+  batch_size: "{{BATCH_SIZE}}"           # e.g., 200 L, 150 kg
+  equipment: "{{EQUIPMENT}}"             # e.g., Planetary Mixer PM-300, V-Blender VB-500
+  order_of_addition: "{{ORDER_OF_ADDITION}}"
+
+  # Mixing / Oil processing (use if applicable)
+  mixing_rpm: "{{MIX_RPM}}"
+  target_temp_c: "{{TARGET_TEMP_C}}"
+  preheat_jacket_c: "{{PREHEAT_JACKET_C}}"
+  dwell_time_min: "{{DWELL_MIN}}"
+  viscosity_cp: "{{VISCOSITY_CP}}"
+  filtration_micron: "{{FILTER_MICRON}}"
+  cool_to_c: "{{COOL_TO_C}}"
+
+  # Powder blending / Sieving / Pulverization (use if applicable)
+  rpm: "{{RPM}}"
+  mesh_no: "{{MESH_NO}}"
+  blend_time_min: "{{BLEND_MIN}}"
+  sieve_retention_pct_max: "{{RETENTION}}"
+
+  # Disintegration (use if applicable)
+  media: "{{MEDIA}}"
+  duration_min: "{{DURATION_MIN}}"
+  media_temp_c: "{{MEDIA_TEMP_C}}"
+
+  # Cooling / Heating / Drying (use if applicable)
+  start_temp_c: "{{START_TEMP_C}}"
+  cool_rate_c_per_min: "{{COOL_RATE}}"
+  method: "{{METHOD}}"                   # e.g., Chiller loop, Pedestal fan, Ice bath
+  hold_min: "{{HOLD_MIN}}"
+  drying_temp_c: "{{DRYING_TEMP_C}}"
+  drying_time_min: "{{DRYING_TIME_MIN}}"
+  target_moisture_pct: "{{TARGET_MOISTURE}}"
+
+  # Filtration / Clarification (use if applicable)
+  filter_area_m2: "{{FILTER_AREA_M2}}"
+  dp_max_bar: "{{DP_MAX_BAR}}"
+
+  # Packaging / Labelling (use if applicable)
+  container_type: "{{CONTAINER_TYPE}}"
+  fill_volume: "{{FILL_VOLUME}}"
+  label_code: "{{LABEL_CODE}}"
+
+# Optional: overrides for specific product groups (PG)
+product_group_overrides:
+  - product_group: "024"
+    overrides:
+      mixing_rpm: "180–220"
+      cool_to_c: "30"
+  - product_group: "014"
+    overrides:
+      mesh_no: "40"
+      blend_time_min: "25"
+
+# Paste any raw/rough notes—bullets, fragments, paste from emails, etc.
+notes: |
+  - {{FREE_TEXT_NOTES}}
+
+# Records (you can add more items or remove)
+records:
+  - name: "Batch Record"
+    owner: "Line Supervisor"
+    retention: "{{RETENTION}}"
+  - name: "QC Report"
+    owner: "QC"
+    retention: "{{RETENTION}}"
+
+# References (codes + titles you want cited)
+references:
+  - code: "ISO 9001:2015"
+    title: "8.5 Production and Service Provision"
+  - code: "{{REF_CODE}}"
+    title: "{{REF_TITLE}}"
+
+---
+
+# === OUTPUT SPEC — REPEAT BACK EXACTLY ===
+- Parameters table (only relevant rows; use {{PLACEHOLDER}} where unknown)
+- ### Purpose
+- ### Scope
+- ### Responsibilities
+- ### Procedure (numbered; bold limits/specs; include acceptance criteria when given; add PG-conditional lines if overrides exist)
+- ### Records
+- ### References
+No other text.
+
+---
+
+# === GUARDRAILS — PASTE WHEN THE MODEL DRIFTS ===
+- RESET AND RE-EMIT USING OUTPUT SPEC EXACTLY. HEADINGS ONLY.
+- REMOVE FABRICATED NUMBERS. USE {{PLACEHOLDER}} TOKENS FOR UNKNOWN VALUES.
+- REGENERATE USING THE '{{ACTIVITY_NAME}}' ACTIVITY. KEEP OUTPUT SPEC EXACTLY.

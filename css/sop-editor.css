@@ -568,3 +568,21 @@ button:active {
     justify-content: flex-start;
   }
 }
+/* Full-width editor row under a section header */
+.section-editor-row {
+  display: block;
+  width: 100%;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.section-editor-row .section-editor textarea {
+  width: 100%;
+  min-height: 360px;
+  resize: vertical;
+}
+/* default hidden; JS toggles to display:block */
+.section-editor-row {
+  display: none;
+}

@@ -1,50 +1,114 @@
-/* Layout */
+/* =========================================
+   SOP Dashboard — Refactored Styles
+   ========================================= */
+
+/* ---------- Theme tokens ---------- */
+:root {
+  --bg: #f7f8fb;
+  --panel: #ffffff;
+  --text: #0f172a;
+  --muted: #475569;
+  --line: #e5e7eb;
+
+  --brand: #005a8d;
+  --brand-2: #024e79;
+
+  --ok: #065f46;
+  --warn: #92400e;
+  --danger: #7f1d1d;
+
+  --radius: 12px;
+  --shadow: 0 10px 30px rgba(2, 8, 23, 0.08);
+}
+
+/* ---------- Layout ---------- */
 header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin: 16px 0;
 }
+
 .panel {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
   padding: 14px;
   margin-bottom: 16px;
+  box-shadow: none;
 }
+
+/* ---------- Toolbar & Filters ---------- */
 .toolbar {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
-  align-items: end;
+  align-items: flex-end; /* labels align baseline */
 }
+
 .toolbar .field {
   display: flex;
   flex-direction: column;
   gap: 4px;
   min-width: 220px;
 }
+
+.toolbar .field label {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
 .toolbar input,
 .toolbar select {
   padding: 8px 10px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--line);
   border-radius: 10px;
+  background: #fff;
+  color: var(--text);
 }
+
+/* Compact checkbox fields so both stay on the same row */
+.field--checkbox {
+  min-width: auto;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.field--checkbox > label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.field--checkbox input[type="checkbox"] {
+  margin: 0;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
 .count {
   font-size: 0.95rem;
   color: #555;
   margin-bottom: 8px;
 }
 
-/* Table */
+/* ---------- Table ---------- */
 .table-wrap {
   width: 100%;
   overflow-x: auto;
 }
+
 table {
   width: 100%;
   border-collapse: collapse;
 }
+
 th,
 td {
   border-bottom: 1px solid #eee;
@@ -52,96 +116,147 @@ td {
   text-align: left;
   vertical-align: top;
 }
+
 th {
   font-size: 0.85rem;
-  color: #475569;
+  color: var(--muted);
   white-space: nowrap;
 }
+
 tr:hover {
   background: #fafafa;
 }
+
 .empty {
   padding: 24px;
   text-align: center;
   color: #777;
 }
 
-/* Badges */
+/* 1) Make all table rows a touch smaller to reduce wrapping */
+.table-wrap table {
+  font-size: 0.95rem; /* down from ~1rem */
+}
+
+/* 2) Make metadata the same size as the rest of the row */
+th.meta-sm,
+td.meta-sm {
+  font-size: inherit; /* override earlier 0.9rem */
+  color: #475569;
+  white-space: nowrap;
+}
+
+/* 3) Keep narrow columns on one line to avoid ugly wraps */
+td:nth-child(1),  /* SOP No. */
+td:nth-child(3),  /* Series */
+td:nth-child(5),  /* Ver */
+td:nth-child(6),  /* Status */
+td:nth-child(7),  /* Created */
+td:nth-child(9),  /* Updated */
+td:nth-child(11)  /* Actions */ {
+  white-space: nowrap;
+}
+
+/* 4) Let Title stay on one line and truncate nicely if too long */
+td:nth-child(2) {
+  max-width: 520px; /* adjust as you like */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- Badges ---------- */
 .badge {
   display: inline-block;
   padding: 2px 8px;
   border-radius: 999px;
   font-size: 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--line);
 }
+
 .badge.draft {
   background: #fff7ed;
   color: #9a6b00;
   border-color: #ffe08a;
 }
+
 .badge.under_review {
   background: #eef2ff;
   color: #1e3a8a;
   border-color: #e0e7ff;
 }
+
 .badge.approved {
   background: #ecfdf5;
   color: #065f46;
   border-color: #bbf7d0;
 }
+
 .badge.active {
   background: #d1f7c4;
   color: #2f6f1a;
   border-color: #a7ec91;
 }
+
 .badge.superseded {
   background: #f8fafc;
   color: #475569;
   border-color: #e5e7eb;
 }
+
 .badge.obsolete {
   background: #f8d7da;
   color: #842029;
   border-color: #f1aeb5;
 }
 
-/* Buttons */
-.btn {
+/* ---------- Buttons (alias both .btn and .sop-btn) ---------- */
+.btn,
+.sop-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 8px 14px;
   border-radius: 8px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--line);
   background: #ffffff;
   color: #111827;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
   user-select: none;
 }
-.btn:hover {
+
+.btn:hover,
+.sop-btn:hover {
   background: #f3f4f6;
   border-color: #d1d5db;
 }
-.btn:disabled {
+
+.btn:disabled,
+.sop-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
-.btn--blue {
-  background: #005a8d;
+
+.btn--blue,
+.sop-btn--blue {
+  background: var(--brand);
   color: #fff;
-  border-color: #005a8d;
-}
-.btn--blue:hover {
-  background: #024e79;
-  border-color: #024e79;
+  border-color: var(--brand);
 }
 
-.actions a {
-  margin-right: 8px;
-  text-decoration: underline;
-  white-space: nowrap;
+.btn--blue:hover,
+.sop-btn--blue:hover {
+  background: var(--brand-2);
+  border-color: var(--brand-2);
 }
+
+.actions .sop-btn {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+/* ---------- Pagination ---------- */
 .pagination {
   display: flex;
   align-items: center;
@@ -149,6 +264,206 @@ tr:hover {
   justify-content: flex-end;
   margin-top: 10px;
 }
+
+/* ---------- Utilities ---------- */
 .mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono";
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+/* ---------- Kebab (3-dot) menu ---------- */
+.kebab {
+  position: relative;
+  display: inline-block;
+}
+
+.kebab-btn {
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 8px;
+  padding: 4px 10px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.kebab-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(2, 8, 23, 0.15);
+  min-width: 160px;
+  z-index: 5;
+}
+
+.kebab-menu[hidden] {
+  display: none;
+}
+
+.kebab-menu .menu-item {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: #fff;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.kebab-menu .menu-item:hover {
+  background: #f3f4f6;
+}
+
+/* ---------- Responsive tweaks ---------- */
+@media (max-width: 960px) {
+  /* keep checkbox filters compact on mid widths */
+  .field--checkbox {
+    min-width: 120px;
+  }
+}
+
+@media (max-width: 640px) {
+  /* let toolbar items breathe on small screens */
+  .toolbar .field {
+    min-width: 180px;
+  }
+}
+.field--checkbox-row {
+  display: flex;
+  align-items: left; /* or flex-start */
+  gap: 14px;
+  min-width: auto; /* override .field default 220px */
+  flex: 0 0 auto; /* don’t stretch */
+  white-space: nowrap; /* keep both labels on one line */
+}
+
+.field--checkbox-row .inline {
+  display: inline-flex;
+  align-items: left; /* or flex-start */
+  gap: 6px;
+  margin: 0;
+}
+
+.field--checkbox-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  flex: 0 0 auto;
+}
+/* ───────── Kebab popover for SOP Dashboard ───────── */
+.kebab {
+  position: relative;
+  display: inline-block;
+}
+
+.kebab-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+}
+.kebab-btn:hover {
+  background: #f3f4f6;
+}
+.kebab-btn:focus {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+/* The dropdown itself */
+.kebab-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 180px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 6px 0;
+  z-index: 1000;
+  max-height: min(260px, 50vh);
+  overflow: auto;
+
+  /* Force vertical stacking of items */
+  display: flex;
+  flex-direction: column;
+}
+.kebab-menu[hidden] {
+  display: none;
+}
+
+/* Menu items: full-width, stacked, left-aligned */
+.kebab-menu .menu-item {
+  display: block; /* ← key line to prevent side-by-side layout */
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 0;
+}
+.kebab-menu .menu-item:hover {
+  background: #f3f4f6;
+}
+
+/* If a global .actions flex leaks in, guard it here */
+.actions .kebab-menu .menu-item {
+  display: block !important;
+}
+
+/* (Optional) small caret */
+.kebab-menu::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  right: 10px;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 6px solid var(--line);
+}
+.kebab-menu::after {
+  content: "";
+  position: absolute;
+  top: -5px;
+  right: 11px;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 5px solid var(--panel);
+}
+/* Flip upwards (force with !important in case other rules collide) */
+.kebab-menu.open-up {
+  top: auto !important;
+  bottom: calc(100% + 4px) !important;
+}
+
+/* Prevent page scroll when menu is tall */
+.kebab-menu {
+  max-height: min(260px, 50vh);
+  overflow: auto;
+}
+/* When portaled to <body> we use fixed positioning */
+.kebab-menu--floating {
+  position: fixed;
+  z-index: 9999; /* above panel/table */
+  right: auto; /* set by JS */
+  bottom: auto; /* set by JS */
+  /* keep your existing visual styles (border, bg, radius, shadow) */
+}
+/* in sop-dashboard.css */
+#filterActivity {
+  min-width: 260px;
 }

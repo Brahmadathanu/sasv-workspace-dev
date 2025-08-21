@@ -15,6 +15,7 @@
     <!-- Filters -->
     <section class="panel">
       <div class="toolbar">
+        <!-- Series -->
         <div class="field">
           <label for="filterSeries">Series</label>
           <select id="filterSeries">
@@ -22,6 +23,7 @@
           </select>
         </div>
 
+        <!-- Activity -->
         <div class="field">
           <label for="filterActivity">Activity Kind</label>
           <select id="filterActivity">
@@ -29,33 +31,48 @@
           </select>
         </div>
 
+        <!-- Status -->
         <div class="field">
           <label for="filterStatus">Status</label>
           <select id="filterStatus">
             <option value="">Any Status</option>
             <option value="draft">Draft</option>
-            <option value="under_review">Under review</option>
+            <option value="under_review">Under Review</option>
             <option value="approved">Approved</option>
             <option value="active">Active</option>
-            <option value="superseded">Superseded</option>
             <option value="obsolete">Obsolete</option>
           </select>
         </div>
 
+        <!-- Search -->
         <div class="field" style="min-width: 280px">
-          <label for="filterSearch">Search (Code/Title)</label>
+          <label for="filterSearch">Search (No./Title)</label>
           <input
             id="filterSearch"
             type="text"
-            placeholder="e.g., MF.014-013 or Maintenance…"
+            placeholder="MF.014-013 or title…"
           />
         </div>
 
-        <div style="flex: 1"></div>
+        <!-- Checkboxes grouped so they stay on one line -->
+        <div class="field field--checkbox-row">
+          <label class="inline" for="toggleGroup">
+            <input type="checkbox" id="toggleGroup" checked />
+            Group by SOP
+          </label>
+          <label class="inline" for="includeObsolete">
+            <input type="checkbox" id="includeObsolete" />
+            Include obsolete
+          </label>
+        </div>
 
-        <div class="field">
-          <label>&nbsp;</label>
-          <button id="btnNew" class="btn btn--blue" type="button">
+        <!-- Spacer pushes New button to the far right -->
+        <div id="toolbarSpacer" style="flex: 1"></div>
+
+        <!-- New SOP -->
+        <div class="field" style="min-width: auto">
+          <label style="visibility: hidden">New</label>
+          <button id="btnNew" class="sop-btn sop-btn--blue" type="button">
             + New SOP
           </button>
         </div>
@@ -69,19 +86,22 @@
         <table>
           <thead>
             <tr>
-              <th style="width: 160px">SOP Code</th>
+              <th style="width: 120px">SOP No.</th>
               <th>Title</th>
-              <th style="width: 180px">Activity</th>
-              <th style="width: 80px">Ver</th>
+              <th style="width: 80px">Series</th>
+              <th>Activity</th>
+              <th style="width: 60px">Ver</th>
               <th style="width: 110px">Status</th>
-              <th style="width: 140px">Effective</th>
-              <th style="width: 160px">Updated</th>
-              <th style="width: 160px">Actions</th>
+              <th style="width: 110px">Created</th>
+              <th style="width: 150px">Created by</th>
+              <th style="width: 110px">Updated</th>
+              <th style="width: 150px">Updated by</th>
+              <th style="width: 60px">Actions</th>
             </tr>
           </thead>
           <tbody id="rows">
             <tr>
-              <td colspan="8" class="empty">Loading…</td>
+              <td colspan="11" class="empty">Loading…</td>
             </tr>
           </tbody>
         </table>

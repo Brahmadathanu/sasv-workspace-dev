@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>SOP Workspace | New / Edit SOP</title>
+    <title>SASV WORKSPACE | New / Edit SOP</title>
     <link rel="stylesheet" href="public/shared/css/style.css" />
     <link rel="stylesheet" href="css/sop-editor.css" />
   </head>
@@ -241,6 +241,18 @@
         </div>
         <!-- Sections list -->
         <div id="sectionsList" class="card"></div>
+
+        <!-- Sections toolbar -->
+        <div class="actions" id="sectionsToolbar" style="margin-bottom: 8px">
+          <button
+            id="btnRestoreDefault"
+            class="btn btn-small btn-move"
+            type="button"
+            title="Restore template order (Purpose → … → References)"
+          >
+            ↺ Restore default order
+          </button>
+        </div>
 
         <!-- Add section card (hidden when not draft) -->
         <div id="addSectionCard" class="card">

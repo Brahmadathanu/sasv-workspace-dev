@@ -264,5 +264,39 @@
 
     <!-- Supabase client + module logic -->
     <script type="module" src="js/fill-planner.js"></script>
+    <!-- Hidden, scrollable "Calculation Workings" panel -->
+    <details id="fp-workings" style="display: none; margin-top: 16px">
+      <summary style="cursor: pointer; font-weight: 600">
+        Calculation Workings
+      </summary>
+
+      <div style="display: flex; gap: 8px; align-items: center; margin: 8px 0">
+        <button id="fp-workings-copy" type="button">Copy</button>
+        <label style="display: inline-flex; gap: 6px; align-items: center">
+          <input id="fp-workings-autoscroll" type="checkbox" checked />
+          Auto-scroll
+        </label>
+      </div>
+
+      <div
+        style="
+          border: 1px solid #e5e7eb;
+          border-radius: 6px;
+          max-height: 40vh;
+          overflow: auto;
+        "
+      >
+        <pre
+          id="fp-workings-body"
+          style="
+            margin: 0;
+            padding: 12px;
+            font-family: ui-monospace, Menlo, Consolas, monospace;
+            white-space: pre-wrap;
+            word-break: break-word;
+          "
+        ></pre>
+      </div>
+    </details>
   </body>
 </html>

@@ -2,19 +2,24 @@
 <html lang="en-GB">
   <head>
     <meta charset="UTF-8" />
-    <title>SOP Viewer | SASV WORKSPACE</title>
+    <title>SASV WORKSPACE | SOP Viewer</title>
     <link rel="stylesheet" href="public/shared/css/style.css" />
     <style>
-      /* ---------- Layout: header ---------- */
+      /* ---- minimal, module-scoped CSS ---- */
       header {
         display: flex;
         align-items: center;
         justify-content: space-between;
         margin: 16px 0;
       }
-
-      /* ---------- Badges ---------- */
-      .badges-row {
+      .panel {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 14px;
+        margin-bottom: 16px;
+      }
+      .badges {
         display: flex;
         gap: 8px;
         flex-wrap: wrap;
@@ -27,148 +32,111 @@
         font-size: 12px;
         border: 1px solid #e5e7eb;
         background: #f9fafb;
-        color: #111827;
       }
       .badge.primary {
-        background: #0a62c3;
+        background: #005a8d;
         color: #fff;
-        border-color: #084c99;
+        border-color: #005a8d;
       }
       .badge.ok {
-        background: #d1f7c4;
-        color: #2f6f1a;
-        border-color: #a7ec91;
+        background: #ecfdf5;
+        color: #065f46;
+        border-color: #bbf7d0;
       }
       .badge.warn {
-        background: #fff3cd;
-        color: #9a6b00;
+        background: #fff7ed;
+        color: #92400e;
         border-color: #ffe08a;
       }
       .badge.danger {
-        background: #f8d7da;
-        color: #842029;
+        background: #fef2f2;
+        color: #7f1d1d;
         border-color: #f1aeb5;
       }
-      .badges-row .badge {
-        text-transform: capitalize;
-      }
 
-      /* ---------- Markdown body (viewer) ---------- */
-      .md-body {
-        background: var(--panel-bg, #fff);
-        border: 1px solid #e5e7eb;
-        border-radius: 6px;
-        padding: 16px;
-        line-height: 1.55;
-      }
-      .md-body h1,
-      .md-body h2,
-      .md-body h3 {
-        margin: 1em 0 0.4em;
-      }
-      .md-body p {
-        margin: 0.6em 0;
-      }
-      .md-body ul,
-      .md-body ol {
-        margin: 0.6em 0 0.6em 1.4em;
-      }
-      .md-body code {
-        padding: 0 4px;
-        border-radius: 4px;
-        background: #f3f4f6;
-      }
-      .md-body pre {
-        padding: 10px;
-        border-radius: 6px;
-        background: #111827;
-        color: #f3f4f6;
-        overflow: auto;
-      }
-      .md-body a {
-        text-decoration: underline;
-      }
-
-      /* ---------- Meta card (viewer) ---------- */
-      .meta-card {
+      .meta {
         display: grid;
-        grid-template-columns: repeat(
-          3,
-          minmax(220px, 1fr)
-        ); /* default: 3 balanced cols */
+        grid-template-columns: repeat(3, minmax(220px, 1fr));
         gap: 12px 24px;
         padding: 14px;
         border: 1px solid #e5e7eb;
-        border-radius: 8px;
+        border-radius: 10px;
         background: #fff;
         margin-bottom: 16px;
-        line-height: 1.7;
+        line-height: 1.65;
       }
-      .meta-col > div {
+      .meta-row {
         margin: 4px 0;
       }
-      .meta-col strong {
+      .meta-row strong {
         display: inline-block;
-        min-width: 160px;
+        min-width: 140px;
         color: #374151;
       }
-      /* Sentence-case status */
-      .meta-card #m_status {
-        text-transform: capitalize;
-      }
-
-      /* Collapse meta to 1 column on small screens */
-      @media (max-width: 680px) {
-        .meta-card {
+      @media (max-width: 720px) {
+        .meta {
           grid-template-columns: 1fr;
         }
       }
-
       .sop-body {
-        margin-top: 12px;
+        margin-top: 10px;
+      }
+      .section {
+        margin: 18px 0;
+      }
+      .section h2 {
+        margin: 0 0 8px;
+        font-size: 18px;
+        color: #0f172a;
+      }
+      .md {
+        line-height: 1.6;
+      }
+      .md p {
+        margin: 0.6em 0;
+      }
+      .md ul,
+      .md ol {
+        margin: 0.6em 0 0.6em 1.4em;
+      }
+      .md code {
+        background: #f3f4f6;
+        padding: 0 3px;
+        border-radius: 3px;
+      }
+      .md pre {
+        background: #111827;
+        color: #f3f4f6;
+        padding: 10px;
+        border-radius: 6px;
+        overflow: auto;
       }
 
-      /* ---------- Export: link-style dropdown (ghost pill) ---------- */
-      .export-group {
+      .attachments {
+        margin-top: 18px;
+        border-top: 1px solid #e5e7eb;
+        padding-top: 12px;
+      }
+      .attachments a {
+        color: #005a8d;
+        text-decoration: underline;
+      }
+
+      .export {
         position: relative;
       }
-
-      .export-link {
+      .export-btn {
         background: transparent;
         border: 1px solid transparent;
-        color: #0a62c3;
+        color: #005a8d;
         padding: 6px 10px;
-        font: inherit;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
         border-radius: 999px;
-        text-decoration: none; /* no underline */
-        transition: background 160ms ease, border-color 160ms ease,
-          box-shadow 160ms ease, transform 80ms ease;
+        cursor: pointer;
       }
-      .export-link:hover {
-        background: #f2f7ff; /* subtle tint */
-        border-color: #e0ebff; /* soft outline */
-        box-shadow: inset 0 0 0 1px #e0ebff; /* ghost border */
-        text-decoration: none; /* keep it off */
+      .export-btn:hover {
+        background: #f2f7ff;
+        border-color: #e0ebff;
       }
-      .export-link:active {
-        transform: translateY(0.5px);
-      }
-      .export-link:focus-visible {
-        outline: none;
-        box-shadow: 0 0 0 2px #cfe0ff; /* accessible focus ring */
-      }
-      .export-link .caret {
-        display: inline-block;
-        transition: transform 160ms ease;
-      }
-      .export-link[aria-expanded="true"] .caret {
-        transform: rotate(180deg);
-      }
-
       .export-menu {
         position: absolute;
         right: 0;
@@ -183,116 +151,116 @@
         padding: 6px;
         z-index: 1000;
       }
-      .export-menu button[role="menuitem"] {
+      .export-menu[hidden] {
+        display: none;
+      }
+      .export-menu button {
         width: 100%;
         text-align: left;
         background: transparent;
         border: 0;
         padding: 8px 10px;
         border-radius: 6px;
-        font: inherit;
-        color: #111827;
         cursor: pointer;
       }
-      .export-menu button[role="menuitem"]:hover {
+      .export-menu button:hover {
         background: #f3f4f6;
       }
 
-      /* ---------- Helpers ---------- */
       [hidden] {
         display: none !important;
       }
 
-      /* ---------- Print: hide interactive UI & badges ---------- */
       @media print {
-        header button,
-        header .sop-btn,
-        .export-group,
-        .badges-row {
+        header,
+        .export,
+        #homeBtn {
           display: none !important;
         }
         body {
           background: #fff !important;
         }
-        .md-body {
+        .panel {
           border: none;
           padding: 0;
+          margin: 0;
         }
+      }
+      .section .md ul,
+      .section .md ol {
+        margin: 0.6em 0 0.6em 1.4em;
+        padding-left: 1em; /* some browsers like a bit of padding too */
       }
     </style>
   </head>
   <body data-theme="system">
     <header>
-      <h1 id="pageTitle">SOP Viewer</h1>
+      <h1 id="pageH1">SOP Viewer</h1>
       <div style="display: flex; gap: 8px; align-items: center">
-        <!-- Export (link-style dropdown) -->
-        <div class="export-group">
-          <button
-            id="exportMenuBtn"
-            class="export-link"
-            aria-haspopup="menu"
-            aria-expanded="false"
-            type="button"
-          >
-            Export <span class="caret" aria-hidden="true">▾</span>
+        <div class="export">
+          <button id="exportBtn" class="export-btn" aria-expanded="false">
+            Export ▾
           </button>
-
-          <div id="exportMenu" class="export-menu" role="menu" hidden>
-            <button type="button" role="menuitem" data-export="pdf">
-              Export as PDF
-            </button>
-            <button type="button" role="menuitem" data-export="docx">
-              Export as Word (.docx)
-            </button>
-            <button type="button" role="menuitem" data-export="html">
-              Export as HTML
-            </button>
-            <button type="button" role="menuitem" data-export="md">
-              Export as Markdown (.md)
-            </button>
+          <div id="exportMenu" class="export-menu" hidden>
+            <button data-export="pdf">Export as PDF</button>
+            <button data-export="docx">Export as Word (.docx)</button>
+            <button data-export="html">Export as HTML</button>
+            <button data-export="md">Export as Markdown (.md)</button>
           </div>
         </div>
-
-        <button id="homeBtn">HOME</button>
+        <button id="homeBtn" class="btn" type="button">HOME</button>
       </div>
     </header>
 
     <section class="panel">
-      <div id="sopHeader">
-        <h1 id="sopTitle">Loading…</h1>
-
-        <div id="sopBadges" class="badges-row"></div>
-
-        <div id="sopMeta" class="meta-card">
-          <!-- Identity -->
-          <div class="meta-col">
-            <div><strong>SOP No.</strong> <span id="m_sop_no">—</span></div>
-            <div><strong>Version</strong> <span id="m_version">—</span></div>
-            <div><strong>Status</strong> <span id="m_status">—</span></div>
+      <div id="identity">
+        <h1 id="sopTitle" style="margin: 0 0 8px">Loading…</h1>
+        <div id="badges" class="badges"></div>
+        <div id="metaCard" class="meta" hidden>
+          <div>
+            <div class="meta-row">
+              <strong>SOP No.</strong> <span id="m_no">—</span>
+            </div>
+            <div class="meta-row">
+              <strong>Version</strong> <span id="m_ver">—</span>
+            </div>
+            <div class="meta-row">
+              <strong>Status</strong> <span id="m_status">—</span>
+            </div>
           </div>
-
-          <!-- Lifecycle -->
-          <div class="meta-col">
-            <div><strong>Type</strong> <span id="m_type">—</span></div>
-            <div><strong>Kind</strong> <span id="m_kind">—</span></div>
-            <div><strong>Created on</strong> <span id="m_created">—</span></div>
+          <div>
+            <div class="meta-row">
+              <strong>Series</strong> <span id="m_series">—</span>
+            </div>
+            <div class="meta-row">
+              <strong>Activity</strong> <span id="m_kind">—</span>
+            </div>
+            <div class="meta-row">
+              <strong>Effective from</strong> <span id="m_eff">—</span>
+            </div>
           </div>
-
           <!-- People & recency -->
-          <div class="meta-col">
+          <div class="meta-row">
+            <div><strong>Created on</strong> <span id="m_created">—</span></div>
             <div>
               <strong>Last updated on</strong> <span id="m_updated">—</span>
             </div>
-            <div><strong>Author</strong> <span id="m_author">—</span></div>
             <div>
-              <strong>Last Reviewer</strong> <span id="m_reviewer">—</span>
+              <strong>Created by</strong> <span id="m_created_by">—</span>
+            </div>
+            <div>
+              <strong>Updated by</strong> <span id="m_updated_by">—</span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Single, final body container for rendered Markdown -->
-      <div id="descBox" class="md-body">Loading…</div>
+      <div id="body" class="sop-body"></div>
+
+      <div id="attachments" class="attachments" hidden>
+        <h3 style="margin: 0 0 8px">Attachments</h3>
+        <ul id="attList" style="margin: 0 0 0 18px"></ul>
+      </div>
     </section>
 
     <script type="module" src="public/shared/js/supabaseClient.js"></script>

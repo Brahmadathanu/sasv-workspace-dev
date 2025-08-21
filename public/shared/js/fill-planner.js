@@ -5,6 +5,109 @@ import { supabase } from "./supabaseClient.js";
 
 const $ = (id) => document.getElementById(id);
 
+/* ──────────────────────────────────────────────────────────────────────
+   WORKINGS PANEL — math-style logging (headings + neat equation lines)
+   ----------------------------------------------------------------------
+   Usage (from later steps):
+     wH("Inputs");
+     wEq("Bulk (base units)", "", 8000);
+     wDerive(["a = b × c = 10 × 5 = 50"]);
+     wNote("✓ Copied.");
+     wClear(); // to reset
+────────────────────────────────────────────────────────────────────── */
+
+const DEFAULT_TARGET_MOS = 2; // you can change per business rule later
+
+// DOM refs (added in Step 1 HTML)
+const wToggle = $("fp-workings-toggle");
+const wPanel = $("fp-workings");
+const wBody = $("fp-workings-body");
+const wCopy = $("fp-workings-copy");
+const wAuto = $("fp-workings-autoscroll");
+
+// log buffer
+let __work = [];
+
+// number formatter (limits long floats)
+const nfmt = (v) =>
+  typeof v === "number" && isFinite(v) ? Math.round(v * 1000) / 1000 : v;
+
+// section heading
+function wH(title) {
+  __work.push(`\n— ${title} —`);
+  wRender();
+}
+
+// one-line equation: "Label: expr = value  → note"
+function wEq(label, expr, value, note) {
+  const L = label ? `${label}: ` : "";
+  const E = expr ? `${expr} = ` : "";
+  const V = value !== undefined && value !== null ? `${nfmt(value)}` : "";
+  const N = note ? `  → ${note}` : "";
+  __work.push(`${L}${E}${V}${N}`);
+  wRender();
+}
+
+// multi-line derivation block (indented lines)
+function wDerive(lines) {
+  lines.forEach((line) => __work.push(`  ${line}`));
+  wRender();
+}
+
+// plain note line (for remarks/errors)
+function wNote(text) {
+  __work.push(text);
+  wRender();
+}
+
+// clear log
+function wClear() {
+  __work = [];
+  wRender();
+}
+
+// open/close the <details> panel
+function wOpen(open = true) {
+  if (wPanel) wPanel.open = !!open;
+}
+
+// render into <pre>
+function wRender() {
+  if (!wBody) return;
+  wBody.textContent = __work.join("\n");
+  const box = wBody.parentElement; // scroll container
+  if (wAuto?.checked && box) box.scrollTop = box.scrollHeight;
+}
+// show/hide the <details> wrapper (CSS display switch)
+function wShow(show) {
+  if (wPanel) wPanel.style.display = show ? "" : "none";
+}
+
+/* ─────────── Metrics cache for MOS math ───────────
+   Will be filled in loadMetrics() and read in Calculate:
+   metricsCache[productId] = {
+     stock:    { IK: {skuId:units}, KKD:{}, OK:{} },
+     stockIKplusKKD: { skuId: units }, // convenience for IK
+     forecast: { IK: {skuId:units_pm}, OK:{skuId:units_pm} },
+     as_of_date: "YYYY-MM-DD" | ""
+   }
+*/
+const metricsCache = Object.create(null);
+
+// UI wiring
+wToggle?.addEventListener("click", () => wOpen(!wPanel.open));
+wCopy?.addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(wBody?.textContent || "");
+    wNote("✓ Copied.");
+  } catch {
+    wNote("✗ Copy failed.");
+  }
+});
+
+// (Optional test line — uncomment to verify the panel updates on load)
+// wNote("Workings panel is ready.");
+
 const elProdInput = $("fp-product-input"); // the visible input
 const elProdList = $("fp-product-list"); // the <datalist>
 const elBulk = $("fp-bulk");
@@ -145,6 +248,20 @@ window.addEventListener("resize", fitVisibleWraps);
 async function onProductSelect() {
   const prodId = elProdInput.dataset.id || "";
   const rec = prodId ? productMap[prodId] : null;
+  // reset the workings log whenever product changes
+  wClear();
+  wShow(false);
+  if (!rec) {
+    wNote("Product cleared.");
+  } else {
+    wH("Inputs");
+    wEq(
+      "Product",
+      `${rec.name || "(unknown)"}`,
+      null,
+      `id = ${prodId}, UOM = ${rec.uom || "(base)"}`
+    );
+  }
   if (!rec) {
     // hide all downstream, as before
     elUom.textContent =
@@ -170,6 +287,8 @@ async function onProductSelect() {
 /* ─── update UOM & emergency dropdown on product change ───────────── */
 
 async function loadForProduct(productId) {
+  wH("Scope");
+  wEq("Loading SKUs for product", "product_id", productId);
   // --- build your Urgent orders rows ---
   const { data: skus, error: skusErr } = await supabase
     .from("product_skus")
@@ -209,7 +328,7 @@ async function loadForProduct(productId) {
   fitVisibleWraps();
 }
 
-/* ─── helper: pack/UOM + price map for a set of SKU ids ────────────── */
+/* ─── helper: pack/UOM + price + conversion_to_base for a set of SKU ids ─── */
 async function fetchSkuInfo(skuIds) {
   if (!skuIds.length) return {};
   const { data, error } = await supabase
@@ -219,6 +338,7 @@ async function fetchSkuInfo(skuIds) {
       id,
       pack_size,
       uom,
+      product:product_id ( conversion_to_base ),
       sku_prices ( mrp_ik, mrp_ok )
     `
     )
@@ -230,6 +350,8 @@ async function fetchSkuInfo(skuIds) {
   data.forEach((r) => {
     out[r.id] = {
       label: `${r.pack_size} ${r.uom}`,
+      packSize: r.pack_size,
+      convBase: r.product?.conversion_to_base ?? 1,
       priceIK: r.sku_prices?.mrp_ik ?? null,
       priceOK: r.sku_prices?.mrp_ok ?? null,
     };
@@ -303,6 +425,49 @@ async function loadMetrics(skus, productId) {
   });
   const ave = (k) => (fcount[k] ? Math.round(fsum[k] / fcount[k]) : "—");
 
+  /* ── Build and cache metrics for later MOS math ── */
+  const forecastIK = {};
+  const forecastOK = {};
+  skus.forEach((s) => {
+    const keyIK = s.id + "_IK";
+    const keyOK = s.id + "_OK";
+    forecastIK[s.id] = fcount[keyIK]
+      ? Math.round(fsum[keyIK] / fcount[keyIK])
+      : 0;
+    forecastOK[s.id] = fcount[keyOK]
+      ? Math.round(fsum[keyOK] / fcount[keyOK])
+      : 0;
+  });
+
+  const stockIKplusKKD = {};
+  skus.forEach((s) => {
+    stockIKplusKKD[s.id] = (stockIK[s.id] || 0) + (stockKKD[s.id] || 0);
+  });
+
+  metricsCache[productId] = {
+    stock: { IK: stockIK, KKD: stockKKD, OK: stockOK },
+    stockIKplusKKD,
+    forecast: { IK: forecastIK, OK: forecastOK },
+    as_of_date: "",
+  };
+
+  /* ── Log a compact, human-readable metrics snapshot ── */
+  wH("SKU Metrics (inputs used)");
+  skus.forEach((s) => {
+    const id = s.id;
+    const label = `${s.pack_size} ${s.uom}`;
+    const stIK = stockIK[id] || 0;
+    const stK = stockKKD[id] || 0;
+    const stOK = stockOK[id] || 0;
+    const fIK = forecastIK[id] || 0;
+    const fOK = forecastOK[id] || 0;
+    wDerive([
+      `${label}`,
+      `  Stock_IK = ${stIK}, Stock_KKD = ${stK}, Stock_OK = ${stOK}`,
+      `  Forecast_IK ≈ ${nfmt(fIK)}, Forecast_OK ≈ ${nfmt(fOK)}`,
+    ]);
+  });
+
   /* 4) render */
   metricsHead.innerHTML = `
   <tr>
@@ -351,6 +516,10 @@ async function loadMetrics(skus, productId) {
     )}`;
     // make sure it’s visible
     stockUpdated.style.display = "";
+    // Cache and log the snapshot date too
+    const dstr = dt.toISOString().slice(0, 10);
+    if (metricsCache[productId]) metricsCache[productId].as_of_date = dstr;
+    wEq("Stock snapshot as_of_date", "", dstr);
   } else {
     // no snapshot rows → clear
     stockUpdated.textContent = "";
@@ -367,6 +536,8 @@ elRunBtn.addEventListener("click", async () => {
   elMsg.textContent = "";
   elBody.innerHTML = "";
   elTable.style.display = "none";
+  wClear();
+  wShow();
 
   const prodId = elProdInput.dataset.id || "";
   const rec = prodId ? productMap[prodId] : null;
@@ -377,6 +548,10 @@ elRunBtn.addEventListener("click", async () => {
 
   let bulk = +elBulk.value;
   const over = $("fp-overshoot").checked;
+
+  wH("Planning Inputs");
+  wEq("Bulk (base units)", "", +elBulk.value);
+  wEq("Allow overshoot", "", over ? "Yes" : "No");
 
   if (!prodId) {
     elMsg.textContent = "Choose a product.";
@@ -409,10 +584,24 @@ elRunBtn.addEventListener("click", async () => {
     const unitMass = meta.pack_size * meta.product.conversion_to_base;
     const needBulk = qty * unitMass;
 
+    wH("Emergency Deduction");
+    wDerive([
+      `base_per_pack = pack_size × conv_to_base = ${nfmt(
+        meta.pack_size
+      )} × ${nfmt(meta.product.conversion_to_base)} = ${nfmt(unitMass)}`,
+      `bulk_needed   = qty_packs × base_per_pack = ${nfmt(qty)} × ${nfmt(
+        unitMass
+      )} = ${nfmt(needBulk)}`,
+      `bulk_after    = bulk_before − bulk_needed = ${nfmt(bulk)} − ${nfmt(
+        needBulk
+      )} = ${nfmt(bulk - needBulk)}`,
+    ]);
+
     /* guard – not enough bulk */
     if (needBulk > bulk + 1e-9) {
       elMsg.textContent =
         "Urgent quantities exceed available bulk. Reduce the numbers.";
+      wNote("✗ Urgent quantities exceed available bulk.");
       return; // abort Calculate
     }
     bulk -= needBulk; // deduct
@@ -425,9 +614,18 @@ elRunBtn.addEventListener("click", async () => {
     return; // skip calc_fill_plan
   }
 
+  wH("Remaining Bulk After Deductions");
+  wEq("bulk_remaining (base units)", "", bulk);
+
   elRunBtn.disabled = true;
   try {
     /* 1) RPC */
+    wH("Allocation Call");
+    wDerive([
+      `calc_fill_plan( p_product_id = ${prodId},`,
+      `                p_bulk_base_qty = ${nfmt(bulk)},`,
+      `                p_allow_overshoot = ${over ? "TRUE" : "FALSE"} )`,
+    ]);
     const { data: plan, error } = await supabase.rpc("calc_fill_plan", {
       p_product_id: prodId,
       p_bulk_base_qty: bulk,
@@ -442,6 +640,120 @@ elRunBtn.addEventListener("click", async () => {
     /* 2) meta / price */
     const skuIds = [...new Set(plan.map((r) => r.sku_id))];
     const skuMap = await fetchSkuInfo(skuIds);
+
+    /* ── Show the panel now that we have something meaningful to display ── */
+    wShow(true);
+
+    /* ── MOS target: use what the function computed (dynamic) ── */
+    const mosTarget = plan && plan.length ? Number(plan[0].mos) : null;
+    if (isFinite(mosTarget)) {
+      wH("Allocation Rules (reference)");
+      wDerive([
+        "MOS_before(region,sku) = stock(region,sku) ÷ forecast_pm(region,sku)",
+        `MOS_target = ${mosTarget}  (from calc_fill_plan)`,
+        "Need_to_target(region,sku) = max(0, ceil(MOS_target × forecast_pm − stock))",
+        "Bulk constraint: Σ(units_to_fill(sku) × base_per_pack(sku)) ≤ bulk_remaining",
+        "If overshoot = TRUE, small exceedance may be allowed per rule",
+        "MOS_after(region,sku) = (stock + units_to_fill) ÷ forecast_pm",
+      ]);
+    } else {
+      // fallback (unlikely) — keep rules without a numeric target
+      wH("Allocation Rules (reference)");
+      wDerive([
+        "MOS_before(region,sku) = stock(region,sku) ÷ forecast_pm(region,sku)",
+        "MOS_target = (bulk + total_stock) ÷ total_forecast  (from calc_fill_plan)",
+        "Need_to_target(region,sku) = max(0, ceil(MOS_target × forecast_pm − stock))",
+        "Bulk constraint: Σ(units_to_fill(sku) × base_per_pack(sku)) ≤ bulk_remaining",
+        "If overshoot = TRUE, small exceedance may be allowed per rule",
+        "MOS_after(region,sku) = (stock + units_to_fill) ÷ forecast_pm",
+      ]);
+    }
+
+    /* Pull cached metrics for this product */
+    const m = metricsCache[prodId] || {
+      stock: { IK: {}, KKD: {}, OK: {} },
+      stockIKplusKKD: {},
+      forecast: { IK: {}, OK: {} },
+      as_of_date: "",
+    };
+
+    function stockFor(region, skuId) {
+      if (region === "IK") return m.stockIKplusKKD[skuId] || 0;
+      if (region === "OK") return m.stock.OK[skuId] || 0;
+      if (region === "KKD") return m.stock.KKD[skuId] || 0;
+      return 0;
+    }
+    function forecastFor(region, skuId) {
+      if (region === "IK") return m.forecast.IK[skuId] || 0;
+      if (region === "OK") return m.forecast.OK[skuId] || 0;
+      return 0;
+    }
+    const safeDiv = (a, b) => (b ? a / b : 0);
+
+    /* Summarize plan and show MOS math per region & SKU */
+    wH("Allocation Result (per region & SKU)");
+    const perRegion = {};
+    let totalPacks = 0;
+    plan.forEach((r) => {
+      const label = skuMap[r.sku_id]?.label || r.sku_id;
+      (perRegion[r.region_code] ||= []).push({
+        skuId: r.sku_id,
+        label,
+        units: r.units_to_fill,
+        mos_after: r.mos, // server's mos (target) is the same for all rows
+      });
+      totalPacks += r.units_to_fill || 0;
+    });
+
+    /* base_per_pack per SKU for bulk audit */
+    const basePerPack = {};
+    skuIds.forEach((id) => {
+      const s = skuMap[id];
+      basePerPack[id] = s ? s.packSize * (s.convBase || 1) : 0;
+    });
+
+    /* Print equations for each region/SKU (using dynamic mosTarget) */
+    Object.entries(perRegion).forEach(([region, rows]) => {
+      wNote(`Region ${region}`);
+      rows.forEach((x) => {
+        const f = forecastFor(region, x.skuId);
+        const st = stockFor(region, x.skuId);
+        const mosBefore = safeDiv(st, f);
+        const needTarget =
+          isFinite(mosTarget) && f
+            ? Math.max(0, Math.ceil(mosTarget * f - st))
+            : 0;
+        const fill = x.units || 0;
+        const mosAfterCalc = f ? safeDiv(st + fill, f) : 0;
+
+        wDerive([
+          `MOS_before(${x.label}) = stock ÷ forecast = ${nfmt(st)} ÷ ${nfmt(
+            f
+          )} = ${nfmt(mosBefore)}`,
+          `Need_to_target(${x.label}) = max(0, ceil(${
+            isFinite(mosTarget) ? nfmt(mosTarget) : "?"
+          } × ${nfmt(f)} − ${nfmt(st)})) = ${nfmt(needTarget)}`,
+          `units_to_fill(${x.label}) = ${nfmt(
+            fill
+          )}  → MOS_after(server) = ${nfmt(
+            x.mos_after
+          )}  |  MOS_after(calc) = ${nfmt(mosAfterCalc)}`,
+        ]);
+      });
+    });
+    wEq("Total packs to fill", "", totalPacks);
+
+    /* Bulk audit: implied usage by the plan */
+    const bulkUsed = plan.reduce(
+      (sum, r) => sum + r.units_to_fill * (basePerPack[r.sku_id] || 0),
+      0
+    );
+    wEq(
+      "Bulk used by plan (base units)",
+      "",
+      bulkUsed,
+      "should ≤ remaining bulk (unless overshoot)"
+    );
 
     /* 3) column order */
     const cols = skuIds
@@ -475,6 +787,8 @@ elRunBtn.addEventListener("click", async () => {
 
     elTable.style.display = "";
   } catch (err) {
+    wH("Error");
+    wNote(String(err?.message || err));
     elMsg.textContent = err.message || err;
   } finally {
     elRunBtn.disabled = false;
