@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- App title -->
+    <title>SASV Stock Checker</title>
+
+    <!-- PWA essentials -->
+    <meta name="theme-color" content="#005A8D" />
+    <link rel="manifest" href="manifest.webmanifest" />
+
+    <!-- iOS PWA support -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="apple-mobile-web-app-title" content="StockChecker" />
+    <link rel="apple-touch-icon" href="icons/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="icons/icon-512.png" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-192.png" />
+
+    <!-- Vendor + shared CSS -->
+    <link rel="stylesheet" href="../vendor/tom-select/tom-select.css" />
+    <link rel="stylesheet" href="../shared/css/style.css" />
+
+    <!-- Component styles -->
+    <style>
+      /* ───────────────────────────────── Base & layout ───────────────────────────────── */
+      :root {
+        --gap: 12px;
+        --pad: 10px;
+        --radius: 8px;
+        --border: #e5e7eb;
+        --muted: #6b7280;
+        --ink: #111827;
+        --bg: #fff;
+        --bg-soft: #f9fafb;
+        --primary: #2563eb;
+      }
+
+      body {
+        background: #fafafa;
+      }
+
+      .sc-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+      }
+      .sc-actions {
+        display: flex;
+        gap: 8px;
+      }
+      .sc-btn {
+        padding: 8px 12px;
+        border-radius: 6px;
+        border: 1px solid #d1d5db;
+        background: var(--bg);
+        cursor: pointer;
+      }
+      .sc-btn.primary {
+        background: #0a62c3;
+        color: #fff;
+        border-color: #0a62c3;
+      }
+
+      /* ───────────────────────────────── Filters row ───────────────────────────────── */
+      .sc-filters {
+        display: grid;
+        gap: var(--gap);
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        margin: 10px 0 6px;
+        align-items: end;
+      }
+      .sc-filters label {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 0.9rem;
+      }
+      .sc-filters select,
+      .sc-filters input {
+        padding: 8px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        background: var(--bg);
+      }
+
+      /* Pack size + UOM inline */
+      .pack-uom {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        white-space: nowrap;
+      }
+      .uom-text {
+        padding: 0;
+        margin: 0;
+        border: 0;
+        background: transparent;
+        color: #374151;
+        font-weight: 600;
+        line-height: 1.4;
+      }
+
+      /* ───────────────────────────────── Quick chips ───────────────────────────────── */
+      .sc-quick {
+        margin: 6px 0 10px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .chip {
+        display: inline-block;
+        padding: 6px 12px;
+        margin: 4px 0;
+        border: 1px solid #d1d5db;
+        border-radius: 9999px;
+        background: #f9fafb;
+        color: var(--ink);
+        line-height: 1.2;
+        cursor: pointer;
+        transition: background 0.2s, color 0.2s, border-color 0.2s,
+          box-shadow 0.2s;
+      }
+      .chip:hover {
+        background: #f3f4f6;
+      }
+      .sc-quick .chip[aria-pressed="true"],
+      .sc-quick .chip.is-active {
+        background: var(--primary) !important;
+        color: #fff !important;
+        border-color: var(--primary) !important;
+      }
+      .chip:focus-visible {
+        outline: 2px solid var(--primary);
+        outline-offset: 2px;
+      }
+
+      /* ───────────────────────────────── Drawers ───────────────────────────────── */
+      .drawer {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--bg);
+        margin: 8px 0;
+      }
+      .drawer > summary {
+        cursor: pointer;
+        padding: 10px 12px;
+        font-weight: 600;
+      }
+      .drawer[open] > .drawer-body {
+        padding: 12px;
+        border-top: 1px solid var(--border);
+      }
+      .drawer-body {
+        display: grid;
+        gap: 12px;
+      }
+      .drawer-heading {
+        margin: 0;
+        font-size: 0.95rem;
+        color: #374151;
+      }
+
+      /* Classification grid: 4-up desktop, 2-up tablet, 1-up mobile */
+      .drawer-grid {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(4, minmax(180px, 1fr));
+      }
+      @media (max-width: 960px) {
+        .drawer-grid {
+          grid-template-columns: repeat(2, minmax(180px, 1fr));
+        }
+      }
+      @media (max-width: 600px) {
+        .drawer-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* MOS rows: Label | Op | V1 | V2 | Exclude-null (tight, aligned) */
+      .mos-row {
+        display: grid;
+        grid-template-columns: 120px 120px 120px 120px max-content;
+        gap: 10px;
+        align-items: center;
+      }
+      .mos-row > .mos-label {
+        font-weight: 600;
+        color: #374151;
+        white-space: nowrap;
+      }
+      .mos-row select,
+      .mos-row input[type="number"] {
+        height: 32px;
+        padding: 6px 8px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        width: 100%;
+        box-sizing: border-box;
+        background: var(--bg);
+      }
+      .mos-row input[type="number"] {
+        text-align: right;
+      }
+      .mos-row select[id^="mos"][id$="-op"] {
+        min-width: 120px;
+      }
+      .mos-row input[id^="mos"][id$="-v1"],
+      .mos-row input[id^="mos"][id$="-v2"] {
+        min-width: 120px;
+      }
+      .mos-row .nullchk {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+        color: #374151;
+      }
+      .mos-row .nullchk input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        accent-color: var(--primary);
+      }
+
+      .drawer-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-top: 10px;
+      }
+
+      /* MOS responsive collapse */
+      @media (max-width: 900px) {
+        .mos-row {
+          grid-template-columns: 110px 110px 1fr 1fr max-content;
+          gap: 8px;
+        }
+      }
+      @media (max-width: 700px) {
+        .mos-row {
+          grid-template-columns: 120px 110px 1fr;
+          row-gap: 8px;
+        }
+        .mos-row input[id^="mos"][id$="-v2"] {
+          grid-column: 3 / 4;
+        }
+        .mos-row .nullchk {
+          grid-column: 1 / -1;
+          justify-self: start;
+        }
+      }
+
+      /* ───────────────────────────────── Meta + table ───────────────────────────────── */
+      .sc-meta {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        color: var(--muted);
+        font-size: 0.9rem;
+        margin: 6px 0;
+      }
+      .sc-pill {
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: #eef2ff;
+        color: #3730a3;
+        font-size: 12px;
+      }
+
+      .table-wrap {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        overflow: auto;
+        max-height: 70vh;
+        background: var(--bg);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+        background: var(--bg);
+      }
+      thead th {
+        position: sticky;
+        top: 0;
+        background: var(--bg-soft);
+        border-bottom: 1px solid var(--border);
+        padding: 8px;
+        text-align: center; /* center headers by default */
+        white-space: nowrap;
+      }
+      thead th:first-child {
+        text-align: left;
+      } /* “Item” header left */
+      tbody td {
+        border-top: 1px solid #f3f4f6;
+        padding: 8px;
+        text-align: center; /* center cells by default */
+        vertical-align: middle;
+      }
+      tbody td:first-child {
+        text-align: left;
+      } /* “Item” column left */
+
+      .pagination {
+        margin-left: auto;
+        display: flex;
+        gap: 6px;
+      }
+
+      /* ───────────────────────────────── Breakpoint tweak for filters ───────────────────────────────── */
+      @media (max-width: 960px) {
+        .sc-filters {
+          grid-template-columns: repeat(2, minmax(140px, 1fr));
+        }
+      }
+
+      /* === Exclude (multi-select) alignment fix === */
+      .drawer-grid {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(4, minmax(220px, 1fr));
+        align-items: start; /* top-align each cell */
+      }
+
+      /* Make each cell a tidy vertical stack */
+      .drawer-grid > label {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        align-self: start; /* ensure labels stick to top */
+      }
+
+      /* Normalize the multiselects so all boxes match height/width */
+      .drawer-grid select[multiple] {
+        width: 100%;
+        min-height: 9.5rem; /* same visible height for all */
+        padding: 8px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        background: #fff;
+        box-sizing: border-box;
+      }
+
+      /* Optional: single-selects inside this grid match style too */
+      .drawer-grid select:not([multiple]) {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        background: #fff;
+        box-sizing: border-box;
+      }
+
+      /* Responsive: 2-up tablet, 1-up mobile */
+      @media (max-width: 960px) {
+        .drawer-grid {
+          grid-template-columns: repeat(2, minmax(220px, 1fr));
+        }
+      }
+      @media (max-width: 600px) {
+        .drawer-grid {
+          grid-template-columns: 1fr;
+        }
+        .drawer-grid select[multiple] {
+          min-height: 8.5rem;
+        } /* slightly shorter on mobile */
+      }
+    </style>
+  </head>
+  <body data-theme="system" style="padding: 20px">
+    <div class="sc-header">
+      <h2 style="margin: 0; color: #005a8d">Stock Checker</h2>
+      <div class="sc-actions">
+        <button
+          id="sc-export"
+          class="sc-btn"
+          type="button"
+          title="Export current filter result to CSV"
+        >
+          Export CSV
+        </button>
+
+        <button id="sc-clear" class="sc-btn" type="button" hidden>Clear</button>
+
+        <button id="homeBtn" class="sc-btn" type="button">HOME</button>
+      </div>
+    </div>
+
+    <!-- Filters row -->
+    <section class="sc-filters">
+      <label>
+        Item
+        <select id="sc-item" placeholder="Type to search item…"></select>
+      </label>
+
+      <label class="uom-inline">
+        <span>Pack Size</span>
+        <div class="pack-uom">
+          <input id="sc-packsize" type="text" placeholder="e.g. 450" />
+          <span id="sc-uom" class="uom-text" aria-live="polite"></span>
+        </div>
+      </label>
+    </section>
+
+    <div class="sc-quick">
+      <button id="qf-moslt3" class="chip" type="button" aria-pressed="false">
+        MOS &lt; 3
+      </button>
+      <button id="qf-raso" class="chip" type="button" aria-pressed="false">
+        Rasoushadhi
+      </button>
+    </div>
+
+    <details id="drawer-classification" class="drawer">
+      <summary>Classification Filters</summary>
+
+      <div class="drawer-body drawer-grid">
+        <label>
+          Category
+          <select id="drawer-cat">
+            <option value="">All</option>
+          </select>
+        </label>
+
+        <label>
+          Sub-category
+          <select id="drawer-subcat" disabled>
+            <option value="">All</option>
+          </select>
+        </label>
+
+        <label>
+          Product Group
+          <select id="drawer-pgroup" disabled>
+            <option value="">All</option>
+          </select>
+        </label>
+
+        <label>
+          Sub-group
+          <select id="drawer-sgroup" disabled>
+            <option value="">All</option>
+          </select>
+        </label>
+      </div>
+    </details>
+
+    <details id="drawer-advanced" class="drawer">
+      <summary>Advanced Filters</summary>
+
+      <div class="drawer-body">
+        <!-- Exclusions -->
+        <h4 class="drawer-heading">Exclude (ANY selected will be excluded)</h4>
+        <div class="drawer-grid">
+          <label>
+            Exclude Categories
+            <select id="ex-cat" multiple></select>
+          </label>
+          <label>
+            Exclude Sub-categories
+            <select id="ex-subcat" multiple></select>
+          </label>
+          <label>
+            Exclude Groups
+            <select id="ex-pgroup" multiple></select>
+          </label>
+          <label>
+            Exclude Sub-groups
+            <select id="ex-sgroup" multiple></select>
+          </label>
+        </div>
+
+        <!-- MOS rows -->
+        <h4 class="drawer-heading">MOS Filters</h4>
+
+        <!-- MOS IK -->
+        <div class="mos-row">
+          <label class="mos-label" for="mosik-v1">MOS IK</label>
+
+          <select id="mosik-op" aria-label="MOS IK operator">
+            <option value="gt">&gt;</option>
+            <option value="gte">&ge;</option>
+            <option value="eq">=</option>
+            <option value="lte">&le;</option>
+            <option value="lt">&lt;</option>
+            <option value="between">Between</option>
+          </select>
+
+          <input
+            id="mosik-v1"
+            type="number"
+            step="0.01"
+            inputmode="decimal"
+            placeholder="value"
+            aria-label="MOS IK value"
+          />
+
+          <input
+            id="mosik-v2"
+            type="number"
+            step="0.01"
+            inputmode="decimal"
+            placeholder="max"
+            aria-label="MOS IK max value"
+          />
+
+          <label class="nullchk">
+            <input id="mosik-nnull" type="checkbox" />
+            Exclude nulls
+          </label>
+        </div>
+
+        <!-- MOS OK -->
+        <div class="mos-row">
+          <label class="mos-label" for="mosok-v1">MOS OK</label>
+
+          <select id="mosok-op" aria-label="MOS OK operator">
+            <option value="gt">&gt;</option>
+            <option value="gte">&ge;</option>
+            <option value="eq">=</option>
+            <option value="lte">&le;</option>
+            <option value="lt">&lt;</option>
+            <option value="between">Between</option>
+          </select>
+
+          <input
+            id="mosok-v1"
+            type="number"
+            step="0.01"
+            inputmode="decimal"
+            placeholder="value"
+            aria-label="MOS OK value"
+          />
+
+          <input
+            id="mosok-v2"
+            type="number"
+            step="0.01"
+            inputmode="decimal"
+            placeholder="max"
+            aria-label="MOS OK max value"
+          />
+
+          <label class="nullchk">
+            <input id="mosok-nnull" type="checkbox" />
+            Exclude nulls
+          </label>
+        </div>
+
+        <!-- MOS Overall -->
+        <div class="mos-row">
+          <label class="mos-label" for="mosov-v1">MOS Overall</label>
+
+          <select id="mosov-op" aria-label="MOS Overall operator">
+            <option value="gt">&gt;</option>
+            <option value="gte">&ge;</option>
+            <option value="eq">=</option>
+            <option value="lte">&le;</option>
+            <option value="lt">&lt;</option>
+            <option value="between">Between</option>
+          </select>
+
+          <input
+            id="mosov-v1"
+            type="number"
+            step="0.01"
+            inputmode="decimal"
+            placeholder="value"
+            aria-label="MOS Overall value"
+          />
+
+          <input
+            id="mosov-v2"
+            type="number"
+            step="0.01"
+            inputmode="decimal"
+            placeholder="max"
+            aria-label="MOS Overall max value"
+          />
+
+          <label class="nullchk">
+            <input id="mosov-nnull" type="checkbox" />
+            Exclude nulls
+          </label>
+        </div>
+
+        <div class="drawer-actions">
+          <button id="adv-apply" class="sc-btn primary" type="button">
+            Apply
+          </button>
+          <button id="adv-clear" class="sc-btn" type="button">
+            Clear Advanced
+          </button>
+          <span
+            id="adv-count"
+            class="sc-pill"
+            style="margin-left: auto; display: none"
+          ></span>
+        </div>
+      </div>
+    </details>
+
+    <!-- Meta row: counts + last updated + pagination -->
+    <div class="sc-meta">
+      <span id="sc-count" class="sc-pill">0 rows</span>
+      <span id="sc-updated">Last stock snapshot: —</span>
+      <div class="pagination">
+        <button id="sc-prev" class="sc-btn" type="button" disabled>Prev</button>
+        <span id="sc-page" style="align-self: center">Page 1</span>
+        <button id="sc-next" class="sc-btn" type="button" disabled>Next</button>
+      </div>
+    </div>
+
+    <!-- Results table -->
+    <div class="table-wrap">
+      <table id="sc-table">
+        <thead>
+          <tr>
+            <th style="text-align: left">Item</th>
+            <th style="text-align: center">Pack Size</th>
+            <th style="text-align: center">UOM</th>
+            <th style="text-align: center">Stock IK</th>
+            <th style="text-align: center">Stock KKD</th>
+            <th style="text-align: center">Forecast IK</th>
+            <th style="text-align: center">Forecast OK</th>
+            <th style="text-align: center">MOS IK</th>
+            <th style="text-align: center">MOS OK</th>
+            <th style="text-align: center">MOS (overall)</th>
+          </tr>
+        </thead>
+        <tbody id="sc-body">
+          <!-- rows injected by JS (Step C) -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Inline message area -->
+    <div id="sc-msg" style="padding: 10px; color: #b45309"></div>
+
+    <!-- Tom Select JS -->
+    <script src="../vendor/tom-select/tom-select.complete.min.js"></script>
+
+    <!-- JS entry (we’ll implement in Step C) -->
+    <script type="module" src="js/stock-checker.js"></script>
+  </body>
+</html>

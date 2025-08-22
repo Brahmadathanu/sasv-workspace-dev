@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+  <head>
+    <meta charset="UTF-8" />
+    <title>SASV WORKSPACE | Stock Checker (PWA)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- PWA manifest -->
+    <link rel="manifest" href="manifest.webmanifest" />
+
+    <!-- Minimal platform flag -->
+    <script>
+      document.documentElement.dataset.platform = "web";
+    </script>
+  </head>
+  <body style="margin: 0">
+    <iframe
+      src="../shared/stock-checker.html"
+      style="border: none; width: 100%; height: 100vh"
+      title="Stock Checker"
+      loading="eager"
+    ></iframe>
+
+    <!-- Service-worker registration -->
+    <script>
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker
+          .register("sw.js")
+          .catch((e) => console.warn("SW reg failed", e));
+      }
+    </script>
+  </body>
+</html>

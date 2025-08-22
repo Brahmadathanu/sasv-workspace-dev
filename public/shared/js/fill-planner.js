@@ -16,8 +16,6 @@ const $ = (id) => document.getElementById(id);
      wClear(); // to reset
 ────────────────────────────────────────────────────────────────────── */
 
-const DEFAULT_TARGET_MOS = 2; // you can change per business rule later
-
 // DOM refs (added in Step 1 HTML)
 const wToggle = $("fp-workings-toggle");
 const wPanel = $("fp-workings");
