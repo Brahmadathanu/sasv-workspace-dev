@@ -1,0 +1,23 @@
+[build]
+  publish = "public"
+  command = ""
+
+# Keep the service worker script itself from being cached too hard,
+# so updates roll out reliably.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+# (Optional but nice) Set a short cache for the manifest so icon/metadata updates propagate.
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Cache-Control = "max-age=600, must-revalidate"
+
+# (Optional) Security hardening. Safe for static sites.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
