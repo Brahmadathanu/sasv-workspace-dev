@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>SASV Utilities Hub</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+
+    <!-- Shared styles -->
+    <link rel="stylesheet" href="../shared/css/style.css" />
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#005A8D" />
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- iOS / favicon -->
+    <link rel="apple-touch-icon" href="/utilities-hub/icons/icon-192x192.png" />
+    <link
+      rel="apple-touch-icon"
+      sizes="152x152"
+      href="/utilities-hub/icons/icon-152x152.png"
+    />
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="/utilities-hub/icons/icon-192x192.png"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="192x192"
+      href="./icons/icon-192x192.png"
+    />
+
+    <style>
+      /* Shell */
+      .hub-wrap {
+        max-width: 1000px;
+        margin: 24px auto;
+        padding: 0 12px;
+      }
+
+      /* Header (centered) */
+      .hub-header {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 8px 0;
+      }
+      .hub-header h1 {
+        margin: 0;
+        text-align: center;
+      }
+
+      /* Grid */
+      .hub-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 16px;
+        margin-top: 16px;
+      }
+
+      /* Card */
+      .hub-card {
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        background: #fff;
+        padding: 16px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        align-items: center;
+      }
+      .hub-card h3 {
+        margin: 0;
+        font-size: 1.1rem;
+      }
+      .hub-card p {
+        margin: 0;
+        color: #555;
+        font-size: 0.95rem;
+      }
+
+      /* Title as primary button */
+      .hub-card h3 a {
+        display: inline-block;
+        text-decoration: none;
+        background: #0a62c3;
+        color: #fff;
+        padding: 10px 14px;
+        border-radius: 10px;
+        border: 1px solid #0a62c3;
+        line-height: 1;
+        transition: transform 0.06s ease-out, background 0.15s,
+          border-color 0.15s;
+      }
+      .hub-card h3 a:hover {
+        background: #084e9c;
+        border-color: #084e9c;
+      }
+      .hub-card h3 a:active {
+        transform: translateY(1px);
+      }
+      .hub-card h3 a:focus-visible {
+        outline: 3px solid #93c5fd;
+        outline-offset: 2px;
+      }
+
+      /* Card focus outline when child is focused (keyboard users) */
+      .hub-card:focus-within {
+        outline: 2px solid #0a62c3;
+        outline-offset: 3px;
+      }
+
+      /* Generic button (if used elsewhere) */
+      .button {
+        appearance: none;
+        border: 1px solid #c8d1dc;
+        background: #f7fafc;
+        padding: 0.45rem 0.9rem;
+        border-radius: 6px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      .button:hover {
+        background: #eef3f8;
+      }
+
+      /* Dark mode polish */
+      @media (prefers-color-scheme: dark) {
+        .hub-card {
+          background: #0b0f14;
+          border-color: #1f2937;
+          box-shadow: none;
+        }
+        .hub-card p {
+          color: #cbd5e1;
+        }
+        .hub-card h3 a {
+          background: #3b82f6;
+          border-color: #3b82f6;
+        }
+        .hub-card h3 a:hover {
+          background: #2563eb;
+          border-color: #2563eb;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="hub-wrap">
+      <header class="hub-header">
+        <h1>SASV Utilities Hub</h1>
+      </header>
+
+      <section class="hub-grid">
+        <article class="hub-card">
+          <h3><a href="../shared/fill-planner.html">Fill Planner</a></h3>
+          <p>
+            Plan fills from bulk with emergency SKU deductions + MOS context.
+          </p>
+        </article>
+
+        <article class="hub-card">
+          <h3><a href="../shared/stock-checker.html">Stock Checker</a></h3>
+          <p>
+            Quick search with filters and CSV export for stock/forecast/MOS.
+          </p>
+        </article>
+      </section>
+    </div>
+
+    <script>
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/sw.js").catch(console.error);
+      }
+    </script>
+  </body>
+</html>

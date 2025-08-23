@@ -4,7 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>SASV WORKSPACE | Fill Planner</title>
-    <link rel="stylesheet" href="css/style.css" />
+    <!-- CSS: use the shared stylesheet -->
+    <link rel="stylesheet" href="../shared/css/style.css" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link
+      rel="icon"
+      type="image/png"
+      href="../utilities-hub/icons/icon-192x192.png"
+    />
+    <meta name="theme-color" content="#005A8D" />
     <style>
       /* ───────────  PAGE CHROME  ─────────── */
       body {
@@ -165,15 +173,50 @@
           flex: 1 1 auto;
         }
       }
+      /* header row: title left, buttons right */
+      .page-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 0.5rem;
+      }
+      .page-header .page-title {
+        margin: 0;
+        color: #005a8d;
+      }
+      .page-header .actions {
+        margin-left: auto; /* push buttons to the right */
+        display: flex;
+        gap: 0.5rem;
+      }
+
+      /* if your shared stylesheet already defines .button/.button-secondary, keep using those.
+   Otherwise, this is a simple fallback so it still looks decent: */
+      .button {
+        appearance: none;
+        border: 1px solid #c8d1dc;
+        background: #f7fafc;
+        padding: 0.45rem 0.9rem;
+        border-radius: 6px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      .button:hover {
+        background: #eef3f8;
+      }
+      .button-secondary {
+        background: #ffffff;
+      }
     </style>
   </head>
   <body data-theme="system">
-    <div
-      style="display: flex; justify-content: space-between; align-items: center"
-    >
-      <h2 style="margin: 0">Fill Planner</h2>
-      <button id="homeBtn" class="icon-button">HOME</button>
-    </div>
+    <header class="page-header">
+      <h2 class="page-title">Fill Planner</h2>
+      <div class="actions">
+        <button id="fp-clear" class="button button-secondary">CLEAR</button>
+        <button id="homeBtn" class="button">HOME</button>
+      </div>
+    </header>
 
     <div class="fp-controls">
       <label>
@@ -263,7 +306,7 @@
     </table>
 
     <!-- Supabase client + module logic -->
-    <script type="module" src="js/fill-planner.js"></script>
+    <script type="module" src="../shared/js/fill-planner.js"></script>
     <!-- Hidden, scrollable "Calculation Workings" panel -->
     <details id="fp-workings" style="display: none; margin-top: 16px">
       <summary style="cursor: pointer; font-weight: 600">
@@ -298,5 +341,12 @@
         ></pre>
       </div>
     </details>
+    <script>
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker
+          .register("/sw.js", { scope: "/" })
+          .catch(console.error);
+      }
+    </script>
   </body>
 </html>

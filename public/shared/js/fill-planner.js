@@ -2,6 +2,7 @@
  * fill‑planner.js  –  pivoted table with emergency SKU deduction
  ***************************************************************************/
 import { supabase } from "./supabaseClient.js";
+import { Platform } from "./platform.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -116,6 +117,7 @@ const elTable = $("fp-table");
 const elHead = $("fp-head");
 const elBody = $("fp-body");
 const homeBtn = $("homeBtn");
+const clearBtn = $("fp-clear");
 const emgTitle = $("fp-emg-title");
 const runWrap = $("fp-run-wrap");
 const fpTitle = $("fp-title");
@@ -166,6 +168,24 @@ function resolveAndGo() {
     delete elProdInput.dataset.id;
     onProductSelect(); // will hide the downstream sections
   }
+}
+
+function clearPlanner() {
+  // clear the type-to-search input + chosen id
+  elProdInput.value = "";
+  delete elProdInput.dataset.id;
+
+  // clear downstream
+  elBulk.value = "";
+  elUom.textContent = "(base UOM)";
+  elRunBtn.disabled = true;
+
+  // wipe workings panel
+  wClear();
+  wShow(false);
+
+  // collapse sections
+  onProductSelect(); // this already hides tables/sections
 }
 
 /* ─── make tables scrollable with sticky headers ─────────────────── */
@@ -793,26 +813,6 @@ elRunBtn.addEventListener("click", async () => {
   }
 });
 
-/* ─── Platform-aware button (HOME in Electron, CLEAR in PWA) ───────── */
-const runningInIframe = window.top !== window.self; // true only in PWA
-
-if (runningInIframe) {
-  homeBtn.textContent = "CLEAR";
-  homeBtn.addEventListener("click", () => {
-    // clear the type-to-search input + chosen id
-    elProdInput.value = "";
-    delete elProdInput.dataset.id;
-
-    // clear downstream
-    elBulk.value = "";
-    elUom.textContent = "(base UOM)";
-    elRunBtn.disabled = true;
-
-    onProductSelect(); // collapses tables/sections
-  });
-} else {
-  // Electron: navigate two levels up to the app's real home page
-  homeBtn.addEventListener("click", () => {
-    window.location.href = "../../index.html";
-  });
-}
+// Unified HOME & CLEAR
+homeBtn?.addEventListener("click", () => Platform.goHome());
+clearBtn?.addEventListener("click", clearPlanner);

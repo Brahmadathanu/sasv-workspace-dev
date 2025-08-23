@@ -8,21 +8,28 @@
     <title>SASV Stock Checker</title>
 
     <!-- PWA essentials -->
+    <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#005A8D" />
-    <link rel="manifest" href="manifest.webmanifest" />
 
     <!-- iOS PWA support -->
-    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta
       name="apple-mobile-web-app-status-bar-style"
       content="black-translucent"
     />
     <meta name="apple-mobile-web-app-title" content="StockChecker" />
-    <link rel="apple-touch-icon" href="icons/icon-192.png" />
-    <link rel="apple-touch-icon" sizes="512x512" href="icons/icon-512.png" />
-
-    <!-- Favicon -->
-    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="/utilities-hub/icons/icon-192x192.png" />
+    <link
+      rel="apple-touch-icon"
+      sizes="512x512"
+      href="/utilities-hub/icons/icon-512x512.png"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="32x32"
+      href="/utilities-hub/icons/icon-192x192.png"
+    />
 
     <!-- Vendor + shared CSS -->
     <link rel="stylesheet" href="../vendor/tom-select/tom-select.css" />
@@ -391,7 +398,7 @@
           Export CSV
         </button>
 
-        <button id="sc-clear" class="sc-btn" type="button" hidden>Clear</button>
+        <button id="sc-clear" class="sc-btn" type="button">CLEAR</button>
 
         <button id="homeBtn" class="sc-btn" type="button">HOME</button>
       </div>
@@ -654,4 +661,11 @@
     <!-- JS entry (we’ll implement in Step C) -->
     <script type="module" src="js/stock-checker.js"></script>
   </body>
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("/sw.js", { scope: "/public/" })
+        .catch(console.error);
+    }
+  </script>
 </html>

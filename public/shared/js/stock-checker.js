@@ -2,6 +2,7 @@
  * stock-checker.js — SASV Stock Checker (Primary + Quick + Drawers)
  ***************************************************************************/
 import { supabase } from "./supabaseClient.js";
+import { Platform } from "./platform.js";
 /* global TomSelect */
 
 // ────────────── Utility functions and variables (move to top) ──────────────
@@ -17,9 +18,6 @@ function fmt3(n) {
 }
 function clamp(v, min, max) {
   return Math.max(min, Math.min(max, v));
-}
-function runningInIframe() {
-  return window.top !== window.self;
 }
 function escapeHtml(s) {
   return String(s ?? "")
@@ -464,28 +462,13 @@ async function init() {
       runQuery();
     });
 
-    // HOME button behavior
-    if (elHome) {
-      if (runningInIframe()) {
-        elHome.textContent = "CLEAR";
-        elHome.addEventListener("click", clearAll);
-      } else {
-        elHome.addEventListener("click", () => {
-          window.location.href = "../../index.html";
-        });
-      }
-    }
+    // HOME always navigates; CLEAR always clears (same on Electron & Web)
+    if (elHome) elHome.addEventListener("click", () => Platform.goHome());
+    if (elClear) elClear.addEventListener("click", clearAll);
 
-    // Module-only Clear button (show & wire only when NOT in PWA/iframe)
+    // CLEAR always clears filters on both platforms
     if (elClear) {
-      if (runningInIframe()) {
-        // PWA: we already flip HOME → CLEAR, so keep this hidden
-        elClear.hidden = true;
-      } else {
-        // Module: show a dedicated Clear button that calls the same clearAll()
-        elClear.hidden = false;
-        elClear.addEventListener("click", clearAll);
-      }
+      elClear.addEventListener("click", clearAll);
     }
 
     // Primary filters
