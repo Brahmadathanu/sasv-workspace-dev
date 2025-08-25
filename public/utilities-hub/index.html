@@ -5,7 +5,7 @@
     <title>SASV Utilities Hub</title>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
 
-    <!-- Shared styles -->
+    <!-- Shared styles (kept) -->
     <link rel="stylesheet" href="../shared/css/style.css" />
 
     <!-- PWA -->
@@ -13,7 +13,7 @@
     <meta name="theme-color" content="#005A8D" />
     <meta name="mobile-web-app-capable" content="yes" />
 
-    <!-- iOS / favicon -->
+    <!-- Icons -->
     <link rel="apple-touch-icon" href="/utilities-hub/icons/icon-192x192.png" />
     <link
       rel="apple-touch-icon"
@@ -33,36 +33,78 @@
     />
 
     <style>
-      /* Shell */
+      :root {
+        --brand: #0a62c3;
+        --brand-600: #084e9c;
+        --text-2: #555;
+        --border: #e5e7eb;
+        --bg-soft: #f8fafc;
+      }
+
+      /* Layout shell */
       .hub-wrap {
         max-width: 1000px;
         margin: 24px auto;
-        padding: 0 12px;
+        padding: 0 12px 28px;
       }
 
-      /* Header (centered) */
+      /* Header */
       .hub-header {
-        display: flex;
-        justify-content: center;
+        display: grid;
+        grid-template-columns: 1fr auto 1fr; /* center title; auth bar sits right */
         align-items: center;
-        padding: 8px 0;
+        gap: 12px;
+        margin-bottom: 8px;
       }
-      .hub-header h1 {
+      .hub-title {
+        grid-column: 2 / 3;
+        justify-self: center;
         margin: 0;
         text-align: center;
+        font-size: clamp(1.25rem, 3.5vw, 1.75rem);
+        color: #0b1420;
       }
 
-      /* Grid */
+      /* Auth bar (right aligned) */
+      #hub-authbar {
+        grid-column: 3 / 4;
+        justify-self: end;
+        display: flex;
+        gap: 8px;
+      }
+      .button {
+        appearance: none;
+        border: 1px solid var(--border);
+        background: #f7fafc;
+        padding: 0.5rem 0.9rem;
+        border-radius: 8px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      .button:hover {
+        background: #eef3f8;
+      }
+
+      /* Greeting */
+      #hub-greeting {
+        display: none;
+        text-align: center;
+        margin: 6px 0 12px;
+        color: #374151;
+        font-weight: 600;
+      }
+
+      /* Grid of utilities */
       .hub-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
         gap: 16px;
-        margin-top: 16px;
+        margin-top: 12px;
       }
 
-      /* Card */
+      /* Cards */
       .hub-card {
-        border: 1px solid #e5e7eb;
+        border: 1px solid var(--border);
         border-radius: 12px;
         background: #fff;
         padding: 16px;
@@ -79,26 +121,26 @@
       }
       .hub-card p {
         margin: 0;
-        color: #555;
+        color: var(--text-2);
         font-size: 0.95rem;
       }
 
-      /* Title as primary button */
+      /* Primary action: title acts as button-like link */
       .hub-card h3 a {
         display: inline-block;
         text-decoration: none;
-        background: #0a62c3;
+        background: var(--brand);
         color: #fff;
         padding: 10px 14px;
         border-radius: 10px;
-        border: 1px solid #0a62c3;
+        border: 1px solid var(--brand);
         line-height: 1;
         transition: transform 0.06s ease-out, background 0.15s,
           border-color 0.15s;
       }
       .hub-card h3 a:hover {
-        background: #084e9c;
-        border-color: #084e9c;
+        background: var(--brand-600);
+        border-color: var(--brand-600);
       }
       .hub-card h3 a:active {
         transform: translateY(1px);
@@ -108,27 +150,58 @@
         outline-offset: 2px;
       }
 
-      /* Card focus outline when child is focused (keyboard users) */
-      .hub-card:focus-within {
-        outline: 2px solid #0a62c3;
-        outline-offset: 3px;
+      /* Muted state for view-only / no-access */
+      .hub-card.muted {
+        opacity: 0.65;
+      }
+      .open-utility.is-disabled {
+        pointer-events: none;
+        opacity: 0.5;
+        filter: grayscale(0.15);
       }
 
-      /* Generic button (if used elsewhere) */
-      .button {
-        appearance: none;
-        border: 1px solid #c8d1dc;
-        background: #f7fafc;
-        padding: 0.45rem 0.9rem;
-        border-radius: 6px;
-        font-size: 14px;
+      /* Request button (secondary) */
+      .btn-secondary {
+        display: inline-block;
+        padding: 8px 12px;
+        border-radius: 8px;
+        border: 1px solid var(--brand);
+        background: #fff;
+        color: var(--brand);
+        text-decoration: none;
         cursor: pointer;
       }
-      .button:hover {
-        background: #eef3f8;
+      .btn-secondary:hover {
+        background: #eef5ff;
       }
 
-      /* Dark mode polish */
+      /* Empty state */
+      #hub-empty {
+        display: none;
+        text-align: center;
+        color: #6b7280;
+        margin: 16px 0;
+        border: 1px dashed #cbd5e1;
+        border-radius: 12px;
+        padding: 18px;
+        background: var(--bg-soft);
+      }
+
+      /* Skeleton card while loading */
+      .skeleton {
+        animation: pulse 1.3s ease-in-out infinite;
+        background: #eef2f7;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.55;
+        }
+      }
+
       @media (prefers-color-scheme: dark) {
         .hub-card {
           background: #0b0f14;
@@ -146,32 +219,102 @@
           background: #2563eb;
           border-color: #2563eb;
         }
+        .button {
+          background: #0f172a;
+          border-color: #243244;
+          color: #e5e7eb;
+        }
+        .button:hover {
+          background: #172033;
+        }
+        #hub-empty {
+          background: #0b0f14;
+          border-color: #243244;
+        }
       }
     </style>
   </head>
+
   <body>
     <div class="hub-wrap">
+      <!-- Header: centered title + auth bar on the right -->
       <header class="hub-header">
-        <h1>SASV Utilities Hub</h1>
+        <h1 class="hub-title">SASV Utilities Hub</h1>
+
+        <div id="hub-authbar" aria-label="Authentication">
+          <button id="hub-login" class="button" type="button">Sign in</button>
+          <button
+            id="hub-logout"
+            class="button"
+            type="button"
+            style="display: none"
+          >
+            Sign out
+          </button>
+        </div>
       </header>
 
-      <section class="hub-grid">
-        <article class="hub-card">
-          <h3><a href="../shared/fill-planner.html">Fill Planner</a></h3>
-          <p>
-            Plan fills from bulk with emergency SKU deductions + MOS context.
-          </p>
-        </article>
+      <!-- Personalized greeting (hub-auth.js fills + shows it) -->
+      <p id="hub-greeting">Welcome, <span id="hub-user-name"></span>!</p>
 
-        <article class="hub-card">
-          <h3><a href="../shared/stock-checker.html">Stock Checker</a></h3>
-          <p>
-            Quick search with filters and CSV export for stock/forecast/MOS.
-          </p>
+      <!-- Main grid: hub-auth.js will inject the cards here -->
+      <section
+        id="hub-root"
+        class="hub-grid"
+        aria-live="polite"
+        aria-busy="true"
+      >
+        <!-- Skeletons while JS loads -->
+        <article class="hub-card" aria-hidden="true">
+          <div
+            class="skeleton"
+            style="
+              height: 36px;
+              width: 60%;
+              border-radius: 8px;
+              margin: 0 auto 8px;
+            "
+          ></div>
+          <div
+            class="skeleton"
+            style="height: 14px; width: 85%; border-radius: 6px"
+          ></div>
+        </article>
+        <article class="hub-card" aria-hidden="true">
+          <div
+            class="skeleton"
+            style="
+              height: 36px;
+              width: 60%;
+              border-radius: 8px;
+              margin: 0 auto 8px;
+            "
+          ></div>
+          <div
+            class="skeleton"
+            style="height: 14px; width: 85%; border-radius: 6px"
+          ></div>
         </article>
       </section>
+
+      <!-- Empty state (shown only when user has no access) -->
+      <p id="hub-empty">
+        You don’t have access to any utilities yet.<br />
+        Tap <strong>Request access</strong> on the tools you need. An admin will
+        approve.
+      </p>
     </div>
 
+    <noscript>
+      <p style="text-align: center; color: #b91c1c; margin-top: 12px">
+        JavaScript is required to use this app.
+      </p>
+    </noscript>
+
+    <!-- Auth/controller script -->
+    <script type="module" src="./js/hub-auth.js"></script>
+
+    <!-- PWA Service Worker -->
     <script>
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("/sw.js").catch(console.error);

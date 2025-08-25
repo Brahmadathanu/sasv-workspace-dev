@@ -997,6 +997,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       loadFull();
     });
 
+    // ───────── 7a) BN filter: reload table on change ───────────────────────
+    fBN.onchange = () => {
+      resetPaging();
+      loadFull();
+    };
+
     // ───────── 8) Clear All Filters ─────────────────────────────────────────
     clearFull.onclick = async () => {
       // 1) Reset all values

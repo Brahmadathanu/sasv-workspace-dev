@@ -264,7 +264,7 @@ const advCount = $("adv-count");
 
 /* ─────────────────────────── State ─────────────────────────── */
 const PAGE_SIZE = 50;
-const VISIBLE_COLS = 10;
+const VISIBLE_COLS = 11;
 let page = 1;
 
 let selectedProductId = ""; // set by TomSelect
@@ -852,6 +852,7 @@ function renderRows(rows) {
       <td style="text-align:center">${escapeHtml(r.uom || "")}</td>
       <td style="text-align:center">${fmtInt(r.stock_ik)}</td>
       <td style="text-align:center">${fmtInt(r.stock_kkd)}</td>
+      <td style="text-align:center">${fmtInt(r.stock_ok)}</td>
       <td style="text-align:center">${fmtInt(r.forecast_ik)}</td>
       <td style="text-align:center">${fmtInt(r.forecast_ok)}</td>
       <td style="text-align:center">${fmt3(r.mos_ik)}</td>

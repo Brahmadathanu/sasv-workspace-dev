@@ -67,6 +67,14 @@ self.addEventListener("fetch", (event) => {
   if (req.method !== "GET" || url.origin !== location.origin) return;
   if (/supabase|\/(rest|realtime|storage|auth)\b/i.test(url.href)) return;
 
+  if (
+    url.pathname === "/utilities-hub/index.html" ||
+    url.pathname === "/utilities-hub/js/hub-auth.js"
+  ) {
+    event.respondWith(fetch(req)); // no cache → avoids stale auth/UI
+    return;
+  }
+
   // Navigations → network-first, fallback to correct hub path (NO /public)
   if (
     req.mode === "navigate" ||
