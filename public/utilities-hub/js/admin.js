@@ -114,6 +114,9 @@ async function mustBeAdmin() {
 }
 
 /* ---------- Pending requests ---------- */
+let _pendingLoadToken = 0;
+let _pendingLoading = false;
+
 function renderPendingEmpty(text) {
   tbodyPending.innerHTML = "";
   const tr = $el("tr", {}, [
@@ -123,20 +126,34 @@ function renderPendingEmpty(text) {
 }
 
 async function loadPending() {
+  if (_pendingLoading) return; // prevent overlaps
+  _pendingLoading = true;
+  const myToken = ++_pendingLoadToken;
+
   renderPendingEmpty("Loading…");
 
   const { data, error } = await supabase
     .from("v_hub_requests_pending")
-    .select("*")
+    .select(
+      "request_id, created_at, user_email, user_id, utility_key, utility_label, utility_id, note, status"
+    )
     .order("created_at", { ascending: false });
+
+  // If another call started after us, drop this response
+  if (myToken !== _pendingLoadToken) {
+    _pendingLoading = false;
+    return;
+  }
 
   if (error) {
     renderPendingEmpty("Error loading requests.");
     console.error(error);
+    _pendingLoading = false;
     return;
   }
   if (!data?.length) {
     renderPendingEmpty("No pending requests.");
+    _pendingLoading = false;
     return;
   }
 
@@ -203,6 +220,8 @@ async function loadPending() {
     );
     tbodyPending.appendChild(tr);
   });
+
+  _pendingLoading = false;
 }
 
 /* ---------- Manual grant ---------- */
@@ -332,7 +351,13 @@ tabs.forEach((b) => {
 });
 
 /* ---------- Buttons ---------- */
-btnRefreshPending?.addEventListener("click", loadPending);
+let _lastRefreshAt = 0;
+btnRefreshPending?.addEventListener("click", () => {
+  const now = Date.now();
+  if (now - _lastRefreshAt < 600) return; // 600ms debounce
+  _lastRefreshAt = now;
+  loadPending();
+});
 btnGrant?.addEventListener("click", grantByEmail);
 btnLookup?.addEventListener("click", loadAccessForEmail);
 

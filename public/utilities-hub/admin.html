@@ -27,7 +27,7 @@
         --bg-soft: #f8fafc;
       }
       .wrap {
-        max-width: 1100px;
+        max-width: min(1400px, 95vw);
         margin: 24px auto;
         padding: 0 12px 28px;
       }
@@ -194,12 +194,20 @@
       #accessBody td:nth-child(3) {
         white-space: normal;
       }
+      /* Make the HOME link look like your red button */
       a#homeBtn {
         text-decoration: none;
         display: inline-block;
+        background: var(--home-btn-bg);
+        color: var(--btn-text);
+        border: none;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 1rem;
       }
       a#homeBtn:hover {
         text-decoration: none;
+        background: var(--home-btn-hover-bg);
       }
     </style>
   </head>
