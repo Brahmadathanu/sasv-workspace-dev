@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "sasv-utils-v6"; // bump!
+const CACHE_NAME = "sasv-utils-v8"; // bump!
 
 const PRECACHE = [
   // Hub shell
@@ -74,9 +74,10 @@ self.addEventListener("fetch", (event) => {
 
   if (
     url.pathname === "/utilities-hub/index.html" ||
-    url.pathname === "/utilities-hub/js/hub-auth.js"
+    url.pathname === "/utilities-hub/js/hub-auth.js" ||
+    url.pathname === "/utilities-hub/js/admin.js"
   ) {
-    event.respondWith(fetch(req)); // no cache → avoids stale auth/UI
+    event.respondWith(fetch(req));
     return;
   }
 

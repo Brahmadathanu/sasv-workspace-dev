@@ -2,13 +2,6 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <header class="hdr">
-      <h1>Admin Dashboard</h1>
-      <div style="display: flex; gap: 8px">
-        <!-- This matches #homeBtn in your CSS -->
-        <a id="homeBtn" href="/utilities-hub/">HOME</a>
-      </div>
-    </header>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <link rel="stylesheet" href="../shared/css/style.css" />
     <link rel="manifest" href="/utilities-hub/manifest.webmanifest" />
@@ -201,14 +194,21 @@
       #accessBody td:nth-child(3) {
         white-space: normal;
       }
+      a#homeBtn {
+        text-decoration: none;
+        display: inline-block;
+      }
+      a#homeBtn:hover {
+        text-decoration: none;
+      }
     </style>
   </head>
   <body>
     <div class="wrap">
       <header class="hdr">
-        <h1>Admin Dashboard — SASV Utilities Hub</h1>
+        <h1>Admin Dashboard</h1>
         <div style="display: flex; gap: 8px">
-          <a class="button" href="./index.html">Back to Hub</a>
+          <a class="button" href="./index.html">HOME</a>
         </div>
       </header>
 
