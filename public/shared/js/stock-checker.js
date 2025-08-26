@@ -1067,6 +1067,19 @@ function clearAll() {
   setChip(elQfRaso, false);
   state.quick = { mosLt3: false, raso: false };
 
+  // Close classification and advanced drawers if open
+  const classifDrawer = $("drawer-classification");
+  const advDrawer = $("drawer-advanced");
+  // Try both .open property and removeAttribute for compatibility
+  if (classifDrawer) {
+    if (typeof classifDrawer.open !== "undefined") classifDrawer.open = false;
+    classifDrawer.removeAttribute("open");
+  }
+  if (advDrawer) {
+    if (typeof advDrawer.open !== "undefined") advDrawer.open = false;
+    advDrawer.removeAttribute("open");
+  }
+
   // reset advanced UI
   [exCat, exSubcat, exPgroup, exSgroup].forEach((sel) => {
     if (!sel) return;

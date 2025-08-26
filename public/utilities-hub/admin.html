@@ -3,6 +3,21 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <!-- Tell the browser we only support light; don't auto-darken -->
+    <meta name="color-scheme" content="light" />
+    <meta name="supported-color-schemes" content="light" />
+
+    <!-- Optional: split theme-color so status bars also look right -->
+    <meta
+      name="theme-color"
+      content="#ffffff"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#ffffff"
+      media="(prefers-color-scheme: dark)"
+    />
     <link rel="stylesheet" href="../shared/css/style.css" />
     <link rel="manifest" href="/utilities-hub/manifest.webmanifest" />
     <meta name="theme-color" content="#005A8D" />
