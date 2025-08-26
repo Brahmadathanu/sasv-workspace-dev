@@ -347,24 +347,3 @@ textarea,
 button {
   color-scheme: light;
 }
-
-/* If some pages had their own dark overrides, neutralize them */
-@media (prefers-color-scheme: dark) {
-  .card,
-  .hub-card {
-    background: #fff !important;
-    color: #111 !important;
-  }
-  .button,
-  button,
-  a.button {
-    background: #f7fafc !important;
-    color: #111 !important;
-    border-color: #e5e7eb !important;
-  }
-  .hub-card h3 a {
-    background: var(--primary, #0a62c3) !important;
-    color: #fff !important;
-    border-color: var(--primary, #0a62c3) !important;
-  }
-}
