@@ -347,3 +347,15 @@ textarea,
 button {
   color-scheme: light;
 }
+/* Force light form controls without changing your design tokens */
+:root,
+html,
+body {
+  color-scheme: light;
+}
+input,
+select,
+textarea,
+button {
+  color-scheme: light;
+}
