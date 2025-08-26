@@ -246,7 +246,7 @@ async function grantByEmail() {
   }
   btnGrant.disabled = true;
 
-  const { error } = await supabase.rpc("grant_hub_access_by_email", {
+  const { error } = await supabase.rpc("set_user_access_by_email_key", {
     p_email: email,
     p_utility_key: uKey,
     p_level: level,
@@ -307,9 +307,9 @@ async function loadAccessForEmail() {
     const revokeBtn = $el("button", { class: "button", text: "Revoke" });
     revokeBtn.addEventListener("click", async () => {
       revokeBtn.disabled = true;
-      const { error: err } = await supabase.rpc("revoke_hub_access", {
+      const { error: err } = await supabase.rpc("revoke_user_access", {
         p_user_id: row.user_id,
-        p_utility_id: row.utility_id,
+        p_utility_key: row.utility_key,
       });
       revokeBtn.disabled = false;
       if (err) {
