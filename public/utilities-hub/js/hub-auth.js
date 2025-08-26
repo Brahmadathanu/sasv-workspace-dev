@@ -46,6 +46,16 @@ function guessNameFromEmail(email) {
     .join(" ")
     .trim();
 }
+function isIOSPWA() {
+  const ua = navigator.userAgent || navigator.vendor || "";
+  const isIOS =
+    /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1); // iPadOS
+  const standalone =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.navigator.standalone === true; // old iOS
+  return isIOS && standalone;
+}
 function renderMessageCard(title, message) {
   return `
     <article class="hub-card" role="status" aria-live="polite">
@@ -207,11 +217,41 @@ function updateAuthButtons(session) {
   if (btnLogout) btnLogout.style.display = session?.user ? "" : "none";
 }
 
-/** Login (magic link only) */
+/** Login (OTP for iOS PWA; magic link elsewhere) */
 async function loginFlow() {
   const email = prompt("Enter your work email to sign in:");
   if (!email) return;
 
+  // --- iOS PWA: stay in-app using a 6-digit code (no Safari hop)
+  if (isIOSPWA()) {
+    try {
+      const { error: sendErr } = await supabase.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: true },
+      });
+      if (sendErr) throw sendErr;
+
+      alert("We've emailed you a 6-digit code. Please DO NOT tap the link.");
+      const code = prompt("Enter the 6-digit code:");
+      if (!code) return;
+
+      const { error: verifyErr } = await supabase.auth.verifyOtp({
+        email,
+        token: code.trim(),
+        type: "email",
+      });
+      if (verifyErr) throw verifyErr;
+
+      await render(); // you're signed in
+      return;
+    } catch (err) {
+      console.error(err);
+      alert("Sign-in failed. Please try again.");
+      return;
+    }
+  }
+
+  // --- Desktop/Android: keep using magic link + your callback bridge
   try {
     const redirectTo = new URL(
       "/utilities-hub/auth/callback.html",
