@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "sasv-utils-v5"; // bump!
+const CACHE_NAME = "sasv-utils-v6"; // bump!
 
 const PRECACHE = [
   // Hub shell
@@ -113,6 +113,54 @@ self.addEventListener("fetch", (event) => {
         cache.put(req, res.clone());
       }
       return res;
+    })()
+  );
+});
+/* ------------------------------------------------------------------ */
+/* Sign-in handoff: wake/focus PWA after magic-link callback          */
+/* ------------------------------------------------------------------ */
+self.addEventListener("message", (event) => {
+  if (event?.data?.type !== "signed-in") return;
+
+  const hubUrl = "/utilities-hub/";
+  event.waitUntil(
+    (async () => {
+      const clients = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
+
+      let found = false;
+      for (const client of clients) {
+        if (client.url.includes("/utilities-hub/")) {
+          // tell the page it can re-render using the new session
+          client.postMessage({ type: "signed-in" });
+
+          try {
+            await client.navigate(hubUrl);
+          } catch (err) {
+            // navigation may be disallowed in some contexts — safe to ignore
+            console.debug("[SW] client.navigate failed:", err);
+          }
+
+          try {
+            await client.focus();
+          } catch (err) {
+            // focusing can fail on backgrounded tabs — safe to ignore
+            console.debug("[SW] client.focus failed:", err);
+          }
+
+          found = true;
+        }
+      }
+
+      if (!found) {
+        try {
+          await self.clients.openWindow(hubUrl);
+        } catch (err) {
+          console.warn("[SW] openWindow failed:", err);
+        }
+      }
     })()
   );
 });

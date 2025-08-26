@@ -1,10 +1,13 @@
 {
   "name": "SASV Utilities Hub",
   "short_name": "SASV Utils",
-  "start_url": "/utilities-hub/index.html",
+  "start_url": "/utilities-hub/",
+  "scope": "/utilities-hub/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#0b64d8",
+  "launch_handler": { "client_mode": "navigate-existing" },
+  "capture_links": "existing-client-navigate",
   "icons": [
     {
       "src": "/utilities-hub/icons/icon-48x48.png",

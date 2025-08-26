@@ -3,39 +3,84 @@
   <head>
     <meta charset="utf-8" />
     <title>Signing you in…</title>
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
       body {
         font-family: system-ui, Arial, sans-serif;
-        margin: 2rem;
+        margin: 24px;
+      }
+      .card {
+        max-width: 520px;
+        margin: 0 auto;
+        padding: 16px;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+      }
+      .muted {
+        color: #6b7280;
+      }
+      button,
+      a.button {
+        display: inline-block;
+        padding: 10px 14px;
+        border-radius: 10px;
+        border: 1px solid #0a62c3;
+        background: #0a62c3;
+        color: #fff;
+        text-decoration: none;
       }
     </style>
   </head>
   <body>
-    <p>Finishing sign-in… you can close this tab.</p>
+    <div class="card">
+      <h2>Signing you in…</h2>
+      <p class="muted">You can close this tab after the app opens.</p>
+      <p>
+        <a class="button" href="/utilities-hub/">Open SASV Utilities Hub</a>
+      </p>
+      <pre id="msg" class="muted" style="white-space: pre-wrap"></pre>
+    </div>
+
     <script type="module">
-      import { supabase } from "../../shared/js/supabaseClient.js";
+      import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+      // If you already have a public/shared client file you can import that instead.
+      const SUPABASE_URL = "<YOUR_SUPABASE_URL>";
+      const SUPABASE_ANON_KEY = "<YOUR_SUPABASE_ANON_KEY>";
+      const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-      // 1) Let Supabase consume hash/params and write the session to localStorage
-      // (Supabase does this internally on first auth call in this page; we just ensure it’s loaded.)
-      // 2) Broadcast to all open app windows
-      try {
-        const bc = new BroadcastChannel("sasv-auth");
-        bc.postMessage({ type: "signed-in" });
-        bc.close();
-      } catch {}
+      const msg = (t) => (document.getElementById("msg").textContent = t || "");
 
-      // 3) Try to focus an existing client (installed app window) if any
-      if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.ready.then(async (reg) => {
-          const all = await reg.active?.postMessage?.("ping"); // harmless
-        });
+      async function complete() {
+        try {
+          // For magic links (email link), this exchanges the URL for a session:
+          // Works for both ?code=… and #access_token=… styles.
+          await supabase.auth.exchangeCodeForSession(window.location.href);
+        } catch (e) {
+          // If already signed in, this may throw — that’s OK, continue.
+          console.warn("exchangeCodeForSession:", e?.message || e);
+        }
+
+        // Tell any listening tabs/apps that we’re signed in
+        try {
+          const bc = new BroadcastChannel("sasv-auth");
+          bc.postMessage({ type: "signed-in" });
+          bc.close();
+        } catch (e) {}
+
+        // Also ping the Service Worker to wake the installed PWA
+        if ("serviceWorker" in navigator) {
+          try {
+            const reg = await navigator.serviceWorker.ready;
+            reg.active?.postMessage({ type: "signed-in" });
+          } catch (e) {}
+        }
+
+        msg("Signed in. If the app didn’t open, tap the button above.");
+        // Try to close this tab (will only work if it was user-initiated)
+        setTimeout(() => window.close(), 1200);
       }
 
-      // 4) After a tiny delay, bounce to hub (in case someone opens callback direct)
-      setTimeout(() => {
-        window.location.replace("/utilities-hub/");
-      }, 500);
+      complete();
     </script>
   </body>
 </html>

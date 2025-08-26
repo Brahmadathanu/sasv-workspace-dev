@@ -330,6 +330,14 @@ try {
 } catch {
   // BroadcastChannel not supported — harmless.
 }
+// Service Worker message fallback
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.addEventListener("message", (ev) => {
+    if (ev.data?.type === "signed-in") {
+      render().catch(console.error);
+    }
+  });
+}
 
 // Go!
 boot().catch(console.error);
