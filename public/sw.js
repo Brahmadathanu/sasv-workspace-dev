@@ -6,17 +6,21 @@ const PRECACHE = [
   "/utilities-hub/index.html",
   "/utilities-hub/auth/callback.html",
 
-  // Shared/vendor used by the hub or pages
+  // Admin (optional but recommended)
+  "/utilities-hub/admin.html",
+  "/utilities-hub/js/admin.js",
+
+  // Shared/vendor
   "/shared/css/style.css",
   "/shared/js/platform.js",
   "/vendor/tom-select/tom-select.css",
   "/vendor/tom-select/tom-select.complete.min.js",
 
-  // Utility pages (optional shell)
+  // Utility pages
   "/shared/fill-planner.html",
   "/shared/stock-checker.html",
 
-  // Icons that the manifest references
+  // Icons referenced by the manifest
   "/utilities-hub/icons/icon-48x48.png",
   "/utilities-hub/icons/icon-72x72.png",
   "/utilities-hub/icons/icon-96x96.png",
