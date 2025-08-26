@@ -1,9 +1,10 @@
 /* /sw.js (root) */
-const CACHE_NAME = "sasv-utils-v3"; // bump!
+const CACHE_NAME = "sasv-utils-v4"; // bump!
 
 const PRECACHE = [
   // Hub shell
   "/utilities-hub/index.html",
+  "/utilities-hub/auth/callback.html",
 
   // Shared/vendor used by the hub or pages
   "/shared/css/style.css",

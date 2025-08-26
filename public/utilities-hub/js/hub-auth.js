@@ -126,7 +126,11 @@ function wireRequestButtons(session) {
   });
 }
 
-/** Data: utilities & access */
+// Map utility keys to their local pages
+const UTIL_URLS = {
+  fill_planner: "../shared/fill-planner.html",
+  stock_checker: "../shared/stock-checker.html",
+};
 async function loadUtilities() {
   // Preferred: hub_utilities (id, key, label, description)
   const { data, error } = await supabase
@@ -135,19 +139,13 @@ async function loadUtilities() {
     .order("label", { ascending: true });
 
   if (!error && Array.isArray(data) && data.length) {
-    // Map to card shape (derive href from key)
-    return data.map((r) => {
-      let href = "#";
-      if (r.key === "fill_planner") href = "../shared/fill-planner.html";
-      else if (r.key === "stock_checker") href = "../shared/stock-checker.html";
-      return {
-        id: String(r.id),
-        key: r.key,
-        label: r.label,
-        description: r.description || "",
-        href,
-      };
-    });
+    return data.map((r) => ({
+      id: String(r.id),
+      key: r.key,
+      label: r.label,
+      description: r.description || "",
+      href: UTIL_URLS[r.key] || "#",
+    }));
   }
 
   // If unauthorized, don't mask timing issues with a fallback
@@ -163,7 +161,7 @@ async function loadUtilities() {
       label: "Fill Planner",
       description:
         "Plan fills from bulk with emergency SKU deductions + MOS context.",
-      href: "../shared/fill-planner.html",
+      href: UTIL_URLS.fill_planner,
     },
     {
       id: "stock-checker",
@@ -171,7 +169,7 @@ async function loadUtilities() {
       label: "Stock Checker",
       description:
         "Quick search with filters and CSV export for stock/forecast/MOS.",
-      href: "../shared/stock-checker.html",
+      href: UTIL_URLS.stock_checker,
     },
   ];
 }
@@ -251,14 +249,20 @@ function updateAuthButtons(session) {
 async function loginFlow() {
   const email = prompt("Enter your work email to sign in:");
   if (!email) return;
+
   try {
+    const redirectTo = new URL(
+      "/utilities-hub/auth/callback.html",
+      window.location.origin
+    ).href;
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: window.location.href },
+      options: { emailRedirectTo: redirectTo },
     });
     if (error) throw error;
     alert("Check your email for a login link.");
-  } catch {
+  } catch (err) {
+    console.error(err);
     alert("Sign-in failed. Please try again.");
   }
 }

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Signing you in…</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial,
+          sans-serif;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        height: 100vh;
+        background: #f8fafc;
+        color: #111827;
+      }
+      .card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        max-width: 520px;
+        text-align: center;
+      }
+      .muted {
+        color: #6b7280;
+        font-size: 0.95rem;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: #0b0f14;
+          color: #e5e7eb;
+        }
+        .card {
+          background: #0b0f14;
+          border-color: #1f2937;
+        }
+        .muted {
+          color: #94a3b8;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Signing you in…</h1>
+      <p class="muted">Please wait a moment.</p>
+    </div>
+
+    <script type="module">
+      import { supabase } from "../../shared/js/supabaseClient.js";
+
+      // In v2, email links automatically set the session on load.
+      // We just wait for INITIAL_SESSION/SIGNED_IN and then send to the hub root.
+      const hubHome = new URL("/utilities-hub/", window.location.origin).href;
+
+      // If the app loaded with a cached session, go now:
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session?.user) {
+        window.location.replace(hubHome);
+      } else {
+        // Otherwise wait for Supabase to finish processing the link:
+        let navigated = false;
+        const go = () => {
+          if (navigated) return;
+          navigated = true;
+          window.location.replace(hubHome);
+        };
+        supabase.auth.onAuthStateChange((event, sess) => {
+          if (event === "SIGNED_IN" || event === "INITIAL_SESSION") go();
+        });
+
+        // Safety timeout, in case events don’t fire (rare):
+        setTimeout(go, 4000);
+      }
+    </script>
+  </body>
+</html>
