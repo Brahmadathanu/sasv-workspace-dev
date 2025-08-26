@@ -358,5 +358,33 @@ if ("serviceWorker" in navigator) {
   });
 }
 
+// 1) BroadcastChannel from callback.html (browser tab)
+try {
+  const bc = new BroadcastChannel("sasv-auth");
+  bc.onmessage = (e) => {
+    if (e?.data?.type === "signed-in") {
+      render().catch(console.error);
+    }
+  };
+} catch {
+  // ignore
+}
+
+// 2) Service Worker message path
+if (navigator.serviceWorker) {
+  navigator.serviceWorker.addEventListener("message", (e) => {
+    if (e?.data?.type === "signed-in") {
+      render().catch(console.error);
+    }
+  });
+}
+
+// 3) localStorage fallback (iOS sometimes)
+window.addEventListener("storage", (e) => {
+  if (e.key === "sasv_signed_in_at" && e.newValue) {
+    render().catch(console.error);
+  }
+});
+
 // Go!
 boot().catch(console.error);

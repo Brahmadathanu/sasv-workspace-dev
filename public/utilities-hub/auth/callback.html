@@ -48,28 +48,49 @@
     </div>
 
     <script type="module">
-      // 1) Ask SW to wake/focus the installed PWA (Android/desktop Chromium)
-      if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.ready
-          .then((reg) => {
-            // post to the active SW (works when SW controls this page)
-            (reg.active || navigator.serviceWorker.controller)?.postMessage({
-              type: "signed-in",
-            });
-          })
-          .catch(() => {});
+      // ---- 1) Parse Supabase tokens from URL (hash or query) ----------------
+      function parseParams() {
+        const raw =
+          (location.hash && location.hash.slice(1)) || location.search.slice(1);
+        const p = new URLSearchParams(raw);
+        const access_token = p.get("access_token");
+        const refresh_token = p.get("refresh_token");
+        const expires_in = p.get("expires_in"); // seconds
+        const token_type = p.get("token_type");
+        return { access_token, refresh_token, expires_in, token_type };
       }
+      const tokens = parseParams();
 
-      // 2) Also notify any open hub page via BroadcastChannel (works even in browsers without SW focus APIs)
+      // ---- 2) Tell the installed PWA/window AND any open hub tab ------------
+      // Include tokens so the app can call supabase.auth.setSession(...)
+      const payload = { type: "signed-in", tokens };
+
+      // 2a) BroadcastChannel → any open hub page
       try {
         const bc = new BroadcastChannel("sasv-auth");
-        bc.postMessage({ type: "signed-in" });
+        bc.postMessage(payload);
       } catch {}
 
-      // 3) Manual fallback button
+      // 2b) Service Worker message → wake/focus installed app (Chromium)
+      if ("serviceWorker" in navigator) {
+        try {
+          const reg = await navigator.serviceWorker.ready;
+          (reg.active || navigator.serviceWorker.controller)?.postMessage(
+            payload
+          );
+        } catch {}
+      }
+
+      // ---- 3) Button: manual fallback to hub --------------------------------
       document.getElementById("open")?.addEventListener("click", () => {
         location.href = "/utilities-hub/";
       });
+
+      // ---- 4) Optional: auto-navigate to hub after a short delay ------------
+      setTimeout(() => {
+        // If this tab shows the hub instead of the installed app, still useful
+        if (!document.hidden) location.replace("/utilities-hub/");
+      }, 800);
     </script>
   </body>
 </html>
