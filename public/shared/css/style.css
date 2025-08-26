@@ -106,6 +106,27 @@ h1 {
 #homeBtn:hover {
   background: var(--home-btn-hover-bg);
 }
+/* Make the HOME link look like a proper red button */
+#homeBtn,
+#homeBtn:link,
+#homeBtn:visited {
+  display: inline-block;
+  text-decoration: none; /* ← remove underline */
+  background: var(--home-btn-bg);
+  color: var(--btn-text);
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 1rem;
+  line-height: 1;
+  font-weight: 600;
+}
+
+#homeBtn:hover,
+#homeBtn:focus {
+  text-decoration: none; /* keep it non-underlined */
+  background: var(--home-btn-hover-bg);
+}
 
 #btnClear {
   background: var(--clear-btn-bg);
