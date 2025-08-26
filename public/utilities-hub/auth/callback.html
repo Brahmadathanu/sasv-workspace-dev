@@ -48,7 +48,9 @@
     </div>
 
     <script type="module">
-      // ---- 1) Parse Supabase tokens from URL (hash or query) ----------------
+      import { supabase } from "../../shared/js/supabaseClient.js";
+
+      // 1) Parse tokens from hash or query
       function parseParams() {
         const raw =
           (location.hash && location.hash.slice(1)) || location.search.slice(1);
@@ -61,34 +63,52 @@
       }
       const tokens = parseParams();
 
-      // ---- 2) Tell the installed PWA/window AND any open hub tab ------------
-      // Include tokens so the app can call supabase.auth.setSession(...)
-      const payload = { type: "signed-in", tokens };
+      // Basic guard: only proceed if we actually have tokens
+      const hasTokens = !!(tokens.access_token && tokens.refresh_token);
 
-      // 2a) BroadcastChannel → any open hub page
-      try {
-        const bc = new BroadcastChannel("sasv-auth");
-        bc.postMessage(payload);
-      } catch {}
-
-      // 2b) Service Worker message → wake/focus installed app (Chromium)
-      if ("serviceWorker" in navigator) {
+      // 2) Install session **in this tab** (works on desktop/Android, and in iOS browser)
+      async function setLocalSessionIfPresent() {
+        if (!hasTokens) return;
         try {
-          const reg = await navigator.serviceWorker.ready;
-          (reg.active || navigator.serviceWorker.controller)?.postMessage(
-            payload
-          );
-        } catch {}
+          await supabase.auth.setSession({
+            access_token: tokens.access_token,
+            refresh_token: tokens.refresh_token,
+          });
+          // Let same-origin pages know we signed in (iOS storage event fallback)
+          localStorage.setItem("sasv_signed_in_at", String(Date.now()));
+        } catch (e) {
+          console.warn("[callback] setSession failed:", e);
+        }
       }
 
-      // ---- 3) Button: manual fallback to hub --------------------------------
+      // 3) Tell any installed PWA / open hub tab (multi-path)
+      async function notifyClients() {
+        const payload = { type: "signed-in", tokens };
+        // 3a) BroadcastChannel → any open hub page (desktop/Android, sometimes iOS)
+        try {
+          const bc = new BroadcastChannel("sasv-auth");
+          bc.postMessage(payload);
+        } catch {}
+
+        // 3b) Service Worker → wake/focus installed PWA (Chromium; partial iOS)
+        if ("serviceWorker" in navigator) {
+          try {
+            const reg = await navigator.serviceWorker.ready;
+            (reg.active || navigator.serviceWorker.controller)?.postMessage(
+              payload
+            );
+          } catch {}
+        }
+      }
+
+      await setLocalSessionIfPresent();
+      await notifyClients();
+
+      // 4) Button + auto-nav fallbacks
       document.getElementById("open")?.addEventListener("click", () => {
         location.href = "/utilities-hub/";
       });
-
-      // ---- 4) Optional: auto-navigate to hub after a short delay ------------
       setTimeout(() => {
-        // If this tab shows the hub instead of the installed app, still useful
         if (!document.hidden) location.replace("/utilities-hub/");
       }, 800);
     </script>
