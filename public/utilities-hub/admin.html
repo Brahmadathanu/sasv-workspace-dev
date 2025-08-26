@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Admin Dashboard — SASV Utilities Hub</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="../shared/css/style.css" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#005A8D" />
+
+    <style>
+      :root {
+        --brand: #0a62c3;
+        --brand-600: #084e9c;
+        --border: #e5e7eb;
+        --bg-soft: #f8fafc;
+      }
+      .wrap {
+        max-width: 1100px;
+        margin: 24px auto;
+        padding: 0 12px 28px;
+      }
+      header.hdr {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        justify-content: space-between;
+      }
+      .hdr h1 {
+        margin: 0;
+        font-size: clamp(1.1rem, 3.2vw, 1.6rem);
+      }
+      .button {
+        appearance: none;
+        border: 1px solid var(--border);
+        background: #f7fafc;
+        padding: 0.5rem 0.9rem;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+      .button.primary {
+        background: var(--brand);
+        color: #fff;
+        border-color: var(--brand);
+      }
+      .button.primary:hover {
+        background: var(--brand-600);
+        border-color: var(--brand-600);
+      }
+      .button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      nav.tabs {
+        display: flex;
+        gap: 8px;
+        margin: 14px 0;
+        border-bottom: 1px solid var(--border);
+      }
+      nav.tabs button {
+        border: 0;
+        background: transparent;
+        padding: 10px 12px;
+        cursor: pointer;
+      }
+      nav.tabs button.active {
+        border-bottom: 2px solid var(--brand);
+        color: var(--brand);
+        font-weight: 600;
+      }
+
+      .panel {
+        display: none;
+      }
+      .panel.active {
+        display: block;
+      }
+
+      .card {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: #fff;
+        padding: 14px;
+      }
+      .controls {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+        align-items: center;
+      }
+      input[type="text"],
+      input[type="email"],
+      select {
+        height: 40px;
+        padding: 6px 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 8px;
+      }
+      th,
+      td {
+        border: 1px solid var(--border);
+        padding: 8px 10px;
+        text-align: left;
+      }
+      th {
+        background: #f3f6fa;
+      }
+      tbody tr:hover {
+        background: #f9fbff;
+      }
+
+      .muted {
+        color: #6b7280;
+      }
+      .hint {
+        font-size: 0.9rem;
+        color: #6b7280;
+      }
+      .pill {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: #eef2ff;
+        color: #1f3a93;
+        font-size: 0.8rem;
+      }
+      @media (prefers-color-scheme: dark) {
+        .card {
+          background: #0b0f14;
+          border-color: #1f2937;
+        }
+        table th {
+          background: #0f1823;
+        }
+        tbody tr:hover {
+          background: #0f1420;
+        }
+        body,
+        .hint,
+        .muted {
+          color: #d1d5db;
+        }
+        input,
+        select {
+          background: #0f172a;
+          border-color: #243244;
+          color: #e5e7eb;
+        }
+        .button {
+          background: #0f172a;
+          border-color: #243244;
+          color: #e5e7eb;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="hdr">
+        <h1>Admin Dashboard — SASV Utilities Hub</h1>
+        <div style="display: flex; gap: 8px">
+          <a class="button" href="./index.html">Back to Hub</a>
+          <button id="signOut" class="button" type="button">Sign out</button>
+        </div>
+      </header>
+
+      <p id="admin-greeting" class="hint" style="margin: 6px 0 14px">
+        Signed in as <span id="admin-email"></span>
+      </p>
+      <p id="admin-guard" class="hint" style="display: none; color: #b91c1c">
+        You don’t have admin access. Ask an existing admin to grant you
+        <span class="pill">hub_admin:use</span>.
+      </p>
+
+      <nav class="tabs" role="tablist" aria-label="Admin sections">
+        <button
+          class="active"
+          data-tab="pending"
+          role="tab"
+          aria-selected="true"
+        >
+          Pending requests
+        </button>
+        <button data-tab="grant" role="tab" aria-selected="false">
+          Manual grant
+        </button>
+        <button data-tab="access" role="tab" aria-selected="false">
+          Current access
+        </button>
+      </nav>
+
+      <!-- Pending requests -->
+      <section
+        id="panel-pending"
+        class="panel active"
+        role="tabpanel"
+        aria-labelledby="Pending requests"
+      >
+        <div class="card">
+          <div class="controls">
+            <button id="refreshPending" class="button">Refresh</button>
+            <span class="hint"
+              >Approve/Deny moves requests and updates access
+              automatically.</span
+            >
+          </div>
+          <div id="pendingWrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Email</th>
+                  <th>Utility</th>
+                  <th>Note</th>
+                  <th style="width: 220px">Action</th>
+                </tr>
+              </thead>
+              <tbody id="pendingBody">
+                <tr>
+                  <td colspan="5" class="muted">Loading…</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Manual grant -->
+      <section
+        id="panel-grant"
+        class="panel"
+        role="tabpanel"
+        aria-labelledby="Manual grant"
+      >
+        <div class="card">
+          <div class="controls">
+            <input
+              id="grant-email"
+              type="email"
+              placeholder="user@company.com"
+              style="min-width: 240px"
+            />
+            <select id="grant-utility"></select>
+            <select id="grant-level">
+              <option value="use">use</option>
+              <option value="view">view</option>
+            </select>
+            <button id="grantBtn" class="button primary">Grant access</button>
+          </div>
+          <p class="hint" id="grant-hint">
+            Grants immediately. Uses <code>grant_hub_access_by_email</code>.
+          </p>
+        </div>
+      </section>
+
+      <!-- Current access -->
+      <section
+        id="panel-access"
+        class="panel"
+        role="tabpanel"
+        aria-labelledby="Current access"
+      >
+        <div class="card">
+          <div class="controls">
+            <input
+              id="lookup-email"
+              type="email"
+              placeholder="user@company.com"
+              style="min-width: 240px"
+            />
+            <button id="lookupBtn" class="button">Load access</button>
+          </div>
+          <div id="accessWrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Email</th>
+                  <th>Utility</th>
+                  <th>Level</th>
+                  <th style="width: 140px">Action</th>
+                </tr>
+              </thead>
+              <tbody id="accessBody">
+                <tr>
+                  <td colspan="4" class="muted">
+                    Enter email and click “Load access”.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="hint">
+            Revoking uses <code>revoke_hub_access</code>. Listing uses
+            <code>list_hub_access_by_email</code>.
+          </p>
+        </div>
+      </section>
+    </div>
+
+    <script type="module" src="./js/admin.js"></script>
+  </body>
+</html>

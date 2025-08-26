@@ -57,6 +57,7 @@ function renderMessageCard(title, message) {
 const UTIL_URLS = {
   fill_planner: "../shared/fill-planner.html",
   stock_checker: "../shared/stock-checker.html",
+  hub_admin: "./admin.html",
 };
 
 /** Render utilities grid */
