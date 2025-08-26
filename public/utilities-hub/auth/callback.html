@@ -8,79 +8,68 @@
       body {
         font-family: system-ui, Arial, sans-serif;
         margin: 24px;
+        color: #0b1420;
       }
       .card {
-        max-width: 520px;
-        margin: 0 auto;
-        padding: 16px;
+        max-width: 560px;
+        margin: 12vh auto 0;
         border: 1px solid #e5e7eb;
         border-radius: 12px;
+        padding: 18px;
+        background: #fff;
       }
-      .muted {
-        color: #6b7280;
+      h1 {
+        font-size: 1.25rem;
+        margin: 0.2rem 0;
       }
-      button,
-      a.button {
-        display: inline-block;
-        padding: 10px 14px;
-        border-radius: 10px;
+      p {
+        color: #475569;
+        margin: 0.4rem 0;
+      }
+      button {
+        margin-top: 8px;
+        padding: 0.6rem 1rem;
+        border-radius: 8px;
         border: 1px solid #0a62c3;
         background: #0a62c3;
         color: #fff;
-        text-decoration: none;
+        cursor: pointer;
       }
     </style>
   </head>
   <body>
     <div class="card">
-      <h2>Signing you in…</h2>
-      <p class="muted">You can close this tab after the app opens.</p>
+      <h1>Signing you in…</h1>
       <p>
-        <a class="button" href="/utilities-hub/">Open SASV Utilities Hub</a>
+        If the app is installed, it should open automatically. You can close
+        this tab after it does.
       </p>
-      <pre id="msg" class="muted" style="white-space: pre-wrap"></pre>
+      <button id="open">Open SASV Utilities Hub</button>
     </div>
 
     <script type="module">
-      import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-      // If you already have a public/shared client file you can import that instead.
-      const SUPABASE_URL = "<YOUR_SUPABASE_URL>";
-      const SUPABASE_ANON_KEY = "<YOUR_SUPABASE_ANON_KEY>";
-      const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-      const msg = (t) => (document.getElementById("msg").textContent = t || "");
-
-      async function complete() {
-        try {
-          // For magic links (email link), this exchanges the URL for a session:
-          // Works for both ?code=… and #access_token=… styles.
-          await supabase.auth.exchangeCodeForSession(window.location.href);
-        } catch (e) {
-          // If already signed in, this may throw — that’s OK, continue.
-          console.warn("exchangeCodeForSession:", e?.message || e);
-        }
-
-        // Tell any listening tabs/apps that we’re signed in
-        try {
-          const bc = new BroadcastChannel("sasv-auth");
-          bc.postMessage({ type: "signed-in" });
-          bc.close();
-        } catch (e) {}
-
-        // Also ping the Service Worker to wake the installed PWA
-        if ("serviceWorker" in navigator) {
-          try {
-            const reg = await navigator.serviceWorker.ready;
-            reg.active?.postMessage({ type: "signed-in" });
-          } catch (e) {}
-        }
-
-        msg("Signed in. If the app didn’t open, tap the button above.");
-        // Try to close this tab (will only work if it was user-initiated)
-        setTimeout(() => window.close(), 1200);
+      // 1) Ask SW to wake/focus the installed PWA (Android/desktop Chromium)
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.ready
+          .then((reg) => {
+            // post to the active SW (works when SW controls this page)
+            (reg.active || navigator.serviceWorker.controller)?.postMessage({
+              type: "signed-in",
+            });
+          })
+          .catch(() => {});
       }
 
-      complete();
+      // 2) Also notify any open hub page via BroadcastChannel (works even in browsers without SW focus APIs)
+      try {
+        const bc = new BroadcastChannel("sasv-auth");
+        bc.postMessage({ type: "signed-in" });
+      } catch {}
+
+      // 3) Manual fallback button
+      document.getElementById("open")?.addEventListener("click", () => {
+        location.href = "/utilities-hub/";
+      });
     </script>
   </body>
 </html>

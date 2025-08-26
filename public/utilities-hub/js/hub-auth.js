@@ -11,6 +11,14 @@
 
 import { supabase } from "../../shared/js/supabaseClient.js";
 
+function isHubAdmin(session) {
+  const roles =
+    session?.user?.app_metadata?.roles ||
+    session?.user?.user_metadata?.roles ||
+    [];
+  return Array.isArray(roles) && roles.map(String).includes("admin");
+}
+
 /** DOM refs */
 const elRoot = document.getElementById("hub-root");
 const elEmpty = document.getElementById("hub-empty");
@@ -184,11 +192,9 @@ async function loadAccessMap(userId, utilities) {
     return map;
   }
 
-  if (error && (error.code === "401" || error.code === "403")) {
-    throw error;
-  }
+  if (error && (error.code === "401" || error.code === "403")) throw error;
 
-  utilities.forEach((u) => (map[u.id] = "view"));
+  // No silent “view” fallback:
   return map;
 }
 
@@ -273,7 +279,6 @@ async function render() {
   const {
     data: { session },
   } = await supabase.auth.getSession();
-
   updateAuthButtons(session);
   await showGreeting(session);
 
@@ -282,17 +287,31 @@ async function render() {
     utilities = await loadUtilities();
     accessMap = await loadAccessMap(session?.user?.id, utilities);
   } catch {
-    // auth not ready yet → soft loading, boot() will re-render shortly
     elRoot.innerHTML = renderMessageCard("Loading…", "Preparing your tools.");
     setBusy(false);
     return;
   }
 
-  if (elRoot) elRoot.innerHTML = renderUtilities(utilities, accessMap);
+  // --- Hide Hub Admin unless admin OR has explicit "use" ---
+  const adminFlag = isHubAdmin(session);
+  const filtered = utilities.filter((u) => {
+    if (u.key === "hub_admin") {
+      const level = accessMap[u.id] || "none";
+      return adminFlag || level === "use"; // only show to admins or explicit use
+    }
+    return true;
+  });
 
-  const hasVisible = Object.values(accessMap).some(
-    (v) => v === "use" || v === "view"
-  );
+  // Render the filtered list
+  if (elRoot) elRoot.innerHTML = renderUtilities(filtered, accessMap);
+
+  // Empty state: only if nothing at all is visible
+  const hasVisible =
+    filtered.length > 0 &&
+    filtered.some((u) => {
+      const lvl = accessMap[u.id] || "none";
+      return lvl === "use" || lvl === "view";
+    });
   if (elEmpty) elEmpty.style.display = hasVisible ? "none" : "";
 
   wireRequestButtons(session);
