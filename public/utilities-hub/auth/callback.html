@@ -2,83 +2,40 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Signing you in…</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
     <style>
       body {
         font-family: system-ui, Arial, sans-serif;
-        margin: 24px;
-      }
-      .box {
-        max-width: 560px;
-        margin: 10vh auto;
-        text-align: center;
-      }
-      .muted {
-        color: #6b7280;
-      }
-      .err {
-        color: #b91c1c;
-      }
-      .btn {
-        display: inline-block;
-        padding: 10px 14px;
-        border-radius: 8px;
-        border: 1px solid #0a62c3;
-        background: #0a62c3;
-        color: #fff;
-        text-decoration: none;
+        margin: 2rem;
       }
     </style>
   </head>
   <body>
-    <div class="box">
-      <h1>Signing you in…</h1>
-      <p class="muted" id="msg">Please wait a moment.</p>
-      <p>
-        <a id="go" class="btn" href="/utilities-hub/">Go to Utilities Hub</a>
-      </p>
-    </div>
-
+    <p>Finishing sign-in… you can close this tab.</p>
     <script type="module">
       import { supabase } from "../../shared/js/supabaseClient.js";
 
-      const msg = document.getElementById("msg");
-      const go = document.getElementById("go");
+      // 1) Let Supabase consume hash/params and write the session to localStorage
+      // (Supabase does this internally on first auth call in this page; we just ensure it’s loaded.)
+      // 2) Broadcast to all open app windows
+      try {
+        const bc = new BroadcastChannel("sasv-auth");
+        bc.postMessage({ type: "signed-in" });
+        bc.close();
+      } catch {}
 
-      // Show any error embedded in the link (e.g., otp_expired)
-      const h = new URLSearchParams(location.hash.replace(/^#/, ""));
-      const q = new URLSearchParams(location.search);
-      const err =
-        h.get("error") || q.get("error") || q.get("error_description");
-
-      if (err) {
-        msg.textContent = decodeURIComponent(err);
-        msg.className = "err";
-      }
-
-      // Wait for Supabase to finalize the session, then send to the hub
-      function redirectHome() {
-        // Keep the link working even if script fails
-        setTimeout(() => {
-          window.location.replace("/utilities-hub/");
-        }, 100);
-      }
-
-      // If session already present, go now
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session) {
-        redirectHome();
-      } else {
-        // Otherwise wait for the FIRST auth event and then go
-        supabase.auth.onAuthStateChange((event, _session) => {
-          if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
-            redirectHome();
-          }
+      // 3) Try to focus an existing client (installed app window) if any
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.ready.then(async (reg) => {
+          const all = await reg.active?.postMessage?.("ping"); // harmless
         });
       }
+
+      // 4) After a tiny delay, bounce to hub (in case someone opens callback direct)
+      setTimeout(() => {
+        window.location.replace("/utilities-hub/");
+      }, 500);
     </script>
   </body>
 </html>

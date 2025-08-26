@@ -1,6 +1,6 @@
 // public/utilities-hub/js/hub-auth.js
 // =============================================================================
-// SASV Utilities Hub — Auth + Access Control + Grid Rendering
+// SASV Utilities Hub — Auth + Access Control + Grid Rendering (Magic-link only)
 // Requires: ../../shared/js/supabaseClient.js (exporting `supabase`)
 // DOM: #hub-root, #hub-empty, #hub-greeting, #hub-user-name, #hub-login, #hub-logout
 // DB tables:
@@ -28,9 +28,6 @@ function waitForInitialSession() {
   });
 }
 
-/** Guard to prevent duplicate inserts */
-let requesting = false;
-
 /** Helpers */
 function setBusy(on) {
   elRoot?.setAttribute("aria-busy", on ? "true" : "false");
@@ -56,6 +53,12 @@ function renderMessageCard(title, message) {
     </article>`;
 }
 
+/** Map utility keys to their local pages */
+const UTIL_URLS = {
+  fill_planner: "../shared/fill-planner.html",
+  stock_checker: "../shared/stock-checker.html",
+};
+
 /** Render utilities grid */
 function renderUtilities(utilities, accessMap) {
   if (!utilities?.length) {
@@ -68,17 +71,14 @@ function renderUtilities(utilities, accessMap) {
   return utilities
     .map((u) => {
       const access = accessMap[u.id] || "none";
-
       if (access === "use") {
-        // Full access
         return `
           <article class="hub-card" tabindex="-1">
             <h3><a href="${u.href}">${safeText(u.label)}</a></h3>
             <p>${safeText(u.description)}</p>
           </article>`;
       }
-
-      // Locked + request button (for 'view' and 'none')
+      // Show locked + Request access button for 'view' and 'none'
       return `
         <article class="hub-card" tabindex="-1">
           <h3><span aria-label="Locked">${safeText(u.label)} 🔒</span></h3>
@@ -100,10 +100,7 @@ function wireRequestButtons(session) {
       const key = btn.getAttribute("data-key") || "";
       if (!utilityId || !session?.user) return;
 
-      if (requesting) return;
-      requesting = true;
       btn.disabled = true;
-
       try {
         const note = key
           ? `Requested via Utilities Hub for: ${key.replace("_", "-")}`
@@ -119,21 +116,13 @@ function wireRequestButtons(session) {
       } catch {
         alert("Could not send request. Please try again.");
         btn.disabled = false;
-      } finally {
-        requesting = false;
       }
     });
   });
 }
 
-// Map utility keys to their local pages
-const UTIL_URLS = {
-  fill_planner: "../shared/fill-planner.html",
-  stock_checker: "../shared/stock-checker.html",
-};
-
+/** Data: utilities & access */
 async function loadUtilities() {
-  // Preferred: hub_utilities (id, key, label, description)
   const { data, error } = await supabase
     .from("hub_utilities")
     .select("id, key, label, description")
@@ -149,12 +138,11 @@ async function loadUtilities() {
     }));
   }
 
-  // If unauthorized, don't mask timing issues with a fallback
   if (error && (error.code === "401" || error.code === "403")) {
-    throw error;
+    throw error; // auth timing, let caller retry
   }
 
-  // Benign fallback (used only if table missing/empty)
+  // Benign fallback (only if table missing/empty)
   return [
     {
       id: "fill-planner",
@@ -189,18 +177,16 @@ async function loadAccessMap(userId, utilities) {
     for (const row of data) {
       const id = String(row.utility_id);
       if (!(id in map)) continue;
-      const level = String(row.level || "").toLowerCase(); // enum
+      const level = String(row.level || "").toLowerCase();
       if (level === "use" || level === "view") map[id] = level;
     }
     return map;
   }
 
-  // If unauthorized, let caller retry after session settles
   if (error && (error.code === "401" || error.code === "403")) {
     throw error;
   }
 
-  // Benign fallback
   utilities.forEach((u) => (map[u.id] = "view"));
   return map;
 }
@@ -246,56 +232,36 @@ function updateAuthButtons(session) {
   if (btnLogout) btnLogout.style.display = session?.user ? "" : "none";
 }
 
-/** Inline OTP UI helpers */
-function showOtpUI(show) {
-  const box = document.getElementById("hub-otp");
-  if (box) box.style.display = show ? "flex" : "none";
-}
-
-async function sendOtpEmail() {
-  const email = document.getElementById("otp-email")?.value?.trim();
-  if (!email) return alert("Enter your work email.");
-  try {
-    await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: new URL(
-          "/utilities-hub/auth/callback.html",
-          location.origin
-        ).href,
-        shouldCreateUser: true,
-      },
-    });
-    alert("We sent you a 6-digit code (and a link). Check your email.");
-    localStorage.setItem("sasv_login_email", email);
-  } catch (e) {
-    console.error(e);
-    alert("Could not send code. Try again.");
-  }
-}
-
-async function verifyOtpCode() {
-  const email =
-    document.getElementById("otp-email")?.value?.trim() ||
-    localStorage.getItem("sasv_login_email") ||
-    "";
-  const token = document.getElementById("otp-code")?.value?.trim();
-  if (!email || !token) return alert("Enter email and the 6-digit code.");
+/** Login (magic link only) */
+async function loginFlow() {
+  const email = prompt("Enter your work email to sign in:");
+  if (!email) return;
 
   try {
-    const { error } = await supabase.auth.verifyOtp({
+    const redirectTo = new URL(
+      "/utilities-hub/auth/callback.html",
+      window.location.origin
+    ).href;
+    const { error } = await supabase.auth.signInWithOtp({
       email,
-      token,
-      type: "email", // email login code
+      options: { emailRedirectTo: redirectTo, shouldCreateUser: true },
     });
     if (error) throw error;
-    // Signed in — re-render hub
-    await render();
-    showOtpUI(false);
-  } catch (e) {
-    console.error(e);
-    alert("Invalid or expired code. Try sending a new one.");
+    alert("Check your email for a sign-in link.");
+  } catch (err) {
+    console.error(err);
+    alert("Sign-in failed. Please try again.");
   }
+}
+
+/** Logout */
+async function logoutFlow() {
+  try {
+    await supabase.auth.signOut();
+  } catch {
+    /* ignore */
+  }
+  await render();
 }
 
 /** Main render cycle */
@@ -332,40 +298,37 @@ async function render() {
   setBusy(false);
 }
 
-/** Improved boot sequence */
+/** Boot */
 async function boot() {
   setBusy(true);
   await waitForInitialSession(); // wait for auth to settle
   await render();
-  // Safety revalidate after a short delay (covers edge token timing)
+  // Revalidate once more soon (covers token timing)
   setTimeout(() => {
     render().catch(console.error);
   }, 600);
 }
 
-// Hooks
-btnLogout?.addEventListener("click", async () => {
-  try {
-    await supabase.auth.signOut();
-  } catch (err) {
-    console.warn("Sign-out failed:", err);
-  }
-  await render();
-});
+/** Hooks */
+btnLogin?.addEventListener("click", loginFlow);
+btnLogout?.addEventListener("click", logoutFlow);
 
-// Use inline OTP flow (no prompt-based login)
-btnLogin?.addEventListener("click", () => {
-  showOtpUI(true);
-  document.getElementById("otp-email")?.focus();
-});
-
-document.getElementById("otp-send")?.addEventListener("click", sendOtpEmail);
-document.getElementById("otp-verify")?.addEventListener("click", verifyOtpCode);
-
-// Re-render on any auth change
+/** Re-render on any auth change */
 supabase.auth.onAuthStateChange(() => {
   render().catch(console.error);
 });
+
+/** Receive "signed-in" messages from callback.html (when link opened in browser) */
+try {
+  const bc = new BroadcastChannel("sasv-auth");
+  bc.onmessage = (e) => {
+    if (e?.data?.type === "signed-in") {
+      render().catch(console.error);
+    }
+  };
+} catch {
+  // BroadcastChannel not supported — harmless.
+}
 
 // Go!
 boot().catch(console.error);
