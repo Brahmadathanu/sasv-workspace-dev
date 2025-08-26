@@ -131,6 +131,7 @@ const UTIL_URLS = {
   fill_planner: "../shared/fill-planner.html",
   stock_checker: "../shared/stock-checker.html",
 };
+
 async function loadUtilities() {
   // Preferred: hub_utilities (id, key, label, description)
   const { data, error } = await supabase
@@ -245,34 +246,55 @@ function updateAuthButtons(session) {
   if (btnLogout) btnLogout.style.display = session?.user ? "" : "none";
 }
 
-/** Login (email OTP) */
-async function loginFlow() {
-  const email = prompt("Enter your work email to sign in:");
-  if (!email) return;
+/** Inline OTP UI helpers */
+function showOtpUI(show) {
+  const box = document.getElementById("hub-otp");
+  if (box) box.style.display = show ? "flex" : "none";
+}
 
+async function sendOtpEmail() {
+  const email = document.getElementById("otp-email")?.value?.trim();
+  if (!email) return alert("Enter your work email.");
   try {
-    const redirectTo = new URL(
-      "/utilities-hub/auth/callback.html",
-      window.location.origin
-    ).href;
-    const { error } = await supabase.auth.signInWithOtp({
+    await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: redirectTo },
+      options: {
+        emailRedirectTo: new URL(
+          "/utilities-hub/auth/callback.html",
+          location.origin
+        ).href,
+        shouldCreateUser: true,
+      },
     });
-    if (error) throw error;
-    alert("Check your email for a login link.");
-  } catch (err) {
-    console.error(err);
-    alert("Sign-in failed. Please try again.");
+    alert("We sent you a 6-digit code (and a link). Check your email.");
+    localStorage.setItem("sasv_login_email", email);
+  } catch (e) {
+    console.error(e);
+    alert("Could not send code. Try again.");
   }
 }
 
-/** Logout */
-async function logoutFlow() {
+async function verifyOtpCode() {
+  const email =
+    document.getElementById("otp-email")?.value?.trim() ||
+    localStorage.getItem("sasv_login_email") ||
+    "";
+  const token = document.getElementById("otp-code")?.value?.trim();
+  if (!email || !token) return alert("Enter email and the 6-digit code.");
+
   try {
-    await supabase.auth.signOut();
-  } catch {
-    /* ignore */
+    const { error } = await supabase.auth.verifyOtp({
+      email,
+      token,
+      type: "email", // email login code
+    });
+    if (error) throw error;
+    // Signed in — re-render hub
+    await render();
+    showOtpUI(false);
+  } catch (e) {
+    console.error(e);
+    alert("Invalid or expired code. Try sending a new one.");
   }
 }
 
@@ -313,7 +335,7 @@ async function render() {
 /** Improved boot sequence */
 async function boot() {
   setBusy(true);
-  await waitForInitialSession(); // don’t store the value; we just need the signal
+  await waitForInitialSession(); // wait for auth to settle
   await render();
   // Safety revalidate after a short delay (covers edge token timing)
   setTimeout(() => {
@@ -322,8 +344,23 @@ async function boot() {
 }
 
 // Hooks
-btnLogin?.addEventListener("click", loginFlow);
-btnLogout?.addEventListener("click", logoutFlow);
+btnLogout?.addEventListener("click", async () => {
+  try {
+    await supabase.auth.signOut();
+  } catch (err) {
+    console.warn("Sign-out failed:", err);
+  }
+  await render();
+});
+
+// Use inline OTP flow (no prompt-based login)
+btnLogin?.addEventListener("click", () => {
+  showOtpUI(true);
+  document.getElementById("otp-email")?.focus();
+});
+
+document.getElementById("otp-send")?.addEventListener("click", sendOtpEmail);
+document.getElementById("otp-verify")?.addEventListener("click", verifyOtpCode);
 
 // Re-render on any auth change
 supabase.auth.onAuthStateChange(() => {

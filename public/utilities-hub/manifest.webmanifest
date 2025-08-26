@@ -5,6 +5,8 @@
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#0b64d8",
+  "launch_handler": { "route_to": "existing-client" },
+  "capture_links": "existing-client-event",
   "icons": [
     {
       "src": "./icons/icon-48x48.png",

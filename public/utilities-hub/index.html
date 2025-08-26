@@ -251,6 +251,40 @@
           >
             Sign out
           </button>
+          <!-- Email + code inline controls (kept hidden until needed) -->
+          <div
+            id="hub-otp"
+            style="display: none; gap: 6px; align-items: center"
+          >
+            <input
+              id="otp-email"
+              type="email"
+              placeholder="you@work.com"
+              style="
+                height: 36px;
+                padding: 6px 10px;
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+              "
+            />
+            <button id="otp-send" class="button" type="button">
+              Send code
+            </button>
+            <input
+              id="otp-code"
+              inputmode="numeric"
+              maxlength="6"
+              placeholder="123456"
+              style="
+                height: 36px;
+                width: 88px;
+                text-align: center;
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+              "
+            />
+            <button id="otp-verify" class="button" type="button">Verify</button>
+          </div>
         </div>
       </header>
 
@@ -318,6 +352,15 @@
     <script>
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("/sw.js").catch(console.error);
+      }
+    </script>
+    <script>
+      // If the app is installed, Android/Chrome can deliver captured links here
+      if ("launchQueue" in window && "files" in LaunchParams.prototype) {
+        launchQueue.setConsumer((launchParams) => {
+          // Not file-driven for us — but this ensures we "wake" on captured links
+          // Our SW + callback.html will navigate correctly.
+        });
       }
     </script>
   </body>
