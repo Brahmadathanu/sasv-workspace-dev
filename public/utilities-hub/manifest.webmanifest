@@ -1,8 +1,8 @@
 {
   "name": "SASV Utilities Hub",
   "short_name": "SASV Utils",
-  "start_url": "./index.html",
-  "scope": "/utilities-hub/",
+  "start_url": "/utilities-hub/index.html",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#0b64d8",

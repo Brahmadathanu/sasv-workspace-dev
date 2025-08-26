@@ -16,8 +16,6 @@ const panels = {
   access: document.getElementById("panel-access"),
 };
 
-const btnSignOut = document.getElementById("signOut");
-
 /* Pending */
 const btnRefreshPending = document.getElementById("refreshPending");
 const tbodyPending = document.getElementById("pendingBody");
@@ -146,13 +144,13 @@ async function loadPending() {
   data.forEach((r) => {
     const tr = $el("tr", {
       "data-id": String(r.request_id),
-      "data-email": r.email || "",
+      "data-email": r.user_email || r.email || "",
       "data-utility-id": r.utility_id || "",
       "data-utility-key": r.utility_key || "",
     });
 
     const tdWhen = $el("td", { text: fmtDate(r.created_at) });
-    const tdEmail = $el("td", { text: r.email || "" });
+    const tdEmail = $el("td", { text: r.user_email || r.email || "" });
     const tdUtil = $el("td", {
       text: r.utility_label || r.utility_key || "",
     });
@@ -327,12 +325,6 @@ async function loadAccessForEmail() {
     tbodyAccess.appendChild(tr);
   });
 }
-
-/* ---------- Sign out ---------- */
-btnSignOut?.addEventListener("click", async () => {
-  await supabase.auth.signOut();
-  window.location.href = "./index.html";
-});
 
 /* ---------- Tabs ---------- */
 tabs.forEach((b) => {

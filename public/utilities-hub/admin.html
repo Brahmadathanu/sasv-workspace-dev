@@ -2,7 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Admin Dashboard — SASV Utilities Hub</title>
+    <header class="hdr">
+      <h1>Admin Dashboard</h1>
+      <div style="display: flex; gap: 8px">
+        <!-- This matches #homeBtn in your CSS -->
+        <a id="homeBtn" href="/utilities-hub/">HOME</a>
+      </div>
+    </header>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <link rel="stylesheet" href="../shared/css/style.css" />
     <link rel="manifest" href="/utilities-hub/manifest.webmanifest" />
@@ -172,6 +178,29 @@
           color: #e5e7eb;
         }
       }
+      /* Make the table scroll within the card on small screens */
+      #pendingWrap,
+      #accessWrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        max-width: 100%;
+      }
+
+      /* Optional: give tables a sensible minimum so columns don't squash too hard */
+      #pendingWrap table,
+      #accessWrap table {
+        min-width: 720px; /* tweak as you like (e.g. 680px) */
+      }
+
+      /* Keep the scroll area visually “inside” the card */
+      .card {
+        overflow: hidden;
+      }
+      /* Let the Note column wrap to reduce horizontal width */
+      #pendingBody td:nth-child(4),
+      #accessBody td:nth-child(3) {
+        white-space: normal;
+      }
     </style>
   </head>
   <body>
@@ -180,7 +209,6 @@
         <h1>Admin Dashboard — SASV Utilities Hub</h1>
         <div style="display: flex; gap: 8px">
           <a class="button" href="./index.html">Back to Hub</a>
-          <button id="signOut" class="button" type="button">Sign out</button>
         </div>
       </header>
 
