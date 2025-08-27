@@ -864,14 +864,16 @@ function renderRows(rows) {
 
   // Add row click selection logic
   Array.from(elBody.querySelectorAll("tr")).forEach((tr) => {
-    tr.addEventListener("click", function () {
+    function selectRow() {
       // Remove selection from all rows
       Array.from(elBody.querySelectorAll("tr.selected-row")).forEach((row) => {
         row.classList.remove("selected-row");
       });
-      // Add selection to clicked row
+      // Add selection to clicked/touched row
       this.classList.add("selected-row");
-    });
+    }
+    tr.addEventListener("click", selectRow);
+    tr.addEventListener("touchstart", selectRow);
   });
 }
 
