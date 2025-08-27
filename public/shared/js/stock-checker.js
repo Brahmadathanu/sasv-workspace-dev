@@ -864,16 +864,38 @@ function renderRows(rows) {
 
   // Add row click selection logic
   Array.from(elBody.querySelectorAll("tr")).forEach((tr) => {
-    function selectRow() {
+    function selectRowHandler(e) {
+      // Debug log for troubleshooting
       // Remove selection from all rows
       Array.from(elBody.querySelectorAll("tr.selected-row")).forEach((row) => {
         row.classList.remove("selected-row");
       });
       // Add selection to clicked/touched row
-      this.classList.add("selected-row");
+      // If event target is a <td>, highlight its parent <tr>
+      let targetTr = this;
+      if (e && e.target && e.target.tagName === "TD") {
+        targetTr = e.target.parentElement;
+      }
+      targetTr.classList.add("selected-row");
+      // Debug log
+      if (
+        window &&
+        window.navigator &&
+        /iPhone|iPad|iPod/i.test(window.navigator.userAgent)
+      ) {
+        console.log("Row selected via", e.type, "on iOS");
+      }
     }
-    tr.addEventListener("click", selectRow);
-    tr.addEventListener("touchstart", selectRow);
+    tr.addEventListener("click", selectRowHandler);
+    tr.addEventListener("touchstart", selectRowHandler);
+    tr.addEventListener("touchend", selectRowHandler);
+    // Also add to each <td> for iOS Safari compatibility
+    Array.from(tr.children).forEach((td) => {
+      if (td.tagName === "TD") {
+        td.addEventListener("touchstart", selectRowHandler);
+        td.addEventListener("touchend", selectRowHandler);
+      }
+    });
   });
 }
 
