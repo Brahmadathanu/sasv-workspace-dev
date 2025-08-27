@@ -843,8 +843,8 @@ async function runQuery() {
 function renderRows(rows) {
   elBody.innerHTML = rows
     .map(
-      (r) => `
-    <tr>
+      (r, i) => `
+    <tr data-row-idx="${i}">
       <td style="text-align:left">${escapeHtml(r.item || "")}</td>
       <td style="text-align:center">${escapeHtml(
         String(r.pack_size ?? "")
@@ -861,6 +861,18 @@ function renderRows(rows) {
     </tr>`
     )
     .join("");
+
+  // Add row click selection logic
+  Array.from(elBody.querySelectorAll("tr")).forEach((tr) => {
+    tr.addEventListener("click", function () {
+      // Remove selection from all rows
+      Array.from(elBody.querySelectorAll("tr.selected-row")).forEach((row) => {
+        row.classList.remove("selected-row");
+      });
+      // Add selection to clicked row
+      this.classList.add("selected-row");
+    });
+  });
 }
 
 /* ───────────────────── Export CSV ───────────────────── */
