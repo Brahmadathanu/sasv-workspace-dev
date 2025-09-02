@@ -293,8 +293,14 @@ async function grantByEmail() {
   btnGrant.disabled = false;
 
   if (error) {
-    toast("Grant failed. Check RPC/RLS.");
     console.error(error);
+    if ((error.message || "").toLowerCase().includes("not found")) {
+      toast(
+        "User not found. Ask them to create an account (or sign in once) first, then try again."
+      );
+    } else {
+      toast("Grant failed. Check RPC/RLS.");
+    }
     return;
   }
   toast("Access granted.");

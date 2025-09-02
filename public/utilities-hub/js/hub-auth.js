@@ -300,6 +300,84 @@ async function signInWithPassword(event) {
   }
 }
 
+/** Create account (email + password) */
+async function signUpWithPassword(event) {
+  event?.preventDefault?.();
+  const email = elEmail?.value?.trim();
+  const password = elPassword?.value ?? "";
+
+  if (!email || !password) {
+    showMsg("Enter email and a new password.", true);
+    clearMsgSoon();
+    return;
+  }
+
+  elSignInBtn && (elSignInBtn.disabled = true);
+  showMsg("Creating account…");
+
+  try {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: new URL(
+          "/utilities-hub/auth/callback.html",
+          location.origin
+        ).href,
+      },
+    });
+
+    if (error) {
+      // Common case: user already exists
+      if ((error.message || "").toLowerCase().includes("exists")) {
+        showMsg(
+          "Account already exists. Use Sign in or Forgot password.",
+          true
+        );
+      } else {
+        showMsg(error.message || "Sign-up failed.", true);
+      }
+      clearMsgSoon(5000);
+      return;
+    }
+
+    // If email confirmation is ON, they must confirm via email.
+    showMsg("Account created. Check your email if confirmation is required.");
+    clearMsgSoon(6000);
+  } catch (e) {
+    console.error(e);
+    showMsg("Sign-up failed. Try again.", true);
+    clearMsgSoon(5000);
+  } finally {
+    elSignInBtn && (elSignInBtn.disabled = false);
+  }
+}
+
+/** Forgot password: send reset email so the user sets a new password */
+async function sendPasswordReset(event) {
+  event?.preventDefault?.();
+  const email = elEmail?.value?.trim();
+  if (!email) {
+    showMsg("Enter your email first.", true);
+    clearMsgSoon();
+    return;
+  }
+  showMsg("Sending reset email…");
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: new URL("/utilities-hub/auth/callback.html", location.origin)
+        .href,
+    });
+    if (error) throw error;
+    showMsg("Check your email for the reset link.");
+    clearMsgSoon(6000);
+  } catch (e) {
+    console.error(e);
+    showMsg("Could not send reset email.", true);
+    clearMsgSoon(5000);
+  }
+}
+
 /** Logout -------------------------------------------------------------------*/
 async function logoutFlow() {
   try {
@@ -307,7 +385,7 @@ async function logoutFlow() {
   } catch (e) {
     console.warn("Sign-out failed:", e);
   }
-  // UI will update via auth listener
+  // UI and grid will refresh via onAuthStateChange listener
 }
 
 /** Main render --------------------------------------------------------------*/
@@ -369,6 +447,14 @@ function wireEvents() {
   elLoginForm?.addEventListener("submit", signInWithPassword);
   // logout click
   btnLogout?.addEventListener("click", logoutFlow);
+
+  // extra auth buttons
+  document
+    .getElementById("auth-signup")
+    ?.addEventListener("click", signUpWithPassword);
+  document
+    .getElementById("auth-forgot")
+    ?.addEventListener("click", sendPasswordReset);
 
   // re-render on any auth state changes (sign-in/out, token refresh)
   supabase.auth.onAuthStateChange(() => {

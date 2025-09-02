@@ -47,70 +47,68 @@
       <button id="open">Open SASV Utilities Hub</button>
     </div>
 
-    <script type="module">
-      import { supabase } from "../../shared/js/supabaseClient.js";
+      <script type="module">
+        import { supabase } from "../../shared/js/supabaseClient.js";
 
-      // 1) Parse tokens from hash or query
-      function parseParams() {
-        const raw =
-          (location.hash && location.hash.slice(1)) || location.search.slice(1);
-        const p = new URLSearchParams(raw);
-        const access_token = p.get("access_token");
-        const refresh_token = p.get("refresh_token");
-        const expires_in = p.get("expires_in"); // seconds
-        const token_type = p.get("token_type");
-        return { access_token, refresh_token, expires_in, token_type };
-      }
-      const tokens = parseParams();
+        const card = document.querySelector(".card");
 
-      // Basic guard: only proceed if we actually have tokens
-      const hasTokens = !!(tokens.access_token && tokens.refresh_token);
-
-      // 2) Install session **in this tab** (works on desktop/Android, and in iOS browser)
-      async function setLocalSessionIfPresent() {
-        if (!hasTokens) return;
-        try {
-          await supabase.auth.setSession({
-            access_token: tokens.access_token,
-            refresh_token: tokens.refresh_token,
-          });
-          // Let same-origin pages know we signed in (iOS storage event fallback)
-          localStorage.setItem("sasv_signed_in_at", String(Date.now()));
-        } catch (e) {
-          console.warn("[callback] setSession failed:", e);
-        }
-      }
-
-      // 3) Tell any installed PWA / open hub tab (multi-path)
-      async function notifyClients() {
-        const payload = { type: "signed-in", tokens };
-        // 3a) BroadcastChannel → any open hub page (desktop/Android, sometimes iOS)
-        try {
-          const bc = new BroadcastChannel("sasv-auth");
-          bc.postMessage(payload);
-        } catch {}
-
-        // 3b) Service Worker → wake/focus installed PWA (Chromium; partial iOS)
-        if ("serviceWorker" in navigator) {
+        function broadcastSignedIn() {
+          // 1) Ask SW to wake/focus the PWA
+          if ("serviceWorker" in navigator) {
+            navigator.serviceWorker.ready
+              .then((reg) => (reg.active || navigator.serviceWorker.controller)?.postMessage({ type: "signed-in" }))
+              .catch(() => {});
+          }
+          // 2) Also ping any open hub tab/window
           try {
-            const reg = await navigator.serviceWorker.ready;
-            (reg.active || navigator.serviceWorker.controller)?.postMessage(
-              payload
-            );
+            const bc = new BroadcastChannel("sasv-auth");
+            bc.postMessage({ type: "signed-in" });
           } catch {}
         }
-      }
 
-      await setLocalSessionIfPresent();
-      await notifyClients();
+        function showResetForm() {
+          const form = document.createElement("form");
+          form.innerHTML = `
+            <h2>Set a new password</h2>
+            <p style="color:#475569;margin:0.4rem 0">Enter a new password to finish resetting.</p>
+            <input id="new-pass" type="password" placeholder="New password" style="height:40px;padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;width:100%;margin-top:8px" />
+            <button id="save-pass" type="submit" style="margin-top:10px;padding:0.6rem 1rem;border-radius:8px;border:1px solid #0a62c3;background:#0a62c3;color:#fff;cursor:pointer;">Save password</button>
+            <p id="msg" style="margin-top:8px;color:#475569"></p>
+          `;
+          card.appendChild(form);
 
-      // 4) Button + auto-nav fallbacks
-      document.getElementById("open")?.addEventListener("click", () => {
-        location.href = "/utilities-hub/";
-      });
-      setTimeout(() => {
-        if (!document.hidden) location.replace("/utilities-hub/");
-      }, 800);
+          const msg = form.querySelector("#msg");
+          form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const pwd = form.querySelector("#new-pass").value;
+            if (!pwd) { msg.textContent = "Enter a password."; return; }
+            msg.textContent = "Updating…";
+            try {
+              const { error } = await supabase.auth.updateUser({ password: pwd });
+              if (error) throw error;
+              msg.textContent = "Password updated. You’re signed in.";
+              broadcastSignedIn();
+            } catch (err) {
+              console.error(err);
+              msg.textContent = "Could not update password. Try again.";
+            }
+          });
+        }
+
+        // If this is a password recovery link, show reset form
+        const hash = location.hash || "";
+        if (hash.includes("type=recovery")) {
+          showResetForm();
+        } else {
+          // Normal magic/sign-in callback: just notify app and show button
+          broadcastSignedIn();
+        }
+
+        // Manual fallback button
+        document.getElementById("open")?.addEventListener("click", () => {
+          location.href = "/utilities-hub/";
+        });
+      </script>
     </script>
   </body>
 </html>
