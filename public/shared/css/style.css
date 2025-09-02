@@ -86,6 +86,7 @@ h1 {
 }
 #userBar a {
   color: var(--primary);
+  color: #222; /* Ensure dark text for contrast */
   text-decoration: underline;
 }
 #userBar a:hover {
