@@ -49,6 +49,7 @@
     "express": "^5.1.0",
     "flatpickr": "^4.6.13",
     "html-to-docx": "^1.8.0",
+    "marked": "^16.2.1",
     "pg": "^8.16.0",
     "sanitize-filename": "^1.6.3",
     "tom-select": "^2.4.3"

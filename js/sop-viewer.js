@@ -1,5 +1,40 @@
 // js/sop-viewer.js
 import { supabase } from "../public/shared/js/supabaseClient.js";
+// For Electron/browser, use window.marked if loaded via <script> tag, else require if in Node
+let marked = undefined;
+if (typeof window !== "undefined" && window.marked) {
+  marked = window.marked;
+} else {
+  try {
+    marked = require("marked");
+  } catch {
+    marked = undefined;
+  }
+}
+
+if (!marked || typeof marked.parse !== "function") {
+  throw new Error(
+    "Marked.js is not loaded. Please ensure 'marked' is installed via npm for Electron, or included via <script> for browser."
+  );
+}
+
+// Helper: escape HTML special characters
+function escapeHtml(s = "") {
+  return String(s).replace(
+    /[&<>"]/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])
+  );
+}
+
+// Helper: slugify string for anchors
+function slug(s = "") {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .slice(0, 80);
+}
 
 /* ───────────────── DOM ───────────────── */
 const $ = (id) => document.getElementById(id);
@@ -32,109 +67,11 @@ const fmtDate = (d) => {
 };
 const cap = (s) =>
   s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) : "—";
-const escapeHtml = (s = "") =>
-  s.replace(
-    /[&<>"']/g,
-    (c) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[
-        c
-      ])
-  );
-
-/* tiny slug */
-const slug = (s = "") =>
-  s
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-")
-    .slice(0, 80);
-
-/* minimal MD → HTML (adds UL/OL properly and preserves inline bold/italic) */
 function mdToHtml(md = "") {
-  // --- helpers ---
-  const inlineMd = (s = "") => {
-    // escape raw HTML first (safety), then add inline markdown tags
-    const safe = escapeHtml(s);
-    return (
-      safe
-        // inline code
-        .replace(/`([^`]+?)`/g, (_, c) => `<code>${escapeHtml(c)}</code>`)
-        // bold then italics (order matters to avoid double-handling)
-        .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-        .replace(/\*([^*]+)\*/g, "<em>$1</em>")
-        // links
-        .replace(
-          /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
-          `<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>`
-        )
-    );
-  };
-
-  // normalize newlines
-  let src = md.replace(/\r\n?/g, "\n");
-
-  // fenced code blocks ```...```
-  src = src.replace(/```([\s\S]*?)```/g, (_, code) => {
-    return `<pre><code>${escapeHtml(code.trim())}</code></pre>`;
-  });
-
-  // ATX headings
-  src = src
-    .replace(/^###### (.*)$/gm, "<h6>$1</h6>")
-    .replace(/^##### (.*)$/gm, "<h5>$1</h5>")
-    .replace(/^#### (.*)$/gm, "<h4>$1</h4>")
-    .replace(/^### (.*)$/gm, "<h3>$1</h3>")
-    .replace(/^## (.*)$/gm, "<h2>$1</h2>")
-    .replace(/^# (.*)$/gm, "<h1>$1</h1>");
-
-  // unordered list blocks (- or *)
-  src = src.replace(
-    /(^|\n)((?:[-*]\s.+(?:\n[-*]\s.+)*))/g,
-    (_, prefix, block) => {
-      const items = block.split("\n").map((l) => l.replace(/^[-*]\s+/, ""));
-      const li = items.map((t) => `<li>${inlineMd(t)}</li>`).join("");
-      return `${prefix}<ul>${li}</ul>`;
-    }
-  );
-
-  // ordered list blocks (1. 2. 3.)
-  src = src.replace(
-    /(^|\n)((?:\d+\.\s.+(?:\n\d+\.\s.+)*))/g,
-    (_, prefix, block) => {
-      const items = block.split("\n").map((l) => l.replace(/^\d+\.\s+/, ""));
-      const li = items.map((t) => `<li>${inlineMd(t)}</li>`).join("");
-      return `${prefix}<ol>${li}</ol>`;
-    }
-  );
-
-  // paragraphs: wrap remaining plain text chunks
-  const lines = src.split("\n");
-  let out = "";
-  let buf = [];
-
-  const flush = () => {
-    if (!buf.length) return;
-    const paragraph = buf.join(" ").trim();
-    if (
-      paragraph &&
-      !/^<h\d|<ul>|<ol>|<pre>|<p>|<table>|<blockquote>/.test(paragraph)
-    ) {
-      out += `<p>${inlineMd(paragraph)}</p>\n`;
-    } else if (paragraph) {
-      out += paragraph + "\n";
-    }
-    buf = [];
-  };
-
-  for (const line of lines) {
-    if (line.trim() === "") flush();
-    else buf.push(line);
-  }
-  flush();
-
-  return out.trim();
+  return marked.parse(md);
 }
+
+// ...existing code...
 
 // If a section's content accidentally starts with a top-level heading, demote it
 function demoteLeadingHeading(md = "") {
