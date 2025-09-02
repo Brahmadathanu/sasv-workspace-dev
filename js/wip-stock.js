@@ -54,6 +54,10 @@ function attachMask(el) {
 
 /* --- render-race guard -------------------------------------- */
 let tableVersion = 0; // bump every time we start a new refresh
+// Pagination state
+let currentPage = 1;
+const pageSize = 20;
+let filteredRows = [];
 
 /* ══════════════════════════════════════════════════════════════
    2.  DOM REFERENCES
@@ -172,19 +176,14 @@ async function loadBNs() {
 
 async function renderTable() {
   const myVersion = ++tableVersion;
-
-  // 0️⃣ clear existing rows
   tbody.innerHTML = "";
-
   // Fetch all “Doing” entries
   const { data: raw = [], error } = await supabase
     .from("daily_work_log")
     .select(
-      `
-      id, log_date, section_id, subsection_id, area_id,
+      `id, log_date, section_id, subsection_id, area_id,
       item, batch_number, batch_size, batch_uom,
-      activity, started_on, due_date
-    `
+      activity, started_on, due_date`
     )
     .or(
       "status.eq.Doing," +
@@ -194,10 +193,8 @@ async function renderTable() {
     console.error("loadStatus error:", error);
     return;
   }
-
   if (myVersion !== tableVersion) return;
-
-  // 1️⃣ Deduplicate on composite key
+  // Deduplicate
   const uniq = new Map();
   raw.forEach((r) => {
     const key = [
@@ -211,7 +208,6 @@ async function renderTable() {
       uniq.set(key, { ...r });
     } else {
       const ex = uniq.get(key);
-      // keep earliest started_on / due_date
       if (r.started_on && (!ex.started_on || r.started_on < ex.started_on))
         ex.started_on = r.started_on;
       if (r.due_date && (!ex.due_date || r.due_date < ex.due_date))
@@ -219,36 +215,28 @@ async function renderTable() {
     }
   });
   let rows = Array.from(uniq.values());
-
-  // 2️⃣ Apply filters
-  const dateFilter = document.getElementById("sLogDate").value; // "DD-MM-YYYY"
-  const actFilter = document.getElementById("sActivity").value; // activity string
+  // Apply filters
+  const dateFilter = document.getElementById("sLogDate").value;
+  const actFilter = document.getElementById("sActivity").value;
   const todayISO = new Date().toISOString().slice(0, 10);
-
   rows = rows.filter((r) => {
-    // Log-Date filter
     if (dateFilter) {
       const [dd, mm, yyyy] = dateFilter.split("-");
       if (r.log_date !== `${yyyy}-${mm}-${dd}`) return false;
     }
-    // Activity filter
     if (actFilter && r.activity !== actFilter) return false;
-
-    // Overdue filter
     if (fOverdue.checked && (!r.due_date || r.due_date >= todayISO))
       return false;
-    // Section / Sub-section / Area
     if (fSection.value && r.section_id !== +fSection.value) return false;
     if (fSub.value && r.subsection_id !== +fSub.value) return false;
     if (fArea.value && r.area_id !== +fArea.value) return false;
-    // Item / BN
     if (fItem.value && r.item !== fItem.value) return false;
     if (fBN.value && r.batch_number !== fBN.value) return false;
-
     return true;
   });
-
-  // 3️⃣ Sort
+  // Store filtered rows for export
+  filteredRows = rows;
+  // Sort
   rows.sort((a, b) => {
     if (fOverdue.checked) {
       const da = new Date(a.due_date),
@@ -263,9 +251,16 @@ async function renderTable() {
     if (ci) return ci;
     return a.activity.localeCompare(b.activity);
   });
-
-  // 4️⃣ Render rows
-  rows.forEach((r) => {
+  // Row count display
+  document.getElementById("rowCount").textContent = `${rows.length} rows`;
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  if (currentPage > totalPages) currentPage = totalPages;
+  const startIdx = (currentPage - 1) * pageSize;
+  const endIdx = startIdx + pageSize;
+  const pageRows = rows.slice(startIdx, endIdx);
+  // Render rows
+  pageRows.forEach((r) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${fmtDate(r.log_date)}</td>
@@ -280,12 +275,44 @@ async function renderTable() {
     `;
     tbody.append(tr);
   });
-
-  // 5️⃣ Wire up the “View” links (guard against duplicate handlers)
+  // Wire up “View” links
   tbody.querySelectorAll(".view-link").forEach((a) => {
     a.removeEventListener("click", showDetails);
     a.addEventListener("click", showDetails);
   });
+  // Render pagination controls
+  renderPagination(totalPages);
+}
+function renderPagination(totalPages) {
+  const pag = document.getElementById("pagination");
+  pag.innerHTML = "";
+  if (totalPages <= 1) return;
+  const prev = document.createElement("button");
+  prev.textContent = "Prev";
+  prev.disabled = currentPage === 1;
+  prev.onclick = () => {
+    currentPage--;
+    renderTable();
+  };
+  pag.appendChild(prev);
+  for (let i = 1; i <= totalPages; i++) {
+    const btn = document.createElement("button");
+    btn.textContent = i;
+    btn.disabled = i === currentPage;
+    btn.onclick = () => {
+      currentPage = i;
+      renderTable();
+    };
+    pag.appendChild(btn);
+  }
+  const next = document.createElement("button");
+  next.textContent = "Next";
+  next.disabled = currentPage === totalPages;
+  next.onclick = () => {
+    currentPage++;
+    renderTable();
+  };
+  pag.appendChild(next);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -362,21 +389,33 @@ async function showDetails(evt) {
    7.  EXPORTS
    ══════════════════════════════════════════════════════════════ */
 function exportCsv() {
-  const headers = Array.from(
-    document.querySelectorAll("#wipTable thead th:not(:last-child)")
-  ).map((th) => `"${th.textContent.replace(/"/g, '""')}"`);
-
-  const rows = Array.from(tbody.rows).map((tr) =>
-    Array.from(tr.cells)
-      .slice(0, -1)
-      .map((td) => `"${td.textContent.replace(/"/g, '""')}"`)
+  const headers = [
+    "Date",
+    "Item",
+    "BN",
+    "Size",
+    "UOM",
+    "Activity",
+    "Started On",
+    "Due On",
+  ];
+  const rows = filteredRows.map((r) =>
+    [
+      fmtDate(r.log_date),
+      r.item,
+      r.batch_number,
+      r.batch_size ?? "",
+      r.batch_uom ?? "",
+      r.activity,
+      fmtDate(r.started_on),
+      fmtDate(r.due_date),
+    ]
+      .map((val) => `"${String(val).replace(/"/g, '""')}"`)
       .join(",")
   );
-
-  const csv = [headers.join(","), ...rows].join("\r\n");
+  const csv = [headers.map((h) => `"${h}"`).join(","), ...rows].join("\r\n");
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
-
   const a = Object.assign(document.createElement("a"), {
     href: url,
     download: `${todayStamp()}_wip_stock.csv`,
@@ -388,23 +427,30 @@ function exportCsv() {
 }
 
 /* --------------  PDF (rows won't split across pages) --- */
-async function exportPdf() {
+function exportPdf() {
   const { jsPDF } = window.jspdf;
+  const totalRows = filteredRows.length; // number to print
   const doc = new jsPDF({ unit: "pt", format: "a4" });
+
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
+  const leftMargin = 40;
+  const rightMargin = 40;
+  const tableTopY = 110; // where the table will start
 
-  /* Title block */
+  /* ── Header block ───────────────────────────────────── */
   doc
     .setFont("Helvetica", "normal")
     .setFontSize(10)
     .text("Gurucharanam Saranam", pw / 2, 30, { align: "center" });
+
   doc
     .setFont("Helvetica", "bold")
     .setFontSize(12)
     .text("Santhigiri Ayurveda Siddha Vaidyasala", pw / 2, 55, {
       align: "center",
     });
+
   doc
     .setFont("Helvetica", "bold")
     .setFontSize(14)
@@ -415,26 +461,43 @@ async function exportPdf() {
       { align: "center" }
     );
 
-  /* Build arrays from the CURRENT tbody (already deduped) */
-  const head = Array.from(document.querySelectorAll("#wipTable thead th"))
-    .slice(1, -1)
-    .map((th) => th.textContent.trim());
-  const body = Array.from(tbody.rows).map((tr) =>
-    Array.from(tr.cells)
-      .slice(1, -1)
-      .map((td) => td.textContent.trim())
-  );
+  /* ── Row-count label ────────────────────────────────── */
+  doc
+    .setFont("Helvetica", "bold")
+    .setFontSize(10)
+    .text(`${totalRows} ROWS`, pw - rightMargin, tableTopY - 12, {
+      align: "right",
+    });
+
+  /* ── Table ──────────────────────────────────────────── */
+  const head = [
+    "Date",
+    "Item",
+    "BN",
+    "Size",
+    "UOM",
+    "Activity",
+    "Started On",
+    "Due On",
+  ];
+  const body = filteredRows.map((r) => [
+    fmtDate(r.log_date),
+    r.item,
+    r.batch_number,
+    r.batch_size ?? "",
+    r.batch_uom ?? "",
+    r.activity,
+    fmtDate(r.started_on),
+    fmtDate(r.due_date),
+  ]);
 
   doc.autoTable({
-    startY: 100,
+    startY: tableTopY,
     head: [head],
     body,
     theme: "grid",
-    margin: { left: 40, right: 40, top: 40, bottom: 40 },
-
-    // 🔒 Keep rows intact (no splitting across pages)
+    margin: { left: leftMargin, right: rightMargin, top: 40, bottom: 40 },
     rowPageBreak: "avoid",
-    // Ensure long text wraps instead of overflowing
     styles: {
       font: "Helvetica",
       fontStyle: "normal",
@@ -454,22 +517,19 @@ async function exportPdf() {
       lineColor: [0, 0, 0],
       lineWidth: 0.5,
     },
-    columnStyles: {
-      0: { halign: "left" }, // Date column left aligned
-      // (optional) set widths to reduce unexpected wrapping:
-      // 1: { cellWidth: 140 }, // Item
-      // 5: { cellWidth: 120 }  // Activity
-    },
-    willDrawCell: (d) => {
-      doc.setFont("Helvetica", d.section === "head" ? "bold" : "normal");
-    },
+    columnStyles: { 0: { halign: "left" } },
+    willDrawCell: (d) =>
+      doc.setFont("Helvetica", d.section === "head" ? "bold" : "normal"),
     didDrawPage: () => {
       doc
         .setFont("Helvetica", "normal")
         .setFontSize(10)
-        .text(`Page ${doc.internal.getNumberOfPages()}`, pw - 40, ph - 10, {
-          align: "right",
-        });
+        .text(
+          `Page ${doc.internal.getNumberOfPages()}`,
+          pw - rightMargin,
+          ph - 10,
+          { align: "right" }
+        );
     },
   });
 

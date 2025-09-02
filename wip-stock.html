@@ -1,366 +1,429 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>SASV WORKSPACE | WIP Stock</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="public/shared/css/style.css">
-  <link rel="stylesheet" href="css/flatpickr.min.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css">
+  <head>
+    <meta charset="UTF-8" />
+    <title>SASV WORKSPACE | WIP Stock</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="public/shared/css/style.css" />
+    <link rel="stylesheet" href="css/flatpickr.min.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css"
+    />
 
-<style>
-  /* ─── FULL‑HEIGHT FLEX LAYOUT ─────────────────────────── */
-  html, body {
-    height: 100%;
-    margin: 0;
-  }
-  body {
-    display: flex;
-    flex-direction: column;
-    margin: 20px;
-    font-family: Arial, sans-serif;
-    background: var(--bg-color);
-    color: var(--text-color);
-    transition: background .3s, color .3s;
-  }
+    <style>
+      /* ─── FULL-HEIGHT FLEX LAYOUT ─────────────────────────── */
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        margin: 20px;
+        font-family: Arial, sans-serif;
+        background: var(--bg-color);
+        color: var(--text-color);
+        transition: background 0.3s, color 0.3s;
+      }
 
-  /* ─── HEADER BAR ───────────────────────────────────────── */
-  .header-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-  }
-  .header-bar h2 {
-    margin: 0;
-    color: #005A8D;
-  }
-  .header-actions {
-  display: flex;
-  gap: 8px;
-  margin-left: auto;   /* push this group to the far right */
-}
-  #homeBtn {
-    background: var(--home-btn-bg);
-    color: var(--btn-text);
-    border: none;
-    padding: 8px 12px;
-    border-radius: 4px;
-    font-size: 1rem;
-    cursor: pointer;
-  }
-  #homeBtn:hover {
-    background: var(--home-btn-hover-bg);
-  }
-  #backBtn {
-    background: #6c757d;       /* muted gray */
-    color: #ffffff;            /* white text */
-    border: none;
-    padding: 8px 12px;
-    border-radius: 4px;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: background .2s;
-  }
-  #backBtn:hover {
-    background: #5a6268;       /* slightly darker gray */
-  }
+      /* ─── HEADER BAR ───────────────────────────────────────── */
+      .header-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+      }
+      .header-bar h2 {
+        margin: 0;
+        color: #005a8d;
+      }
+      .header-actions {
+        display: flex;
+        gap: 8px;
+        margin-left: auto;
+      }
+      #homeBtn {
+        background: var(--home-btn-bg);
+        color: var(--btn-text);
+        border: none;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 1rem;
+        cursor: pointer;
+      }
+      #homeBtn:hover {
+        background: var(--home-btn-hover-bg);
+      }
+      #backBtn {
+        background: #6c757d;
+        color: #ffffff;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      #backBtn:hover {
+        background: #5a6268;
+      }
 
-  /* ─── PRIMARY & ADVANCED FILTER STRIP ──────────────────── */
-  .filter-strip {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px 16px;
-    align-items: center;
-    margin-bottom: 12px;
-  }
-  .filter-strip .filter-pair {
-    flex: 1 1 140px;
-    min-width: 100px;
-    display: flex;
-    gap: 8px;
-    align-items: center;
-  }
-  .filter-pair select,
-  .filter-pair input[type="text"] {
-    flex: 1;
-    padding: 6px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    width: 100%;
-    background: var(--input-bg);
-    color: var(--input-text);
-  }
-  .log-date { flex: 0 0 120px; }
-  .narrow   { flex: 0 0 80px; }
+      /* ─── PRIMARY & ADVANCED FILTER STRIP ──────────────────── */
+      .filter-strip {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 16px;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+      .filter-strip .filter-pair {
+        flex: 1 1 140px;
+        min-width: 100px;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .filter-pair select,
+      .filter-pair input[type="text"] {
+        flex: 1;
+        padding: 6px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        width: 100%;
+        background: var(--input-bg);
+        color: var(--input-text);
+      }
+      .log-date {
+        flex: 0 0 120px;
+      }
+      .narrow {
+        flex: 0 0 80px;
+      }
 
-  /* ADVANCED filter row hidden by default; JS toggles inline display:flex */
-  #advancedFilters {
-    display: none;
-  }
+      /* ADVANCED filter row hidden by default; JS toggles inline display:flex */
+      #advancedFilters {
+        display: none;
+      }
 
-  /* ─── ACTION BUTTON GROUP ──────────────────────────────── */
-  .filter-actions {
-    display: flex;
-    gap: 8px;
-    margin-left: auto;
-    align-items: center;
-  }
-  .link-btn {
-    background: none;
-    border: none;
-    padding: 4px 8px;
-    color: var(--link-color, #007BFF);
-    text-decoration: none;
-    font-size: 0.9rem;
-    cursor: pointer;
-  }
-  .link-btn:hover {
-    background: rgba(0, 123, 255, 0.1);
-  }
+      /* ─── ACTION BUTTON GROUP ──────────────────────────────── */
+      .filter-actions {
+        display: flex;
+        gap: 8px;
+        margin-left: auto;
+        align-items: center;
+      }
+      .link-btn {
+        background: none;
+        border: none;
+        padding: 4px 8px;
+        color: var(--link-color, #007bff);
+        text-decoration: none;
+        font-size: 0.9rem;
+        cursor: pointer;
+      }
+      .link-btn:hover {
+        background: rgba(0, 123, 255, 0.1);
+      }
 
-  /* ─── EXPORT LINKS ───────────────────────────────────── */
-  #exportLinks {
-    display: flex;
-    justify-content: space-between;
-    width: 100%;
-    margin-bottom: 8px;
-  }
-  #exportLinks a {
-    color: var(--primary);
-    text-decoration: underline;
-    cursor: pointer;
-    font-size: 14px;
-  }
-  #exportLinks a:hover {
-    color: var(--primary-hover);
-  }
+      /* ─── ROW COUNT PILL ───────────────────────────────────── */
+      #rowCount {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 4px 12px;
+        background: #e9f3fc;
+        color: #005a8d;
+        border-radius: 999px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        margin-bottom: 8px;
+      }
 
-  /* ─── WIP TABLE CONTAINER ──────────────────────────────── */
-  #wipTableContainer {
-    flex: 1 1 auto;          /* fill remaining vertical space */
-    overflow-y: auto;
-    border: 1px solid #ccc;
-  }
+      /* ─── EXPORT LINKS ───────────────────────────────────── */
+      #exportLinks {
+        display: flex;
+        justify-content: space-between;
+        width: 100%;
+        margin-bottom: 8px;
+      }
+      #exportLinks a {
+        color: var(--primary);
+        text-decoration: underline;
+        cursor: pointer;
+        font-size: 14px;
+      }
+      #exportLinks a:hover {
+        color: var(--primary-hover);
+      }
 
-  /* ─── WIP TABLE STYLING ────────────────────────────────── */
-  
-  #wipTableContainer table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 24px;
-  }
-  #wipTableContainer table th,
-  #wipTableContainer table td {
-    padding: 4px 6px;
-    border: 1px solid #ccc;
-    text-align: left;
-    font-size: 0.9rem;
-    line-height: 1.2;
-  }
-  #wipTableContainer table tr {
-    height: 28px;
-  }
-  #wipTableContainer table th {
-    position: sticky;
-    top: 0;
-    background: var(--panel-bg);
-    z-index: 1;
-    font-weight: bold;
-  }
-  
-  /* Zebra striping */
-  #wipTable tbody tr:nth-child(even),
-  #wipTable tbody tr:nth-child(even) {
-    background-color: #f6f9fb;
-  }
+      /* ─── WIP TABLE CONTAINER ──────────────────────────────── */
+      #wipTableContainer {
+        flex: 1 1 auto;
+        overflow-y: auto;
+        border: 1px solid #ccc;
+      }
 
-  /* Hover highlight */
-  #wipTable tbody tr:hover,
-  #wipTable tbody tr:hover {
-    background-color: #e9f3fc;
-    cursor: pointer;
-  }
+      /* ─── WIP TABLE STYLING ────────────────────────────────── */
+      #wipTableContainer table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 24px;
+      }
+      #wipTableContainer table th,
+      #wipTableContainer table td {
+        padding: 4px 6px;
+        border: 1px solid #ccc;
+        text-align: left;
+        font-size: 0.9rem;
+        line-height: 1.2;
+      }
+      #wipTableContainer table tr {
+        height: 28px;
+      }
+      #wipTableContainer table th {
+        position: sticky;
+        top: 0;
+        background: var(--panel-bg);
+        z-index: 1;
+        font-weight: bold;
+      }
 
-  /* ─── MODALS ──────────────────────────────────────────── */
-  .modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,.4);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-  }
-  .modal-box {
-    background: var(--bg-color);
-    color: var(--text-color);
-    padding: 24px;
-    border-radius: 8px;
-    width: 95%;
-    max-width: 520px;
-    max-height: 85vh;
-    overflow-y: auto;
-    box-shadow: 0 4px 12px rgba(0,0,0,.2);
-  }
-  .modal-actions {
-    text-align: right;
-    margin-top: 24px;
-  }
-  .modal-actions .btn {
-    padding: 6px 12px;
-    border: none;
-    cursor: pointer;
-    background: var(--btn-bg);
-    color: var(--btn-text);
-    border-radius: 4px;
-  }
-  .modal-actions .btn:hover {
-    background: var(--btn-hover-bg);
-  }
+      /* Zebra striping & hover */
+      #wipTable tbody tr:nth-child(even) {
+        background-color: #f6f9fb;
+      }
+      #wipTable tbody tr:hover {
+        background-color: #e9f3fc;
+        cursor: pointer;
+      }
 
-/* make Tom Select look like the other inputs */
-.ts-wrapper, .ts-control {
-  width: 100% !important;
-  min-width: 0 !important;
-  box-sizing: border-box;
-}
-.ts-control {
-  min-height: 34px;
-  padding: 0 6px;
-  font-size: 14px;
-  border-radius: 4px;
-}
+      /* ─── PAGINATION (professional look) ─────────────────── */
+      #pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 6px;
+        margin: 16px 0;
+      }
+      #pagination button {
+        padding: 6px 10px;
+        border: 1px solid #005a8d;
+        background: #ffffff;
+        color: #005a8d;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        min-width: 32px;
+        transition: background 0.2s, color 0.2s;
+      }
+      #pagination button:hover:not([disabled]) {
+        background: #005a8d;
+        color: #ffffff;
+      }
+      #pagination button[disabled] {
+        opacity: 0.5;
+        cursor: default;
+      }
+      #pagination .current,
+      #pagination button.active {
+        background: #005a8d;
+        color: #ffffff;
+        font-weight: 600;
+      }
 
-</style>
+      /* ─── MODALS ──────────────────────────────────────────── */
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+      }
+      .modal-box {
+        background: var(--bg-color);
+        color: var(--text-color);
+        padding: 24px;
+        border-radius: 8px;
+        width: 95%;
+        max-width: 520px;
+        max-height: 85vh;
+        overflow-y: auto;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      }
+      .modal-actions {
+        text-align: right;
+        margin-top: 24px;
+      }
+      .modal-actions .btn {
+        padding: 6px 12px;
+        border: none;
+        cursor: pointer;
+        background: var(--btn-bg);
+        color: var(--btn-text);
+        border-radius: 4px;
+      }
+      .modal-actions .btn:hover {
+        background: var(--btn-hover-bg);
+      }
 
-</head>
+      /* make Tom Select look like the other inputs */
+      .ts-wrapper,
+      .ts-control {
+        width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box;
+      }
+      .ts-control {
+        min-height: 34px;
+        padding: 0 6px;
+        font-size: 14px;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
 
-<body data-theme="system">
-
-  <!-- ===== HEADER ====================================================== -->
-  <div class="header-bar">
-    <h2>WIP Stock</h2>
-    <div Class="header-actions">
-      <button id="backBtn">BACK</button>
-      <button id="homeBtn">HOME</button>
-    </div>
-  </div>
-
-<!-- ===== FILTERS ===================================================== -->
-
-<!-- Primary filter row -->
-<div id="filters" class="filter-strip">
-  <!-- Log‑Date -->
-  <div class="filter-pair">
-    <input
-      id="sLogDate"
-      class="log-date"
-      type="text"
-      placeholder="dd-mm-yyyy"
-      autocomplete="off">
-  </div>
-
-  <!-- Item -->
-  <div class="filter-pair">
-    <select id="filterItem">
-      <option value="">Item</option>
-    </select>
-  </div>
-
-  <!-- BN -->
-  <div class="filter-pair">
-    <select id="filterBN" disabled>
-      <option value="">BN</option>
-    </select>
-  </div>
-
-  <!-- Activity (moved here) -->
-  <div class="filter-pair">
-    <select id="sActivity">
-      <option value="">Activity</option>
-    </select>
-  </div>
-
-  <!-- Overdue -->
-  <div class="filter-pair">
-    <label><input type="checkbox" id="filterOverdue"> Overdue</label>
-  </div>
-
-  <!-- Actions -->
-  <div class="filter-actions">
-    <button id="toggleAdvanced" class="link-btn">Advanced ▾</button>
-    <button id="clearFilters" class="link-btn">Clear</button>
-  </div>
-</div>
-
-<!-- Advanced filter row (sibling) -->
-<div id="advancedFilters" class="filter-strip" style="display:none;">
-  <div class="filter-pair">
-    <select id="filterSection">
-      <option value="">Section</option>
-    </select>
-  </div>
-  <div class="filter-pair">
-    <select id="filterSubsection" disabled>
-      <option value="">Sub‑section</option>
-    </select>
-  </div>
-  <div class="filter-pair">
-    <select id="filterArea" disabled>
-      <option value="">Area</option>
-    </select>
-  </div>
-</div>
-
-  <!-- ===== EXPORT LINKS ================================================= -->
-  <div id="exportLinks">
-    <a id="downloadCsv">Download as CSV</a>
-    <a id="downloadPdf">Download as PDF</a>
-  </div>
-
-  <!-- ===== WIP TABLE ==================================================== -->
-  <div id="wipTableContainer">
-    <table id="wipTable">
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th>Item</th>
-          <th>BN</th>
-          <th>Size</th>
-          <th>UOM</th>
-          <th>Activity</th>
-          <th>Started On</th>
-          <th>Due On</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody id="wipTableBody"></tbody>
-    </table>
-  </div>
-
-  <!-- ===== DETAILS MODAL =============================================== -->
-  <div id="wipOverlay" class="modal-overlay">
-    <div class="modal-box">
-      <h3>Log Entry Details</h3>
-      <table>
-        <tbody id="detailTable"></tbody>
-      </table>
-      <div class="modal-actions">
-        <button id="closeWip" class="btn">Close</button>
+  <body data-theme="system">
+    <!-- ===== HEADER ====================================================== -->
+    <div class="header-bar">
+      <h2>WIP Stock</h2>
+      <div class="header-actions">
+        <button id="backBtn">BACK</button>
+        <button id="homeBtn">HOME</button>
       </div>
     </div>
-  </div>
 
-<!-- ===== SCRIPTS ====================================================== -->
-<!-- 1. third-party libs that MUST be ready first -->
-<script defer src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
-<script defer src="css/flatpickr.min.js"></script>
-<script defer src="css/plugins/confirmDate/confirmDate.js"></script>
+    <!-- ===== FILTERS ===================================================== -->
 
-<!-- 2. *your* module – runs after everything above -->
-<script type="module" defer src="js/wip-stock.js"></script>
-</body>
+    <!-- Primary filter row -->
+    <div id="filters" class="filter-strip">
+      <!-- Log-Date -->
+      <div class="filter-pair">
+        <input
+          id="sLogDate"
+          class="log-date"
+          type="text"
+          placeholder="dd-mm-yyyy"
+          autocomplete="off"
+        />
+      </div>
+
+      <!-- Item -->
+      <div class="filter-pair">
+        <select id="filterItem">
+          <option value="">Item</option>
+        </select>
+      </div>
+
+      <!-- BN -->
+      <div class="filter-pair">
+        <select id="filterBN" disabled>
+          <option value="">BN</option>
+        </select>
+      </div>
+
+      <!-- Activity -->
+      <div class="filter-pair">
+        <select id="sActivity">
+          <option value="">Activity</option>
+        </select>
+      </div>
+
+      <!-- Overdue -->
+      <div class="filter-pair">
+        <label><input type="checkbox" id="filterOverdue" /> Overdue</label>
+      </div>
+
+      <!-- Actions -->
+      <div class="filter-actions">
+        <button id="toggleAdvanced" class="link-btn">Advanced ▾</button>
+        <button id="clearFilters" class="link-btn">Clear</button>
+      </div>
+    </div>
+
+    <!-- Advanced filter row -->
+    <div id="advancedFilters" class="filter-strip" style="display: none">
+      <div class="filter-pair">
+        <select id="filterSection">
+          <option value="">Section</option>
+        </select>
+      </div>
+      <div class="filter-pair">
+        <select id="filterSubsection" disabled>
+          <option value="">Sub-section</option>
+        </select>
+      </div>
+      <div class="filter-pair">
+        <select id="filterArea" disabled>
+          <option value="">Area</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- ===== ROW COUNT PILL ============================================= -->
+    <div id="rowCount"></div>
+
+    <!-- ===== EXPORT LINKS ================================================= -->
+    <div id="exportLinks">
+      <a id="downloadCsv">Download as CSV</a>
+      <a id="downloadPdf">Download as PDF</a>
+    </div>
+
+    <!-- ===== WIP TABLE ==================================================== -->
+    <div id="wipTableContainer">
+      <table id="wipTable">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Item</th>
+            <th>BN</th>
+            <th>Size</th>
+            <th>UOM</th>
+            <th>Activity</th>
+            <th>Started On</th>
+            <th>Due On</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="wipTableBody"></tbody>
+      </table>
+      <!-- Pagination controls -->
+      <div id="pagination"></div>
+    </div>
+
+    <!-- ===== DETAILS MODAL =============================================== -->
+    <div id="wipOverlay" class="modal-overlay">
+      <div class="modal-box">
+        <h3>Log Entry Details</h3>
+        <table>
+          <tbody id="detailTable"></tbody>
+        </table>
+        <div class="modal-actions">
+          <button id="closeWip" class="btn">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SCRIPTS ====================================================== -->
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"
+    ></script>
+    <script
+      defer
+      src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+    ></script>
+    <script
+      defer
+      src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"
+    ></script>
+    <script defer src="css/flatpickr.min.js"></script>
+    <script defer src="css/plugins/confirmDate/confirmDate.js"></script>
+
+    <!-- Your module (unchanged) -->
+    <script type="module" defer src="js/wip-stock.js"></script>
+  </body>
 </html>
