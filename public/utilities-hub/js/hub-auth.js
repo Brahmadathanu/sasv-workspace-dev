@@ -1,35 +1,61 @@
 // public/utilities-hub/js/hub-auth.js
 // =============================================================================
-// SASV Utilities Hub — Auth + Access Control + Grid Rendering (Magic-link only)
+// SASV Utilities Hub — Email/Password Auth + Access Control + Grid Rendering
 // Requires: ../../shared/js/supabaseClient.js (exporting `supabase`)
-// DOM: #hub-root, #hub-empty, #hub-greeting, #hub-user-name, #hub-login, #hub-logout
+//
+// DOM used:
+//   #hub-root, #hub-empty, #hub-greeting, #hub-user-name
+//   #hub-login-form, #auth-email, #auth-password, #auth-signin, #auth-msg
+//   #hub-logged-in, #hub-logout
+//
 // DB tables:
 //   hub_utilities(id, key, label, description)
 //   hub_user_access(user_id, utility_id, level enum: 'none'|'view'|'use')
 //   hub_access_requests(id, user_id, utility_id, note, status)
+// Admin view/table (any one of these you created earlier):
+//   hub_admins(user_id uuid)  -- view that lists admin user_ids
 // =============================================================================
 
 import { supabase } from "../../shared/js/supabaseClient.js";
 
-/* ───────────────────────────── Helpers ───────────────────────────── */
+/** DOM refs */
+const elRoot = document.getElementById("hub-root");
+const elEmpty = document.getElementById("hub-empty");
+const elGreeting = document.getElementById("hub-greeting");
+const elUserName = document.getElementById("hub-user-name");
 
-function isHubAdmin(session) {
-  const roles =
-    session?.user?.app_metadata?.roles ||
-    session?.user?.user_metadata?.roles ||
-    [];
-  return Array.isArray(roles) && roles.map(String).includes("admin");
+const elLoginForm = document.getElementById("hub-login-form");
+const elEmail = document.getElementById("auth-email");
+const elPassword = document.getElementById("auth-password");
+const elSignInBtn = document.getElementById("auth-signin");
+const elAuthMsg = document.getElementById("auth-msg");
+
+const elLoggedIn = document.getElementById("hub-logged-in");
+const btnLogout = document.getElementById("hub-logout");
+
+// Admin = user has USE access on the 'hub_admin' utility
+async function isHubAdmin(userId) {
+  if (!userId) return false;
+  try {
+    const { data, error } = await supabase
+      .from("hub_user_access")
+      .select("level, hub_utilities!inner(key)")
+      .eq("user_id", userId)
+      .eq("hub_utilities.key", "hub_admin")
+      .maybeSingle(); // returns null if no row
+
+    if (error) {
+      console.warn("Admin check error:", error);
+      return false;
+    }
+    return (data?.level || "").toLowerCase() === "use";
+  } catch (e) {
+    console.warn("Admin check failed:", e);
+    return false;
+  }
 }
 
-/** Wait for Supabase to fire the INITIAL_SESSION event once */
-function waitForInitialSession() {
-  return new Promise((resolve) => {
-    supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "INITIAL_SESSION") resolve(session || null);
-    });
-  });
-}
-
+/** Helpers ------------------------------------------------------------------*/
 function setBusy(on) {
   elRoot?.setAttribute("aria-busy", on ? "true" : "false");
 }
@@ -46,16 +72,26 @@ function guessNameFromEmail(email) {
     .join(" ")
     .trim();
 }
-function isIOSPWA() {
-  const ua = navigator.userAgent || navigator.vendor || "";
-  const isIOS =
-    /iPad|iPhone|iPod/.test(ua) ||
-    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1); // iPadOS
-  const standalone =
-    window.matchMedia("(display-mode: standalone)").matches ||
-    window.navigator.standalone === true; // old iOS
-  return isIOS && standalone;
+function showMsg(text, isError = false) {
+  if (!elAuthMsg) return;
+  elAuthMsg.textContent = text || "";
+  elAuthMsg.style.color = isError ? "#b91c1c" : "#6b7280";
 }
+function clearMsgSoon(ms = 3000) {
+  if (!elAuthMsg) return;
+  setTimeout(() => {
+    elAuthMsg.textContent = "";
+  }, ms);
+}
+
+/** Utility key -> page (relative) ------------------------------------------*/
+const UTIL_URLS = {
+  fill_planner: "../shared/fill-planner.html",
+  stock_checker: "../shared/stock-checker.html",
+  hub_admin: "./admin.html",
+};
+
+/** Render cards -------------------------------------------------------------*/
 function renderMessageCard(title, message) {
   return `
     <article class="hub-card" role="status" aria-live="polite">
@@ -64,57 +100,76 @@ function renderMessageCard(title, message) {
     </article>`;
 }
 
-/**
- * NEW: apply tokens received from callback.html (or SW) before re-rendering.
- * This is the critical bit that actually logs the PWA in.
- */
-async function applySignedInTokens(payload) {
-  try {
-    const t = payload?.tokens;
-    if (t?.access_token && t?.refresh_token) {
-      await supabase.auth.setSession({
-        access_token: t.access_token,
-        refresh_token: t.refresh_token,
-      });
-      // Helpful on iOS: poke storage so other contexts may notice a sign-in
-      try {
-        localStorage.setItem("sasv_signed_in_at", String(Date.now()));
-      } catch (e) {
-        // iOS private mode or storage blocked — safe to ignore
-        console.debug("[hub] localStorage ping failed:", e);
-      }
-    }
-  } catch (e) {
-    console.warn("[hub] setSession from message failed:", e);
+function renderUtilities(utilities, accessMap) {
+  if (!utilities?.length) {
+    return renderMessageCard(
+      "No tools yet",
+      "Please contact admin to add utilities."
+    );
   }
+
+  return utilities
+    .map((u) => {
+      const access = accessMap[u.id] || "none";
+      if (access === "use") {
+        return `
+        <article class="hub-card" tabindex="-1">
+          <h3><a href="${u.href}">${safeText(u.label)}</a></h3>
+          <p>${safeText(u.description)}</p>
+        </article>`;
+      }
+      // 'view' or 'none' → show locked + Request button
+      return `
+      <article class="hub-card" tabindex="-1">
+        <h3><span aria-label="Locked">${safeText(u.label)} 🔒</span></h3>
+        <p>${safeText(u.description)}</p>
+        <button class="button" data-request="${u.id}" data-key="${u.key}">
+          Request access
+        </button>
+      </article>`;
+    })
+    .join("");
 }
 
-/* ───────────────────────────── DOM refs ───────────────────────────── */
+/** Wire "Request access" buttons -------------------------------------------*/
+function wireRequestButtons(session) {
+  if (!elRoot) return;
+  elRoot.querySelectorAll("[data-request]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const utilityId = btn.getAttribute("data-request");
+      const key = btn.getAttribute("data-key") || "";
+      if (!utilityId || !session?.user) return;
 
-const elRoot = document.getElementById("hub-root");
-const elEmpty = document.getElementById("hub-empty");
-const elGreeting = document.getElementById("hub-greeting");
-const elUserName = document.getElementById("hub-user-name");
-const btnLogin = document.getElementById("hub-login");
-const btnLogout = document.getElementById("hub-logout");
+      btn.disabled = true;
+      try {
+        const note = key
+          ? `Requested via Utilities Hub for: ${key.replace("_", "-")}`
+          : "Requested via Utilities Hub";
+        const { error } = await supabase.from("hub_access_requests").insert({
+          user_id: session.user.id,
+          utility_id: utilityId,
+          note,
+          status: "pending",
+        });
+        if (error) throw error;
+        btn.textContent = "Requested ✓";
+      } catch (e) {
+        console.error(e);
+        alert("Could not send request. Please try again.");
+        btn.disabled = false;
+      }
+    });
+  });
+}
 
-/* ─────────────────────── Utility URL mapping ─────────────────────── */
-
-const UTIL_URLS = {
-  fill_planner: "../shared/fill-planner.html",
-  stock_checker: "../shared/stock-checker.html",
-  hub_admin: "./admin.html",
-};
-
-/* ───────────────────────────── Data loads ───────────────────────────── */
-
+/** Data: list utilities & access -------------------------------------------*/
 async function loadUtilities() {
   const { data, error } = await supabase
     .from("hub_utilities")
     .select("id, key, label, description")
     .order("label", { ascending: true });
 
-  if (!error && Array.isArray(data) && data.length) {
+  if (!error && Array.isArray(data)) {
     return data.map((r) => ({
       id: String(r.id),
       key: r.key,
@@ -124,11 +179,7 @@ async function loadUtilities() {
     }));
   }
 
-  if (error && (error.code === "401" || error.code === "403")) {
-    throw error; // auth timing, let caller retry
-  }
-
-  // Benign fallback (only if table missing/empty)
+  // Benign fallback (table missing/empty): keep Hub usable
   return [
     {
       id: "fill-planner",
@@ -169,13 +220,12 @@ async function loadAccessMap(userId, utilities) {
     return map;
   }
 
-  if (error && (error.code === "401" || error.code === "403")) throw error;
-
+  // fallback: show as 'view' so they can request access
+  utilities.forEach((u) => (map[u.id] = "view"));
   return map;
 }
 
-/* ───────────────────────────── Greeting ───────────────────────────── */
-
+/** Greeting + Name ----------------------------------------------------------*/
 async function showGreeting(session) {
   if (!elGreeting || !elUserName) return;
 
@@ -185,162 +235,82 @@ async function showGreeting(session) {
     return;
   }
 
-  let displayName = "";
-  try {
-    const { data, error } = await supabase
-      .from("sasv_users")
-      .select("display_name")
-      .eq("user_id", session.user.id)
-      .limit(1)
-      .maybeSingle();
-
-    if (!error && data?.display_name) displayName = data.display_name;
-  } catch (e) {
-    console.debug("[hub] greeting lookup skipped:", e);
-  }
-
-  if (!displayName) {
-    displayName =
-      session.user.user_metadata?.full_name ||
-      guessNameFromEmail(session.user.email) ||
-      "there";
-  }
+  // Prefer full_name metadata; otherwise derive from email
+  const displayName =
+    session.user.user_metadata?.full_name ||
+    guessNameFromEmail(session.user.email) ||
+    "there";
 
   elUserName.textContent = displayName;
   elGreeting.style.display = "";
 }
 
-/* ───────────────────────────── Auth UI ───────────────────────────── */
+/** Auth UI show/hide --------------------------------------------------------*/
+function updateAuthUI(session) {
+  const signedIn = !!session?.user;
+  if (elLoginForm) elLoginForm.style.display = signedIn ? "none" : "flex";
+  if (elLoggedIn) elLoggedIn.style.display = signedIn ? "flex" : "none";
 
-function updateAuthButtons(session) {
-  if (btnLogin) btnLogin.style.display = session?.user ? "none" : "";
-  if (btnLogout) btnLogout.style.display = session?.user ? "" : "none";
+  if (!signedIn) {
+    // clear password field on sign-out
+    if (elPassword) elPassword.value = "";
+  }
 }
 
-/** Login (OTP for iOS PWA; magic link elsewhere) */
-async function loginFlow() {
-  const email = prompt("Enter your work email to sign in:");
-  if (!email) return;
+/** Email/Password sign-in ---------------------------------------------------*/
+async function signInWithPassword(event) {
+  event?.preventDefault?.();
+  const email = elEmail?.value?.trim();
+  const password = elPassword?.value ?? "";
 
-  // --- iOS PWA: stay in-app using a 6-digit code (no Safari hop)
-  if (isIOSPWA()) {
-    try {
-      const { error: sendErr } = await supabase.auth.signInWithOtp({
+  if (!email || !password) {
+    showMsg("Enter email and password.", true);
+    clearMsgSoon();
+    return;
+  }
+
+  elSignInBtn && (elSignInBtn.disabled = true);
+  showMsg("Signing in…");
+  try {
+    const { data: signInResult, error } =
+      await supabase.auth.signInWithPassword({
         email,
-        options: { shouldCreateUser: true },
+        password,
       });
-      if (sendErr) throw sendErr;
-
-      alert("We've emailed you a 6-digit code. Please DO NOT tap the link.");
-      const code = prompt("Enter the 6-digit code:");
-      if (!code) return;
-
-      const { error: verifyErr } = await supabase.auth.verifyOtp({
-        email,
-        token: code.trim(),
-        type: "email",
-      });
-      if (verifyErr) throw verifyErr;
-
-      await render(); // you're signed in
-      return;
-    } catch (err) {
-      console.error(err);
-      alert("Sign-in failed. Please try again.");
+    if (error) {
+      const msg = /invalid/.test(error.message || "")
+        ? "Invalid email or password."
+        : error.message || "Sign-in failed.";
+      showMsg(msg, true);
+      clearMsgSoon(4000);
       return;
     }
-  }
 
-  // --- Desktop/Android: keep using magic link + your callback bridge
-  try {
-    const redirectTo = new URL(
-      "/utilities-hub/auth/callback.html",
-      window.location.origin
-    ).href;
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: redirectTo, shouldCreateUser: true },
-    });
-    if (error) throw error;
-    alert("Check your email for a sign-in link.");
-  } catch (err) {
-    console.error(err);
-    alert("Sign-in failed. Please try again.");
+    console.log("Signed in:", signInResult); // optional
+
+    // success → UI will refresh via auth state listener
+    showMsg("Signed in.");
+    clearMsgSoon();
+  } catch (e) {
+    console.error(e);
+    showMsg("Sign-in failed. Try again.", true);
+    clearMsgSoon(4000);
+  } finally {
+    elSignInBtn && (elSignInBtn.disabled = false);
   }
 }
 
-/** Logout */
+/** Logout -------------------------------------------------------------------*/
 async function logoutFlow() {
   try {
     await supabase.auth.signOut();
   } catch (e) {
-    console.warn("[hub] signOut error (ignored):", e);
+    console.warn("Sign-out failed:", e);
   }
-  await render();
+  // UI will update via auth listener
 }
 
-/* ───────────────────────────── Rendering ───────────────────────────── */
-
-function renderUtilities(utilities, accessMap) {
-  if (!utilities?.length) {
-    return renderMessageCard(
-      "No tools yet",
-      "Please contact admin to add utilities."
-    );
-  }
-
-  return utilities
-    .map((u) => {
-      const access = accessMap[u.id] || "none";
-      if (access === "use") {
-        return `
-          <article class="hub-card" tabindex="-1">
-            <h3><a href="${u.href}">${safeText(u.label)}</a></h3>
-            <p>${safeText(u.description)}</p>
-          </article>`;
-      }
-      // Show locked + Request access button for 'view' and 'none'
-      return `
-        <article class="hub-card" tabindex="-1">
-          <h3><span aria-label="Locked">${safeText(u.label)} 🔒</span></h3>
-          <p>${safeText(u.description)}</p>
-          <button class="button" data-request="${u.id}" data-key="${
-        u.key
-      }">Request access</button>
-        </article>`;
-    })
-    .join("");
-}
-
-function wireRequestButtons(session) {
-  if (!elRoot) return;
-  elRoot.querySelectorAll("[data-request]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const utilityId = btn.getAttribute("data-request");
-      const key = btn.getAttribute("data-key") || "";
-      if (!utilityId || !session?.user) return;
-
-      btn.disabled = true;
-      try {
-        const note = key
-          ? `Requested via Utilities Hub for: ${key.replace("_", "-")}`
-          : "Requested via Utilities Hub";
-        const { error } = await supabase.from("hub_access_requests").insert({
-          user_id: session.user.id,
-          utility_id: utilityId,
-          note,
-          status: "pending",
-        });
-        if (error) throw error;
-        btn.textContent = "Requested ✓";
-      } catch {
-        alert("Could not send request. Please try again.");
-        btn.disabled = false;
-      }
-    });
-  });
-}
-
+/** Main render --------------------------------------------------------------*/
 async function render() {
   setBusy(true);
   if (elEmpty) elEmpty.style.display = "none";
@@ -348,104 +318,70 @@ async function render() {
   const {
     data: { session },
   } = await supabase.auth.getSession();
-  updateAuthButtons(session);
+
+  // was: updateAuthButtons(session);
+  updateAuthUI(session);
   await showGreeting(session);
 
   let utilities, accessMap;
   try {
-    utilities = await loadUtilities();
-    accessMap = await loadAccessMap(session?.user?.id, utilities);
+    utilities = await loadUtilities(); // has .key
+    accessMap = await loadAccessMap(session?.user?.id, utilities); // ids map
   } catch {
-    if (elRoot)
-      elRoot.innerHTML = renderMessageCard("Loading…", "Preparing your tools.");
+    // auth not ready yet → soft loading, boot() will re-render shortly
+    elRoot.innerHTML = renderMessageCard("Loading…", "Preparing your tools.");
     setBusy(false);
     return;
   }
 
-  // Hide Hub Admin unless admin OR has explicit "use"
-  const adminFlag = isHubAdmin(session);
-  const filtered = utilities.filter((u) => {
-    if (u.key === "hub_admin") {
-      const level = accessMap[u.id] || "none";
-      return adminFlag || level === "use";
-    }
-    return true;
-  });
+  // Admin check
+  const admin = await isHubAdmin(session?.user?.id);
 
-  if (elRoot) elRoot.innerHTML = renderUtilities(filtered, accessMap);
+  // Hide Hub Admin for non-admins
+  const visibleUtilities = admin
+    ? utilities
+    : utilities.filter((u) => u.key !== "hub_admin");
 
-  // Empty state only when nothing visible
-  const hasVisible =
-    filtered.length > 0 &&
-    filtered.some((u) => {
-      const lvl = accessMap[u.id] || "none";
-      return lvl === "use" || lvl === "view";
-    });
+  // Keep access only for visible utilities
+  const visibleIds = new Set(visibleUtilities.map((u) => u.id));
+  const prunedAccessMap = {};
+  for (const [id, level] of Object.entries(accessMap)) {
+    if (visibleIds.has(id)) prunedAccessMap[id] = level;
+  }
+
+  // Render
+  if (elRoot)
+    elRoot.innerHTML = renderUtilities(visibleUtilities, prunedAccessMap);
+
+  // Empty state if nothing visible
+  const hasVisible = Object.values(prunedAccessMap).some(
+    (v) => v === "use" || v === "view"
+  );
   if (elEmpty) elEmpty.style.display = hasVisible ? "none" : "";
 
   wireRequestButtons(session);
   setBusy(false);
 }
 
-/* ───────────────────────────── Boot ───────────────────────────── */
+/** Boot + listeners ---------------------------------------------------------*/
+function wireEvents() {
+  // login form submit
+  elLoginForm?.addEventListener("submit", signInWithPassword);
+  // logout click
+  btnLogout?.addEventListener("click", logoutFlow);
 
-async function boot() {
-  setBusy(true);
-  await waitForInitialSession(); // wait for auth to settle
-  await render();
-  // Revalidate once more soon (covers token timing)
-  setTimeout(() => {
+  // re-render on any auth state changes (sign-in/out, token refresh)
+  supabase.auth.onAuthStateChange(() => {
     render().catch(console.error);
-  }, 600);
-}
-
-/* ───────────────────────────── Event hooks ───────────────────────────── */
-
-btnLogin?.addEventListener("click", loginFlow);
-btnLogout?.addEventListener("click", logoutFlow);
-
-// Re-render on any auth change (token refresh, sign-out, etc.)
-supabase.auth.onAuthStateChange(() => {
-  render().catch(console.error);
-});
-
-/**
- * LISTENERS (cleaned up — no duplicates):
- * 1) BroadcastChannel ("sasv-auth"): receive tokens from callback.html
- * 2) Service Worker message: same payload when SW wakes the app
- * 3) localStorage: iOS fallback signal (no tokens; just re-render)
- */
-
-// 1) BroadcastChannel from callback.html (browser tab)
-try {
-  const bc = new BroadcastChannel("sasv-auth");
-  bc.onmessage = async (e) => {
-    if (e?.data?.type === "signed-in") {
-      await applySignedInTokens(e.data);
-      render().catch(console.error);
-    }
-  };
-} catch {
-  // BroadcastChannel not supported — harmless.
-}
-
-// 2) Service Worker message path
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.addEventListener("message", async (ev) => {
-    if (ev.data?.type === "signed-in") {
-      await applySignedInTokens(ev.data);
-      render().catch(console.error);
-    }
   });
 }
 
-// 3) localStorage fallback (iOS sometimes)
-window.addEventListener("storage", (e) => {
-  if (e.key === "sasv_signed_in_at" && e.newValue) {
-    // No tokens available via storage; just try re-render (session may already be set)
-    render().catch(console.error);
+(async function boot() {
+  try {
+    wireEvents();
+    await render();
+  } catch (e) {
+    console.error(e);
+    showMsg("Something went wrong. Reload the page.", true);
   }
-});
-
-// Go!
-boot().catch(console.error);
+})();

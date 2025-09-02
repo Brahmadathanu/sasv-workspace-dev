@@ -3,26 +3,17 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <!-- Tell the browser we only support light; don't auto-darken -->
+
+    <!-- PWA/meta -->
     <meta name="color-scheme" content="light" />
     <meta name="supported-color-schemes" content="light" />
-
-    <!-- Optional: split theme-color so status bars also look right -->
-    <meta
-      name="theme-color"
-      content="#ffffff"
-      media="(prefers-color-scheme: light)"
-    />
-    <meta
-      name="theme-color"
-      content="#ffffff"
-      media="(prefers-color-scheme: dark)"
-    />
-    <link rel="stylesheet" href="../shared/css/style.css" />
+    <meta name="theme-color" content="#ffffff" />
     <link rel="manifest" href="/utilities-hub/manifest.webmanifest" />
-    <meta name="theme-color" content="#005A8D" />
 
-    <!-- Favicon + app icons (avoid /favicon.ico 404) -->
+    <!-- Styles -->
+    <link rel="stylesheet" href="../shared/css/style.css" />
+
+    <!-- Icons -->
     <link
       rel="icon"
       type="image/png"
@@ -33,6 +24,8 @@
       sizes="180x180"
       href="/utilities-hub/icons/icon-192x192.png"
     />
+
+    <title>SASV Utilities Hub — Admin</title>
 
     <style>
       :root {
@@ -108,6 +101,7 @@
         border-radius: 12px;
         background: #fff;
         padding: 14px;
+        overflow: hidden; /* keep scroll area within */
       }
       .controls {
         display: flex;
@@ -158,6 +152,19 @@
         color: #1f3a93;
         font-size: 0.8rem;
       }
+
+      /* Scroll tables on small screens */
+      #pendingWrap,
+      #accessWrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        max-width: 100%;
+      }
+      #pendingWrap table,
+      #accessWrap table {
+        min-width: 720px;
+      }
+
       @media (prefers-color-scheme: dark) {
         .card {
           background: #0b0f14;
@@ -186,31 +193,9 @@
           color: #e5e7eb;
         }
       }
-      /* Make the table scroll within the card on small screens */
-      #pendingWrap,
-      #accessWrap {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        max-width: 100%;
-      }
-
-      /* Optional: give tables a sensible minimum so columns don't squash too hard */
-      #pendingWrap table,
-      #accessWrap table {
-        min-width: 720px; /* tweak as you like (e.g. 680px) */
-      }
-
-      /* Keep the scroll area visually “inside” the card */
-      .card {
-        overflow: hidden;
-      }
-      /* Let the Note column wrap to reduce horizontal width */
-      #pendingBody td:nth-child(4),
-      #accessBody td:nth-child(3) {
-        white-space: normal;
-      }
     </style>
   </head>
+
   <body>
     <div class="wrap">
       <header class="hdr">
@@ -245,7 +230,7 @@
         </button>
       </nav>
 
-      <!-- Pending requests -->
+      <!-- Pending -->
       <section
         id="panel-pending"
         class="panel active"
@@ -256,8 +241,7 @@
           <div class="controls">
             <button id="refreshPending" class="button">Refresh</button>
             <span class="hint"
-              >Approve/Deny moves requests and updates access
-              automatically.</span
+              >Approve/Deny updates requests and access automatically.</span
             >
           </div>
           <div id="pendingWrap">
@@ -304,7 +288,7 @@
             <button id="grantBtn" class="button primary">Grant access</button>
           </div>
           <p class="hint" id="grant-hint">
-            Grants immediately. Uses <code>grant_hub_access_by_email</code>.
+            Grants immediately via <code>grant_hub_access_by_email</code>.
           </p>
         </div>
       </section>
@@ -353,6 +337,7 @@
       </section>
     </div>
 
+    <!-- Admin controller -->
     <script type="module" src="./js/admin.js"></script>
   </body>
 </html>

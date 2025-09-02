@@ -555,7 +555,8 @@ function initTomSelect() {
       page = 1;
       runQuery();
       if (state.pack_size) autoFillUOM();
-      if (document.activeElement !== elPackSize) {
+      // Only shift focus if a valid item is selected (not when cleared)
+      if (value && document.activeElement !== elPackSize) {
         setTimeout(() => {
           elPackSize?.focus();
           elPackSize?.select();

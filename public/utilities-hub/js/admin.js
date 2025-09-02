@@ -76,28 +76,42 @@ async function mustBeAdmin() {
   const {
     data: { session },
   } = await supabase.auth.getSession();
+
   if (!session?.user) {
     window.location.href = "./index.html";
     return false;
   }
   elEmail.textContent = session.user.email || "";
 
-  // find hub_admin id
-  const { data: utils, error: uErr } = await supabase
+  // Log what the page *actually* sees
+  const { data: allUtils, error: listErr } = await supabase
     .from("hub_utilities")
-    .select("id, key")
-    .eq("key", "hub_admin")
-    .limit(1);
+    .select("id, key, label")
+    .order("label", { ascending: true });
 
-  if (uErr || !utils?.length) {
+  if (listErr) {
     elGuard.style.display = "";
-    toast(
-      "Admin utility entry missing. Insert {key:'hub_admin'} in hub_utilities."
+    console.warn("[Admin] hub_utilities list error:", listErr);
+    alert("Cannot read hub_utilities (RLS/policy?).");
+    return false;
+  }
+  console.log(
+    "[Admin] keys seen:",
+    (allUtils || []).map((u) => u.key)
+  );
+
+  const adminRow = (allUtils || []).find((u) => u.key === "hub_admin");
+  if (!adminRow) {
+    elGuard.style.display = "";
+    alert(
+      `Admin utility entry missing. Expect key "hub_admin". Keys I see: ${
+        (allUtils || []).map((u) => u.key).join(", ") || "(none)"
+      }`
     );
     return false;
   }
-  const adminId = utils[0].id;
 
+  const adminId = adminRow.id;
   const { data: acc, error: aErr } = await supabase
     .from("hub_user_access")
     .select("level")
@@ -105,10 +119,17 @@ async function mustBeAdmin() {
     .eq("utility_id", adminId)
     .limit(1);
 
-  if (aErr || !acc?.length || acc[0].level !== "use") {
+  if (aErr) {
+    elGuard.style.display = "";
+    console.warn("[Admin] hub_user_access read error:", aErr);
+    alert("Cannot read hub_user_access (RLS/policy?).");
+    return false;
+  }
+  if (!acc?.length || acc[0].level !== "use") {
     elGuard.style.display = "";
     return false;
   }
+
   elGuard.style.display = "none";
   return true;
 }

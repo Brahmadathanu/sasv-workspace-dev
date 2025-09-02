@@ -247,25 +247,84 @@
           border-color: #243244;
         }
       }
+      /* Inline auth layout */
+      .auth-inline {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .auth-input {
+        height: 36px;
+        padding: 6px 10px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        min-width: 180px;
+      }
+      .auth-link {
+        font-size: 0.9rem;
+        color: var(--brand, #0a62c3);
+        text-decoration: none;
+      }
+      .auth-link:hover {
+        text-decoration: underline;
+      }
+      .auth-msg {
+        min-height: 1em;
+        font-size: 0.9rem;
+        color: #6b7280;
+      }
     </style>
   </head>
 
   <body>
     <div class="hub-wrap">
-      <!-- Header: centered title + auth bar on the right -->
       <header class="hub-header">
         <h1 class="hub-title">SASV Utilities Hub</h1>
 
+        <!-- Auth bar -->
         <div id="hub-authbar" aria-label="Authentication">
-          <button id="hub-login" class="button" type="button">Sign in</button>
-          <button
-            id="hub-logout"
-            class="button"
-            type="button"
-            style="display: none"
-          >
-            Sign out
-          </button>
+          <!-- Logged-out view -->
+          <form id="hub-login-form" class="auth-inline" autocomplete="on">
+            <input
+              id="auth-email"
+              type="email"
+              inputmode="email"
+              placeholder="you@work.com"
+              required
+              class="auth-input"
+            />
+            <input
+              id="auth-password"
+              type="password"
+              placeholder="Password"
+              required
+              class="auth-input"
+            />
+            <button id="auth-signin" type="submit" class="button">
+              Sign in
+            </button>
+            <a
+              id="auth-forgot"
+              class="auth-link"
+              href="/utilities-hub/auth/reset.html"
+              >Forgot?</a
+            >
+            <span
+              id="auth-msg"
+              class="auth-msg"
+              role="status"
+              aria-live="polite"
+            ></span>
+          </form>
+
+          <!-- Logged-in view -->
+          <div id="hub-logged-in" class="auth-inline" style="display: none">
+            <span class="who">Signed in</span>
+            <button id="hub-logout" class="button" type="button">
+              Sign out
+            </button>
+          </div>
         </div>
       </header>
 
