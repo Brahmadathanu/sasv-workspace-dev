@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "sasv-utils-v17"; // bump!
+const CACHE_NAME = "sasv-utils-v25"; // bump!
 
 const PRECACHE = [
   // Hub shell
@@ -19,6 +19,8 @@ const PRECACHE = [
   // Utility pages
   "/shared/fill-planner.html",
   "/shared/stock-checker.html",
+  "/shared/etl-monitor.html",
+  "/shared/js/etl-control.js",
 
   // Icons referenced by the manifest
   "/utilities-hub/icons/icon-48x48.png",

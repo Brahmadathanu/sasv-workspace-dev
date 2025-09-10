@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>ETL Monitor</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <!-- shared styles -->
+    <link rel="stylesheet" href="./css/style.css" />
+    <!-- silence favicon 404 -->
+    <link rel="icon" href="data:," />
+    <style>
+      .mon-wrap {
+        max-width: min(1400px, 95vw);
+        margin: 16px auto 28px;
+      }
+      /* Top-right bar for HOME */
+      .topbar {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 8px;
+      }
+      .mon-row {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      }
+      .mon-card {
+        border: 1px solid #e5e7eb;
+        background: #fff;
+        border-radius: 12px;
+        padding: 14px;
+      }
+      .mon-card h3 {
+        margin: 0 0 8px;
+        font-size: 1rem;
+        color: #0b1420;
+      }
+      .kv {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 6px;
+        font-size: 0.95rem;
+      }
+      .kv div:nth-child(odd) {
+        color: #6b7280;
+      }
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        border: 1px solid #e5e7eb;
+        padding: 6px 8px;
+        font-size: 0.92rem;
+      }
+      th {
+        background: #f8fafc;
+        text-align: left;
+      }
+      .toolbar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin: 10px 0 14px;
+      }
+      .toolbar .button {
+        padding: 6px 10px;
+      }
+      /* status pill */
+      #etl-status {
+        margin-left: auto;
+        padding: 4px 8px;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+      }
+      #etl-status[data-kind="ok"] {
+        color: #065f46;
+        border-color: #b7f7d1;
+        background: #ecfdf5;
+      }
+      #etl-status[data-kind="warn"] {
+        color: #92400e;
+        border-color: #fde68a;
+        background: #fffbeb;
+      }
+      #etl-status[data-kind="error"] {
+        color: #991b1b;
+        border-color: #fecaca;
+        background: #fef2f2;
+      }
+      @media (prefers-color-scheme: dark) {
+        .mon-card {
+          background: #0b0f14;
+          border-color: #1f2937;
+        }
+        th,
+        td {
+          border-color: #1f2937;
+        }
+        th {
+          background: #0e141d;
+        }
+        #etl-status {
+          border-color: #243244;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="mon-wrap">
+      <!-- Top-right HOME button -->
+      <div class="topbar">
+        <button id="homeBtn" class="button" type="button">HOME</button>
+      </div>
+
+      <!-- Top summary cards -->
+      <header class="mon-row" aria-live="polite">
+        <!-- Agent heartbeat -->
+        <div class="mon-card">
+          <h3>Agent</h3>
+          <div class="kv">
+            <div>Hostname</div>
+            <div id="hb-host" class="mono">—</div>
+            <div>Version</div>
+            <div id="hb-ver" class="mono">—</div>
+            <div>Last seen</div>
+            <div id="hb-time">—</div>
+            <div>Last error</div>
+            <div id="hb-err">—</div>
+          </div>
+        </div>
+
+        <!-- Today — snapshots -->
+        <div class="mon-card">
+          <h3>Today — Snapshots</h3>
+          <div class="kv">
+            <div>As of date</div>
+            <div id="snap-date">—</div>
+            <div>Rows today</div>
+            <div id="snap-rows">—</div>
+            <div>Godowns with rows</div>
+            <div id="snap-godowns">—</div>
+          </div>
+        </div>
+
+        <!-- Today — mapping -->
+        <div class="mon-card">
+          <h3>Today — Mapping Health</h3>
+          <div class="kv">
+            <div>Resolvable %</div>
+            <div id="map-pct">—</div>
+            <div>Total rows</div>
+            <div id="map-total">—</div>
+            <div>Missing SKU</div>
+            <div id="map-miss-sku">—</div>
+            <div>Missing Godown</div>
+            <div id="map-miss-gdn">—</div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Toolbar -->
+      <div class="toolbar">
+        <button id="etl-refresh" class="button" type="button">Refresh</button>
+        <span class="dim">Auto refresh every ~30s</span>
+        <label class="dim" style="display: flex; align-items: center; gap: 6px">
+          <input type="checkbox" id="show-by-report" />
+          Show activity by report
+        </label>
+        <span id="etl-status" class="dim" data-kind="ok">Starting…</span>
+      </div>
+
+      <!-- Job activity -->
+      <section class="mon-card">
+        <h3>Job activity (by type)</h3>
+        <div class="dim" style="margin: -6px 0 8px">
+          Grouped rows from <code>v_job_activity</code>
+        </div>
+        <div style="overflow: auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Job type</th>
+                <th>Status</th>
+                <th>Jobs</th>
+                <th>First created</th>
+                <th>Last finished</th>
+              </tr>
+            </thead>
+            <tbody id="act-body">
+              <tr>
+                <td colspan="5">Loading…</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section class="mon-card" id="by-report" style="display: none">
+        <h3>Job activity (by report)</h3>
+        <div class="dim" style="margin: -6px 0 8px">
+          From <code>v_job_activity_detailed</code> — lets you see which
+          specific report is stuck
+        </div>
+        <div style="overflow: auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Job type</th>
+                <th>Report</th>
+                <th>Status</th>
+                <th>Jobs</th>
+                <th>First created</th>
+                <th>Last finished</th>
+              </tr>
+            </thead>
+            <tbody id="act2-body">
+              <tr>
+                <td colspan="6">Loading…</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- Script (kept relative to /public/shared/) -->
+    <script type="module" src="./js/etl-monitor.js"></script>
+  </body>
+</html>

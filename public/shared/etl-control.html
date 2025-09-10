@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>ETL Control</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="./css/style.css" />
+    <link rel="icon" href="data:," />
+    <style>
+      :root {
+        --card-border: #e5e7eb;
+        --muted: #6b7280;
+        --radius: 12px;
+
+        /* New button palette (subtle, flat) */
+        --btn-primary-bg: #0a62c3;
+        --btn-primary-text: #ffffff;
+        --btn-primary-border: #0a62c3;
+        --btn-secondary-bg: #f3f4f6;
+        --btn-secondary-text: #111827;
+        --btn-secondary-border: #e5e7eb;
+
+        /* Dark scheme fallbacks */
+        --btn-primary-bg-dark: #1f5aa6;
+        --btn-primary-text-dark: #ffffff;
+        --btn-primary-border-dark: #1f5aa6;
+        --btn-secondary-bg-dark: #131a24;
+        --btn-secondary-text-dark: #e5e7eb;
+        --btn-secondary-border-dark: #243244;
+      }
+
+      .wrap {
+        max-width: min(1200px, 95vw);
+        margin: 16px auto 28px;
+      }
+
+      /* Top bar */
+      .topbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 14px;
+      }
+      .flex-spacer {
+        flex: 1 1 auto;
+      }
+      .status {
+        padding: 6px 10px;
+        border-radius: 10px;
+        border: 1px solid var(--card-border);
+        font-weight: 500;
+      }
+      .status.ok {
+        color: #065f46;
+        background: #ecfdf5;
+        border-color: #b7f7d1;
+      }
+      .status.warn {
+        color: #92400e;
+        background: #fffbeb;
+        border-color: #fde68a;
+      }
+      .status.err {
+        color: #991b1b;
+        background: #fef2f2;
+        border-color: #fecaca;
+      }
+
+      /* Buttons (flat cosmetic touch) */
+      .button {
+        appearance: none;
+        border-radius: 10px;
+        padding: 9px 14px;
+        font-weight: 600;
+        border: 1px solid var(--btn-secondary-border);
+        background: var(--btn-secondary-bg);
+        color: var(--btn-secondary-text);
+        cursor: pointer;
+        transition: background-color 160ms ease, border-color 160ms ease,
+          opacity 160ms ease;
+      }
+      .button:hover {
+        opacity: 0.92;
+      }
+      .btn-primary {
+        border-color: var(--btn-primary-border);
+        background: var(--btn-primary-bg);
+        color: var(--btn-primary-text);
+      }
+      .button:disabled,
+      .menu button.disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+
+      /* Cards */
+      .card {
+        border: 1px solid var(--card-border);
+        background: #fff;
+        border-radius: var(--radius);
+        padding: 16px;
+      }
+      .card h3 {
+        margin: 0 0 12px;
+        font-size: 1.1rem;
+        color: #0b1420;
+      }
+      .hint {
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+      .section {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin: 8px 0 12px;
+      }
+
+      /* Forms */
+      .form {
+        display: grid;
+        gap: 12px;
+      }
+      .grid-3 {
+        grid-template-columns: 1fr 1fr 1fr;
+      }
+      .grid-2 {
+        grid-template-columns: 1fr 1fr;
+      }
+      .grid-1 {
+        grid-template-columns: 1fr;
+      }
+      @media (max-width: 700px) {
+        .grid-2,
+        .grid-3 {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .field > label {
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+      .field > input,
+      .field > select,
+      .field > textarea {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 10px;
+        font: inherit;
+        box-sizing: border-box;
+      }
+      .field > textarea {
+        min-height: 120px;
+        resize: vertical;
+      }
+      .inline {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+      }
+      .actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 8px;
+      }
+      .narrow {
+        max-width: 160px;
+      }
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas,
+          "Liberation Mono", monospace;
+        font-size: 12px;
+      }
+      .dimmed {
+        opacity: 0.55;
+      }
+
+      /* Table */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        padding: 8px 10px;
+        border: 1px solid var(--card-border);
+        vertical-align: top;
+      }
+      thead th {
+        background: #f9fafb;
+        font-weight: 600;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+      }
+      .status-chip {
+        padding: 2px 6px;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        display: inline-block;
+        border: 1px solid #e5e7eb;
+      }
+      .status-chip.q {
+        background: #f3f4f6;
+      }
+      .status-chip.ip {
+        background: #e0f2fe;
+      }
+      .status-chip.d {
+        background: #ecfdf5;
+      }
+      .status-chip.f {
+        background: #fef2f2;
+      }
+
+      .row-actions {
+        position: relative;
+      }
+      .menu {
+        position: absolute;
+        right: 0;
+        top: 100%;
+        background: #fff;
+        border: 1px solid var(--card-border);
+        border-radius: 10px;
+        min-width: 190px;
+        padding: 6px;
+        z-index: 20;
+        display: none;
+      }
+      .menu.open {
+        display: block;
+      }
+      .menu button {
+        width: 100%;
+        text-align: left;
+        padding: 8px 10px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        border-radius: 8px;
+      }
+      .menu button:hover {
+        background: #f3f4f6;
+      }
+
+      /* Pagination */
+      .pager {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 10px;
+      }
+
+      /* In-page modal */
+      .ipmodal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.35);
+        display: none;
+        align-items: flex-start;
+        justify-content: center;
+        z-index: 1000;
+        padding: 5vh 12px;
+      }
+      .ipmodal-backdrop.open {
+        display: flex;
+      }
+      .ipmodal {
+        background: #ffffff;
+        border: 1px solid var(--card-border);
+        border-radius: 16px;
+        width: min(720px, 96vw);
+        max-height: 90vh;
+        overflow: auto;
+        box-sizing: border-box;
+      }
+      .ipmodal header {
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--card-border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .ipmodal header h4 {
+        margin: 0;
+        font-size: 1rem;
+      }
+      .ipmodal header .xbtn {
+        border: none;
+        background: none;
+        font-size: 20px;
+        cursor: pointer;
+      }
+      .ipmodal .body {
+        padding: 14px 16px;
+      }
+      .ipmodal .footer {
+        padding: 14px 16px;
+        border-top: 1px solid var(--card-border);
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+      }
+      pre.modal-pre {
+        margin: 0;
+        padding: 12px;
+        border: 1px solid var(--card-border);
+        border-radius: 10px;
+        background: #f9fafb;
+        font-size: 12px;
+        overflow: auto;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        .card {
+          background: #0b0f14;
+          border-color: #1f2937;
+        }
+        .status {
+          border-color: #243244;
+        }
+        .field > input,
+        .field > select,
+        .field > textarea {
+          border-color: #374151;
+          background: #0e141d;
+          color: #e5e7eb;
+        }
+        thead th {
+          background: #0f141d;
+        }
+        .menu {
+          background: #0b0f14;
+        }
+        .menu button:hover {
+          background: #111827;
+        }
+
+        /* Buttons dark */
+        .button {
+          border-color: var(--btn-secondary-border-dark);
+          background: var(--btn-secondary-bg-dark);
+          color: var(--btn-secondary-text-dark);
+        }
+        .btn-primary {
+          border-color: var(--btn-primary-border-dark);
+          background: var(--btn-primary-bg-dark);
+          color: var(--btn-primary-text-dark);
+        }
+
+        /* Modal dark */
+        .ipmodal {
+          background: #0b0f14;
+          border-color: #1f2937;
+        }
+        .ipmodal header,
+        .ipmodal .footer {
+          border-color: #1f2937;
+        }
+        pre.modal-pre {
+          background: #0f141d;
+          border-color: #1f2937;
+          color: #e5e7eb;
+        }
+      }
+      .preview-textarea {
+        background: #f9fafb; /* light grey */
+        border-style: dashed; /* feels like a preview box */
+        color: #374151;
+        cursor: not-allowed;
+      }
+      .preview-textarea::selection {
+        background: #d1d5db;
+      }
+      @media (prefers-color-scheme: dark) {
+        .preview-textarea {
+          background: #0f141d;
+          border-color: #243244;
+          color: #cbd5e1;
+        }
+      }
+      /* Floating actions popover */
+      .popover-menu {
+        position: fixed; /* detach from table/scroll, attach to viewport */
+        background: #fff;
+        border: 1px solid var(--card-border);
+        border-radius: 10px;
+        width: 160px;
+        min-width: 0px;
+        padding: 4px;
+        z-index: 1200; /* above table and within-page modal backdrop */
+        display: none;
+        max-height: 50vh;
+        overflow: auto;
+      }
+      .popover-menu.open {
+        display: block;
+      }
+      .popover-menu button {
+        width: 100%;
+        text-align: left;
+        padding: 6px 10px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 0.95rem;
+      }
+      .popover-menu button:hover {
+        background: #f3f4f6;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        .popover-menu {
+          background: #0b0f14;
+          border-color: #1f2937;
+        }
+        .popover-menu button:hover {
+          background: #111827;
+        }
+      }
+
+      /* Optional: style disabled row actions */
+      .popover-menu button.disabled {
+        opacity: 0.5;
+        cursor: default;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="topbar">
+        <span id="ctl-status" class="status">Loading…</span>
+        <span class="flex-spacer"></span>
+        <button id="homeBtn" class="button btn-secondary" type="button">
+          HOME
+        </button>
+      </div>
+
+      <!-- ENQUEUE JOBS -->
+      <div class="card" id="card-enqueue">
+        <div class="section">
+          <h3>Enqueue Jobs</h3>
+          <span class="hint"
+            >Pick a preset, set date/priority, enqueue. “Master Aggregator”
+            disables non-relevant fields.</span
+          >
+        </div>
+
+        <div class="form grid-3">
+          <div class="field">
+            <label for="enq-preset">Preset (report)</label>
+            <select id="enq-preset">
+              <option value="">— Choose a preset —</option>
+              <optgroup label="All">
+                <option value="master_aggregator">Master Aggregator</option>
+              </optgroup>
+              <optgroup label="Stock (Godown)">
+                <option value="stock_ik">Stock — IK</option>
+                <option value="stock_ok">Stock — OK</option>
+                <option value="stock_kkd">Stock — KKD</option>
+              </optgroup>
+              <optgroup label="RM / PLM / Fuel / Consumables">
+                <option value="rm_stock">RM Stock Snapshot</option>
+                <option value="plm_stock">PLM Stock Snapshot</option>
+                <option value="fuel_stock">Fuel Stock Snapshot</option>
+                <option value="consumables_stock">
+                  Consumables Stock Snapshot
+                </option>
+              </optgroup>
+              <optgroup label="Purchase">
+                <option value="purchase_orders">Purchase Orders</option>
+              </optgroup>
+              <optgroup label="Group Outstanding">
+                <option value="go_debtors">Sundry Debtors</option>
+                <option value="go_creditors">Sundry Creditors</option>
+                <option value="go_interunit_creditors">
+                  Interunit Creditors
+                </option>
+              </optgroup>
+              <optgroup label="Monthly Group Summary">
+                <option value="mg_duties">Duties & Taxes</option>
+                <option value="mg_capital">Capital Account</option>
+                <option value="mg_secured">Secured Loans</option>
+                <option value="mg_unsecured">Unsecured Loans</option>
+              </optgroup>
+              <optgroup label="Sales">
+                <option value="vreg_sales">Voucher Register (Sales)</option>
+                <option value="daybook_sales">Daybook (Sales)</option>
+              </optgroup>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="enq-date">Date</label>
+            <input id="enq-date" type="date" />
+          </div>
+
+          <div class="field">
+            <label for="enq-priority">Priority (1=high … 100=low)</label>
+            <input
+              id="enq-priority"
+              class="narrow"
+              type="number"
+              min="1"
+              max="100"
+              step="1"
+              value="50"
+            />
+          </div>
+        </div>
+
+        <div class="form grid-2" style="margin-top: 6px">
+          <div class="field">
+            <label for="enq-company">Company (optional)</label>
+            <input id="enq-company" type="text" placeholder="SASV 2025–2026" />
+          </div>
+          <div class="field" id="field-godown">
+            <label for="enq-godown">Target Godown (when applicable)</label>
+            <input
+              id="enq-godown"
+              type="text"
+              placeholder="Warehouse No.2 (Ready to Use)"
+            />
+          </div>
+        </div>
+
+        <div class="inline" style="margin-top: 6px">
+          <label class="hint">
+            <input type="checkbox" id="enq-do-fetch" checked />
+            Add FETCH_XML
+          </label>
+          <label class="hint">
+            <input type="checkbox" id="enq-do-parse" checked />
+            Add PARSE job
+          </label>
+          <span id="enq-hint" class="hint" style="margin-left: auto"
+            >&nbsp;</span
+          >
+        </div>
+
+        <div class="field" style="margin-top: 8px">
+          <label for="enq-json">Params preview (auto-generated)</label>
+          <textarea
+            id="enq-json"
+            class="preview-textarea mono"
+            readonly
+            tabindex="-1"
+            aria-readonly="true"
+            placeholder='{"source_key":"raw/2025-09-08/…"}'
+          ></textarea>
+        </div>
+
+        <div class="actions">
+          <button id="btn-enq" class="button btn-primary" type="button">
+            Enqueue
+          </button>
+        </div>
+      </div>
+
+      <!-- JOBS -->
+      <div class="card" id="card-jobs">
+        <div class="section">
+          <h3>Jobs</h3>
+          <span class="hint"
+            >Loads automatically. Change filters to re-query.</span
+          >
+        </div>
+
+        <!-- Filters (auto apply) -->
+        <div class="form grid-3" style="margin-bottom: 8px">
+          <div class="field">
+            <label for="jobs-from">From</label>
+            <input id="jobs-from" type="date" />
+          </div>
+          <div class="field">
+            <label for="jobs-to">To</label>
+            <input id="jobs-to" type="date" />
+          </div>
+          <div class="field">
+            <label for="jobs-status">Status</label>
+            <select id="jobs-status">
+              <option value="">Any</option>
+              <option value="queued">queued</option>
+              <option value="in_progress">in_progress</option>
+              <option value="done">done</option>
+              <option value="error">error</option>
+            </select>
+          </div>
+        </div>
+        <div class="form grid-2" style="margin-bottom: 10px">
+          <div class="field">
+            <label for="jobs-type">Job type (contains)</label>
+            <input id="jobs-type" type="text" placeholder="e.g. PARSE_STOCK" />
+          </div>
+          <div class="field">
+            <label for="jobs-page-size">Page size</label>
+            <select id="jobs-page-size">
+              <option value="25">25</option>
+              <option value="50" selected>50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div style="overflow: auto; max-height: 60vh">
+          <table>
+            <thead>
+              <tr>
+                <!-- ID column removed -->
+                <th>Type</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Finished</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="jobs-rows">
+              <tr>
+                <td colspan="6" class="hint">Loading…</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pager">
+          <button id="jobs-prev" class="button btn-secondary" type="button">
+            Prev
+          </button>
+          <button id="jobs-next" class="button btn-secondary" type="button">
+            Next
+          </button>
+          <span id="jobs-range" class="hint">—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- In-page modal root -->
+    <div id="ipmodal-root" class="ipmodal-backdrop" aria-hidden="true"></div>
+
+    <script type="module" src="./js/etl-control.js"></script>
+  </body>
+</html>

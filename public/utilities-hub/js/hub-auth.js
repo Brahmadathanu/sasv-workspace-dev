@@ -89,6 +89,8 @@ const UTIL_URLS = {
   fill_planner: "../shared/fill-planner.html",
   stock_checker: "../shared/stock-checker.html",
   hub_admin: "./admin.html",
+  etl_monitor: "../shared/etl-monitor.html",
+  etl_control: "../shared/etl-control.html",
 };
 
 /** Render cards -------------------------------------------------------------*/
@@ -427,14 +429,17 @@ async function render() {
     if (visibleIds.has(id)) prunedAccessMap[id] = level;
   }
 
-  // Render
+  // NEW: hide 'none' completely
+  const filteredUtilities = visibleUtilities.filter(
+    (u) => (prunedAccessMap[u.id] || "none") !== "none"
+  );
+
+  // Render only 'use' and 'view'
   if (elRoot)
-    elRoot.innerHTML = renderUtilities(visibleUtilities, prunedAccessMap);
+    elRoot.innerHTML = renderUtilities(filteredUtilities, prunedAccessMap);
 
   // Empty state if nothing visible
-  const hasVisible = Object.values(prunedAccessMap).some(
-    (v) => v === "use" || v === "view"
-  );
+  const hasVisible = filteredUtilities.length > 0;
   if (elEmpty) elEmpty.style.display = hasVisible ? "none" : "";
 
   wireRequestButtons(session);
