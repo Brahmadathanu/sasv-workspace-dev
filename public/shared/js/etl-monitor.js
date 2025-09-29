@@ -25,22 +25,21 @@ const asDateTime = (iso) => {
       minute: "2-digit",
     });
   } catch (e) {
-    console.error("format datetime failed:", e);
+    console.error("asDateTime failed:", e);
     return "—";
   }
 };
 const asPercent = (v) => {
-  if (v == null || Number.isNaN(v)) return "—";
   const n = Number(v);
-  const isAlreadyPct = n > 1.0; // 97.3 means already percent
-  return `${(isAlreadyPct ? n : n * 100).toFixed(1)}%`;
+  if (Number.isNaN(n)) return "—";
+  const alreadyPct = n > 1.0;
+  return `${(alreadyPct ? n : n * 100).toFixed(1)}%`;
 };
 
 /** Ensure a status pill exists and set it */
 function setStatus(text, kind = "ok") {
   let el = $("etl-status");
   if (!el) {
-    // try to create one inside the .toolbar if missing
     const bar = document.querySelector(".toolbar");
     if (bar) {
       el = document.createElement("span");
@@ -53,10 +52,7 @@ function setStatus(text, kind = "ok") {
       bar.appendChild(el);
     }
   }
-  if (!el) {
-    console.warn("Element #etl-status not found and could not be created");
-    return; // last resort: silently skip
-  }
+  if (!el) return;
   el.textContent = text || "";
   el.dataset.kind = kind; // ok | warn | error
 }
@@ -74,13 +70,9 @@ let lastGoodAt = null;
 /* ---------------------------- Heartbeat card --------------------------- */
 async function updateHeartbeat() {
   const elHost = $("hb-host");
-  if (!elHost) console.warn("Element #hb-host not found");
   const elVer = $("hb-ver");
-  if (!elVer) console.warn("Element #hb-ver not found");
   const elTime = $("hb-time");
-  if (!elTime) console.warn("Element #hb-time not found");
   const elErr = $("hb-err");
-  if (!elErr) console.warn("Element #hb-err not found");
 
   const { data, error } = await supabase
     .from("v_health_last_heartbeat")
@@ -99,11 +91,8 @@ async function updateHeartbeat() {
 /* ------------------------ Stock snapshot summary ----------------------- */
 async function updateSnapshotToday() {
   const elDate = $("snap-date");
-  if (!elDate) console.warn("Element #snap-date not found");
   const elRows = $("snap-rows");
-  if (!elRows) console.warn("Element #snap-rows not found");
   const elGdn = $("snap-godowns");
-  if (!elGdn) console.warn("Element #snap-godowns not found");
 
   const { data, error } = await supabase
     .from("v_health_snapshot_today")
@@ -127,13 +116,9 @@ async function updateSnapshotToday() {
 /* ------------------------- Mapping / resolvability ---------------------- */
 async function updateMappingToday() {
   const elPct = $("map-pct");
-  if (!elPct) console.warn("Element #map-pct not found");
   const elTot = $("map-total");
-  if (!elTot) console.warn("Element #map-total not found");
   const elSku = $("map-miss-sku");
-  if (!elSku) console.warn("Element #map-miss-sku not found");
   const elGdn = $("map-miss-gdn");
-  if (!elGdn) console.warn("Element #map-miss-gdn not found");
 
   const { data, error } = await supabase
     .from("v_health_mapping_today")
@@ -164,17 +149,14 @@ async function updateMappingToday() {
 /* --------------------------- Job activity table ------------------------- */
 async function updateActivity() {
   const tbody = $("act-body");
-  if (!tbody) {
-    console.warn("Element #act-body not found");
-    return;
-  }
-  showLoadingOnce(tbody, 5); // table has 5 columns
+  if (!tbody) return;
+  showLoadingOnce(tbody, 5);
 
   const { data, error } = await supabase
     .from("v_job_activity")
     .select("job_type, status, jobs, first_created, last_finished")
     .order("job_type", { ascending: true })
-    .limit(50); // Limit to 50 rows for performance
+    .limit(50);
 
   if (error) throw error;
 
@@ -205,11 +187,9 @@ async function updateActivity() {
 }
 
 async function updateActivityByReport() {
-  // Removed unused variable 'wrap'
   const tbody = document.getElementById("act2-body");
   if (!tbody) return;
 
-  // show skeleton only on first paint
   if (!window.__etlHadFirstPaint) {
     tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#666">Loading…</td></tr>`;
   }
@@ -257,21 +237,121 @@ async function updateActivityByReport() {
   }
 }
 
+/* --------------------------- Forecast panels ---------------------------- */
+async function updateForecastOverview() {
+  const ids = {
+    pairs: "fore-pairs",
+    base: "fore-base",
+    llt: "fore-llt",
+    seasonal: "fore-season",
+    neg: "fore-neg",
+    oos: "fore-oos",
+  };
+  try {
+    const { data, error } = await supabase
+      .from("v_forecast_overview")
+      .select(
+        "pairs, rows_base_12m, rows_llt_12m, rows_seasonal_12m, negatives, out_of_season_rows"
+      )
+      .limit(1);
+
+    if (error) throw error;
+
+    const r = (data && data[0]) || {};
+    $(ids.pairs).textContent = Number(r.pairs ?? 0).toLocaleString("en-IN");
+    $(ids.base).textContent = Number(r.rows_base_12m ?? 0).toLocaleString(
+      "en-IN"
+    );
+    $(ids.llt).textContent = Number(r.rows_llt_12m ?? 0).toLocaleString(
+      "en-IN"
+    );
+    $(ids.seasonal).textContent = Number(
+      r.rows_seasonal_12m ?? 0
+    ).toLocaleString("en-IN");
+    $(ids.neg).textContent = Number(r.negatives ?? 0).toLocaleString("en-IN");
+    $(ids.oos).textContent = Number(r.out_of_season_rows ?? 0).toLocaleString(
+      "en-IN"
+    );
+  } catch (e) {
+    console.error("updateForecastOverview failed:", e);
+  }
+}
+
+// Small retry loop for “empty until hard refresh”
+async function fetchRecentRuns(maxTries = 3, delayMs = 600) {
+  let attempt = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from("v_forecast_runs_recent")
+      .select(
+        "id, as_of_date, status, created_at, closed_at, rows_base, rows_llt, rows_seasonal"
+      )
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    if (error) throw error;
+
+    const rows = Array.isArray(data) ? data : [];
+    if (rows.length > 0) return rows;
+
+    attempt += 1;
+    if (attempt >= maxTries) return rows;
+
+    await new Promise((r) => setTimeout(r, delayMs));
+  }
+}
+
+async function updateForecastRuns() {
+  const tbody = document.getElementById("fc-runs-body");
+  if (!tbody) return;
+  showLoadingOnce(tbody, 8);
+
+  try {
+    const rows = await fetchRecentRuns(3, 700);
+    tbody.innerHTML =
+      rows
+        .map(
+          (r) => `
+      <tr>
+        <td>${r.id}</td>
+        <td>${r.as_of_date ?? "—"}</td>
+        <td>${r.status ?? "—"}</td>
+        <td>${asDateTime(r.created_at)}</td>
+        <td>${asDateTime(r.closed_at)}</td>
+        <td style="text-align:right">${(r.rows_base ?? 0).toLocaleString(
+          "en-IN"
+        )}</td>
+        <td style="text-align:right">${(r.rows_llt ?? 0).toLocaleString(
+          "en-IN"
+        )}</td>
+        <td style="text-align:right">${(r.rows_seasonal ?? 0).toLocaleString(
+          "en-IN"
+        )}</td>
+      </tr>`
+        )
+        .join("") || `<tr><td colspan="8" class="dim">No recent runs</td></tr>`;
+  } catch (e) {
+    console.error("updateForecastRuns failed:", e);
+    tbody.innerHTML = `<tr><td colspan="8" class="dim">Runs unavailable</td></tr>`;
+  }
+}
+
 /* ---------------------------- Refresh / Poll ---------------------------- */
 async function refreshAll() {
-  if (isPolling) return; // avoid overlap
+  if (isPolling) return;
   isPolling = true;
   setStatus("Refreshing…", "ok");
 
   try {
-    const chk = document.getElementById("show-by-report");
-    const needReport = !!(chk && chk.checked);
+    const needReport = !!document.getElementById("show-by-report")?.checked;
     await Promise.all([
       updateHeartbeat(),
       updateSnapshotToday(),
       updateMappingToday(),
       updateActivity(),
       needReport ? updateActivityByReport() : Promise.resolve(),
+      updateForecastOverview(),
+      updateForecastRuns(),
     ]);
     window.__etlHadFirstPaint = true;
     lastGoodAt = new Date();
@@ -300,35 +380,106 @@ async function refreshAll() {
 }
 
 function wireUI() {
-  const btnRefresh = $("etl-refresh");
-  if (btnRefresh) btnRefresh.addEventListener("click", () => refreshAll());
-
-  const homeBtn = $("homeBtn");
-  if (homeBtn) homeBtn.addEventListener("click", () => Platform.goHome());
+  $("etl-refresh")?.addEventListener("click", () => refreshAll());
+  $("homeBtn")?.addEventListener("click", () => Platform.goHome());
 
   const chk = document.getElementById("show-by-report");
   const byReport = document.getElementById("by-report");
   if (chk && byReport) {
     chk.addEventListener("change", () => {
       byReport.style.display = chk.checked ? "" : "none";
-      // Kick a refresh when toggled
-      refreshAll().catch(() => {});
+      refreshAll().catch((e) =>
+        console.warn("refresh after toggle failed:", e)
+      );
     });
   }
+
+  // Re-run when window is refocused (helps Electron windows coming back)
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      refreshAll().catch((e) =>
+        console.warn("refresh on visibilitychange failed:", e)
+      );
+    }
+  });
 }
 
 /* --------------------------- Boot on DOM ready -------------------------- */
-document.addEventListener("DOMContentLoaded", () => {
+async function waitForSessionReady(timeoutMs = 3000) {
+  try {
+    const now = await supabase.auth.getSession();
+    if (now?.data?.session?.user?.id) return now.data.session;
+  } catch (e) {
+    console.debug("getSession failed (ok to ignore):", e?.message || e);
+  }
+  return await new Promise((resolve) => {
+    let done = false;
+    const timer = setTimeout(() => {
+      if (!done) {
+        done = true;
+        resolve(null);
+      }
+    }, timeoutMs);
+    const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
+      if (!done && session?.user?.id) {
+        done = true;
+        clearTimeout(timer);
+        try {
+          sub?.subscription?.unsubscribe();
+        } catch (e) {
+          console.debug("unsubscribe failed (safe):", e?.message || e);
+        }
+        resolve(session);
+      }
+    });
+  });
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
   wireUI();
-  // first run
-  refreshAll().catch((e) => console.error("initial refresh failed:", e));
-  // light polling with jitter
-  const BASE_MS = 60_000; // Increased polling interval to 60 seconds
+
+  try {
+    await supabase.auth.refreshSession();
+  } catch (e) {
+    console.debug("refreshSession skipped:", e?.message || e);
+  }
+
+  // If your RLS needs a session, wait briefly; if not, we still proceed.
+  await waitForSessionReady(2000);
+
+  // Also refresh when a session *arrives later* (first load issue)
+  const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
+    if (session?.user?.id) {
+      refreshAll().catch((e) =>
+        console.warn("refresh on auth state change failed:", e)
+      );
+    }
+  });
+
+  // 1) Initial refresh
+  await refreshAll().catch((e) => console.error("initial refresh failed:", e));
+
+  // 2) Safety second refresh after a short delay (fixes “empty until hard refresh”)
   setTimeout(() => {
-    refreshAll().catch(() => {});
+    refreshAll().catch((e) => console.warn("second refresh failed:", e));
+  }, 1250);
+
+  // 3) Light polling with jitter
+  const BASE_MS = 60_000;
+  setTimeout(() => {
+    refreshAll().catch((e) => console.warn("poll refresh failed:", e));
     setInterval(
-      () => refreshAll().catch(() => {}),
+      () => refreshAll().catch((e) => console.warn("poll refresh failed:", e)),
       BASE_MS + Math.floor(Math.random() * 4000)
     );
   }, Math.floor(Math.random() * 800));
+
+  // Clean up auth listener on unload (prevents duplicates if page hot-reloads)
+  window.addEventListener("beforeunload", () => {
+    try {
+      sub?.subscription?.unsubscribe();
+    } catch (e) {
+      console.debug("unsubscribe cleanup failed (safe):", e?.message || e);
+    }
+  });
 });

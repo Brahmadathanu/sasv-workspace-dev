@@ -12,7 +12,7 @@
         --muted: #6b7280;
         --radius: 12px;
 
-        /* New button palette (subtle, flat) */
+        /* Buttons */
         --btn-primary-bg: #0a62c3;
         --btn-primary-text: #ffffff;
         --btn-primary-border: #0a62c3;
@@ -20,7 +20,7 @@
         --btn-secondary-text: #111827;
         --btn-secondary-border: #e5e7eb;
 
-        /* Dark scheme fallbacks */
+        /* Dark fallbacks */
         --btn-primary-bg-dark: #1f5aa6;
         --btn-primary-text-dark: #ffffff;
         --btn-primary-border-dark: #1f5aa6;
@@ -66,7 +66,7 @@
         border-color: #fecaca;
       }
 
-      /* Buttons (flat cosmetic touch) */
+      /* Buttons */
       .button {
         appearance: none;
         border-radius: 10px;
@@ -136,7 +136,6 @@
           grid-template-columns: 1fr;
         }
       }
-
       .field {
         display: flex;
         flex-direction: column;
@@ -261,7 +260,7 @@
         margin-top: 10px;
       }
 
-      /* In-page modal */
+      /* Modal (in-page helper used by JS) */
       .ipmodal-backdrop {
         position: fixed;
         inset: 0;
@@ -346,7 +345,6 @@
           background: #111827;
         }
 
-        /* Buttons dark */
         .button {
           border-color: var(--btn-secondary-border-dark);
           background: var(--btn-secondary-bg-dark);
@@ -358,7 +356,6 @@
           color: var(--btn-primary-text-dark);
         }
 
-        /* Modal dark */
         .ipmodal {
           background: #0b0f14;
           border-color: #1f2937;
@@ -373,9 +370,10 @@
           color: #e5e7eb;
         }
       }
+
       .preview-textarea {
-        background: #f9fafb; /* light grey */
-        border-style: dashed; /* feels like a preview box */
+        background: #f9fafb;
+        border-style: dashed;
         color: #374151;
         cursor: not-allowed;
       }
@@ -389,16 +387,17 @@
           color: #cbd5e1;
         }
       }
+
       /* Floating actions popover */
       .popover-menu {
-        position: fixed; /* detach from table/scroll, attach to viewport */
+        position: fixed;
         background: #fff;
         border: 1px solid var(--card-border);
         border-radius: 10px;
         width: 160px;
         min-width: 0px;
         padding: 4px;
-        z-index: 1200; /* above table and within-page modal backdrop */
+        z-index: 1200;
         display: none;
         max-height: 50vh;
         overflow: auto;
@@ -418,6 +417,11 @@
       .popover-menu button:hover {
         background: #f3f4f6;
       }
+      .popover-menu button.disabled {
+        opacity: 0.5;
+        cursor: default;
+        pointer-events: none;
+      }
 
       @media (prefers-color-scheme: dark) {
         .popover-menu {
@@ -428,39 +432,33 @@
           background: #111827;
         }
       }
-
-      /* Optional: style disabled row actions */
-      .popover-menu button.disabled {
-        opacity: 0.5;
-        cursor: default;
-        pointer-events: none;
-      }
     </style>
   </head>
   <body>
     <div class="wrap">
-      <div class="topbar">
-        <span id="ctl-status" class="status">Loading…</span>
-        <span class="flex-spacer"></span>
+      <!-- Topbar -->
+      <div class="topbar" role="toolbar" aria-label="ETL Control toolbar">
+        <span id="ctl-status" class="status" aria-live="polite">Loading…</span>
+        <span class="flex-spacer" aria-hidden="true"></span>
         <button id="homeBtn" class="button btn-secondary" type="button">
           HOME
         </button>
       </div>
 
       <!-- ENQUEUE JOBS -->
-      <div class="card" id="card-enqueue">
+      <section class="card" id="card-enqueue" aria-labelledby="enqueue-title">
         <div class="section">
-          <h3>Enqueue Jobs</h3>
+          <h3 id="enqueue-title">Enqueue Jobs</h3>
           <span class="hint"
             >Pick a preset, set date/priority, enqueue. “Master Aggregator”
             disables non-relevant fields.</span
           >
         </div>
 
-        <div class="form grid-3">
+        <div class="form grid-3" aria-describedby="enqueue-title">
           <div class="field">
             <label for="enq-preset">Preset (report)</label>
-            <select id="enq-preset">
+            <select id="enq-preset" aria-describedby="enq-hint">
               <option value="">— Choose a preset —</option>
               <optgroup label="All">
                 <option value="master_aggregator">Master Aggregator</option>
@@ -536,14 +534,14 @@
         </div>
 
         <div class="inline" style="margin-top: 6px">
-          <label class="hint">
-            <input type="checkbox" id="enq-do-fetch" checked />
-            Add FETCH_XML
-          </label>
-          <label class="hint">
-            <input type="checkbox" id="enq-do-parse" checked />
-            Add PARSE job
-          </label>
+          <label class="hint"
+            ><input type="checkbox" id="enq-do-fetch" checked /> Add
+            FETCH_XML</label
+          >
+          <label class="hint"
+            ><input type="checkbox" id="enq-do-parse" checked /> Add PARSE
+            job</label
+          >
           <span id="enq-hint" class="hint" style="margin-left: auto"
             >&nbsp;</span
           >
@@ -566,12 +564,44 @@
             Enqueue
           </button>
         </div>
-      </div>
+      </section>
+
+      <!-- Forecast quick actions -->
+      <section
+        class="card"
+        id="card-forecast"
+        style="margin-top: 12px"
+        aria-labelledby="forecast-title"
+      >
+        <div class="section">
+          <h3 id="forecast-title">
+            Forecast (Baseline / LLT / Seasonal / All)
+          </h3>
+          <span class="hint"
+            >Pick a date (defaults to today). “Dry run” won’t write.</span
+          >
+        </div>
+        <div class="inline" style="gap: 8px; flex-wrap: wrap">
+          <label for="fc-date">Date</label>
+          <input type="date" id="fc-date" />
+          <label><input type="checkbox" id="fc-dry" /> Dry run</label>
+          <button class="button" id="btn-fc-baseline" type="button">
+            Run Baseline
+          </button>
+          <button class="button" id="btn-fc-llt" type="button">Run LLT</button>
+          <button class="button" id="btn-fc-seasonal" type="button">
+            Run Seasonal
+          </button>
+          <button class="button btn-primary" id="btn-fc-all" type="button">
+            Run All
+          </button>
+        </div>
+      </section>
 
       <!-- JOBS -->
-      <div class="card" id="card-jobs">
+      <section class="card" id="card-jobs" aria-labelledby="jobs-title">
         <div class="section">
-          <h3>Jobs</h3>
+          <h3 id="jobs-title">Jobs</h3>
           <span class="hint"
             >Loads automatically. Change filters to re-query.</span
           >
@@ -598,6 +628,7 @@
             </select>
           </div>
         </div>
+
         <div class="form grid-2" style="margin-bottom: 10px">
           <div class="field">
             <label for="jobs-type">Job type (contains)</label>
@@ -615,39 +646,38 @@
 
         <!-- Table -->
         <div style="overflow: auto; max-height: 60vh">
-          <table>
+          <table aria-describedby="jobs-title">
             <thead>
               <tr>
-                <!-- ID column removed -->
-                <th>Type</th>
-                <th>Status</th>
-                <th>Created</th>
-                <th>Finished</th>
-                <th>Actions</th>
+                <th scope="col">Type</th>
+                <th scope="col">Status</th>
+                <th scope="col">Created</th>
+                <th scope="col">Finished</th>
+                <th scope="col">Actions</th>
               </tr>
             </thead>
             <tbody id="jobs-rows">
               <tr>
-                <td colspan="6" class="hint">Loading…</td>
+                <td colspan="5" class="hint">Loading…</td>
               </tr>
             </tbody>
           </table>
         </div>
 
         <!-- Pagination -->
-        <div class="pager">
+        <div class="pager" role="navigation" aria-label="Jobs pagination">
           <button id="jobs-prev" class="button btn-secondary" type="button">
             Prev
           </button>
           <button id="jobs-next" class="button btn-secondary" type="button">
             Next
           </button>
-          <span id="jobs-range" class="hint">—</span>
+          <span id="jobs-range" class="hint" aria-live="polite">—</span>
         </div>
-      </div>
+      </section>
     </div>
 
-    <!-- In-page modal root -->
+    <!-- In-page modal root (kept for compatibility; JS creates its own modal root too) -->
     <div id="ipmodal-root" class="ipmodal-backdrop" aria-hidden="true"></div>
 
     <script type="module" src="./js/etl-control.js"></script>

@@ -13,7 +13,6 @@
         max-width: min(1400px, 95vw);
         margin: 16px auto 28px;
       }
-      /* Top-right bar for HOME */
       .topbar {
         display: flex;
         justify-content: flex-end;
@@ -70,7 +69,6 @@
       .toolbar .button {
         padding: 6px 10px;
       }
-      /* status pill */
       #etl-status {
         margin-left: auto;
         padding: 4px 8px;
@@ -161,6 +159,25 @@
             <div id="map-miss-gdn">—</div>
           </div>
         </div>
+
+        <!-- Forecast — Health (uses v_forecast_overview) -->
+        <div class="mon-card">
+          <h3>Forecast — Health</h3>
+          <div class="kv">
+            <div>Pairs</div>
+            <div id="fore-pairs">—</div>
+            <div>Base rows (12m)</div>
+            <div id="fore-base">—</div>
+            <div>LLT rows (12m)</div>
+            <div id="fore-llt">—</div>
+            <div>Seasonal rows (12m)</div>
+            <div id="fore-season">—</div>
+            <div>Negatives</div>
+            <div id="fore-neg">—</div>
+            <div>Out-of-season rows</div>
+            <div id="fore-oos">—</div>
+          </div>
+        </div>
       </header>
 
       <!-- Toolbar -->
@@ -199,6 +216,7 @@
           </table>
         </div>
       </section>
+
       <section class="mon-card" id="by-report" style="display: none">
         <h3>Job activity (by report)</h3>
         <div class="dim" style="margin: -6px 0 8px">
@@ -220,6 +238,35 @@
             <tbody id="act2-body">
               <tr>
                 <td colspan="6">Loading…</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Recent Forecast Runs (reads forecast_run + counts in landing tables) -->
+      <section class="mon-card">
+        <h3>Recent Forecast Runs</h3>
+        <div class="dim" style="margin: -6px 0 8px">
+          From <code>forecast_run</code>
+        </div>
+        <div style="overflow: auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Run</th>
+                <th>As of</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Closed</th>
+                <th>Base rows</th>
+                <th>LLT rows</th>
+                <th>Seasonal rows</th>
+              </tr>
+            </thead>
+            <tbody id="fc-runs-body">
+              <tr>
+                <td colspan="8">Loading…</td>
               </tr>
             </tbody>
           </table>

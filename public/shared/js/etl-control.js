@@ -1,3 +1,4 @@
+// public/shared/js/etl-control.js
 import { supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
 
@@ -106,16 +107,13 @@ function openModal({ title = "", body = "", footer = "" } = {}) {
   };
   root.querySelector("#modal-close").addEventListener("click", close);
   root.querySelector(".modal-backdrop").addEventListener("click", close);
-  document.addEventListener(
-    "keydown",
-    function esc(e) {
-      if (e.key === "Escape") {
-        close();
-        document.removeEventListener("keydown", esc);
-      }
-    },
-    { once: true }
-  );
+  const esc = (e) => {
+    if (e.key === "Escape") {
+      close();
+      document.removeEventListener("keydown", esc);
+    }
+  };
+  document.addEventListener("keydown", esc, { once: true });
 
   return {
     root,
@@ -234,7 +232,7 @@ async function loadPresetsIntoSelect() {
     });
   } catch (e) {
     console.error("list_etl_presets failed", e);
-    // Fallback: leave the "choose a preset" only (or you can keep your old static options if desired)
+    // leave default <option> — safe fallback
   }
 }
 
@@ -316,22 +314,37 @@ async function fillSample() {
 }
 
 /* Enqueue uses server builder */
+let __enqueueBusy = false;
 async function enqueueJob() {
+  if (__enqueueBusy) return;
+  __enqueueBusy = true;
+
   const preset = $("enq-preset")?.value?.trim();
   const priority = Number($("enq-priority")?.value || 50) || 50;
+
   if (!preset) {
     setStatus("Choose a preset first.", "warn");
+    __enqueueBusy = false;
     return;
   }
+
+  // Disable button to prevent double-submits
+  const btn = $("btn-enq");
+  btn && (btn.disabled = true);
+
   if (preset === "master_aggregator") {
     try {
       await runAggregator();
     } catch (e) {
       console.error(e);
       setStatus("Enqueue failed.", "error");
+    } finally {
+      if (btn) btn.disabled = false;
+      __enqueueBusy = false;
     }
     return;
   }
+
   const ctx = gatherPresetContext();
   try {
     const { data, error } = await supabase.rpc("build_preset_jobs", {
@@ -358,7 +371,24 @@ async function enqueueJob() {
   } catch (e) {
     console.error(e);
     setStatus("Enqueue failed.", "error");
+  } finally {
+    if (btn) btn.disabled = false;
+    __enqueueBusy = false;
   }
+}
+
+/* Forecast helpers */
+async function enqueueForecast(jobType, asOfDate, dryRun = false) {
+  const p_as_of_date =
+    asOfDate || document.getElementById("fc-date")?.value || null;
+  const p_dry_run = !!dryRun;
+  const { data, error } = await supabase.rpc("enqueue_forecast_job", {
+    job_type: jobType,
+    p_as_of_date,
+    p_dry_run,
+  });
+  if (error) throw error;
+  return data; // server returns { job_id, job_type, queued_at } or similar
 }
 
 /* ---------------------------------------------------
@@ -577,10 +607,9 @@ function wireRowActions() {
       `;
 
       // --- Fixed width & measured positioning ---
-      const WIDTH_PX = 160; // keep in sync with .popover-menu width
+      const WIDTH_PX = 160;
       pop.style.width = `${WIDTH_PX}px`;
 
-      // Open before measuring to get actual height
       pop.classList.add("open");
 
       const r = btn.getBoundingClientRect();
@@ -602,8 +631,6 @@ function wireRowActions() {
 
       pop.style.left = `${left}px`;
       pop.style.top = `${top}px`;
-
-      return;
     }
   });
 
@@ -656,10 +683,10 @@ function wireRowActions() {
               } finally {
                 modal.close();
                 closePopover();
-                await loadJobs(__page); // only reload for state-changing action
+                await loadJobs(__page);
               }
             });
-          return; // handled inside
+          return;
         }
         case "jobid": {
           const modal = openModal({
@@ -732,7 +759,6 @@ function wireRowActions() {
       console.error(err);
       setStatus("Action failed.", "error");
     } finally {
-      // Do not auto-reload for read-only actions
       closePopover();
     }
   };
@@ -762,13 +788,22 @@ function ensureStatusFilterOptions() {
   `;
 }
 
+function defaultDatesIfEmpty() {
+  // Enqueue date
+  if ($("enq-date") && !$("enq-date").value)
+    $("enq-date").value = todayYmd(true);
+  // Forecast date
+  const fc = $("fc-date");
+  if (fc && !fc.value) fc.value = todayYmd(true);
+}
+
 function wireUI() {
   if (wireUI._wired) return;
   wireUI._wired = true;
 
   $("homeBtn")?.addEventListener("click", () => Platform.goHome());
 
-  // Enqueue
+  // Enqueue (presets)
   $("enq-preset")?.addEventListener("change", () => {
     updatePresetDisabling();
     fillSample();
@@ -791,7 +826,7 @@ function wireUI() {
     el.addEventListener(ev, fillSample);
   });
 
-  // Jobs: auto-apply filters (debounced)
+  // Jobs: filters (debounced)
   const debouncedLoad = debounce(() => loadJobs(1), 300);
   [
     "jobs-from",
@@ -818,16 +853,62 @@ function wireUI() {
     if (__page < maxPage) loadJobs(__page + 1);
   });
 
-  // Defaults
-  if ($("enq-date") && !$("enq-date").value)
-    $("enq-date").value = todayYmd(true);
+  // Forecast quick actions
+  const fDate = document.getElementById("fc-date");
+  const fDry = document.getElementById("fc-dry");
+  const withGuard = (fn) => async () => {
+    try {
+      await fn();
+    } catch (e) {
+      console.error(e);
+      setStatus("Enqueue failed.", "error");
+    }
+  };
+
+  document.getElementById("btn-fc-baseline")?.addEventListener(
+    "click",
+    withGuard(async () => {
+      setStatus("Enqueuing baseline…", "warn");
+      await enqueueForecast("FORECAST_BASELINE", fDate?.value, fDry?.checked);
+      setStatus("Baseline enqueued.", "ok");
+    })
+  );
+
+  document.getElementById("btn-fc-llt")?.addEventListener(
+    "click",
+    withGuard(async () => {
+      setStatus("Enqueuing LLT…", "warn");
+      await enqueueForecast("FORECAST_LLT", fDate?.value, fDry?.checked);
+      setStatus("LLT enqueued.", "ok");
+    })
+  );
+
+  document.getElementById("btn-fc-seasonal")?.addEventListener(
+    "click",
+    withGuard(async () => {
+      setStatus("Enqueuing Seasonal…", "warn");
+      await enqueueForecast("FORECAST_SEASONAL", fDate?.value, fDry?.checked);
+      setStatus("Seasonal enqueued.", "ok");
+    })
+  );
+
+  document.getElementById("btn-fc-all")?.addEventListener(
+    "click",
+    withGuard(async () => {
+      setStatus("Enqueuing All (chain)…", "warn");
+      await enqueueForecast("FORECAST_ALL", fDate?.value, fDry?.checked);
+      setStatus("All enqueued.", "ok");
+    })
+  );
+
+  // Defaults & preset menu
+  defaultDatesIfEmpty();
   ensureStatusFilterOptions();
 
-  // Load presets dynamically, then refresh preset UI bits
   (async () => {
     await loadPresetsIntoSelect();
     updatePresetDisabling();
-    fillSample();
+    await fillSample();
   })();
 
   // Initial jobs load
