@@ -5,7 +5,7 @@
     <title>SASV WORKSPACE</title>
     <link rel="stylesheet" href="public/shared/css/style.css" />
     <style>
-      /* Make the logout button look link-like and show pointer */
+      /* Link-like logout button */
       #logoutLink {
         background: none;
         border: none;
@@ -15,15 +15,15 @@
         text-decoration: underline;
         cursor: pointer;
       }
-
       #logoutLink:hover {
         opacity: 0.8;
       }
-
       #logoutLink:focus {
         outline: 2px solid #007cff;
         outline-offset: 2px;
       }
+
+      /* Online bubbles */
       .online-bubble {
         display: inline-flex;
         align-items: center;
@@ -39,7 +39,6 @@
         cursor: default;
         user-select: none;
       }
-
       .online-bubble .tooltip {
         position: absolute;
         top: -32px;
@@ -51,54 +50,61 @@
         border-radius: 4px;
         white-space: nowrap;
         font-size: 11px;
-        visibility: hidden; /* was display:none */
+        visibility: hidden;
         opacity: 0;
         z-index: 10;
         transition: opacity 0.1s;
       }
-
       .online-bubble:hover .tooltip {
         visibility: visible;
         opacity: 1;
       }
 
-      /* Prevent tooltips that hang off the right edge from showing a scroll bar */
       body {
         overflow-x: hidden;
       }
-
-      /* make the user bar a flex row */
       #userBar {
         display: flex;
         align-items: center;
       }
-
-      /* push the bubble row to the far right */
       #onlineUsersContainer {
-        margin-left: auto; /* takes up remaining space */
+        margin-left: auto;
+      }
+
+      /* Section helper text */
+      .section-hint {
+        margin: 6px 0 12px;
+        color: var(--muted, #6b7280);
+        font-size: 0.95rem;
+      }
+
+      /* Placeholder (coming-soon) links */
+      .module-link[aria-disabled="true"] {
+        pointer-events: none;
+        opacity: 0.55;
+        text-decoration: none;
+        cursor: not-allowed;
       }
     </style>
   </head>
   <body data-theme="system">
     <header>
-      <h1>
-        SASV WORKSPACE <small id="appVersion"></small>
-        <!-- ✨ new -->
-      </h1>
+      <h1>SASV WORKSPACE <small id="appVersion"></small></h1>
 
       <div id="userBar">
         <span id="userInfo">Loading…</span>
         &nbsp;|&nbsp;
         <button id="logoutLink" type="button">Log Out</button>
-        <span id="onlineUsersContainer">
-          <!-- bubbles appear here -->
-        </span>
+        <span id="onlineUsersContainer"></span>
       </div>
     </header>
 
     <!-- Work Log -->
     <section class="panel">
       <h2>Work Log</h2>
+      <p class="section-hint">
+        Daily operational notes, task tracking, and activity history.
+      </p>
       <div class="module-list">
         <a
           class="module-link"
@@ -130,9 +136,209 @@
       </div>
     </section>
 
-    <!-- Manufacturing Infrastructure -->
+    <!-- Planning Workspace -->
     <section class="panel">
-      <h2>Manufacturing Infrastructure</h2>
+      <h2>Planning Workspace</h2>
+      <p class="section-hint">
+        Plan demand with model outputs, review exceptions, apply overrides, and
+        publish the final plan.
+      </p>
+      <div class="module-list">
+        <a
+          class="module-link"
+          data-module-id="forecast-console"
+          href="#"
+          aria-disabled="true"
+          title="Coming soon"
+          >Forecast Console</a
+        >
+        <a
+          class="module-link"
+          data-module-id="plan-overrides-approval"
+          href="#"
+          aria-disabled="true"
+          title="Coming soon"
+          >Overrides & Approval</a
+        >
+        <a
+          class="module-link"
+          data-module-id="seasonality-constraints"
+          href="#"
+          aria-disabled="true"
+          title="Coming soon"
+          >Seasonality & Constraints</a
+        >
+        <a
+          class="module-link"
+          data-module-id="planning-scenarios"
+          href="#"
+          aria-disabled="true"
+          title="Coming soon"
+          >Scenarios</a
+        >
+      </div>
+    </section>
+
+    <!-- MRP & Procurement -->
+    <section class="panel">
+      <h2>MRP & Procurement</h2>
+      <p class="section-hint">
+        Convert the published plan into material requirements and purchase
+        actions.
+      </p>
+      <div class="module-list">
+        <a
+          class="module-link"
+          data-module-id="mrp-explosion"
+          href="#"
+          aria-disabled="true"
+          title="Coming soon"
+          >MRP Explosion</a
+        >
+        <a
+          class="module-link"
+          data-module-id="purchase-suggestions"
+          href="#"
+          aria-disabled="true"
+          title="Coming soon"
+          >Purchase Suggestions</a
+        >
+        <a
+          class="module-link"
+          data-module-id="material-indents"
+          href="#"
+          aria-disabled="true"
+          title="Coming soon"
+          >Material Indents</a
+        >
+        <a
+          class="module-link"
+          data-module-id="vendor-material"
+          href="#"
+          aria-disabled="true"
+          title="Coming soon"
+          >Vendor ↔ Material</a
+        >
+      </div>
+    </section>
+
+    <!-- Inventory & Sales Analytics -->
+    <section class="panel">
+      <h2>Inventory & Sales Analytics</h2>
+      <p class="section-hint">
+        Operational checks to defend the plan—coverage, risk, and trends.
+      </p>
+      <div class="module-list">
+        <a
+          class="module-link"
+          data-module-id="inventory-coverage"
+          href="#"
+          aria-disabled="true"
+          title="Coming soon"
+          >Inventory Coverage</a
+        >
+        <a
+          class="module-link"
+          data-module-id="stockouts-risk"
+          href="#"
+          aria-disabled="true"
+          title="Coming soon"
+          >Stockouts & At-Risk</a
+        >
+        <a
+          class="module-link"
+          data-module-id="sales-runrate"
+          href="#"
+          aria-disabled="true"
+          title="Coming soon"
+          >Sales Run-Rate</a
+        >
+      </div>
+    </section>
+
+    <!-- Product & Reference Master -->
+    <section class="panel">
+      <h2>Product & Reference Master</h2>
+      <p class="section-hint">
+        Single source of truth for products, SKUs, costing, and reference
+        publications.
+      </p>
+      <div class="module-list">
+        <a
+          class="module-link"
+          data-module-id="manage-products"
+          href="manage-products.html"
+          >Products</a
+        >
+        <a
+          class="module-link"
+          data-module-id="manage-skus"
+          href="#"
+          aria-disabled="true"
+          title="Coming soon"
+          >SKUs</a
+        >
+        <a
+          class="module-link"
+          data-module-id="manage-cost-sheets"
+          href="#"
+          aria-disabled="true"
+          title="Coming soon"
+          >Cost Sheets</a
+        >
+
+        <a
+          class="module-link"
+          data-module-id="manage-categories"
+          href="manage-categories.html"
+          >Categories</a
+        >
+        <a
+          class="module-link"
+          data-module-id="manage-subcategories"
+          href="manage-subcategories.html"
+          >Sub-categories</a
+        >
+        <a
+          class="module-link"
+          data-module-id="manage-product-groups"
+          href="manage-product-groups.html"
+          >Groups</a
+        >
+        <a
+          class="module-link"
+          data-module-id="manage-subgroups"
+          href="manage-subgroups.html"
+          >Sub-groups</a
+        >
+
+        <a
+          class="module-link"
+          data-module-id="manage-references"
+          href="manage-references.html"
+          >References</a
+        >
+        <a
+          class="module-link"
+          data-module-id="manage-publications"
+          href="manage-publications.html"
+          >Publications</a
+        >
+        <a
+          class="module-link"
+          data-module-id="manage-chapters"
+          href="manage-chapters.html"
+          >Chapters</a
+        >
+      </div>
+    </section>
+
+    <!-- Plant & Assets -->
+    <section class="panel">
+      <h2>Plant & Assets</h2>
+      <p class="section-hint">
+        Physical manufacturing structure—sections, areas, machines, and types.
+      </p>
       <div class="module-list">
         <a
           class="module-link"
@@ -167,9 +373,12 @@
       </div>
     </section>
 
-    <!-- BMR Details -->
+    <!-- BMR & Production Records -->
     <section class="panel">
-      <h2>BMR Details</h2>
+      <h2>BMR & Production Records</h2>
+      <p class="section-hint">
+        Batch manufacturing records and production traceability.
+      </p>
       <div class="module-list">
         <a
           class="module-link"
@@ -192,95 +401,12 @@
       </div>
     </section>
 
-    <!-- Product Master -->
-    <section class="panel">
-      <h2>Product Master</h2>
-      <div class="module-list">
-        <a
-          class="module-link"
-          data-module-id="manage-categories"
-          href="manage-categories.html"
-          >Categories</a
-        >
-        <a
-          class="module-link"
-          data-module-id="manage-subcategories"
-          href="manage-subcategories.html"
-          >Sub-categories</a
-        >
-        <a
-          class="module-link"
-          data-module-id="manage-product-groups"
-          href="manage-product-groups.html"
-          >Groups</a
-        >
-        <a
-          class="module-link"
-          data-module-id="manage-subgroups"
-          href="manage-subgroups.html"
-          >Sub-groups</a
-        >
-        <a
-          class="module-link"
-          data-module-id="manage-products"
-          href="manage-products.html"
-          >Products</a
-        >
-        <a
-          class="module-link"
-          data-module-id="manage-references"
-          href="manage-references.html"
-          >References</a
-        >
-        <a
-          class="module-link"
-          data-module-id="manage-publications"
-          href="manage-publications.html"
-          >Publications</a
-        >
-        <a
-          class="module-link"
-          data-module-id="manage-chapters"
-          href="manage-chapters.html"
-          >Chapters</a
-        >
-      </div>
-    </section>
-
-    <!--  Small Utilities  -->
-    <section class="panel">
-      <h2>Utilities</h2>
-      <div class="module-list">
-        <a
-          class="module-link"
-          data-module-id="fill-planner"
-          href="public/shared/fill-planner.html"
-          >Fill Planner</a
-        >
-        <a
-          class="module-link"
-          data-module-id="stock-checker"
-          href="public/shared/stock-checker.html"
-          >Stock Checker</a
-        >
-        <a
-          class="module-link"
-          data-module-id="etl-monitor"
-          href="public/shared/etl-monitor.html"
-          >ETL Monitor</a
-        >
-        <a
-          class="module-link"
-          data-module-id="etl-control"
-          href="public/shared/etl-control.html"
-          >ETL Control</a
-        >
-      </div>
-    </section>
-
     <!-- SOPs -->
     <section class="panel">
-      <h2>Standard Operating Procedures (SOPs)</h2>
+      <h2>SOPs</h2>
+      <p class="section-hint">
+        Standard operating procedures: draft, review, and publish.
+      </p>
       <div class="module-list">
         <a
           class="module-link"
@@ -303,6 +429,40 @@
       </div>
     </section>
 
+    <!-- System & Integrations -->
+    <section class="panel">
+      <h2>System & Integrations</h2>
+      <p class="section-hint">Operations, pipelines, and helper tools.</p>
+      <div class="module-list">
+        <!-- Renamed: ETL → Operations -->
+        <a
+          class="module-link"
+          data-module-id="operations-monitor"
+          href="public/shared/operations-monitor.html"
+          >Operations Monitor</a
+        >
+        <a
+          class="module-link"
+          data-module-id="operations-control"
+          href="public/shared/operations-control.html"
+          >Operations Control</a
+        >
+
+        <a
+          class="module-link"
+          data-module-id="fill-planner"
+          href="public/shared/fill-planner.html"
+          >Fill Planner</a
+        >
+        <a
+          class="module-link"
+          data-module-id="stock-checker"
+          href="public/shared/stock-checker.html"
+          >Stock Checker</a
+        >
+      </div>
+    </section>
+
     <!-- Supabase & Init -->
     <script type="module" src="public/shared/js/supabaseClient.js"></script>
     <script type="module">
@@ -319,23 +479,22 @@
             data: { user },
           } = await supabase.auth.getUser();
 
-          // --- presence constants ---
-          const PRESENCE_REFRESH_MS = 20_000; // how often we update our own heartbeat
-          const ONLINE_THRESHOLD_MS = 60_000; // window to consider someone "online"
+          // presence constants
+          const PRESENCE_REFRESH_MS = 20_000;
+          const ONLINE_THRESHOLD_MS = 60_000;
 
-          // upsert our own presence row
-          async function sendHeartbeat(user) {
-            await supabase.from("user_presence").upsert(
-              {
-                user_id: user.id,
-                email: user.email,
-                last_seen: new Date().toISOString(),
-              },
-              { onConflict: "user_id" }
-            );
+          async function sendHeartbeat(u) {
+            await supabase
+              .from("user_presence")
+              .upsert(
+                {
+                  user_id: u.id,
+                  email: u.email,
+                  last_seen: new Date().toISOString(),
+                },
+                { onConflict: "user_id" }
+              );
           }
-
-          // get current online users (those seen in the last threshold)
           async function getOnlineUsers() {
             const cutoff = new Date(
               Date.now() - ONLINE_THRESHOLD_MS
@@ -345,7 +504,6 @@
               .select("user_id,email,last_seen")
               .gt("last_seen", cutoff)
               .order("last_seen", { ascending: false });
-
             if (error) {
               console.error("Failed to fetch online users", error);
               return [];
@@ -353,65 +511,46 @@
             return users || [];
           }
 
-          /* -------- colour helper: consistent HSL from any string -------- */
           function colorFromString(str) {
             let hash = 0;
-            for (let i = 0; i < str.length; i++) {
+            for (let i = 0; i < str.length; i++)
               hash = str.charCodeAt(i) + ((hash << 5) - hash);
-            }
-            const hue = Math.abs(hash) % 360; // 0‒359
-            return `hsl(${hue}, 65%, 60%)`; // bright, readable colour
+            const hue = Math.abs(hash) % 360;
+            return `hsl(${hue}, 65%, 60%)`;
           }
-
-          /* -------- initials helper -------- */
           function initialsFromEmail(email) {
             const name = email.split("@")[0];
             const parts = name.split(/[._-]/).filter(Boolean);
-            if (parts.length >= 2)
-              return (parts[0][0] + parts[1][0]).toUpperCase();
-            return name.slice(0, 2).toUpperCase();
+            return (
+              parts.length >= 2 ? parts[0][0] + parts[1][0] : name.slice(0, 2)
+            ).toUpperCase();
           }
-
-          /* -------- render bubbles -------- */
           function renderOnlineBubbles(users) {
             const container = document.getElementById("onlineUsersContainer");
             if (!container) return;
             container.innerHTML = "";
-
             users.forEach((u) => {
               const bubble = document.createElement("div");
               bubble.className = "online-bubble";
               bubble.textContent = initialsFromEmail(u.email);
-
-              /* give this user a unique colour */
               bubble.style.setProperty("--bubble-bg", colorFromString(u.email));
-
               const tooltip = document.createElement("div");
               tooltip.className = "tooltip";
               tooltip.textContent = u.email;
               bubble.appendChild(tooltip);
-
-              /* run fitTooltip when the tooltip becomes visible */
               bubble.addEventListener("mouseenter", () => fitTooltip(tooltip));
-              bubble.addEventListener("focus", () => fitTooltip(tooltip)); // keyboard nav
-
+              bubble.addEventListener("focus", () => fitTooltip(tooltip));
               container.appendChild(bubble);
               fitTooltip(tooltip);
             });
           }
-
-          /* -------- helper: keep tooltip on-screen -------- */
           function fitTooltip(tooltip) {
             const rect = tooltip.getBoundingClientRect();
-            const gap = 6; // keep a tiny gap from the edge
-
-            // Shift right-overflowing tooltips left
+            const gap = 6;
             if (rect.right > window.innerWidth) {
               const overshoot = rect.right - window.innerWidth + gap;
               tooltip.style.transform = `translateX(calc(-50% - ${overshoot}px))`;
             }
-
-            // Shift left-overflowing tooltips right
             if (rect.left < 0) {
               const overshoot = Math.abs(rect.left) + gap;
               tooltip.style.transform = `translateX(calc(-50% + ${overshoot}px))`;
@@ -420,52 +559,26 @@
 
           const userInfoEl = document.getElementById("userInfo");
           const logoutEl = document.getElementById("logoutLink");
-          if (!userInfoEl || !logoutEl) return; // safety
-
+          if (!userInfoEl || !logoutEl) return;
           userInfoEl.textContent = `Logged in as ${user.email}`;
 
-          logoutEl.addEventListener("click", async (e) => {
-            e.preventDefault();
-            // delete our presence entry (best-effort)
-            await supabase
-              .from("user_presence")
-              .delete()
-              .eq("user_id", user.id);
-            await supabase.auth.signOut();
-            window.location.href = "login.html";
-          });
-
-          const { data: perms } = await supabase
-            .from("user_permissions")
-            .select("module_id,can_view")
-            .eq("user_id", user.id);
-
-          const permMap = Object.fromEntries(
-            (perms || []).map((p) => [p.module_id, p.can_view])
-          );
-          document.querySelectorAll("a.module-link").forEach((a) => {
-            if (!permMap[a.dataset.moduleId]) a.style.display = "none";
-          });
-
-          // ---- presence startup & polling ----
-          await sendHeartbeat(user); // immediate heartbeat
-          setInterval(() => sendHeartbeat(user), PRESENCE_REFRESH_MS); // periodic update
-
+          // presence: startup & polling
+          await sendHeartbeat(user);
+          setInterval(() => sendHeartbeat(user), PRESENCE_REFRESH_MS);
           async function refreshOnlineDisplay() {
             const onlineUsers = await getOnlineUsers();
             renderOnlineBubbles(onlineUsers);
           }
-          refreshOnlineDisplay(); // initial display
-          setInterval(refreshOnlineDisplay, 30_000); // refresh every 30s
+          refreshOnlineDisplay();
+          setInterval(refreshOnlineDisplay, 30_000);
 
-          // cleanup on window close (best-effort)
+          // cleanup on window close (best effort)
           window.addEventListener("beforeunload", () => {
-            // best effort; may not complete if unload is abrupt
             supabase.from("user_presence").delete().eq("user_id", user.id);
           });
 
-          // override logout handler here to ensure presence is removed first
-          logoutEl.replaceWith(logoutEl.cloneNode(true)); // remove previous listeners
+          // logout: ensure presence deletion first
+          logoutEl.replaceWith(logoutEl.cloneNode(true));
           const freshLogoutEl = document.getElementById("logoutLink");
           freshLogoutEl.addEventListener("click", async (e) => {
             e.preventDefault();
@@ -475,6 +588,20 @@
               .eq("user_id", user.id);
             await supabase.auth.signOut();
             window.location.href = "login.html";
+          });
+
+          // permissions
+          const { data: perms } = await supabase
+            .from("user_permissions")
+            .select("module_id,can_view")
+            .eq("user_id", user.id);
+          const permMap = Object.fromEntries(
+            (perms || []).map((p) => [p.module_id, p.can_view])
+          );
+          document.querySelectorAll("a.module-link").forEach((a) => {
+            // hide only if explicitly denied; placeholders remain visible but disabled
+            const canView = permMap[a.dataset.moduleId];
+            if (canView === false) a.style.display = "none";
           });
         } catch (err) {
           console.error("initApp error", err);
@@ -488,7 +615,7 @@
     <script>
       window.addEventListener("DOMContentLoaded", async () => {
         try {
-          const v = await window.electronAPI.getAppVersion(); // provided by preload.js
+          const v = await window.electronAPI.getAppVersion();
           document.getElementById("appVersion").textContent = `v${v}`;
         } catch (err) {
           console.error("Could not obtain app version:", err);
