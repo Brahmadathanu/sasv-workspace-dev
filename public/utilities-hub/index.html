@@ -111,7 +111,7 @@
         font-weight: 600;
       }
 
-      /* Grid of utilities */
+      /* Base grid (used for non-sectioned fallback too) */
       .hub-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -131,6 +131,7 @@
         flex-direction: column;
         gap: 10px;
         align-items: center;
+        min-height: 0;
       }
       .hub-card h3 {
         margin: 0;
@@ -219,6 +220,7 @@
         }
       }
 
+      /* Dark theme overrides */
       @media (prefers-color-scheme: dark) {
         .hub-card {
           background: #0b0f14;
@@ -249,6 +251,7 @@
           border-color: #243244;
         }
       }
+
       /* Inline auth layout */
       .auth-inline {
         display: flex;
@@ -276,6 +279,7 @@
         font-size: 0.9rem;
         color: #6b7280;
       }
+
       /* Root stays block with sectioned rendering */
       #hub-root.hub-root-sectioned {
         display: block;
@@ -300,20 +304,19 @@
       }
 
       /* Section grid:
-   - Columns don’t expand beyond ~320–340px
-   - Left-aligned (no “huge” single card)
-   - Nice max width so even many tools look tidy */
+     - Fixed-ish card width for tidy rows
+     - Left-aligned by default (mobile/tablet) */
       .hub-section .hub-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(260px, 320px));
         gap: 16px;
-        justify-content: start; /* left-align the columns */
+        justify-content: start; /* ← default: left-aligned */
         align-items: stretch;
         max-width: 1120px; /* 3–4 columns max on desktop */
-        margin-inline: auto; /* center the whole group */
+        margin-inline: auto; /* center the whole group container */
       }
 
-      /* Scale up a bit on large screens */
+      /* Scale up a bit on very large screens */
       @media (min-width: 1400px) {
         .hub-section .hub-grid {
           grid-template-columns: repeat(auto-fit, minmax(260px, 340px));
@@ -321,11 +324,14 @@
         }
       }
 
-      /* Cards */
-      .hub-card {
-        display: flex;
-        flex-direction: column;
-        min-height: 0;
+      /* OPTION A: center the grid only on wide screens to avoid left-heavy feel */
+      @media (min-width: 1100px) {
+        .hub-section .hub-grid {
+          justify-content: center; /* center the cards on wide viewports */
+        }
+        .hub-section-title {
+          text-align: center;
+        }
       }
 
       /* Dark theme divider */
