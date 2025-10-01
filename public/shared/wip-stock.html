@@ -4,12 +4,10 @@
     <meta charset="UTF-8" />
     <title>SASV WORKSPACE | WIP Stock</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="stylesheet" href="public/shared/css/style.css" />
-    <link rel="stylesheet" href="css/flatpickr.min.css" />
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css"
-    />
+    <link rel="stylesheet" href="./css/style.css" />
+    <link rel="stylesheet" href="../vendor/flatpickr.min.css" />
+    <!-- Tom Select -->
+    <link rel="stylesheet" href="../vendor/tom-select/tom-select.css" />
 
     <style>
       /* ─── FULL-HEIGHT FLEX LAYOUT ─────────────────────────── */
@@ -291,7 +289,6 @@
     <div class="header-bar">
       <h2>WIP Stock</h2>
       <div class="header-actions">
-        <button id="backBtn">BACK</button>
         <button id="homeBtn">HOME</button>
       </div>
     </div>
@@ -408,10 +405,8 @@
     </div>
 
     <!-- ===== SCRIPTS ====================================================== -->
-    <script
-      defer
-      src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"
-    ></script>
+    <!-- Tom Select CSS & JS -->
+    <script src="../vendor/tom-select/tom-select.complete.min.js"></script>
     <script
       defer
       src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
@@ -420,8 +415,8 @@
       defer
       src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"
     ></script>
-    <script defer src="css/flatpickr.min.js"></script>
-    <script defer src="css/plugins/confirmDate/confirmDate.js"></script>
+    <script src="../vendor/flatpickr.min.js"></script>
+    <script src="../vendor/plugins/confirmDate/confirmDate.js"></script>
 
     <!-- Your module (unchanged) -->
     <script type="module" defer src="js/wip-stock.js"></script>

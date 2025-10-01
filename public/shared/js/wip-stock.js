@@ -2,7 +2,8 @@
 /* eslint-env browser */
 /* global flatpickr, confirmDatePlugin, TomSelect */
 
-import { supabase } from "../public/shared/js/supabaseClient.js";
+import { supabase } from "./supabaseClient.js";
+import { Platform } from "./platform.js";
 
 /* ══════════════════════════════════════════════════════════════
    1.  HELPER FUNCTIONS
@@ -63,7 +64,6 @@ let filteredRows = [];
    2.  DOM REFERENCES
    ══════════════════════════════════════════════════════════════ */
 const homeBtn = document.getElementById("homeBtn");
-const backBtn = document.getElementById("backBtn");
 const fSection = document.getElementById("filterSection");
 const fSub = document.getElementById("filterSubsection");
 const fArea = document.getElementById("filterArea");
@@ -659,8 +659,8 @@ async function init() {
   flatpickr(sLogDate, fpBase);
 
   // ─── Core buttons ────────────────────────────────────────────
-  homeBtn.onclick = () => (location.href = "index.html");
-  backBtn.onclick = () => window.history.back();
+  // HOME → Hub home if in Hub, otherwise Workspace home
+  if (homeBtn) homeBtn.onclick = () => Platform.goHome();
   closeWip.onclick = () => hide(overlay);
   downloadCsv.onclick = exportCsv;
   downloadPdf.onclick = exportPdf;

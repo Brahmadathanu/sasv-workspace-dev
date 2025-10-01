@@ -89,6 +89,7 @@ const UTIL_URLS = {
   fill_planner: "../shared/fill-planner.html",
   stock_checker: "../shared/stock-checker.html",
   view_logs: "../shared/view-logs.html",
+  wip_stock: "../shared/wip-stock.html",
   hub_admin: "./admin.html",
   etl_monitor: "../shared/etl-monitor.html",
   etl_control: "../shared/etl-control.html",
