@@ -124,6 +124,12 @@
           href="edit-log-entry.html"
           >Edit Log Entry</a
         >
+        <a
+          class="module-link"
+          data-module-id="view-logs"
+          href="public/shared/view-logs.html"
+          >View Logs</a
+        >
         <a class="module-link" data-module-id="reports" href="reports.html"
           >Reports</a
         >
@@ -484,16 +490,14 @@
           const ONLINE_THRESHOLD_MS = 60_000;
 
           async function sendHeartbeat(u) {
-            await supabase
-              .from("user_presence")
-              .upsert(
-                {
-                  user_id: u.id,
-                  email: u.email,
-                  last_seen: new Date().toISOString(),
-                },
-                { onConflict: "user_id" }
-              );
+            await supabase.from("user_presence").upsert(
+              {
+                user_id: u.id,
+                email: u.email,
+                last_seen: new Date().toISOString(),
+              },
+              { onConflict: "user_id" }
+            );
           }
           async function getOnlineUsers() {
             const cutoff = new Date(

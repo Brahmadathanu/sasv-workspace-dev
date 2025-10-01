@@ -1,6 +1,7 @@
 /* global flatpickr, confirmDatePlugin, TomSelect */
 
-import { supabase } from "../public/shared/js/supabaseClient.js";
+import { supabase } from "./supabaseClient.js";
+import { Platform } from "./platform.js";
 
 /* ── Flatpickr base config -------------------------------------------------- */
 const fpBase = {
@@ -37,7 +38,6 @@ const $ = (s) => document.querySelector(s);
 
 /* ── Element refs ----------------------------------------------------------- */
 const homeBtn = $("#homeBtn");
-const backBtn = $("#backBtn");
 const fDate = $("#filterDate");
 const fSection = $("#filterSection");
 const fSub = $("#filterSubsection");
@@ -96,9 +96,8 @@ let queryVersion = 0;
 document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
-  /* Home nav */
-  homeBtn.onclick = () => (location.href = "index.html");
-  backBtn.onclick = () => window.history.back();
+  // HOME → Hub home if in Hub, otherwise Workspace home
+  if (homeBtn) homeBtn.onclick = () => Platform.goHome();
 
   /* Date picker + mask */
   attachMask(fDate);

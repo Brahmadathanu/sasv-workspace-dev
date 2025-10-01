@@ -1,0 +1,36 @@
+D:\ELECTRON PROJECTS\daily-worklog-app\js
+├── activities.js
+├── areas.js
+├── bmr-add.js
+├── bmr-card-not-initiated.js
+├── bmr-edit.js
+├── bmr-view.js
+├── bottled-stock.js
+├── categories.js
+├── chapters.js
+├── fg-bulk-stock.js
+├── log-add.js
+├── log-edit.js
+├── log-view.js
+├── login.js
+├── machine-types.js
+├── marked.min.js
+├── plants.js
+├── product-groups.js
+├── productReferences.js
+├── products.js
+├── publications.js
+├── reports.js
+├── reset-password.js
+├── sections.js
+├── sop-dashboard.js
+├── sop-editor.js
+├── sop-viewer.js
+├── subcategories.js
+├── subgroups.js
+├── subsections.js
+├── update-log-status.js
+└── wip-stock.js
+
+file: 32
+

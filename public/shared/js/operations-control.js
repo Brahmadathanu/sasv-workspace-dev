@@ -382,13 +382,16 @@ async function enqueueForecast(jobType, asOfDate, dryRun = false) {
   const p_as_of_date =
     asOfDate || document.getElementById("fc-date")?.value || null;
   const p_dry_run = !!dryRun;
+
+  // ✅ pass the parameter names exactly as the SQL function defines them
   const { data, error } = await supabase.rpc("enqueue_forecast_job", {
-    job_type: jobType,
+    p_job_type: jobType,
     p_as_of_date,
     p_dry_run,
+    p_priority: 10, // optional; keep or make configurable
   });
   if (error) throw error;
-  return data; // server returns { job_id, job_type, queued_at } or similar
+  return data;
 }
 
 /* ---------------------------------------------------

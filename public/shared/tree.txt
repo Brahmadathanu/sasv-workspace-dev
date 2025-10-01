@@ -1,0 +1,10 @@
+D:\ELECTRON PROJECTS\daily-worklog-app\public\shared
+├── css
+├── fill-planner.html
+├── js
+├── operations-control.html
+├── operations-monitor.html
+└── stock-checker.html
+
+directory: 2 file: 4
+

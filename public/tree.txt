@@ -1,0 +1,10 @@
+D:\ELECTRON PROJECTS\daily-worklog-app\public
+├── netlify.toml
+├── shared
+├── sw.js
+├── utilities-hub
+├── vendor
+└── _redirects
+
+directory: 3 file: 3
+

@@ -5,10 +5,17 @@
     <title>SASV WORKSPACE | View Logs</title>
 
     <!-- Flatpickr date-picker (local build lives in /css) -->
-    <link rel="stylesheet" href="css/flatpickr.min.css" />
+    <link rel="stylesheet" href="../vendor/flatpickr.min.css" />
+    <link
+      rel="stylesheet"
+      href="../vendor/plugins/confirmDate/confirmDate.css"
+    />
+
+    <!-- Tom Select -->
+    <link rel="stylesheet" href="../vendor/tom-select/tom-select.css" />
 
     <!-- Shared global design-token + component styles -->
-    <link rel="stylesheet" href="public/shared/css/style.css" />
+    <link rel="stylesheet" href="./css/style.css" />
 
     <!-- Per-page tweaks -->
     <style>
@@ -49,21 +56,6 @@
         display: flex;
         gap: 8px;
         margin-left: auto;
-      }
-
-      /* BACK = secondary gray */
-      #backBtn {
-        background: #6c757d;
-        color: #fff;
-        border: none;
-        padding: 8px 12px;
-        border-radius: 4px;
-        font-size: 1rem;
-        cursor: pointer;
-        transition: background 0.2s;
-      }
-      #backBtn:hover {
-        background: #5a6268;
       }
 
       /* ─── PRIMARY FILTER STRIP ─────────────────────────────────────────── */
@@ -324,7 +316,6 @@
     <div class="header-bar">
       <h2>View Logs</h2>
       <div class="header-actions">
-        <button id="backBtn">BACK</button>
         <button id="homeBtn">HOME</button>
       </div>
     </div>
@@ -437,20 +428,17 @@
     </div>
 
     <!-- Runtime deps -->
-    <script src="css/flatpickr.min.js"></script>
-    <script src="css/plugins/confirmDate/confirmDate.js"></script>
+    <script src="../vendor/flatpickr.min.js"></script>
+    <script src="../vendor/plugins/confirmDate/confirmDate.js"></script>
 
     <!-- PDF export libs (load BEFORE log-view.js) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
 
     <!-- Tom Select CSS & JS -->
-    <link
-      href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css"
-      rel="stylesheet"
-    />
-    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+    <script src="../vendor/tom-select/tom-select.complete.min.js"></script>
 
-    <script type="module" src="js/log-view.js"></script>
+    <script type="module" src="./js/platform.js"></script>
+    <script type="module" src="./js/log-view.js"></script>
   </body>
 </html>
