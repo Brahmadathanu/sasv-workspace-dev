@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>SASV WORKSPACE | Plant / Machinery Occupancy</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- App styles -->
+    <link rel="stylesheet" href="./css/style.css" />
+
+    <!-- (Add vendor libs later if you need flatpickr/tom-select/pdf etc.) -->
+
+    <style>
+      .page-wrap {
+        max-width: 1100px;
+        margin: 16px auto;
+        padding: 0 12px;
+      }
+      .header-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 14px;
+      }
+      #homeBtn {
+        padding: 6px 10px;
+        border-radius: 8px;
+        border: 1px solid var(--border, #e5e7eb);
+        background: #f7fafc;
+        cursor: pointer;
+      }
+      .empty {
+        border: 1px dashed #cbd5e1;
+        padding: 14px;
+        border-radius: 12px;
+        color: #6b7280;
+        background: #f8fafc;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        display: none;
+      }
+      th,
+      td {
+        border: 1px solid #e5e7eb;
+        padding: 8px;
+        text-align: left;
+      }
+      th {
+        background: #f3f4f6;
+      }
+    </style>
+  </head>
+  <body data-theme="system">
+    <div class="page-wrap">
+      <div class="header-bar">
+        <h2>Plant / Machinery Occupancy</h2>
+        <button id="homeBtn" type="button" title="Home">HOME</button>
+      </div>
+
+      <p id="msg" class="empty">
+        This page is ready. We’ll plug in the actual occupancy logic next.
+      </p>
+
+      <table id="occTable">
+        <thead>
+          <tr>
+            <th>Plant / Machinery</th>
+            <th>Area</th>
+            <th>Status</th>
+            <th>Last Used On</th>
+          </tr>
+        </thead>
+        <tbody id="occBody"></tbody>
+      </table>
+    </div>
+  </body>
+</html>
+
+<!-- Shared scripts -->
+<script type="module" src="./js/plant-occupancy.js"></script>

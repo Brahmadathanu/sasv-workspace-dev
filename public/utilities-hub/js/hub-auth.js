@@ -1,6 +1,6 @@
 // public/utilities-hub/js/hub-auth.js
 // =============================================================================
-// SASV Utilities Hub — Email/Password Auth + Access Control + Grid Rendering
+// SASV Utilities Hub — Auth, Access Control, and Curated Utilities Grid
 // Requires: ../../shared/js/supabaseClient.js (exporting `supabase`)
 //
 // DOM used:
@@ -12,13 +12,15 @@
 //   hub_utilities(id, key, label, description)
 //   hub_user_access(user_id, utility_id, level enum: 'none'|'view'|'use')
 //   hub_access_requests(id, user_id, utility_id, note, status)
-// Admin view/table (any one of these you created earlier):
-//   hub_admins(user_id uuid)  -- view that lists admin user_ids
+// Admin check:
+//   User is "admin" if they have USE on the 'hub_admin' utility.
 // =============================================================================
 
 import { supabase } from "../../shared/js/supabaseClient.js";
 
-/** DOM refs */
+/* ──────────────────────────────────────────────────────────────
+   DOM references
+─────────────────────────────────────────────────────────────── */
 const elRoot = document.getElementById("hub-root");
 const elEmpty = document.getElementById("hub-empty");
 const elGreeting = document.getElementById("hub-greeting");
@@ -33,29 +35,9 @@ const elAuthMsg = document.getElementById("auth-msg");
 const elLoggedIn = document.getElementById("hub-logged-in");
 const btnLogout = document.getElementById("hub-logout");
 
-// Admin = user has USE access on the 'hub_admin' utility
-async function isHubAdmin(userId) {
-  if (!userId) return false;
-  try {
-    const { data, error } = await supabase
-      .from("hub_user_access")
-      .select("level, hub_utilities!inner(key)")
-      .eq("user_id", userId)
-      .eq("hub_utilities.key", "hub_admin")
-      .maybeSingle(); // returns null if no row
-
-    if (error) {
-      console.warn("Admin check error:", error);
-      return false;
-    }
-    return (data?.level || "").toLowerCase() === "use";
-  } catch (e) {
-    console.warn("Admin check failed:", e);
-    return false;
-  }
-}
-
-/** Helpers ------------------------------------------------------------------*/
+/* ──────────────────────────────────────────────────────────────
+   Helpers
+─────────────────────────────────────────────────────────────── */
 function setBusy(on) {
   elRoot?.setAttribute("aria-busy", on ? "true" : "false");
 }
@@ -84,18 +66,111 @@ function clearMsgSoon(ms = 3000) {
   }, ms);
 }
 
-/** Utility key -> page (relative) ------------------------------------------*/
-const UTIL_URLS = {
-  fill_planner: "../shared/fill-planner.html",
-  stock_checker: "../shared/stock-checker.html",
-  view_logs: "../shared/view-logs.html",
-  wip_stock: "../shared/wip-stock.html",
-  hub_admin: "./admin.html",
-  etl_monitor: "../shared/etl-monitor.html",
-  etl_control: "../shared/etl-control.html",
-};
+/* ──────────────────────────────────────────────────────────────
+   Admin check (USE access on hub_admin)
+─────────────────────────────────────────────────────────────── */
+async function isHubAdmin(userId) {
+  if (!userId) return false;
+  try {
+    const { data, error } = await supabase
+      .from("hub_user_access")
+      .select("level, hub_utilities!inner(key)")
+      .eq("user_id", userId)
+      .eq("hub_utilities.key", "hub_admin")
+      .maybeSingle();
 
-/** Render cards -------------------------------------------------------------*/
+    if (error) {
+      console.warn("Admin check error:", error);
+      return false;
+    }
+    return (data?.level || "").toLowerCase() === "use";
+  } catch (e) {
+    console.warn("Admin check failed:", e);
+    return false;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Utility key -> page URL mapping (relative to /public/utilities-hub/js/)
+   NOTE: We support both 'view_log' and 'view_logs' keys.
+─────────────────────────────────────────────────────────────── */
+const UTIL_URLS = Object.freeze({
+  // Planning & Operations / MRP
+  fill_planner: "../shared/fill-planner.html",
+  plant_occupancy: "../shared/plant-occupancy.html",
+
+  // Inventory & Sales Analytics
+  stock_checker: "../shared/stock-checker.html",
+  wip_stock: "../shared/wip-stock.html",
+  fg_bulk_stock: "../shared/fg-bulk-stock.html",
+  bottled_stock: "../shared/bottled-stock.html",
+  bmr_card_not_initiated: "../shared/bmr-card-not-initiated.html",
+
+  // Work Logs
+  view_log: "../shared/view-logs.html", // DB key you showed
+  view_logs: "../shared/view-logs.html", // safety: alternate spelling
+
+  // System
+  etl_monitor: "../shared/operations-monitor.html",
+  etl_control: "../shared/operations-control.html",
+
+  // Admin
+  hub_admin: "./admin.html",
+});
+
+/* ──────────────────────────────────────────────────────────────
+   Curation: sections and ordering
+─────────────────────────────────────────────────────────────── */
+const SECTION_ORDER = Object.freeze({
+  "Planning & Operations": 10,
+  "Inventory & Sales Analytics": 20,
+  "Work Logs": 30,
+  System: 90,
+  Admin: 100,
+});
+
+const UTIL_META = Object.freeze({
+  // Planning & Operations / MRP
+  fill_planner: { section: "Planning & Operations", order: 10 },
+  plant_occupancy: { section: "Planning & Operations", order: 20 },
+
+  // Inventory & Sales Analytics
+  stock_checker: { section: "Inventory & Sales Analytics", order: 10 },
+  wip_stock: { section: "Inventory & Sales Analytics", order: 20 },
+  fg_bulk_stock: { section: "Inventory & Sales Analytics", order: 30 },
+  bottled_stock: { section: "Inventory & Sales Analytics", order: 40 },
+  bmr_card_not_initiated: { section: "Inventory & Sales Analytics", order: 50 },
+
+  // Work Logs
+  view_log: { section: "Work Logs", order: 10 },
+  view_logs: { section: "Work Logs", order: 10 }, // safety alias
+
+  // System
+  etl_monitor: { section: "System", order: 10 },
+  etl_control: { section: "System", order: 20 },
+
+  // Admin
+  hub_admin: { section: "Admin", order: 10 },
+});
+
+function sortByCuration(a, b) {
+  const ma = UTIL_META[a.key] || {};
+  const mb = UTIL_META[b.key] || {};
+
+  const sa = SECTION_ORDER[ma.section] ?? 999;
+  const sb = SECTION_ORDER[mb.section] ?? 999;
+  if (sa !== sb) return sa - sb;
+
+  const oa = ma.order ?? 999;
+  const ob = mb.order ?? 999;
+  if (oa !== ob) return oa - ob;
+
+  return (a.label || "").localeCompare(b.label || "");
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Minimal cards & messages
+─────────────────────────────────────────────────────────────── */
 function renderMessageCard(title, message) {
   return `
     <article class="hub-card" role="status" aria-live="polite">
@@ -104,38 +179,84 @@ function renderMessageCard(title, message) {
     </article>`;
 }
 
-function renderUtilities(utilities, accessMap) {
-  if (!utilities?.length) {
-    return renderMessageCard(
-      "No tools yet",
-      "Please contact admin to add utilities."
-    );
-  }
+/* ──────────────────────────────────────────────────────────────
+   Sectioned renderer (curated order + Request buttons)
+─────────────────────────────────────────────────────────────── */
+function renderUtilitiesSectioned(utilities, accessMap) {
+  // keep only utilities that are visible (use or view)
+  const visible = utilities.filter(
+    (u) => (accessMap[u.id] || "none") !== "none"
+  );
 
-  return utilities
-    .map((u) => {
-      const access = accessMap[u.id] || "none";
-      if (access === "use") {
-        return `
+  // attach meta for grouping/sorting
+  const withMeta = visible.map((u) => {
+    const m = UTIL_META[u.key] || {};
+    return {
+      ...u,
+      __section: m.section || "Other",
+      __order: m.order ?? 999,
+      __access: accessMap[u.id] || "none",
+    };
+  });
+
+  // group by section
+  const bySection = {};
+  withMeta.forEach((u) => {
+    (bySection[u.__section] ||= []).push(u);
+  });
+
+  // order sections
+  const sections = Object.keys(bySection).sort(
+    (A, B) => (SECTION_ORDER[A] ?? 999) - (SECTION_ORDER[B] ?? 999)
+  );
+
+  let html = "";
+  sections.forEach((sec) => {
+    const list = bySection[sec].sort(sortByCuration);
+    if (!list.length) return;
+
+    html += `
+      <div class="hub-section">
+        <h3 class="hub-section-title">${sec}</h3>
+        <div class="hub-grid">
+    `;
+
+    list.forEach((u) => {
+      const access = u.__access; // 'use' | 'view'
+      const href = access === "use" ? u.href : "#";
+      const locked = access === "use" ? "" : " 🔒";
+
+      html += `
         <article class="hub-card" tabindex="-1">
-          <h3><a href="${u.href}">${safeText(u.label)}</a></h3>
-          <p>${safeText(u.description)}</p>
-        </article>`;
-      }
-      // 'view' or 'none' → show locked + Request button
-      return `
-      <article class="hub-card" tabindex="-1">
-        <h3><span aria-label="Locked">${safeText(u.label)} 🔒</span></h3>
-        <p>${safeText(u.description)}</p>
-        <button class="button" data-request="${u.id}" data-key="${u.key}">
-          Request access
-        </button>
-      </article>`;
-    })
-    .join("");
+          <h3>${
+            access === "use"
+              ? `<a href="${href}">${safeText(u.label)}</a>`
+              : `<span aria-label="Locked">${safeText(u.label)}${locked}</span>`
+          }</h3>
+          <p>${safeText(u.description || "")}</p>
+          ${
+            access === "use"
+              ? ""
+              : `<button class="button" data-request="${u.id}" data-key="${u.key}">
+                   Request access
+                 </button>`
+          }
+        </article>
+      `;
+    });
+
+    html += `</div></div>`;
+  });
+
+  return (
+    html ||
+    renderMessageCard("No tools yet", "Please contact admin to add utilities.")
+  );
 }
 
-/** Wire "Request access" buttons -------------------------------------------*/
+/* ──────────────────────────────────────────────────────────────
+   Request Access buttons
+─────────────────────────────────────────────────────────────── */
 function wireRequestButtons(session) {
   if (!elRoot) return;
   elRoot.querySelectorAll("[data-request]").forEach((btn) => {
@@ -166,12 +287,13 @@ function wireRequestButtons(session) {
   });
 }
 
-/** Data: list utilities & access -------------------------------------------*/
+/* ──────────────────────────────────────────────────────────────
+   Data fetchers
+─────────────────────────────────────────────────────────────── */
 async function loadUtilities() {
   const { data, error } = await supabase
     .from("hub_utilities")
-    .select("id, key, label, description")
-    .order("label", { ascending: true });
+    .select("id, key, label, description");
 
   if (!error && Array.isArray(data)) {
     return data.map((r) => ({
@@ -183,7 +305,7 @@ async function loadUtilities() {
     }));
   }
 
-  // Benign fallback (table missing/empty): keep Hub usable
+  // Benign fallback (keeps hub usable if table missing/empty)
   return [
     {
       id: "fill-planner",
@@ -224,12 +346,14 @@ async function loadAccessMap(userId, utilities) {
     return map;
   }
 
-  // fallback: show as 'view' so they can request access
+  // fallback: show as 'view' so users can request access
   utilities.forEach((u) => (map[u.id] = "view"));
   return map;
 }
 
-/** Greeting + Name ----------------------------------------------------------*/
+/* ──────────────────────────────────────────────────────────────
+   Greeting
+─────────────────────────────────────────────────────────────── */
 async function showGreeting(session) {
   if (!elGreeting || !elUserName) return;
 
@@ -239,7 +363,6 @@ async function showGreeting(session) {
     return;
   }
 
-  // Prefer full_name metadata; otherwise derive from email
   const displayName =
     session.user.user_metadata?.full_name ||
     guessNameFromEmail(session.user.email) ||
@@ -249,19 +372,16 @@ async function showGreeting(session) {
   elGreeting.style.display = "";
 }
 
-/** Auth UI show/hide --------------------------------------------------------*/
+/* ──────────────────────────────────────────────────────────────
+   Auth UI + flows
+─────────────────────────────────────────────────────────────── */
 function updateAuthUI(session) {
   const signedIn = !!session?.user;
   if (elLoginForm) elLoginForm.style.display = signedIn ? "none" : "flex";
   if (elLoggedIn) elLoggedIn.style.display = signedIn ? "flex" : "none";
-
-  if (!signedIn) {
-    // clear password field on sign-out
-    if (elPassword) elPassword.value = "";
-  }
+  if (!signedIn && elPassword) elPassword.value = "";
 }
 
-/** Email/Password sign-in ---------------------------------------------------*/
 async function signInWithPassword(event) {
   event?.preventDefault?.();
   const email = elEmail?.value?.trim();
@@ -277,10 +397,8 @@ async function signInWithPassword(event) {
   showMsg("Signing in…");
   try {
     const { data: signInResult, error } =
-      await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      await supabase.auth.signInWithPassword({ email, password });
+
     if (error) {
       const msg = /invalid/.test(error.message || "")
         ? "Invalid email or password."
@@ -291,8 +409,6 @@ async function signInWithPassword(event) {
     }
 
     console.log("Signed in:", signInResult); // optional
-
-    // success → UI will refresh via auth state listener
     showMsg("Signed in.");
     clearMsgSoon();
   } catch (e) {
@@ -304,7 +420,6 @@ async function signInWithPassword(event) {
   }
 }
 
-/** Create account (email + password) */
 async function signUpWithPassword(event) {
   event?.preventDefault?.();
   const email = elEmail?.value?.trim();
@@ -332,7 +447,6 @@ async function signUpWithPassword(event) {
     });
 
     if (error) {
-      // Common case: user already exists
       if ((error.message || "").toLowerCase().includes("exists")) {
         showMsg(
           "Account already exists. Use Sign in or Forgot password.",
@@ -345,7 +459,6 @@ async function signUpWithPassword(event) {
       return;
     }
 
-    // If email confirmation is ON, they must confirm via email.
     showMsg("Account created. Check your email if confirmation is required.");
     clearMsgSoon(6000);
   } catch (e) {
@@ -357,7 +470,6 @@ async function signUpWithPassword(event) {
   }
 }
 
-/** Forgot password: send reset email so the user sets a new password */
 async function sendPasswordReset(event) {
   event?.preventDefault?.();
   const email = elEmail?.value?.trim();
@@ -382,17 +494,18 @@ async function sendPasswordReset(event) {
   }
 }
 
-/** Logout -------------------------------------------------------------------*/
 async function logoutFlow() {
   try {
     await supabase.auth.signOut();
   } catch (e) {
     console.warn("Sign-out failed:", e);
   }
-  // UI and grid will refresh via onAuthStateChange listener
+  // UI refresh will occur via auth state listener
 }
 
-/** Main render --------------------------------------------------------------*/
+/* ──────────────────────────────────────────────────────────────
+   Main render
+─────────────────────────────────────────────────────────────── */
 async function render() {
   setBusy(true);
   if (elEmpty) elEmpty.style.display = "none";
@@ -401,61 +514,64 @@ async function render() {
     data: { session },
   } = await supabase.auth.getSession();
 
-  // was: updateAuthButtons(session);
   updateAuthUI(session);
   await showGreeting(session);
 
+  // Data (utilities + access map)
   let utilities, accessMap;
   try {
-    utilities = await loadUtilities(); // has .key
-    accessMap = await loadAccessMap(session?.user?.id, utilities); // ids map
+    utilities = await loadUtilities(); // [{ id, key, label, description, href }]
+    accessMap = await loadAccessMap(session?.user?.id, utilities); // { [id]: 'use'|'view'|'none' }
   } catch {
-    // auth not ready yet → soft loading, boot() will re-render shortly
-    elRoot.innerHTML = renderMessageCard("Loading…", "Preparing your tools.");
+    if (elRoot)
+      elRoot.innerHTML = renderMessageCard("Loading…", "Preparing your tools.");
     setBusy(false);
     return;
   }
 
-  // Admin check
+  // Admin check: hide Hub Admin unless user is admin
   const admin = await isHubAdmin(session?.user?.id);
-
-  // Hide Hub Admin for non-admins
   const visibleUtilities = admin
     ? utilities
     : utilities.filter((u) => u.key !== "hub_admin");
 
-  // Keep access only for visible utilities
+  // Keep access entries only for visible list
   const visibleIds = new Set(visibleUtilities.map((u) => u.id));
   const prunedAccessMap = {};
   for (const [id, level] of Object.entries(accessMap)) {
     if (visibleIds.has(id)) prunedAccessMap[id] = level;
   }
 
-  // NEW: hide 'none' completely
-  const filteredUtilities = visibleUtilities.filter(
+  // Render curated, sectioned UI
+  if (elRoot) {
+    elRoot.innerHTML = renderUtilitiesSectioned(
+      visibleUtilities,
+      prunedAccessMap
+    );
+  }
+
+  // Empty state toggle
+  const hasVisible = visibleUtilities.some(
     (u) => (prunedAccessMap[u.id] || "none") !== "none"
   );
-
-  // Render only 'use' and 'view'
-  if (elRoot)
-    elRoot.innerHTML = renderUtilities(filteredUtilities, prunedAccessMap);
-
-  // Empty state if nothing visible
-  const hasVisible = filteredUtilities.length > 0;
   if (elEmpty) elEmpty.style.display = hasVisible ? "none" : "";
 
-  wireRequestButtons(session);
+  // Wire any Request buttons we just rendered
+  const {
+    data: { session: freshSession },
+  } = await supabase.auth.getSession();
+  wireRequestButtons(freshSession);
+
   setBusy(false);
 }
 
-/** Boot + listeners ---------------------------------------------------------*/
+/* ──────────────────────────────────────────────────────────────
+   Boot + listeners
+─────────────────────────────────────────────────────────────── */
 function wireEvents() {
-  // login form submit
   elLoginForm?.addEventListener("submit", signInWithPassword);
-  // logout click
   btnLogout?.addEventListener("click", logoutFlow);
 
-  // extra auth buttons
   document
     .getElementById("auth-signup")
     ?.addEventListener("click", signUpWithPassword);
@@ -463,7 +579,6 @@ function wireEvents() {
     .getElementById("auth-forgot")
     ?.addEventListener("click", sendPasswordReset);
 
-  // re-render on any auth state changes (sign-in/out, token refresh)
   supabase.auth.onAuthStateChange(() => {
     render().catch(console.error);
   });

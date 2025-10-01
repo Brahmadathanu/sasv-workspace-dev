@@ -1,9 +1,9 @@
 /* global TomSelect */
 // js/bmr-card-not-initiated.js
-import { supabase } from "../public/shared/js/supabaseClient.js";
+import { supabase } from "./supabaseClient.js";
+import { Platform } from "./platform.js";
 
 const homeBtn = document.getElementById("homeBtn");
-const backBtn = document.getElementById("backBtn");
 const filterCategory = document.getElementById("filterCategory");
 const filterSubCat = document.getElementById("filterSubCategory");
 const filterGroup = document.getElementById("filterGroup");
@@ -467,10 +467,9 @@ async function exportPdf() {
 }
 
 /** Init */
-window.addEventListener("DOMContentLoaded", async () => {
-  // ─── Home, clear & export hooks ────────────────────────────────
-  homeBtn.onclick = () => (location.href = "index.html");
-  backBtn.onclick = () => window.history.back();
+// ─── Home, clear & export hooks ────────────────────────────────
+document.addEventListener("DOMContentLoaded", () => {
+  if (homeBtn) homeBtn.onclick = () => Platform.goHome();
   clearBtn.onclick = () => {
     clearFilters();
     // also collapse advanced on clear
@@ -490,29 +489,29 @@ window.addEventListener("DOMContentLoaded", async () => {
   });
 
   // ─── Load & render data ────────────────────────────────────────
-  await fetchData();
-  populateCategory();
-  // Turn #filterItem into a Tom Select (then populate it)
-  itemTS = new TomSelect("#filterItem", {
-    valueField: "value",
-    labelField: "text",
-    searchField: ["text"],
-    create: false,
-    allowEmptyOption: true,
-    placeholder: "Item",
-    maxOptions: 200, // server returns up to 20; this is just an upper bound
-
-    // Load suggestions from Supabase as you type
-    load: function (query, callback) {
-      if (!query.length) return callback();
-      fetchItemOptions(query)
-        .then(callback)
-        .catch(() => callback());
-    },
-  });
-
-  resetItemSuggestions();
-  renderTable();
+  (async () => {
+    await fetchData();
+    populateCategory();
+    // Turn #filterItem into a Tom Select (then populate it)
+    itemTS = new TomSelect("#filterItem", {
+      valueField: "value",
+      labelField: "text",
+      searchField: ["text"],
+      create: false,
+      allowEmptyOption: true,
+      placeholder: "Item",
+      maxOptions: 200, // server returns up to 20; this is just an upper bound
+      // Load suggestions from Supabase as you type
+      load: function (query, callback) {
+        if (!query.length) return callback();
+        fetchItemOptions(query)
+          .then(callback)
+          .catch(() => callback());
+      },
+    });
+    resetItemSuggestions();
+    renderTable();
+  })();
 
   // ─── Wire up cascading & render on filter change ───────────────
   filterCategory.addEventListener("change", () => {
