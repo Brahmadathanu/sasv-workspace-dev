@@ -548,6 +548,8 @@ async function render() {
       visibleUtilities,
       prunedAccessMap
     );
+    elRoot.classList.remove("hub-grid"); // root shouldn't be a grid anymore
+    elRoot.classList.add("hub-root-sectioned"); // mark as sectioned layout
   }
 
   // Empty state toggle

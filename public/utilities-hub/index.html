@@ -276,59 +276,48 @@
         font-size: 0.9rem;
         color: #6b7280;
       }
-      /* ==== Section layout polish ==== */
-      .hub-section {
-        margin-top: 24px;
-        padding: 12px 0 4px;
-        border-top: 1px solid var(--border, #e5e7eb);
-      }
-      .hub-section-title {
-        margin: 0 0 12px;
-        font-size: clamp(1rem, 2vw, 1.15rem);
-        font-weight: 700;
-        color: #334155;
+      /* Root becomes block when we render multiple sections */
+      #hub-root.hub-root-sectioned {
+        display: block;
       }
 
-      /* Visually group cards per section with consistent heights */
-      .hub-grid {
-        display: grid;
-        gap: 16px;
-        /* Mobile-first: 1 column by default */
-        grid-template-columns: 1fr;
-        align-items: stretch;
+      /* Section wrapper */
+      .hub-section {
+        margin: 16px 0 28px;
       }
+
+      /* Subtle divider between sections */
+      .hub-section + .hub-section {
+        border-top: 1px solid var(--border, #e5e7eb);
+        padding-top: 20px;
+      }
+
+      /* Section header */
+      .hub-section-title {
+        margin: 0 0 10px;
+        font-size: 1.1rem;
+        color: #0b1420;
+      }
+
+      /* Each section has its own grid; cards stretch neatly */
+      .hub-section .hub-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 16px;
+        align-items: stretch; /* prevent card overlap by height */
+      }
+
+      /* Cards: make them flex columns so content never spills */
       .hub-card {
-        height: 100%;
         display: flex;
         flex-direction: column;
-        justify-content: flex-start; /* keeps spacing tidy */
+        min-height: 0; /* ensures proper flex sizing inside grids */
       }
 
-      /* Tablet: 2 columns */
-      @media (min-width: 800px) {
-        .hub-grid {
-          grid-template-columns: repeat(2, minmax(280px, 1fr));
-        }
-      }
-
-      /* Desktop/Large: 3 columns (tweak to 4 if you prefer) */
-      @media (min-width: 1200px) {
-        .hub-grid {
-          grid-template-columns: repeat(3, minmax(300px, 1fr));
-        }
-      }
-
-      /* Ultra-wide: 4 columns if there is real estate */
-      @media (min-width: 1600px) {
-        .hub-grid {
-          grid-template-columns: repeat(4, minmax(300px, 1fr));
-        }
-      }
-
-      /* Dark theme titles */
+      /* Dark theme adjustments (optional but nice) */
       @media (prefers-color-scheme: dark) {
-        .hub-section-title {
-          color: #e5e7eb;
+        .hub-section + .hub-section {
+          border-top-color: #243244;
         }
       }
     </style>
