@@ -276,7 +276,7 @@
         font-size: 0.9rem;
         color: #6b7280;
       }
-      /* Root becomes block when we render multiple sections */
+      /* Root stays block with sectioned rendering */
       #hub-root.hub-root-sectioned {
         display: block;
       }
@@ -286,35 +286,49 @@
         margin: 16px 0 28px;
       }
 
-      /* Subtle divider between sections */
+      /* Soft divider between sections */
       .hub-section + .hub-section {
         border-top: 1px solid var(--border, #e5e7eb);
         padding-top: 20px;
       }
 
-      /* Section header */
+      /* Section title */
       .hub-section-title {
         margin: 0 0 10px;
         font-size: 1.1rem;
         color: #0b1420;
       }
 
-      /* Each section has its own grid; cards stretch neatly */
+      /* Section grid:
+   - Columns don’t expand beyond ~320–340px
+   - Left-aligned (no “huge” single card)
+   - Nice max width so even many tools look tidy */
       .hub-section .hub-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(260px, 320px));
         gap: 16px;
-        align-items: stretch; /* prevent card overlap by height */
+        justify-content: start; /* left-align the columns */
+        align-items: stretch;
+        max-width: 1120px; /* 3–4 columns max on desktop */
+        margin-inline: auto; /* center the whole group */
       }
 
-      /* Cards: make them flex columns so content never spills */
+      /* Scale up a bit on large screens */
+      @media (min-width: 1400px) {
+        .hub-section .hub-grid {
+          grid-template-columns: repeat(auto-fit, minmax(260px, 340px));
+          max-width: 1240px;
+        }
+      }
+
+      /* Cards */
       .hub-card {
         display: flex;
         flex-direction: column;
-        min-height: 0; /* ensures proper flex sizing inside grids */
+        min-height: 0;
       }
 
-      /* Dark theme adjustments (optional but nice) */
+      /* Dark theme divider */
       @media (prefers-color-scheme: dark) {
         .hub-section + .hub-section {
           border-top-color: #243244;
