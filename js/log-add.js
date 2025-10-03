@@ -106,7 +106,7 @@ const storageUomSel = $("storage_qty_uom");
 const QUICK_MODULES = [
   { id: "update", label: "Update Log Status", path: "update-log-status.html" },
   { id: "edit", label: "Edit Log Entry", path: "edit-log-entry.html" },
-  { id: "view", label: "View Logs", path: "view-logs.html" },
+  { id: "view", label: "View Logs", path: "./public/shared/view-logs.html" },
 ];
 
 /* ─────────────────────────────  STATE  ───────────────────────────────── */
