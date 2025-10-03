@@ -399,6 +399,14 @@
         >
           Export CSV
         </button>
+        <button
+          id="sc-export-pdf"
+          class="sc-btn"
+          type="button"
+          title="Export current filter result to A4 PDF"
+        >
+          Stock Coverage Report
+        </button>
 
         <button id="sc-clear" class="sc-btn" type="button">CLEAR</button>
 
@@ -530,6 +538,43 @@
           </label>
         </div>
 
+        <!-- MOS KKD -->
+        <div class="mos-row">
+          <label class="mos-label" for="moskkd-v1">MOS KKD</label>
+
+          <select id="moskkd-op" aria-label="MOS KKD operator">
+            <option value="gt">&gt;</option>
+            <option value="gte">&ge;</option>
+            <option value="eq">=</option>
+            <option value="lte">&le;</option>
+            <option value="lt">&lt;</option>
+            <option value="between">Between</option>
+          </select>
+
+          <input
+            id="moskkd-v1"
+            type="number"
+            step="0.01"
+            inputmode="decimal"
+            placeholder="value"
+            aria-label="MOS KKD value"
+          />
+
+          <input
+            id="moskkd-v2"
+            type="number"
+            step="0.01"
+            inputmode="decimal"
+            placeholder="max"
+            aria-label="MOS KKD max value"
+          />
+
+          <label class="nullchk">
+            <input id="moskkd-nnull" type="checkbox" />
+            Exclude nulls
+          </label>
+        </div>
+
         <!-- MOS OK -->
         <div class="mos-row">
           <label class="mos-label" for="mosok-v1">MOS OK</label>
@@ -643,8 +688,10 @@
             <th style="text-align: center">Stock KKD</th>
             <th style="text-align: center">Stock OK</th>
             <th style="text-align: center">Forecast IK</th>
+            <th style="text-align: center">Forecast KKD</th>
             <th style="text-align: center">Forecast OK</th>
             <th style="text-align: center">MOS IK</th>
+            <th style="text-align: center">MOS KKD</th>
             <th style="text-align: center">MOS OK</th>
             <th style="text-align: center">MOS (overall)</th>
           </tr>
@@ -660,6 +707,10 @@
 
     <!-- Tom Select JS -->
     <script src="../vendor/tom-select/tom-select.complete.min.js"></script>
+
+    <!-- jsPDF + AutoTable (for table PDF) -->
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.3/dist/jspdf.plugin.autotable.min.js"></script>
 
     <!-- JS entry (we’ll implement in Step C) -->
     <script type="module" src="js/stock-checker.js"></script>

@@ -403,8 +403,7 @@ async function loadMetrics(skus, productId) {
   const { data: vfRows, error: vfErr } = await supabase
     .from("v_fill_inputs")
     .select("sku_id, region_code, godown_code, stock_units, forecast_units_pm")
-    .eq("product_id", productId) /* only this product */
-    .in("region_code", ["IK", "KKD", "OK"]); /* three depots     */
+    .eq("product_id", productId);
 
   if (vfErr) {
     elMsg.textContent = vfErr.message;
@@ -412,49 +411,73 @@ async function loadMetrics(skus, productId) {
   }
 
   // ─── split stock: IK, KKD, OK ────────────────────────────────
-  const stockIK = {}; // Inver Kerala
-  const stockKKD = {}; // Kozhikode
-  const stockOK = {}; // Out-Kerala
-  const fsum = {};
-  const fcount = {};
+  const stockIK = {}; // HO_IK
+  const stockKKD = {}; // KKD
+  const stockOK = {}; // HO_OK
+
+  // region-level forecast (IK/OK) via region rows (godown_code IS NULL)
+  const fsumRegion = {};
+  const fcountRegion = {};
+
+  // depot-level forecast (KKD) via depot row (godown_code='KKD')
+  const fsumKKD = {};
+  const fcountKKD = {};
 
   vfRows.forEach((r) => {
-    /* STOCK buckets ──────────────────────────────────────────── */
-    /* ── STOCK by godown ─────────────────────────────────────────── */
-    const g = (r.godown_code || "").trim().toUpperCase();
+    const sku = r.sku_id;
+    const reg = (r.region_code || "").trim().toUpperCase();
+    const god = (r.godown_code || "").trim().toUpperCase();
 
-    if (g === "HO_IK") {
-      // Inside-Kerala godown
-      stockIK[r.sku_id] = (stockIK[r.sku_id] || 0) + (+r.stock_units || 0);
-    } else if (g === "KKD") {
-      // Kozhikode Depot
-      stockKKD[r.sku_id] = (stockKKD[r.sku_id] || 0) + (+r.stock_units || 0);
-    } else if (g === "HO_OK") {
-      // Outside-Kerala godown
-      stockOK[r.sku_id] = (stockOK[r.sku_id] || 0) + (+r.stock_units || 0);
+    // ── STOCK by depot
+    if (god === "HO_IK") {
+      stockIK[sku] = (stockIK[sku] || 0) + (+r.stock_units || 0);
+    } else if (god === "KKD") {
+      stockKKD[sku] = (stockKKD[sku] || 0) + (+r.stock_units || 0);
+    } else if (god === "HO_OK") {
+      stockOK[sku] = (stockOK[sku] || 0) + (+r.stock_units || 0);
     }
 
-    /* FORECAST (Average of all months in view) ------------------------- */
-    const key = r.sku_id + "_" + r.region_code;
-    if (r.forecast_units_pm != null) {
-      fsum[key] = (fsum[key] || 0) + +r.forecast_units_pm;
-      fcount[key] = (fcount[key] || 0) + 1;
+    // ── FORECAST
+    // Region roll-up rows: godown_code IS NULL → use for IK / OK
+    if (!god) {
+      const key = `${sku}_${reg}`;
+      if (r.forecast_units_pm != null) {
+        fsumRegion[key] = (fsumRegion[key] || 0) + +r.forecast_units_pm;
+        fcountRegion[key] = (fcountRegion[key] || 0) + 1;
+      }
     }
+
+    // Depot KKD row: godown_code='KKD' → use for "Forecast KKD" column
+    if (god === "KKD" && r.forecast_units_pm != null) {
+      fsumKKD[sku] = (fsumKKD[sku] || 0) + +r.forecast_units_pm;
+      fcountKKD[sku] = (fcountKKD[sku] || 0) + 1;
+    }
+
+    // (Note: HO_OK depot forecast equals OK region forecast, but we keep OK from region roll-up for consistency.)
   });
-  const ave = (k) => (fcount[k] ? Math.round(fsum[k] / fcount[k]) : "—");
+  const aveRegion = (sku, region) => {
+    const key = `${sku}_${region}`;
+    return fcountRegion[key]
+      ? Math.round(fsumRegion[key] / fcountRegion[key])
+      : "—";
+  };
+  const aveKKD = (sku) =>
+    fcountKKD[sku] ? Math.round(fsumKKD[sku] / fcountKKD[sku]) : "—";
 
   /* ── Build and cache metrics for later MOS math ── */
   const forecastIK = {};
   const forecastOK = {};
+  const forecastKKD = {};
+
   skus.forEach((s) => {
-    const keyIK = s.id + "_IK";
-    const keyOK = s.id + "_OK";
-    forecastIK[s.id] = fcount[keyIK]
-      ? Math.round(fsum[keyIK] / fcount[keyIK])
-      : 0;
-    forecastOK[s.id] = fcount[keyOK]
-      ? Math.round(fsum[keyOK] / fcount[keyOK])
-      : 0;
+    // region-level (from roll-up rows)
+    forecastIK[s.id] =
+      aveRegion(s.id, "IK") === "—" ? 0 : aveRegion(s.id, "IK");
+    forecastOK[s.id] =
+      aveRegion(s.id, "OK") === "—" ? 0 : aveRegion(s.id, "OK");
+    // depot-level (KKD) for the UI column
+    const k = aveKKD(s.id);
+    forecastKKD[s.id] = k === "—" ? 0 : k;
   });
 
   const stockIKplusKKD = {};
@@ -465,7 +488,7 @@ async function loadMetrics(skus, productId) {
   metricsCache[productId] = {
     stock: { IK: stockIK, KKD: stockKKD, OK: stockOK },
     stockIKplusKKD,
-    forecast: { IK: forecastIK, OK: forecastOK },
+    forecast: { IK: forecastIK, KKD: forecastKKD, OK: forecastOK }, // KKD added (UI only)
     as_of_date: "",
   };
 
@@ -479,10 +502,13 @@ async function loadMetrics(skus, productId) {
     const stOK = stockOK[id] || 0;
     const fIK = forecastIK[id] || 0;
     const fOK = forecastOK[id] || 0;
+    const fKKD = forecastKKD[id] || 0;
     wDerive([
       `${label}`,
       `  Stock_IK = ${stIK}, Stock_KKD = ${stK}, Stock_OK = ${stOK}`,
-      `  Forecast_IK ≈ ${nfmt(fIK)}, Forecast_OK ≈ ${nfmt(fOK)}`,
+      `  Forecast_IK ≈ ${nfmt(fIK)}, Forecast_KKD ≈ ${nfmt(
+        fKKD
+      )}, Forecast_OK ≈ ${nfmt(fOK)}`,
     ]);
   });
 
@@ -492,7 +518,7 @@ async function loadMetrics(skus, productId) {
     <th>SKU</th>
     <th>MRP&nbsp;IK</th><th>MRP&nbsp;OK</th>
     <th>Stock&nbsp;IK</th><th>Stock&nbsp;KKD</th><th>Stock&nbsp;OK</th>
-    <th>Forecast&nbsp;IK</th><th>Forecast&nbsp;OK</th>
+    <th>Forecast&nbsp;IK</th><th>Forecast&nbsp;KKD</th><th>Forecast&nbsp;OK</th>
   </tr>`;
 
   metricsBody.innerHTML = skus
@@ -505,8 +531,9 @@ async function loadMetrics(skus, productId) {
       <td>${stockIK[s.id] || 0}</td>
       <td>${stockKKD[s.id] || 0}</td>
       <td>${stockOK[s.id] || 0}</td>
-      <td>${ave(s.id + "_IK")}</td>
-      <td>${ave(s.id + "_OK")}</td>
+      <td>${aveRegion(s.id, "IK")}</td>
+      <td>${aveKKD(s.id)}</td>
+      <td>${aveRegion(s.id, "OK")}</td>
     </tr>`;
     })
     .join("");
@@ -524,7 +551,7 @@ async function loadMetrics(skus, productId) {
     elMsg.textContent = "Could not load last stock update.";
   } else if (luRows?.length) {
     const dt = new Date(luRows[0].as_of_date);
-    stockUpdated.textContent = `Last stock update: ${dt.toLocaleDateString(
+    stockUpdated.textContent = `Last stock snapshot: ${dt.toLocaleDateString(
       "en-GB",
       {
         day: "numeric",
