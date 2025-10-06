@@ -415,9 +415,29 @@ button {
   color: var(--btn-text);
 }
 
-/* When table is in collapsed-default state hide detailed columns (except overall) */
-#sc-table.collapsed-default th.col-meta,
-#sc-table.collapsed-default td.col-meta,
+/* export buttons row (placed under HOME and above filters) */
+.sc-exports-row {
+  display: flex;
+  justify-content: flex-start; /* left-align both buttons */
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 12px 0;
+  width: 100%;
+}
+
+/* Stack the export buttons on small screens so they become full-width */
+@media (max-width: 520px) {
+  .sc-exports-row {
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+  .sc-exports-row .sc-btn {
+    width: 100%;
+  }
+}
+
+/* When table is in collapsed-default state hide detailed numeric groups (stock/demand/mos) but keep meta (Pack Size/UOM) visible */
 #sc-table.collapsed-default th.col-stock,
 #sc-table.collapsed-default td.col-stock,
 #sc-table.collapsed-default th.col-demand,
@@ -467,6 +487,15 @@ button {
       .explode-demand-active
     ):not(.explode-mos-active)
     th.col-overall {
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  /* Also allow Pack Size / UOM headers to wrap so they stay visible */
+  #sc-table.collapsed-default:not(.explode-stock-active):not(
+      .explode-demand-active
+    ):not(.explode-mos-active)
+    th.col-meta {
     white-space: normal;
     word-break: break-word;
   }

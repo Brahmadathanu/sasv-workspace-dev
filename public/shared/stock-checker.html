@@ -80,7 +80,8 @@
       .sc-filters {
         display: grid;
         gap: var(--gap);
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        /* Make Item take more space while pack-size stays compact */
+        grid-template-columns: 2fr minmax(140px, 1fr) 1fr 1fr;
         margin: 10px 0 6px;
         align-items: end;
       }
@@ -122,6 +123,7 @@
         display: flex;
         gap: 8px;
         flex-wrap: wrap;
+        justify-content: flex-start; /* left-align the MOS/Rasoushadhi buttons */
       }
       .chip {
         display: inline-block;
@@ -327,7 +329,17 @@
       /* ───────────────────────────────── Breakpoint tweak for filters ───────────────────────────────── */
       @media (max-width: 960px) {
         .sc-filters {
-          grid-template-columns: repeat(2, minmax(140px, 1fr));
+          /* collapse to two columns on tablet */
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      @media (max-width: 520px) {
+        .sc-filters {
+          /* single column on small screens; Item then Pack Size */
+          grid-template-columns: 1fr;
+        }
+        .sc-quick {
+          justify-content: center;
         }
       }
 
@@ -382,8 +394,9 @@
           min-height: 8.5rem;
         } /* slightly shorter on mobile */
       }
-      .selected-row {
-        background-color: #ffeeba !important; /* or any highlight color you prefer */
+      /* Highlight selected rows by coloring each cell so it overlays per-cell backgrounds */
+      .selected-row td {
+        background-color: #ffeeba !important; /* overlays .col-overall */
       }
     </style>
   </head>
@@ -391,27 +404,30 @@
     <div class="sc-header">
       <h2 style="margin: 0; color: #005a8d">Stock Checker</h2>
       <div class="sc-actions">
-        <button
-          id="sc-export"
-          class="sc-btn"
-          type="button"
-          title="Export current filter result to CSV"
-        >
-          Export CSV
-        </button>
-        <button
-          id="sc-export-pdf"
-          class="sc-btn"
-          type="button"
-          title="Export current filter result to A4 PDF"
-        >
-          Stock Coverage Report
-        </button>
-
         <button id="sc-clear" class="sc-btn" type="button">CLEAR</button>
-
         <button id="homeBtn" class="sc-btn" type="button">HOME</button>
       </div>
+    </div>
+
+    <!-- Export buttons row (positioned after HOME and above filters) -->
+    <div class="sc-exports-row">
+      <button
+        id="sc-export"
+        class="sc-btn"
+        type="button"
+        title="Export current filter result to CSV"
+      >
+        Export CSV
+      </button>
+      <button
+        id="sc-export-pdf"
+        class="sc-btn"
+        type="button"
+        title="Export current filter result to A4 PDF"
+        style="margin-left: 8px"
+      >
+        Stock Coverage Report
+      </button>
     </div>
 
     <!-- Filters row -->
