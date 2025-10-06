@@ -51,10 +51,14 @@ body {
   transition: background 0.3s, color 0.3s;
 }
 
-/* Table font sizing: headers may wrap, body cells should not wrap */
+/* Table font sizing: keep headers on a single line, body cells also nowrap */
 table th {
   font-size: 0.85rem;
-  white-space: normal; /* allow header wrapping */
+  /* Allow wrapping between words only; prevent breaking inside words. */
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: normal;
+  hyphens: none;
 }
 table td {
   font-size: 0.85rem;
@@ -471,44 +475,14 @@ button {
    allow Item + overall columns to wrap on small screens so they remain visible.
    If any explode is active we keep nowrap and let the table scroll horizontally. */
 @media (max-width: 800px) {
-  /* apply only when collapsed and NO explode-* active */
-  #sc-table.collapsed-default:not(.explode-stock-active):not(
-      .explode-demand-active
-    ):not(.explode-mos-active) {
-    table-layout: fixed; /* allow columns to shrink */
-  }
+  /* Removed fit-to-width (table-layout: fixed) behaviour so default view uses
+    natural table sizing and will scroll horizontally if columns overflow. */
 
-  /* Allow only header cells to wrap (Item and Overall headers) */
-  #sc-table.collapsed-default:not(.explode-stock-active):not(
-      .explode-demand-active
-    ):not(.explode-mos-active)
-    th.col-item,
-  #sc-table.collapsed-default:not(.explode-stock-active):not(
-      .explode-demand-active
-    ):not(.explode-mos-active)
-    th.col-overall {
-    white-space: normal;
-    word-break: break-word;
-  }
-
-  /* Also allow Pack Size / UOM headers to wrap so they stay visible */
-  #sc-table.collapsed-default:not(.explode-stock-active):not(
-      .explode-demand-active
-    ):not(.explode-mos-active)
-    th.col-meta {
-    white-space: normal;
-    word-break: break-word;
-  }
+  /* Headers are kept nowrap; we don't allow header wrapping to keep layout stable */
 
   /* Let overall columns take small proportional width so multiple overall columns fit */
   /* Let overall headers have a suggested width so multiple overall headers fit */
-  #sc-table.collapsed-default:not(.explode-stock-active):not(
-      .explode-demand-active
-    ):not(.explode-mos-active)
-    th.col-overall {
-    width: 12%;
-    min-width: 80px;
-  }
+  /* No forced widths for overall columns — allow natural sizing */
 
   /* Item column gets more room but can wrap too */
   #sc-table.collapsed-default:not(.explode-stock-active):not(

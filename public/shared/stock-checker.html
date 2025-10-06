@@ -305,7 +305,10 @@
         border-bottom: 1px solid var(--border);
         padding: 8px;
         text-align: center; /* center headers by default */
-        white-space: nowrap;
+        /* Allow header wrapping between words to reduce horizontal scroll */
+        white-space: normal;
+        word-break: normal;
+        overflow-wrap: normal;
       }
       thead th:first-child {
         text-align: left;
