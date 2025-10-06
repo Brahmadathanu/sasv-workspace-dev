@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sales Viewer</title>
+    <style>
+      :root {
+        --brand: #0a62c3;
+        --brand-600: #084e9c;
+        --text-1: #111;
+        --text-2: #555;
+        --border: #e5e7eb;
+        --bg: #fff;
+        --bg-soft: #f8fafc;
+        --card: #ffffff;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg-soft);
+        color: var(--text-1);
+        font: 14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu,
+          "Helvetica Neue", Arial;
+      }
+      .wrap {
+        max-width: min(1400px, 96vw);
+        margin: 20px auto;
+        padding: 12px 12px 36px;
+      }
+      .header {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+      .title {
+        grid-column: 2/3;
+        justify-self: center;
+        margin: 0;
+        font-size: clamp(18px, 2.8vw, 22px);
+        letter-spacing: 0.2px;
+      }
+      .bar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        justify-content: flex-end;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+      }
+      .filters {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        gap: 14px;
+      }
+      .rail {
+        position: sticky;
+        top: 10px;
+        align-self: start;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .rail h3 {
+        margin: 6px 0 0 0;
+        font-size: 13px;
+        color: var(--text-2);
+      }
+      .frow {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .input,
+      select,
+      button {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 8px 10px;
+        background: #fff;
+      }
+      .btn {
+        cursor: pointer;
+        user-select: none;
+      }
+      .btn.primary {
+        background: var(--brand);
+        border-color: var(--brand);
+        color: #fff;
+      }
+      .btn.primary:hover {
+        background: var(--brand-600);
+      }
+      .chip {
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: #fff;
+        cursor: pointer;
+      }
+      .chip.active {
+        background: var(--brand);
+        border-color: var(--brand);
+        color: #fff;
+      }
+      .kpis {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 10px;
+        margin: 10px 0;
+      }
+      .kpi {
+        padding: 12px;
+      }
+      .kpi .v {
+        font-weight: 600;
+        font-size: 18px;
+      }
+      .kpi .s {
+        font-size: 12px;
+        color: var(--text-2);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1.2fr 1fr;
+        gap: 14px;
+      }
+      .section {
+        padding: 12px;
+      }
+      .table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        overflow: auto;
+      }
+      .table th,
+      .table td {
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--border);
+        white-space: nowrap;
+        text-align: right;
+      }
+      .table th:first-child,
+      .table td:first-child {
+        text-align: left;
+        position: sticky;
+        left: 0;
+        background: #fff;
+      }
+      .muted {
+        color: var(--text-2);
+      }
+      .spacer {
+        height: 8px;
+      }
+      .tag {
+        padding: 4px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        font-size: 12px;
+      }
+      @media (max-width: 980px) {
+        .filters {
+          grid-template-columns: 1fr;
+        }
+        .kpis {
+          grid-template-columns: repeat(3, 1fr);
+        }
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="header">
+        <div></div>
+        <h1 class="title">Sales Data Viewer</h1>
+        <div class="bar">
+          <span id="freshness" class="tag">Freshness: —</span>
+        </div>
+      </header>
+
+      <section class="filters">
+        <!-- Filter Rail -->
+        <aside class="rail card" id="filter-rail">
+          <h3>Time</h3>
+          <div class="frow">
+            <label
+              >Anchor Month
+              <input id="f-anchor" class="input" type="month" />
+            </label>
+          </div>
+          <div class="frow">
+            <span id="chip-3" class="chip" data-range="3">Last 3</span>
+            <span id="chip-6" class="chip" data-range="6">Last 6</span>
+            <span id="chip-12" class="chip active" data-range="12"
+              >Last 12</span
+            >
+          </div>
+
+          <h3>Scope</h3>
+          <div class="frow">
+            <label
+              >Region
+              <select id="f-region" class="input">
+                <option value="">All</option>
+                <option value="1">IK</option>
+                <option value="2">OK</option>
+              </select>
+            </label>
+            <label
+              >Godown
+              <select id="f-godown" class="input">
+                <option value="">All</option>
+                <option value="1">HO_IK</option>
+                <option value="2">HO_OK</option>
+                <option value="3">KKD</option>
+              </select>
+            </label>
+          </div>
+          <div class="frow">
+            <label
+              >Qty Mode
+              <select id="f-mode" class="input">
+                <option value="qty_billed">Billed (default)</option>
+                <option value="qty_units">Units</option>
+                <option value="qty_base">Base Qty</option>
+              </select>
+            </label>
+            <label>
+              <input id="f-active" type="checkbox" checked /> Active SKUs only
+            </label>
+          </div>
+          <div class="frow">
+            <button id="btn-apply" class="btn primary">Apply</button>
+            <button id="btn-export" class="btn">Export CSV</button>
+          </div>
+        </aside>
+
+        <!-- Main content -->
+        <main class="content">
+          <!-- KPI cards -->
+          <div class="kpis">
+            <div class="kpi card">
+              <div class="s">Month Total</div>
+              <div id="k-mtd" class="v">—</div>
+            </div>
+            <div class="kpi card">
+              <div class="s">Prev Month</div>
+              <div id="k-prev" class="v">—</div>
+            </div>
+            <div class="kpi card">
+              <div class="s">MoM %</div>
+              <div id="k-mom" class="v">—</div>
+            </div>
+            <div class="kpi card">
+              <div class="s">YoY %</div>
+              <div id="k-yoy" class="v">—</div>
+            </div>
+            <div class="kpi card">
+              <div class="s">Last 3M Avg</div>
+              <div id="k-l3m" class="v">—</div>
+            </div>
+            <div class="kpi card">
+              <div class="s">L12M Total</div>
+              <div id="k-l12m" class="v">—</div>
+            </div>
+          </div>
+
+          <div class="grid">
+            <!-- Left: Trend -->
+            <section class="section card">
+              <h3 class="muted">IK vs OK — Monthly Trend</h3>
+              <div id="trend-table" class="spacer"></div>
+              <table class="table" id="tbl-trend">
+                <thead>
+                  <tr id="th-trend"></tr>
+                </thead>
+                <tbody id="tb-trend"></tbody>
+              </table>
+            </section>
+
+            <!-- Right: Top 20 -->
+            <section class="section card">
+              <h3 class="muted">Top 20 SKUs (window)</h3>
+              <table class="table" id="tbl-topn">
+                <thead>
+                  <tr>
+                    <th>SKU / Product</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody id="tb-topn"></tbody>
+              </table>
+            </section>
+          </div>
+
+          <section class="section card" style="margin-top: 14px">
+            <h3 class="muted">Detail Grid — SKU × Month</h3>
+            <table class="table" id="tbl-detail">
+              <thead>
+                <tr id="th-detail"></tr>
+              </thead>
+              <tbody id="tb-detail"></tbody>
+            </table>
+          </section>
+        </main>
+      </section>
+    </div>
+
+    <!-- IMPORTANT: load your module JS -->
+    <script type="module" src="js/sales-viewer.js"></script>
+  </body>
+</html>

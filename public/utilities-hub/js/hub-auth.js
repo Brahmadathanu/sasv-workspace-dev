@@ -105,6 +105,7 @@ const UTIL_URLS = Object.freeze({
   fg_bulk_stock: "../shared/fg-bulk-stock.html",
   bottled_stock: "../shared/bottled-stock.html",
   bmr_card_not_initiated: "../shared/bmr-card-not-initiated.html",
+  sales_viewer: "../shared/sales-viewer.html",
 
   // Work Logs
   view_log: "../shared/view-logs.html", // DB key you showed
@@ -140,6 +141,7 @@ const UTIL_META = Object.freeze({
   fg_bulk_stock: { section: "Inventory & Sales Analytics", order: 30 },
   bottled_stock: { section: "Inventory & Sales Analytics", order: 40 },
   bmr_card_not_initiated: { section: "Inventory & Sales Analytics", order: 50 },
+  sales_viewer: { section: "Inventory & Sales Analytics", order: 45 },
 
   // Work Logs
   view_log: { section: "Work Logs", order: 10 },
