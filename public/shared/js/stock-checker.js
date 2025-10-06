@@ -176,7 +176,7 @@ let advApply, advClear, advCount;
 
 /* ─────────────────────────── State ─────────────────────────── */
 const PAGE_SIZE = 50;
-const VISIBLE_COLS = 13;
+const VISIBLE_COLS = 15;
 let page = 1;
 
 let selectedProductId = "";
@@ -271,6 +271,35 @@ async function init() {
     // Wire export buttons early
     elExport && elExport.addEventListener("click", exportCSV);
     elExportPDF && elExportPDF.addEventListener("click", exportCoveragePDF);
+
+    // Explode controls (show/hide full groups). No persistence; default collapsed.
+    const btnExplodeStock = $("explode-stock");
+    const btnExplodeDemand = $("explode-demand");
+    const btnExplodeMos = $("explode-mos");
+    const tbl = $("sc-table");
+
+    function toggleExplode(btn, cls) {
+      if (!btn || !tbl) return;
+      const now = btn.getAttribute("aria-pressed") === "true";
+      const next = !now;
+      btn.setAttribute("aria-pressed", String(next));
+      btn.classList.toggle("is-active", next);
+      if (next) tbl.classList.add(cls);
+      else tbl.classList.remove(cls);
+    }
+
+    btnExplodeStock &&
+      btnExplodeStock.addEventListener("click", () =>
+        toggleExplode(btnExplodeStock, "explode-stock-active")
+      );
+    btnExplodeDemand &&
+      btnExplodeDemand.addEventListener("click", () =>
+        toggleExplode(btnExplodeDemand, "explode-demand-active")
+      );
+    btnExplodeMos &&
+      btnExplodeMos.addEventListener("click", () =>
+        toggleExplode(btnExplodeMos, "explode-mos-active")
+      );
 
     // Pagination
     elPrev &&
@@ -926,26 +955,57 @@ async function runQuery() {
 function renderRows(rows) {
   if (!elBody) return;
   elBody.innerHTML = rows
-    .map(
-      (r, i) => `
+    .map((r, i) => {
+      // compute row-wise overall aggregates (safely treat null/undefined as 0)
+      const stIK = Number(r.stock_ik) || 0;
+      const stKKD = Number(r.stock_kkd) || 0;
+      const stOK = Number(r.stock_ok) || 0;
+      const stockOverall = stIK + stKKD + stOK;
+
+      const fIK = Number(r.forecast_ik) || 0;
+      const fKKD = Number(r.forecast_kkd) || 0;
+      const fOK = Number(r.forecast_ok) || 0;
+      const forecastOverall = fIK + fKKD + fOK;
+
+      return `
     <tr data-row-idx="${i}">
-      <td style="text-align:left">${escapeHtml(r.item || "")}</td>
-      <td style="text-align:center">${escapeHtml(
+      <td class="col-item" style="text-align:left">${escapeHtml(
+        r.item || ""
+      )}</td>
+      <td class="col-meta" style="text-align:center">${escapeHtml(
         String(r.pack_size ?? "")
       )}</td>
-      <td style="text-align:center">${escapeHtml(r.uom || "")}</td>
-      <td style="text-align:center">${fmtInt(r.stock_ik)}</td>
-      <td style="text-align:center">${fmtInt(r.stock_kkd)}</td>
-      <td style="text-align:center">${fmtInt(r.stock_ok)}</td>
-      <td style="text-align:center">${fmtInt(r.forecast_ik)}</td>
-      <td style="text-align:center">${fmtInt(r.forecast_kkd)}</td>
-      <td style="text-align:center">${fmtInt(r.forecast_ok)}</td>
-      <td style="text-align:center">${fmt3(r.mos_ik)}</td>
-      <td style="text-align:center">${fmt3(r.mos_kkd)}</td>
-      <td style="text-align:center">${fmt3(r.mos_ok)}</td>
-      <td style="text-align:center">${fmt3(r.mos_overall)}</td>
-    </tr>`
-    )
+      <td class="col-meta" style="text-align:center">${escapeHtml(
+        r.uom || ""
+      )}</td>
+      <td class="col-stock" style="text-align:center">${fmtInt(r.stock_ik)}</td>
+      <td class="col-stock" style="text-align:center">${fmtInt(
+        r.stock_kkd
+      )}</td>
+      <td class="col-stock" style="text-align:center">${fmtInt(r.stock_ok)}</td>
+      <td class="col-overall" style="text-align:center">${fmtInt(
+        stockOverall
+      )}</td>
+      <td class="col-demand" style="text-align:center">${fmtInt(
+        r.forecast_ik
+      )}</td>
+      <td class="col-demand" style="text-align:center">${fmtInt(
+        r.forecast_kkd
+      )}</td>
+      <td class="col-demand" style="text-align:center">${fmtInt(
+        r.forecast_ok
+      )}</td>
+      <td class="col-overall" style="text-align:center">${fmtInt(
+        forecastOverall
+      )}</td>
+      <td class="col-mos" style="text-align:center">${fmt3(r.mos_ik)}</td>
+      <td class="col-mos" style="text-align:center">${fmt3(r.mos_kkd)}</td>
+      <td class="col-mos" style="text-align:center">${fmt3(r.mos_ok)}</td>
+      <td class="col-overall" style="text-align:center">${fmt3(
+        r.mos_overall
+      )}</td>
+    </tr>`;
+    })
     .join("");
 
   // iOS-friendly row selection
@@ -1077,9 +1137,11 @@ async function exportCSV() {
       "Stock IK",
       "Stock KKD",
       "Stock OK",
-      "Forecast IK",
-      "Forecast KKD",
-      "Forecast OK",
+      "Stock (overall)",
+      "Demand IK",
+      "Demand KKD",
+      "Demand OK",
+      "Demand (overall)",
       "MOS IK",
       "MOS KKD",
       "MOS OK",
@@ -1101,9 +1163,16 @@ async function exportCSV() {
           r.stock_ik,
           r.stock_kkd,
           r.stock_ok,
+          // compute overalls for CSV too (treat null as 0)
+          (Number(r.stock_ik) || 0) +
+            (Number(r.stock_kkd) || 0) +
+            (Number(r.stock_ok) || 0),
           r.forecast_ik,
           r.forecast_kkd,
           r.forecast_ok,
+          (Number(r.forecast_ik) || 0) +
+            (Number(r.forecast_kkd) || 0) +
+            (Number(r.forecast_ok) || 0),
           r.mos_ik,
           r.mos_kkd,
           r.mos_ok,

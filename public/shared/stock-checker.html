@@ -676,24 +676,62 @@
       </div>
     </div>
 
+    <div class="explode-row">
+      <div class="explode-controls">
+        <button
+          id="explode-stock"
+          class="sc-btn"
+          type="button"
+          aria-pressed="false"
+        >
+          Explode Stock
+        </button>
+        <button
+          id="explode-demand"
+          class="sc-btn"
+          type="button"
+          aria-pressed="false"
+          style="margin: 0 8px"
+        >
+          Explode Demand
+        </button>
+        <button
+          id="explode-mos"
+          class="sc-btn"
+          type="button"
+          aria-pressed="false"
+        >
+          Explode MOS
+        </button>
+      </div>
+    </div>
+
     <!-- Results table -->
     <div class="table-wrap">
-      <table id="sc-table">
+      <table id="sc-table" class="collapsed-default">
         <thead>
           <tr>
-            <th style="text-align: left">Item</th>
-            <th style="text-align: center">Pack Size</th>
-            <th style="text-align: center">UOM</th>
-            <th style="text-align: center">Stock IK</th>
-            <th style="text-align: center">Stock KKD</th>
-            <th style="text-align: center">Stock OK</th>
-            <th style="text-align: center">Forecast IK</th>
-            <th style="text-align: center">Forecast KKD</th>
-            <th style="text-align: center">Forecast OK</th>
-            <th style="text-align: center">MOS IK</th>
-            <th style="text-align: center">MOS KKD</th>
-            <th style="text-align: center">MOS OK</th>
-            <th style="text-align: center">MOS (overall)</th>
+            <th class="col-item" style="text-align: left">Item</th>
+            <th class="col-meta" style="text-align: center">Pack Size</th>
+            <th class="col-meta" style="text-align: center">UOM</th>
+            <th class="col-stock" style="text-align: center">Stock IK</th>
+            <th class="col-stock" style="text-align: center">Stock KKD</th>
+            <th class="col-stock" style="text-align: center">Stock OK</th>
+            <th class="col-overall" style="text-align: center">
+              Stock (overall)
+            </th>
+            <th class="col-demand" style="text-align: center">Demand IK</th>
+            <th class="col-demand" style="text-align: center">Demand KKD</th>
+            <th class="col-demand" style="text-align: center">Demand OK</th>
+            <th class="col-overall" style="text-align: center">
+              Demand (overall)
+            </th>
+            <th class="col-mos" style="text-align: center">MOS IK</th>
+            <th class="col-mos" style="text-align: center">MOS KKD</th>
+            <th class="col-mos" style="text-align: center">MOS OK</th>
+            <th class="col-overall" style="text-align: center">
+              MOS (overall)
+            </th>
           </tr>
         </thead>
         <tbody id="sc-body">

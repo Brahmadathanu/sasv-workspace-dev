@@ -50,6 +50,15 @@ body {
   color: var(--text-color);
   transition: background 0.3s, color 0.3s;
 }
+
+/* Table header and body font sizing: slightly larger for readability; prevent wrapping */
+table th,
+table td {
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 button {
   font: inherit;
   cursor: pointer;
@@ -348,6 +357,18 @@ textarea,
 button {
   color-scheme: light;
 }
+
+/* Utility: reserved for narrow/fixed-width appearance. Default to page font to avoid unexpected differences.
+   If you need true monospace for specific elements, use .mono-fixed. */
+.mono {
+  font-family: inherit; /* prefer page font for consistent UI */
+}
+
+/* If a genuine monospace is required in a specific area, use .mono-fixed */
+.mono-fixed {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+    monospace;
+}
 /* Force light form controls without changing your design tokens */
 :root,
 html,
@@ -359,4 +380,123 @@ select,
 textarea,
 button {
   color-scheme: light;
+}
+
+/* Special styling for overall/total columns in tables */
+.col-overall {
+  background: #f3f4f6; /* light grey */
+  /* create visual separation from neighbors */
+  padding-left: 10px !important;
+  padding-right: 10px !important;
+}
+
+[data-theme="dark"] .col-overall {
+  background: #2f2f33; /* darker grey for dark theme */
+}
+
+/* Explode controls: keep centered and visually sticky (within table-wrap) */
+.sc-meta {
+  position: relative;
+}
+.explode-row {
+  text-align: center;
+  margin: 8px 0;
+}
+.explode-controls {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+.explode-controls .sc-btn[aria-pressed="true"] {
+  background: var(--btn-hover-bg);
+  color: var(--btn-text);
+}
+
+/* When table is in collapsed-default state hide detailed columns (except overall) */
+#sc-table.collapsed-default th.col-meta,
+#sc-table.collapsed-default td.col-meta,
+#sc-table.collapsed-default th.col-stock,
+#sc-table.collapsed-default td.col-stock,
+#sc-table.collapsed-default th.col-demand,
+#sc-table.collapsed-default td.col-demand,
+#sc-table.collapsed-default th.col-mos,
+#sc-table.collapsed-default td.col-mos {
+  display: none;
+}
+
+/* Ensure overall columns remain visible */
+#sc-table th.col-overall,
+#sc-table td.col-overall {
+  display: table-cell;
+}
+
+/* Reveal groups when their explode button is active */
+#sc-table.collapsed-default.explode-stock-active th.col-stock,
+#sc-table.collapsed-default.explode-stock-active td.col-stock {
+  display: table-cell;
+}
+#sc-table.collapsed-default.explode-demand-active th.col-demand,
+#sc-table.collapsed-default.explode-demand-active td.col-demand {
+  display: table-cell;
+}
+#sc-table.collapsed-default.explode-mos-active th.col-mos,
+#sc-table.collapsed-default.explode-mos-active td.col-mos {
+  display: table-cell;
+}
+
+/* Responsive: when collapsed (only overall visible) and no explode active,
+   allow Item + overall columns to wrap on small screens so they remain visible.
+   If any explode is active we keep nowrap and let the table scroll horizontally. */
+@media (max-width: 800px) {
+  /* apply only when collapsed and NO explode-* active */
+  #sc-table.collapsed-default:not(.explode-stock-active):not(
+      .explode-demand-active
+    ):not(.explode-mos-active) {
+    table-layout: fixed; /* allow columns to shrink */
+  }
+
+  #sc-table.collapsed-default:not(.explode-stock-active):not(
+      .explode-demand-active
+    ):not(.explode-mos-active)
+    th.col-item,
+  #sc-table.collapsed-default:not(.explode-stock-active):not(
+      .explode-demand-active
+    ):not(.explode-mos-active)
+    td.col-item,
+  #sc-table.collapsed-default:not(.explode-stock-active):not(
+      .explode-demand-active
+    ):not(.explode-mos-active)
+    th.col-overall,
+  #sc-table.collapsed-default:not(.explode-stock-active):not(
+      .explode-demand-active
+    ):not(.explode-mos-active)
+    td.col-overall {
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  /* Let overall columns take small proportional width so multiple overall columns fit */
+  #sc-table.collapsed-default:not(.explode-stock-active):not(
+      .explode-demand-active
+    ):not(.explode-mos-active)
+    th.col-overall,
+  #sc-table.collapsed-default:not(.explode-stock-active):not(
+      .explode-demand-active
+    ):not(.explode-mos-active)
+    td.col-overall {
+    width: 12%;
+    min-width: 80px;
+  }
+
+  /* Item column gets more room but can wrap too */
+  #sc-table.collapsed-default:not(.explode-stock-active):not(
+      .explode-demand-active
+    ):not(.explode-mos-active)
+    th.col-item,
+  #sc-table.collapsed-default:not(.explode-stock-active):not(
+      .explode-demand-active
+    ):not(.explode-mos-active)
+    td.col-item {
+    width: 40%;
+  }
 }

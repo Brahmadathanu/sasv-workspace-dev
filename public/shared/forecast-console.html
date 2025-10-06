@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Forecast Console</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <style>
+      .fc-wrap {
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+      .tabs {
+        display: flex;
+        gap: 8px;
+        margin: 12px 0;
+        flex-wrap: wrap;
+      }
+      .tab-btn {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        background: #fff;
+        cursor: pointer;
+      }
+      .tab-btn.active {
+        background: #eef6ff;
+        border-color: #8ec5ff;
+      }
+      .tab-panel {
+        display: none;
+        border: 1px solid #eee;
+        border-radius: 10px;
+        padding: 12px;
+      }
+      .tab-panel.active {
+        display: block;
+      }
+
+      .row {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: flex-end;
+      }
+      .row > * {
+        margin-bottom: 8px;
+      }
+      .tile {
+        border: 1px solid #eee;
+        border-radius: 10px;
+        padding: 10px 12px;
+        min-width: 180px;
+      }
+      .tile h4 {
+        margin: 0 0 6px;
+        font-size: 14px;
+        color: #555;
+      }
+      .tile .big {
+        font-size: 22px;
+        font-weight: 700;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        padding: 8px;
+        border-bottom: 1px solid #f0f0f0;
+        text-align: left;
+      }
+      th {
+        background: #fafafa;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+      }
+      .controls {
+        display: flex;
+        gap: 10px;
+        align-items: end;
+        flex-wrap: wrap;
+        margin: 8px 0 14px;
+      }
+      .muted {
+        color: #6b7280;
+      }
+      .right {
+        margin-left: auto;
+      }
+      .warn {
+        color: #b45309;
+      }
+      .ok {
+        color: #065f46;
+      }
+      .btn {
+        padding: 6px 10px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        background: #fff;
+        cursor: pointer;
+      }
+      .btn.primary {
+        background: #0ea5e9;
+        border-color: #0ea5e9;
+        color: #fff;
+      }
+      .btn.ghost {
+        border-style: dashed;
+      }
+      input,
+      select {
+        padding: 6px 8px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+      }
+      .small {
+        font-size: 12px;
+      }
+      .grid {
+        overflow: auto;
+        max-height: 60vh;
+        border: 1px solid #eee;
+        border-radius: 10px;
+      }
+      .section-title {
+        margin: 14px 0 6px;
+      }
+      #fcModal::backdrop {
+        background: rgba(0, 0, 0, 0.35);
+      }
+      #fcModal {
+        border: none;
+        border-radius: 10px;
+        padding: 0;
+      }
+      .btn {
+        padding: 6px 12px;
+        border-radius: 8px;
+        border: 1px solid #ddd;
+        background: #fff;
+        cursor: pointer;
+      }
+      .btn:hover {
+        background: #f6f6f6;
+      }
+      button.publish-btn {
+        background: var(--brand, #0a62c3);
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        padding: 6px 14px;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+
+      button.publish-btn:hover {
+        background: var(--brand-600, #084e9c); /* darker shade */
+        color: #fff; /* stays white */
+      }
+    </style>
+  </head>
+  <body data-theme="system">
+    <div class="fc-wrap">
+      <h1>Forecast Console</h1>
+      <p class="muted small">
+        Run, review, override, and publish SKU×Region×Godown monthly forecasts.
+      </p>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="overview">Overview</button>
+        <button class="tab-btn" data-tab="outputs">Model Outputs</button>
+        <button class="tab-btn" data-tab="exceptions">Exceptions</button>
+        <button class="tab-btn" data-tab="overrides">Overrides</button>
+        <button class="tab-btn" data-tab="publish">Publish</button>
+      </div>
+
+      <!-- Date window + filters (global) -->
+      <div class="row">
+        <div>
+          <label class="small">From</label><br />
+          <input type="date" id="fromDate" />
+        </div>
+        <div>
+          <label class="small">To</label><br />
+          <input type="date" id="toDate" />
+        </div>
+        <div>
+          <label class="small">SKU</label><br />
+          <input type="number" id="skuId" placeholder="(any)" />
+        </div>
+        <div>
+          <label class="small">Region</label><br />
+          <input type="number" id="regionId" placeholder="(any)" />
+        </div>
+        <div>
+          <label class="small">Godown</label><br />
+          <input type="number" id="godownId" placeholder="(any)" />
+        </div>
+        <div>
+          <button class="btn" id="resetFilters">Reset</button>
+        </div>
+        <div class="right">
+          <span class="small muted" id="sessionUser"></span>
+        </div>
+      </div>
+
+      <!-- OVERVIEW -->
+      <section class="tab-panel active" id="tab-overview">
+        <h3 class="section-title">Health Summary</h3>
+        <div class="row" id="overviewTiles">
+          <div class="tile">
+            <h4>Window</h4>
+            <div class="big" id="tileWindow">—</div>
+          </div>
+          <div class="tile">
+            <h4>Pairs (Combined)</h4>
+            <div class="big" id="tilePairs">—</div>
+          </div>
+          <div class="tile">
+            <h4>Rows (Combined)</h4>
+            <div class="big" id="tileRows">—</div>
+          </div>
+          <div class="tile">
+            <h4>Missing LLT</h4>
+            <div class="big warn" id="tileMissLLT">—</div>
+          </div>
+          <div class="tile">
+            <h4>Missing Seasonal</h4>
+            <div class="big warn" id="tileMissSeason">—</div>
+          </div>
+          <div class="tile">
+            <h4>Active Overrides</h4>
+            <div class="big ok" id="tileOverrides">—</div>
+          </div>
+        </div>
+
+        <h3 class="section-title">Latest Runs</h3>
+        <div class="grid">
+          <table id="runsTable">
+            <thead>
+              <tr>
+                <th>Run ID</th>
+                <th>Module</th>
+                <th>As Of</th>
+                <th>Horizon</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Closed</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- MODEL OUTPUTS -->
+      <section class="tab-panel" id="tab-outputs">
+        <div class="controls">
+          <label class="small">Dataset</label>
+          <select id="outputsDataset">
+            <option value="baseline">Baseline (effective)</option>
+            <option value="llt">LLT</option>
+            <option value="seasonal">Seasonal</option>
+            <option value="combined">Combined Plan</option>
+          </select>
+          <button class="btn" id="btnLoadOutputs">Load</button>
+          <button class="btn ghost" id="btnExportOutputs">Export CSV</button>
+          <span class="small muted" id="outputsStatus"></span>
+        </div>
+        <div class="grid">
+          <table id="outputsTable">
+            <thead>
+              <tr id="outputsHeader"></tr>
+            </thead>
+            <tbody id="outputsBody"></tbody>
+          </table>
+        </div>
+        <div class="controls">
+          <button class="btn" id="prevPageOutputs">Prev</button>
+          <span class="small muted" id="pageInfoOutputs">Page 1</span>
+          <button class="btn" id="nextPageOutputs">Next</button>
+        </div>
+      </section>
+
+      <!-- EXCEPTIONS (stub for next step) -->
+      <section class="tab-panel" id="tab-exceptions">
+        <p class="muted">
+          We’ll wire this next: “missing LLT/Seasonal”, negatives, jumps.
+        </p>
+        <div class="controls">
+          <button class="btn" id="btnLoadExceptions">Load Exceptions</button>
+          <button class="btn ghost" id="btnExportExceptions">Export CSV</button>
+          <span class="small muted" id="exceptionsStatus"></span>
+        </div>
+        <div class="grid">
+          <table id="exceptionsTable">
+            <thead>
+              <tr>
+                <th>SKU</th>
+                <th>Region</th>
+                <th>Godown</th>
+                <th>Month</th>
+                <th>Demand (effective)</th>
+                <th>LLT</th>
+                <th>Seasonal</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- OVERRIDES -->
+      <section class="tab-panel" id="tab-overrides">
+        <!-- Run Controls (moved here, only visible in Overrides tab) -->
+        <section class="panel" id="runControls">
+          <h3>Run Controls</h3>
+          <div
+            style="
+              display: flex;
+              gap: 16px;
+              flex-wrap: wrap;
+              align-items: flex-end;
+            "
+          >
+            <!-- Primary: Apply overrides then LLT+Seasonal -->
+            <div>
+              <label for="monthsWindow"><small>Months window</small></label
+              ><br />
+              <input
+                id="monthsWindow"
+                type="number"
+                min="1"
+                max="12"
+                value="3"
+                style="width: 80px"
+              />
+            </div>
+            <div>
+              <label for="asOfDate"><small>As-of date (optional)</small></label
+              ><br />
+              <input id="asOfDate" type="date" />
+            </div>
+            <div>
+              <label for="dryRun"><small>Dry-run</small></label
+              ><br />
+              <input id="dryRun" type="checkbox" />
+            </div>
+            <button id="btnApplyOverridesAndDerived" class="btn btn-primary">
+              Apply Marketing Overrides → Re-run LLT & Seasonal
+            </button>
+            <button id="btnFullRebuild" class="btn btn-danger">
+              Full Rebuild: Baseline + LLT + Seasonal
+            </button>
+          </div>
+          <div id="runNotes" class="section-hint" style="margin-top: 8px">
+            Tip: Primary button does <b>not</b> re-stat baseline. Full rebuild
+            regenerates baseline first.
+          </div>
+          <div id="runStatus" style="margin-top: 12px">
+            <!-- status chips appear here -->
+          </div>
+        </section>
+        <!-- Marketing Overrides: Export/Import -->
+        <section class="panel" style="margin-top: 16px">
+          <h3>Marketing Overrides</h3>
+          <div
+            style="
+              display: flex;
+              gap: 12px;
+              align-items: flex-end;
+              flex-wrap: wrap;
+            "
+          >
+            <!-- Export -->
+            <div>
+              <label for="moMonths" style="display: block; font-weight: 600"
+                >Export months</label
+              >
+              <input
+                id="moMonths"
+                type="number"
+                min="1"
+                max="12"
+                value="3"
+                style="width: 90px"
+              />
+            </div>
+            <button id="btnExportBaselineCsv" type="button">
+              Export Baseline (CSV)
+            </button>
+
+            <!-- Import -->
+            <div style="margin-left: 24px">
+              <label for="moFile" style="display: block; font-weight: 600"
+                >Import CSV</label
+              >
+              <input id="moFile" type="file" accept=".csv" />
+            </div>
+            <button id="btnPreviewImport" type="button">Preview</button>
+            <button id="btnApplyImport" type="button" disabled>
+              Apply Overrides
+            </button>
+
+            <!-- Window -->
+            <div style="margin-left: auto">
+              <label style="display: block; font-weight: 600">Window</label>
+              <div style="display: flex; gap: 8px">
+                <input id="moFrom" type="date" />
+                <input id="moTo" type="date" />
+              </div>
+              <small
+                >Defaults: fence-aware “next 12m”. Set only if you need a custom
+                window.</small
+              >
+            </div>
+          </div>
+
+          <!-- Import preview table -->
+          <div id="moPreview" style="margin-top: 12px; display: none">
+            <strong>Import Preview</strong>
+            <div
+              id="moPreviewInfo"
+              style="margin: 6px 0 8px; color: #555"
+            ></div>
+            <div
+              style="
+                max-height: 240px;
+                overflow: auto;
+                border: 1px solid #ddd;
+                border-radius: 6px;
+              "
+            >
+              <table id="moPreviewTable" class="data-grid">
+                <thead></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- Toast -->
+        <div
+          id="toast"
+          style="
+            position: fixed;
+            right: 16px;
+            bottom: 16px;
+            background: #111;
+            color: #fff;
+            padding: 10px 14px;
+            border-radius: 8px;
+            display: none;
+            z-index: 9999;
+          "
+        ></div>
+
+        <div class="controls">
+          <button class="btn" id="btnLoadOverrides">Load</button>
+          <button class="btn ghost" id="btnExportOverrides">Export CSV</button>
+          <span class="small muted" id="overridesStatus"></span>
+        </div>
+
+        <div class="row">
+          <div>
+            <label class="small">SKU</label><br />
+            <input type="number" id="ovSku" />
+          </div>
+          <div>
+            <label class="small">Region</label><br />
+            <input type="number" id="ovRegion" />
+          </div>
+          <div>
+            <label class="small">Godown</label><br />
+            <input type="number" id="ovGodown" />
+          </div>
+          <div>
+            <label class="small">Month</label><br />
+            <input type="date" id="ovMonth" />
+          </div>
+          <div>
+            <label class="small">Δ Units (+/-)</label><br />
+            <input type="number" id="ovDelta" />
+          </div>
+          <div style="min-width: 220px">
+            <label class="small">Reason</label><br />
+            <input
+              type="text"
+              id="ovReason"
+              placeholder="Marketing commit / campaign / etc."
+            />
+          </div>
+          <div>
+            <button class="btn primary" id="btnUpsertOverride">
+              Save / Replace
+            </button>
+          </div>
+          <div>
+            <button class="btn" id="btnDeleteOverride">Delete</button>
+          </div>
+        </div>
+
+        <div class="grid">
+          <table id="overridesTable">
+            <thead>
+              <tr>
+                <th>SKU</th>
+                <th>Region</th>
+                <th>Godown</th>
+                <th>Month</th>
+                <th>Δ Units</th>
+                <th>Reason</th>
+                <th>Active</th>
+                <th>Created</th>
+                <th>Updated</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- PUBLISH (stub for next step) -->
+      <section class="tab-panel" id="tab-publish">
+        <p class="muted">
+          We’ll wire snapshotting next (header + lines from combined view).
+        </p>
+        <div class="row">
+          <div>
+            <label class="small">Plan Key</label><br />
+            <input type="text" id="pubKey" placeholder="Plan 2025-10 (R1)" />
+          </div>
+          <div>
+            <label class="small">As Of</label><br />
+            <input type="date" id="pubAsOf" />
+          </div>
+          <div style="min-width: 260px">
+            <label class="small">Notes</label><br />
+            <input type="text" id="pubNotes" />
+          </div>
+          <div>
+            <button id="publishSnapshot" class="publish-btn">
+              Publish Snapshot
+            </button>
+          </div>
+        </div>
+        <div class="grid">
+          <table id="publishTable">
+            <thead>
+              <tr>
+                <th>Plan ID</th>
+                <th>Key</th>
+                <th>As Of</th>
+                <th>Created</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- Supabase -->
+    <script type="module" src="js/supabaseClient.js"></script>
+    <script type="module" src="js/forecast-console.js"></script>
+
+    <!-- Forecast Console Modal -->
+    <dialog id="fcModal">
+      <form method="dialog" style="margin: 0">
+        <div style="min-width: 320px; max-width: 560px; padding: 16px 18px">
+          <h3 id="fcModalTitle" style="margin: 0 0 8px; font-size: 16px">
+            Notice
+          </h3>
+          <div
+            id="fcModalMessage"
+            style="margin: 0 0 16px; line-height: 1.4"
+          ></div>
+          <div style="display: flex; gap: 8px; justify-content: flex-end">
+            <button id="fcModalClose" class="btn" value="ok">OK</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+  </body>
+</html>
