@@ -51,11 +51,14 @@ body {
   transition: background 0.3s, color 0.3s;
 }
 
-/* Table header and body font sizing: slightly larger for readability; prevent wrapping */
-table th,
+/* Table font sizing: headers may wrap, body cells should not wrap */
+table th {
+  font-size: 0.85rem;
+  white-space: normal; /* allow header wrapping */
+}
 table td {
-  font-size: 0.95rem;
-  white-space: nowrap;
+  font-size: 0.85rem;
+  white-space: nowrap; /* keep body cells one-line */
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -455,6 +458,7 @@ button {
     table-layout: fixed; /* allow columns to shrink */
   }
 
+  /* Allow only header cells to wrap (Item and Overall headers) */
   #sc-table.collapsed-default:not(.explode-stock-active):not(
       .explode-demand-active
     ):not(.explode-mos-active)
@@ -462,28 +466,17 @@ button {
   #sc-table.collapsed-default:not(.explode-stock-active):not(
       .explode-demand-active
     ):not(.explode-mos-active)
-    td.col-item,
-  #sc-table.collapsed-default:not(.explode-stock-active):not(
-      .explode-demand-active
-    ):not(.explode-mos-active)
-    th.col-overall,
-  #sc-table.collapsed-default:not(.explode-stock-active):not(
-      .explode-demand-active
-    ):not(.explode-mos-active)
-    td.col-overall {
+    th.col-overall {
     white-space: normal;
     word-break: break-word;
   }
 
   /* Let overall columns take small proportional width so multiple overall columns fit */
+  /* Let overall headers have a suggested width so multiple overall headers fit */
   #sc-table.collapsed-default:not(.explode-stock-active):not(
       .explode-demand-active
     ):not(.explode-mos-active)
-    th.col-overall,
-  #sc-table.collapsed-default:not(.explode-stock-active):not(
-      .explode-demand-active
-    ):not(.explode-mos-active)
-    td.col-overall {
+    th.col-overall {
     width: 12%;
     min-width: 80px;
   }
@@ -498,5 +491,37 @@ button {
     ):not(.explode-mos-active)
     td.col-item {
     width: 40%;
+  }
+}
+
+/* Keep numeric columns (stock/demand/mos) nowrap even when collapsed responsive rules allow wrapping for Item/overall */
+@media (max-width: 800px) {
+  #sc-table.collapsed-default:not(.explode-stock-active):not(
+      .explode-demand-active
+    ):not(.explode-mos-active)
+    th.col-stock,
+  #sc-table.collapsed-default:not(.explode-stock-active):not(
+      .explode-demand-active
+    ):not(.explode-mos-active)
+    td.col-stock,
+  #sc-table.collapsed-default:not(.explode-stock-active):not(
+      .explode-demand-active
+    ):not(.explode-mos-active)
+    th.col-demand,
+  #sc-table.collapsed-default:not(.explode-stock-active):not(
+      .explode-demand-active
+    ):not(.explode-mos-active)
+    td.col-demand,
+  #sc-table.collapsed-default:not(.explode-stock-active):not(
+      .explode-demand-active
+    ):not(.explode-mos-active)
+    th.col-mos,
+  #sc-table.collapsed-default:not(.explode-stock-active):not(
+      .explode-demand-active
+    ):not(.explode-mos-active)
+    td.col-mos {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
