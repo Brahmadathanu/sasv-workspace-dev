@@ -180,22 +180,48 @@ function bindTabs() {
 
 // ---------- Data fetchers ----------
 async function fetchWindowed() {
-  const start = addMonths(state.anchor, -state.range);
-  const from = ymd(start);
-  const to = ymd(state.anchor);
-  let q = supabase
-    .from("v_sdv_sales_enriched")
-    .select(
-      "month_start, month_label_short, region_code, region_id, godown_id, godown_code, product_id, product_name, category_name, subcategory_name, sku_id, pack_size, uom, is_active, qty_billed, qty_units, qty_base"
-    )
-    .gte("month_start", from)
-    .lte("month_start", to);
-  if (state.activeOnly) q = q.eq("is_active", true);
-  if (state.regionId) q = q.eq("region_id", +state.regionId);
-  if (state.godownId) q = q.eq("godown_id", +state.godownId);
-  const { data, error } = await q.limit(100000);
-  if (error) throw error;
-  return data || [];
+  // Window: last N months including the anchor month
+  const windowStart = addMonths(state.anchor, -(state.range - 1)); // inclusive
+  const windowEndEx = addMonths(state.anchor, 1); // exclusive
+  const from = ymd(windowStart);
+  const toEx = ymd(windowEndEx);
+
+  // Use a conservative page size; rely on returned `count` and actual batch length
+  const pageSize = 1000;
+  let offset = 0;
+  let all = [];
+
+  while (true) {
+    let q = supabase
+      .from("v_sdv_sales_enriched")
+      .select(
+        "month_start, month_label_short, region_code, region_id, godown_id, godown_code, product_id, product_name, category_name, subcategory_name, sku_id, pack_size, uom, is_active, qty_billed, qty_units, qty_base",
+        { count: "exact" }
+      )
+      .gte("month_start", from) // inclusive
+      .lt("month_start", toEx) // exclusive
+      .order("month_start", { ascending: true })
+      .order("sku_id", { ascending: true, nullsFirst: true })
+      .range(offset, offset + pageSize - 1);
+
+    if (state.activeOnly) q = q.eq("is_active", true);
+    if (state.regionId) q = q.eq("region_id", +state.regionId);
+    if (state.godownId) q = q.eq("godown_id", +state.godownId);
+
+    const { data, error, count } = await q;
+    if (error) throw error;
+
+    const batch = data || [];
+    if (batch.length === 0) break; // no more rows
+
+    all = all.concat(batch);
+    offset += batch.length; // advance by what we actually got
+
+    if (count != null && offset >= count) break; // fetched all rows
+    if (offset > 500000) break; // hard safety guard
+  }
+
+  return all;
 }
 
 async function fetchFreshness() {
@@ -662,8 +688,8 @@ async function renderZeroSellers() {
 // ---------- Status ----------
 function renderStatus() {
   const f = state.freshness;
-  const from = ymd(addMonths(state.anchor, -state.range));
-  const to = ymd(state.anchor);
+  const winStart = ymd(addMonths(state.anchor, -(state.range - 1)));
+  const winEndEx = ymd(addMonths(state.anchor, 1));
   const scope = [
     state.regionId ? `Region=${state.regionId}` : null,
     state.godownId ? `Godown=${state.godownId}` : null,
@@ -681,7 +707,7 @@ function renderStatus() {
   };
 
   const html = `
-    <p><strong>Window:</strong> ${from} → ${to}</p>
+    <p><strong>Window:</strong> ${winStart} → ${winEndEx} (end exclusive)</p>
     <p><strong>Scope:</strong> ${
       scope || "All regions/godowns; active-only on"
     }</p>

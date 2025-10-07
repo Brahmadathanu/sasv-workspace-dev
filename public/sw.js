@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "sasv-utils-v47"; // bump!
+const CACHE_NAME = "sasv-utils-v49"; // bump!
 
 const PRECACHE = [
   // Hub shell
