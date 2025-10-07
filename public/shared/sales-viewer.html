@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Sales Viewer</title>
+    <link rel="stylesheet" href="css/style.css" />
     <style>
       :root {
         --brand: #0a62c3;
@@ -14,6 +15,10 @@
         --bg: #fff;
         --bg-soft: #f8fafc;
         --card: #ffffff;
+        --pill: #eef2ff;
+        --ok: #16a34a;
+        --warn: #d97706;
+        --bad: #dc2626;
       }
       * {
         box-sizing: border-box;
@@ -50,16 +55,47 @@
         align-items: center;
         justify-content: flex-end;
       }
+      .tag {
+        padding: 4px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        font-size: 12px;
+        background: #fff;
+      }
+      .tag.green {
+        border-color: var(--ok);
+        color: var(--ok);
+      }
+      .tag.amber {
+        border-color: var(--warn);
+        color: var(--warn);
+      }
+      .tag.red {
+        border-color: var(--bad);
+        color: var(--bad);
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        gap: 14px;
+      }
       .card {
         background: var(--card);
         border: 1px solid var(--border);
         border-radius: 14px;
       }
-      .filters {
-        display: grid;
-        grid-template-columns: 280px 1fr;
-        gap: 14px;
+      .section {
+        padding: 12px;
       }
+      .muted {
+        color: var(--text-2);
+      }
+      .spacer {
+        height: 8px;
+      }
+
+      /* Filter rail */
       .rail {
         position: sticky;
         top: 10px;
@@ -112,30 +148,64 @@
         border-color: var(--brand);
         color: #fff;
       }
+
+      /* Tabs */
+      .tabs {
+        display: flex;
+        gap: 8px;
+        flex-wrap: nowrap;
+        overflow: auto;
+        padding: 8px;
+      }
+      .tab-pill {
+        white-space: nowrap;
+        background: var(--pill);
+        border: 1px solid var(--border);
+        padding: 8px 10px;
+        border-radius: 999px;
+        cursor: pointer;
+      }
+      .tab-pill[aria-selected="true"] {
+        background: var(--brand);
+        color: #fff;
+        border-color: var(--brand);
+      }
+
+      .tabpanel {
+        display: none;
+      }
+      .tabpanel.active {
+        display: block;
+      }
+
+      /* KPIs & grids */
       .kpis {
         display: grid;
-        grid-template-columns: repeat(6, 1fr);
+        grid-template-columns: repeat(3, 1fr);
         gap: 10px;
         margin: 10px 0;
       }
       .kpi {
         padding: 12px;
       }
+      .kpi h4 {
+        margin: 0 0 4px 0;
+        font-size: 13px;
+      }
+      .kpi p {
+        margin: 0 0 8px 0;
+        color: var(--text-2);
+        font-size: 12px;
+      }
       .kpi .v {
         font-weight: 600;
         font-size: 18px;
       }
-      .kpi .s {
-        font-size: 12px;
-        color: var(--text-2);
-      }
-      .grid {
+
+      .grid2 {
         display: grid;
-        grid-template-columns: 1.2fr 1fr;
+        grid-template-columns: 1fr;
         gap: 14px;
-      }
-      .section {
-        padding: 12px;
       }
       .table {
         width: 100%;
@@ -160,27 +230,66 @@
         left: 0;
         background: #fff;
       }
-      .muted {
+
+      /* Toolbars */
+      .toolbar {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      .toolbar label {
+        font-size: 12px;
         color: var(--text-2);
       }
-      .spacer {
-        height: 8px;
+
+      /* Pagination */
+      .pager {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        justify-content: flex-end;
+        margin-top: 8px;
       }
-      .tag {
-        padding: 4px 8px;
-        border-radius: 999px;
-        border: 1px solid var(--border);
-        font-size: 12px;
+
+      /* Small screens */
+      .filters-toggle {
+        display: none;
       }
       @media (max-width: 980px) {
-        .filters {
+        .layout {
           grid-template-columns: 1fr;
         }
         .kpis {
-          grid-template-columns: repeat(3, 1fr);
+          grid-template-columns: repeat(2, 1fr);
         }
-        .grid {
-          grid-template-columns: 1fr;
+        .filters-toggle {
+          display: flex;
+          justify-content: flex-end;
+          margin-bottom: 8px;
+        }
+        .rail {
+          display: none;
+        }
+        .rail.open {
+          display: flex;
+        }
+      }
+      /* Chart wrappers keep charts from growing vertically */
+      .chart-wrap {
+        height: 320px; /* adjust per chart */
+        position: relative; /* required for Chart.js responsive sizing */
+      }
+      .chart-wrap.tall {
+        height: 360px; /* e.g., for stacked bar */
+      }
+      @media (max-width: 980px) {
+        .chart-wrap {
+          height: 280px;
+        }
+        .chart-wrap.tall {
+          height: 320px;
         }
       }
     </style>
@@ -195,7 +304,11 @@
         </div>
       </header>
 
-      <section class="filters">
+      <div class="filters-toggle">
+        <button id="btn-toggle-filters" class="btn">Filters ▾</button>
+      </div>
+
+      <section class="layout">
         <!-- Filter Rail -->
         <aside class="rail card" id="filter-rail">
           <h3>Time</h3>
@@ -205,7 +318,7 @@
               <input id="f-anchor" class="input" type="month" />
             </label>
           </div>
-          <div class="frow">
+          <div class="frow" title="Pick reporting window length">
             <span id="chip-3" class="chip" data-range="3">Last 3</span>
             <span id="chip-6" class="chip" data-range="6">Last 6</span>
             <span id="chip-12" class="chip active" data-range="12"
@@ -236,13 +349,17 @@
           <div class="frow">
             <label
               >Qty Mode
-              <select id="f-mode" class="input">
+              <select
+                id="f-mode"
+                class="input"
+                title="Billed = qty_billed, Units = qty_units, Base = qty_base"
+              >
                 <option value="qty_billed">Billed (default)</option>
                 <option value="qty_units">Units</option>
                 <option value="qty_base">Base Qty</option>
               </select>
             </label>
-            <label>
+            <label title="Show only SKUs marked as active">
               <input id="f-active" type="checkbox" checked /> Active SKUs only
             </label>
           </div>
@@ -252,78 +369,365 @@
           </div>
         </aside>
 
-        <!-- Main content -->
-        <main class="content">
-          <!-- KPI cards -->
-          <div class="kpis">
-            <div class="kpi card">
-              <div class="s">Month Total</div>
-              <div id="k-mtd" class="v">—</div>
-            </div>
-            <div class="kpi card">
-              <div class="s">Prev Month</div>
-              <div id="k-prev" class="v">—</div>
-            </div>
-            <div class="kpi card">
-              <div class="s">MoM %</div>
-              <div id="k-mom" class="v">—</div>
-            </div>
-            <div class="kpi card">
-              <div class="s">YoY %</div>
-              <div id="k-yoy" class="v">—</div>
-            </div>
-            <div class="kpi card">
-              <div class="s">Last 3M Avg</div>
-              <div id="k-l3m" class="v">—</div>
-            </div>
-            <div class="kpi card">
-              <div class="s">L12M Total</div>
-              <div id="k-l12m" class="v">—</div>
-            </div>
-          </div>
+        <!-- Content -->
+        <main>
+          <!-- Tabs -->
+          <nav class="tabs" role="tablist" aria-label="Sales Data Tabs">
+            <button
+              class="tab-pill"
+              role="tab"
+              data-tab="overview"
+              aria-selected="true"
+            >
+              Overview
+            </button>
+            <button class="tab-pill" role="tab" data-tab="trends">
+              Trends
+            </button>
+            <button class="tab-pill" role="tab" data-tab="mix">Mix</button>
+            <button class="tab-pill" role="tab" data-tab="top">
+              Top / Bottom
+            </button>
+            <button class="tab-pill" role="tab" data-tab="detail">
+              Detail Grid
+            </button>
+            <button class="tab-pill" role="tab" data-tab="exceptions">
+              Exceptions
+            </button>
+            <button class="tab-pill" role="tab" data-tab="status">
+              Status
+            </button>
+          </nav>
 
-          <div class="grid">
-            <!-- Left: Trend -->
-            <section class="section card">
-              <h3 class="muted">IK vs OK — Monthly Trend</h3>
-              <div id="trend-table" class="spacer"></div>
-              <table class="table" id="tbl-trend">
-                <thead>
-                  <tr id="th-trend"></tr>
-                </thead>
-                <tbody id="tb-trend"></tbody>
-              </table>
-            </section>
+          <!-- OVERVIEW -->
+          <section
+            id="tab-overview"
+            class="tabpanel active"
+            role="tabpanel"
+            aria-labelledby="Overview"
+          >
+            <div class="section card">
+              <h3>Key Performance Indicators</h3>
+              <p class="muted">
+                High-level metrics for the selected month and window. ERP
+                abbreviations shown in brackets.
+              </p>
+              <div class="kpis">
+                <div class="kpi card">
+                  <h4>This Month Total</h4>
+                  <p>Total billed quantity for the anchor month.</p>
+                  <div id="k-mtd" class="v">—</div>
+                </div>
+                <div class="kpi card">
+                  <h4>Previous Month</h4>
+                  <p>
+                    Total billed quantity for the month before the anchor month.
+                  </p>
+                  <div id="k-prev" class="v">—</div>
+                </div>
+                <div class="kpi card">
+                  <h4>Month-over-Month Change (MoM%)</h4>
+                  <p>Change vs previous month, as a percent.</p>
+                  <div id="k-mom" class="v">—</div>
+                </div>
+                <div class="kpi card">
+                  <h4>Year-over-Year Change (YoY%)</h4>
+                  <p>Change vs the same month last year, as a percent.</p>
+                  <div id="k-yoy" class="v">—</div>
+                </div>
+                <div class="kpi card">
+                  <h4>Last 3 Months Average (L3M Avg)</h4>
+                  <p>
+                    Average billed quantity over the last 3 months (incl.
+                    current).
+                  </p>
+                  <div id="k-l3m" class="v">—</div>
+                </div>
+                <div class="kpi card">
+                  <h4>Last 12 Months Total (L12M)</h4>
+                  <p>Sum of billed quantity across the last 12 months.</p>
+                  <div id="k-l12m" class="v">—</div>
+                </div>
+              </div>
+            </div>
 
-            <!-- Right: Top 20 -->
-            <section class="section card">
-              <h3 class="muted">Top 20 SKUs (window)</h3>
+            <div class="grid2">
+              <section class="section card">
+                <h3>IK vs OK — Monthly Trend</h3>
+                <p class="muted">
+                  Billed quantity by month split by Inside Kerala (IK) and
+                  Outside Kerala (OK).
+                </p>
+                <table class="table" id="tbl-trend">
+                  <thead>
+                    <tr id="th-trend"></tr>
+                  </thead>
+                  <tbody id="tb-trend"></tbody>
+                </table>
+              </section>
+            </div>
+          </section>
+
+          <!-- TRENDS -->
+          <section
+            id="tab-trends"
+            class="tabpanel"
+            role="tabpanel"
+            aria-labelledby="Trends"
+          >
+            <div class="section card">
+              <h3>Sales Trend — by Selected Level</h3>
+              <p class="muted">
+                Time-series of billed quantity by level. Choose Region, Godown,
+                Product, or SKU. Shows Top K series for readability.
+              </p>
+
+              <div class="toolbar">
+                <label
+                  >Level
+                  <select id="t-level" class="input">
+                    <option value="region">Region</option>
+                    <option value="godown">Godown</option>
+                    <option value="product">Product</option>
+                    <option value="sku">SKU</option>
+                  </select>
+                </label>
+                <label
+                  >Top K
+                  <input
+                    id="t-topk"
+                    class="input"
+                    type="number"
+                    min="1"
+                    max="50"
+                    value="10"
+                    style="width: 80px"
+                  />
+                </label>
+                <span
+                  class="muted"
+                  title="Uses global Qty Mode filter for the measure"
+                  >Measure: global (Qty Mode)</span
+                >
+                <button id="t-refresh" class="btn">Refresh</button>
+              </div>
+
+              <div class="spacer"></div>
+              <div class="chart-wrap">
+                <canvas
+                  id="trend-canvas"
+                  aria-label="Sales trend chart"
+                ></canvas>
+              </div>
+            </div>
+          </section>
+
+          <!-- MIX -->
+          <section
+            id="tab-mix"
+            class="tabpanel"
+            role="tabpanel"
+            aria-labelledby="Mix"
+          >
+            <div class="section card">
+              <h3>Category/Subcategory Mix</h3>
+              <p class="muted">
+                Share of billed quantity by Category → Subcategory per month
+                (stacked bars). Limit to Top K subcategories for readability.
+              </p>
+              <div class="toolbar">
+                <label
+                  >Top K Subcategories
+                  <input
+                    id="m-topk"
+                    class="input"
+                    type="number"
+                    min="2"
+                    max="20"
+                    value="8"
+                    style="width: 80px"
+                  />
+                </label>
+                <button id="m-refresh" class="btn">Refresh</button>
+              </div>
+              <div class="chart-wrap tall">
+                <canvas id="mix-canvas" aria-label="Mix stacked chart"></canvas>
+              </div>
+            </div>
+          </section>
+
+          <!-- TOP / BOTTOM -->
+          <section
+            id="tab-top"
+            class="tabpanel"
+            role="tabpanel"
+            aria-labelledby="Top / Bottom"
+          >
+            <div class="section card">
+              <h3>Top / Bottom</h3>
+              <p class="muted">
+                Rank entities by total billed quantity over the selected window.
+              </p>
+              <div class="toolbar">
+                <label
+                  >Entity
+                  <select id="tb-entity" class="input">
+                    <option value="sku">SKU</option>
+                    <option value="product">Product</option>
+                  </select>
+                </label>
+                <label
+                  >N
+                  <input
+                    id="tb-n"
+                    class="input"
+                    type="number"
+                    min="5"
+                    max="100"
+                    value="20"
+                    style="width: 80px"
+                  />
+                </label>
+                <label
+                  >Order
+                  <select id="tb-order" class="input">
+                    <option value="desc">Top (Desc)</option>
+                    <option value="asc">Bottom (Asc)</option>
+                  </select>
+                </label>
+                <button id="tb-refresh" class="btn">Refresh</button>
+              </div>
+
               <table class="table" id="tbl-topn">
                 <thead>
                   <tr>
-                    <th>SKU / Product</th>
+                    <th>Entity</th>
                     <th>Total</th>
                   </tr>
                 </thead>
                 <tbody id="tb-topn"></tbody>
               </table>
-            </section>
-          </div>
+            </div>
+          </section>
 
-          <section class="section card" style="margin-top: 14px">
-            <h3 class="muted">Detail Grid — SKU × Month</h3>
-            <table class="table" id="tbl-detail">
-              <thead>
-                <tr id="th-detail"></tr>
-              </thead>
-              <tbody id="tb-detail"></tbody>
-            </table>
+          <!-- DETAIL -->
+          <section
+            id="tab-detail"
+            class="tabpanel"
+            role="tabpanel"
+            aria-labelledby="Detail Grid"
+          >
+            <div class="section card">
+              <h3>Detail Grid — SKU × Month</h3>
+              <p class="muted">
+                Pivot-style table for month-on-month comparison with simple
+                pagination and CSV export.
+              </p>
+              <div class="toolbar">
+                <label
+                  >Search
+                  <input
+                    id="dg-search"
+                    class="input"
+                    type="text"
+                    placeholder="SKU / Product / Pack…"
+                    style="width: 260px"
+                  />
+                </label>
+                <button id="dg-clear" class="btn">Clear</button>
+              </div>
+              <table class="table" id="tbl-detail">
+                <thead>
+                  <tr id="th-detail"></tr>
+                </thead>
+                <tbody id="tb-detail"></tbody>
+              </table>
+              <div class="pager">
+                <button id="pg-prev" class="btn">Prev</button>
+                <span id="pg-info" class="muted">Page —</span>
+                <button id="pg-next" class="btn">Next</button>
+                <label
+                  >Rows / page
+                  <input
+                    id="pg-size"
+                    class="input"
+                    type="number"
+                    min="20"
+                    max="200"
+                    value="50"
+                    style="width: 80px"
+                  />
+                </label>
+              </div>
+            </div>
+          </section>
+
+          <!-- EXCEPTIONS -->
+          <section
+            id="tab-exceptions"
+            class="tabpanel"
+            role="tabpanel"
+            aria-labelledby="Exceptions"
+          >
+            <div class="section card">
+              <h3>Zero Sellers (Last N Months)</h3>
+              <p class="muted">
+                SKUs with no billed quantity in the last N months within the
+                selected scope.
+              </p>
+              <div class="toolbar">
+                <label
+                  >Last N months
+                  <input
+                    id="ex-n"
+                    class="input"
+                    type="number"
+                    min="1"
+                    max="12"
+                    value="3"
+                    style="width: 80px"
+                  />
+                </label>
+                <button id="ex-refresh" class="btn">Refresh</button>
+              </div>
+
+              <table class="table" id="tbl-zero">
+                <thead>
+                  <tr>
+                    <th>SKU / Product</th>
+                    <th>Active</th>
+                    <th>Region</th>
+                    <th>Godown</th>
+                  </tr>
+                </thead>
+                <tbody id="tb-zero"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- STATUS -->
+          <section
+            id="tab-status"
+            class="tabpanel"
+            role="tabpanel"
+            aria-labelledby="Status"
+          >
+            <div class="section card">
+              <h3>Data Freshness & Context</h3>
+              <p class="muted">
+                Latest source timestamp, health color, and the filters/window in
+                effect.
+              </p>
+              <div id="status-content" class="muted">—</div>
+            </div>
           </section>
         </main>
       </section>
     </div>
 
-    <!-- IMPORTANT: load your module JS -->
+    <!-- Local Chart.js (place file here or change path) -->
+    <script src="../vendor/chart.umd.js"></script>
+    <!-- Module JS -->
     <script type="module" src="js/sales-viewer.js"></script>
   </body>
 </html>
