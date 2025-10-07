@@ -464,6 +464,9 @@ async function loadMetrics(skus, productId) {
   const aveKKD = (sku) =>
     fcountKKD[sku] ? Math.round(fsumKKD[sku] / fcountKKD[sku]) : "—";
 
+  // pretty printer for MOS cells
+  const fmtMOS = (x) => (Number.isFinite(x) ? nfmt(x) : "—");
+
   /* ── Build and cache metrics for later MOS math ── */
   const forecastIK = {};
   const forecastOK = {};
@@ -519,22 +522,43 @@ async function loadMetrics(skus, productId) {
     <th>MRP&nbsp;IK</th><th>MRP&nbsp;OK</th>
     <th>Stock&nbsp;IK</th><th>Stock&nbsp;KKD</th><th>Stock&nbsp;OK</th>
     <th>Forecast&nbsp;IK</th><th>Forecast&nbsp;KKD</th><th>Forecast&nbsp;OK</th>
+    <th>MOS&nbsp;IK</th><th>MOS&nbsp;KKD</th><th>MOS&nbsp;OK</th>
   </tr>`;
 
   metricsBody.innerHTML = skus
     .map((s) => {
       const p = priceMap[s.id] || {};
+
+      // stocks
+      const stIK = stockIK[s.id] || 0;
+      const stKKD = stockKKD[s.id] || 0;
+      const stOK = stockOK[s.id] || 0;
+
+      // forecasts (you already prepared numeric values earlier)
+      const fIK = forecastIK[s.id] || 0;
+      const fKKD = forecastKKD[s.id] || 0;
+      const fOK = forecastOK[s.id] || 0;
+
+      // Convention used elsewhere in your code:
+      //   IK MOS uses IK + KKD as the stock numerator.
+      const mosIK = fIK ? (stIK + stKKD) / fIK : NaN;
+      const mosKKD = fKKD ? stKKD / fKKD : NaN;
+      const mosOK = fOK ? stOK / fOK : NaN;
+
       return `
-    <tr>
-      <td>${s.pack_size}&nbsp;${s.uom}</td>
-      <td>${p.ik}</td><td>${p.ok}</td>
-      <td>${stockIK[s.id] || 0}</td>
-      <td>${stockKKD[s.id] || 0}</td>
-      <td>${stockOK[s.id] || 0}</td>
-      <td>${aveRegion(s.id, "IK")}</td>
-      <td>${aveKKD(s.id)}</td>
-      <td>${aveRegion(s.id, "OK")}</td>
-    </tr>`;
+      <tr>
+        <td>${s.pack_size}&nbsp;${s.uom}</td>
+        <td>${p.ik}</td><td>${p.ok}</td>
+        <td>${stIK}</td>
+        <td>${stKKD}</td>
+        <td>${stOK}</td>
+        <td>${aveRegion(s.id, "IK")}</td>
+        <td>${aveKKD(s.id)}</td>
+        <td>${aveRegion(s.id, "OK")}</td>
+        <td>${fmtMOS(mosIK)}</td>
+        <td>${fmtMOS(mosKKD)}</td>
+        <td>${fmtMOS(mosOK)}</td>
+      </tr>`;
     })
     .join("");
 

@@ -399,6 +399,20 @@
         opacity: 0.5;
         cursor: not-allowed;
       }
+      /* ensure the menu can escape the cell and actually be visible */
+      .actions-cell {
+        overflow: visible;
+      }
+
+      /* click-toggle support (JS adds .open on .dropdown) */
+      .dropdown.open .dropdown-menu {
+        display: block;
+      }
+
+      /* a little more safety in stacking */
+      .dropdown-menu {
+        z-index: 101;
+      }
     </style>
   </head>
 

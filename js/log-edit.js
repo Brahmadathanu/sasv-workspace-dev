@@ -756,6 +756,49 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
     });
 
+    // --- CLICK-TOGGLE FOR ACTIONS MENU (safer than hover-only) ---
+    function closeAllDropdowns(except) {
+      document
+        .querySelectorAll(".actions-cell .dropdown.open")
+        .forEach((dd) => {
+          if (dd !== except) {
+            dd.classList.remove("open");
+            const btn = dd.querySelector(".dropdown-toggle");
+            if (btn) btn.setAttribute("aria-expanded", "false");
+          }
+        });
+    }
+
+    // open/close on click
+    document.querySelectorAll("#panelFull .dropdown-toggle").forEach((btn) => {
+      const wrap = btn.closest(".dropdown");
+      // make it accessible
+      btn.setAttribute("aria-haspopup", "true");
+      btn.setAttribute("aria-expanded", "false");
+
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const willOpen = !wrap.classList.contains("open");
+        closeAllDropdowns(); // close others
+        if (willOpen) {
+          wrap.classList.add("open");
+          btn.setAttribute("aria-expanded", "true");
+        } else {
+          wrap.classList.remove("open");
+          btn.setAttribute("aria-expanded", "false");
+        }
+      });
+    });
+
+    // close when clicking anywhere else
+    document.addEventListener("click", () => closeAllDropdowns());
+
+    // close on Escape
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeAllDropdowns();
+    });
+
     // 8) Show/hide pager + update counts
     updatePagerUI(filtered, rows.length);
   }

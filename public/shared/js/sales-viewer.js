@@ -2,6 +2,7 @@
 
 // Adjust this path if your Supabase client lives elsewhere
 import { supabase } from "./supabaseClient.js";
+import { Platform } from "./platform.js";
 
 // ---------- Helpers ----------
 const $ = (id) => document.getElementById(id);
@@ -810,6 +811,9 @@ bindTrendsControls();
 bindMixControls();
 bindTopControls();
 bindExceptionsControls();
+// HOME button (platform-aware)
+const homeBtn = document.getElementById("homeBtn");
+homeBtn?.addEventListener("click", () => Platform.goHome());
 runAll().catch((err) => {
   console.error(err);
   alert("Error: " + err.message);
