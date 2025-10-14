@@ -1,0 +1,2951 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Supply Batch Plan</title>
+    <link rel="stylesheet" href="public/shared/css/style.css" />
+    <link rel="stylesheet" href="css/fonts.css" />
+    <style>
+      body {
+        font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif;
+        margin: 16px;
+        color: #111;
+      }
+      h1 {
+        margin: 0 0 12px;
+      }
+      .muted {
+        color: #666;
+        font-size: 12px;
+      }
+      .row {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .card {
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        padding: 12px;
+        margin: 12px 0;
+        background: var(--panel-bg, #fff);
+      }
+      .card h3 {
+        margin: 0 0 14px;
+        font-size: 1.05rem;
+        color: var(--text-color, #333);
+      }
+      .btn {
+        padding: 6px 10px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        background: #f3f4f6;
+        cursor: pointer;
+        font: inherit;
+        transition: background 0.2s;
+      }
+      .btn:hover {
+        filter: brightness(0.98);
+      }
+      .btn.primary {
+        background: var(--btn-bg, #005a8d);
+        color: var(--btn-text, #fff);
+        border-color: var(--btn-bg, #005a8d);
+      }
+      .btn.primary:hover {
+        background: var(--btn-hover-bg, #004876);
+        border-color: var(--btn-hover-bg, #004876);
+        filter: brightness(1.02);
+      }
+      .btn.warn {
+        background: #fef3c7;
+        border-color: #f59e0b;
+        color: #92400e;
+      }
+      .btn.warn:hover {
+        background: #fde68a;
+        border-color: #d97706;
+      }
+      /* Responsive Table Container */
+      .table-container {
+        width: 100%;
+        overflow-x: auto;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        margin: 12px 0;
+      }
+
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        min-width: 700px; /* Reduced minimum width since Product/Malayalam columns will wrap */
+      }
+      th,
+      td {
+        border-bottom: 1px solid var(--border, #e5e7eb);
+        padding: 6px 8px;
+        font-size: 0.875rem;
+        text-align: left;
+        vertical-align: middle;
+      }
+      th {
+        background: var(--table-header, #f9fafb);
+        font-weight: 600;
+        white-space: nowrap;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+      }
+      td {
+        word-break: break-word;
+        white-space: normal;
+      }
+
+      /* Mobile responsive adjustments */
+      @media (max-width: 768px) {
+        table {
+          min-width: 500px; /* Reduced since columns can wrap */
+          font-size: 0.8rem;
+        }
+        th,
+        td {
+          padding: 4px 6px;
+          font-size: 0.8rem;
+        }
+
+        /* Make action buttons smaller on mobile */
+        .btn {
+          padding: 4px 6px;
+          font-size: 0.75rem;
+        }
+      }
+
+      @media (max-width: 480px) {
+        table {
+          min-width: 400px; /* Further reduced for very small screens */
+        }
+        th,
+        td {
+          padding: 3px 4px;
+          font-size: 0.75rem;
+        }
+        .btn {
+          padding: 3px 5px;
+          font-size: 0.7rem;
+        }
+      }
+
+      /* Table alignment: Product and Malayalam left-aligned; other columns centered.
+         Apply to both Lines and Batches tables. Also vertically center all cells. */
+      /* Vertical centering for both tables */
+      #tab-lines table th,
+      #tab-lines table td,
+      #tab-batches table th,
+      #tab-batches table td {
+        vertical-align: middle;
+      }
+
+      /* Left-align first two columns (Product, Malayalam)
+         for both Lines and Batches */
+      #tab-lines table th:first-child,
+      #tab-lines table td:first-child,
+      #tab-lines table th:nth-child(2),
+      #tab-lines table td:nth-child(2),
+      #tab-batches table th:first-child,
+      #tab-batches table td:first-child,
+      #tab-batches table th:nth-child(2),
+      #tab-batches table td:nth-child(2) {
+        text-align: left;
+      }
+
+      /* Center all other columns */
+      #tab-lines table th:not(:first-child):not(:nth-child(2)),
+      #tab-lines table td:not(:first-child):not(:nth-child(2)),
+      #tab-batches table th:not(:first-child):not(:nth-child(2)),
+      #tab-batches table td:not(:first-child):not(:nth-child(2)) {
+        text-align: center;
+      }
+
+      /* Product and Malayalam column responsive width and wrapping */
+      #tab-lines table th:first-child,
+      #tab-lines table td:first-child,
+      #tab-lines table th:nth-child(2),
+      #tab-lines table td:nth-child(2),
+      #tab-batches table th:first-child,
+      #tab-batches table td:first-child,
+      #tab-batches table th:nth-child(2),
+      #tab-batches table td:nth-child(2) {
+        min-width: 120px;
+        max-width: 200px;
+        white-space: normal;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        hyphens: auto;
+      }
+
+      /* Allow table headers to wrap for Product and Malayalam */
+      #tab-lines table th:first-child,
+      #tab-lines table th:nth-child(2),
+      #tab-batches table th:first-child,
+      #tab-batches table th:nth-child(2) {
+        white-space: normal;
+      }
+
+      /* Responsive adjustments for Product and Malayalam columns */
+      @media (max-width: 768px) {
+        #tab-lines table th:first-child,
+        #tab-lines table td:first-child,
+        #tab-lines table th:nth-child(2),
+        #tab-lines table td:nth-child(2),
+        #tab-batches table th:first-child,
+        #tab-batches table td:first-child,
+        #tab-batches table th:nth-child(2),
+        #tab-batches table td:nth-child(2) {
+          min-width: 100px;
+          max-width: 150px;
+        }
+      }
+
+      @media (max-width: 480px) {
+        #tab-lines table th:first-child,
+        #tab-lines table td:first-child,
+        #tab-lines table th:nth-child(2),
+        #tab-lines table td:nth-child(2),
+        #tab-batches table th:first-child,
+        #tab-batches table td:first-child,
+        #tab-batches table th:nth-child(2),
+        #tab-batches table td:nth-child(2) {
+          min-width: 80px;
+          max-width: 120px;
+        }
+      }
+
+      /* Preferred Batch Size Buttons */
+      .preferred-batch-size-btn {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border: 1px solid #cbd5e1;
+        border-radius: 4px;
+        padding: 4px 8px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: #475569;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        min-width: 60px;
+        display: inline-block;
+        text-align: center;
+      }
+      .preferred-batch-size-btn:hover {
+        background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+        border-color: #94a3b8;
+        color: #334155;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .preferred-batch-size-btn.no-value {
+        background: linear-gradient(135deg, #fef3c7 0%, #fed7aa 100%);
+        border-color: #f59e0b;
+        color: #92400e;
+      }
+      .preferred-batch-size-btn.no-value:hover {
+        background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%);
+        border-color: #d97706;
+        color: #7c2d12;
+      }
+
+      /* Kebab Menu Styles */
+      .kebab-menu {
+        position: relative;
+        display: inline-block;
+      }
+
+      .kebab-btn {
+        background: none;
+        border: none;
+        font-size: 1.2rem;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 4px;
+        color: #6b7280;
+        transition: all 0.2s;
+      }
+
+      .kebab-btn:hover {
+        background: #f3f4f6;
+        color: #374151;
+      }
+
+      .kebab-content {
+        display: none;
+        position: fixed;
+        background: white;
+        min-width: 140px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+          0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        border-radius: 6px;
+        border: 1px solid #e5e7eb;
+        z-index: 10000;
+        overflow: hidden;
+      }
+
+      .kebab-content.show {
+        display: block;
+      }
+
+      .kebab-item {
+        display: block;
+        width: 100%;
+        padding: 8px 12px;
+        background: none;
+        border: none;
+        text-align: left;
+        font-size: 0.875rem;
+        color: #374151;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+
+      .kebab-item:hover {
+        background: #f3f4f6;
+      }
+
+      .kebab-item:disabled {
+        color: #9ca3af;
+        cursor: not-allowed;
+      }
+
+      .kebab-item:disabled:hover {
+        background: none;
+      }
+
+      input,
+      select {
+        padding: 6px 8px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        background: #fff;
+        color: #111;
+        font: inherit;
+      }
+      input:focus,
+      select:focus {
+        outline: 2px solid var(--primary, #005a8d);
+        outline-offset: 2px;
+        border-color: var(--primary, #005a8d);
+      }
+      input::placeholder {
+        color: #6b7280;
+        opacity: 1;
+      }
+      #toast {
+        display: none;
+        position: fixed;
+        right: 16px;
+        bottom: 16px;
+        background: #111;
+        color: #fff;
+        padding: 8px 12px;
+        border-radius: 4px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      @media (max-width: 900px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        /* Stack row items on smaller screens */
+        .row {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 8px;
+        }
+
+        /* Keep filter controls in row on tablet+ */
+        @media (min-width: 600px) {
+          .row {
+            flex-direction: row;
+            align-items: center;
+          }
+        }
+
+        /* Make cards more mobile-friendly */
+        .card {
+          margin: 8px 0;
+          padding: 8px;
+        }
+
+        body {
+          margin: 8px;
+        }
+      }
+
+      /* Professional Form Layout for Plan Management */
+      .plan-management-section {
+        margin-bottom: 16px;
+        padding: 12px;
+        background: #f8fafc;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+      }
+      .plan-management-section:last-child {
+        margin-bottom: 0;
+      }
+      .plan-management-row {
+        display: grid;
+        grid-template-columns: 160px 1fr 140px;
+        gap: 16px;
+        align-items: end;
+      }
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .form-group-wide {
+        grid-column: span 1;
+      }
+      .form-group label {
+        font-weight: 500;
+        font-size: 0.875rem;
+        color: #374151;
+        margin-bottom: 2px;
+      }
+      .form-control {
+        padding: 8px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        background: #fff;
+        transition: border-color 0.2s, box-shadow 0.2s;
+      }
+      .form-control:focus {
+        outline: none;
+        border-color: var(--primary, #005a8d);
+        box-shadow: 0 0 0 3px rgba(0, 90, 141, 0.1);
+      }
+      .checkbox-wrapper {
+        padding: 8px 0;
+      }
+      .checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.875rem;
+        color: #374151;
+        cursor: pointer;
+      }
+      .checkbox-label input[type="checkbox"] {
+        margin: 0;
+      }
+      @media (max-width: 768px) {
+        .plan-management-row {
+          grid-template-columns: 1fr;
+          gap: 12px;
+        }
+        .form-group-wide {
+          grid-column: span 1;
+        }
+      }
+
+      /* Professional Form Layout for Build Operations */
+      .build-operations-section {
+        margin-bottom: 16px;
+        padding: 12px;
+        background: #f8fafc;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+      }
+      .build-operations-section:last-child {
+        margin-bottom: 0;
+      }
+      .build-operations-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 16px;
+        align-items: end;
+      }
+      .statistics-group {
+        grid-column: span 3;
+      }
+      .statistics-display {
+        padding: 12px 16px 12px 44px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        color: #4b5563;
+        min-height: 38px;
+        display: flex;
+        align-items: center;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        font-weight: 500;
+        position: relative;
+      }
+      .statistics-display::before {
+        content: "";
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 16px;
+        height: 16px;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='1.5' stroke='%234b5563'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z' /%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: contain;
+      }
+      .statistics-display:empty {
+        padding-left: 44px;
+      }
+      .statistics-display:empty::before {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='1.5' stroke='%239ca3af'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z' /%3E%3C/svg%3E");
+      }
+      .statistics-display:empty::after {
+        content: "Select a plan to view statistics";
+        color: #9ca3af;
+        font-style: italic;
+        font-weight: 400;
+      }
+      .form-control-btn {
+        padding: 8px 16px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        background: #f9fafb;
+        color: #374151;
+        cursor: pointer;
+        transition: all 0.2s;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 500;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      }
+      .form-control-btn:hover {
+        background: #f3f4f6;
+        border-color: #9ca3af;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        transform: translateY(-1px);
+      }
+      .form-control-btn.primary {
+        background: var(--primary, #005a8d);
+        border-color: var(--primary, #005a8d);
+        color: white;
+        box-shadow: 0 2px 4px 0 rgba(0, 90, 141, 0.2);
+      }
+      .form-control-btn.primary:hover {
+        background: #004a73;
+        border-color: #004a73;
+        box-shadow: 0 3px 6px 0 rgba(0, 90, 141, 0.3);
+      }
+      @media (max-width: 768px) {
+        .build-operations-row {
+          grid-template-columns: 1fr;
+          gap: 12px;
+        }
+        .statistics-group {
+          grid-column: span 1;
+        }
+      }
+
+      /* Persistent Header Bar */
+      .persistent-header {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background: var(--panel-bg, #fff);
+        border-bottom: 2px solid var(--border, #e5e7eb);
+        padding: 12px 16px;
+        margin: 16px -16px 16px -16px; /* add 16px top margin for spacing */
+      }
+      .plan-header-main {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+      }
+      .plan-context {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex: 1;
+        min-width: 0;
+      }
+      .plan-selector {
+        min-width: 200px;
+      }
+      .plan-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+      }
+      .plan-title {
+        font-weight: 600;
+        font-size: 1.1rem;
+        color: var(--text-color, #333);
+      }
+      .plan-meta {
+        font-size: 0.8rem;
+        color: #6b7280;
+      }
+      .status-chip {
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+      .status-draft {
+        background: #e0e7ff;
+        color: #3730a3;
+      }
+      .status-submitted {
+        background: #fef3c7;
+        color: #92400e;
+      }
+      .status-applied {
+        background: #d1fae5;
+        color: #065f46;
+      }
+      .status-archived {
+        background: #f3f4f6;
+        color: #374151;
+      }
+
+      .plan-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .kebab-menu {
+        position: relative;
+        display: inline-block;
+      }
+      .kebab-btn {
+        background: none;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        padding: 4px 8px;
+        cursor: pointer;
+        font-size: 1.2rem;
+        line-height: 1;
+      }
+      .kebab-menu-content {
+        display: none;
+        position: absolute;
+        right: 0;
+        top: 100%;
+        background: white;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        z-index: 1000;
+        min-width: 120px;
+      }
+      .kebab-menu.open .kebab-menu-content {
+        display: block;
+      }
+      .kebab-menu-content button {
+        display: block;
+        width: 100%;
+        text-align: left;
+        padding: 8px 12px;
+        border: none;
+        background: none;
+        cursor: pointer;
+        font-size: 0.875rem;
+      }
+      .kebab-menu-content button:hover {
+        background: #f3f4f6;
+      }
+
+      /* Download Menu Styles */
+      .download-menu {
+        position: relative;
+        display: inline-block;
+        margin-right: 8px;
+      }
+
+      .download-menu-content {
+        display: none;
+        position: absolute;
+        right: 0;
+        top: 100%;
+        background: white;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        z-index: 1000;
+        min-width: 200px;
+        margin-top: 2px;
+      }
+
+      .download-menu.open .download-menu-content {
+        display: block;
+      }
+
+      .download-menu-content button,
+      .download-menu-content .submenu-trigger {
+        display: block;
+        width: 100%;
+        padding: 8px 12px;
+        text-align: left;
+        border: none;
+        background: none;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        font-size: 0.875rem;
+      }
+
+      .download-menu-content button:hover,
+      .download-menu-content .submenu-trigger:hover {
+        background: #f3f4f6;
+      }
+
+      /* Submenu Styles */
+      .submenu {
+        position: relative;
+      }
+
+      .submenu-content {
+        display: none;
+        position: absolute;
+        left: 100%;
+        top: 0;
+        background: white;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        z-index: 1001;
+        min-width: 150px;
+        margin-left: 2px;
+      }
+
+      .submenu:hover .submenu-content {
+        display: block;
+      }
+
+      .submenu-section {
+        padding: 4px 0;
+        border-bottom: 1px solid #e5e7eb;
+      }
+
+      .submenu-section:last-child {
+        border-bottom: none;
+      }
+
+      .submenu-header {
+        padding: 4px 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        background: #f9fafb;
+      }
+
+      .submenu-content button {
+        display: block;
+        width: 100%;
+        padding: 6px 12px;
+        text-align: left;
+        border: none;
+        background: none;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        font-size: 0.875rem;
+      }
+
+      .submenu-content button:hover {
+        background: #f3f4f6;
+      }
+
+      .plan-metrics {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        margin-top: 4px;
+      }
+      .metric-badge {
+        background: #f3f4f6;
+        border: 1px solid #d1d5db;
+        border-radius: 12px;
+        padding: 2px 8px;
+        font-size: 0.75rem;
+        color: #374151;
+        cursor: default;
+      }
+      .metric-badge.clickable {
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .metric-badge.clickable:hover {
+        background: #e5e7eb;
+        border-color: #9ca3af;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .metric-badge.has-data {
+        background: #dbeafe;
+        border-color: #93c5fd;
+        color: #1e40af;
+      }
+      .metric-badge.has-data.clickable:hover {
+        background: #bfdbfe;
+        border-color: #60a5fa;
+      }
+
+      /* Updated header layout */
+      .plan-selector-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .plan-selector {
+        min-width: 300px;
+        max-width: 400px;
+      }
+      .reload-btn {
+        padding: 4px 8px;
+        font-size: 0.875rem;
+      }
+      .plan-status-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-left: 16px;
+      }
+      .plan-window {
+        font-size: 0.875rem;
+        color: #6b7280;
+        font-weight: 500;
+      }
+
+      /* Modal Styles */
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+      }
+      .modal-overlay.show {
+        display: flex;
+      }
+      .modal-content {
+        background: white;
+        border-radius: 12px;
+        width: 90%;
+        max-width: 600px;
+        max-height: 80vh;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        overflow: hidden;
+      }
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 20px;
+        border-bottom: 1px solid #e5e7eb;
+        background: #f9fafb;
+      }
+      .modal-header h3 {
+        margin: 0;
+        font-size: 1.125rem;
+        color: #374151;
+      }
+      .modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #6b7280;
+        padding: 4px;
+        border-radius: 4px;
+      }
+      .modal-close:hover {
+        background: #e5e7eb;
+        color: #374151;
+      }
+      .modal-body {
+        padding: 20px;
+        max-height: 60vh;
+        overflow-y: auto;
+      }
+      .metric-description {
+        margin-bottom: 16px;
+        color: #6b7280;
+        font-size: 0.875rem;
+      }
+      .list-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #e5e7eb;
+      }
+      .btn-copy {
+        background: #f3f4f6;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        padding: 6px 10px;
+        font-size: 0.75rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        color: #374151;
+      }
+      .btn-copy:hover {
+        background: #e5e7eb;
+        border-color: #9ca3af;
+        color: #1f2937;
+      }
+      .btn-copy svg {
+        flex-shrink: 0;
+      }
+      .metric-list {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 12px;
+        font-family: "Courier New", monospace;
+        font-size: 0.875rem;
+        line-height: 1.4;
+        color: #374151;
+        white-space: pre-line;
+        max-height: 300px;
+        overflow-y: auto;
+      }
+      .loading {
+        text-align: center;
+        color: #9ca3af;
+        font-style: italic;
+      }
+
+      /* Page-specific header: simplified */
+      .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+      }
+      .page-header h1 {
+        margin: 0;
+        font-size: 1.5rem;
+        color: var(--primary);
+      }
+      .header-actions {
+        display: flex;
+        gap: 8px;
+      }
+      .tabs {
+        display: flex;
+        gap: 4px;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+        margin: 0;
+        padding: 0 16px;
+        background: var(--panel-bg, #fff);
+      }
+      .tab-btn {
+        padding: 8px 12px;
+        border: 1px solid transparent;
+        border-radius: 6px 6px 0 0;
+        background: transparent;
+        cursor: pointer;
+        font-weight: 500;
+        font-size: 0.875rem;
+        color: var(--muted, #6b7280);
+        transition: all 0.2s ease;
+        position: relative;
+        border-bottom: 1px solid transparent;
+        white-space: nowrap;
+      }
+      .tab-btn:hover {
+        background: #f1f5f9;
+        color: #374151;
+      }
+      .tab-btn[aria-selected="true"] {
+        background: linear-gradient(
+          180deg,
+          rgba(37, 99, 235, 0.12),
+          rgba(37, 99, 235, 0.06)
+        );
+        color: #0b3a9a;
+        border-color: rgba(13, 60, 160, 0.12);
+        border-bottom-color: transparent;
+        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+      }
+      .tab-btn:focus {
+        outline: 3px solid rgba(37, 99, 235, 0.12);
+        outline-offset: 2px;
+      }
+      .tab-btn.has-data::after {
+        content: "●";
+        color: #10b981;
+        font-size: 8px;
+        position: absolute;
+        top: 4px;
+        right: 4px;
+      }
+      .tab-description {
+        font-size: 0.75rem;
+        color: #9ca3af;
+        font-style: normal; /* no italics */
+        font-weight: 400; /* normal weight, not bold */
+        display: block;
+        margin-top: 2px;
+      }
+      .tabpanel {
+        display: none;
+        padding: 16px;
+      }
+      .tabpanel.active {
+        display: block;
+      }
+
+      /* Tab Introduction Styles */
+      .tab-intro {
+        font-size: 1rem;
+        line-height: 1.7;
+        color: #374151;
+        margin: 0 0 32px 0;
+        padding: 24px 0 16px 0;
+        background: none;
+        border: none;
+        border-bottom: 1px solid #f3f4f6;
+        font-weight: 400;
+        position: relative;
+      }
+
+      .tab-intro::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 40px;
+        height: 3px;
+        background: linear-gradient(90deg, #3b82f6, #60a5fa);
+        border-radius: 2px;
+      }
+
+      /* Configuration Tabs Styles */
+      .config-tabs {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 8px 16px 0;
+        padding: 8px 12px;
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      }
+      .config-tabs-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .config-tab-btn {
+        padding: 6px 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 4px;
+        background: #ffffff;
+        cursor: pointer;
+        font-weight: 500;
+        font-size: 0.75rem;
+        color: #475569;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+      }
+      .config-tab-btn:hover {
+        background: #f8fafc;
+        border-color: #94a3b8;
+        color: #334155;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .config-tab-btn[aria-selected="true"] {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: #ffffff;
+        border-color: #2563eb;
+        box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+      }
+      .config-tab-btn[aria-selected="true"]:hover {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 3px 8px rgba(37, 99, 235, 0.35);
+      }
+      .config-tab-btn svg {
+        width: 12px;
+        height: 12px;
+      }
+      .config-tab-description {
+        font-size: 0.65rem;
+        color: inherit;
+        opacity: 0.8;
+        font-style: italic;
+        display: block;
+        margin-top: 1px;
+      }
+      .config-tab-btn[aria-selected="true"] .config-tab-description {
+        opacity: 0.9;
+      }
+
+      /* Workflow Progress Tracker */
+      .workflow-progress .workflow-steps {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin: 16px 0 24px 0;
+        position: relative;
+      }
+
+      .workflow-steps .step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex: 1;
+        position: relative;
+      }
+
+      .step-indicator {
+        display: flex;
+        align-items: center;
+        position: relative;
+        width: 100%;
+        justify-content: center;
+        margin-bottom: 8px;
+      }
+
+      .step-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f3f4f6;
+        color: #9ca3af;
+        border: 2px solid #e5e7eb;
+        transition: all 0.2s ease;
+        z-index: 2;
+        position: relative;
+      }
+
+      .step-line {
+        position: absolute;
+        height: 2px;
+        background: #e5e7eb;
+        top: 50%;
+        left: 50%;
+        right: -50%;
+        transform: translateY(-50%);
+        transition: background-color 0.2s ease;
+        z-index: 1;
+      }
+
+      .step:last-child .step-line {
+        display: none;
+      }
+
+      .step-content {
+        text-align: center;
+        flex: 1;
+      }
+
+      .step-title {
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 2px;
+        font-size: 0.85rem;
+      }
+
+      .step-meta {
+        font-size: 0.75rem;
+        color: #6b7280;
+        line-height: 1.2;
+      }
+
+      /* Step States */
+      .step.completed .step-icon {
+        background: #10b981;
+        color: white;
+        border-color: #10b981;
+      }
+
+      .step.completed .step-line {
+        background: #10b981;
+      }
+
+      .step.active .step-icon {
+        background: #3b82f6;
+        color: white;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+      }
+
+      .step.active .step-title {
+        color: #1f2937;
+        font-weight: 700;
+      }
+
+      .step.pending .step-icon {
+        background: #fbbf24;
+        color: white;
+        border-color: #fbbf24;
+      }
+
+      /* Responsive adjustments for workflow */
+      @media (max-width: 768px) {
+        .workflow-steps .step-title {
+          font-size: 0.8rem;
+        }
+
+        .workflow-steps .step-meta {
+          font-size: 0.7rem;
+        }
+
+        .workflow-steps .step-icon {
+          width: 32px;
+          height: 32px;
+        }
+      }
+
+      /* Workflow Actions */
+      .workflow-actions {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+      }
+
+      .workflow-btn {
+        flex: 1;
+        min-width: 120px;
+      }
+
+      .workflow-status {
+        border-top: 1px solid #e5e7eb;
+        padding-top: 16px;
+      }
+
+      .status-message {
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 4px;
+      }
+
+      .status-description {
+        font-size: 0.9rem;
+      }
+
+      @media (max-width: 768px) {
+        .workflow-actions {
+          flex-direction: column;
+        }
+
+        .workflow-btn {
+          width: 100%;
+        }
+      }
+
+      /* Review & Apply Tab Styles */
+      .health-checks-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        margin-bottom: 24px;
+      }
+      @media (max-width: 768px) {
+        .health-checks-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .health-summary {
+        background: #fefefe;
+        border: 1px solid #e5e7eb;
+      }
+      .summary-metrics {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      .metric-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .metric-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .metric-value {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1f2937;
+      }
+
+      .health-checks {
+        background: #fefefe;
+        border: 1px solid #e5e7eb;
+      }
+      .check-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .check-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        background: #fafafa;
+        transition: all 0.2s ease;
+      }
+      .check-item.passed {
+        background: #f0fdf4;
+        border-color: #bbf7d0;
+      }
+      .check-item.failed {
+        background: #fef2f2;
+        border-color: #fecaca;
+      }
+      .check-item.warning {
+        background: #fffbeb;
+        border-color: #fed7aa;
+      }
+      .check-icon {
+        font-size: 1.25rem;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .check-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .check-title {
+        font-weight: 600;
+        color: #1f2937;
+        font-size: 0.875rem;
+      }
+      .check-description {
+        font-size: 0.75rem;
+        color: #6b7280;
+      }
+      .check-action {
+        padding: 4px 8px;
+        font-size: 0.75rem;
+        border-radius: 4px;
+        background: none;
+        border: 1px solid #d1d5db;
+        color: #374151;
+        cursor: pointer;
+        transition: all 0.2s;
+        flex-shrink: 0;
+      }
+      .check-action:hover {
+        background: #f3f4f6;
+        border-color: #9ca3af;
+      }
+      .btn-link {
+        background: none !important;
+        border: none !important;
+        color: #2563eb !important;
+        text-decoration: underline;
+        padding: 2px 4px !important;
+      }
+      .btn-link:hover {
+        color: #1d4ed8 !important;
+        background: #eff6ff !important;
+      }
+
+      .review-actions {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border: 1px solid #e2e8f0;
+      }
+      .actions-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+      }
+      .actions-status {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #6b7280;
+      }
+      .actions-buttons {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+      }
+      .actions-description p {
+        margin: 0;
+        font-size: 0.875rem;
+        line-height: 1.5;
+      }
+
+      /* Button states */
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        background: #f3f4f6 !important;
+        color: #9ca3af !important;
+        border-color: #d1d5db !important;
+      }
+      .btn.primary:disabled {
+        background: #e5e7eb !important;
+        color: #9ca3af !important;
+      }
+      .btn.secondary {
+        background: #f8fafc;
+        border: 1px solid #cbd5e1;
+        color: #475569;
+      }
+      .btn.secondary:hover:not(:disabled) {
+        background: #f1f5f9;
+        border-color: #94a3b8;
+      }
+      .btn.warn {
+        background: #fef2f2;
+        border: 1px solid #fca5a5;
+        color: #dc2626;
+      }
+      .btn.warn:hover:not(:disabled) {
+        background: #fee2e2;
+        border-color: #f87171;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Simplified Page Header -->
+    <header class="page-header">
+      <h1>Supply Batch Plan</h1>
+      <div class="header-actions">
+        <button id="homeBtn">HOME</button>
+      </div>
+    </header>
+
+    <!-- Persistent Plan Header Bar -->
+    <div class="persistent-header">
+      <div class="plan-header-main">
+        <div class="plan-context">
+          <div class="plan-selector-group">
+            <select id="bpHeaderSel" class="plan-selector">
+              <option value="">Select a plan...</option>
+            </select>
+            <button
+              class="btn reload-btn"
+              id="btnReloadHeaders"
+              title="Refresh plans"
+            >
+              ↻
+            </button>
+          </div>
+
+          <div class="plan-status-info">
+            <div class="status-chip" id="statusChip">No Plan</div>
+            <div class="plan-window" id="planWindow"></div>
+          </div>
+        </div>
+
+        <div class="plan-actions">
+          <!-- Download Plan Worklist Button -->
+          <div class="download-menu" id="downloadMenu">
+            <button class="btn secondary" id="btnDownloadWorklist">
+              Download Plan Worklist
+            </button>
+            <div class="download-menu-content">
+              <button id="btnDownloadCSV">CSV</button>
+              <div class="submenu">
+                <button class="submenu-trigger" id="btnPDFTrigger">
+                  PDF ▶
+                </button>
+                <div class="submenu-content" id="pdfSubmenu">
+                  <div class="submenu-section">
+                    <div class="submenu-header">Malayalam</div>
+                    <button id="btnPDFMalayalamAyurveda">Ayurveda</button>
+                    <button id="btnPDFMalayalamSiddha">Siddha</button>
+                  </div>
+                  <div class="submenu-section">
+                    <div class="submenu-header">English</div>
+                    <button id="btnPDFEnglishAyurveda">Ayurveda</button>
+                    <button id="btnPDFEnglishSiddha">Siddha</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="kebab-menu" id="kebabMenu">
+            <button class="kebab-btn" id="kebabBtn">⋮</button>
+            <div class="kebab-menu-content">
+              <button id="btnSubmitHeaderKebab">Submit for Review</button>
+              <button id="btnReopenHeaderKebab" style="display: none">
+                Reopen for Editing
+              </button>
+              <button id="btnApplyHeaderKebab">Apply Plan</button>
+              <hr
+                style="
+                  margin: 4px 0;
+                  border: none;
+                  border-top: 1px solid #e5e7eb;
+                "
+              />
+              <button id="btnRenameHeader">Rename Plan</button>
+              <button id="btnArchiveHeader">Archive Plan</button>
+              <hr
+                style="
+                  margin: 4px 0;
+                  border: none;
+                  border-top: 1px solid #e5e7eb;
+                "
+              />
+              <button id="btnDeleteHeader">Delete Plan</button>
+              <button id="btnNewPlanKebab">New Plan</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="plan-metrics">
+        <button
+          class="metric-badge clickable"
+          id="productsTotal"
+          data-metric="products_total"
+        >
+          Products (total): 0
+        </button>
+        <button
+          class="metric-badge clickable"
+          id="batchesMapped"
+          data-metric="batches_mapped"
+        >
+          Batches (mapped): 0
+        </button>
+        <button
+          class="metric-badge clickable"
+          id="batchesUnmapped"
+          data-metric="batches_unmapped"
+        >
+          Batches (unmapped): 0
+        </button>
+        <button
+          class="metric-badge clickable"
+          id="productsNoBatch"
+          data-metric="products_no_batch_ref"
+        >
+          No batch ref: 0
+        </button>
+        <button
+          class="metric-badge clickable"
+          id="productsResidual"
+          data-metric="products_residual"
+        >
+          With residuals: 0
+        </button>
+      </div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <nav class="tabs" role="tablist" aria-label="Supply Batch Plan Workflow">
+      <button
+        class="tab-btn"
+        role="tab"
+        aria-controls="tab-build"
+        aria-selected="true"
+        id="tab-btn-build"
+      >
+        Build
+        <span class="tab-description">Generate or update plan</span>
+      </button>
+      <button
+        class="tab-btn"
+        role="tab"
+        aria-controls="tab-lines"
+        id="tab-btn-lines"
+      >
+        Lines
+        <span class="tab-description">Monthly targets by product</span>
+      </button>
+      <button
+        class="tab-btn"
+        role="tab"
+        aria-controls="tab-batches"
+        id="tab-btn-batches"
+      >
+        Batches
+        <span class="tab-description">Planned batches & sizing</span>
+      </button>
+      <button
+        class="tab-btn"
+        role="tab"
+        aria-controls="tab-overrides"
+        id="tab-btn-overrides"
+      >
+        Overrides
+        <span class="tab-description">CSV-based adjustments</span>
+      </button>
+      <button
+        class="tab-btn"
+        role="tab"
+        aria-controls="tab-apply"
+        id="tab-btn-apply"
+      >
+        Review & Apply
+        <span class="tab-description">Finalize and submit</span>
+      </button>
+    </nav>
+
+    <!-- Configuration Tabs (Separate from Workflow) -->
+    <nav class="config-tabs" role="tablist" aria-label="Configuration">
+      <div class="config-tabs-label">Configuration:</div>
+      <button
+        class="config-tab-btn"
+        role="tab"
+        aria-controls="tab-batch-sizes"
+        id="tab-btn-batch-sizes"
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path
+            d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"
+          />
+        </svg>
+        Batch Size References
+        <span class="config-tab-description"
+          >Manage product batch sizing rules</span
+        >
+      </button>
+    </nav>
+
+    <!-- Tab Content Panels -->
+
+    <!-- 1) BUILD -->
+    <!-- 1) BUILD -->
+    <section
+      id="tab-build"
+      class="tabpanel active"
+      role="tabpanel"
+      tabindex="0"
+    >
+      <p class="tab-intro">
+        Create and manage your monthly batch production plans. Generate initial
+        plans from consolidated targets, rebuild specific sections when needed,
+        and fine-tune residuals to optimize batch efficiency.
+      </p>
+
+      <!-- Plan Header Management (moved from old Plan Setup) -->
+      <div class="card">
+        <h4>Plan Management</h4>
+
+        <!-- Create New Plan Section -->
+        <div class="plan-management-section">
+          <div class="plan-management-row">
+            <div class="form-group">
+              <label for="newPlanMonth">Plan Month</label>
+              <input id="newPlanMonth" type="month" class="form-control" />
+            </div>
+            <div class="form-group form-group-wide">
+              <label for="newHeaderTitle">Plan Title</label>
+              <input
+                id="newHeaderTitle"
+                placeholder="Select month to auto-generate title"
+                class="form-control"
+              />
+            </div>
+            <div class="form-group">
+              <label>&nbsp;</label>
+              <!-- Spacer for alignment -->
+              <button class="btn primary" id="btnCreateHeader">
+                Create New Plan
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Build Actions -->
+      <div class="card">
+        <h4>Build Operations</h4>
+
+        <!-- Full Plan Build Section -->
+        <div class="build-operations-section">
+          <div class="build-operations-row">
+            <div class="form-group">
+              <label>Complete Rebuild</label>
+              <button
+                class="btn primary form-control-btn"
+                id="btnRebuildAll"
+                title="Rebuild from v_product_bulk_consolidated_effective"
+              >
+                Rebuild (Full)
+              </button>
+            </div>
+            <div class="form-group">
+              <label>Partial Rebuild</label>
+              <button
+                class="btn form-control-btn"
+                id="btnRebuildUnmapped"
+                title="Rebuild only products with no mapped BMR"
+              >
+                Rebuild (Unmapped)
+              </button>
+            </div>
+            <div class="form-group">
+              <label>Optimize Plan</label>
+              <button
+                class="btn form-control-btn"
+                id="btnNudgeResiduals"
+                title="Absorb small residuals into UNMAPPED batches"
+              >
+                Nudge Residuals
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Selective Operations Section -->
+        <div class="build-operations-section">
+          <div class="build-operations-row">
+            <div class="form-group form-group-wide">
+              <label for="bpProductIds">Product IDs (Selective Rebuild)</label>
+              <input
+                id="bpProductIds"
+                placeholder="Enter product IDs separated by commas (e.g. 1,2,5)"
+                class="form-control"
+              />
+            </div>
+            <div class="form-group">
+              <label>&nbsp;</label>
+              <!-- Spacer for alignment -->
+              <button
+                class="btn form-control-btn"
+                id="btnRefreshSelected"
+                title="Rebuild only these specific products"
+              >
+                Rebuild Selected
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Plan Statistics Section -->
+        <div class="build-operations-section">
+          <div class="build-operations-row">
+            <div class="form-group statistics-group">
+              <label>Plan Statistics</label>
+              <div class="statistics-display" id="bpStatTotals">
+                Select a plan to view statistics
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2) LINES -->
+    <section id="tab-lines" class="tabpanel" role="tabpanel" tabindex="0">
+      <p class="tab-intro">
+        View and manage monthly production targets by product. Monitor residual
+        quantities and review preferred batch size recommendations to ensure
+        optimal planning efficiency.
+      </p>
+
+      <!-- Product Search Bar -->
+      <div
+        class="search-container"
+        style="
+          margin-bottom: 12px;
+          display: flex;
+          gap: 12px;
+          align-items: center;
+          flex-wrap: wrap;
+        "
+      >
+        <div style="display: flex; gap: 8px; align-items: center">
+          <input
+            type="text"
+            id="productSearchInput"
+            placeholder="Search products..."
+            style="
+              width: 300px;
+              padding: 8px 12px;
+              border: 1px solid #d1d5db;
+              border-radius: 6px;
+              font-size: 14px;
+            "
+          />
+          <button
+            id="clearSearchBtn"
+            class="btn"
+            style="margin-left: 8px; padding: 8px 12px; display: none"
+            title="Clear search"
+          >
+            Clear
+          </button>
+        </div>
+
+        <!-- Boolean filters: Preferred Batch Size, Residual Qty, Overrides Delta -->
+        <div
+          id="linesFilters"
+          style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap"
+        >
+          <label
+            class="checkbox-label"
+            title="Filter by Preferred Batch Size: set / not set"
+          >
+            <select
+              id="filterPreferredMode"
+              style="
+                padding: 6px;
+                border-radius: 6px;
+                border: 1px solid #d1d5db;
+              "
+            >
+              <option value="any">Preferred Batch Size: any</option>
+              <option value="set">Preferred Batch Size = set</option>
+              <option value="notset">Preferred Batch Size = not set</option>
+            </select>
+          </label>
+
+          <label
+            class="checkbox-label"
+            title="Filter by residual quantity: zero vs non-zero"
+          >
+            <select
+              id="filterResidualMode"
+              style="
+                padding: 6px;
+                border-radius: 6px;
+                border: 1px solid #d1d5db;
+              "
+            >
+              <option value="any">Residual: any</option>
+              <option value="zero">Residual = 0</option>
+              <option value="present">Residual ≠ 0</option>
+            </select>
+          </label>
+
+          <label
+            class="checkbox-label"
+            title="Filter by overrides delta: zero vs non-zero"
+          >
+            <select
+              id="filterOverridesMode"
+              style="
+                padding: 6px;
+                border-radius: 6px;
+                border: 1px solid #d1d5db;
+              "
+            >
+              <option value="any">Overrides: any</option>
+              <option value="zero">Overrides = 0</option>
+              <option value="present">Overrides ≠ 0</option>
+            </select>
+          </label>
+
+          <button
+            id="clearLinesFiltersBtn"
+            class="btn"
+            title="Clear all line filters"
+            style="padding: 6px 10px"
+          >
+            Reset Filters
+          </button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Malayalam</th>
+                <th>Month</th>
+                <th>Final Make Qty</th>
+                <th>Batch Count</th>
+                <th>Preferred Batch Size</th>
+                <th>Residual Qty</th>
+                <th>Overrides Delta</th>
+                <th>Effective Total</th>
+              </tr>
+            </thead>
+            <tbody id="bpLinesBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3) BATCHES -->
+    <section id="tab-batches" class="tabpanel" role="tabpanel" tabindex="0">
+      <p class="tab-intro">
+        Review and manage individual batch records in your production plan. Edit
+        unmapped batches, monitor batch statuses, and export data for further
+        analysis or integration with production systems.
+      </p>
+      <div class="card">
+        <div class="row" style="margin: 4px 0 8px; align-items: center">
+          <!-- Product filter: placeholder inside input (like Lines tab) -->
+          <input
+            id="bpBatchProductFilter"
+            placeholder="Product name or ID"
+            style="width: 260px; padding: 6px 8px"
+          />
+
+          <!-- Status filter -->
+          <label style="display: flex; align-items: center; gap: 6px">
+            <select id="bpBatchFilter" style="padding: 6px 8px">
+              <option value="">Status: All</option>
+              <option value="UNMAPPED">UNMAPPED</option>
+              <option value="MAPPED">MAPPED</option>
+              <option value="WIP">WIP</option>
+            </select>
+          </label>
+
+          <!-- Reset Filters moved near filter fields -->
+          <button
+            id="bpResetBatchFilters"
+            class="btn"
+            title="Reset filters"
+            style="padding: 6px 10px; margin-left: 8px"
+          >
+            Reset Filters
+          </button>
+
+          <div
+            style="
+              flex: 1;
+              text-align: right;
+              display: flex;
+              gap: 8px;
+              align-items: center;
+              justify-content: flex-end;
+            "
+          >
+            <button
+              class="btn primary"
+              id="btnExportBatches"
+              style="margin-left: 8px"
+            >
+              Export CSV
+            </button>
+          </div>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Malayalam</th>
+                <th>Month</th>
+                <th>#</th>
+                <th>Batch Size</th>
+                <th>UOM</th>
+                <th>Rule</th>
+                <th>Status</th>
+                <th>BN</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="bpBatchesBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Mapping moved inline into Batches tab; mapping panel removed -->
+
+    <!-- 5) OVERRIDES -->
+    <section id="tab-overrides" class="tabpanel" role="tabpanel" tabindex="0">
+      <p class="tab-intro">
+        Apply real-time adjustments to your production plan using CSV overrides.
+        Add new batches, resize existing ones, or cancel batches based on actual
+        production events and capacity changes.
+      </p>
+      <div class="card">
+        <div class="row">
+          <button class="btn" id="btnExportOverridesCsv">
+            Download CSV template
+          </button>
+          <input type="file" id="ovFile" accept=".csv" />
+          <button class="btn" id="btnPreviewOverrides">Preview</button>
+          <button class="btn primary" id="btnApplyOverrides">
+            Apply to Active
+          </button>
+          <span id="ovStatus" class="muted"></span>
+        </div>
+        <div style="margin-top: 8px" class="muted">
+          CSV columns:
+          product_id,month_start,bn,batch_size,uom,op_type,override_qty,note
+          (op_type ∈ ADD|RESIZE|CANCEL; for CANCEL/RESIZE the BN must exist; WIP
+          BNs are auto-rejected)
+        </div>
+        <table style="margin-top: 8px">
+          <thead>
+            <tr>
+              <th>product_id</th>
+              <th>month_start</th>
+              <th>bn</th>
+              <th>batch_size</th>
+              <th>uom</th>
+              <th>op_type</th>
+              <th>override_qty</th>
+              <th>note</th>
+            </tr>
+          </thead>
+          <tbody id="ovPreviewBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="tab-batch-sizes" class="tabpanel" role="tabpanel" tabindex="0">
+      <p class="tab-intro">
+        Configure and manage batch size parameters for optimal production
+        planning. Set preferred, minimum, and maximum batch sizes to ensure
+        efficient resource utilization and production consistency.
+      </p>
+
+      <!-- Search and Add Controls -->
+      <div class="card">
+        <h4>Controls</h4>
+        <div class="row" style="margin-bottom: 12px">
+          <input
+            type="text"
+            id="batchSizeSearchInput"
+            placeholder="Search products..."
+            style="
+              width: 300px;
+              padding: 8px 12px;
+              border: 1px solid #d1d5db;
+              border-radius: 6px;
+              font-size: 14px;
+            "
+          />
+          <button
+            id="clearBatchSizeSearchBtn"
+            class="btn"
+            style="display: none"
+            title="Clear search"
+          >
+            Clear
+          </button>
+          <button
+            id="addNewBatchSizeBtn"
+            class="btn primary"
+            title="Add new product batch size reference"
+          >
+            Add New Product
+          </button>
+          <button
+            id="refreshBatchSizesBtn"
+            class="btn"
+            title="Refresh batch size list"
+          >
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      <!-- Batch Size Reference Table -->
+      <div class="card">
+        <h4>Product Batch Size References</h4>
+        <div style="overflow-x: auto; max-height: 600px; overflow-y: auto">
+          <table style="width: 100%; border-collapse: collapse">
+            <thead
+              style="position: sticky; top: 0; background: white; z-index: 1"
+            >
+              <tr>
+                <th
+                  style="
+                    text-align: left;
+                    padding: 8px;
+                    border-bottom: 2px solid #e5e7eb;
+                  "
+                >
+                  Product
+                </th>
+                <th
+                  style="
+                    text-align: center;
+                    padding: 8px;
+                    border-bottom: 2px solid #e5e7eb;
+                  "
+                >
+                  Preferred Size
+                </th>
+                <th
+                  style="
+                    text-align: center;
+                    padding: 8px;
+                    border-bottom: 2px solid #e5e7eb;
+                  "
+                >
+                  Min Size
+                </th>
+                <th
+                  style="
+                    text-align: center;
+                    padding: 8px;
+                    border-bottom: 2px solid #e5e7eb;
+                  "
+                >
+                  Max Size
+                </th>
+                <th
+                  style="
+                    text-align: center;
+                    padding: 8px;
+                    border-bottom: 2px solid #e5e7eb;
+                  "
+                >
+                  Effective From
+                </th>
+                <th
+                  style="
+                    text-align: center;
+                    padding: 8px;
+                    border-bottom: 2px solid #e5e7eb;
+                  "
+                >
+                  Status
+                </th>
+                <th
+                  style="
+                    text-align: center;
+                    padding: 8px;
+                    border-bottom: 2px solid #e5e7eb;
+                  "
+                >
+                  Notes
+                </th>
+                <th
+                  style="
+                    text-align: center;
+                    padding: 8px;
+                    border-bottom: 2px solid #e5e7eb;
+                  "
+                >
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody id="batchSizeRefsBody">
+              <tr>
+                <td
+                  colspan="8"
+                  style="text-align: center; padding: 20px; color: #666"
+                >
+                  Loading batch size references...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6) REVIEW & APPLY -->
+    <section id="tab-apply" class="tabpanel" role="tabpanel" tabindex="0">
+      <p class="tab-intro">
+        Complete your planning workflow with comprehensive quality checks and
+        final approval. Validate mapping completeness, residual levels, and
+        system integrity before officially applying your production plan.
+      </p>
+
+      <!-- Health Checks Grid -->
+      <div class="health-checks-grid">
+        <!-- Left Column: Plan Summary -->
+        <div class="card health-summary">
+          <h4>Plan Summary</h4>
+          <div class="summary-metrics">
+            <div class="metric-item">
+              <span class="metric-label">Total Products in Plan</span>
+              <span id="reviewProductsTotal" class="metric-value">0</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Total Batches</span>
+              <span id="reviewTotalBatches" class="metric-value">0</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Batches (Mapped)</span>
+              <span id="reviewBatchesMapped" class="metric-value">0</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Batches (Unmapped)</span>
+              <span id="reviewBatchesUnmapped" class="metric-value">0</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Products (With Residuals)</span>
+              <span id="reviewProductsResidual" class="metric-value">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Health Checks -->
+        <div class="card health-checks">
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 8px;
+            "
+          >
+            <h4 style="margin: 0">Health Checks</h4>
+            <button class="btn secondary small" id="btnRefreshHealthChecks">
+              Refresh
+            </button>
+          </div>
+          <p class="muted" style="margin: 0 0 16px 0; font-size: 0.9rem">
+            Resolve the failing health checks before submitting
+          </p>
+          <div class="check-list">
+            <div class="check-item" id="checkMappingComplete">
+              <span class="check-icon">⏳</span>
+              <div class="check-content">
+                <span class="check-title">Mapping Complete</span>
+                <span class="check-description"
+                  >All batches must be mapped to BMRs</span
+                >
+              </div>
+              <button
+                class="check-action btn-link"
+                onclick="document.querySelector('[aria-controls=tab-batches]').click()"
+              >
+                View
+              </button>
+            </div>
+
+            <div class="check-item" id="checkResidualLow">
+              <span class="check-icon">⏳</span>
+              <div class="check-content">
+                <span class="check-title">Residual Minimized</span>
+                <span class="check-description"
+                  >Total residual should be near zero</span
+                >
+              </div>
+              <button
+                class="check-action btn-link"
+                onclick="document.querySelector('[aria-controls=tab-lines]').click()"
+              >
+                View
+              </button>
+            </div>
+
+            <div class="check-item" id="checkNoMismatches">
+              <span class="check-icon">⏳</span>
+              <div class="check-content">
+                <span class="check-title">Size Consistency</span>
+                <span class="check-description"
+                  >BMR sizes match planned batch sizes</span
+                >
+              </div>
+              <button
+                class="check-action btn-link"
+                onclick="document.querySelector('[aria-controls=tab-batches]').click()"
+              >
+                View
+              </button>
+            </div>
+
+            <div class="check-item" id="checkNoWipConflicts">
+              <span class="check-icon">⏳</span>
+              <div class="check-content">
+                <span class="check-title">No WIP Conflicts</span>
+                <span class="check-description"
+                  >No mapped batches are already in production</span
+                >
+              </div>
+              <button
+                class="check-action btn-link"
+                onclick="document.querySelector('[aria-controls=tab-batches]').click()"
+              >
+                View
+              </button>
+            </div>
+
+            <div class="check-item" id="checkOverridesApplied">
+              <span class="check-icon">⏳</span>
+              <div class="check-content">
+                <span class="check-title">Overrides Applied</span>
+                <span class="check-description"
+                  >No pending override staging entries</span
+                >
+              </div>
+              <button
+                class="check-action btn-link"
+                onclick="document.querySelector('[aria-controls=tab-overrides]').click()"
+              >
+                View
+              </button>
+            </div>
+
+            <div class="check-item" id="checkUniqueMonth">
+              <span class="check-icon">⏳</span>
+              <div class="check-content">
+                <span class="check-title">Unique Active Plan</span>
+                <span class="check-description"
+                  >No other active plans for this month</span
+                >
+              </div>
+              <button
+                class="check-action btn-link"
+                onclick="document.querySelector('[aria-controls=tab-build]').click()"
+              >
+                View
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Workflow Progress Tracker -->
+      <div class="card workflow-progress">
+        <h4>Workflow Progress</h4>
+        <div class="workflow-steps">
+          <div class="step" id="stepDraft" data-step="draft">
+            <div class="step-indicator">
+              <div class="step-icon">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"
+                  />
+                </svg>
+              </div>
+              <div class="step-line"></div>
+            </div>
+            <div class="step-content">
+              <div class="step-title">Draft</div>
+              <div class="step-meta" id="stepDraftMeta">In development</div>
+            </div>
+          </div>
+
+          <div class="step" id="stepSubmitted" data-step="submitted">
+            <div class="step-indicator">
+              <div class="step-icon">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M19,3H5C3.9,3 3,3.9 3,5V9H5V5H19V19H5V15H3V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.9 20.1,3 19,3M10.08,15.58L11.5,17L16.5,12L11.5,7L10.08,8.41L12.67,11H3V13H12.67L10.08,15.58Z"
+                  />
+                </svg>
+              </div>
+              <div class="step-line"></div>
+            </div>
+            <div class="step-content">
+              <div class="step-title">Submitted</div>
+              <div class="step-meta" id="stepSubmittedMeta">For review</div>
+            </div>
+          </div>
+
+          <div class="step" id="stepApplied" data-step="applied">
+            <div class="step-indicator">
+              <div class="step-icon">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"
+                  />
+                </svg>
+              </div>
+              <div class="step-line"></div>
+            </div>
+            <div class="step-content">
+              <div class="step-title">Applied</div>
+              <div class="step-meta" id="stepAppliedMeta">Production plan</div>
+            </div>
+          </div>
+
+          <div class="step" id="stepArchived" data-step="archived">
+            <div class="step-indicator">
+              <div class="step-icon">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M3,3H21V7H3V3M4,8H20V21H4V8M9.5,11A0.5,0.5 0 0,0 9,11.5V13H15V11.5A0.5,0.5 0 0,0 14.5,11H9.5Z"
+                  />
+                </svg>
+              </div>
+            </div>
+            <div class="step-content">
+              <div class="step-title">Archived</div>
+              <div class="step-meta" id="stepArchivedMeta">Read-only</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions now available in persistent header kebab menu -->
+      </div>
+    </section>
+
+    <div id="toast"></div>
+
+    <!-- Metric Details Modal -->
+    <div class="modal-overlay" id="metricModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="modalTitle">Metric Details</h3>
+          <button class="modal-close" id="modalClose">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="metric-details">
+            <div class="metric-description" id="modalDescription"></div>
+            <div class="metric-list-container">
+              <div class="list-header">
+                <span id="modalCount">0 items</span>
+                <button
+                  class="btn-copy"
+                  id="copyListBtn"
+                  title="Copy list to clipboard"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                    <path
+                      d="m4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"
+                    />
+                  </svg>
+                  Copy
+                </button>
+              </div>
+              <div class="metric-list" id="modalList">
+                <div class="loading">Loading...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alert Modal -->
+    <div class="modal-overlay" id="alertModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="alertTitle">Alert</h3>
+          <button class="modal-close" id="alertClose">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="alertMessage"></div>
+          <div style="margin-top: 20px; text-align: right">
+            <button class="btn btn-primary" id="alertOk">OK</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div class="modal-overlay" id="confirmModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="confirmTitle">Confirm</h3>
+          <button class="modal-close" id="confirmClose">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="confirmMessage"></div>
+          <div
+            style="
+              margin-top: 20px;
+              text-align: right;
+              display: flex;
+              gap: 12px;
+              justify-content: flex-end;
+            "
+          >
+            <button class="btn" id="confirmCancel">Cancel</button>
+            <button class="btn btn-primary" id="confirmOk">OK</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Batch Size Reference Modal -->
+    <div id="batchSizeModal" class="modal-overlay" style="display: none">
+      <div
+        class="modal-content"
+        style="
+          width: 600px;
+          max-width: 90vw;
+          max-height: 90vh;
+          overflow-y: auto;
+        "
+      >
+        <div class="modal-header">
+          <h3 id="batchSizeModalTitle">Add Product Batch Size Reference</h3>
+          <button class="modal-close" id="batchSizeModalClose">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 24px">
+          <form id="batchSizeForm">
+            <div class="form-group" style="margin-bottom: 16px">
+              <label
+                for="batchSizeProductSelect"
+                style="display: block; margin-bottom: 4px; font-weight: 500"
+                >Product</label
+              >
+              <select
+                id="batchSizeProductSelect"
+                required
+                style="
+                  width: 100%;
+                  padding: 8px 12px;
+                  border: 1px solid #d1d5db;
+                  border-radius: 6px;
+                  font-size: 14px;
+                "
+              >
+                <option value="">Select a product...</option>
+              </select>
+              <small style="color: #666; font-size: 12px"
+                >Choose the product for batch size configuration.</small
+              >
+            </div>
+
+            <div
+              class="form-row"
+              style="
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr;
+                gap: 12px;
+                margin-bottom: 16px;
+              "
+            >
+              <div class="form-group">
+                <label
+                  for="batchSizePreferred"
+                  style="display: block; margin-bottom: 4px; font-weight: 500"
+                  >Preferred Size</label
+                >
+                <input
+                  type="number"
+                  id="batchSizePreferred"
+                  required
+                  min="0.000001"
+                  step="0.000001"
+                  style="
+                    width: 100%;
+                    padding: 8px 12px;
+                    border: 1px solid #d1d5db;
+                    border-radius: 6px;
+                    font-size: 14px;
+                  "
+                  placeholder="e.g., 1000"
+                />
+              </div>
+              <div class="form-group">
+                <label
+                  for="batchSizeMin"
+                  style="display: block; margin-bottom: 4px; font-weight: 500"
+                  >Min Size</label
+                >
+                <input
+                  type="number"
+                  id="batchSizeMin"
+                  min="0.000001"
+                  step="0.000001"
+                  style="
+                    width: 100%;
+                    padding: 8px 12px;
+                    border: 1px solid #d1d5db;
+                    border-radius: 6px;
+                    font-size: 14px;
+                  "
+                  placeholder="Optional"
+                />
+              </div>
+              <div class="form-group">
+                <label
+                  for="batchSizeMax"
+                  style="display: block; margin-bottom: 4px; font-weight: 500"
+                  >Max Size</label
+                >
+                <input
+                  type="number"
+                  id="batchSizeMax"
+                  min="0.000001"
+                  step="0.000001"
+                  style="
+                    width: 100%;
+                    padding: 8px 12px;
+                    border: 1px solid #d1d5db;
+                    border-radius: 6px;
+                    font-size: 14px;
+                  "
+                  placeholder="Optional"
+                />
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 16px">
+              <label
+                for="batchSizeEffectiveFrom"
+                style="display: block; margin-bottom: 4px; font-weight: 500"
+                >Effective From</label
+              >
+              <input
+                type="date"
+                id="batchSizeEffectiveFrom"
+                required
+                style="
+                  width: 200px;
+                  padding: 8px 12px;
+                  border: 1px solid #d1d5db;
+                  border-radius: 6px;
+                  font-size: 14px;
+                "
+              />
+              <small style="color: #666; font-size: 12px; margin-left: 8px"
+                >Date when this configuration becomes active.</small
+              >
+            </div>
+
+            <div class="form-group" style="margin-bottom: 16px">
+              <label
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  font-weight: 500;
+                "
+              >
+                <input
+                  type="checkbox"
+                  id="batchSizeIsActive"
+                  checked
+                  style="margin: 0"
+                />
+                Active
+              </label>
+              <small style="color: #666; font-size: 12px"
+                >Only one active configuration per product is allowed.</small
+              >
+            </div>
+
+            <div class="form-group" style="margin-bottom: 20px">
+              <label
+                for="batchSizeNotes"
+                style="display: block; margin-bottom: 4px; font-weight: 500"
+                >Notes</label
+              >
+              <textarea
+                id="batchSizeNotes"
+                rows="3"
+                style="
+                  width: 100%;
+                  padding: 8px 12px;
+                  border: 1px solid #d1d5db;
+                  border-radius: 6px;
+                  font-size: 14px;
+                  resize: vertical;
+                "
+                placeholder="Optional notes about this batch size configuration..."
+              ></textarea>
+            </div>
+          </form>
+        </div>
+        <div
+          class="modal-footer"
+          style="
+            padding: 16px 24px;
+            border-top: 1px solid #e5e7eb;
+            background: #f9fafb;
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 16px;
+          "
+        >
+          <button class="btn" id="batchSizeCancel">Cancel</button>
+          <button class="btn primary" id="batchSizeSave">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Edit Batch Size Modal (for Lines tab) -->
+    <div
+      id="quickEditBatchSizeModal"
+      class="modal-overlay"
+      style="display: none"
+    >
+      <div
+        class="modal-content"
+        style="
+          width: 500px;
+          max-width: 90vw;
+          max-height: 90vh;
+          overflow-y: auto;
+        "
+      >
+        <div class="modal-header">
+          <h3 id="quickEditModalTitle">Edit Batch Size</h3>
+          <button class="modal-close" id="quickEditModalClose">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 24px">
+          <div class="form-group" style="margin-bottom: 16px">
+            <label style="display: block; margin-bottom: 4px; font-weight: 500"
+              >Product</label
+            >
+            <div
+              id="quickEditProductDisplay"
+              style="
+                padding: 8px 12px;
+                background: #f8fafc;
+                border: 1px solid #e2e8f0;
+                border-radius: 6px;
+                font-weight: 500;
+                color: #374151;
+              "
+            >
+              <!-- Product name will be displayed here -->
+            </div>
+          </div>
+
+          <form id="quickEditBatchSizeForm">
+            <div
+              class="form-row"
+              style="
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr;
+                gap: 12px;
+                margin-bottom: 16px;
+              "
+            >
+              <div class="form-group">
+                <label
+                  for="quickEditPreferred"
+                  style="display: block; margin-bottom: 4px; font-weight: 500"
+                  >Preferred Size</label
+                >
+                <input
+                  type="number"
+                  id="quickEditPreferred"
+                  required
+                  min="0.000001"
+                  step="0.000001"
+                  style="
+                    width: 100%;
+                    padding: 8px 12px;
+                    border: 1px solid #d1d5db;
+                    border-radius: 6px;
+                    font-size: 14px;
+                  "
+                  placeholder="e.g., 1000"
+                />
+              </div>
+              <div class="form-group">
+                <label
+                  for="quickEditMin"
+                  style="display: block; margin-bottom: 4px; font-weight: 500"
+                  >Min Size</label
+                >
+                <input
+                  type="number"
+                  id="quickEditMin"
+                  min="0.000001"
+                  step="0.000001"
+                  style="
+                    width: 100%;
+                    padding: 8px 12px;
+                    border: 1px solid #d1d5db;
+                    border-radius: 6px;
+                    font-size: 14px;
+                  "
+                  placeholder="Optional"
+                />
+              </div>
+              <div class="form-group">
+                <label
+                  for="quickEditMax"
+                  style="display: block; margin-bottom: 4px; font-weight: 500"
+                  >Max Size</label
+                >
+                <input
+                  type="number"
+                  id="quickEditMax"
+                  min="0.000001"
+                  step="0.000001"
+                  style="
+                    width: 100%;
+                    padding: 8px 12px;
+                    border: 1px solid #d1d5db;
+                    border-radius: 6px;
+                    font-size: 14px;
+                  "
+                  placeholder="Optional"
+                />
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 16px">
+              <label
+                for="quickEditEffectiveFrom"
+                style="display: block; margin-bottom: 4px; font-weight: 500"
+                >Effective From</label
+              >
+              <input
+                type="date"
+                id="quickEditEffectiveFrom"
+                required
+                style="
+                  width: 200px;
+                  padding: 8px 12px;
+                  border: 1px solid #d1d5db;
+                  border-radius: 6px;
+                  font-size: 14px;
+                "
+              />
+            </div>
+
+            <div class="form-group" style="margin-bottom: 16px">
+              <label
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  font-weight: 500;
+                "
+              >
+                <input
+                  type="checkbox"
+                  id="quickEditIsActive"
+                  checked
+                  style="margin: 0"
+                />
+                Active
+              </label>
+              <small style="color: #666; font-size: 12px"
+                >Only one active configuration per product is allowed.</small
+              >
+            </div>
+
+            <div class="form-group" style="margin-bottom: 20px">
+              <label
+                for="quickEditNotes"
+                style="display: block; margin-bottom: 4px; font-weight: 500"
+                >Notes</label
+              >
+              <textarea
+                id="quickEditNotes"
+                rows="2"
+                style="
+                  width: 100%;
+                  padding: 8px 12px;
+                  border: 1px solid #d1d5db;
+                  border-radius: 6px;
+                  font-size: 14px;
+                  resize: vertical;
+                "
+                placeholder="Optional notes about this batch size configuration..."
+              ></textarea>
+            </div>
+          </form>
+        </div>
+        <div
+          class="modal-footer"
+          style="
+            padding: 16px 24px;
+            border-top: 1px solid #e5e7eb;
+            background: #f9fafb;
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 16px;
+          "
+        >
+          <button class="btn" id="quickEditCancel">Cancel</button>
+          <button class="btn primary" id="quickEditRebuild">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              style="margin-right: 4px"
+            >
+              <path
+                d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"
+              />
+            </svg>
+            Rebuild Plan
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- jsPDF Libraries for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <!-- html2canvas for better Unicode rendering -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <script type="module" src="js/supply-batch-plan.js"></script>
+  </body>
+</html>

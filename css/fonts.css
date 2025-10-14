@@ -1,0 +1,40 @@
+/* Anek Malayalam Font for PDF Generation - TTF Version */
+@font-face {
+  font-family: "Anek Malayalam";
+  src: url("./fonts/AnekMalayalam-Regular.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Anek Malayalam";
+  src: url("./fonts/AnekMalayalam-Bold.ttf") format("truetype");
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Anek Malayalam";
+  src: url("./fonts/AnekMalayalam-Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Malayalam text styling class */
+.malayalam-text {
+  font-family: "Anek Malayalam", "Noto Sans Malayalam", "Manjari", "Rachana",
+    system-ui, sans-serif;
+  font-feature-settings: "kern" 1, "liga" 1;
+  text-rendering: optimizeLegibility;
+}
+
+/* PDF content styling for Malayalam */
+.pdf-malayalam-content {
+  font-family: "Anek Malayalam", "Noto Sans Malayalam", system-ui, sans-serif;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

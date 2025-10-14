@@ -161,12 +161,36 @@
         background: var(--brand-600, #084e9c); /* darker shade */
         color: #fff; /* stays white */
       }
+
+      /* Header: title on the left, actions on the right */
+      .page-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        justify-content: space-between;
+        margin-bottom: 8px;
+      }
+      .page-header .title-left {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+      }
+      .home-btn {
+        margin-left: 12px;
+      }
     </style>
   </head>
   <body data-theme="system">
     <div class="fc-wrap">
-      <h1>Forecast Console</h1>
-      <p class="muted small">
+      <div class="page-header">
+        <div class="title-left">
+          <h1 style="margin: 0">Forecast Console</h1>
+        </div>
+        <div>
+          <button id="homeBtn" class="btn home-btn" title="Home">HOME</button>
+        </div>
+      </div>
+      <p class="muted small" style="margin: 6px 0 12px">
         Run, review, override, and publish SKU×Region×Godown monthly forecasts.
       </p>
 

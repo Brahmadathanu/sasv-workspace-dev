@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <title>Demand Overrides</title>
-    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="public/shared/css/style.css" />
     <style>
       .toolbar {
         display: flex;
@@ -972,11 +972,5 @@
 
     <!-- Supabase client & module script -->
     <script type="module" src="js/demand-overrides.js"></script>
-    <script type="module">
-      // Platform-aware HOME button (same behavior as other modules)
-      import { Platform } from "./js/platform.js";
-      const homeBtn = document.getElementById("homeBtn");
-      if (homeBtn) homeBtn.onclick = () => Platform.goHome();
-    </script>
   </body>
 </html>

@@ -1,4 +1,5 @@
 import { supabase } from "./supabaseClient.js";
+import { Platform } from "./platform.js";
 
 // ------------- Helpers
 // --- Additional helpers for forecast job control ---
@@ -96,19 +97,17 @@ function startTracker() {
 // ---------- Button handlers ----------
 let trackerTimer = null;
 async function onPrimaryRun() {
-  const months = Number(document.getElementById("monthsWindow").value || 3);
+  // months window control exists in the UI but isn't used by this flow.
+  // Removed the unused variable to satisfy the linter.
   const dryRun = document.getElementById("dryRun").checked;
   const asOfRaw = document.getElementById("asOfDate").value;
   const today = asOfRaw ? new Date(asOfRaw + "T00:00:00") : new Date();
 
   // 1) Apply marketing overrides (auto-window: pass nulls)
   setStatus(chip("Applying overrides…"));
-  const { data: ovData, error: ovErr } = await supabase.rpc(
-    "apply_marketing_overrides",
-    {
-      p_from: null,
-      p_to: null,
-    }
+  const { data: ovData, error: ovErr } = await rpcApplyMarketingOverrides(
+    null,
+    null
   );
   if (ovErr) {
     setStatus(chip("Overrides failed", "err"));
@@ -206,6 +205,13 @@ function initRunControls() {
   if (a) a.addEventListener("click", onPrimaryRun);
   if (b) b.addEventListener("click", onFullRebuild);
   startTracker(); // show recent runs on load
+}
+// wire HOME button to Platform.goHome if present
+try {
+  const hb = document.getElementById("homeBtn");
+  if (hb) hb.addEventListener("click", () => Platform.goHome());
+} catch {
+  /* ignore */
 }
 function showModal(message, title = "Notice") {
   const dlg = document.getElementById("fcModal");

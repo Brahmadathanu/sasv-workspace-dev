@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Production Netting</title>
+    <link rel="stylesheet" href="public/shared/css/style.css" />
+    <style>
+      .toolbar {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: flex-end;
+      }
+      .toolbar .field {
+        display: flex;
+        flex-direction: column;
+      }
+      .muted {
+        color: #6b7280;
+      }
+      .small {
+        font-size: 12px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+      }
+      th,
+      td {
+        border: 1px solid #e5e7eb;
+        padding: 6px 8px;
+      }
+      thead th {
+        background: #f9fafb;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+      }
+      .actions a {
+        margin-right: 8px;
+      }
+      #toast {
+        display: none;
+        position: fixed;
+        bottom: 16px;
+        right: 16px;
+        background: #111827;
+        color: #fff;
+        padding: 10px 14px;
+
+        /* Page-specific header: left-aligned and action area (HOME button) */
+        header {
+          text-align: left; /* override global centered header */
+          margin-bottom: 16px;
+        }
+        .header-bar {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 8px;
+        }
+        .header-bar h1 {
+          margin: 0;
+          font-size: 2em;
+          color: var(--primary);
+        }
+        .header-actions {
+          display: flex;
+          gap: 8px;
+          margin-left: auto;
+        }
+        border-radius: 6px;
+      }
+      dialog {
+        border: none;
+        border-radius: 8px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        width: min(900px, 95vw);
+      }
+      dialog::backdrop {
+        background: rgba(0, 0, 0, 0.35);
+      }
+      .chip {
+        display: inline-block;
+        padding: 4px 8px;
+        border: 1px solid #e5e7eb;
+        border-radius: 999px;
+        background: #f3f4f6;
+        font-size: 12px;
+        margin-right: 6px;
+      }
+      .right {
+        margin-left: auto;
+      }
+      .toolbar .field input[type="date"] {
+        padding: 6px 8px;
+      }
+      .toolbar button {
+        padding: 8px 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="header-bar">
+        <h1>Production Netting</h1>
+        <div class="header-actions">
+          <button id="homeBtn">HOME</button>
+        </div>
+      </div>
+      <div class="small muted" id="sessionUser">Loading…</div>
+    </header>
+
+    <section class="panel">
+      <p class="section-hint">
+        Convert forecast demand to <b>net FG make</b> by deducting current
+        stocks (bottled & FG bulk). Drill down to see batch-level stocks.
+      </p>
+
+      <div class="toolbar" id="filterBar">
+        <div class="field">
+          <label>From</label>
+          <input id="fromDate" type="date" />
+        </div>
+        <div class="field">
+          <label>To</label>
+          <input id="toDate" type="date" />
+        </div>
+        <div class="field">
+          <label>Product ID</label>
+          <input id="productId" type="number" placeholder="e.g. 1" />
+        </div>
+        <button id="btnLoad">Load</button>
+        <button id="btnExport">Export CSV</button>
+        <span class="right small muted" id="gridStatus">—</span>
+      </div>
+
+      <div class="small muted" style="margin-top: 6px">
+        Window follows your fence logic (≥ start, &lt; end). Use filters to
+        narrow down if needed.
+      </div>
+
+      <table id="grid">
+        <thead>
+          <tr id="gridHead">
+            <th>product_id</th>
+            <th>month_start</th>
+            <th>net_bulk_to_make</th>
+            <th>drill</th>
+          </tr>
+        </thead>
+        <tbody id="gridBody"></tbody>
+      </table>
+
+      <div
+        style="margin-top: 8px; display: flex; gap: 8px; align-items: center"
+      >
+        <button id="prevPage">Prev</button>
+        <span class="small muted" id="pageInfo">Page 1</span>
+        <button id="nextPage">Next</button>
+      </div>
+    </section>
+
+    <!-- Drilldown modal -->
+    <dialog id="pdModal">
+      <div
+        style="
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        "
+      >
+        <h3 id="pdTitle" style="margin: 0">Product Drilldown</h3>
+        <button id="pdClose">✕</button>
+      </div>
+      <p class="small muted" id="pdSubtitle"></p>
+
+      <div style="display: flex; gap: 16px; margin-top: 8px; flex-wrap: wrap">
+        <span class="chip" id="chipItem">item: —</span>
+        <span class="chip" id="chipMonth">month: —</span>
+      </div>
+
+      <h4 style="margin-top: 12px">Bottled SOH (by batch)</h4>
+      <table>
+        <thead>
+          <tr>
+            <th>batch_number</th>
+            <th>sku_id</th>
+            <th>pack_size</th>
+            <th>uom</th>
+            <th>on_hand</th>
+          </tr>
+        </thead>
+        <tbody id="bottledBody"></tbody>
+      </table>
+
+      <h4 style="margin-top: 12px">FG Bulk SOH (by batch)</h4>
+      <table>
+        <thead>
+          <tr>
+            <th>bn</th>
+            <th>qty_on_hand</th>
+            <th>uom</th>
+            <th>last_updated</th>
+          </tr>
+        </thead>
+        <tbody id="bulksBody"></tbody>
+      </table>
+
+      <div style="margin-top: 12px; text-align: right">
+        <button id="pdOk">OK</button>
+      </div>
+    </dialog>
+
+    <div id="toast"></div>
+    <script type="module" src="js/production-netting.js"></script>
+  </body>
+</html>

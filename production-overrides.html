@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Supply Overrides</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <style>
+      .toolbar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .grid {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 8px;
+      }
+      .grid th,
+      .grid td {
+        border: 1px solid #e5e7eb;
+        padding: 6px 8px;
+      }
+      .grid th {
+        background: #f8fafc;
+        text-align: left;
+      }
+      .muted {
+        color: #6b7280;
+        font-size: 12px;
+      }
+      .chips {
+        margin-top: 6px;
+      }
+      .chip {
+        display: inline-block;
+        margin: 2px 4px 0 0;
+        padding: 4px 8px;
+        border: 1px solid #e5e7eb;
+        border-radius: 999px;
+        background: #f3f4f6;
+        font-size: 12px;
+      }
+      .chip.ok {
+        background: #e6ffed;
+        border-color: #b7f5c2;
+      }
+      .chip.warn {
+        background: #fff7e6;
+        border-color: #ffd591;
+      }
+      .chip.err {
+        background: #ffecec;
+        border-color: #ffb3b3;
+      }
+      .tabs {
+        display: flex;
+        gap: 8px;
+        margin: 12px 0;
+      }
+      .tab-btn {
+        padding: 6px 10px;
+        border: 1px solid #e5e7eb;
+        background: #fff;
+        cursor: pointer;
+        border-radius: 6px;
+      }
+      .tab-btn.active {
+        background: #f1f5f9;
+      }
+      .tab {
+        display: none;
+      }
+      .tab.active {
+        display: block;
+      }
+      .section {
+        margin: 16px 0;
+      }
+      .right {
+        margin-left: auto;
+      }
+      dialog {
+        border: none;
+        border-radius: 8px;
+        padding: 0;
+        max-width: 540px;
+        width: 90vw;
+      }
+      .modal-header {
+        padding: 12px 16px;
+        border-bottom: 1px solid #e5e7eb;
+        font-weight: 600;
+      }
+      .modal-body {
+        padding: 16px;
+      }
+      .modal-footer {
+        padding: 12px 16px;
+        border-top: 1px solid #e5e7eb;
+        text-align: right;
+      }
+      .inline {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+      }
+      input[type="date"] {
+        padding: 4px 6px;
+      }
+      input[type="number"] {
+        width: 140px;
+      }
+      .small {
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body data-theme="system">
+    <header>
+      <h1>Production Overrides</h1>
+      <div class="muted" id="whoAmI">Loading…</div>
+    </header>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="sets">Manual Plan Sets</button>
+      <button class="tab-btn" data-tab="lines">Edit Lines</button>
+      <button class="tab-btn" data-tab="reconcile">Reconcile & Apply</button>
+      <button class="tab-btn" data-tab="active">Active Overrides</button>
+    </div>
+
+    <!-- TAB: Manual Plan Sets -->
+    <section id="tab-sets" class="tab active">
+      <div class="section toolbar">
+        <button id="btnCreateSet">New Set</button>
+        <span class="muted">or select an existing set:</span>
+        <select id="selSets"></select>
+        <span class="right muted" id="setsStatus"></span>
+      </div>
+
+      <div class="section">
+        <h3>Seed From System (Optional)</h3>
+        <div class="toolbar">
+          <label>From <input type="date" id="seedFrom" /></label>
+          <label>To <input type="date" id="seedTo" /></label>
+          <button id="btnSeedSet">Seed</button>
+          <span class="muted"
+            >Populates lines from system plan for the chosen window.</span
+          >
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Sets</h3>
+        <table class="grid" id="setsTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Set Name</th>
+              <th>Owner</th>
+              <th>Created</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB: Edit Lines -->
+    <section id="tab-lines" class="tab">
+      <div class="toolbar">
+        <span>Current Set:</span>
+        <select id="selSetForLines"></select>
+        <button id="btnAddLine">Add Row</button>
+        <button id="btnDeleteSelected">Delete Selected</button>
+        <div class="right inline">
+          <button id="btnExportLines">Export CSV</button>
+          <input type="file" id="fileImportLines" accept=".csv" />
+          <button id="btnImportLines">Import CSV</button>
+        </div>
+      </div>
+
+      <table class="grid" id="linesTable">
+        <thead>
+          <tr>
+            <th style="width: 32px"><input type="checkbox" id="chkAll" /></th>
+            <th>product_id</th>
+            <th>month_start</th>
+            <th>proposed_qty</th>
+            <th>note</th>
+            <th>updated_at</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div id="linesStatus" class="chips"></div>
+    </section>
+
+    <!-- TAB: Reconcile & Apply -->
+    <section id="tab-reconcile" class="tab">
+      <div class="toolbar">
+        <span>Set:</span>
+        <select id="selSetForReconcile"></select>
+        <label>Window From <input type="date" id="rcFrom" /></label>
+        <label>To <input type="date" id="rcTo" /></label>
+        <label
+          >Threshold ≥
+          <input type="number" id="rcThreshold" step="0.0001" value="0"
+        /></label>
+        <button id="btnPreviewReconcile">Preview</button>
+        <button id="btnApplyReconcile">Apply Overrides</button>
+        <span class="right muted" id="rcStatus"></span>
+      </div>
+
+      <table class="grid" id="rcTable">
+        <thead>
+          <tr>
+            <th>product_id</th>
+            <th>month_start</th>
+            <th>system_qty</th>
+            <th>proposed_qty</th>
+            <th>delta_qty</th>
+            <th>WIP?</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="muted small">
+        * Rows in WIP are skipped by database rules.
+      </div>
+    </section>
+
+    <!-- TAB: Active Overrides -->
+    <section id="tab-active" class="tab">
+      <div class="toolbar">
+        <label>From <input type="date" id="aoFrom" /></label>
+        <label>To <input type="date" id="aoTo" /></label>
+        <button id="btnLoadActive">Load</button>
+        <button id="btnExportActive">Export CSV</button>
+        <span class="right muted" id="aoStatus"></span>
+      </div>
+      <table class="grid" id="aoTable">
+        <thead>
+          <tr>
+            <th>product_id</th>
+            <th>month_start</th>
+            <th>delta_units</th>
+            <th>reason</th>
+            <th>is_active</th>
+            <th>created_at</th>
+            <th>updated_at</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <!-- Modal -->
+    <dialog id="poModal">
+      <div class="modal-header" id="poModalTitle">Notice</div>
+      <div class="modal-body" id="poModalMessage">Message…</div>
+      <div class="modal-footer">
+        <button id="poModalClose">OK</button>
+      </div>
+    </dialog>
+
+    <script type="module" src="js/production-overrides.js"></script>
+  </body>
+</html>

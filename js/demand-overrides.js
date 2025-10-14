@@ -1,4 +1,4 @@
-import { supabase } from "./supabaseClient.js";
+import { supabase } from "../public/shared/js/supabaseClient.js";
 
 /** Utilities */
 const $ = (id) => document.getElementById(id);
@@ -3174,6 +3174,14 @@ function wire() {
       loadStaging();
       loadActive();
     });
+  }
+
+  // Home button handler (like log-add module)
+  const homeBtn = $("homeBtn");
+  if (homeBtn) {
+    homeBtn.onclick = () => {
+      window.location.href = "index.html";
+    };
   }
 }
 

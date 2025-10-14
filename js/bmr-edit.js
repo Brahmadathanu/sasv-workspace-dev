@@ -1,156 +1,194 @@
-import { supabase } from '../public/shared/js/supabaseClient.js';
+import { supabase } from "../public/shared/js/supabaseClient.js";
 
 // — DOM refs —
-const filterItem    = document.getElementById('filterItem');
-const filterBn      = document.getElementById('filterBn');
-const clearFilter   = document.getElementById('clearFilter');
-const tableBody     = document.querySelector('#bmrTable tbody');
-const homeIcon      = document.getElementById('homeIcon');
+const filterItem = document.getElementById("filterItem");
+const filterBn = document.getElementById("filterBn");
+const clearFilter = document.getElementById("clearFilter");
+const tableBody = document.querySelector("#bmrTable tbody");
+const homeIcon = document.getElementById("homeIcon");
 
-const editOverlay   = document.getElementById('editOverlay');
-const editForm      = document.getElementById('editForm');
-const editItemSel   = document.getElementById('editItem');
-const editBnInput   = document.getElementById('editBn');
-const editSizeInput = document.getElementById('editSize');
-const editUomSel    = document.getElementById('editUom');
-const cancelEditBtn = document.getElementById('cancelEdit');
+const editOverlay = document.getElementById("editOverlay");
+const editForm = document.getElementById("editForm");
+const editItemSel = document.getElementById("editItem");
+const editBnInput = document.getElementById("editBn");
+const editSizeInput = document.getElementById("editSize");
+const editUomSel = document.getElementById("editUom");
+const cancelEditBtn = document.getElementById("cancelEdit");
 
-const dialogOverlay = document.getElementById('dialogOverlay');
-const dialogMsg     = document.getElementById('dialogMessage');
-const btnYes        = document.getElementById('btnYes');
-const btnNo         = document.getElementById('btnNo');
-const btnOk         = document.getElementById('btnOk');
+const dialogOverlay = document.getElementById("dialogOverlay");
+const dialogMsg = document.getElementById("dialogMessage");
+const btnYes = document.getElementById("btnYes");
+const btnNo = document.getElementById("btnNo");
+const btnOk = document.getElementById("btnOk");
 
-let currentId       = null,
-    productOptions  = '<option value="">— Any —</option>';
+let currentId = null,
+  productOptions = '<option value="">— Any —</option>';
 
 // — Dialog helpers —
 function showAlert(msg) {
-  return new Promise(res => {
-    dialogMsg.textContent       = msg;
-    btnYes.style.display        = 'none';
-    btnNo.style.display         = 'none';
-    btnOk.style.display         = 'inline-block';
-    dialogOverlay.style.display = 'flex';
+  return new Promise((res) => {
+    dialogMsg.textContent = msg;
+    btnYes.style.display = "none";
+    btnNo.style.display = "none";
+    btnOk.style.display = "inline-block";
+    dialogOverlay.style.display = "flex";
     btnOk.onclick = () => {
-      dialogOverlay.style.display = 'none';
+      dialogOverlay.style.display = "none";
       res();
     };
   });
 }
 
 function askConfirm(msg) {
-  return new Promise(res => {
-    dialogMsg.textContent       = msg;
-    btnYes.style.display        = 'inline-block';
-    btnNo.style.display         = 'inline-block';
-    btnOk.style.display         = 'none';
-    dialogOverlay.style.display = 'flex';
-    btnYes.onclick = () => { dialogOverlay.style.display = 'none'; res(true); };
-    btnNo.onclick  = () => { dialogOverlay.style.display = 'none'; res(false); };
+  return new Promise((res) => {
+    dialogMsg.textContent = msg;
+    btnYes.style.display = "inline-block";
+    btnNo.style.display = "inline-block";
+    btnOk.style.display = "none";
+    dialogOverlay.style.display = "flex";
+    btnYes.onclick = () => {
+      dialogOverlay.style.display = "none";
+      res(true);
+    };
+    btnNo.onclick = () => {
+      dialogOverlay.style.display = "none";
+      res(false);
+    };
   });
 }
 
 // — Load products for dropdowns —
 async function loadProducts() {
   const { data, error } = await supabase
-    .from('products')
-    .select('item')
-    .eq('status','Active')
-    .order('item');
-  if (error) { console.error(error); return; }
-  data.forEach(r => {
-    const v = r.item.replace(/"/g,'&quot;');
+    .from("products")
+    .select("item")
+    .eq("status", "Active")
+    .order("item");
+  if (error) {
+    console.error(error);
+    return;
+  }
+  data.forEach((r) => {
+    const v = r.item.replace(/"/g, "&quot;");
     productOptions += `<option value="${v}">${v}</option>`;
   });
-  filterItem.innerHTML  = productOptions;
-  editItemSel.innerHTML = productOptions.replace('— Any —','— Select Item —');
+  filterItem.innerHTML = productOptions;
+  editItemSel.innerHTML = productOptions.replace("— Any —", "— Select Item —");
 }
 
 // — Render table with current filters —
 async function renderTable() {
   let q = supabase
-    .from('bmr_details')
-    .select('id,item,bn,batch_size,uom')
-    .order('id', { ascending: false })
+    .from("v_bmr_with_map_flag")
+    .select("bmr_id,item,bn,batch_size,uom,is_mapped")
+    .order("bmr_id", { ascending: false })
     .limit(10);
 
-  if (filterItem.value) q = q.eq('item', filterItem.value);
-  if (filterBn.value.trim()) q = q.eq('bn', filterBn.value.trim());
+  if (filterItem.value) q = q.eq("item", filterItem.value);
+  if (filterBn.value.trim()) q = q.eq("bn", filterBn.value.trim());
 
   const { data, error } = await q;
-  if (error) { console.error(error); return; }
+  if (error) {
+    console.error(error);
+    return;
+  }
 
-  tableBody.innerHTML = data.map(r => `
-    <tr data-id="${r.id}">
+  tableBody.innerHTML = (data || [])
+    .map(
+      (r) => `
+    <tr data-id="${r.bmr_id}" data-mapped="${r.is_mapped}">
       <td>${r.item}</td>
       <td>${r.bn}</td>
-      <td>${r.batch_size ?? ''}</td>
+      <td>${r.batch_size ?? ""}</td>
       <td>${r.uom}</td>
       <td>
+        ${r.is_mapped ? '<span title="Mapped – BN/Size locked">🔒</span> ' : ""}
         <button class="action-link-small edit-btn">Edit</button> |
         <button class="action-link-small delete-btn">Delete</button>
       </td>
     </tr>
-  `).join('');
+  `
+    )
+    .join("");
 }
 
 // — Open edit modal —
 function openEditModal(tr) {
   currentId = tr.dataset.id;
-  editItemSel.innerHTML = productOptions.replace('— Any —','— Select Item —');
-  editItemSel.value     = tr.children[0].textContent;
-  editBnInput.value     = tr.children[1].textContent;
-  editSizeInput.value   = tr.children[2].textContent;
-  editUomSel.value      = tr.children[3].textContent;
-  editOverlay.style.display = 'flex';
+  const isMapped = tr.dataset.mapped === "true";
+
+  editItemSel.innerHTML = productOptions.replace("— Any —", "— Select Item —");
+  editItemSel.value = tr.children[0].textContent;
+  editBnInput.value = tr.children[1].textContent;
+  editSizeInput.value = tr.children[2].textContent;
+  editUomSel.value = tr.children[3].textContent;
+
+  // Disable BN & Size inputs if mapped
+  editBnInput.disabled = isMapped;
+  editSizeInput.disabled = isMapped;
+
+  if (isMapped) {
+    editBnInput.title = "Mapped to a plan; BN cannot be edited";
+    editSizeInput.title = "Mapped to a plan; size cannot be edited";
+  } else {
+    editBnInput.title = "";
+    editSizeInput.title = "";
+  }
+
+  editOverlay.style.display = "flex";
   editItemSel.focus();
 }
 
 // — Cancel edit —
-cancelEditBtn.onclick = () => editOverlay.style.display = 'none';
+cancelEditBtn.onclick = () => (editOverlay.style.display = "none");
 
 // — Submit edited entry —
-editForm.addEventListener('submit', async e => {
+editForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const item = editItemSel.value.trim();
-  const bn   = editBnInput.value.trim();
+  const bn = editBnInput.value.trim();
   const size = editSizeInput.value || null;
-  const uom  = editUomSel.value;
+  const uom = editUomSel.value;
 
   if (!item || !bn || !uom) {
-    await showAlert('Item, BN and UOM are required.');
+    await showAlert("Item, BN and UOM are required.");
     return;
   }
 
-  editOverlay.style.display = 'none';
-  if (!await askConfirm(`Save changes to entry #${currentId}?`)) {
+  editOverlay.style.display = "none";
+  if (!(await askConfirm(`Save changes to entry #${currentId}?`))) {
     return renderTable();
   }
 
   const { error } = await supabase
-    .from('bmr_details')
+    .from("bmr_details")
     .update({ item, bn, batch_size: size, uom })
-    .eq('id', currentId);
+    .eq("id", currentId);
   if (error) console.error(error);
 
   renderTable();
 });
 
 // — Delegate Edit/Delete clicks —
-tableBody.addEventListener('click', async e => {
-  if (e.target.matches('.edit-btn')) {
-    openEditModal(e.target.closest('tr'));
+tableBody.addEventListener("click", async (e) => {
+  if (e.target.matches(".edit-btn")) {
+    openEditModal(e.target.closest("tr"));
   }
-  if (e.target.matches('.delete-btn')) {
-    const tr = e.target.closest('tr');
+  if (e.target.matches(".delete-btn")) {
+    const tr = e.target.closest("tr");
     const id = tr.dataset.id;
     const it = tr.children[0].textContent;
+    if (tr.dataset.mapped === "true") {
+      await showAlert(
+        "This BMR is mapped to a batch plan and cannot be deleted."
+      );
+      return;
+    }
     if (await askConfirm(`Delete entry #${id} (${it})?`)) {
       const { error } = await supabase
-        .from('bmr_details')
+        .from("bmr_details")
         .delete()
-        .eq('id', id);
+        .eq("id", id);
       if (error) console.error(error);
       renderTable();
     }
@@ -158,25 +196,25 @@ tableBody.addEventListener('click', async e => {
 });
 
 // — Auto-filter on change/input —
-filterItem.addEventListener('change', renderTable);
-filterBn.addEventListener('input',  renderTable);
+filterItem.addEventListener("change", renderTable);
+filterBn.addEventListener("input", renderTable);
 
 // — Clear filters —
 clearFilter.onclick = () => {
-  filterItem.value = '';
-  filterBn.value   = '';
+  filterItem.value = "";
+  filterBn.value = "";
   renderTable();
 };
 
 // — Home nav —
 homeIcon.onclick = async () => {
-  if (await askConfirm('Discard changes and go home?')) {
-    window.location.href = 'index.html';
+  if (await askConfirm("Discard changes and go home?")) {
+    window.location.href = "index.html";
   }
 };
 
 // — Init —
-window.addEventListener('DOMContentLoaded', async () => {
+window.addEventListener("DOMContentLoaded", async () => {
   await loadProducts();
   await renderTable();
 });

@@ -152,15 +152,40 @@ multiClearBtn.onclick = () => {
 
 /** Insert a single BMR entry into the database */
 async function insertBmr({ item, bn, size, uom }) {
-  const { error } = await supabase
-    .from("bmr_details")
-    .insert([{ item, bn, batch_size: size, uom }]);
-  if (error) {
-    if (error.code === "23505") return { dup: true };
-    console.error("insertBmr error:", error);
+  try {
+    // Find corresponding product id (products.item -> products.id)
+    const { data: prodData, error: prodErr } = await supabase
+      .from("products")
+      .select("id")
+      .ilike("item", item)
+      .limit(1)
+      .single();
+
+    if (prodErr && prodErr.code !== "PGRST116") {
+      // PGRST116 is returned when no rows found by .single(); handle below
+      console.error("insertBmr product lookup error:", prodErr);
+      return { err: true };
+    }
+
+    const product_id = prodData?.id ?? null;
+    if (!product_id) {
+      // No matching product — caller should handle this case
+      return { missingProduct: true };
+    }
+
+    const { error } = await supabase
+      .from("bmr_details")
+      .insert([{ item, bn, batch_size: size, uom, product_id }]);
+    if (error) {
+      if (error.code === "23505") return { dup: true };
+      console.error("insertBmr error:", error);
+      return { err: true, raw: error };
+    }
+    return { ok: true };
+  } catch (e) {
+    console.error("insertBmr unexpected error:", e);
     return { err: true };
   }
-  return { ok: true };
 }
 
 /** Cancel the preview and return to editing */
@@ -183,13 +208,22 @@ confirmPreview.onclick = async () => {
   let added = 0,
     dup = 0,
     err = 0;
+  const missingProducts = new Set();
   for (const d of data) {
     const res = await insertBmr(d);
     if (res.ok) added++;
     else if (res.dup) dup++;
-    else err++;
+    else if (res.missingProduct) {
+      err++;
+      missingProducts.add(d.item);
+    } else err++;
   }
-  await showAlert(`Added: ${added}\nDuplicates: ${dup}\nErrors: ${err}`);
+  let msg = `Added: ${added}\nDuplicates: ${dup}\nErrors: ${err}`;
+  if (missingProducts.size) {
+    msg += `\n\nMissing products (no matching product record):\n`;
+    msg += Array.from(missingProducts).slice(0, 20).join("\n");
+  }
+  await showAlert(msg);
   if (csvPreviewData) {
     csvFileInput.value = "";
     csvPreviewData = null;
@@ -284,4 +318,18 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Bind the first row
   bindRowButtons(tableBody.querySelector("tr"));
   ensureFocus();
+
+  // Pre-fill from query params (?item=...&size=...)
+  const qs = new URLSearchParams(location.search);
+  const qsItem = qs.get("item");
+  const qsSize = qs.get("size");
+  const row = tableBody.querySelector("tr");
+  if (qsItem) {
+    row.querySelector(".m-item").value = qsItem;
+  }
+  if (qsSize) {
+    row.querySelector(".m-size").value = Number(qsSize) || "";
+  }
+  // focus BN so user just types it
+  row.querySelector(".m-bn").focus();
 });

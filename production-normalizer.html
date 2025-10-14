@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Output Normalizer</title>
+    <link rel="stylesheet" href="public/shared/css/style.css" />
+    <style>
+      .toolbar {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: flex-end;
+      }
+      .toolbar .field {
+        display: flex;
+        flex-direction: column;
+      }
+      .muted {
+        color: #6b7280;
+      }
+      .small {
+        font-size: 12px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+      }
+      th,
+      td {
+        border: 1px solid #e5e7eb;
+        padding: 6px 8px;
+      }
+      thead th {
+        background: #f9fafb;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+      }
+      .flag {
+        font-size: 11px;
+        padding: 2px 6px;
+        border-radius: 999px;
+        border: 1px solid #e5e7eb;
+        background: #f3f4f6;
+      }
+      .ok {
+        background: #e6ffed;
+        border-color: #b7f5c2;
+      }
+      .warn {
+        background: #fff7e6;
+        border-color: #ffd591;
+      }
+      .err {
+        background: #ffecec;
+        border-color: #ffb3b3;
+      }
+      .right {
+        margin-left: auto;
+      }
+      #toast {
+        display: none;
+        position: fixed;
+        bottom: 16px;
+        right: 16px;
+        background: #111827;
+        color: #fff;
+        padding: 10px 14px;
+        border-radius: 6px;
+      }
+
+      /* Page-specific header: left-aligned and action area (HOME button) */
+      header {
+        text-align: left; /* override global centered header */
+        margin-bottom: 16px;
+      }
+      .header-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .header-bar h1 {
+        margin: 0;
+        font-size: 2em;
+        color: var(--primary);
+      }
+      .header-actions {
+        display: flex;
+        gap: 8px;
+        margin-left: auto;
+      }
+      dialog {
+        border: none;
+        border-radius: 8px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        width: min(1100px, 96vw);
+      }
+      dialog::backdrop {
+        background: rgba(0, 0, 0, 0.35);
+      }
+      .chips {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+      }
+      .chip {
+        display: inline-block;
+        padding: 4px 8px;
+        border: 1px solid #e5e7eb;
+        border-radius: 999px;
+        background: #f3f4f6;
+        font-size: 12px;
+      }
+      .toolbar button {
+        padding: 8px 10px;
+      }
+      .toolbar .field input[type="date"] {
+        padding: 6px 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="header-bar">
+        <h1>Output Normalizer</h1>
+        <div class="header-actions">
+          <button id="homeBtn">HOME</button>
+        </div>
+      </div>
+      <div class="small muted" id="sessionUser">Loading…</div>
+    </header>
+
+    <section class="panel">
+      <p class="section-hint">
+        Review per-product monthly normalization to <b>base_output_qty</b> (or
+        half-base if closer), after WIP deductions. Data source:
+        <code>v_product_bulk_adjusted_to_base</code>.
+      </p>
+
+      <div class="toolbar">
+        <div class="field">
+          <label>From</label>
+          <input id="fromDate" type="date" />
+        </div>
+        <div class="field">
+          <label>To</label>
+          <input id="toDate" type="date" />
+        </div>
+        <div class="field">
+          <label>Product ID</label>
+          <input id="productId" type="number" placeholder="e.g. 1" />
+        </div>
+        <div class="field">
+          <label>Only needs base?</label>
+          <select id="onlyNeedsBase">
+            <option value="">No filter</option>
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </select>
+        </div>
+        <button id="btnLoad">Load</button>
+        <button id="btnExport">Export CSV</button>
+        <span class="right small muted" id="gridStatus">—</span>
+      </div>
+
+      <table id="grid">
+        <thead>
+          <tr id="gridHead">
+            <th>product_id</th>
+            <th>month_start</th>
+            <th>net_after_wip</th>
+            <th>base_output_qty</th>
+            <th>need_after_carry</th>
+            <th>adjusted_bulk_to_make</th>
+            <th>overage_carry_to_next</th>
+            <th>needs_base_qty</th>
+            <th>drill</th>
+          </tr>
+        </thead>
+        <tbody id="gridBody"></tbody>
+      </table>
+
+      <div
+        style="margin-top: 8px; display: flex; gap: 8px; align-items: center"
+      >
+        <button id="prevPage">Prev</button>
+        <span class="small muted" id="pageInfo">Page 1</span>
+        <button id="nextPage">Next</button>
+      </div>
+    </section>
+
+    <!-- Drilldown modal -->
+    <dialog id="normModal">
+      <div
+        style="
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        "
+      >
+        <h3 id="normTitle" style="margin: 0">Normalization Strip</h3>
+        <button id="normClose">✕</button>
+      </div>
+      <p class="small muted" id="normSubtitle"></p>
+
+      <div class="chips">
+        <span class="chip" id="chipItem">item: —</span>
+        <span class="chip" id="chipBase">base_output_qty: —</span>
+      </div>
+
+      <table style="margin-top: 12px">
+        <thead>
+          <tr>
+            <th>month_start</th>
+            <th>net_after_wip</th>
+            <th>need_after_carry</th>
+            <th>adjusted_bulk_to_make</th>
+            <th>overage_carry_to_next</th>
+            <th>needs_base_qty</th>
+          </tr>
+        </thead>
+        <tbody id="normBody"></tbody>
+      </table>
+
+      <div style="margin-top: 12px; text-align: right">
+        <button id="normOk">OK</button>
+      </div>
+    </dialog>
+
+    <div id="toast"></div>
+    <script type="module" src="js/production-normalizer.js"></script>
+  </body>
+</html>

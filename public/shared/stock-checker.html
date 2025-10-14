@@ -422,15 +422,52 @@
       >
         Export CSV
       </button>
-      <button
-        id="sc-export-pdf"
-        class="sc-btn"
-        type="button"
-        title="Export current filter result to A4 PDF"
-        style="margin-left: 8px"
-      >
-        Stock Coverage Report
-      </button>
+      <div style="display: inline-block; position: relative; margin-left: 8px">
+        <button
+          id="sc-export-pdf"
+          class="sc-btn"
+          type="button"
+          aria-haspopup="true"
+          aria-expanded="false"
+        >
+          Stock Coverage Report ▾
+        </button>
+        <div
+          id="sc-export-drawer"
+          role="menu"
+          aria-hidden="true"
+          style="
+            display: none;
+            position: absolute;
+            right: 0;
+            margin-top: 6px;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 8px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+            z-index: 40;
+            min-width: 220px;
+          "
+        >
+          <button
+            id="sc-export-godowns"
+            class="sc-btn"
+            type="button"
+            style="display: block; width: 100%; margin-bottom: 6px"
+          >
+            Stock Coverage Report - Godowns
+          </button>
+          <button
+            id="sc-export-region"
+            class="sc-btn"
+            type="button"
+            style="display: block; width: 100%"
+          >
+            Stock Coverage Report - Region
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Filters row -->

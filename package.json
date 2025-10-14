@@ -62,7 +62,8 @@
     "electron-reload": "^2.0.0-alpha.1",
     "eslint": "^9.33.0",
     "glob": "^11.0.3",
-    "globals": "^16.3.0"
+    "globals": "^16.3.0",
+    "supabase": "^2.48.3"
   },
   "repository": {
     "type": "git",
