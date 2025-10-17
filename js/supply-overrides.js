@@ -5,6 +5,19 @@ import { supabase } from "../public/shared/js/supabaseClient.js";
 const $ = (id) => document.getElementById(id);
 const chip = (txt, tone = "") => `<span class="chip ${tone}">${txt}</span>`;
 const fmtDate = (d) => (d ? new Date(d).toISOString().slice(0, 10) : "");
+const HTML_ESCAPE_MAP = {
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': "&quot;",
+  "'": "&#39;",
+};
+function escapeHtml(value = "") {
+  return String(value ?? "").replace(
+    /[&<>"']/g,
+    (ch) => HTML_ESCAPE_MAP[ch] || ch
+  );
+}
 function monthFloor(d = new Date()) {
   return new Date(d.getFullYear(), d.getMonth(), 1);
 }
@@ -184,7 +197,8 @@ async function ensureAuth() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  $("whoAmI").textContent = `Logged in as ${user.email}`;
+  const whoEl = $("whoAmI");
+  if (whoEl) whoEl.textContent = `Logged in as ${user.email}`;
   return user;
 }
 
@@ -195,17 +209,57 @@ function setupTabs() {
     sets: $("tab-sets"),
     lines: $("tab-lines"),
     reconcile: $("tab-reconcile"),
-    recon: $("tab-recon"),
     active: $("tab-active"),
   };
-  btns.forEach((b) => {
-    b.addEventListener("click", () => {
-      btns.forEach((x) => x.classList.remove("active"));
-      b.classList.add("active");
-      Object.values(tabs).forEach((t) => t.classList.remove("active"));
-      tabs[b.dataset.tab].classList.add("active");
+
+  function activateTab(btn) {
+    if (!btn) return false;
+    const tabName = btn.dataset.tab;
+    const panel = tabs[tabName];
+    if (!panel) return false;
+
+    btns.forEach((b) => {
+      const isActive = b === btn;
+      b.setAttribute("aria-selected", isActive ? "true" : "false");
+      b.classList.toggle("active", isActive);
+      b.tabIndex = isActive ? 0 : -1;
+    });
+
+    Object.entries(tabs).forEach(([name, el]) => {
+      if (!el) return;
+      const isActive = name === tabName;
+      el.classList.toggle("active", isActive);
+      el.setAttribute("aria-hidden", isActive ? "false" : "true");
+      el.tabIndex = isActive ? 0 : -1;
+    });
+
+    try {
+      btn.scrollIntoView({
+        behavior: "smooth",
+        inline: "center",
+        block: "nearest",
+      });
+    } catch {
+      /* no-op */
+    }
+    return true;
+  }
+
+  btns.forEach((b, idx) => {
+    b.addEventListener("click", () => activateTab(b));
+    b.addEventListener("keydown", (evt) => {
+      if (evt.key === "ArrowRight" || evt.key === "ArrowLeft") {
+        evt.preventDefault();
+        const dir = evt.key === "ArrowRight" ? 1 : -1;
+        const next = (idx + dir + btns.length) % btns.length;
+        if (activateTab(btns[next])) btns[next].focus();
+      }
     });
   });
+
+  const initial =
+    btns.find((b) => b.getAttribute("aria-selected") === "true") || btns[0];
+  activateTab(initial);
 }
 
 /* ========== sets ========== */
@@ -239,41 +293,57 @@ async function loadSets() {
       return `<option value="${r.id}">#${r.id} — ${label} — ${ownerLabel}</option>`;
     })
     .join("");
-  $("selSets").innerHTML = `<option value="">(pick)</option>` + opts;
-  $("selSetForLines").innerHTML = `<option value="">(pick)</option>` + opts;
-  $("selSetForReconcile").innerHTML = `<option value="">(pick)</option>` + opts;
+  // populate selects only if they exist on the page (Manual Plan Sets card may be removed)
+  const _selSets = $("selSets");
+  if (_selSets) _selSets.innerHTML = `<option value="">(pick)</option>` + opts;
+  const _selSetForLines = $("selSetForLines");
+  if (_selSetForLines)
+    _selSetForLines.innerHTML = `<option value="">(pick)</option>` + opts;
+  const _selSetForReconcile = $("selSetForReconcile");
+  if (_selSetForReconcile)
+    _selSetForReconcile.innerHTML = `<option value="">(pick)</option>` + opts;
 
   // table
   const tbody = $("setsTable").querySelector("tbody");
   tbody.innerHTML = "";
   (data || []).forEach((r) => {
     const tr = document.createElement("tr");
-    // show 'You' if current user is the creator, otherwise show the uuid or fallback
-    const ownerLabel = r.created_by
-      ? curUser && String(curUser.id) === String(r.created_by)
-        ? "You"
-        : String(r.created_by)
-      : "Production Controller";
+    // Table no longer shows owner; ownerLabel is computed earlier for select labels
     tr.innerHTML = `
       <td>${r.id}</td>
-      <td>${r.title ?? r.set_name ?? r.name ?? ""}</td>
-      <td>${ownerLabel}</td>
+      <td>${escapeHtml(r.title ?? r.set_name ?? r.name ?? "")}</td>
+      <td class="muted small">${escapeHtml(r.note ?? "")}</td>
       <td>${fmtDate(r.created_at)}</td>
-      <td class="muted small">${r.note ?? ""}</td>
     `;
     tbody.appendChild(tr);
   });
-  $("setsStatus").textContent = `${data?.length ?? 0} sets`;
+  const _setsStatus = $("setsStatus");
+  if (_setsStatus) _setsStatus.textContent = `${data?.length ?? 0} sets`;
+  // ensure visible active set display matches persistent selection after sets load
+  try {
+    syncActiveSetDisplay();
+  } catch {
+    /* ignore */
+  }
+}
+
+// Keep the read-only Active Set display synced with the persistent header selection
+function syncActiveSetDisplay() {
+  const disp = document.getElementById("activeSetDisplay");
+  const selPlan = document.getElementById("selPlanHeader");
+  if (!disp) return;
+  // prefer showing the title from the header select; otherwise show a dash
+  const headerOpt = selPlan?.options[selPlan.selectedIndex];
+  if (headerOpt && headerOpt.textContent && headerOpt.textContent.trim()) {
+    disp.textContent = headerOpt.textContent.trim();
+    return;
+  }
+  disp.textContent = "—";
 }
 
 async function createSet() {
-  const resp = await promptTwoInputs(
-    "Create Set",
-    "Set name (optional):",
-    "Notes (optional):",
-    "",
-    ""
-  );
+  // Use modal dialog like rename for consistent UX
+  const resp = await promptCreateSetModal();
   if (!resp) return; // cancelled
   const set_name = resp.name;
   const notes = resp.notes;
@@ -303,6 +373,55 @@ async function createSet() {
   ["selSets", "selSetForLines", "selSetForReconcile"].forEach((id) => {
     const sel = $(id);
     if (sel) sel.value = data.id;
+  });
+}
+
+async function promptCreateSetModal() {
+  const dialog = document.getElementById("createSetDialog");
+  const form = document.getElementById("createSetForm");
+  const input = document.getElementById("createSetInput");
+  const notes = document.getElementById("createSetNotes");
+  const cancelBtn = document.getElementById("createSetCancelBtn");
+  const errorEl = document.getElementById("createSetError");
+  if (!dialog || !form || !input) {
+    const fallback = promptTwoInputs(
+      "Create Set",
+      "Set name (optional):",
+      "Notes (optional):",
+      "",
+      ""
+    );
+    return fallback;
+  }
+  return new Promise((resolve) => {
+    function close(result) {
+      form.reset();
+      form.removeEventListener("submit", onSubmit);
+      if (cancelBtn) cancelBtn.removeEventListener("click", onCancel);
+      dialog.removeEventListener("cancel", onCancel);
+      if (typeof dialog.close === "function") dialog.close();
+      resolve(result);
+    }
+    function onCancel(e) {
+      e?.preventDefault?.();
+      close(null);
+    }
+    function onSubmit(e) {
+      e.preventDefault();
+      const value = input.value.trim();
+      const noteVal = notes?.value?.trim?.() ?? "";
+      // allow empty title (optional)
+      close({ name: value, notes: noteVal });
+    }
+    form.addEventListener("submit", onSubmit);
+    if (cancelBtn) cancelBtn.addEventListener("click", onCancel);
+    dialog.addEventListener("cancel", onCancel);
+    if (errorEl) errorEl.textContent = "";
+    input.value = "";
+    notes.value = "";
+    if (typeof dialog.showModal === "function") dialog.showModal();
+    else dialog.setAttribute("open", "");
+    requestAnimationFrame(() => input.focus());
   });
 }
 
@@ -664,6 +783,252 @@ async function loadManualSetsInto(selId = "reconSet") {
     opt.textContent = `#${r.id} · ${r.title} (${r.status})`;
     sel.appendChild(opt);
   });
+}
+
+/* ========== plan header selector (persistent) ========== */
+async function loadPlanHeaders(intoId = "selPlanHeader", preferredId) {
+  const sel = document.getElementById(intoId);
+  if (!sel) return;
+  sel.innerHTML = `<option value="">(choose a plan...)</option>`;
+  let storedId = preferredId ?? null;
+  if (storedId == null && intoId === "selPlanHeader") {
+    try {
+      storedId = localStorage.getItem("supply_overrides_selected_plan");
+    } catch {
+      storedId = null;
+    }
+  }
+  if (storedId != null) storedId = String(storedId);
+  try {
+    const { data, error } = await supabase
+      .from("manual_plan_sets")
+      .select("id,title,status,created_at")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) throw error;
+    (data || []).forEach((r) => {
+      const opt = document.createElement("option");
+      opt.value = r.id;
+      // keep status on the option dataset for programmatic access
+      opt.dataset.status = r.status || "";
+      // show only the title in the visible select list
+      opt.textContent = r.title || "(untitled)";
+      // provide id/status as a tooltip on hover for quick reference
+      opt.title = `#${r.id}${r.status ? " · " + r.status : ""}`;
+      sel.appendChild(opt);
+    });
+  } catch {
+    console.error("Failed to load manual plan sets");
+    sel.innerHTML = `<option value="">(failed to load)</option>`;
+  }
+  if (storedId && sel.querySelector(`option[value='${storedId}']`)) {
+    sel.value = storedId;
+  }
+  if (intoId === "selPlanHeader") updatePlanWindowDisplay();
+  // autosize if this is the header select
+  if (intoId === "selPlanHeader") adjustSelectWidth(sel);
+}
+
+// adjust a select element's width to fit its selected option text
+function adjustSelectWidth(selectEl) {
+  if (!selectEl) return;
+  try {
+    const tmp = document.createElement("span");
+    tmp.style.position = "absolute";
+    tmp.style.visibility = "hidden";
+    tmp.style.whiteSpace = "pre";
+    tmp.style.font = window.getComputedStyle(selectEl).font;
+    tmp.textContent =
+      selectEl.options[selectEl.selectedIndex]?.textContent ||
+      selectEl.placeholder ||
+      "";
+    document.body.appendChild(tmp);
+    const width = Math.ceil(tmp.getBoundingClientRect().width) + 40; // padding + arrow room
+    selectEl.style.width = width + "px";
+    tmp.remove();
+  } catch {
+    /* ignore */
+  }
+}
+
+function refreshPlanActionState() {
+  const sel = document.getElementById("selPlanHeader");
+  const renameBtn = document.getElementById("planRenameBtn");
+  const deleteBtn = document.getElementById("planDeleteBtn");
+  const statusBadge = document.getElementById("planStatusBadge");
+  const hasSelection = !!sel?.value;
+  if (renameBtn) renameBtn.disabled = !hasSelection;
+  if (deleteBtn) deleteBtn.disabled = !hasSelection;
+  if (statusBadge)
+    statusBadge.style.display = hasSelection ? "inline-flex" : "none";
+}
+
+function updatePlanWindowDisplay() {
+  const sel = document.getElementById("selPlanHeader");
+  if (!sel) return;
+  // persist selection in localStorage
+  try {
+    if (sel.value)
+      localStorage.setItem("supply_overrides_selected_plan", sel.value);
+    else localStorage.removeItem("supply_overrides_selected_plan");
+  } catch {
+    /* ignore */
+  }
+  // expose globally for other modules
+  window.__selectedPlanHeader = sel.value || null;
+  // update status badge near selector
+  try {
+    const badge = document.getElementById("planStatusBadge");
+    const opt = sel.options[sel.selectedIndex];
+    const status = opt?.dataset?.status || "";
+    if (badge) {
+      badge.textContent = status || "—";
+      badge.className = "status-chip";
+      if (status === "applied") badge.classList.add("ok");
+      else if (status === "submitted") badge.classList.add("warn");
+      else if (status === "archived") badge.classList.add("err");
+    }
+  } catch {
+    /* ignore */
+  }
+  refreshPlanActionState();
+}
+
+async function promptRenamePlanModal(currentTitle = "") {
+  const dialog = document.getElementById("renamePlanDialog");
+  const form = document.getElementById("renamePlanForm");
+  const input = document.getElementById("renamePlanInput");
+  const cancelBtn = document.getElementById("renamePlanCancelBtn");
+  const errorEl = document.getElementById("renamePlanError");
+  if (!dialog || !form || !input) {
+    const fallback = prompt("Rename plan", currentTitle);
+    return fallback ? fallback.trim() : null;
+  }
+  return new Promise((resolve) => {
+    function close(result) {
+      form.reset();
+      form.removeEventListener("submit", onSubmit);
+      if (cancelBtn) cancelBtn.removeEventListener("click", onCancel);
+      dialog.removeEventListener("cancel", onCancel);
+      if (typeof dialog.close === "function") dialog.close();
+      resolve(result);
+    }
+    function onCancel(e) {
+      e?.preventDefault?.();
+      close(null);
+    }
+    function onSubmit(e) {
+      e.preventDefault();
+      const value = input.value.trim();
+      if (!value) {
+        if (errorEl) errorEl.textContent = "Enter a plan title.";
+        input.focus();
+        return;
+      }
+      if (errorEl) errorEl.textContent = "";
+      close(value);
+    }
+    form.addEventListener("submit", onSubmit);
+    if (cancelBtn) cancelBtn.addEventListener("click", onCancel);
+    dialog.addEventListener("cancel", onCancel);
+    if (errorEl) errorEl.textContent = "";
+    input.value = currentTitle;
+    if (typeof dialog.showModal === "function") dialog.showModal();
+    else dialog.setAttribute("open", "");
+    requestAnimationFrame(() => {
+      input.focus();
+      input.select();
+    });
+  });
+}
+
+async function confirmDeletePlanModal(planTitle = "") {
+  const dialog = document.getElementById("deletePlanDialog");
+  const form = document.getElementById("deletePlanForm");
+  const cancelBtn = document.getElementById("deletePlanCancelBtn");
+  const messageEl = document.getElementById("deletePlanMessage");
+  if (messageEl) {
+    const safe = escapeHtml(planTitle || "this plan");
+    messageEl.innerHTML = `Delete <strong>${safe}</strong>?<br/>This action cannot be undone.`;
+  }
+  if (!dialog || !form) {
+    return confirm(
+      `Delete "${planTitle || "this plan"}"? This action cannot be undone.`
+    );
+  }
+  return new Promise((resolve) => {
+    function close(result) {
+      form.removeEventListener("submit", onSubmit);
+      if (cancelBtn) cancelBtn.removeEventListener("click", onCancel);
+      dialog.removeEventListener("cancel", onCancel);
+      if (typeof dialog.close === "function") dialog.close();
+      resolve(result);
+    }
+    function onCancel(e) {
+      e?.preventDefault?.();
+      close(false);
+    }
+    function onSubmit(e) {
+      e.preventDefault();
+      close(true);
+    }
+    form.addEventListener("submit", onSubmit);
+    if (cancelBtn) cancelBtn.addEventListener("click", onCancel);
+    dialog.addEventListener("cancel", onCancel);
+    if (typeof dialog.showModal === "function") dialog.showModal();
+    else dialog.setAttribute("open", "");
+    requestAnimationFrame(() => {
+      cancelBtn?.focus();
+    });
+  });
+}
+
+async function renamePlan(id) {
+  if (!id) return;
+  const sel = document.getElementById("selPlanHeader");
+  const currentTitle =
+    sel?.options[sel.selectedIndex]?.textContent?.trim() ?? "";
+  const newTitle = await promptRenamePlanModal(currentTitle);
+  if (!newTitle || newTitle === currentTitle) return;
+  try {
+    const { error } = await supabase
+      .from("manual_plan_sets")
+      .update({ title: newTitle })
+      .eq("id", Number(id));
+    if (error) throw error;
+    showToast("Renamed");
+    await loadPlanHeaders("selPlanHeader", id);
+  } catch (e) {
+    console.error(e);
+    showModal("Rename failed");
+  }
+}
+
+async function deletePlan(id) {
+  if (!id) return;
+  const sel = document.getElementById("selPlanHeader");
+  const title =
+    sel?.options[sel.selectedIndex]?.textContent?.trim() ?? `Plan #${id}`;
+  const confirmed = await confirmDeletePlanModal(title);
+  if (!confirmed) return;
+  try {
+    const { error } = await supabase
+      .from("manual_plan_sets")
+      .delete()
+      .eq("id", Number(id));
+    if (error) throw error;
+    showToast("Deleted");
+    // clear selection
+    try {
+      localStorage.removeItem("supply_overrides_selected_plan");
+    } catch {
+      /* ignore */
+    }
+    await loadPlanHeaders();
+  } catch (e) {
+    console.error(e);
+    showModal("Delete failed");
+  }
 }
 
 // Pretty number: max 2 decimals, no trailing zeros
@@ -1060,37 +1425,111 @@ function wireReconTab() {
 
 function wire() {
   // tabs have been set up separately
-  $("btnCreateSet").addEventListener("click", createSet);
-  $("btnSeedSet").addEventListener("click", seedSet);
+  $("btnCreateSet")?.addEventListener("click", createSet);
+  $("btnSeedSet")?.addEventListener("click", seedSet);
 
-  $("selSetForLines").addEventListener("change", loadLines);
-  $("btnAddLine").addEventListener("click", addLine);
-  $("btnDeleteSelected").addEventListener("click", deleteSelectedLines);
-  $("btnExportLines").addEventListener("click", exportLines);
-  $("btnImportLines").addEventListener("click", importLines);
+  $("selSetForLines")?.addEventListener("change", loadLines);
+  $("btnAddLine")?.addEventListener("click", addLine);
+  $("btnDeleteSelected")?.addEventListener("click", deleteSelectedLines);
+  $("btnExportLines")?.addEventListener("click", exportLines);
+  $("btnImportLines")?.addEventListener("click", importLines);
 
-  $("btnPreviewReconcile").addEventListener("click", previewReconcile);
-  $("btnApplyReconcile").addEventListener("click", applyReconcile);
+  $("btnPreviewReconcile")?.addEventListener("click", previewReconcile);
+  $("btnApplyReconcile")?.addEventListener("click", applyReconcile);
   // recon
   $("btnReconLoad")?.addEventListener("click", loadRecon);
   $("btnReconExport")?.addEventListener("click", exportReconCSV);
   $("btnReconApply")?.addEventListener("click", applyReconAsOverrides);
 
-  $("btnLoadActive").addEventListener("click", loadActiveOverrides);
-  $("btnExportActive").addEventListener("click", exportActive);
+  $("btnLoadActive")?.addEventListener("click", loadActiveOverrides);
+  $("btnExportActive")?.addEventListener("click", exportActive);
 
-  $("selSets").addEventListener("change", () => {
-    const v = $("selSets").value;
-    if (v) {
-      $("selSetForLines").value = v;
-      $("selSetForReconcile").value = v;
-      loadLines();
-    }
-  });
+  // If the Manual Plan Sets card is present, wire its change event; otherwise skip
+  const _selSetsEl = document.getElementById("selSets");
+  if (_selSetsEl) {
+    _selSetsEl.addEventListener("change", () => {
+      const v = _selSetsEl.value;
+      if (v) {
+        const s2 = document.getElementById("selSetForLines");
+        const s3 = document.getElementById("selSetForReconcile");
+        if (s2) s2.value = v;
+        if (s3) s3.value = v;
+        loadLines();
+      }
+    });
+  }
 
   // recon wiring (initialize fields and listeners)
   try {
     wireReconTab();
+  } catch {
+    /* ignore */
+  }
+
+  // Plan header selector wiring (persistent)
+  const selPlan = document.getElementById("selPlanHeader");
+  const renameBtn = document.getElementById("planRenameBtn");
+  const deleteBtn = document.getElementById("planDeleteBtn");
+  const createBtn = document.getElementById("planCreateBtn");
+  const statusBadge = document.getElementById("planStatusBadge");
+  // hide status pill by default until a plan selected
+  if (statusBadge) statusBadge.style.display = "none";
+  if (selPlan) {
+    selPlan.addEventListener("change", () => {
+      updatePlanWindowDisplay();
+      adjustSelectWidth(selPlan);
+      // propagate persistent selection to other set selectors used in the Manual Plan Sets tab
+      const val = selPlan.value;
+      try {
+        const s1 = document.getElementById("selSets");
+        const s2 = document.getElementById("selSetForLines");
+        const s3 = document.getElementById("selSetForReconcile");
+        if (s1 && val && s1.querySelector(`option[value='${val}']`))
+          s1.value = val;
+        if (s2 && val && s2.querySelector(`option[value='${val}']`))
+          s2.value = val;
+        if (s3 && val && s3.querySelector(`option[value='${val}']`))
+          s3.value = val;
+        // trigger loads to update dependent UI
+        if (s2) loadLines();
+      } catch {
+        /* ignore */
+      }
+      // sync visible active set display (if present)
+      try {
+        syncActiveSetDisplay();
+      } catch {
+        /* ignore */
+      }
+    });
+  }
+  // rename/delete button wiring
+  if (renameBtn) {
+    renameBtn.addEventListener("click", () => {
+      const id = selPlan?.value;
+      if (!id) return showToast("Pick a plan first.");
+      renamePlan(id);
+    });
+  }
+  if (deleteBtn) {
+    deleteBtn.addEventListener("click", () => {
+      const id = selPlan?.value;
+      if (!id) return showToast("Pick a plan first.");
+      deletePlan(id);
+    });
+  }
+  if (createBtn) {
+    createBtn.addEventListener("click", () => createSet());
+  }
+  // initial load
+  try {
+    loadPlanHeaders();
+    // ensure active set display picks up any restored header selection
+    try {
+      syncActiveSetDisplay();
+    } catch {
+      /* ignore */
+    }
   } catch {
     /* ignore */
   }

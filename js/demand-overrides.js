@@ -326,6 +326,43 @@ async function loadLookups() {
       });
     }
   });
+
+  // Also fetch products table to ensure we include any products that may not
+  // be present (or were filtered out) in the v_sku_catalog_enriched view.
+  // This prevents the Add Staging Row product select from showing a limited
+  // subset when the catalog view is intentionally or accidentally filtered.
+  try {
+    const { data: allProducts, error: allProductsErr } = await supabase
+      .from("products")
+      .select("id,item,malayalam_name");
+    if (allProductsErr) {
+      console.warn("loadLookups: products fetch error", allProductsErr);
+    } else {
+      (allProducts || []).forEach((p) => {
+        const pid = p && p.id != null ? Number(p.id) : null;
+        if (!pid) return;
+        if (!productMap.has(pid)) {
+          productMap.set(pid, {
+            id: pid,
+            item: p.item || "",
+            malayalam_name: p.malayalam_name || "",
+          });
+        } else {
+          // fill in missing name fields if catalog view lacked them
+          const existing = productMap.get(pid);
+          if ((!existing.item || existing.item === "") && p.item)
+            existing.item = p.item;
+          if (
+            (!existing.malayalam_name || existing.malayalam_name === "") &&
+            p.malayalam_name
+          )
+            existing.malayalam_name = p.malayalam_name;
+        }
+      });
+    }
+  } catch (e) {
+    console.warn("loadLookups: exception fetching products", e);
+  }
   (godownsRes.data || []).forEach((g) => godownMap.set(Number(g.id), g));
   (regionsRes.data || []).forEach((r) => regionMap.set(Number(r.id), r));
 
@@ -2226,10 +2263,40 @@ async function addRow() {
     };
 
     // Wire changes
-    prodSelect.addEventListener("change", () => {
+    prodSelect.addEventListener("change", async () => {
       const pid = prodSelect.value ? Number(prodSelect.value) : null;
-      if (pid) populatePacksForProduct(pid);
-      else {
+      if (pid) {
+        // If skuMap doesn't have any SKUs for this product, fetch them on-demand
+        const hasSkuForProduct = Array.from(skuMap.values()).some(
+          (s) => Number(s.product_id) === Number(pid)
+        );
+        if (!hasSkuForProduct) {
+          // show a small loading hint for packs
+          packSelect.innerHTML = `<option value="">Loading packs…</option>`;
+          uomSelect.innerHTML = `<option value="">-- Select UOM --</option>`;
+          try {
+            const { data: skusData, error: skusErr } = await supabase
+              .from("product_skus")
+              .select("id,product_id,pack_size,uom,is_active")
+              .eq("product_id", pid);
+            if (skusErr) {
+              console.warn("prodSelect: fetch product_skus error", skusErr);
+            } else {
+              (skusData || []).forEach((s) => {
+                const norm = {
+                  ...s,
+                  product_id:
+                    s.product_id == null ? null : Number(s.product_id),
+                };
+                skuMap.set(Number(s.id), norm);
+              });
+            }
+          } catch (e) {
+            console.warn("prodSelect: exception fetching skus", e);
+          }
+        }
+        populatePacksForProduct(pid);
+      } else {
         packSelect.innerHTML = `<option value="">-- Select pack --</option>`;
         uomSelect.innerHTML = `<option value="">-- Select UOM --</option>`;
       }

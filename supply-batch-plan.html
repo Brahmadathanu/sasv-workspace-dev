@@ -4,7 +4,6 @@
     <meta charset="UTF-8" />
     <title>Supply Batch Plan</title>
     <link rel="stylesheet" href="public/shared/css/style.css" />
-    <link rel="stylesheet" href="css/fonts.css" />
     <style>
       body {
         font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif;
@@ -668,105 +667,124 @@
         background: #f3f4f6;
       }
 
-      /* Download Menu Styles */
-      .download-menu {
-        position: relative;
-        display: inline-block;
-        margin-right: 8px;
+      /* Download menu styles */
+      .plan-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
       }
-
-      .download-menu-content {
+      .download-menu-container {
+        position: relative;
+      }
+      .download-main-btn {
+        padding: 8px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        background: #f9fafb;
+        cursor: pointer;
+        font-size: 0.875rem;
+        color: #374151;
+        white-space: nowrap;
+        transition: all 0.2s;
+        font-family: inherit;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .download-main-btn:hover {
+        background: #f3f4f6;
+        border-color: #9ca3af;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .download-main-btn:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+      }
+      .download-submenu {
         display: none;
         position: absolute;
         right: 0;
         top: 100%;
+        margin-top: 4px;
         background: white;
         border: 1px solid #d1d5db;
         border-radius: 6px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        z-index: 1000;
-        min-width: 200px;
-        margin-top: 2px;
-      }
-
-      .download-menu.open .download-menu-content {
-        display: block;
-      }
-
-      .download-menu-content button,
-      .download-menu-content .submenu-trigger {
-        display: block;
-        width: 100%;
-        padding: 8px 12px;
-        text-align: left;
-        border: none;
-        background: none;
-        cursor: pointer;
-        transition: background-color 0.2s;
-        font-size: 0.875rem;
-      }
-
-      .download-menu-content button:hover,
-      .download-menu-content .submenu-trigger:hover {
-        background: #f3f4f6;
-      }
-
-      /* Submenu Styles */
-      .submenu {
-        position: relative;
-      }
-
-      .submenu-content {
-        display: none;
-        position: absolute;
-        left: 100%;
-        top: 0;
-        background: white;
-        border: 1px solid #d1d5db;
-        border-radius: 6px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+          0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        min-width: 320px;
+        max-width: 400px;
         z-index: 1001;
-        min-width: 150px;
-        margin-left: 2px;
+        padding: 12px;
+        white-space: nowrap;
       }
 
-      .submenu:hover .submenu-content {
-        display: block;
+      /* Responsive positioning for smaller screens */
+      @media (max-width: 768px) {
+        .download-submenu {
+          right: auto;
+          left: 0;
+          min-width: 280px;
+          max-width: calc(100vw - 40px);
+        }
       }
 
-      .submenu-section {
-        padding: 4px 0;
-        border-bottom: 1px solid #e5e7eb;
+      /* Ensure the kebab menu is properly aligned */
+      .kebab-menu {
+        margin-left: auto;
       }
-
-      .submenu-section:last-child {
-        border-bottom: none;
+      .download-format-section {
+        margin-bottom: 12px;
       }
-
-      .submenu-header {
-        padding: 4px 12px;
-        font-size: 0.75rem;
+      .download-format-section:last-child {
+        margin-bottom: 0;
+      }
+      .format-header {
         font-weight: 600;
-        color: #6b7280;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
+        font-size: 0.875rem;
+        color: #374151;
+        padding: 4px 8px;
         background: #f9fafb;
+        border-radius: 4px;
+        margin-bottom: 8px;
       }
-
-      .submenu-content button {
+      .format-options {
+        display: flex;
+        gap: 16px;
+      }
+      .category-section {
+        flex: 1;
+      }
+      .category-header {
+        font-weight: 500;
+        font-size: 0.8rem;
+        color: #6b7280;
+        margin-bottom: 4px;
+        padding-left: 8px;
+      }
+      .category-section button {
         display: block;
         width: 100%;
-        padding: 6px 12px;
         text-align: left;
+        padding: 6px 8px;
+        margin-bottom: 2px;
         border: none;
         background: none;
         cursor: pointer;
-        transition: background-color 0.2s;
-        font-size: 0.875rem;
+        font-size: 0.8rem;
+        border-radius: 3px;
       }
-
-      .submenu-content button:hover {
-        background: #f3f4f6;
+      .category-section button:hover {
+        background: #e5e7eb;
+      }
+      .category-section.single-option {
+        text-align: center;
+      }
+      .option-description {
+        font-size: 0.7rem;
+        color: #9ca3af;
+        margin-top: 4px;
+        font-style: italic;
       }
 
       .plan-metrics {
@@ -1451,6 +1469,63 @@
         background: #fee2e2;
         border-color: #f87171;
       }
+
+      /* Override UI styles */
+      .btn-danger {
+        background: #dc2626;
+        color: white;
+        border: 1px solid #dc2626;
+        font-size: 11px;
+        padding: 4px 8px;
+      }
+      .btn-danger:hover {
+        background: #b91c1c;
+        border-color: #b91c1c;
+      }
+      .btn-sm {
+        font-size: 11px;
+        padding: 4px 8px;
+      }
+      .op-type-badge {
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 10px;
+        font-weight: bold;
+        text-transform: uppercase;
+      }
+      .op-type-add {
+        background: #dcfce7;
+        color: #166534;
+      }
+      .op-type-resize {
+        background: #fef3c7;
+        color: #92400e;
+      }
+      .op-type-cancel {
+        background: #fee2e2;
+        color: #dc2626;
+      }
+      #overrideForm .row {
+        margin-bottom: 12px;
+      }
+      #overrideForm label {
+        display: flex;
+        flex-direction: column;
+        font-size: 13px;
+        font-weight: 500;
+      }
+      #overrideForm input,
+      #overrideForm select {
+        margin-top: 4px;
+        padding: 6px 8px;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        font-size: 13px;
+      }
+      #overrideForm .muted {
+        font-size: 11px;
+        margin-top: 2px;
+      }
     </style>
   </head>
   <body>
@@ -1486,33 +1561,60 @@
         </div>
 
         <div class="plan-actions">
-          <!-- Download Plan Worklist Button -->
-          <div class="download-menu" id="downloadMenu">
-            <button class="btn secondary" id="btnDownloadWorklist">
-              Download Plan Worklist
+          <div class="download-menu-container">
+            <button id="btnDownloadPlan" class="download-main-btn">
+              Download Plan Worklist ▼
             </button>
-            <div class="download-menu-content">
-              <button id="btnDownloadCSV">CSV</button>
-              <div class="submenu">
-                <button class="submenu-trigger" id="btnPDFTrigger">
-                  PDF ▶
-                </button>
-                <div class="submenu-content" id="pdfSubmenu">
-                  <div class="submenu-section">
-                    <div class="submenu-header">Malayalam</div>
-                    <button id="btnPDFMalayalamAyurveda">Ayurveda</button>
-                    <button id="btnPDFMalayalamSiddha">Siddha</button>
+            <div class="download-submenu" id="downloadSubmenu">
+              <div class="download-format-section">
+                <div class="format-header">CSV</div>
+                <div class="format-options">
+                  <div class="category-section single-option">
+                    <button
+                      onclick="downloadWorklist('csv', 'complete', 'all')"
+                    >
+                      Download Complete CSV
+                    </button>
                   </div>
-                  <div class="submenu-section">
-                    <div class="submenu-header">English</div>
-                    <button id="btnPDFEnglishAyurveda">Ayurveda</button>
-                    <button id="btnPDFEnglishSiddha">Siddha</button>
+                </div>
+              </div>
+              <div class="download-format-section">
+                <div class="format-header">PDF (Professional)</div>
+                <div class="format-options">
+                  <div class="category-section">
+                    <div class="category-header">Ayurveda</div>
+                    <button
+                      onclick="downloadWorklist('pdf', 'ayurveda', 'malayalam')"
+                      title="Generate professional PDF with guaranteed header repetition"
+                    >
+                      Malayalam
+                    </button>
+                    <button
+                      onclick="downloadWorklist('pdf', 'ayurveda', 'english')"
+                      title="Generate professional PDF with guaranteed header repetition"
+                    >
+                      English
+                    </button>
+                  </div>
+                  <div class="category-section">
+                    <div class="category-header">Siddha</div>
+                    <button
+                      onclick="downloadWorklist('pdf', 'siddha', 'malayalam')"
+                      title="Generate professional PDF with guaranteed header repetition"
+                    >
+                      Malayalam
+                    </button>
+                    <button
+                      onclick="downloadWorklist('pdf', 'siddha', 'english')"
+                      title="Generate professional PDF with guaranteed header repetition"
+                    >
+                      English
+                    </button>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-
           <div class="kebab-menu" id="kebabMenu">
             <button class="kebab-btn" id="kebabBtn">⋮</button>
             <div class="kebab-menu-content">
@@ -1616,20 +1718,20 @@
       <button
         class="tab-btn"
         role="tab"
-        aria-controls="tab-overrides"
-        id="tab-btn-overrides"
-      >
-        Overrides
-        <span class="tab-description">CSV-based adjustments</span>
-      </button>
-      <button
-        class="tab-btn"
-        role="tab"
         aria-controls="tab-apply"
         id="tab-btn-apply"
       >
         Review & Apply
         <span class="tab-description">Finalize and submit</span>
+      </button>
+      <button
+        class="tab-btn"
+        role="tab"
+        aria-controls="tab-overrides"
+        id="tab-btn-overrides"
+      >
+        Overrides
+        <span class="tab-description">CSV-based adjustments</span>
       </button>
     </nav>
 
@@ -1965,15 +2067,7 @@
               align-items: center;
               justify-content: flex-end;
             "
-          >
-            <button
-              class="btn primary"
-              id="btnExportBatches"
-              style="margin-left: 8px"
-            >
-              Export CSV
-            </button>
-          </div>
+          ></div>
         </div>
         <div class="table-container">
           <table>
@@ -1994,51 +2088,6 @@
             <tbody id="bpBatchesBody"></tbody>
           </table>
         </div>
-      </div>
-    </section>
-
-    <!-- Mapping moved inline into Batches tab; mapping panel removed -->
-
-    <!-- 5) OVERRIDES -->
-    <section id="tab-overrides" class="tabpanel" role="tabpanel" tabindex="0">
-      <p class="tab-intro">
-        Apply real-time adjustments to your production plan using CSV overrides.
-        Add new batches, resize existing ones, or cancel batches based on actual
-        production events and capacity changes.
-      </p>
-      <div class="card">
-        <div class="row">
-          <button class="btn" id="btnExportOverridesCsv">
-            Download CSV template
-          </button>
-          <input type="file" id="ovFile" accept=".csv" />
-          <button class="btn" id="btnPreviewOverrides">Preview</button>
-          <button class="btn primary" id="btnApplyOverrides">
-            Apply to Active
-          </button>
-          <span id="ovStatus" class="muted"></span>
-        </div>
-        <div style="margin-top: 8px" class="muted">
-          CSV columns:
-          product_id,month_start,bn,batch_size,uom,op_type,override_qty,note
-          (op_type ∈ ADD|RESIZE|CANCEL; for CANCEL/RESIZE the BN must exist; WIP
-          BNs are auto-rejected)
-        </div>
-        <table style="margin-top: 8px">
-          <thead>
-            <tr>
-              <th>product_id</th>
-              <th>month_start</th>
-              <th>bn</th>
-              <th>batch_size</th>
-              <th>uom</th>
-              <th>op_type</th>
-              <th>override_qty</th>
-              <th>note</th>
-            </tr>
-          </thead>
-          <tbody id="ovPreviewBody"></tbody>
-        </table>
       </div>
     </section>
 
@@ -2436,6 +2485,156 @@
         </div>
 
         <!-- Actions now available in persistent header kebab menu -->
+      </div>
+    </section>
+
+    <!-- 5) OVERRIDES -->
+    <section id="tab-overrides" class="tabpanel" role="tabpanel" tabindex="0">
+      <div id="overrides-content">
+        <p class="tab-intro">
+          Apply real-time adjustments to your production plan. Add new batches,
+          resize existing ones, or cancel batches. Overrides are available only
+          after a plan is applied.
+        </p>
+
+        <div
+          id="overrides-disabled-message"
+          class="card muted"
+          style="text-align: center; display: none"
+        >
+          <p>Overrides are available after a plan is applied.</p>
+        </div>
+
+        <div id="overrides-enabled-content">
+          <!-- Summary -->
+          <div class="card">
+            <div class="row">
+              <span id="overridesSummary" class="muted"
+                >No active overrides</span
+              >
+              <button class="btn" onclick="loadOverrides()">Refresh</button>
+            </div>
+          </div>
+
+          <!-- Add Override Form -->
+          <div class="card">
+            <h3>Add Override</h3>
+            <form id="overrideForm">
+              <div class="row">
+                <label>
+                  Product ID*
+                  <input type="number" name="product_id" required min="1" />
+                </label>
+                <label>
+                  Month Start*
+                  <input type="month" name="month_start" required />
+                </label>
+                <label>
+                  BN*
+                  <input
+                    type="text"
+                    name="bn"
+                    required
+                    placeholder="e.g., BN001"
+                  />
+                </label>
+              </div>
+              <div class="row">
+                <label>
+                  Batch Size*
+                  <input
+                    type="number"
+                    name="batch_size"
+                    required
+                    min="1"
+                    step="0.01"
+                  />
+                </label>
+                <label>
+                  UOM*
+                  <select name="uom" required>
+                    <option value="">Select UOM</option>
+                    <option value="KG">KG</option>
+                    <option value="L">L</option>
+                    <option value="PCS">PCS</option>
+                    <option value="TON">TON</option>
+                  </select>
+                </label>
+                <label>
+                  Operation Type*
+                  <select
+                    name="op_type"
+                    required
+                    onchange="toggleOverrideQty()"
+                  >
+                    <option value="">Select Operation</option>
+                    <option value="ADD">ADD - Add new batch</option>
+                    <option value="RESIZE">RESIZE - Change batch size</option>
+                    <option value="CANCEL">
+                      CANCEL - Cancel planned batch
+                    </option>
+                  </select>
+                </label>
+              </div>
+              <div class="row">
+                <label>
+                  Override Quantity
+                  <input
+                    type="number"
+                    name="override_qty"
+                    step="0.01"
+                    placeholder="Required for ADD/RESIZE"
+                  />
+                  <span class="muted">Leave empty for CANCEL operations</span>
+                </label>
+                <label>
+                  Note
+                  <input type="text" name="note" placeholder="Optional note" />
+                </label>
+              </div>
+              <div class="row">
+                <button type="button" class="btn primary" id="btnApplyOverride">
+                  Apply Override
+                </button>
+                <button type="reset" class="btn">Reset Form</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Active Overrides Table -->
+          <div class="card">
+            <h3>Active Overrides</h3>
+            <div style="overflow-x: auto">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Product ID</th>
+                    <th>Product Name</th>
+                    <th>Month</th>
+                    <th>BN</th>
+                    <th>Batch Size</th>
+                    <th>UOM</th>
+                    <th>Operation</th>
+                    <th>Override Qty</th>
+                    <th>Note</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="overridesGridBody">
+                  <tr>
+                    <td
+                      colspan="10"
+                      class="muted"
+                      style="text-align: center; padding: 20px"
+                    >
+                      No active overrides
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -2940,11 +3139,9 @@
       </div>
     </div>
 
-    <!-- jsPDF Libraries for PDF generation -->
+    <!-- jsPDF for reliable PDF generation with repeating headers -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
-    <!-- html2canvas for better Unicode rendering -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <script type="module" src="js/supply-batch-plan.js"></script>
   </body>

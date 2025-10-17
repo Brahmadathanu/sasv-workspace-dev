@@ -1,0 +1,2966 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Production Planning Workbench</title>
+    <link rel="stylesheet" href="public/shared/css/style.css" />
+    <style>
+      :root {
+        --muted: #6b7280;
+        --panel-bg: #ffffff;
+        --table-header: #f9fafb;
+      }
+      body {
+        font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif;
+        margin: 16px;
+        color: #111;
+      }
+      h1 {
+        margin: 0 0 12px;
+      }
+      .muted {
+        color: #666;
+        font-size: 12px;
+      }
+      .row {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .card {
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        padding: 12px;
+        margin: 12px 0;
+        background: var(--panel-bg, #fff);
+      }
+      .card h3 {
+        margin: 0 0 14px;
+        font-size: 1.05rem;
+        color: var(--text-color, #333);
+      }
+      .btn {
+        padding: 6px 10px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        background: #f3f4f6;
+        cursor: pointer;
+        font: inherit;
+        transition: background 0.2s;
+      }
+      .btn:hover {
+        filter: brightness(0.98);
+      }
+      .btn.primary {
+        background: var(--primary, #3b82f6);
+        color: white;
+        border-color: var(--primary, #3b82f6);
+      }
+      .btn.secondary {
+        background: #6b7280;
+        color: white;
+        border-color: #6b7280;
+      }
+
+      /* Home Button */
+      #homeBtn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        border: 1px solid #fdba74 !important;
+        border-radius: 6px;
+        background: #fed7aa !important;
+        color: #9a3412 !important;
+        cursor: pointer;
+        font-size: 0.875rem;
+        font-family: inherit;
+        font-weight: 500;
+        transition: all 0.2s;
+      }
+      #homeBtn:hover {
+        background: #fdba74 !important;
+        border-color: #fb923c !important;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      #homeBtn svg {
+        flex-shrink: 0;
+      }
+
+      /* Page Header */
+      .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+      }
+      .page-header h1 {
+        margin: 0;
+        font-size: 1.5rem;
+        color: var(--primary);
+      }
+      .header-actions {
+        display: flex;
+        gap: 8px;
+      }
+
+      /* Workflow Progress Indicator */
+      .workflow-steps {
+        margin-bottom: 20px;
+        padding: 12px 20px;
+        background: linear-gradient(135deg, #fefefe 0%, #f8fafc 100%);
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+      }
+
+      .workflow-progress {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: relative;
+      }
+
+      .workflow-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex: 1;
+        position: relative;
+        z-index: 2;
+        /* keep a consistent height so labels (one or two lines) don't shift the icon */
+        min-height: 84px;
+        box-sizing: border-box;
+        padding-top: 2px;
+      }
+
+      .workflow-step-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f1f5f9;
+        border: 2px solid #e2e8f0;
+        margin-bottom: 6px;
+        transition: all 0.3s ease;
+        position: relative;
+        z-index: 3; /* ensure icon sits above the connecting line */
+      }
+
+      .workflow-step-icon svg {
+        width: 18px;
+        height: 18px;
+        color: #94a3b8;
+      }
+
+      .workflow-step-label {
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: #64748b;
+        text-align: center;
+        line-height: 1.1;
+        max-width: 90px;
+      }
+
+      .workflow-step-status {
+        font-size: 0.6rem;
+        color: #94a3b8;
+        margin-top: 1px;
+        text-transform: uppercase;
+        letter-spacing: 0.2px;
+      }
+
+      /* Progress Line: span full width and vertically center under icons */
+      .workflow-progress {
+        padding-top: 20px; /* reserve space so labels below don't alter icon vertical position */
+      }
+
+      .workflow-progress::before {
+        content: "";
+        position: absolute;
+        /* move the line to the vertical center of the 36px icon (padding-top 20px + 18px/2)
+           using a fixed pixel offset keeps the line stable across label wrapping */
+        top: 38px;
+        left: 0;
+        right: 0;
+        height: 1.5px; /* slightly thinner */
+        background: #e2e8f0;
+        z-index: 1;
+      }
+
+      /* Step States */
+      .workflow-step.completed .workflow-step-icon {
+        background: #dcfce7;
+        border-color: #16a34a;
+      }
+
+      .workflow-step.completed .workflow-step-icon svg {
+        color: #16a34a;
+      }
+
+      .workflow-step.completed .workflow-step-label {
+        color: #166534;
+      }
+
+      .workflow-step.completed .workflow-step-status {
+        color: #16a34a;
+      }
+
+      .workflow-step.active .workflow-step-icon {
+        background: #dbeafe;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
+      }
+
+      .workflow-step.active .workflow-step-icon svg {
+        color: #3b82f6;
+      }
+
+      .workflow-step.active .workflow-step-label {
+        color: #1e40af;
+      }
+
+      .workflow-step.active .workflow-step-status {
+        color: #3b82f6;
+      }
+
+      .workflow-step.pending .workflow-step-icon {
+        background: #fef3c7;
+        border-color: #f59e0b;
+      }
+
+      .workflow-step.pending .workflow-step-icon svg {
+        color: #d97706;
+      }
+
+      .workflow-step.pending .workflow-step-label {
+        color: #92400e;
+      }
+
+      .workflow-step.pending .workflow-step-status {
+        color: #f59e0b;
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        .workflow-step-icon {
+          width: 32px;
+          height: 32px;
+        }
+
+        .workflow-step-icon svg {
+          width: 16px;
+          height: 16px;
+        }
+
+        .workflow-step-label {
+          font-size: 0.65rem;
+          max-width: 75px;
+        }
+
+        .workflow-progress::before {
+          top: 16px;
+        }
+      }
+
+      /* Tab Navigation */
+      .tabs {
+        display: flex;
+        gap: 4px;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+        margin: 0;
+        padding: 0 16px;
+        background: var(--panel-bg, #fff);
+        /* Keep tabs on one line and allow horizontal scrolling when space is limited */
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        max-width: 100%;
+        flex: 1 1 auto;
+      }
+
+      /* Wrapper that holds chevrons and the scrollable tabs */
+      .tabs-wrap {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        width: 100%;
+      }
+
+      .tabs-chevron {
+        background: transparent;
+        border: 1px solid transparent;
+        padding: 6px 8px;
+        border-radius: 6px;
+        cursor: pointer;
+        color: var(--muted, #6b7280);
+        font-size: 0.85rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        /* hide until JS shows them when overflow exists */
+        display: none;
+      }
+
+      .tabs-chevron:hover {
+        background: #f1f5f9;
+      }
+
+      .tabs-chevron[disabled] {
+        opacity: 0.35;
+        cursor: default;
+      }
+      /* Small visual scrollbar for horizontal overflow */
+      .tabs::-webkit-scrollbar {
+        height: 8px;
+      }
+      .tabs::-webkit-scrollbar-thumb {
+        background: rgba(15, 23, 42, 0.08);
+        border-radius: 6px;
+      }
+
+      /* Responsive adjustments for narrow screens */
+      @media (max-width: 720px) {
+        .tabs {
+          padding: 0 8px;
+          gap: 6px;
+        }
+        .tab-btn {
+          padding: 8px 10px;
+          font-size: 0.8rem;
+        }
+        .tab-description {
+          display: none; /* hide secondary text to save space */
+        }
+      }
+      .tab-btn {
+        padding: 8px 12px;
+        border: 1px solid transparent;
+        border-radius: 6px 6px 0 0;
+        background: transparent;
+        cursor: pointer;
+        font-weight: 500;
+        font-size: 0.875rem;
+        color: var(--muted, #6b7280);
+        transition: all 0.2s ease;
+        position: relative;
+        border-bottom: 1px solid transparent;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        flex: 0 0 auto;
+      }
+      .tab-btn:hover {
+        background: #f1f5f9;
+        color: #374151;
+      }
+      .tab-btn[aria-selected="true"] {
+        background: linear-gradient(
+          180deg,
+          rgba(37, 99, 235, 0.12),
+          rgba(37, 99, 235, 0.06)
+        );
+        color: #0b3a9a;
+        border-color: rgba(13, 60, 160, 0.12);
+        border-bottom-color: transparent;
+        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+      }
+      .tab-btn:focus {
+        outline: 3px solid rgba(37, 99, 235, 0.12);
+        outline-offset: 2px;
+      }
+      .tab-btn.has-data::after {
+        content: "●";
+        color: #10b981;
+        font-size: 8px;
+        position: absolute;
+        top: 4px;
+        right: 4px;
+      }
+      .tab-description {
+        font-size: 0.75rem;
+        color: #9ca3af;
+        font-style: normal;
+        font-weight: 400;
+        display: block;
+        margin-top: 2px;
+      }
+      .tab-badge {
+        display: inline-block;
+        background: #e5e7eb;
+        color: #6b7280;
+        font-size: 11px;
+        padding: 2px 6px;
+        border-radius: 999px;
+        margin-left: 6px;
+        min-width: 18px;
+        text-align: center;
+      }
+
+      .tab-btn[aria-selected="true"] .tab-badge {
+        background: var(--primary, #3b82f6);
+        color: white;
+      }
+
+      .tabpanel {
+        display: none;
+        padding: 16px;
+      }
+      .tabpanel.active {
+        display: block;
+      }
+
+      /* Tab Introduction */
+      .tab-intro {
+        font-size: 1rem;
+        line-height: 1.7;
+        color: #374151;
+        margin: 0 0 24px 0;
+        padding: 16px 0 12px 0;
+        background: none;
+        border: none;
+        border-bottom: 1px solid #f3f4f6;
+      }
+
+      /* Toolbar styles */
+      .toolbar {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        margin-bottom: 16px;
+        padding: 16px;
+        background: #f9fafb;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+      }
+
+      .toolbar .field {
+        display: flex;
+        flex-direction: column;
+        min-width: 120px;
+      }
+
+      .toolbar label {
+        font-size: 12px;
+        font-weight: 500;
+        color: #374151;
+        margin-bottom: 4px;
+      }
+
+      .toolbar input,
+      .toolbar select {
+        padding: 8px 10px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 14px;
+      }
+
+      /* Enhanced ERP-Style Filters */
+      .enhanced-toolbar {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 12px;
+        padding: 20px;
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        margin-bottom: 20px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      }
+
+      /* Force single-line layout for compact toolbars when requested */
+      .enhanced-toolbar.single-line {
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(140px, 1fr);
+        overflow-x: auto;
+        align-items: end;
+      }
+
+      .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .filter-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #475569;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+      }
+
+      .filter-input {
+        padding: 10px 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        font-size: 14px;
+        background: white;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+      }
+
+      .filter-input:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+      }
+
+      .month-selector {
+        position: relative;
+        cursor: pointer;
+      }
+
+      .month-display {
+        padding: 10px 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: white;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+      }
+
+      .month-display:hover {
+        border-color: #94a3b8;
+      }
+
+      .month-display.active {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+      }
+
+      .month-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 1000;
+        display: none;
+        max-height: 200px;
+        overflow-y: auto;
+      }
+
+      .month-dropdown.show {
+        display: block;
+      }
+
+      .month-option {
+        padding: 10px 12px;
+        cursor: pointer;
+        transition: background 0.15s ease;
+      }
+
+      .month-option:hover {
+        background: #f1f5f9;
+      }
+
+      .month-option.selected {
+        background: #3b82f6;
+        color: white;
+      }
+
+      /* Boolean Filter Toggles */
+      .boolean-filter {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 0;
+      }
+
+      .toggle-group {
+        display: flex;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        overflow: hidden;
+        background: white;
+      }
+
+      .toggle-option {
+        padding: 8px 16px;
+        background: white;
+        border: none;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        color: #64748b;
+      }
+
+      .toggle-option:first-child {
+        border-right: 1px solid #cbd5e1;
+      }
+
+      .toggle-option.active {
+        background: #3b82f6;
+        color: white;
+      }
+
+      .toggle-option.inactive {
+        background: #ef4444;
+        color: white;
+      }
+
+      /* Action Buttons */
+      .action-btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+      }
+
+      .action-btn.primary {
+        background: #3b82f6;
+        color: white;
+      }
+
+      .action-btn.primary:hover {
+        background: #2563eb;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .action-btn.secondary {
+        background: #64748b;
+        color: white;
+      }
+
+      .action-btn.secondary:hover {
+        background: #475569;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .action-btn.reset {
+        background: white;
+        color: #64748b;
+        border: 1px solid #cbd5e1;
+        padding: 8px 12px !important; /* Compact padding for filter context */
+        min-width: auto; /* Allow button to be smaller */
+        max-width: max-content; /* Don't stretch wider than content */
+        align-self: flex-start; /* Don't stretch in flex container */
+        width: auto !important; /* Override any width inheritance */
+      }
+
+      .action-btn.reset:hover {
+        background: #f8fafc;
+        border-color: #94a3b8;
+      }
+
+      /* Responsive Table Container */
+      .table-container {
+        overflow-x: auto;
+        width: 100%;
+        box-sizing: border-box;
+        border-radius: 8px;
+        border: 1px solid var(--border, #e5e7eb);
+        margin-top: 16px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        min-width: 1100px;
+      }
+
+      th,
+      td {
+        padding: 8px 12px;
+        text-align: center;
+        vertical-align: middle;
+        border-bottom: 1px solid #f1f5f9;
+        word-break: break-word;
+        white-space: normal;
+      }
+
+      /* Product Name column - left aligned */
+      th:nth-child(2),
+      td:nth-child(2) {
+        text-align: left;
+      }
+
+      th:first-child,
+      td:first-child {
+        max-width: 100px;
+      }
+
+      th:nth-child(2),
+      td:nth-child(2) {
+        max-width: 250px;
+      }
+
+      th:nth-child(3),
+      td:nth-child(3) {
+        max-width: 80px;
+      }
+
+      thead th {
+        background: var(--table-header, #f9fafb);
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        font-weight: 600;
+        color: #374151;
+        text-align: center;
+        vertical-align: middle;
+      }
+
+      tbody tr:hover {
+        background: #f9fafb;
+      }
+
+      .actions {
+        white-space: nowrap;
+      }
+
+      .actions a {
+        color: var(--primary, #3b82f6);
+        text-decoration: none;
+        margin-right: 8px;
+        font-size: 13px;
+      }
+
+      .actions a:hover {
+        text-decoration: underline;
+      }
+
+      /* Status and utility styles */
+      .small {
+        font-size: 12px;
+      }
+
+      .chip {
+        display: inline-block;
+        padding: 4px 8px;
+        border: 1px solid #e5e7eb;
+        border-radius: 999px;
+        background: #f3f4f6;
+        font-size: 12px;
+        margin-right: 6px;
+      }
+
+      .flag {
+        font-size: 11px;
+        padding: 2px 6px;
+        border-radius: 999px;
+        border: 1px solid #e5e7eb;
+        background: #f3f4f6;
+      }
+
+      .flag.ok {
+        background: #e6ffed;
+        border-color: #b7f5c2;
+        color: #065f46;
+      }
+
+      .flag.warn {
+        background: #fef3c7;
+        border-color: #f59e0b;
+        color: #92400e;
+      }
+
+      /* Pagination styles */
+      .pagination {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 16px;
+        padding: 12px;
+        background: #f9fafb;
+        border-radius: 6px;
+      }
+
+      .pagination-controls {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .pagination button {
+        padding: 6px 12px;
+        border: 1px solid #d1d5db;
+        background: white;
+        color: #374151;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+      }
+
+      .pagination-controls button:hover:not(:disabled) {
+        background: #f3f4f6;
+      }
+
+      /* Ensure action buttons in pagination maintain their styles */
+      .pagination .action-btn.secondary:hover {
+        background: #475569 !important;
+        color: white !important;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      /* Make table headers sticky while scrolling the table body.
+         We make the .table-container scrollable and keep the thead cells
+         positioned at the top of that container. Adjust max-height as
+         needed for your layout (this uses viewport-relative sizing).
+      */
+      .table-container {
+        overflow: auto;
+        max-height: calc(
+          100vh - 260px
+        ); /* adjust if toolbar/header heights change */
+      }
+
+      .table-container table thead th {
+        position: sticky;
+        top: 0;
+        background: var(--table-header, #f9fafb);
+        z-index: 3;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+      }
+
+      .pagination button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      /* Modal styles */
+      dialog {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+        width: min(950px, 95vw);
+        max-height: 90vh;
+        overflow-y: auto;
+        padding: 20px;
+      }
+
+      dialog::backdrop {
+        background: rgba(0, 0, 0, 0.4);
+      }
+
+      .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+      }
+
+      .modal-header h3 {
+        margin: 0;
+        color: #111827;
+        font-size: 1.25rem;
+      }
+
+      .modal-close {
+        background: none;
+        border: none;
+        font-size: 20px;
+        cursor: pointer;
+        color: #6b7280;
+        padding: 4px;
+        border-radius: 4px;
+      }
+
+      .modal-close:hover {
+        background: #f3f4f6;
+      }
+
+      /* ═══ PROFESSIONAL ENTERPRISE TABLE DESIGN FOR MODAL ═══ */
+      dialog .flex-table {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        overflow: hidden;
+        margin-bottom: 24px;
+        background: #ffffff;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
+          sans-serif;
+      }
+
+      dialog .flex-table-header {
+        display: flex;
+        width: 100%;
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border-bottom: 2px solid #d1d5db;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05);
+      }
+
+      dialog .flex-table-row {
+        display: flex;
+        width: 100%;
+        border-bottom: 1px solid #f3f4f6;
+        transition: all 0.2s ease;
+        align-items: center;
+        min-height: 48px;
+      }
+
+      dialog .flex-table-row:nth-child(even) {
+        background: #fafbfc;
+      }
+
+      dialog .flex-table-row:hover {
+        background: #f0f9ff;
+        border-color: #e0f2fe;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      }
+
+      dialog .flex-table-row:last-child {
+        border-bottom: none;
+      }
+
+      /* Base cell styling with perfect alignment */
+      dialog .flex-table-cell {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 12px 16px;
+        font-size: 14px;
+        line-height: 1.4;
+        color: #374151;
+        border-right: 1px solid #f3f4f6;
+        min-height: 48px;
+        box-sizing: border-box;
+        flex: 1 1 0;
+        min-width: 0;
+        text-align: center;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      dialog .flex-table-cell:last-child {
+        border-right: none;
+      }
+
+      /* Header cell styling */
+      dialog .flex-table-header .flex-table-cell {
+        font-weight: 600;
+        font-size: 13px;
+        color: #1f2937;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 16px 16px;
+        justify-content: center;
+        background: transparent;
+        min-height: 52px;
+      }
+
+      /* ═══ BOTTLED STOCK TABLE COLUMNS ═══ */
+      dialog .bottled-stock .flex-table-cell:nth-child(1) {
+        flex: 0 0 80px;
+        font-family: "JetBrains Mono", "Fira Code", monospace;
+        font-size: 12px;
+        font-weight: 500;
+        background: #f8fafc;
+      }
+
+      dialog .bottled-stock .flex-table-cell:nth-child(2) {
+        flex: 2 1 200px;
+        justify-content: flex-start;
+        text-align: left;
+        font-weight: 500;
+        color: #111827;
+        white-space: normal;
+        word-wrap: break-word;
+        line-height: 1.5;
+      }
+
+      dialog .bottled-stock .flex-table-cell:nth-child(3) {
+        flex: 0 0 120px;
+        font-family: "JetBrains Mono", "Fira Code", monospace;
+        font-size: 12px;
+        background: #fef7f0;
+        color: #92400e;
+        font-weight: 600;
+      }
+
+      dialog .bottled-stock .flex-table-cell:nth-child(4) {
+        flex: 0 0 90px;
+        font-family: "JetBrains Mono", "Fira Code", monospace;
+        font-size: 12px;
+        font-weight: 500;
+      }
+
+      dialog .bottled-stock .flex-table-cell:nth-child(5) {
+        flex: 0 0 60px;
+        font-size: 12px;
+        text-transform: uppercase;
+        font-weight: 600;
+        color: #6b7280;
+      }
+
+      dialog .bottled-stock .flex-table-cell:nth-child(6) {
+        flex: 0 0 100px;
+        font-family: "JetBrains Mono", "Fira Code", monospace;
+        font-size: 13px;
+        font-weight: 700;
+        color: #059669;
+        background: #ecfdf5;
+      }
+
+      /* ═══ BULK STOCK TABLE COLUMNS ═══ */
+      dialog .bulk-stock .flex-table-cell:nth-child(1) {
+        flex: 0 0 90px;
+        font-family: "JetBrains Mono", "Fira Code", monospace;
+        font-size: 12px;
+        font-weight: 500;
+        background: #f8fafc;
+      }
+
+      dialog .bulk-stock .flex-table-cell:nth-child(2) {
+        flex: 2 1 220px;
+        justify-content: flex-start;
+        text-align: left;
+        font-weight: 500;
+        color: #111827;
+        white-space: normal;
+        word-wrap: break-word;
+        line-height: 1.5;
+      }
+
+      dialog .bulk-stock .flex-table-cell:nth-child(3) {
+        flex: 0 0 130px;
+        font-family: "JetBrains Mono", "Fira Code", monospace;
+        font-size: 12px;
+        background: #fef7f0;
+        color: #92400e;
+        font-weight: 600;
+      }
+
+      dialog .bulk-stock .flex-table-cell:nth-child(4) {
+        flex: 0 0 100px;
+        font-family: "JetBrains Mono", "Fira Code", monospace;
+        font-size: 13px;
+        font-weight: 700;
+        color: #059669;
+        background: #ecfdf5;
+      }
+
+      dialog .bulk-stock .flex-table-cell:nth-child(5) {
+        flex: 0 0 60px;
+        font-size: 12px;
+        text-transform: uppercase;
+        font-weight: 600;
+        color: #6b7280;
+      }
+
+      /* ═══ WIP BATCHES TABLE COLUMNS ═══ */
+      dialog .wip-batches .flex-table-cell:nth-child(1) {
+        flex: 0 0 80px;
+        font-family: "JetBrains Mono", "Fira Code", monospace;
+        font-size: 12px;
+        font-weight: 500;
+        background: #f8fafc;
+      }
+
+      dialog .wip-batches .flex-table-cell:nth-child(2) {
+        flex: 2 1 200px;
+        justify-content: flex-start;
+        text-align: left;
+        font-weight: 600;
+        color: #111827;
+        white-space: normal;
+        word-wrap: break-word;
+        line-height: 1.5;
+      }
+
+      dialog .wip-batches .flex-table-cell:nth-child(3) {
+        flex: 0 0 120px;
+        font-family: "JetBrains Mono", "Fira Code", monospace;
+        font-size: 12px;
+        background: #fef7f0;
+        color: #92400e;
+        font-weight: 600;
+      }
+
+      dialog .wip-batches .flex-table-cell:nth-child(4) {
+        flex: 0 0 100px;
+        font-family: "JetBrains Mono", "Fira Code", monospace;
+        font-size: 12px;
+        font-weight: 600;
+        color: #1f2937;
+        justify-content: flex-end;
+        text-align: right;
+      }
+
+      dialog .wip-batches .flex-table-cell:nth-child(5) {
+        flex: 0 0 60px;
+        font-size: 12px;
+        text-transform: uppercase;
+        font-weight: 600;
+        color: #6b7280;
+      }
+
+      dialog .wip-batches .flex-table-cell:nth-child(6) {
+        flex: 1.5 1 160px;
+        justify-content: flex-start;
+        text-align: left;
+        font-weight: 500;
+        color: #374151;
+        white-space: normal;
+        word-wrap: break-word;
+        line-height: 1.4;
+        background: #f9fafb;
+      }
+
+      dialog .wip-batches .flex-table-cell:nth-child(7) {
+        flex: 0 0 120px;
+        font-family: "JetBrains Mono", "Fira Code", monospace;
+        font-size: 12px;
+        font-weight: 500;
+        color: #374151;
+      }
+
+      /* Due date overdue styling */
+      dialog
+        .wip-batches
+        .flex-table-row
+        .flex-table-cell:nth-child(7).overdue {
+        color: #dc2626;
+        background: #fef2f2;
+        font-weight: 700;
+      }
+
+      /* ═══ BULK REQUIREMENTS DETAIL TABLE COLUMNS ═══ */
+      dialog .bulk-requirements-detail .flex-table-cell:nth-child(1) {
+        flex: 0 0 80px;
+        font-family: "JetBrains Mono", "Fira Code", monospace;
+        font-size: 12px;
+        font-weight: 500;
+        background: #f8fafc;
+      }
+
+      dialog .bulk-requirements-detail .flex-table-cell:nth-child(2) {
+        flex: 2 1 200px;
+        justify-content: flex-start;
+        text-align: left;
+        font-weight: 500;
+        color: #111827;
+        white-space: normal;
+        word-wrap: break-word;
+        line-height: 1.5;
+      }
+
+      dialog .bulk-requirements-detail .flex-table-cell:nth-child(3) {
+        flex: 0 0 100px;
+        font-family: "JetBrains Mono", "Fira Code", monospace;
+        font-size: 12px;
+        font-weight: 600;
+        justify-content: flex-end;
+        text-align: right;
+      }
+
+      dialog .bulk-requirements-detail .flex-table-cell:nth-child(4) {
+        flex: 0 0 100px;
+        font-family: "JetBrains Mono", "Fira Code", monospace;
+        font-size: 12px;
+        font-weight: 600;
+        justify-content: flex-end;
+        text-align: right;
+      }
+
+      dialog .bulk-requirements-detail .flex-table-cell:nth-child(5) {
+        flex: 0 0 100px;
+        font-family: "JetBrains Mono", "Fira Code", monospace;
+        font-size: 12px;
+        font-weight: 600;
+        justify-content: flex-end;
+        text-align: right;
+      }
+
+      dialog .bulk-requirements-detail .flex-table-cell:nth-child(6) {
+        flex: 0 0 120px;
+        font-family: "JetBrains Mono", "Fira Code", monospace;
+        font-size: 13px;
+        font-weight: 700;
+        color: #059669;
+        background: #ecfdf5;
+        justify-content: flex-end;
+        text-align: right;
+      }
+
+      /* Legacy table styles - hidden for compatibility */
+      dialog table {
+        display: none;
+      }
+
+      dialog table tbody tr:hover {
+        background: #f9fafb;
+      }
+
+      dialog table tbody tr:nth-child(even) {
+        background: #fafbfc;
+      }
+
+      dialog table tbody tr:nth-child(even):hover {
+        background: #f3f4f6;
+      }
+
+      /* Compact headers for better fit */
+      dialog table th {
+        line-height: 1.1;
+      }
+
+      dialog table td {
+        line-height: 1.2;
+      }
+
+      /* Modal content scrolling */
+      dialog #drill-content {
+        max-height: 65vh;
+        overflow-y: auto;
+        overflow-x: hidden;
+        width: 100%;
+      }
+
+      /* Modal table container - No border to avoid double borders */
+      dialog .table-container {
+        overflow: hidden;
+        margin-bottom: 20px;
+        width: 100%;
+      }
+
+      /* Modal section headers */
+      dialog h4 {
+        color: #1f2937;
+        font-size: 16px;
+        font-weight: 600;
+        margin: 24px 0 12px 0;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #e5e7eb;
+      }
+
+      dialog h4:first-child {
+        margin-top: 0;
+      }
+
+      /* Toast notification */
+      #toast {
+        display: none;
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #111827;
+        color: #fff;
+        padding: 12px 16px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        font-size: 14px;
+        z-index: 1000;
+      }
+
+      /* ═══ MODERN TABLE STYLES ═══ */
+      .modern-table-container {
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        overflow: hidden;
+        background: white;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      }
+
+      .modern-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0;
+      }
+
+      .modern-table th {
+        background: #f9fafb;
+        color: #374151;
+        font-weight: 600;
+        padding: 12px 16px;
+        text-align: left;
+        border-bottom: 1px solid #e5e7eb;
+        font-size: 14px;
+      }
+
+      .modern-table td {
+        padding: 12px 16px;
+        border-bottom: 1px solid #f3f4f6;
+        color: #374151;
+        font-size: 14px;
+        vertical-align: middle;
+      }
+
+      .modern-table tbody tr:hover {
+        background: #f9fafb;
+      }
+
+      .modern-table tbody tr:last-child td {
+        border-bottom: none;
+      }
+
+      .modern-table td.number {
+        text-align: right;
+        font-family: monospace;
+        font-weight: 500;
+      }
+
+      /* ═══ STATUS BADGE STYLES ═══ */
+      .status-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+        background: #e0f2fe;
+        color: #0277bd;
+        text-transform: capitalize;
+      }
+
+      .status-badge:empty::before {
+        content: "In Progress";
+      }
+
+      /* ═══ BATCH AND DATE STYLES ═══ */
+      .batch-number {
+        font-family: monospace;
+        font-weight: 600;
+        background: #f3f4f6;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 13px;
+      }
+
+      .due-date {
+        font-weight: 500;
+      }
+
+      .due-date.overdue {
+        color: #dc2626;
+        background: #fef2f2;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-weight: 600;
+      }
+
+      /* Skeleton Loading Animations */
+      .skeleton-row {
+        animation: skeleton-pulse 1.5s ease-in-out infinite;
+      }
+
+      @keyframes skeleton-pulse {
+        0% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+
+      .skeleton-cell {
+        background: linear-gradient(
+          90deg,
+          #f0f0f0 25%,
+          #e0e0e0 50%,
+          #f0f0f0 75%
+        );
+        background-size: 200% 100%;
+        animation: skeleton-shimmer 1.5s infinite;
+        border-radius: 4px;
+        height: 16px;
+      }
+
+      @keyframes skeleton-shimmer {
+        0% {
+          background-position: -200% 0;
+        }
+        100% {
+          background-position: 200% 0;
+        }
+      }
+
+      /* Professional Tooltips for Table Headers */
+      .tooltip-header {
+        position: relative;
+        cursor: help;
+        border-bottom: 1px dotted #6b7280;
+      }
+
+      .tooltip-header:hover {
+        border-bottom-color: #3b82f6;
+      }
+
+      .tooltip-header::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        top: -10px;
+        left: 50%;
+        transform: translateX(-50%) translateY(-100%);
+        padding: 12px 16px;
+        background: #1f2937;
+        color: #f9fafb;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 400;
+        line-height: 1.4;
+        white-space: normal;
+        width: 280px;
+        text-align: left;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15),
+          0 4px 6px rgba(0, 0, 0, 0.1);
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+        z-index: 99999;
+        pointer-events: none;
+      }
+
+      .tooltip-header::before {
+        content: "";
+        position: absolute;
+        top: -4px;
+        left: 50%;
+        transform: translateX(-50%) translateY(-100%);
+        border-top: 6px solid #1f2937;
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+        z-index: 99999;
+      }
+
+      .tooltip-header:hover::after,
+      .tooltip-header:hover::before {
+        opacity: 1;
+        visibility: visible;
+      }
+
+      /* Scope tooltip escape to table headers only (prevents global overflow override) */
+      #net-sku-plan-grid thead,
+      #bulk-requirements-grid thead,
+      #netting-grid thead,
+      #wip-grid thead,
+      #normalizer-grid thead {
+        position: relative;
+        overflow: visible;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Page Header -->
+    <header class="page-header">
+      <h1>Production Planning Workbench</h1>
+      <div class="header-actions">
+        <button id="homeBtn">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9,22 9,12 15,12 15,22" />
+          </svg>
+          HOME
+        </button>
+      </div>
+    </header>
+
+    <!-- Workflow Progress Indicator -->
+    <div class="workflow-steps">
+      <div class="workflow-progress">
+        <div class="workflow-step" id="step-forecast-hierarchy">
+          <div class="workflow-step-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M3 3h18v4H3z" />
+              <path d="M3 10h18v11H3z" />
+            </svg>
+          </div>
+          <div class="workflow-step-label">Forecast Plan</div>
+          <div class="workflow-step-status">Godown / Region / SKU</div>
+        </div>
+
+        <div class="workflow-step" id="step-net-sku-plan">
+          <div class="workflow-step-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+              />
+              <polyline points="14,2 14,8 20,8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10,9 9,9 8,9" />
+              <circle cx="12" cy="12" r="2" />
+              <path d="M8 21l4-7 4 7" />
+            </svg>
+          </div>
+          <div class="workflow-step-label">Net SKU Plan</div>
+          <div class="workflow-step-status">SKU Net Production</div>
+        </div>
+
+        <div class="workflow-step" id="step-bulk-requirements">
+          <div class="workflow-step-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+              />
+              <polyline points="14,2 14,8 20,8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10,9 9,9 8,9" />
+            </svg>
+          </div>
+          <div class="workflow-step-label">Bulk Requirements</div>
+          <div class="workflow-step-status">Base Planning</div>
+        </div>
+
+        <div class="workflow-step" id="step-netting">
+          <div class="workflow-step-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M3 3v5h5M3 21l6-6m2-2l6-6" />
+              <path d="M21 21v-5h-5" />
+              <path d="M8 8l6 6" />
+            </svg>
+          </div>
+          <div class="workflow-step-label">Production Netting</div>
+          <div class="workflow-step-status">Net Requirements</div>
+        </div>
+
+        <div class="workflow-step" id="step-wip">
+          <div class="workflow-step-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
+              />
+            </svg>
+          </div>
+          <div class="workflow-step-label">WIP Deduction</div>
+          <div class="workflow-step-status">WIP Adjusted</div>
+        </div>
+
+        <div class="workflow-step" id="step-normalizer">
+          <div class="workflow-step-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
+              />
+              <polyline points="7.5,4.21 12,6.81 16.5,4.21" />
+              <polyline points="7.5,19.79 7.5,14.6 3,12" />
+              <polyline points="21,12 16.5,14.6 16.5,19.79" />
+              <polyline points="3.27,6.96 12,12.01 20.73,6.96" />
+              <line x1="12" y1="22.08" x2="12" y2="12" />
+            </svg>
+          </div>
+          <div class="workflow-step-label">Output Normalization</div>
+          <div class="workflow-step-status">Batch Ready</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="tabs-wrap">
+      <button
+        class="tabs-chevron left"
+        type="button"
+        aria-label="Scroll tabs left"
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path
+            d="M15 18l-6-6 6-6"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </button>
+      <nav
+        class="tabs"
+        role="tablist"
+        aria-label="Production Planning Workflow"
+      >
+        <button
+          class="tab-btn"
+          role="tab"
+          tabindex="0"
+          aria-controls="tab-forecast-hierarchy"
+          aria-selected="true"
+          id="tab-btn-forecast-hierarchy"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M3 3h18v4H3z" />
+            <path d="M3 10h18v11H3z" />
+          </svg>
+          <div>
+            Forecast Plan
+            <span class="tab-description">Godown / Region / SKU levels</span>
+          </div>
+        </button>
+
+        <button
+          class="tab-btn"
+          role="tab"
+          tabindex="-1"
+          aria-controls="tab-net-sku-plan"
+          aria-selected="false"
+          id="tab-btn-net-sku-plan"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+            />
+            <polyline points="14,2 14,8 20,8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+            <polyline points="10,9 9,9 8,9" />
+            <circle cx="12" cy="12" r="2" />
+            <path d="M8 21l4-7 4 7" />
+          </svg>
+          <div>
+            Net SKU Plan
+            <span class="tab-description">SKU-level net production plan</span>
+          </div>
+        </button>
+
+        <button
+          class="tab-btn"
+          role="tab"
+          tabindex="-1"
+          aria-controls="tab-bulk-requirements"
+          aria-selected="false"
+          id="tab-btn-bulk-requirements"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+            />
+            <polyline points="14,2 14,8 20,8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+            <polyline points="10,9 9,9 8,9" />
+          </svg>
+          <div>
+            Bulk Requirements
+            <span class="tab-description"
+              >Calculate base bulk requirements</span
+            >
+          </div>
+        </button>
+
+        <button
+          class="tab-btn"
+          role="tab"
+          tabindex="-1"
+          aria-controls="tab-netting"
+          aria-selected="false"
+          id="tab-btn-netting"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M3 3v5h5M3 21l6-6m2-2l6-6" />
+            <path d="M21 21v-5h-5" />
+            <path d="M8 8l6 6" />
+          </svg>
+          <div>
+            Production Netting
+            <span class="tab-description"
+              >Determine net manufacturing requirements</span
+            >
+          </div>
+        </button>
+
+        <button
+          class="tab-btn"
+          role="tab"
+          tabindex="-1"
+          aria-controls="tab-wip"
+          aria-selected="false"
+          id="tab-btn-wip"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="12" cy="12" r="3" />
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
+            />
+          </svg>
+          <div>
+            WIP Deduction
+            <span class="tab-description"
+              >Reduce by work-in-process credits</span
+            >
+          </div>
+        </button>
+
+        <button
+          class="tab-btn"
+          role="tab"
+          tabindex="-1"
+          aria-controls="tab-normalizer"
+          aria-selected="false"
+          id="tab-btn-normalizer"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
+            />
+            <polyline points="7.5,4.21 12,6.81 16.5,4.21" />
+            <polyline points="7.5,19.79 7.5,14.6 3,12" />
+            <polyline points="21,12 16.5,14.6 16.5,19.79" />
+            <polyline points="3.27,6.96 12,12.01 20.73,6.96" />
+            <line x1="12" y1="22.08" x2="12" y2="12" />
+          </svg>
+          <div>
+            Output Normalization
+            <span class="tab-description">Apply batch sizing rules</span>
+          </div>
+        </button>
+      </nav>
+      <button
+        class="tabs-chevron right"
+        type="button"
+        aria-label="Scroll tabs right"
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path
+            d="M9 6l6 6-6 6"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Net SKU Plan Tab -->
+    <div
+      class="tabpanel"
+      id="tab-net-sku-plan"
+      role="tabpanel"
+      aria-labelledby="tab-btn-net-sku-plan"
+      hidden
+    >
+      <div class="tab-intro">
+        <strong>Net SKU Plan:</strong> Shows SKU-level net production
+        requirements after deducting bottled stock on hand. This represents the
+        actual quantity to be manufactured for each SKU, considering available
+        packaged stock that is not yet labelled.<br />
+        <em>Source: v_forecast_production_plan_net_sku</em>
+      </div>
+
+      <div class="enhanced-toolbar single-line">
+        <div class="filter-group">
+          <label class="filter-label">From Month</label>
+          <input
+            type="month"
+            class="filter-input"
+            id="net-sku-plan-from-month"
+            value="2025-10"
+          />
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">To Month</label>
+          <input
+            type="month"
+            class="filter-input"
+            id="net-sku-plan-to-month"
+            value="2025-10"
+          />
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">SKU ID</label>
+          <input
+            type="text"
+            class="filter-input"
+            id="net-sku-plan-sku-id"
+            placeholder="Enter SKU ID"
+          />
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">Product Name</label>
+          <input
+            type="text"
+            class="filter-input"
+            id="net-sku-plan-product-name"
+            placeholder="Search by product name"
+          />
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">Opening Stock</label>
+          <div class="toggle-group">
+            <button
+              class="toggle-option active"
+              data-filter="opening-stock"
+              data-value="all"
+            >
+              All
+            </button>
+            <button
+              class="toggle-option"
+              data-filter="opening-stock"
+              data-value="present"
+            >
+              Present
+            </button>
+            <button
+              class="toggle-option"
+              data-filter="opening-stock"
+              data-value="absent"
+            >
+              Absent
+            </button>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">Demand Baseline</label>
+          <div class="toggle-group">
+            <button
+              class="toggle-option active"
+              data-filter="demand-baseline"
+              data-value="all"
+            >
+              All
+            </button>
+            <button
+              class="toggle-option"
+              data-filter="demand-baseline"
+              data-value="present"
+            >
+              Present
+            </button>
+            <button
+              class="toggle-option"
+              data-filter="demand-baseline"
+              data-value="absent"
+            >
+              Absent
+            </button>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">Bottled SOH Applied</label>
+          <div class="toggle-group">
+            <button
+              class="toggle-option active"
+              data-filter="bottled-soh-applied"
+              data-value="all"
+            >
+              All
+            </button>
+            <button
+              class="toggle-option"
+              data-filter="bottled-soh-applied"
+              data-value="present"
+            >
+              Present
+            </button>
+            <button
+              class="toggle-option"
+              data-filter="bottled-soh-applied"
+              data-value="absent"
+            >
+              Absent
+            </button>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">Reset</label>
+          <button
+            class="action-btn reset"
+            onclick="resetNetSkuPlanFilters()"
+            title="Reset Filters"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+              <path d="M21 3v5h-5" />
+              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+              <path d="M3 21v-5h5" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="pagination">
+        <button class="action-btn secondary" onclick="exportNetSkuPlanData()">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7,10 12,15 17,10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Export CSV
+        </button>
+        <div class="pagination-controls">
+          <button id="net-sku-plan-prev">Previous</button>
+          <span class="small muted" id="net-sku-plan-page-info">Page 1</span>
+          <button id="net-sku-plan-next">Next</button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table id="net-sku-plan-grid">
+          <thead>
+            <tr>
+              <th>SKU ID</th>
+              <th>Product Name</th>
+              <th>Pack Size</th>
+              <th>UOM</th>
+              <th>Month</th>
+              <th>Opening Stock</th>
+              <th>Demand Baseline</th>
+              <th>Target Stock</th>
+              <th>Projected Before Prod</th>
+              <th>Production Qty</th>
+              <th>Bottled SOH Applied</th>
+              <th>Net Production Qty</th>
+              <th>Projected After Net Prod</th>
+            </tr>
+          </thead>
+          <tbody id="net-sku-plan-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Forecast Hierarchy Tab (Godown / Region / SKU) -->
+    <div
+      class="tabpanel active"
+      id="tab-forecast-hierarchy"
+      role="tabpanel"
+      aria-labelledby="tab-btn-forecast-hierarchy"
+    >
+      <div class="tab-intro">
+        <strong>Forecast Production Plan (Hierarchy):</strong> View forecasted
+        production plan at Godown, Region, or SKU level.<br />
+        <em
+          >Sources: v_forecast_production_plan_godown,
+          v_forecast_production_plan_region, v_forecast_production_plan_sku</em
+        >
+      </div>
+
+      <div class="enhanced-toolbar single-line">
+        <div class="filter-group">
+          <label class="filter-label">Level</label>
+          <select id="forecast-level-select" class="filter-input">
+            <option value="godown" selected>Godown</option>
+            <option value="region">Region</option>
+            <option value="sku">SKU</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">From Month</label>
+          <input type="month" class="filter-input" id="forecast-from-month" />
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">To Month</label>
+          <input type="month" class="filter-input" id="forecast-to-month" />
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">SKU ID</label>
+          <input
+            type="text"
+            class="filter-input"
+            id="forecast-sku-id"
+            placeholder="Enter SKU ID"
+          />
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">Product Name</label>
+          <input
+            type="text"
+            class="filter-input"
+            id="forecast-product-name"
+            placeholder="Search by product name"
+          />
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">Reset</label>
+          <button
+            id="forecast-reset"
+            class="action-btn reset"
+            title="Reset Filters"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+              <path d="M21 3v5h-5" />
+              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+              <path d="M3 21v-5h5" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="pagination">
+        <button class="action-btn secondary" id="forecast-export">
+          Export CSV
+        </button>
+        <div class="pagination-controls">
+          <button id="forecast-prev">Previous</button>
+          <span class="small muted" id="forecast-page-info">Page 1</span>
+          <button id="forecast-next">Next</button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="grid" id="forecast-hierarchy-grid">
+          <thead id="forecast-hierarchy-thead">
+            <!-- generated headers -->
+          </thead>
+          <tbody id="forecast-hierarchy-body">
+            <!-- generated rows -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Bulk Requirements Tab -->
+    <div
+      class="tabpanel"
+      id="tab-bulk-requirements"
+      role="tabpanel"
+      aria-labelledby="tab-btn-bulk-requirements"
+    >
+      <div class="tab-intro">
+        <strong>Bulk Requirements:</strong> Convert SKU-level net production
+        requirements to base unit of measurement and aggregate at product level.
+        Shows total bulk quantity needed for each product by month.<br />
+        <em>Source: v_product_bulk_required_monthly</em>
+      </div>
+
+      <div class="enhanced-toolbar">
+        <!-- Date Range Filters -->
+        <div class="filter-group">
+          <label class="filter-label">From Month</label>
+          <input
+            type="month"
+            class="filter-input"
+            id="bulk-requirements-from-month"
+            value="2025-10"
+          />
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">To Month</label>
+          <input
+            type="month"
+            class="filter-input"
+            id="bulk-requirements-to-month"
+            value="2025-10"
+          />
+        </div>
+
+        <!-- Product Filters -->
+        <div class="filter-group">
+          <label class="filter-label">Product ID</label>
+          <input
+            type="text"
+            class="filter-input"
+            id="bulk-requirements-product-id"
+            placeholder="Enter Product ID"
+          />
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">Product Name</label>
+          <input
+            type="text"
+            class="filter-input"
+            id="bulk-requirements-product-name"
+            placeholder="Search by product name"
+          />
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="filter-group">
+          <label class="filter-label">Reset</label>
+          <button
+            class="action-btn reset"
+            onclick="resetBulkRequirementsFilters()"
+            title="Reset Filters"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+              <path d="M21 3v5h-5" />
+              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+              <path d="M3 21v-5h5" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="pagination">
+        <button
+          class="action-btn secondary"
+          onclick="exportBulkRequirementsData()"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7,10 12,15 17,10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Export CSV
+        </button>
+        <div class="pagination-controls">
+          <button id="bulk-requirements-prev">Previous</button>
+          <span class="small muted" id="bulk-requirements-page-info"
+            >Page 1</span
+          >
+          <button id="bulk-requirements-next">Next</button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table id="bulk-requirements-grid">
+          <thead>
+            <tr>
+              <th>Product ID</th>
+              <th>Product Name</th>
+              <th>UOM</th>
+              <th>Month</th>
+              <th>Bulk Required</th>
+            </tr>
+          </thead>
+          <tbody id="bulk-requirements-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Production Netting Tab -->
+    <div
+      class="tabpanel"
+      id="tab-netting"
+      role="tabpanel"
+      aria-labelledby="tab-btn-netting"
+    >
+      <div class="tab-intro">
+        <strong>Production Netting:</strong> Compute monthly net bulk to make by
+        deducting finished-goods bulk stock on hand (FG Bulk SOH) from the
+        planned bulk requirement, which already accounts for bottled stock
+        deductions at the SKU level.<br />
+        <em>Source: v_product_bulk_net_to_make</em>
+      </div>
+
+      <div class="enhanced-toolbar">
+        <!-- Date Range Filters -->
+        <div class="filter-group">
+          <label class="filter-label">From Month</label>
+          <input
+            type="month"
+            class="filter-input"
+            id="netting-from-month"
+            value="2025-10"
+          />
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">To Month</label>
+          <input
+            type="month"
+            class="filter-input"
+            id="netting-to-month"
+            value="2025-10"
+          />
+        </div>
+
+        <!-- Product Filters -->
+        <div class="filter-group">
+          <label class="filter-label">Product ID</label>
+          <input
+            type="number"
+            class="filter-input"
+            id="netting-product-id"
+            placeholder="Enter product ID..."
+          />
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">Product Name</label>
+          <input
+            type="text"
+            class="filter-input"
+            id="netting-product-name"
+            placeholder="Search product name..."
+          />
+        </div>
+
+        <!-- Boolean Filters -->
+        <div class="filter-group">
+          <label class="filter-label">Bulk Required</label>
+          <div class="toggle-group">
+            <button
+              class="toggle-option active"
+              data-filter="bulk-required"
+              data-value="all"
+            >
+              All
+            </button>
+            <button
+              class="toggle-option"
+              data-filter="bulk-required"
+              data-value="present"
+            >
+              Present
+            </button>
+            <button
+              class="toggle-option"
+              data-filter="bulk-required"
+              data-value="absent"
+            >
+              Absent
+            </button>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">SOH Applied</label>
+          <div class="toggle-group">
+            <button
+              class="toggle-option active"
+              data-filter="soh-applied"
+              data-value="all"
+            >
+              All
+            </button>
+            <button
+              class="toggle-option"
+              data-filter="soh-applied"
+              data-value="present"
+            >
+              Present
+            </button>
+            <button
+              class="toggle-option"
+              data-filter="soh-applied"
+              data-value="absent"
+            >
+              Absent
+            </button>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">SOH Remaining</label>
+          <div class="toggle-group">
+            <button
+              class="toggle-option active"
+              data-filter="soh-remaining"
+              data-value="all"
+            >
+              All
+            </button>
+            <button
+              class="toggle-option"
+              data-filter="soh-remaining"
+              data-value="present"
+            >
+              Present
+            </button>
+            <button
+              class="toggle-option"
+              data-filter="soh-remaining"
+              data-value="absent"
+            >
+              Absent
+            </button>
+          </div>
+        </div>
+
+        <!-- Reset Action -->
+        <div class="filter-group">
+          <label class="filter-label">Reset</label>
+          <button
+            class="action-btn reset"
+            onclick="resetNettingFilters()"
+            title="Reset Filters"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+              <path d="M21 3v5h-5" />
+              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+              <path d="M3 21v-5h5" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="pagination">
+        <button class="action-btn secondary" onclick="exportNettingData()">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7,10 12,15 17,10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Export CSV
+        </button>
+        <div class="pagination-controls">
+          <button id="netting-prev">Previous</button>
+          <span class="small muted" id="netting-page-info">Page 1</span>
+          <button id="netting-next">Next</button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table id="netting-grid">
+          <thead>
+            <tr>
+              <th>Product ID</th>
+              <th>Product Name</th>
+              <th>UOM</th>
+              <th>Month</th>
+              <th>Bulk Required</th>
+              <th>SOH Applied</th>
+              <th>Net Bulk to Make</th>
+              <th>SOH Remaining</th>
+              <th>Stock Details</th>
+            </tr>
+          </thead>
+          <tbody id="netting-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- WIP Deduction Tab -->
+    <div
+      class="tabpanel"
+      id="tab-wip"
+      role="tabpanel"
+      aria-labelledby="tab-btn-wip"
+    >
+      <div class="tab-intro">
+        <strong>WIP Deduction:</strong> Refine the net bulk production
+        requirement by deducting quantities already under process (Work in
+        Process – WIP) from the planned make volume.<br />
+        <em>Source: v_product_bulk_net_to_make_after_wip</em>
+      </div>
+
+      <div class="enhanced-toolbar">
+        <!-- Date Range Filters -->
+        <div class="filter-group">
+          <label class="filter-label">From Month</label>
+          <input
+            type="month"
+            class="filter-input"
+            id="wip-from-month"
+            value="2025-10"
+          />
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">To Month</label>
+          <input
+            type="month"
+            class="filter-input"
+            id="wip-to-month"
+            value="2025-10"
+          />
+        </div>
+
+        <!-- Product Filters -->
+        <div class="filter-group">
+          <label class="filter-label">Product ID</label>
+          <input
+            type="number"
+            class="filter-input"
+            id="wip-product-id"
+            placeholder="Enter product ID..."
+          />
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">Product Name</label>
+          <input
+            type="text"
+            class="filter-input"
+            id="wip-product-name"
+            placeholder="Search product name..."
+          />
+        </div>
+
+        <!-- Boolean Filters -->
+        <div class="filter-group">
+          <label class="filter-label">Net Before WIP</label>
+          <div class="toggle-group">
+            <button
+              class="toggle-option active"
+              data-filter="net-before-wip"
+              data-value="all"
+            >
+              All
+            </button>
+            <button
+              class="toggle-option"
+              data-filter="net-before-wip"
+              data-value="present"
+            >
+              Present
+            </button>
+            <button
+              class="toggle-option"
+              data-filter="net-before-wip"
+              data-value="absent"
+            >
+              Absent
+            </button>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">WIP Deducted</label>
+          <div class="toggle-group">
+            <button
+              class="toggle-option active"
+              data-filter="wip-deducted"
+              data-value="all"
+            >
+              All
+            </button>
+            <button
+              class="toggle-option"
+              data-filter="wip-deducted"
+              data-value="present"
+            >
+              Present
+            </button>
+            <button
+              class="toggle-option"
+              data-filter="wip-deducted"
+              data-value="absent"
+            >
+              Absent
+            </button>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">WIP Pool After</label>
+          <div class="toggle-group">
+            <button
+              class="toggle-option active"
+              data-filter="wip-pool"
+              data-value="all"
+            >
+              All
+            </button>
+            <button
+              class="toggle-option"
+              data-filter="wip-pool"
+              data-value="present"
+            >
+              Present
+            </button>
+            <button
+              class="toggle-option"
+              data-filter="wip-pool"
+              data-value="absent"
+            >
+              Absent
+            </button>
+          </div>
+        </div>
+
+        <!-- Reset Action -->
+        <div class="filter-group">
+          <label class="filter-label">Reset</label>
+          <button
+            class="action-btn reset"
+            onclick="resetWipFilters()"
+            title="Reset Filters"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+              <path d="M21 3v5h-5" />
+              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+              <path d="M3 21v-5h5" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="pagination">
+        <button class="action-btn secondary" onclick="exportWipData()">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7,10 12,15 17,10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Export CSV
+        </button>
+        <div class="pagination-controls">
+          <button id="wip-prev">Previous</button>
+          <span class="small muted" id="wip-page-info">Page 1</span>
+          <button id="wip-next">Next</button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table id="wip-grid">
+          <thead>
+            <tr>
+              <th>Product ID</th>
+              <th>Product Name</th>
+              <th>UOM</th>
+              <th>Month</th>
+              <th>Net Before WIP</th>
+              <th>WIP Deducted</th>
+              <th>Net After WIP</th>
+              <th>WIP Pool After</th>
+              <th>WIP Details</th>
+            </tr>
+          </thead>
+          <tbody id="wip-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Output Normalization Tab -->
+    <div
+      class="tabpanel"
+      id="tab-normalizer"
+      role="tabpanel"
+      aria-labelledby="tab-btn-normalizer"
+    >
+      <div class="tab-intro">
+        <strong>Output Normalization:</strong> Apply batch sizing rules to
+        convert net requirements into manufacturable, rule-compliant production
+        quantities.<br />
+        <em>Source: v_product_bulk_consolidated</em>
+      </div>
+
+      <div class="enhanced-toolbar">
+        <!-- Date Range Filters -->
+        <div class="filter-group">
+          <label class="filter-label">From Month</label>
+          <input
+            type="month"
+            class="filter-input"
+            id="normalizer-from-month"
+            value="2025-10"
+          />
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">To Month</label>
+          <input
+            type="month"
+            class="filter-input"
+            id="normalizer-to-month"
+            value="2025-10"
+          />
+        </div>
+
+        <!-- Product Filters -->
+        <div class="filter-group">
+          <label class="filter-label">Product ID</label>
+          <input
+            type="number"
+            class="filter-input"
+            id="normalizer-product-id"
+            placeholder="Enter product ID..."
+          />
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">Product Name</label>
+          <input
+            type="text"
+            class="filter-input"
+            id="normalizer-product-name"
+            placeholder="Search product name..."
+          />
+        </div>
+
+        <!-- Boolean Filters -->
+        <div class="filter-group">
+          <label class="filter-label">Need Qty</label>
+          <div class="toggle-group">
+            <button
+              class="toggle-option active"
+              data-filter="normalizer-need-qty"
+              data-value="all"
+            >
+              All
+            </button>
+            <button
+              class="toggle-option"
+              data-filter="normalizer-need-qty"
+              data-value="present"
+            >
+              Present
+            </button>
+            <button
+              class="toggle-option"
+              data-filter="normalizer-need-qty"
+              data-value="absent"
+            >
+              Absent
+            </button>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">Need After Carry</label>
+          <div class="toggle-group">
+            <button
+              class="toggle-option active"
+              data-filter="normalizer-need-after-carry"
+              data-value="all"
+            >
+              All
+            </button>
+            <button
+              class="toggle-option"
+              data-filter="normalizer-need-after-carry"
+              data-value="present"
+            >
+              Present
+            </button>
+            <button
+              class="toggle-option"
+              data-filter="normalizer-need-after-carry"
+              data-value="absent"
+            >
+              Absent
+            </button>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">Carry to Next</label>
+          <div class="toggle-group">
+            <button
+              class="toggle-option active"
+              data-filter="normalizer-carry-next"
+              data-value="all"
+            >
+              All
+            </button>
+            <button
+              class="toggle-option"
+              data-filter="normalizer-carry-next"
+              data-value="present"
+            >
+              Present
+            </button>
+            <button
+              class="toggle-option"
+              data-filter="normalizer-carry-next"
+              data-value="absent"
+            >
+              Absent
+            </button>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">Needs Batch Ref</label>
+          <div class="toggle-group">
+            <button
+              class="toggle-option active"
+              data-filter="normalizer-needs-batch-ref"
+              data-value="all"
+            >
+              All
+            </button>
+            <button
+              class="toggle-option"
+              data-filter="normalizer-needs-batch-ref"
+              data-value="present"
+            >
+              Present
+            </button>
+            <button
+              class="toggle-option"
+              data-filter="normalizer-needs-batch-ref"
+              data-value="absent"
+            >
+              Absent
+            </button>
+          </div>
+        </div>
+
+        <!-- Reset Action -->
+        <div class="filter-group">
+          <label class="filter-label">Reset</label>
+          <button
+            class="action-btn reset"
+            onclick="resetNormalizerFilters()"
+            title="Reset Filters"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+              <path d="M21 3v5h-5" />
+              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+              <path d="M3 21v-5h5" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="pagination">
+        <button class="action-btn secondary" onclick="exportNormalizerData()">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7,10 12,15 17,10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Export CSV
+        </button>
+        <div class="pagination-controls">
+          <button id="normalizer-prev">Previous</button>
+          <span class="small muted" id="normalizer-page-info">Page 1</span>
+          <button id="normalizer-next">Next</button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table id="normalizer-grid">
+          <thead>
+            <tr>
+              <th>Product ID</th>
+              <th>Product Name</th>
+              <th>UOM</th>
+              <th>Month Start</th>
+              <th>Need Qty</th>
+              <th>Pref. Batch Size</th>
+              <th>Min. Batch Size</th>
+              <th>Max. Batch Size</th>
+              <th>Need After Carry</th>
+              <th>Adjusted Bulk to Make</th>
+              <th>Carry to Next</th>
+              <th>Needs Batch Ref</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="normalizer-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Drilldown Modal -->
+    <dialog id="drill-modal">
+      <div class="modal-header">
+        <h3 id="drill-title">Product Details</h3>
+        <button class="modal-close" id="drill-close">✕</button>
+      </div>
+      <p class="small muted" id="drill-subtitle"></p>
+
+      <div
+        style="display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap"
+      >
+        <span class="chip" id="drill-item">Item: —</span>
+        <span class="chip" id="drill-month">Month: —</span>
+      </div>
+
+      <div id="drill-content">
+        <!-- Dynamic content based on the drill type -->
+      </div>
+
+      <div style="margin-top: 20px; text-align: right">
+        <button class="btn" onclick="closeDrillModal()">Close</button>
+      </div>
+    </dialog>
+
+    <!-- Toast Notification -->
+    <div id="toast"></div>
+
+    <script type="module" src="js/production-planning-workbench.js"></script>
+  </body>
+</html>

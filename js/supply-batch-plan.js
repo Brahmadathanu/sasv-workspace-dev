@@ -432,6 +432,9 @@ async function onHeaderChanged() {
 
   // Update tab status indicators (metrics already updated by loadRollup)
   updateTabStatuses();
+
+  // Update overrides tab content based on status
+  updateOverridesTabContent();
 }
 
 // ========= CORE RPCs (direct to SQL) =========
@@ -832,8 +835,18 @@ function updateTabStatuses() {
         break;
       }
       case "tab-overrides":
-        // Overrides are optional
-        status = "complete";
+        // Overrides are only available when plan is applied
+        if (_headerStatus === "applied") {
+          status = "complete";
+          // Enable the tab
+          tab.style.opacity = "1";
+          tab.style.pointerEvents = "auto";
+        } else {
+          status = "incomplete";
+          // Disable the tab
+          tab.style.opacity = "0.5";
+          tab.style.pointerEvents = "none";
+        }
         break;
       case "tab-apply": {
         const allMapped =
@@ -959,7 +972,10 @@ async function onRebuildSelected() {
 // -------- views
 async function loadRollup() {
   const headerId = Number(q("bpHeaderSel").value);
-  if (!headerId) return;
+  if (!headerId) {
+    q("bpStatTotals").textContent = "Select a plan to view statistics";
+    return;
+  }
 
   try {
     // 1. Products (total) - count of lines (products in plan)
@@ -1007,7 +1023,7 @@ async function loadRollup() {
     const batchesMapped = mappedCount || 0;
     const batchesUnmapped = unmappedCount || 0;
 
-    // Display in Build Operations statistics
+    // Update plan statistics display
     q(
       "bpStatTotals"
     ).textContent = `Products (total): ${productsTotal} · Batches (mapped): ${batchesMapped} · Batches (unmapped): ${batchesUnmapped} · Products (no batch ref): ${productsNoBatchRef} · Products (with residuals): ${productsWithResiduals}`;
@@ -1022,7 +1038,7 @@ async function loadRollup() {
     });
   } catch (error) {
     console.error("Error loading rollup statistics:", error);
-    q("bpStatTotals").textContent = "";
+    q("bpStatTotals").textContent = "Error loading statistics";
     updateHeaderMetrics({
       products_total: 0,
       batches_mapped: 0,
@@ -1241,7 +1257,7 @@ async function loadBatches() {
   const { data, error } = await supabase
     .from("v_batch_plan_batches_status")
     .select(
-      "batch_id,product_id,product_name,month_start,batch_no_seq,batch_size,source_rule,map_status,mapped_bn,mapped_size,mapped_uom,bmr_id"
+      "batch_id,product_id,product_name,month_start,batch_no_seq,batch_size,source_rule,map_status,mapped_bn,mapped_size,bmr_id"
     )
     .eq("header_id", headerId)
     .order("product_id")
@@ -1305,7 +1321,7 @@ async function loadUnmappedBatches() {
     return;
   }
   (data || []).forEach((r) => {
-    const productName = getProductName(r.product_id);
+    const productName = getProductDisplay(r.product_id);
     const opt = document.createElement("option");
     opt.value = r.batch_id;
     opt.textContent =
@@ -1755,7 +1771,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Header management
   q("btnReloadHeaders").addEventListener("click", loadHeaders);
-  q("bpHeaderSel").addEventListener("change", onHeaderChanged);
+
+  // Remove any existing listener before adding new one to prevent duplicates
+  const headerSel = q("bpHeaderSel");
+  headerSel.removeEventListener("change", onHeaderChanged);
+  headerSel.addEventListener("change", onHeaderChanged);
+
   q("btnRenameHeader")?.addEventListener("click", onRenameHeader);
   q("btnDeleteHeader")?.addEventListener("click", onDeleteHeader);
   q("btnArchiveHeader")?.addEventListener("click", onArchiveHeader);
@@ -1787,6 +1808,84 @@ document.addEventListener("DOMContentLoaded", () => {
       }, 100);
     });
   }
+
+  // Download menu initialization - Restored with full functionality
+  const downloadMainBtn = q("btnDownloadPlan");
+  const downloadSubmenu = q("downloadSubmenu");
+
+  if (downloadMainBtn && downloadSubmenu) {
+    // Function to position submenu within viewport bounds
+    function positionSubmenu() {
+      const rect = downloadMainBtn.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+
+      // Reset positioning
+      downloadSubmenu.style.right = "";
+      downloadSubmenu.style.left = "";
+      downloadSubmenu.style.top = "";
+      downloadSubmenu.style.bottom = "";
+
+      // Check if submenu would go out of right edge
+      if (rect.right + 320 > viewportWidth) {
+        // Position from right edge of button
+        downloadSubmenu.style.right = "0";
+      } else {
+        // Position from left edge of button
+        downloadSubmenu.style.left = "0";
+      }
+
+      // Check if submenu would go out of bottom edge
+      if (rect.bottom + 300 > viewportHeight) {
+        // Position above the button
+        downloadSubmenu.style.bottom = "100%";
+        downloadSubmenu.style.top = "";
+        downloadSubmenu.style.marginTop = "";
+        downloadSubmenu.style.marginBottom = "4px";
+      } else {
+        // Position below the button (default)
+        downloadSubmenu.style.top = "100%";
+        downloadSubmenu.style.bottom = "";
+        downloadSubmenu.style.marginTop = "4px";
+        downloadSubmenu.style.marginBottom = "";
+      }
+    }
+
+    // Close download submenu when clicking outside
+    document.addEventListener("click", (e) => {
+      const downloadContainer = downloadMainBtn.parentElement;
+      if (!downloadContainer.contains(e.target)) {
+        downloadSubmenu.style.display = "none";
+      }
+    });
+
+    // Handle download menu click to show/hide submenu
+    downloadMainBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isVisible = downloadSubmenu.style.display === "block";
+      if (isVisible) {
+        downloadSubmenu.style.display = "none";
+      } else {
+        positionSubmenu();
+        downloadSubmenu.style.display = "block";
+      }
+    });
+
+    // Close submenu when any download option is clicked
+    downloadSubmenu.addEventListener("click", () => {
+      setTimeout(() => {
+        downloadSubmenu.style.display = "none";
+      }, 100);
+    });
+
+    // Reposition on window resize
+    window.addEventListener("resize", () => {
+      if (downloadSubmenu.style.display === "block") {
+        positionSubmenu();
+      }
+    });
+  }
+
   // Batch filters wiring
   q("bpBatchFilter")?.addEventListener("change", renderBatches);
   q("bpBatchProductFilter")?.addEventListener("input", renderBatches);
@@ -1828,7 +1927,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   q("btnNudgeResiduals")?.addEventListener("click", onNudgeResiduals);
   q("btnRefreshSelected").addEventListener("click", onRebuildSelected);
-  q("btnExportBatches")?.addEventListener("click", exportBatchesCsv);
   q("btnSubmitHeaderKebab")?.addEventListener("click", () =>
     setHeaderStatus("submitted")
   );
@@ -1846,32 +1944,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // Note: Archive button removed from Review tab since it's redundant with persistent header Archive button
-
-  // Download Plan Worklist event listeners
-  q("btnDownloadWorklist")?.addEventListener("click", toggleDownloadMenu);
-  q("btnDownloadCSV")?.addEventListener("click", () =>
-    downloadPlanWorklist("csv")
-  );
-  q("btnPDFMalayalamAyurveda")?.addEventListener("click", () =>
-    downloadPlanWorklist("pdf", "malayalam", "ayurveda")
-  );
-  q("btnPDFMalayalamSiddha")?.addEventListener("click", () =>
-    downloadPlanWorklist("pdf", "malayalam", "siddha")
-  );
-  q("btnPDFEnglishAyurveda")?.addEventListener("click", () =>
-    downloadPlanWorklist("pdf", "english", "ayurveda")
-  );
-  q("btnPDFEnglishSiddha")?.addEventListener("click", () =>
-    downloadPlanWorklist("pdf", "english", "siddha")
-  );
-
-  // Close download menu when clicking outside
-  document.addEventListener("click", (e) => {
-    const downloadMenu = q("downloadMenu");
-    if (downloadMenu && !downloadMenu.contains(e.target)) {
-      downloadMenu.classList.remove("open");
-    }
-  });
 
   // Initialize the application
   loadHeaders();
@@ -1942,7 +2014,7 @@ function renderBatches() {
     rows = rows.filter((r) => {
       const productName = (
         r.product_name ||
-        getProductName(r.product_id) ||
+        getProductDisplay(r.product_id) ||
         ""
       ).toLowerCase();
       const productMalayalam = (
@@ -1966,7 +2038,7 @@ function renderBatches() {
     const editable = _headerStatus !== "applied" && r.map_status === "UNMAPPED";
 
     // Get product display name - prefer product_name from view, fallback to cache
-    const productDisplay = r.product_name || getProductName(r.product_id);
+    const productDisplay = r.product_name || getProductDisplay(r.product_id);
 
     // build kebab menu with conditional actions
     const isWip = r.map_status === "WIP";
@@ -2071,79 +2143,6 @@ document.addEventListener("click", (e) => {
   }
 });
 
-// Export currently filtered batches view to CSV
-function exportBatchesCsv() {
-  const f = (q("bpBatchFilter").value || "").trim();
-  const productFilter = (q("bpBatchProductFilter").value || "")
-    .trim()
-    .toLowerCase();
-
-  let rows = _batchesCache.slice();
-  if (f) rows = rows.filter((r) => r.map_status === f);
-  if (productFilter) {
-    rows = rows.filter((r) => {
-      const productName = (
-        r.product_name ||
-        getProductName(r.product_id) ||
-        ""
-      ).toLowerCase();
-      const productMalayalam = (
-        r.malayalam_name ||
-        getProductMalayalam(r.product_id) ||
-        ""
-      ).toLowerCase();
-      return (
-        String(r.product_id).toLowerCase().includes(productFilter) ||
-        productName.includes(productFilter) ||
-        productMalayalam.includes(productFilter)
-      );
-    });
-  }
-  // No BN filter (removed)
-  // No quick search in export: honor explicit product/BN/status filters only
-
-  // Add product names to export
-  const exportRows = rows.map((r) => ({
-    ...r,
-    product_name: r.product_name || getProductName(r.product_id),
-  }));
-
-  const cols = [
-    "product_id",
-    "product_name",
-    "malayalam_name",
-    "month_start",
-    "batch_no_seq",
-    "batch_size",
-    "source_rule",
-    "map_status",
-    "mapped_bn",
-  ];
-  const head = cols.join(",");
-  const body = exportRows
-    .map((r) =>
-      cols
-        .map((c) => {
-          const v = r[c] ?? "";
-          const s = String(v);
-          return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-        })
-        .join(",")
-    )
-    .join("\n");
-  const csv = head + "\n" + body;
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = Object.assign(document.createElement("a"), {
-    href: url,
-    download: `batch_plan_${q("bpHeaderSel").value}.csv`,
-  });
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
 // inline editor handler: update batch_size for a planned batch
 async function onEditBatchSize(evt) {
   const el = evt.currentTarget;
@@ -2204,209 +2203,259 @@ async function onEditBatchSize(evt) {
   renderBatches();
 }
 
-// ===== CSV helpers (re-added) =====
-function parseCsv(text) {
-  const lines = text.split(/\r?\n/).filter(Boolean);
-  if (!lines.length) return { header: [], rows: [] };
-  const header = lines[0].split(",").map((h) => h.trim());
-  const rows = lines.slice(1).map((line) => {
-    const cols = [];
-    let cur = "",
-      q = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (ch === '"') {
-        if (q && line[i + 1] === '"') {
-          cur += '"';
-          i++;
-        } else q = !q;
-      } else if (ch === "," && !q) {
-        cols.push(cur);
-        cur = "";
-      } else cur += ch;
-    }
-    cols.push(cur);
-    const obj = {};
-    header.forEach((h, i) => (obj[h] = (cols[i] ?? "").trim()));
-    return obj;
-  });
-  return { header, rows };
-}
+// Override management functions
+let _overridesCache = []; // cache for current overrides
 
-function toCSV(rows) {
-  if (!rows?.length) return "";
-  const cols = Object.keys(rows[0]);
-  const esc = (v) => {
-    if (v == null) return "";
-    const s = String(v);
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  return [
-    cols.join(","),
-    ...rows.map((r) => cols.map((c) => esc(r[c])).join(",")),
-  ].join("\n");
-}
-
-async function exportOverridesCsv() {
-  // minimal template with a few examples from v_batch_catalog_all (NOT_INITIATED + WIP)
-  const { data, error } = await supabase
-    .from("v_batch_catalog_all")
-    .select("product_id,bn,batch_size,uom,source")
-    .limit(50);
-  if (error) {
-    console.error(error);
-    return toast("Template fetch failed");
+async function loadOverrides() {
+  const headerId = Number(q("bpHeaderSel").value);
+  if (!headerId) {
+    _overridesCache = [];
+    renderOverrides();
+    return;
   }
-  const rows = (data || []).map((r) => ({
-    product_id: r.product_id,
-    month_start: "", // you fill
-    bn: r.bn,
-    batch_size: r.batch_size,
-    uom: r.uom,
-    op_type: "ADD", // or RESIZE/CANCEL
-    override_qty: "", // required for ADD/RESIZE
-    note: "",
-  }));
-  const csv = toCSV(
-    rows.length
-      ? rows
-      : [
-          {
-            product_id: "",
-            month_start: "",
-            bn: "",
-            batch_size: "",
-            uom: "",
-            op_type: "ADD",
-            override_qty: "",
-            note: "",
-          },
-        ]
-  );
-  const blob = new Blob([csv], { type: "text/csv" });
-  const a = Object.assign(document.createElement("a"), {
-    href: URL.createObjectURL(blob),
-    download: "batch_overrides_template.csv",
-  });
-  document.body.append(a);
-  a.click();
-  a.remove();
+
+  try {
+    const { data, error } = await supabase.rpc("list_overrides_for_header", {
+      p_header_id: headerId,
+    });
+
+    if (error) {
+      console.error("Failed to load overrides:", error);
+      toast("Failed to load overrides");
+      return;
+    }
+
+    _overridesCache = data || [];
+    renderOverrides();
+  } catch (e) {
+    console.error("Override load exception:", e);
+    toast("Error loading overrides");
+  }
 }
 
-let ovParsed = [];
-async function previewOverridesCsv() {
-  const f = document.getElementById("ovFile").files?.[0];
-  if (!f) return toast("Pick a CSV");
-  const text = await f.text();
-  const { header, rows } = parseCsv(text);
-  const need = [
-    "product_id",
-    "month_start",
-    "bn",
-    "batch_size",
-    "uom",
-    "op_type",
-    "override_qty",
-    "note",
-  ];
-  const missing = need.filter((n) => !header.includes(n));
-  if (missing.length) return toast("CSV missing: " + missing.join(", "));
-  // normalize
-  ovParsed = rows
-    .map((r) => ({
-      product_id: Number(r.product_id) || null,
-      month_start: r.month_start || null,
-      bn: r.bn || null,
-      batch_size: r.batch_size ? Number(r.batch_size) : null,
-      uom: r.uom || null,
-      op_type: (r.op_type || "").toUpperCase(),
-      override_qty: r.override_qty === "" ? null : Number(r.override_qty),
-      note: r.note || null,
-    }))
-    .filter(
-      (r) =>
-        r.product_id &&
-        r.month_start &&
-        r.bn &&
-        r.batch_size &&
-        r.uom &&
-        r.op_type
-    );
-  // paint preview
-  const tb = document.getElementById("ovPreviewBody");
-  tb.innerHTML = "";
-  ovParsed.slice(0, 200).forEach((r) => {
+async function renderOverrides() {
+  const tbody = document.getElementById("overridesGridBody");
+  if (!tbody) return;
+
+  tbody.innerHTML = "";
+
+  if (_overridesCache.length === 0) {
+    tbody.innerHTML =
+      '<tr><td colspan="10" class="muted" style="text-align: center; padding: 20px;">No active overrides</td></tr>';
+    return;
+  }
+
+  for (const override of _overridesCache) {
+    const productName = await getProductName(override.product_id);
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${r.product_id}</td><td>${r.month_start}</td><td>${r.bn}</td>
-      <td>${r.batch_size}</td><td>${r.uom}</td><td>${r.op_type}</td>
-      <td>${r.override_qty ?? ""}</td><td>${r.note ?? ""}</td>`;
-    tb.appendChild(tr);
-  });
-  document.getElementById(
-    "ovStatus"
-  ).textContent = `Ready: ${ovParsed.length} rows`;
+      <td>${override.product_id}</td>
+      <td>${productName}</td>
+      <td>${override.month_start}</td>
+      <td>${override.bn}</td>
+      <td>${override.batch_size}</td>
+      <td>${override.uom}</td>
+      <td><span class="op-type-badge op-type-${override.op_type.toLowerCase()}">${
+      override.op_type
+    }</span></td>
+      <td>${override.override_qty ?? ""}</td>
+      <td>${override.note || ""}</td>
+      <td>
+        <button class="btn btn-sm btn-danger" onclick="deactivateOverride(${
+          override.product_id
+        }, '${override.month_start}', '${override.bn}', ${
+      override.batch_size
+    }, '${override.uom}', '${override.op_type}')">
+          Deactivate
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  // Update summary
+  const summary = document.getElementById("overridesSummary");
+  if (summary) {
+    const counts = _overridesCache.reduce((acc, o) => {
+      acc[o.op_type] = (acc[o.op_type] || 0) + 1;
+      return acc;
+    }, {});
+
+    summary.textContent = `Active overrides: ${
+      _overridesCache.length
+    } · Added: ${counts.ADD || 0} · Resized: ${
+      counts.RESIZE || 0
+    } · Cancelled: ${counts.CANCEL || 0}`;
+  }
 }
 
-async function applyOverrides() {
-  if (!ovParsed.length) return toast("Nothing to apply");
-  // 1) insert to staging (truncate window first = safer)
-  const winFrom = ovParsed.reduce(
-    (m, r) => (m && m < r.month_start ? m : r.month_start),
-    ovParsed[0].month_start
-  );
-  const winTo = ovParsed.reduce(
-    (m, r) => (m && m > r.month_start ? m : r.month_start),
-    ovParsed[0].month_start
-  );
-  // clear staging in window
-  let { error: delErr } = await supabase
-    .from("production_batch_overrides_staging")
-    .delete()
-    .gte("month_start", winFrom)
-    .lte("month_start", winTo);
-  if (delErr) {
-    console.error(delErr);
-    return toast("Stage clear failed");
+async function applyOverrideImmediate() {
+  const headerId = Number(q("bpHeaderSel").value);
+  if (!headerId) return toast("Pick a header");
+
+  const form = document.getElementById("overrideForm");
+  const formData = new FormData(form);
+
+  const override = {
+    product_id: Number(formData.get("product_id")) || null,
+    month_start: formData.get("month_start") || null,
+    bn: formData.get("bn") || null,
+    batch_size: Number(formData.get("batch_size")) || null,
+    uom: formData.get("uom") || null,
+    op_type: formData.get("op_type") || null,
+    override_qty:
+      formData.get("override_qty") === ""
+        ? null
+        : Number(formData.get("override_qty")),
+    note: formData.get("note") || null,
+  };
+
+  // Client-side validation
+  if (
+    !override.product_id ||
+    !override.month_start ||
+    !override.bn ||
+    !override.batch_size ||
+    !override.uom ||
+    !override.op_type
+  ) {
+    return toast("Please fill all required fields");
   }
-  // chunked insert
-  const CH = 500;
-  for (let i = 0; i < ovParsed.length; i += CH) {
-    const slice = ovParsed.slice(i, i + CH);
-    const { error } = await supabase
-      .from("production_batch_overrides_staging")
-      .insert(slice);
+
+  if (override.op_type === "CANCEL" && override.override_qty !== null) {
+    return toast("Cancel operations must have empty override quantity");
+  }
+
+  if (
+    (override.op_type === "ADD" || override.op_type === "RESIZE") &&
+    (!override.override_qty || override.override_qty <= 0)
+  ) {
+    return toast("Add/Resize operations require a positive override quantity");
+  }
+
+  try {
+    const { error } = await supabase.rpc(
+      "apply_production_batch_override_immediate",
+      {
+        p_header_id: headerId,
+        p_product_id: override.product_id,
+        p_month_start: override.month_start,
+        p_bn: override.bn,
+        p_batch_size: override.batch_size,
+        p_uom: override.uom,
+        p_op_type: override.op_type,
+        p_override_qty: override.override_qty,
+        p_note: override.note,
+      }
+    );
+
     if (error) {
-      console.error(error);
-      return toast(`Insert failed at ${i}`);
+      console.error("Override apply failed:", error);
+      return toast(`Failed to apply override: ${error.message}`);
     }
+
+    toast("Override applied successfully ✔");
+
+    // Reset form
+    form.reset();
+
+    // Refresh data
+    await loadOverrides();
+    await loadRollup();
+    await loadLines();
+  } catch (e) {
+    console.error("Override apply exception:", e);
+    toast("Error applying override");
   }
-  // 2) promote via RPC (WIP guard inside)
-  const { data, error } = await supabase.rpc(
-    "apply_production_batch_overrides",
-    {
-      p_from: winFrom,
-      p_to: winTo,
-    }
+}
+
+async function deactivateOverride(
+  productId,
+  monthStart,
+  bn,
+  batchSize,
+  uom,
+  opType
+) {
+  const ok = await showConfirm(
+    `Deactivate ${opType} override for BN ${bn}?`,
+    "Deactivate Override"
   );
-  if (error) {
-    console.error(error);
-    return toast("Apply RPC failed");
+  if (!ok) return;
+
+  try {
+    const { error } = await supabase.rpc(
+      "deactivate_production_batch_override",
+      {
+        p_product_id: productId,
+        p_month_start: monthStart,
+        p_bn: bn,
+        p_batch_size: batchSize,
+        p_uom: uom,
+        p_op_type: opType,
+      }
+    );
+
+    if (error) {
+      console.error("Override deactivate failed:", error);
+      return toast(`Failed to deactivate override: ${error.message}`);
+    }
+
+    toast("Override deactivated ✔");
+
+    // Refresh data
+    await loadOverrides();
+    await loadRollup();
+    await loadLines();
+  } catch (e) {
+    console.error("Override deactivate exception:", e);
+    toast("Error deactivating override");
   }
-  const [ins, upd, deact] = data || [0, 0, 0];
-  toast(`Overrides applied: +${ins} / upd ${upd} / deact ${deact}`);
-  document.getElementById(
-    "ovStatus"
-  ).textContent = `Applied window ${winFrom} → ${winTo}`;
-  // optional: refresh overlays/rollup
-  await loadRollup();
+}
+
+// Helper function to update overrides tab content based on header status
+function updateOverridesTabContent() {
+  const disabledMessage = document.getElementById("overrides-disabled-message");
+  const enabledContent = document.getElementById("overrides-enabled-content");
+
+  if (!disabledMessage || !enabledContent) return;
+
+  if (_headerStatus === "applied") {
+    disabledMessage.style.display = "none";
+    enabledContent.style.display = "block";
+    loadOverrides();
+  } else {
+    disabledMessage.style.display = "block";
+    enabledContent.style.display = "none";
+  }
+}
+
+// Expose functions for inline handlers
+window.deactivateOverride = deactivateOverride;
+window.toggleOverrideQty = toggleOverrideQty;
+
+// Helper function to toggle override quantity field based on operation type
+function toggleOverrideQty() {
+  const opTypeSelect = document.querySelector('[name="op_type"]');
+  const overrideQtyInput = document.querySelector('[name="override_qty"]');
+
+  if (!opTypeSelect || !overrideQtyInput) return;
+
+  const opType = opTypeSelect.value;
+
+  if (opType === "CANCEL") {
+    overrideQtyInput.value = "";
+    overrideQtyInput.disabled = true;
+    overrideQtyInput.placeholder = "Not required for CANCEL";
+  } else {
+    overrideQtyInput.disabled = false;
+    overrideQtyInput.placeholder = "Required for ADD/RESIZE";
+  }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
   const byId = (id) => document.getElementById(id);
-  byId("btnExportOverridesCsv")?.addEventListener("click", exportOverridesCsv);
-  byId("btnPreviewOverrides")?.addEventListener("click", previewOverridesCsv);
-  byId("btnApplyOverrides")?.addEventListener("click", applyOverrides);
+  byId("btnApplyOverride")?.addEventListener("click", applyOverrideImmediate);
 });
 
 // Expose handlers that may be invoked from other modules/templates or used in inline markup
@@ -2450,6 +2499,8 @@ window.onUnlinkBmr = onUnlinkBmr; // exposed for inline Unlink buttons
     // Load tab-specific data
     if (id === "tab-batch-sizes") {
       loadBatchSizeReferences();
+    } else if (id === "tab-overrides") {
+      updateOverridesTabContent();
     }
   }
 
@@ -2925,530 +2976,6 @@ function updateWorkflowProgress(status, checks) {
   }
 }
 
-// Download Plan Worklist functions
-function toggleDownloadMenu() {
-  const menu = q("downloadMenu");
-  const isOpen = menu.classList.contains("open");
-
-  // Close all other menus first
-  document
-    .querySelectorAll(".kebab-menu.open")
-    .forEach((m) => m.classList.remove("open"));
-
-  // Toggle download menu
-  if (isOpen) {
-    menu.classList.remove("open");
-  } else {
-    menu.classList.add("open");
-  }
-}
-
-async function downloadPlanWorklist(format, language = null, category = null) {
-  const headerId = Number(q("bpHeaderSel").value);
-  if (!headerId) {
-    toast("Please select a plan first");
-    return;
-  }
-
-  // Close the download menu
-  q("downloadMenu").classList.remove("open");
-
-  try {
-    // Fetch data using the database function
-    const { data, error } = await supabase.rpc("get_plan_worklist", {
-      p_header_id: headerId,
-    });
-
-    if (error) {
-      console.error(error);
-      toast("Worklist fetch failed");
-      return;
-    }
-
-    if (!data || data.length === 0) {
-      toast("No data available for download");
-      return;
-    }
-
-    if (format === "csv") {
-      downloadWorklistCSV(data);
-    } else if (format === "pdf") {
-      downloadWorklistPDF(data, language, category);
-    }
-  } catch (err) {
-    console.error("Download error:", err);
-    toast("Download failed");
-  }
-}
-
-function downloadWorklistCSV(data) {
-  // CSV columns: Product, Malayalam, Month, Batch Size, Rule, Status, BN
-  const headers = [
-    "Product",
-    "Malayalam",
-    "Month",
-    "Batch Size",
-    "Rule",
-    "Status",
-    "BN",
-  ];
-
-  const csvRows = [headers.join(",")];
-
-  data.forEach((row) => {
-    const csvRow = [
-      escapeCSV(row.product || ""),
-      escapeCSV(row.malayalam || ""),
-      "", // Month - not available in worklist data
-      row.batch_size || "",
-      "", // Rule - not available in worklist data
-      row.status || "",
-      "", // BN - not available in worklist data
-    ];
-    csvRows.push(csvRow.join(","));
-  });
-
-  const csvContent = csvRows.join("\n");
-  downloadFile(csvContent, "plan-worklist.csv", "text/csv");
-}
-
-function downloadWorklistPDF(data, language, categoryFilter) {
-  // Filter data by category
-  let filteredData = data;
-  if (categoryFilter === "ayurveda") {
-    filteredData = data.filter((row) =>
-      ["Ayurveda", "Food Products", "Other Products"].includes(row.category)
-    );
-  } else if (categoryFilter === "siddha") {
-    filteredData = data.filter((row) => row.category === "Siddha");
-  }
-
-  if (filteredData.length === 0) {
-    toast(`No ${categoryFilter} products found`);
-    return;
-  }
-
-  // Group by category and subcategory
-  const grouped = groupByCategorySubcategory(filteredData);
-
-  // Generate PDF content
-  generateWorklistPDF(grouped, language, categoryFilter);
-}
-
-function groupByCategorySubcategory(data) {
-  const grouped = {};
-
-  data.forEach((row) => {
-    const category = row.category || "Uncategorized";
-    const subCategory = row.sub_category || "Uncategorized";
-
-    if (!grouped[category]) {
-      grouped[category] = {};
-    }
-
-    if (!grouped[category][subCategory]) {
-      grouped[category][subCategory] = [];
-    }
-
-    grouped[category][subCategory].push(row);
-  });
-
-  return grouped;
-}
-
-function generateWorklistPDF(groupedData, language, categoryFilter) {
-  try {
-    // Check if required libraries are available
-    if (
-      typeof window.jspdf === "undefined" ||
-      typeof window.html2canvas === "undefined"
-    ) {
-      toast("PDF libraries not loaded. Please refresh the page.");
-      return;
-    }
-
-    // For Malayalam, use HTML-to-PDF approach for better Unicode support
-    if (language === "malayalam") {
-      generateMalayalamPDF(groupedData, categoryFilter);
-      return;
-    }
-
-    // For English, use the original jsPDF approach
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-
-    // Title
-    const title = `Plan Worklist - ${
-      categoryFilter.charAt(0).toUpperCase() + categoryFilter.slice(1)
-    } (English)`;
-
-    doc.setFontSize(16);
-    doc.setFont("helvetica", "bold");
-    doc.text(title, 105, 20, { align: "center" });
-
-    // Subtitle with date
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Generated: ${new Date().toLocaleString()}`, 105, 30, {
-      align: "center",
-    });
-
-    let yPos = 50;
-
-    // Process each category
-    Object.keys(groupedData)
-      .sort()
-      .forEach((category) => {
-        // Check if we need a new page for category
-        if (yPos > 250) {
-          doc.addPage();
-          yPos = 20;
-        }
-
-        // Category header
-        doc.setFontSize(14);
-        doc.setFont("helvetica", "bold");
-        doc.text(category.toUpperCase(), 20, yPos);
-        yPos += 10;
-
-        Object.keys(groupedData[category])
-          .sort()
-          .forEach((subCategory) => {
-            // Check if we need a new page for subcategory
-            if (yPos > 240) {
-              doc.addPage();
-              yPos = 20;
-            }
-
-            // Subcategory header
-            doc.setFontSize(12);
-            doc.setFont("helvetica", "bold");
-            doc.text(subCategory, 25, yPos);
-            yPos += 8;
-
-            // Prepare table data
-            const tableData = [];
-            groupedData[category][subCategory].forEach((row) => {
-              // For PDF, always use English product names since jsPDF doesn't support Malayalam Unicode
-              // If Malayalam was requested, we'll add a note in the title
-              const productName = row.product;
-
-              tableData.push([
-                productName || "",
-                row.bn || "",
-                row.batch_size ? row.batch_size.toString() : "",
-                row.uom || "",
-              ]);
-            });
-
-            // Generate table using autoTable
-            if (tableData.length > 0) {
-              const productHeader = "Product"; // Always use English for PDF compatibility
-
-              doc.autoTable({
-                head: [[productHeader, "BN", "Batch Size", "UOM"]],
-                body: tableData,
-                startY: yPos,
-                margin: { left: 30 },
-                styles: {
-                  fontSize: 9,
-                  cellPadding: 3,
-                },
-                headStyles: {
-                  fillColor: [240, 240, 240],
-                  textColor: [0, 0, 0],
-                  fontStyle: "bold",
-                },
-                alternateRowStyles: {
-                  fillColor: [250, 250, 250],
-                },
-                columnStyles: {
-                  0: { cellWidth: 80 }, // Product name
-                  1: { cellWidth: 30 }, // BN
-                  2: { cellWidth: 30 }, // Batch Size
-                  3: { cellWidth: 25 }, // UOM
-                },
-                didDrawPage: function (data) {
-                  yPos = data.cursor.y + 10;
-                },
-              });
-
-              yPos = doc.lastAutoTable.finalY + 10;
-            }
-          });
-
-        yPos += 5; // Extra space after category
-      });
-
-    // Add summary on last page or new page if needed
-    if (yPos > 250) {
-      doc.addPage();
-      yPos = 20;
-    }
-
-    let totalBatches = 0;
-    Object.keys(groupedData).forEach((category) => {
-      Object.keys(groupedData[category]).forEach((subCategory) => {
-        totalBatches += groupedData[category][subCategory].length;
-      });
-    });
-
-    doc.setDrawColor(0, 0, 0);
-    doc.line(20, yPos, 190, yPos); // Horizontal line
-    yPos += 10;
-
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("SUMMARY", 20, yPos);
-    yPos += 8;
-
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Total Batches: ${totalBatches}`, 20, yPos);
-    yPos += 6;
-    doc.text(`Categories: ${Object.keys(groupedData).length}`, 20, yPos);
-    yPos += 6;
-    doc.text(`Generated: ${new Date().toLocaleString()}`, 20, yPos);
-
-    // Save the PDF
-    const timestamp = new Date().toISOString().split("T")[0];
-    const filename = `plan-worklist-${categoryFilter}-${language}-${timestamp}.pdf`;
-    doc.save(filename);
-
-    toast(`PDF downloaded: ${filename}`);
-  } catch (error) {
-    console.error("PDF generation failed:", error);
-    toast("PDF generation failed. Please try again.");
-  }
-}
-
-// Preload Malayalam fonts to ensure they're available for PDF generation
-async function preloadMalayalamFonts() {
-  return new Promise((resolve) => {
-    const fonts = [
-      new FontFace(
-        "Anek Malayalam",
-        "url(css/fonts/AnekMalayalam-Regular.ttf)",
-        { weight: "normal" }
-      ),
-      new FontFace("Anek Malayalam", "url(css/fonts/AnekMalayalam-Bold.ttf)", {
-        weight: "bold",
-      }),
-      new FontFace(
-        "Anek Malayalam",
-        "url(css/fonts/AnekMalayalam-Medium.ttf)",
-        { weight: "500" }
-      ),
-    ];
-
-    Promise.all(
-      fonts.map((font) =>
-        font
-          .load()
-          .then((loadedFont) => {
-            document.fonts.add(loadedFont);
-            return loadedFont;
-          })
-          .catch(() => {
-            console.warn(`Failed to load font: ${font.family} ${font.weight}`);
-            return null;
-          })
-      )
-    ).then(() => {
-      // Wait a bit more to ensure fonts are fully loaded
-      setTimeout(resolve, 100);
-    });
-  });
-}
-
-// Malayalam PDF generation using HTML-to-Canvas approach for Unicode support
-async function generateMalayalamPDF(groupedData, categoryFilter) {
-  try {
-    toast("Generating Malayalam PDF... Please wait.");
-
-    // Preload Malayalam fonts before generating PDF
-    await preloadMalayalamFonts();
-
-    // Create a temporary HTML element for rendering Malayalam content
-    const tempContainer = document.createElement("div");
-    tempContainer.style.position = "fixed";
-    tempContainer.style.top = "-9999px";
-    tempContainer.style.left = "-9999px";
-    tempContainer.style.width = "800px";
-    tempContainer.style.backgroundColor = "white";
-    tempContainer.style.padding = "20px";
-    tempContainer.style.fontFamily =
-      "'Anek Malayalam', 'Noto Sans Malayalam', system-ui, sans-serif";
-    tempContainer.className = "pdf-malayalam-content";
-
-    // Build HTML content with Malayalam text
-    const title = `Plan Worklist - ${
-      categoryFilter.charAt(0).toUpperCase() + categoryFilter.slice(1)
-    } (Malayalam)`;
-
-    let htmlContent = `
-      <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="margin: 0 0 10px; font-size: 18px; color: #2563eb;">${title}</h1>
-        <p style="margin: 0; font-size: 12px; color: #666;">Generated: ${new Date().toLocaleString()}</p>
-      </div>
-    `;
-
-    // Process each category
-    Object.keys(groupedData)
-      .sort()
-      .forEach((category) => {
-        htmlContent += `
-        <div style="margin-bottom: 25px;">
-          <h2 style="background-color: #f3f4f6; padding: 8px; margin: 0 0 10px; font-size: 14px; color: #1e40af; border-left: 4px solid #2563eb;">
-            ${category.toUpperCase()}
-          </h2>
-      `;
-
-        Object.keys(groupedData[category])
-          .sort()
-          .forEach((subCategory) => {
-            htmlContent += `
-          <div style="margin-bottom: 15px;">
-            <h3 style="background-color: #e0e7ff; padding: 6px 12px; margin: 0 0 8px; font-size: 12px; color: #3730a3;">
-              ${subCategory}
-            </h3>
-            <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 10px; font-family: 'Anek Malayalam', 'Noto Sans Malayalam', system-ui, sans-serif;">
-              <thead>
-                <tr style="background-color: #f9fafb;">
-                  <th style="border: 1px solid #d1d5db; padding: 6px; text-align: left; font-weight: 600; font-family: 'Anek Malayalam', system-ui, sans-serif;">Product (Malayalam)</th>
-                  <th style="border: 1px solid #d1d5db; padding: 6px; text-align: left; font-weight: 600;">BN</th>
-                  <th style="border: 1px solid #d1d5db; padding: 6px; text-align: left; font-weight: 600;">Batch Size</th>
-                  <th style="border: 1px solid #d1d5db; padding: 6px; text-align: left; font-weight: 600;">UOM</th>
-                </tr>
-              </thead>
-              <tbody>
-        `;
-
-            groupedData[category][subCategory].forEach((row, index) => {
-              const rowStyle =
-                index % 2 === 0
-                  ? "background-color: #ffffff;"
-                  : "background-color: #f9fafb;";
-              const productName = row.malayalam || row.product;
-
-              htmlContent += `
-            <tr style="${rowStyle}">
-              <td style="border: 1px solid #e5e7eb; padding: 6px; font-family: 'Anek Malayalam', 'Noto Sans Malayalam', system-ui, sans-serif;">${
-                productName || ""
-              }</td>
-              <td style="border: 1px solid #e5e7eb; padding: 6px;">${
-                row.bn || ""
-              }</td>
-              <td style="border: 1px solid #e5e7eb; padding: 6px;">${
-                row.batch_size || ""
-              }</td>
-              <td style="border: 1px solid #e5e7eb; padding: 6px;">${
-                row.uom || ""
-              }</td>
-            </tr>
-          `;
-            });
-
-            htmlContent += `
-              </tbody>
-            </table>
-          </div>
-        `;
-          });
-
-        htmlContent += `</div>`;
-      });
-
-    // Add summary
-    let totalBatches = 0;
-    Object.keys(groupedData).forEach((category) => {
-      Object.keys(groupedData[category]).forEach((subCategory) => {
-        totalBatches += groupedData[category][subCategory].length;
-      });
-    });
-
-    htmlContent += `
-      <div style="border-top: 2px solid #e5e7eb; padding-top: 15px; margin-top: 20px;">
-        <h3 style="margin: 0 0 8px; font-size: 14px; color: #1e40af;">SUMMARY</h3>
-        <p style="margin: 2px 0; font-size: 12px;">Total Batches: ${totalBatches}</p>
-        <p style="margin: 2px 0; font-size: 12px;">Categories: ${
-          Object.keys(groupedData).length
-        }</p>
-        <p style="margin: 2px 0; font-size: 12px;">Generated: ${new Date().toLocaleString()}</p>
-      </div>
-    `;
-
-    tempContainer.innerHTML = htmlContent;
-    document.body.appendChild(tempContainer);
-
-    // Convert to canvas using html2canvas
-    const canvas = await window.html2canvas(tempContainer, {
-      scale: 2,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: "#ffffff",
-      width: 800,
-      height: tempContainer.scrollHeight,
-    });
-
-    // Remove temporary container
-    document.body.removeChild(tempContainer);
-
-    // Create PDF from canvas
-    const { jsPDF } = window.jspdf;
-    const imgData = canvas.toDataURL("image/png");
-
-    // Calculate dimensions for A4
-    const imgWidth = 210; // A4 width in mm
-    const pageHeight = 295; // A4 height in mm
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-    const doc = new jsPDF("p", "mm", "a4");
-    let heightLeft = imgHeight;
-    let position = 0;
-
-    // Add first page
-    doc.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-    heightLeft -= pageHeight;
-
-    // Add additional pages if needed
-    while (heightLeft >= 0) {
-      position = heightLeft - imgHeight;
-      doc.addPage();
-      doc.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-    }
-
-    // Save the PDF
-    const timestamp = new Date().toISOString().split("T")[0];
-    const filename = `plan-worklist-${categoryFilter}-malayalam-${timestamp}.pdf`;
-    doc.save(filename);
-
-    toast(`Malayalam PDF downloaded: ${filename}`);
-  } catch (error) {
-    console.error("Malayalam PDF generation failed:", error);
-    toast("Malayalam PDF generation failed. Please try again.");
-  }
-}
-
-function escapeCSV(str) {
-  if (str == null) return "";
-  const s = String(str);
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
-
-function downloadFile(content, filename, mimeType) {
-  const blob = new Blob([content], { type: mimeType });
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  window.URL.revokeObjectURL(url);
-}
-
 // Make functions available globally for other functions to call
 window.updateReadinessChecklist = updateReadinessChecklist;
 window.updateHealthChecks = updateHealthChecks;
@@ -3491,7 +3018,6 @@ window.updateHealthChecks = updateHealthChecks;
     bpBatchFilter: "Filter by mapping status (UNMAPPED / MAPPED / WIP).",
     bpBatchProductFilter:
       "Filter by product name or product id (partial match).",
-    btnExportBatches: "Export the currently filtered batch list to CSV.",
 
     // Mapping
     mapBatchSel: "Pick an UNMAPPED planned batch to map.",
@@ -3501,8 +3027,6 @@ window.updateHealthChecks = updateHealthChecks;
     btnReloadMap: "Rebuild mapping rollup and candidates.",
 
     // Overrides
-    btnExportOverridesCsv:
-      "Download a CSV template for overrides (ADD/RESIZE/CANCEL).",
     ovFile: "Choose your overrides CSV to preview.",
     btnPreviewOverrides: "Preview parsed overrides (valid rows only).",
     btnApplyOverrides:
@@ -4275,3 +3799,366 @@ function validateQuickEditBatchSizes() {
 window.editBatchSizeRef = editBatchSizeRef;
 window.deleteBatchSizeRef = deleteBatchSizeRef;
 window.openBatchSizeQuickEdit = openBatchSizeQuickEdit;
+window.downloadWorklist = downloadWorklist;
+
+// ========= DOWNLOAD WORKLIST FUNCTIONALITY =========
+
+async function downloadWorklist(format, category, language) {
+  const headerId = Number(q("bpHeaderSel").value);
+  if (!headerId) return toast("Please select a header first");
+
+  try {
+    // Get header info for window dates
+    const { data: header, error: headerError } = await supabase
+      .from("batch_plan_headers")
+      .select("id,plan_title,window_from,window_to")
+      .eq("id", headerId)
+      .single();
+
+    if (headerError || !header) {
+      console.error("Header fetch error:", headerError);
+      return toast("Failed to fetch header information");
+    }
+
+    // Get worklist data
+    const { data: worklistData, error: worklistError } = await supabase.rpc(
+      "get_plan_worklist",
+      { p_header_id: headerId }
+    );
+
+    if (worklistError) {
+      console.error("Worklist fetch error:", worklistError);
+      return toast("Failed to fetch worklist data");
+    }
+
+    if (!worklistData || worklistData.length === 0) {
+      return toast("No data available for the selected plan");
+    }
+
+    const planWindow = `${header.window_from} to ${header.window_to}`;
+
+    if (format === "csv") {
+      downloadCSV(worklistData, planWindow, category, language);
+    } else if (format === "pdf") {
+      // Use jsPDF for guaranteed header repetition (same as wip-stock.js)
+      const pdfSuccess = await generatePdfWithJsPDF(
+        worklistData,
+        header,
+        planWindow,
+        category,
+        language
+      );
+
+      if (!pdfSuccess) {
+        // PDF generation failed - show error message
+        toast("PDF generation failed. Please try again.");
+      }
+    } else {
+      toast("Unsupported download format: " + format);
+    }
+  } catch (error) {
+    console.error("Download error:", error);
+    toast("Failed to download worklist");
+  }
+}
+
+// eslint-disable-next-line no-unused-vars
+function downloadCSV(data, planWindow, category, language) {
+  // CSV contains ALL data - no category filtering
+  // Note: category and language parameters kept for API compatibility but not used
+  const allData = data;
+
+  // Define CSV headers as per specification
+  const headers = [
+    "Product",
+    "Malayalam",
+    "Month",
+    "BN",
+    "Batch Size",
+    "UOM",
+    "Status",
+    "Category",
+    "Sub-category",
+    "Group",
+    "Sub-group",
+  ];
+
+  // Convert data to CSV format with proper escaping
+  const csvContent = [
+    headers.join(","),
+    ...allData.map((row) =>
+      [
+        `"${(row.product || "").replace(/"/g, '""')}"`,
+        `"${(row.malayalam || "").replace(/"/g, '""')}"`,
+        `"${planWindow}"`, // Using plan window as "Month"
+        `"${(row.bn || "").replace(/"/g, '""')}"`,
+        `"${row.batch_size || ""}"`,
+        `"${(row.uom || "").replace(/"/g, '""')}"`,
+        `"${(row.status || "").replace(/"/g, '""')}"`,
+        `"${(row.category || "").replace(/"/g, '""')}"`,
+        `"${(row.sub_category || "").replace(/"/g, '""')}"`,
+        `"${(row.group || "").replace(/"/g, '""')}"`,
+        `"${(row.sub_group || "").replace(/"/g, '""')}"`,
+      ].join(",")
+    ),
+  ].join("\n");
+
+  // Create and download file
+  const blob = new Blob(["\uFEFF" + csvContent], {
+    type: "text/csv;charset=utf-8;",
+  }); // Add BOM for Excel compatibility
+  const link = document.createElement("a");
+  const timestamp = new Date().toISOString().split("T")[0];
+  const fileName = `batch_plan_worklist_complete_${timestamp}.csv`;
+
+  link.href = URL.createObjectURL(blob);
+  link.download = fileName;
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  toast(`CSV downloaded: ${fileName}`);
+}
+
+// jsPDF PDF Generation - Based on working wip-stock.js pattern
+async function generatePdfWithJsPDF(
+  data,
+  header,
+  planWindow,
+  category,
+  language
+) {
+  try {
+    // Check if jsPDF is available
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      throw new Error("jsPDF library not loaded");
+    }
+
+    const { jsPDF } = window.jspdf;
+
+    // Filter data based on category
+    let filteredData = data;
+    if (category === "ayurveda") {
+      filteredData = data.filter((row) =>
+        ["Ayurveda", "Food Products", "Other Products"].includes(row.category)
+      );
+    } else if (category === "siddha") {
+      filteredData = data.filter((row) => row.category === "Siddha");
+    }
+
+    if (filteredData.length === 0) {
+      toast("No data available for the selected category");
+      return false;
+    }
+
+    toast("Generating PDF with guaranteed header repetition... Please wait.");
+
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+    const pw = doc.internal.pageSize.getWidth();
+    const ph = doc.internal.pageSize.getHeight();
+    const leftMargin = 40;
+    const rightMargin = 40;
+    const tableTopY = 130;
+
+    // Document header
+    doc
+      .setFont("helvetica", "normal")
+      .setFontSize(10)
+      .text("Gurucharanam Saranam", pw / 2, 30, { align: "center" });
+
+    doc
+      .setFont("helvetica", "bold")
+      .setFontSize(12)
+      .text("Santhigiri Ayurveda Siddha Vaidyasala", pw / 2, 55, {
+        align: "center",
+      });
+
+    doc
+      .setFont("helvetica", "bold")
+      .setFontSize(14)
+      .text("BATCH PLAN WORKLIST - " + category.toUpperCase(), pw / 2, 85, {
+        align: "center",
+      });
+
+    doc
+      .setFont("helvetica", "normal")
+      .setFontSize(10)
+      .text("Plan Window: " + planWindow, pw / 2, 105, { align: "center" });
+
+    // Remove row count display as requested
+    // doc
+    //   .setFont("helvetica", "bold")
+    //   .setFontSize(10)
+    //   .text(
+    //     filteredData.length + " RECORDS",
+    //     pw - rightMargin,
+    //     tableTopY - 12,
+    //     {
+    //       align: "right",
+    //     }
+    //   );
+
+    // Filter data by category based on download type
+    let categoryFilteredData;
+    if (category === "ayurveda") {
+      categoryFilteredData = filteredData.filter((row) =>
+        ["Ayurveda", "Food Products", "Other Products"].includes(row.category)
+      );
+    } else if (category === "siddha") {
+      categoryFilteredData = filteredData.filter(
+        (row) => row.category === "Siddha"
+      );
+    } else {
+      categoryFilteredData = filteredData; // fallback to all data
+    }
+
+    // 5-column layout as requested: Product, Batch Size, UOM, BN, Status
+    // Headers always in English as requested
+    const tableHeaders = ["Product", "Batch Size", "UOM", "BN", "Status"];
+
+    // Generate table data with sub-headings (data already sorted by DB function)
+    const tableData = [];
+    let currentCategory = "";
+    let currentGroup = "";
+
+    categoryFilteredData.forEach((row) => {
+      // Add category sub-heading when category changes
+      if (row.category !== currentCategory) {
+        currentCategory = row.category;
+        currentGroup = ""; // Reset group when category changes
+
+        // Add category header row
+        tableData.push([
+          {
+            content: `${row.category.toUpperCase()}`,
+            colSpan: 5,
+            styles: {
+              fillColor: [220, 220, 220],
+              textColor: [0, 0, 0],
+              fontStyle: "bold",
+              halign: "left",
+              fontSize: 10,
+            },
+          },
+        ]);
+      }
+
+      // Add group sub-heading when group changes (if group exists)
+      if (row.group && row.group !== currentGroup) {
+        currentGroup = row.group;
+
+        // Add group header row
+        tableData.push([
+          {
+            content: `${row.group}`,
+            colSpan: 5,
+            styles: {
+              fillColor: [240, 240, 240],
+              textColor: [0, 0, 0],
+              fontStyle: "bold",
+              halign: "left",
+              fontSize: 9,
+            },
+          },
+        ]);
+      }
+
+      // Add regular data row
+      const productName =
+        language === "malayalam" && row.malayalam ? row.malayalam : row.product;
+
+      tableData.push([
+        productName || "",
+        Number(row.batch_size || 0).toLocaleString(),
+        row.uom || "",
+        row.bn || "",
+        row.status || "PLANNED",
+      ]);
+    });
+
+    // Column styles for 5-column layout - Proportional widths to fill page
+    const columnStyles = {
+      0: { halign: "left", valign: "middle" }, // Product - left aligned, vertically centered
+      1: { halign: "center", valign: "middle" }, // Batch Size - horizontally & vertically centered
+      2: { halign: "center", valign: "middle" }, // UOM - horizontally & vertically centered
+      3: { halign: "center", valign: "middle" }, // BN - horizontally & vertically centered
+      4: { halign: "center", valign: "middle" }, // Status - horizontally & vertically centered
+    };
+
+    // Create table with autoTable - this handles header repetition automatically!
+    doc.autoTable({
+      startY: tableTopY,
+      head: [tableHeaders],
+      body: tableData,
+      theme: "grid",
+      tableWidth: "auto", // Fill available width like "fit to width"
+      margin: { left: leftMargin, right: rightMargin, top: 40, bottom: 40 },
+      rowPageBreak: "avoid",
+      showHead: "everyPage", // Ensure headers repeat on every page
+      styles: {
+        font: "helvetica",
+        fontStyle: "normal",
+        fontSize: 9,
+        textColor: [0, 0, 0],
+        lineColor: [0, 0, 0],
+        lineWidth: 0.5,
+        halign: "left",
+        valign: "middle",
+        overflow: "linebreak",
+        cellPadding: 4,
+      },
+      headStyles: {
+        font: "helvetica",
+        fontStyle: "bold",
+        fillColor: [240, 240, 240],
+        textColor: [0, 0, 0],
+        lineColor: [0, 0, 0],
+        lineWidth: 0.5,
+        halign: "center", // All headers horizontally centered (including product)
+        valign: "middle", // All headers vertically centered
+      },
+      columnStyles: columnStyles,
+      willDrawCell: (data) => {
+        // Handle sub-heading rows with special formatting
+        if (
+          data.section === "body" &&
+          data.cell.raw &&
+          typeof data.cell.raw === "object" &&
+          data.cell.raw.content
+        ) {
+          // This is a sub-heading row - apply custom styles
+          doc.setFont("helvetica", data.cell.raw.styles.fontStyle || "bold");
+        } else {
+          // Regular rows
+          doc.setFont("helvetica", data.section === "head" ? "bold" : "normal");
+        }
+      },
+      didDrawPage: () => {
+        // Add page numbers
+        doc
+          .setFont("helvetica", "normal")
+          .setFontSize(10)
+          .text(
+            "Page " + doc.internal.getNumberOfPages(),
+            pw - rightMargin,
+            ph - 15,
+            { align: "right" }
+          );
+      },
+    });
+
+    // Generate filename and save
+    const dateStamp = new Date().toISOString().split("T")[0].replace(/-/g, "");
+    const filename =
+      "BatchPlan_" + category + "_" + language + "_" + dateStamp + ".pdf";
+    doc.save(filename);
+
+    toast("PDF report generated successfully.");
+    return true;
+  } catch (error) {
+    console.error("jsPDF generation failed:", error);
+    toast("PDF generation failed: " + error.message);
+    return false;
+  }
+}

@@ -2,362 +2,1106 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>Production Overrides</title>
+    <title>Supply Overrides</title>
     <link rel="stylesheet" href="public/shared/css/style.css" />
     <style>
-      .toolbar {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-        flex-wrap: wrap;
+      :root {
+        --muted: #6b7280;
+        --border: #e2e8f0;
+        --panel-bg: #ffffff;
+        --surface-soft: #f8fafc;
+        --table-header: #f1f5f9;
       }
-      .grid {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 8px;
+      * {
+        box-sizing: border-box;
       }
-      .grid th,
-      .grid td {
-        border: 1px solid #e5e7eb;
-        padding: 6px 8px;
-      }
-      .grid th {
+      body {
+        font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif;
+        margin: 16px;
         background: #f8fafc;
-        text-align: left;
+        color: #0f172a;
+      }
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+        color: #0f172a;
+      }
+      p {
+        margin: 0;
       }
       .muted {
-        color: #6b7280;
-        font-size: 12px;
-      }
-      .chips {
-        margin-top: 6px;
-      }
-      .chip {
-        display: inline-block;
-        margin: 2px 4px 0 0;
-        padding: 4px 8px;
-        border: 1px solid #e5e7eb;
-        border-radius: 999px;
-        background: #f3f4f6;
-        font-size: 12px;
-      }
-      .chip.ok {
-        background: #e6ffed;
-        border-color: #b7f5c2;
-      }
-      .chip.warn {
-        background: #fff7e6;
-        border-color: #ffd591;
-      }
-      .chip.err {
-        background: #ffecec;
-        border-color: #ffb3b3;
-      }
-      .tabs {
-        display: flex;
-        gap: 8px;
-        margin: 12px 0;
-      }
-      .tab-btn {
-        padding: 6px 10px;
-        border: 1px solid #e5e7eb;
-        background: #fff;
-        cursor: pointer;
-        border-radius: 6px;
-      }
-      .tab-btn.active {
-        background: #f1f5f9;
-      }
-      .tab {
-        display: none;
-      }
-      .tab.active {
-        display: block;
-      }
-      .section {
-        margin: 16px 0;
-      }
-      .right {
-        margin-left: auto;
-      }
-      dialog {
-        border: none;
-        border-radius: 8px;
-        padding: 0;
-        max-width: 540px;
-        width: 90vw;
-      }
-      .modal-header {
-        padding: 12px 16px;
-        border-bottom: 1px solid #e5e7eb;
-        font-weight: 600;
-      }
-      .modal-body {
-        padding: 16px;
-      }
-      .modal-footer {
-        padding: 12px 16px;
-        border-top: 1px solid #e5e7eb;
-        text-align: right;
-      }
-      .inline {
-        display: inline-flex;
-        gap: 6px;
-        align-items: center;
-      }
-      input[type="date"] {
-        padding: 4px 6px;
-      }
-      input[type="number"] {
-        width: 140px;
+        color: var(--muted);
+        font-size: 0.8rem;
       }
       .small {
-        font-size: 12px;
+        font-size: 0.75rem;
       }
-
-      /* Page-specific header: left-aligned and action area (HOME button) */
-      header {
-        text-align: left; /* override global centered header */
-        margin-bottom: 16px;
-      }
-      .header-bar {
+      .page-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        gap: 8px;
-        margin-bottom: 8px;
+        margin-bottom: 20px;
       }
-      .header-bar h1 {
-        margin: 0;
-        font-size: 2em;
-        color: var(--primary);
+      .page-header h1 {
+        font-size: 1.5rem;
+        color: var(--primary, #3b82f6);
       }
       .header-actions {
         display: flex;
         gap: 8px;
+      }
+      .page-content {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+      .persistent-header {
+        background: var(--panel-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px 20px;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .plan-header-main {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 16px;
+      }
+      .plan-context {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 16px;
+      }
+      .plan-selector-label {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #475569;
+      }
+      .plan-selector-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .plan-selector {
+        min-width: 220px;
+      }
+      .plan-name {
+        font-weight: 600;
+        color: #0f172a;
+        font-size: 0.95rem;
+      }
+      .plan-status-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .status-chip {
+        display: none;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, 0.16);
+        border: 1px solid rgba(148, 163, 184, 0.4);
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #334155;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .status-chip.ok {
+        background: rgba(34, 197, 94, 0.18);
+        border-color: rgba(34, 197, 94, 0.4);
+        color: #166534;
+      }
+      .status-chip.warn {
+        background: rgba(249, 115, 22, 0.18);
+        border-color: rgba(249, 115, 22, 0.4);
+        color: #9a3412;
+      }
+      .status-chip.err {
+        background: rgba(248, 113, 113, 0.18);
+        border-color: rgba(248, 113, 113, 0.4);
+        color: #991b1b;
+      }
+      .plan-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .tabs-container {
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: var(--panel-bg);
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+      }
+      .tabs {
+        display: flex;
+        gap: 4px;
+        padding: 0 16px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        border-bottom: 1px solid var(--border);
+        background: var(--panel-bg);
+      }
+      .tab-btn {
+        border: 1px solid transparent;
+        border-bottom: 1px solid transparent;
+        border-radius: 10px 10px 0 0;
+        background: transparent;
+        cursor: pointer;
+        padding: 12px 16px;
+        display: inline-flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 160px;
+        color: var(--muted);
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
+      }
+      .tab-btn .tab-description {
+        font-size: 0.75rem;
+        font-weight: 400;
+        color: #94a3b8;
+      }
+      .tab-btn:hover {
+        background: #f1f5f9;
+        color: #334155;
+      }
+      .tab-btn[aria-selected="true"] {
+        background: linear-gradient(
+          180deg,
+          rgba(37, 99, 235, 0.12),
+          rgba(37, 99, 235, 0.05)
+        );
+        color: #0b3a9a;
+        border-color: rgba(13, 60, 160, 0.18);
+        border-bottom-color: transparent;
+        box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08);
+      }
+      .tab-btn:focus-visible {
+        outline: 3px solid rgba(37, 99, 235, 0.24);
+        outline-offset: 2px;
+      }
+      .tab-panel {
+        display: none;
+      }
+      .tab-panel.active {
+        display: block;
+      }
+      .card {
+        background: var(--panel-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 18px;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+      }
+      .card-header h2,
+      .card-header h3 {
+        font-size: 1.05rem;
+      }
+      .card-body {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .card-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .form-row,
+      .toolbar,
+      .row {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      /* Specific grid layout for the Seed From System controls to keep fields left-aligned
+         and prevent large empty space to the right of the card. Keeps button positioned
+         close to the inputs without affecting other .form-row usages. */
+      .seed-row {
+        display: grid;
+        /* ACTIVE SET sizes to content, FROM/TO fixed, final column is flexible spacer so button can sit at far right */
+        grid-template-columns: auto 160px 160px 1fr;
+        gap: 12px;
+        align-items: center;
+      }
+      .seed-row .card-actions {
+        margin-left: 0;
+        justify-self: end;
+        align-self: center;
+      }
+      /* Prevent FROM/TO pickers from growing and avoid overlap */
+      .seed-row .field-inline input[type="month"] {
+        width: 140px;
+        min-width: 120px;
+      }
+      /* Truncate long ACTIVE SET titles so they don't push into the FROM/TO columns */
+      .seed-row #activeSetDisplay {
+        max-width: 520px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .toolbar {
+        background: var(--surface-soft);
+        border: 1px solid rgba(148, 163, 184, 0.4);
+        border-radius: 10px;
+        padding: 12px;
+      }
+      .toolbar .spacer,
+      .form-row .spacer {
+        flex: 1 1 auto;
+      }
+      .inline-group {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      label.field {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 0.85rem;
+        color: #475569;
+      }
+      label.field span {
+        font-weight: 600;
+      }
+      .field-inline {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.8rem;
+        color: #475569;
+      }
+      .field-inline input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+      }
+      input[type="date"],
+      input[type="number"],
+      input[type="text"],
+      input[type="file"],
+      select {
+        font: inherit;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid #cbd5e1;
+        background: #fff;
+        color: #0f172a;
+        min-height: 36px;
+      }
+      input[type="number"] {
+        width: 150px;
+      }
+      input[type="file"] {
+        padding: 6px;
+        background: rgba(148, 163, 184, 0.1);
+        border-style: dashed;
+      }
+      input:focus-visible,
+      select:focus-visible {
+        outline: 3px solid rgba(59, 130, 246, 0.25);
+        border-color: rgba(59, 130, 246, 0.6);
+      }
+      .status-text {
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.04);
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        font-size: 0.75rem;
+        color: #334155;
+      }
+      .chip.ok {
+        background: rgba(34, 197, 94, 0.15);
+        border-color: rgba(34, 197, 94, 0.35);
+        color: #166534;
+      }
+      .chip.warn {
+        background: rgba(249, 115, 22, 0.15);
+        border-color: rgba(249, 115, 22, 0.35);
+        color: #9a3412;
+      }
+      .chip.err {
+        background: rgba(248, 113, 113, 0.18);
+        border-color: rgba(248, 113, 113, 0.35);
+        color: #b91c1c;
+      }
+      .table-wrap {
+        width: 100%;
+        overflow: auto;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 100%;
+        background: #fff;
+      }
+      th,
+      td {
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--border);
+        font-size: 0.85rem;
+        text-align: left;
+      }
+      th {
+        background: var(--table-header);
+        font-weight: 600;
+      }
+      tr:last-child td {
+        border-bottom: none;
+      }
+      .table-hint {
+        font-size: 0.75rem;
+        color: #64748b;
+      }
+      .btn {
+        padding: 8px 14px;
+        border-radius: 8px;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        color: #1f2937;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 600;
+        transition: all 0.2s ease;
+      }
+      .btn:hover {
+        filter: brightness(0.97);
+        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
+      }
+      .btn.primary {
+        background: #3b82f6;
+        border-color: #2563eb;
+        color: #fff;
+      }
+      .btn.primary:hover {
+        filter: brightness(0.96);
+      }
+      .btn.secondary {
+        background: #475569;
+        border-color: #1f2937;
+        color: #fff;
+      }
+      .btn.danger {
+        background: #fee2e2;
+        border-color: #fca5a5;
+        color: #b91c1c;
+      }
+      .btn.danger:hover {
+        background: #fecaca;
+        border-color: #f87171;
+        color: #991b1b;
+      }
+      .btn.outline {
+        background: transparent;
+        border-color: rgba(59, 130, 246, 0.4);
+        color: #1d4ed8;
+      }
+      .btn.outline:hover {
+        background: rgba(37, 99, 235, 0.1);
+      }
+      .btn[disabled],
+      .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        box-shadow: none;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        border: 0;
+      }
+      dialog {
+        border: none;
+        border-radius: 12px;
+        padding: 0;
+        max-width: 540px;
+        width: 90vw;
+        box-shadow: 0 20px 40px rgba(15, 23, 42, 0.2);
+      }
+      dialog .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        align-items: center;
+      }
+      dialog .modal-footer .btn {
+        min-width: 96px;
+      }
+      dialog .modal-body label {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 0.85rem;
+        color: #475569;
+      }
+      dialog .modal-body input[type="text"] {
+        width: 100%;
+      }
+      .form-error {
+        color: #dc2626;
+        font-size: 0.75rem;
+        min-height: 1em;
+      }
+      .modal-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border);
+        font-weight: 600;
+        background: var(--surface-soft);
+      }
+      .modal-body {
+        padding: 20px;
+      }
+      .modal-footer {
+        padding: 14px 20px;
+        border-top: 1px solid var(--border);
+        text-align: right;
+        background: #f8fafc;
+      }
+      .right {
         margin-left: auto;
+      }
+      .grow {
+        flex: 1 1 auto;
+      }
+      .row label {
+        font-size: 0.85rem;
+        color: #475569;
+      }
+      /* Home Button */
+      #homeBtn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        border: 1px solid #fdba74 !important;
+        border-radius: 6px;
+        background: #fed7aa !important;
+        color: #9a3412 !important;
+        cursor: pointer;
+        font-size: 0.875rem;
+        font-family: inherit;
+        font-weight: 500;
+        transition: all 0.2s;
+      }
+      #homeBtn:hover {
+        background: #fdba74 !important;
+        border-color: #fb923c !important;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      #homeBtn svg {
+        flex-shrink: 0;
+      }
+      @media (max-width: 720px) {
+        body {
+          margin: 12px;
+        }
+        .page-header {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 12px;
+        }
+        .card {
+          padding: 16px;
+        }
+        .card-header {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+        .card-actions {
+          width: 100%;
+        }
+        .plan-header-main {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+        .plan-actions {
+          width: 100%;
+          justify-content: flex-start;
+        }
+        .tabs {
+          padding: 0 8px;
+        }
+        .tab-btn {
+          min-width: 140px;
+          font-size: 0.85rem;
+        }
+        .tab-btn .tab-description {
+          display: none;
+        }
       }
     </style>
   </head>
   <body data-theme="system">
-    <header>
-      <div class="header-bar">
-        <h1>Production Overrides</h1>
-        <div class="header-actions">
-          <button id="homeBtn">HOME</button>
-        </div>
+    <header class="page-header">
+      <h1>Supply Overrides</h1>
+      <div class="header-actions">
+        <button id="homeBtn">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9,22 9,12 15,12 15,22" />
+          </svg>
+          HOME
+        </button>
       </div>
-      <div class="muted" id="whoAmI">Loading…</div>
+      <!-- logged-in details removed from header; shown elsewhere if needed -->
     </header>
 
-    <div class="tabs">
-      <button class="tab-btn active" data-tab="sets">Manual Plan Sets</button>
-      <button class="tab-btn" data-tab="lines">Edit Lines</button>
-      <button class="tab-btn" data-tab="reconcile">Reconcile & Apply</button>
-      <button class="tab-btn" data-tab="recon">Reconciliation</button>
-      <button class="tab-btn" data-tab="active">Active Overrides</button>
-    </div>
-
-    <!-- TAB: Manual Plan Sets -->
-    <section id="tab-sets" class="tab active">
-      <div class="section toolbar">
-        <button id="btnCreateSet">New Set</button>
-        <span class="muted">or select an existing set:</span>
-        <select id="selSets"></select>
-        <span class="right muted" id="setsStatus"></span>
-      </div>
-
-      <div class="section">
-        <h3>Seed From System (Optional)</h3>
-        <div class="toolbar">
-          <label>From <input type="date" id="seedFrom" /></label>
-          <label>To <input type="date" id="seedTo" /></label>
-          <button id="btnSeedSet">Seed</button>
-          <span class="muted"
-            >Populates lines from system plan for the chosen window.</span
-          >
-        </div>
-      </div>
-
-      <div class="section">
-        <h3>Sets</h3>
-        <table class="grid" id="setsTable">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Set Name</th>
-              <th>Owner</th>
-              <th>Created</th>
-              <th>Notes</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- TAB: Edit Lines -->
-    <section id="tab-lines" class="tab">
-      <div class="toolbar">
-        <span>Current Set:</span>
-        <select id="selSetForLines"></select>
-        <button id="btnAddLine">Add Row</button>
-        <button id="btnDeleteSelected">Delete Selected</button>
-        <div class="right inline">
-          <button id="btnExportLines">Export CSV</button>
-          <input type="file" id="fileImportLines" accept=".csv" />
-          <button id="btnImportLines">Import CSV</button>
-        </div>
-      </div>
-
-      <table class="grid" id="linesTable">
-        <thead>
-          <tr>
-            <th style="width: 32px"><input type="checkbox" id="chkAll" /></th>
-            <th>product_id</th>
-            <th>month_start</th>
-            <th>proposed_qty</th>
-            <th>note</th>
-            <th>updated_at</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-      <div id="linesStatus" class="chips"></div>
-    </section>
-
-    <!-- TAB: Reconcile & Apply -->
-    <section id="tab-reconcile" class="tab">
-      <div class="toolbar">
-        <span>Set:</span>
-        <select id="selSetForReconcile"></select>
-        <label>Window From <input type="date" id="rcFrom" /></label>
-        <label>To <input type="date" id="rcTo" /></label>
-        <label
-          >Threshold ≥
-          <input type="number" id="rcThreshold" step="0.0001" value="0"
-        /></label>
-        <button id="btnPreviewReconcile">Preview</button>
-        <button id="btnApplyReconcile">Apply Overrides</button>
-        <span class="right muted" id="rcStatus"></span>
-      </div>
-
-      <table class="grid" id="rcTable">
-        <thead>
-          <tr>
-            <th>product_id</th>
-            <th>month_start</th>
-            <th>system_qty</th>
-            <th>proposed_qty</th>
-            <th>delta_qty</th>
-            <th>WIP?</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-      <div class="muted small">
-        * Rows in WIP are skipped by database rules.
-      </div>
-    </section>
-
-    <!-- TAB: Active Overrides -->
-    <section id="tab-active" class="tab">
-      <div class="toolbar">
-        <label>From <input type="date" id="aoFrom" /></label>
-        <label>To <input type="date" id="aoTo" /></label>
-        <button id="btnLoadActive">Load</button>
-        <button id="btnExportActive">Export CSV</button>
-        <span class="right muted" id="aoStatus"></span>
-      </div>
-      <table class="grid" id="aoTable">
-        <thead>
-          <tr>
-            <th>product_id</th>
-            <th>month_start</th>
-            <th>delta_units</th>
-            <th>reason</th>
-            <th>is_active</th>
-            <th>created_at</th>
-            <th>updated_at</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </section>
-
-    <!-- Modal -->
-    <section id="tab-recon" class="tab">
-      <h2>Manual vs System Reconciliation</h2>
-
-      <div class="card">
-        <div class="row">
-          <label>Manual Set</label>
-          <select id="reconSet"></select>
-
-          <label>From</label>
-          <input type="date" id="reconFrom" />
-
-          <label>To</label>
-          <input type="date" id="reconTo" />
-
-          <label>Δ threshold</label>
-          <input
-            type="number"
-            id="reconThresh"
-            step="0.01"
-            value="1"
-            style="width: 100px"
-          />
-
-          <button id="btnReconLoad">Load</button>
-          <button id="btnReconExport">Export CSV</button>
-          <button id="btnReconApply">Apply as Supply Overrides</button>
-          <label style="margin-left: 12px">
-            <input type="checkbox" id="reconShowEmpty" />
-            Include rows with manual=0 and system=0
-          </label>
-        </div>
-
-        <div
-          id="reconSummary"
-          class="muted small"
-          style="margin-top: 8px"
-        ></div>
-
-        <div class="table-wrap">
-          <table id="reconTable">
-            <thead>
-              <tr>
-                <th>product_id</th>
-                <th>item</th>
-                <th>uom</th>
-                <th>month_start</th>
-                <th>manual_qty</th>
-                <th>system_qty</th>
-                <th>delta_qty</th>
-                <th>bottled</th>
-                <th>fg_bulk</th>
-                <th>wip</th>
-                <th>bmr_not_init</th>
-                <th>needed?</th>
-                <th>reason</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-          <div id="reconStatus" class="small muted" style="margin-top: 6px">
-            —
+    <main class="page-content">
+      <!-- Plan selector: persistent bar above tabs -->
+      <div class="persistent-header" id="planSelectorCard">
+        <div class="plan-header-main">
+          <div class="plan-context">
+            <div style="display: flex; align-items: center; gap: 8px">
+              <label
+                class="plan-selector-label"
+                for="selPlanHeader"
+                style="
+                  text-transform: uppercase;
+                  font-weight: 600;
+                  margin-right: 8px;
+                "
+                >MANUAL PLAN SET</label
+              >
+              <div class="plan-selector-group">
+                <select
+                  id="selPlanHeader"
+                  class="plan-selector large-select"
+                  style="font-size: 1.05rem; padding: 6px 8px"
+                >
+                  <option value="">(loading plans...)</option>
+                </select>
+              </div>
+            </div>
+            <div
+              class="plan-status-info"
+              style="display: flex; align-items: center; gap: 8px"
+            >
+              <div id="planStatusBadge" class="status-chip" aria-live="polite">
+                —
+              </div>
+            </div>
+          </div>
+          <div class="plan-actions">
+            <button
+              type="button"
+              id="planRenameBtn"
+              class="btn outline"
+              disabled
+            >
+              Rename
+            </button>
+            <button
+              type="button"
+              id="planDeleteBtn"
+              class="btn danger"
+              disabled
+            >
+              Delete
+            </button>
+            <button type="button" id="planCreateBtn" class="btn outline">
+              New Set
+            </button>
           </div>
         </div>
       </div>
-    </section>
+      <nav class="tabs-container" aria-label="Supply Overrides Navigation">
+        <div class="tabs" role="tablist">
+          <button
+            class="tab-btn"
+            role="tab"
+            id="tab-sets-btn"
+            data-tab="sets"
+            aria-controls="tab-sets"
+            aria-selected="true"
+          >
+            <span class="tab-title">Manual Plan Sets</span>
+            <span class="tab-description">Create and manage override sets</span>
+          </button>
+          <button
+            class="tab-btn"
+            role="tab"
+            id="tab-lines-btn"
+            data-tab="lines"
+            aria-controls="tab-lines"
+            aria-selected="false"
+          >
+            <span class="tab-title">Edit Lines</span>
+            <span class="tab-description">Adjust manual supply quantities</span>
+          </button>
+          <button
+            class="tab-btn"
+            role="tab"
+            id="tab-reconcile-btn"
+            data-tab="reconcile"
+            aria-controls="tab-reconcile"
+            aria-selected="false"
+          >
+            <span class="tab-title">Reconcile &amp; Apply</span>
+            <span class="tab-description">Preview and publish overrides</span>
+          </button>
+          <button
+            class="tab-btn"
+            role="tab"
+            id="tab-active-btn"
+            data-tab="active"
+            aria-controls="tab-active"
+            aria-selected="false"
+          >
+            <span class="tab-title">Active Overrides</span>
+            <span class="tab-description">View applied overrides</span>
+          </button>
+        </div>
+      </nav>
+
+      <!-- TAB: Manual Plan Sets -->
+      <section
+        id="tab-sets"
+        class="tab-panel active"
+        role="tabpanel"
+        aria-labelledby="tab-sets-btn"
+        aria-hidden="false"
+        tabindex="0"
+      >
+        <!-- Manual Plan Sets card removed -->
+        <div class="card">
+          <div class="card-header">
+            <h3>Seed From System (Optional)</h3>
+          </div>
+          <div class="card-body">
+            <p class="muted">
+              Copy system plan quantities into the manual set for a time window.
+            </p>
+
+            <div class="seed-row">
+              <label class="field-inline">
+                <span>ACTIVE SET:</span>
+                <div id="activeSetDisplay" class="plan-name">—</div>
+              </label>
+
+              <label class="field-inline">
+                <span>FROM:</span>
+                <input type="month" class="filter-input" id="seedFrom" />
+              </label>
+
+              <label class="field-inline">
+                <span>TO:</span>
+                <input type="month" class="filter-input" id="seedTo" />
+              </label>
+
+              <div class="card-actions">
+                <button id="btnSeedSet" class="btn outline">Seed</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3>Sets</h3>
+          </div>
+          <div class="card-body">
+            <div class="table-wrap">
+              <table id="setsTable">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Title</th>
+                    <th>Note</th>
+                    <th>Created at</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB: Edit Lines -->
+      <section
+        id="tab-lines"
+        class="tab-panel"
+        role="tabpanel"
+        aria-labelledby="tab-lines-btn"
+        aria-hidden="true"
+        tabindex="0"
+      >
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2>Edit Lines</h2>
+              <p class="muted">
+                Maintain manual override quantities for the selected set.
+              </p>
+            </div>
+            <div class="card-actions">
+              <button id="btnAddLine" class="btn primary">Add Row</button>
+              <button id="btnDeleteSelected" class="btn outline">
+                Delete Selected
+              </button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="toolbar">
+              <label class="field">
+                <span>Current Set</span>
+                <select id="selSetForLines"></select>
+              </label>
+              <div class="spacer"></div>
+              <div class="inline-group">
+                <button id="btnExportLines" class="btn secondary">
+                  Export CSV
+                </button>
+                <input type="file" id="fileImportLines" accept=".csv" />
+                <button id="btnImportLines" class="btn outline">
+                  Import CSV
+                </button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table id="linesTable">
+                <thead>
+                  <tr>
+                    <th style="width: 32px">
+                      <input type="checkbox" id="chkAll" />
+                    </th>
+                    <th>product_id</th>
+                    <th>month_start</th>
+                    <th>proposed_qty</th>
+                    <th>note</th>
+                    <th>updated_at</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div id="linesStatus" class="chips"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB: Reconcile & Apply -->
+      <section
+        id="tab-reconcile"
+        class="tab-panel"
+        role="tabpanel"
+        aria-labelledby="tab-reconcile-btn"
+        aria-hidden="true"
+        tabindex="0"
+      >
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2>Reconcile &amp; Apply</h2>
+              <p class="muted">
+                Compare manual overrides with system quantities before applying.
+              </p>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="toolbar">
+              <label class="field">
+                <span>Set</span>
+                <select id="selSetForReconcile"></select>
+              </label>
+              <label class="field">
+                <span>Window From</span>
+                <input type="date" id="rcFrom" />
+              </label>
+              <label class="field">
+                <span>To</span>
+                <input type="date" id="rcTo" />
+              </label>
+              <label class="field">
+                <span>Threshold ≥</span>
+                <input type="number" id="rcThreshold" step="0.0001" value="0" />
+              </label>
+              <div class="inline-group">
+                <button id="btnPreviewReconcile" class="btn secondary">
+                  Preview
+                </button>
+                <button id="btnApplyReconcile" class="btn primary">
+                  Apply Overrides
+                </button>
+              </div>
+              <span class="status-text right" id="rcStatus"></span>
+            </div>
+            <div class="table-wrap">
+              <table id="rcTable">
+                <thead>
+                  <tr>
+                    <th>product_id</th>
+                    <th>month_start</th>
+                    <th>system_qty</th>
+                    <th>proposed_qty</th>
+                    <th>delta_qty</th>
+                    <th>WIP?</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div class="table-hint">
+              * Rows in WIP are skipped by database rules.
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2>Manual vs System Reconciliation</h2>
+              <p class="muted">
+                Deep dive into manual set versus system production plans.
+              </p>
+            </div>
+            <div class="card-actions">
+              <button id="btnReconApply" class="btn primary">
+                Apply as Supply Overrides
+              </button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="toolbar">
+              <label class="field">
+                <span>Manual Set</span>
+                <select id="reconSet"></select>
+              </label>
+              <label class="field">
+                <span>From</span>
+                <input type="date" id="reconFrom" />
+              </label>
+              <label class="field">
+                <span>To</span>
+                <input type="date" id="reconTo" />
+              </label>
+              <label class="field">
+                <span>Δ Threshold</span>
+                <input type="number" id="reconThresh" step="0.01" value="1" />
+              </label>
+              <div class="inline-group">
+                <button id="btnReconLoad" class="btn secondary">Load</button>
+                <button id="btnReconExport" class="btn outline">
+                  Export CSV
+                </button>
+              </div>
+            </div>
+            <label class="field-inline">
+              <input type="checkbox" id="reconShowEmpty" />
+              Include rows where manual and system are both zero
+            </label>
+            <div id="reconSummary" class="muted small"></div>
+            <div class="table-wrap">
+              <table id="reconTable">
+                <thead>
+                  <tr>
+                    <th>product_id</th>
+                    <th>item</th>
+                    <th>uom</th>
+                    <th>month_start</th>
+                    <th>manual_qty</th>
+                    <th>system_qty</th>
+                    <th>delta_qty</th>
+                    <th>bottled</th>
+                    <th>fg_bulk</th>
+                    <th>wip</th>
+                    <th>bmr_not_init</th>
+                    <th>needed?</th>
+                    <th>reason</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div id="reconStatus" class="small muted">—</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB: Active Overrides -->
+      <section
+        id="tab-active"
+        class="tab-panel"
+        role="tabpanel"
+        aria-labelledby="tab-active-btn"
+        aria-hidden="true"
+        tabindex="0"
+      >
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2>Active Overrides</h2>
+              <p class="muted">
+                Review applied supply overrides for a given window.
+              </p>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="toolbar">
+              <label class="field">
+                <span>From</span>
+                <input type="date" id="aoFrom" />
+              </label>
+              <label class="field">
+                <span>To</span>
+                <input type="date" id="aoTo" />
+              </label>
+              <div class="inline-group">
+                <button id="btnLoadActive" class="btn secondary">Load</button>
+                <button id="btnExportActive" class="btn outline">
+                  Export CSV
+                </button>
+              </div>
+              <span class="status-text right" id="aoStatus"></span>
+            </div>
+            <div class="table-wrap">
+              <table id="aoTable">
+                <thead>
+                  <tr>
+                    <th>product_id</th>
+                    <th>month_start</th>
+                    <th>delta_units</th>
+                    <th>reason</th>
+                    <th>is_active</th>
+                    <th>created_at</th>
+                    <th>updated_at</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
 
     <dialog id="poModal">
       <div class="modal-header" id="poModalTitle">Notice</div>
       <div class="modal-body" id="poModalMessage">Message…</div>
       <div class="modal-footer">
-        <button id="poModalClose">OK</button>
+        <button id="poModalClose" class="btn primary">OK</button>
       </div>
+    </dialog>
+
+    <dialog id="renamePlanDialog">
+      <form id="renamePlanForm" method="dialog">
+        <div class="modal-header">Rename Plan</div>
+        <div class="modal-body">
+          <label>
+            <span>Plan title</span>
+            <input type="text" id="renamePlanInput" maxlength="120" />
+          </label>
+          <p class="form-error" id="renamePlanError"></p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn outline" id="renamePlanCancelBtn">
+            Cancel
+          </button>
+          <button type="submit" class="btn primary" id="renamePlanSaveBtn">
+            Save
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="deletePlanDialog">
+      <form id="deletePlanForm" method="dialog">
+        <div class="modal-header">Delete Plan</div>
+        <div class="modal-body">
+          <p id="deletePlanMessage">
+            Deleting this manual plan set cannot be undone.
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn outline" id="deletePlanCancelBtn">
+            Cancel
+          </button>
+          <button type="submit" class="btn danger" id="deletePlanConfirmBtn">
+            Delete
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="createSetDialog">
+      <form id="createSetForm" method="dialog">
+        <div class="modal-header">Create Set</div>
+        <div class="modal-body">
+          <label>
+            <span>Set name (optional)</span>
+            <input type="text" id="createSetInput" maxlength="120" />
+          </label>
+          <label>
+            <span>Notes (optional)</span>
+            <input type="text" id="createSetNotes" />
+          </label>
+          <p class="form-error" id="createSetError"></p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn outline" id="createSetCancelBtn">
+            Cancel
+          </button>
+          <button type="submit" class="btn primary" id="createSetSaveBtn">
+            Create
+          </button>
+        </div>
+      </form>
     </dialog>
 
     <script type="module" src="js/supply-overrides.js"></script>
