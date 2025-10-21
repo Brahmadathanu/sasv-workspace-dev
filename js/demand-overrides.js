@@ -579,6 +579,67 @@ async function loadLookups() {
       }
     }
 
+    // Populate staging filters if present
+    const stagingProd = $("filterProduct");
+    if (stagingProd) {
+      // ensure placeholder exists
+      if (!stagingProd.querySelector('option[value=""]'))
+        stagingProd.insertAdjacentHTML(
+          "afterbegin",
+          `<option value="">All Products</option>`
+        );
+      // populate from productMap
+      const prods = Array.from(productMap.values()).sort((a, b) =>
+        String(a.item || "").localeCompare(String(b.item || ""))
+      );
+      prods.forEach((p) =>
+        stagingProd.insertAdjacentHTML(
+          "beforeend",
+          `<option value="${p.id}">${htmlEscape(
+            p.item || p.malayalam_name || p.id
+          )}</option>`
+        )
+      );
+    }
+    const stagingReg = $("filterRegion");
+    if (stagingReg) {
+      if (!stagingReg.querySelector('option[value=""]'))
+        stagingReg.insertAdjacentHTML(
+          "afterbegin",
+          `<option value="">All Regions</option>`
+        );
+      Array.from(regionMap.entries())
+        .map(([id, r]) => ({ id, ...r }))
+        .sort((a, b) =>
+          String(a.name || a.code || "").localeCompare(b.name || b.code)
+        )
+        .forEach((r) =>
+          stagingReg.insertAdjacentHTML(
+            "beforeend",
+            `<option value="${r.id}">${htmlEscape(r.code || r.name)}</option>`
+          )
+        );
+    }
+    const stagingGdn = $("filterGodown");
+    if (stagingGdn) {
+      if (!stagingGdn.querySelector('option[value=""]'))
+        stagingGdn.insertAdjacentHTML(
+          "afterbegin",
+          `<option value="">All Godowns</option>`
+        );
+      Array.from(godownMap.entries())
+        .map(([id, g]) => ({ id, ...g }))
+        .sort((a, b) =>
+          String(a.code || a.name || "").localeCompare(b.code || b.name)
+        )
+        .forEach((g) =>
+          stagingGdn.insertAdjacentHTML(
+            "beforeend",
+            `<option value="${g.id}">${htmlEscape(g.code || g.name)}</option>`
+          )
+        );
+    }
+
     const regSel = $("filterRegion");
     if (regSel) {
       const regs = Array.from(regionMap.entries()).map(([id, r]) => ({
@@ -661,6 +722,48 @@ function htmlEscape(s) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+/**
+ * Position an action panel using fixed positioning so it is not clipped
+ * by ancestor containers that use overflow:auto. This keeps the panel
+ * visible above scrollable table containers while preserving the DOM
+ * structure so delegated event handlers continue to work.
+ */
+function positionPanelFixed(panel, toggle) {
+  if (!panel || !toggle) return;
+  // ensure the panel is measurable
+  panel.style.display = "flex";
+  panel.style.position = "fixed";
+  panel.style.transform = "none";
+  panel.style.right = "auto";
+  // reset temporary coords so offsetWidth/Height are correct
+  panel.style.left = "-9999px";
+  panel.style.top = "-9999px";
+  // Allow browser to render and compute sizes
+  const rect = toggle.getBoundingClientRect();
+  const pW = panel.offsetWidth || 160;
+  const pH = panel.offsetHeight || 36;
+  // vertically center on toggle
+  let top = Math.round(rect.top + rect.height / 2 - pH / 2);
+  // prefer opening to the left of toggle; if there's no space, open to the right
+  let left = Math.round(rect.left - pW - 8);
+  if (left < 8) left = Math.round(rect.right + 8);
+  // clamp to viewport
+  const vw = Math.max(
+    document.documentElement.clientWidth || 0,
+    window.innerWidth || 0
+  );
+  const vh = Math.max(
+    document.documentElement.clientHeight || 0,
+    window.innerHeight || 0
+  );
+  if (left + pW > vw - 8) left = Math.max(8, vw - pW - 8);
+  if (top < 8) top = 8;
+  if (top + pH > vh - 8) top = Math.max(8, vh - pH - 8);
+  panel.style.left = left + "px";
+  panel.style.top = top + "px";
+  panel.style.zIndex = 99999;
 }
 
 /**
@@ -1297,12 +1400,80 @@ async function loadStaging() {
     if (e) e.disabled = true;
   });
 
-  const q = supabase
+  // Build query and apply filters
+  const prodFilterEl = $("filterProduct");
+  const regionFilterEl = $("filterRegion");
+  const godownFilterEl = $("filterGodown");
+  const monthFilterEl = $("filterMonth");
+  const deltaOpEl = $("filterDeltaOp");
+  const deltaVal1El = $("filterDeltaVal1");
+  const deltaVal2El = $("filterDeltaVal2");
+
+  const prodId =
+    prodFilterEl && prodFilterEl.value ? Number(prodFilterEl.value) : null;
+  const regionId =
+    regionFilterEl && regionFilterEl.value
+      ? Number(regionFilterEl.value)
+      : null;
+  const godownId =
+    godownFilterEl && godownFilterEl.value
+      ? Number(godownFilterEl.value)
+      : null;
+  const monthStart =
+    monthFilterEl && monthFilterEl.value ? `${monthFilterEl.value}-01` : null;
+  const deltaOp = deltaOpEl && deltaOpEl.value ? String(deltaOpEl.value) : null;
+  const deltaVal1 =
+    deltaVal1El && deltaVal1El.value !== "" ? Number(deltaVal1El.value) : null;
+  const deltaVal2 =
+    deltaVal2El && deltaVal2El.value !== "" ? Number(deltaVal2El.value) : null;
+
+  let q = supabase
     .from("marketing_overrides_staging")
     .select(
       "id,sku_id,region_id,godown_id,month_start,delta_units,note,uploaded_by,uploaded_at",
       { count: "exact" }
-    )
+    );
+
+  // Apply product -> sku_id filter by mapping product id to skus in skuMap
+  if (prodId) {
+    const skuIds = Array.from(skuMap.entries())
+      .filter(
+        ([, v]) => v && v.product_id != null && Number(v.product_id) === prodId
+      )
+      .map(([k]) => Number(k));
+    if (!skuIds.length) {
+      // No SKUs for selected product — render empty table quickly
+      const tbody = $("tblStaging").querySelector("tbody");
+      tbody.innerHTML = "";
+      $("stagingCounts").textContent = `0 of 0 in window`;
+      if (pager) pager.textContent = `Page ${page} / 1`;
+      window.__DO_loading_staging = false;
+      ["stagingPrev", "stagingNext", "stagingPageSize"].forEach((id) => {
+        const e = $(id);
+        if (e) e.disabled = false;
+      });
+      return;
+    }
+    q = q.in("sku_id", skuIds);
+  }
+
+  if (regionId) q = q.eq("region_id", regionId);
+  if (godownId) q = q.eq("godown_id", godownId);
+  if (monthStart) q = q.eq("month_start", monthStart);
+
+  // delta operator
+  if (deltaOp && deltaVal1 != null) {
+    if (deltaOp === "lt") q = q.lt("delta_units", deltaVal1);
+    else if (deltaOp === "gt") q = q.gt("delta_units", deltaVal1);
+    else if (deltaOp === "between" && deltaVal2 != null) {
+      const lo = Math.min(deltaVal1, deltaVal2);
+      const hi = Math.max(deltaVal1, deltaVal2);
+      q = q.gte("delta_units", lo).lte("delta_units", hi);
+    }
+  }
+
+  // ordering & pagination
+  q = q
     .order("month_start", { ascending: true })
     .order("sku_id", { ascending: true })
     .range(start, end);
@@ -1382,8 +1553,17 @@ async function loadStaging() {
         document.querySelectorAll(".action-menu-panel").forEach((p) => {
           if (p !== panel) p.style.display = "none";
         });
-        // for horizontal layout we use flex display
-        panel.style.display = panel.style.display === "flex" ? "none" : "flex";
+        // toggle: if already visible, hide and clear fixed positioning
+        if (panel.style.display === "flex") {
+          panel.style.display = "none";
+          panel.style.position = "";
+          panel.style.left = "";
+          panel.style.top = "";
+          panel.style.zIndex = "";
+          return;
+        }
+        // show using fixed positioning to avoid clipping by overflow parents
+        positionPanelFixed(panel, toggle);
       });
     }
   });
@@ -1693,7 +1873,15 @@ async function loadActive() {
         document.querySelectorAll(".action-menu-panel").forEach((p) => {
           if (p !== panel) p.style.display = "none";
         });
-        panel.style.display = panel.style.display === "flex" ? "none" : "flex";
+        if (panel.style.display === "flex") {
+          panel.style.display = "none";
+          panel.style.position = "";
+          panel.style.left = "";
+          panel.style.top = "";
+          panel.style.zIndex = "";
+          return;
+        }
+        positionPanelFixed(panel, toggle);
       });
     }
   });
@@ -3060,6 +3248,38 @@ function wire() {
     loadBaseline();
   }, 220);
 
+  // Staging filters change should reload staging (debounced)
+  const debouncedStagingReload = debounce(() => {
+    window.__DO_stagingPage = 1;
+    loadStaging();
+  }, 180);
+
+  [
+    "filterProduct",
+    "filterRegion",
+    "filterGodown",
+    "filterMonth",
+    "filterDeltaOp",
+    "filterDeltaVal1",
+    "filterDeltaVal2",
+  ].forEach((id) => {
+    const e = $(id);
+    if (!e) return;
+    e.addEventListener("change", () => {
+      // toggle second delta input when operator = between
+      const opEl = $("filterDeltaOp");
+      const v2 = $("filterDeltaVal2");
+      if (opEl && v2) {
+        v2.style.display = opEl.value === "between" ? "inline-block" : "none";
+      }
+      debouncedStagingReload();
+    });
+    // also trigger input events for number fields
+    if (e.tagName === "INPUT" && e.type === "number") {
+      e.addEventListener("input", debouncedStagingReload);
+    }
+  });
+
   // List of filter element ids to watch
   const filterIds = [
     "filterSkuIdExact",
@@ -3296,10 +3516,30 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (bpg) bpg.textContent = `Page ${window.__DO_baselinePage || 1} / 1`;
   // Close action menus when clicking outside
   document.addEventListener("click", () => {
+    document.querySelectorAll(".action-menu-panel").forEach((p) => {
+      p.style.display = "none";
+      // clear any fixed positioning
+      p.style.position = "";
+      p.style.left = "";
+      p.style.top = "";
+      p.style.zIndex = "";
+    });
+  });
+  // Hide panels on window resize or scroll to avoid orphaned/floating panels
+  window.addEventListener("resize", () => {
     document
       .querySelectorAll(".action-menu-panel")
       .forEach((p) => (p.style.display = "none"));
   });
+  window.addEventListener(
+    "scroll",
+    () => {
+      document
+        .querySelectorAll(".action-menu-panel")
+        .forEach((p) => (p.style.display = "none"));
+    },
+    { passive: true }
+  );
   // Wire baseline download UI
   const dlToggle = document.getElementById("btnDownloadTemplate");
   const dlMenu = document.getElementById("baselineDownloads");

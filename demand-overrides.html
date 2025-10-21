@@ -619,6 +619,65 @@
                 >
                   Delete All
                 </button>
+                <!-- Filters: Product, Region, Godown, Month, Delta -->
+                <label
+                  class="small muted"
+                  style="margin-left: 12px; align-self: center"
+                  >Filters:</label
+                >
+                <select
+                  id="filterProduct"
+                  class="toolbar-compact"
+                  title="Product"
+                >
+                  <option value="">All Products</option>
+                </select>
+                <select
+                  id="filterRegion"
+                  class="toolbar-compact"
+                  title="Region"
+                >
+                  <option value="">All Regions</option>
+                </select>
+                <select
+                  id="filterGodown"
+                  class="toolbar-compact"
+                  title="Godown"
+                >
+                  <option value="">All Godowns</option>
+                </select>
+                <input
+                  id="filterMonth"
+                  type="month"
+                  title="Month"
+                  style="width: 140px"
+                />
+                <div
+                  style="display: inline-flex; align-items: center; gap: 6px"
+                >
+                  <select
+                    id="filterDeltaOp"
+                    title="Delta operator"
+                    style="width: 86px"
+                  >
+                    <option value="">All Δ</option>
+                    <option value="lt">Δ &lt; threshold</option>
+                    <option value="gt">Δ &gt; threshold</option>
+                    <option value="between">Δ between</option>
+                  </select>
+                  <input
+                    id="filterDeltaVal1"
+                    type="number"
+                    placeholder="threshold"
+                    style="width: 100px"
+                  />
+                  <input
+                    id="filterDeltaVal2"
+                    type="number"
+                    placeholder="to"
+                    style="width: 100px; display: none"
+                  />
+                </div>
                 <div class="spacer"></div>
                 <div
                   class="pager-compact"
