@@ -12,6 +12,21 @@
         --surface-soft: #f8fafc;
         --table-header: #f1f5f9;
       }
+      /* Center all unifiedTable body cells except Item and Reason */
+      #unifiedTable td {
+        text-align: center;
+      }
+      #unifiedTable td:nth-child(2),
+      #unifiedTable td:last-child {
+        text-align: left;
+      }
+      :root {
+        --muted: #6b7280;
+        --border: #e2e8f0;
+        --panel-bg: #ffffff;
+        --surface-soft: #f8fafc;
+        --table-header: #f1f5f9;
+      }
       * {
         box-sizing: border-box;
       }
@@ -227,11 +242,214 @@
         flex-direction: column;
         gap: 16px;
       }
+      /* Filter panel: compact, consistent spacing and responsive grid */
+      .filter-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        background: var(--surface-soft);
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        border-radius: 10px;
+        padding: 12px;
+      }
+      .filter-panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .filter-panel-header .muted {
+        font-size: 0.75rem;
+      }
+
+      /* Grid for filter controls. Keeps controls aligned and wraps neatly on small screens. */
+      .filters-grid {
+        display: grid;
+        /* Reconcile filters: breathe a bit more and keep controls aligned */
+        grid-template-columns: repeat(
+          auto-fit,
+          minmax(160px, 1fr)
+        ); /* slightly wider cells */
+        gap: 12px; /* more room between items */
+        align-items: start; /* vertical alignment: top */
+        justify-items: stretch; /* distribute space proportionally */
+      }
+
+      /* Ensure the label text is compact and uppercase per spec */
+      .filters-grid label.field span,
+      .boolean-filter span {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        color: #475569;
+        font-weight: 600;
+      }
+
+      /* Slightly bigger gap between label and control in the Reconcile filters */
+      #tab-reconcile .filters-grid .field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      /* Make PRODUCT ID fill its grid cell (removes odd blank space) */
+      #filterUProductId {
+        width: 100%;
+        max-width: none;
+        min-height: 36px;
+        padding: 6px 10px;
+        box-sizing: border-box;
+      }
+
+      /* Keep the Reset block compact and aligned to the right */
+      #tab-reconcile .filters-grid .reset-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        justify-self: end;
+        align-self: start;
+        width: auto;
+      }
+
+      /* Make inputs/selects fill their grid cell neatly */
+      .filters-grid .field input,
+      .filters-grid .field select,
+      .filters-grid .field .filter-input {
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      /* Normalize month picker to match other inputs in the filter row */
+      .filters-grid input[type="month"] {
+        min-height: 36px;
+        padding: 6px 10px;
+        border-radius: 6px;
+        border: 1px solid #cbd5e1;
+        background: #fff;
+        box-sizing: border-box;
+        font: inherit;
+        color: #0f172a;
+        line-height: 1.2;
+      }
+
+      /* Compact boolean toggle for Proposed Qty */
+      .boolean-filter {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        align-items: flex-start; /* left-align label and toggle */
+      }
+      .toggle-group {
+        display: inline-flex;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #fff;
+        justify-content: flex-start; /* keep options starting at left */
+        min-height: 36px;
+        padding: 4px;
+        align-items: center;
+      }
+      .toggle-option {
+        padding: 6px 10px;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: #475569;
+        transition: background 0.12s ease, color 0.12s ease;
+        min-width: 56px;
+        text-align: center;
+      }
+      .toggle-option + .toggle-option {
+        border-left: 1px solid #eef2f7;
+      }
+      .toggle-option.active {
+        background: #2563eb;
+        color: #fff;
+        box-shadow: none;
+      }
+      /* Absent state should be visually negative (red) rather than blue.
+         Support both 'absent' and 'zero' tokens so reconcile filters
+         (which use 'zero') display red like the Proposed toggle. */
+      .toggle-option[data-proposed-toggle="absent"].active,
+      .toggle-option[data-proposed-toggle="zero"].active,
+      .toggle-option[data-proposed-toggle="no"].active {
+        background: #dc2626; /* red-600 */
+        color: #fff;
+      }
+      .toggle-option[data-proposed-toggle="absent"]:hover,
+      .toggle-option[data-proposed-toggle="zero"]:hover,
+      .toggle-option[data-proposed-toggle="no"]:hover {
+        background: #f87171; /* lighter red on hover */
+        color: #fff;
+      }
+
+      /* Small screens: make filters stack for easier tapping */
+      @media (max-width: 720px) {
+        .filters-grid {
+          grid-template-columns: 1fr;
+        }
+        .seed-row {
+          grid-template-columns: 1fr;
+          gap: 8px;
+        }
+      }
       .card-actions {
         display: flex;
         gap: 8px;
-        flex-wrap: wrap;
       }
+
+      /* Pack items tighter and let later items (like Reset) backfill gaps */
+      #tab-reconcile .filters-grid {
+        grid-template-columns: repeat(
+          auto-fit,
+          minmax(120px, 1fr)
+        ); /* was 160px */
+        grid-auto-flow: row dense;
+        gap: 10px; /* a touch tighter than 12px to help one-line fit */
+      }
+
+      /* Make PRODUCT ID and MONTH occupy narrower columns (no HTML changes needed) */
+      #tab-reconcile .filters-grid label.field:has(#filterUProductId),
+      #tab-reconcile .filters-grid label.field:has(#filterUMonth) {
+        max-width: 180px; /* gives back some horizontal space */
+        justify-self: start; /* avoid stretching */
+      }
+
+      /* Inputs themselves: slightly more compact without hurting usability */
+      #filterUProductId,
+      #filterUMonth {
+        min-height: 34px;
+        padding: 5px 8px;
+      }
+
+      /* Keep toggle groups tidy and aligned with the compact height */
+      #tab-reconcile .filters-grid .toggle-group {
+        min-height: 34px;
+        padding: 3px;
+      }
+
+      /* Ensure Reset hugs the right when there’s space, but wraps cleanly when not */
+      #tab-reconcile .filters-grid .reset-field {
+        justify-self: end;
+        align-self: start;
+        max-width: 160px; /* prevents it from consuming a full wide column */
+      }
+
+      /* Keep overall grid tidy while preserving separation */
+      #tab-reconcile .filters-grid {
+        grid-column-gap: 12px; /* small bump just for horizontal spacing */
+        grid-row-gap: 20px;
+      }
+
+      /* (Optional) keep PRODUCT ID / MONTH compact so Reset can still fit on one line */
+      #tab-reconcile .filters-grid label.field:has(#filterUProductId),
+      #tab-reconcile .filters-grid label.field:has(#filterUMonth) {
+        max-width: 170px; /* slightly tighter than before */
+      }
+
       .form-row,
       .toolbar,
       .row {
@@ -290,6 +508,7 @@
         gap: 4px;
         font-size: 0.85rem;
         color: #475569;
+        align-items: flex-start; /* ensure label and control are left-aligned */
       }
       label.field span {
         font-weight: 600;
@@ -317,6 +536,29 @@
         background: #fff;
         color: #0f172a;
         min-height: 36px;
+      }
+
+      /* Match demand-overrides sizing for font and toolbar controls to keep visual parity */
+      /* Slightly reduce general table font-size to match demand-overrides and reduce wrapping */
+      table,
+      th,
+      td {
+        font-size: 0.92rem;
+      }
+
+      /* Toolbar inputs/selects - make controls visually consistent with Demand Overrides */
+      .toolbar input,
+      .toolbar select {
+        padding: 6px;
+        border-radius: 6px;
+        border: 1px solid #111;
+        background: #fff;
+        color: #111;
+      }
+
+      input[type="month"],
+      input[type="date"] {
+        padding: 4px 6px;
       }
       input[type="number"] {
         width: 150px;
@@ -373,6 +615,83 @@
         border: 1px solid var(--border);
         box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08);
       }
+      /* AO-specific scroll container so the table doesn't keep growing the page */
+      .ao-table-wrap {
+        max-height: 60vh; /* responsive cap */
+        overflow: auto;
+      }
+      /* Active Overrides table alignment rules */
+      #aoTable {
+        border-collapse: collapse;
+        width: 100%;
+      }
+      /* Center headers both horizontally and vertically */
+      #aoTable thead th {
+        text-align: center;
+        vertical-align: middle;
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        background: var(--table-header);
+      }
+      /* Center body cells horizontally and vertically by default */
+      #aoTable td {
+        text-align: center;
+        vertical-align: middle;
+        padding: 8px 10px;
+      }
+      /* Keep Item column left-aligned for readability (second column) */
+      #aoTable tbody td:nth-child(2) {
+        text-align: left;
+      }
+      /* Specific scroll wrapper for lines table to limit height and keep header sticky */
+      .lines-table-wrap {
+        max-height: 500px;
+        overflow: auto;
+      }
+      .lines-table-wrap table {
+        border-collapse: collapse;
+      }
+      .lines-table-wrap thead th {
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        background: var(--table-header);
+      }
+      .pagination {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-top: 16px;
+        padding: 12px 16px;
+        background: var(--surface-soft);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+      }
+      .pagination-summary {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .pagination-summary label {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+      .pagination-controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .pagination button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
       table {
         width: 100%;
         border-collapse: collapse;
@@ -385,6 +704,34 @@
         border-bottom: 1px solid var(--border);
         font-size: 0.85rem;
         text-align: left;
+      }
+      /* Edit Lines table specific alignment:
+         - Horizontally center all columns except the Product Name column
+         - Vertically center all cells
+         - Center header row text
+      */
+      #linesTable th,
+      #linesTable td {
+        vertical-align: middle; /* vertical center */
+      }
+      /* Center all columns except Product Name horizontally */
+      #linesTable th:not(:nth-child(5)),
+      #linesTable td:not(:nth-child(5)) {
+        text-align: center;
+      }
+      /* Ensure Product Name (5th column) remains left-aligned for readability */
+      #linesTable th:nth-child(5),
+      #linesTable td:nth-child(5) {
+        text-align: left;
+      }
+      /* Center header row text */
+      #linesTable thead th {
+        text-align: center;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: var(--table-header);
+        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
       }
       th {
         background: var(--table-header);
@@ -579,6 +926,179 @@
           display: none;
         }
       }
+      /* Reconcile table: visually highlight "needed" rows */
+      #unifiedTable tr.needed td {
+        background: rgba(250, 204, 21, 0.12); /* soft amber */
+      }
+      #unifiedTable tr.needed:hover td {
+        background: rgba(250, 204, 21, 0.18);
+      }
+
+      /* (Only Needed toggle removed) */
+      /* Reconcile top toolbar (chips + Export on left, paginator on right) */
+      .recon-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        background: var(--surface-soft);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        margin-bottom: 10px;
+      }
+      .recon-toolbar .left {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .recon-toolbar .right {
+        margin-left: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      /* Paginator bits to mirror Edit Lines look/feel */
+      .recon-toolbar .right select {
+        min-width: 64px;
+        padding: 6px;
+        border-radius: 6px;
+        border: 1px solid #cbd5e1;
+        background: #fff;
+        color: #111;
+      }
+      .recon-toolbar .right .btn {
+        padding: 6px 8px;
+        min-width: 48px;
+      }
+      /* Tighten vertical spacing for Reconcile tab so header and filters sit closer */
+      #tab-reconcile .card-body {
+        gap: 8px; /* was 16px globally for cards */
+      }
+      #tab-reconcile .recon-toolbar {
+        margin-bottom: 6px; /* reduce space below toolbar */
+        padding-top: 6px; /* slightly reduce toolbar top padding */
+        padding-bottom: 6px;
+      }
+      /* Remove blue backdrop around the chips in the Reconcile toolbar */
+      #tab-reconcile .recon-toolbar {
+        background: transparent; /* remove the light blue surface */
+        border: none; /* remove the border so chips sit on the page background */
+        box-shadow: none;
+      }
+      /* Extra breathing room only for boolean groups */
+      #tab-reconcile .filters-grid .boolean-field {
+        margin-right: 8px; /* horizontal gap between boolean groups */
+        margin-bottom: 8px; /* vertical cushion when they wrap */
+      }
+
+      /* Keep the toggles tidy */
+      #tab-reconcile .filters-grid .toggle-group {
+        margin-top: 2px; /* tiny label-to-toggle spacing */
+        padding: 4px;
+        min-height: 34px;
+        align-items: center;
+      }
+
+      /* Keep the overall grid compact so Reset still fits on one line */
+      #tab-reconcile .filters-grid {
+        grid-column-gap: 12px; /* light, consistent separation */
+        grid-row-gap: 10px;
+      }
+
+      /* Reconcile table: constrain height and make header sticky so page doesn't grow when page-size increases */
+      #tab-reconcile .table-wrap {
+        max-height: 520px; /* adjust as needed for your app chrome */
+        overflow: auto; /* vertical scroll when content exceeds max-height */
+        scrollbar-gutter: stable both-edges; /* reserve space for scrollbar to avoid layout shifts/wrapping */
+      }
+      /* Freeze the table header inside the scrollable wrapper */
+      #tab-reconcile .table-wrap table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 4;
+        background: var(--table-header);
+        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+        white-space: nowrap; /* prevent header text wrapping when scrollbar appears */
+        text-overflow: ellipsis;
+        overflow: hidden;
+        box-sizing: border-box;
+      }
+      /* --- Reconcile & Apply: clean two-line layout, Reset after NEEDED? --- */
+      #tab-reconcile .filters-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px 16px;
+        align-items: flex-start;
+      }
+
+      /* Row 1: PRODUCT ID, ITEM, MONTH */
+      #tab-reconcile .filters-grid label.field:has(#filterUProductId) {
+        order: 1;
+        width: 160px;
+      }
+      #tab-reconcile .filters-grid label.field:has(#filterUItem) {
+        order: 2;
+        flex: 1 1 280px;
+        min-width: 240px;
+      }
+      #tab-reconcile .filters-grid label.field:has(#filterUMonth) {
+        order: 3;
+        width: 160px;
+      }
+
+      /* Insert a line break before the boolean group row */
+      #tab-reconcile .filters-grid::after {
+        content: "";
+        order: 9;
+        flex-basis: 100%;
+      }
+
+      /* Row 2: boolean groups (MANUAL QTY, SYSTEM QTY, DELTA, NEEDED?) */
+      #tab-reconcile .filters-grid .boolean-field {
+        order: 10;
+        flex: 1 1 220px;
+        min-width: 200px;
+        margin: 0;
+      }
+
+      /* Reset button: comes immediately after NEEDED? */
+      #tab-reconcile .filters-grid .reset-field {
+        order: 11; /* directly after the NEEDED? filter */
+        align-self: flex-end;
+        margin-left: 8px;
+        width: auto;
+      }
+
+      /* Keep toggle buttons tidy and prevent wrapping inside each group */
+      #tab-reconcile .filters-grid .toggle-group {
+        min-height: 36px;
+        padding: 4px;
+        white-space: nowrap;
+      }
+
+      /* Compact, consistent controls */
+      #tab-reconcile .filters-grid input,
+      #tab-reconcile .filters-grid select {
+        min-height: 34px;
+        padding: 5px 8px;
+      }
+
+      /* Optional: make boolean filters wrap nicely on narrow screens */
+      @media (max-width: 900px) {
+        #tab-reconcile .filters-grid .boolean-field {
+          flex: 1 1 48%;
+        }
+      }
+      @media (max-width: 600px) {
+        #tab-reconcile .filters-grid {
+          flex-direction: column;
+        }
+        #tab-reconcile .filters-grid .reset-field {
+          align-self: flex-start;
+          margin-left: 0;
+        }
+      }
     </style>
   </head>
   <body data-theme="system">
@@ -730,23 +1250,40 @@
             </p>
 
             <div class="seed-row">
+              <div
+                class="field-inline"
+                title="Current active set from the header"
+              >
+                <strong style="font-size: 0.9rem; color: #334155"
+                  >Active Set:</strong
+                >
+                <span
+                  id="activeSetDisplay"
+                  class="muted"
+                  style="
+                    max-width: 520px;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                  "
+                  >—</span
+                >
+              </div>
+
               <label class="field-inline">
-                <span>ACTIVE SET:</span>
-                <div id="activeSetDisplay" class="plan-name">—</div>
+                <span>From</span>
+                <input id="seedFrom" type="month" />
               </label>
 
               <label class="field-inline">
-                <span>FROM:</span>
-                <input type="month" class="filter-input" id="seedFrom" />
-              </label>
-
-              <label class="field-inline">
-                <span>TO:</span>
-                <input type="month" class="filter-input" id="seedTo" />
+                <span>To</span>
+                <input id="seedTo" type="month" />
               </label>
 
               <div class="card-actions">
-                <button id="btnSeedSet" class="btn outline">Seed</button>
+                <button id="btnSeedSet" class="btn outline" type="button">
+                  Seed
+                </button>
               </div>
             </div>
           </div>
@@ -792,47 +1329,233 @@
               </p>
             </div>
             <div class="card-actions">
-              <button id="btnAddLine" class="btn primary">Add Row</button>
+              <button id="btnAddLine" class="btn primary">Add Line</button>
               <button id="btnDeleteSelected" class="btn outline">
                 Delete Selected
               </button>
             </div>
           </div>
           <div class="card-body">
-            <div class="toolbar">
-              <label class="field">
-                <span>Current Set</span>
-                <select id="selSetForLines"></select>
-              </label>
-              <div class="spacer"></div>
-              <div class="inline-group">
-                <button id="btnExportLines" class="btn secondary">
-                  Export CSV
-                </button>
-                <input type="file" id="fileImportLines" accept=".csv" />
-                <button id="btnImportLines" class="btn outline">
-                  Import CSV
-                </button>
+            <div class="filter-panel">
+              <div class="filters-grid">
+                <label class="field">
+                  <span>SET ID</span>
+                  <input
+                    type="number"
+                    id="filterSetId"
+                    min="1"
+                    placeholder="e.g. 12"
+                  />
+                </label>
+                <label class="field">
+                  <span>MONTH</span>
+                  <input type="month" id="filterMonth" />
+                </label>
+                <label class="field">
+                  <span>PRODUCT ID</span>
+                  <input
+                    type="number"
+                    id="filterProductId"
+                    min="1"
+                    placeholder="e.g. 4102"
+                  />
+                </label>
+                <label class="field">
+                  <span>PRODUCT NAME</span>
+                  <input
+                    type="text"
+                    id="filterProductName"
+                    placeholder="Search by name"
+                  />
+                </label>
+                <label class="field">
+                  <span>PROPOSED QTY</span>
+                  <div class="toggle-group" style="width: 100%">
+                    <input type="hidden" id="filterProposedPresence" value="" />
+                    <button
+                      type="button"
+                      class="toggle-option active"
+                      data-proposed-toggle=""
+                    >
+                      All
+                    </button>
+                    <button
+                      type="button"
+                      class="toggle-option"
+                      data-proposed-toggle="nonZero"
+                    >
+                      Present
+                    </button>
+                    <button
+                      type="button"
+                      class="toggle-option"
+                      data-proposed-toggle="zero"
+                    >
+                      Absent
+                    </button>
+                  </div>
+                </label>
+                <label class="field">
+                  <span>NOTE</span>
+                  <select id="filterNote">
+                    <option value="">(all)</option>
+                  </select>
+                </label>
+                <div
+                  class="filter-group"
+                  style="
+                    align-items: flex-end;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 2px;
+                    min-width: 96px;
+                  "
+                >
+                  <label
+                    class="filter-label"
+                    style="
+                      font-size: 0.78rem;
+                      text-transform: uppercase;
+                      letter-spacing: 0.02em;
+                      color: #475569;
+                      font-weight: 600;
+                      margin-bottom: 2px;
+                    "
+                    >Reset</label
+                  >
+                  <button
+                    id="btnResetLineFilters"
+                    class="action-btn reset"
+                    type="button"
+                    title="Reset Filters"
+                    style="
+                      display: flex;
+                      align-items: center;
+                      gap: 4px;
+                      padding: 6px;
+                      border-radius: 8px;
+                      border: 1px solid #cbd5e1;
+                      background: #f8fafc;
+                      color: #1f2937;
+                      cursor: pointer;
+                      font: inherit;
+                      font-weight: 600;
+                      transition: all 0.2s ease;
+                      min-width: 34px;
+                      width: 34px;
+                      justify-content: center;
+                    "
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"
+                      />
+                      <path d="M21 3v5h-5" />
+                      <path
+                        d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"
+                      />
+                      <path d="M3 21v-5h5" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             </div>
-            <div class="table-wrap">
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-bottom: 8px;
+                gap: 12px;
+              "
+            >
+              <div
+                id="linesStatus"
+                class="chips"
+                style="display: flex; align-items: center; gap: 8px"
+              ></div>
+              <div
+                id="linesPaginator"
+                style="display: flex; align-items: center; gap: 8px"
+              >
+                <span
+                  id="linesPageInfo"
+                  class="small muted"
+                  style="white-space: nowrap"
+                  >Rows 0 of 0</span
+                >
+                <label
+                  for="linesPageSize"
+                  style="
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    margin-left: 8px;
+                  "
+                >
+                  <select
+                    id="linesPageSize"
+                    style="
+                      min-width: 64px;
+                      padding: 6px;
+                      border-radius: 6px;
+                      border: 1px solid #cbd5e1;
+                    "
+                  >
+                    <option value="10">10</option>
+                    <option value="20" selected>20</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                  </select>
+                </label>
+                <div style="display: inline-flex; gap: 6px; margin-left: 8px">
+                  <button
+                    id="linesPagePrev"
+                    class="btn outline"
+                    type="button"
+                    style="padding: 6px 8px; min-width: 48px"
+                  >
+                    ◀
+                  </button>
+                  <button
+                    id="linesPageNext"
+                    class="btn outline"
+                    type="button"
+                    style="padding: 6px 8px; min-width: 48px"
+                  >
+                    ▶
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="table-wrap lines-table-wrap">
               <table id="linesTable">
                 <thead>
                   <tr>
                     <th style="width: 32px">
                       <input type="checkbox" id="chkAll" />
                     </th>
-                    <th>product_id</th>
-                    <th>month_start</th>
-                    <th>proposed_qty</th>
-                    <th>note</th>
-                    <th>updated_at</th>
+                    <th>Set ID</th>
+                    <th>Month</th>
+                    <th>Product ID</th>
+                    <th>Product Name</th>
+                    <th>Proposed Qty</th>
+                    <th>UOM</th>
+                    <th>Note</th>
+                    <th>Updated at</th>
                   </tr>
                 </thead>
                 <tbody></tbody>
               </table>
             </div>
-            <div id="linesStatus" class="chips"></div>
           </div>
         </div>
       </section>
@@ -849,127 +1572,281 @@
         <div class="card">
           <div class="card-header">
             <div>
-              <h2>Reconcile &amp; Apply</h2>
+              <h2>Reconciliation &amp; Apply</h2>
               <p class="muted">
-                Compare manual overrides with system quantities before applying.
-              </p>
-            </div>
-          </div>
-          <div class="card-body">
-            <div class="toolbar">
-              <label class="field">
-                <span>Set</span>
-                <select id="selSetForReconcile"></select>
-              </label>
-              <label class="field">
-                <span>Window From</span>
-                <input type="date" id="rcFrom" />
-              </label>
-              <label class="field">
-                <span>To</span>
-                <input type="date" id="rcTo" />
-              </label>
-              <label class="field">
-                <span>Threshold ≥</span>
-                <input type="number" id="rcThreshold" step="0.0001" value="0" />
-              </label>
-              <div class="inline-group">
-                <button id="btnPreviewReconcile" class="btn secondary">
-                  Preview
-                </button>
-                <button id="btnApplyReconcile" class="btn primary">
-                  Apply Overrides
-                </button>
-              </div>
-              <span class="status-text right" id="rcStatus"></span>
-            </div>
-            <div class="table-wrap">
-              <table id="rcTable">
-                <thead>
-                  <tr>
-                    <th>product_id</th>
-                    <th>month_start</th>
-                    <th>system_qty</th>
-                    <th>proposed_qty</th>
-                    <th>delta_qty</th>
-                    <th>WIP?</th>
-                  </tr>
-                </thead>
-                <tbody></tbody>
-              </table>
-            </div>
-            <div class="table-hint">
-              * Rows in WIP are skipped by database rules.
-            </div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-header">
-            <div>
-              <h2>Manual vs System Reconciliation</h2>
-              <p class="muted">
-                Deep dive into manual set versus system production plans.
+                Compare manual overrides with system quantities, review deltas,
+                and apply as supply overrides.
               </p>
             </div>
             <div class="card-actions">
-              <button id="btnReconApply" class="btn primary">
+              <button id="btnUnifiedApply" class="btn primary">
                 Apply as Supply Overrides
               </button>
+              <button id="btnUnifiedUndo" class="btn danger">Undo Apply</button>
             </div>
           </div>
           <div class="card-body">
-            <div class="toolbar">
-              <label class="field">
-                <span>Manual Set</span>
-                <select id="reconSet"></select>
-              </label>
-              <label class="field">
-                <span>From</span>
-                <input type="date" id="reconFrom" />
-              </label>
-              <label class="field">
-                <span>To</span>
-                <input type="date" id="reconTo" />
-              </label>
-              <label class="field">
-                <span>Δ Threshold</span>
-                <input type="number" id="reconThresh" step="0.01" value="1" />
-              </label>
-              <div class="inline-group">
-                <button id="btnReconLoad" class="btn secondary">Load</button>
-                <button id="btnReconExport" class="btn outline">
-                  Export CSV
-                </button>
+            <!-- Top toolbar: Export (left) | paginator (right) -->
+            <div class="recon-toolbar">
+              <div class="left">
+                <!-- chips moved below the filter row so they appear after Reset -->
               </div>
             </div>
-            <label class="field-inline">
-              <input type="checkbox" id="reconShowEmpty" />
-              Include rows where manual and system are both zero
-            </label>
-            <div id="reconSummary" class="muted small"></div>
+            <!-- Reconcile filters: Product ID, Item, Month, and boolean toggles for Manual/System/Delta -->
+            <div class="filter-panel" style="margin-bottom: 8px">
+              <div class="filters-grid">
+                <label class="field">
+                  <span>PRODUCT ID</span>
+                  <input
+                    type="number"
+                    id="filterUProductId"
+                    placeholder="e.g. 4102"
+                  />
+                </label>
+                <label class="field">
+                  <span>ITEM</span>
+                  <input
+                    type="text"
+                    id="filterUItem"
+                    placeholder="Search by item"
+                  />
+                </label>
+                <label class="field">
+                  <span>MONTH</span>
+                  <input type="month" id="filterUMonth" />
+                </label>
+                <label class="field boolean-field">
+                  <span>MANUAL QTY</span>
+                  <div class="toggle-group">
+                    <input type="hidden" id="filterUManualPresence" value="" />
+                    <button
+                      type="button"
+                      class="toggle-option active"
+                      data-proposed-toggle=""
+                    >
+                      All
+                    </button>
+                    <button
+                      type="button"
+                      class="toggle-option"
+                      data-proposed-toggle="nonZero"
+                    >
+                      Present
+                    </button>
+                    <button
+                      type="button"
+                      class="toggle-option"
+                      data-proposed-toggle="zero"
+                    >
+                      Absent
+                    </button>
+                  </div>
+                </label>
+                <label class="field boolean-field">
+                  <span>SYSTEM QTY</span>
+                  <div class="toggle-group">
+                    <input type="hidden" id="filterUSystemPresence" value="" />
+                    <button
+                      type="button"
+                      class="toggle-option active"
+                      data-proposed-toggle=""
+                    >
+                      All
+                    </button>
+                    <button
+                      type="button"
+                      class="toggle-option"
+                      data-proposed-toggle="nonZero"
+                    >
+                      Present
+                    </button>
+                    <button
+                      type="button"
+                      class="toggle-option"
+                      data-proposed-toggle="zero"
+                    >
+                      Absent
+                    </button>
+                  </div>
+                </label>
+                <label class="field boolean-field">
+                  <span>DELTA</span>
+                  <div class="toggle-group">
+                    <input type="hidden" id="filterUDeltaPresence" value="" />
+                    <button
+                      type="button"
+                      class="toggle-option active"
+                      data-proposed-toggle=""
+                    >
+                      All
+                    </button>
+                    <button
+                      type="button"
+                      class="toggle-option"
+                      data-proposed-toggle="nonZero"
+                    >
+                      Present
+                    </button>
+                    <button
+                      type="button"
+                      class="toggle-option"
+                      data-proposed-toggle="zero"
+                    >
+                      Absent
+                    </button>
+                  </div>
+                </label>
+                <label class="field boolean-field">
+                  <span>NEEDED?</span>
+                  <div class="toggle-group">
+                    <input type="hidden" id="filterUNeeded" value="" />
+                    <button
+                      type="button"
+                      class="toggle-option active"
+                      data-proposed-toggle=""
+                    >
+                      All
+                    </button>
+                    <button
+                      type="button"
+                      class="toggle-option"
+                      data-proposed-toggle="yes"
+                    >
+                      Yes
+                    </button>
+                    <button
+                      type="button"
+                      class="toggle-option"
+                      data-proposed-toggle="no"
+                    >
+                      No
+                    </button>
+                  </div>
+                </label>
+                <div class="field reset-field">
+                  <span
+                    class="filter-label"
+                    style="
+                      font-size: 0.78rem;
+                      text-transform: uppercase;
+                      letter-spacing: 0.02em;
+                      color: #475569;
+                      font-weight: 600;
+                      margin-bottom: 2px;
+                    "
+                    >Reset</span
+                  >
+                  <button
+                    id="btnResetUnifiedFilters"
+                    class="action-btn reset"
+                    type="button"
+                    title="Reset Filters"
+                    style="
+                      display: flex;
+                      align-items: center;
+                      gap: 4px;
+                      padding: 7px 14px;
+                      border-radius: 8px;
+                      border: 1px solid #cbd5e1;
+                      background: #f8fafc;
+                      color: #1f2937;
+                      cursor: pointer;
+                      font: inherit;
+                      font-weight: 600;
+                      transition: all 0.2s ease;
+                      min-width: 45px;
+                    "
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"
+                      />
+                      <path d="M21 3v5h-5" />
+                      <path
+                        d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"
+                      />
+                      <path d="M3 21v-5h5" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 12px;
+                margin: 8px 0;
+              "
+            >
+              <div>
+                <button id="btnUnifiedExport" class="btn outline">
+                  Export CSV
+                </button>
+                <div
+                  id="unifiedSummary"
+                  class="chips"
+                  style="
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                    margin-left: 8px;
+                  "
+                ></div>
+              </div>
+              <div style="display: inline-flex; align-items: center; gap: 8px">
+                <label style="display: flex; align-items: center; gap: 6px">
+                  <span class="small muted">Page size</span>
+                  <select id="unifiedPageSize">
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                  </select>
+                </label>
+                <button id="unifiedPagePrev" class="btn outline">◀</button>
+                <div
+                  id="unifiedPageInfo"
+                  class="muted small"
+                  style="white-space: nowrap"
+                >
+                  No rows
+                </div>
+                <button id="unifiedPageNext" class="btn outline">▶</button>
+              </div>
+            </div>
+
             <div class="table-wrap">
-              <table id="reconTable">
+              <table id="unifiedTable">
                 <thead>
                   <tr>
-                    <th>product_id</th>
-                    <th>item</th>
-                    <th>uom</th>
-                    <th>month_start</th>
-                    <th>manual_qty</th>
-                    <th>system_qty</th>
-                    <th>delta_qty</th>
-                    <th>bottled</th>
-                    <th>fg_bulk</th>
-                    <th>wip</th>
-                    <th>bmr_not_init</th>
-                    <th>needed?</th>
-                    <th>reason</th>
+                    <th style="text-align: center">Product ID</th>
+                    <th>Item</th>
+                    <th style="text-align: center">UOM</th>
+                    <th style="text-align: center">Month</th>
+                    <th style="text-align: center">Manual Qty</th>
+                    <th style="text-align: center">System Qty</th>
+                    <th style="text-align: center">&#x0394;</th>
+                    <th style="text-align: center">Bottled SOH</th>
+                    <th style="text-align: center">FG Bulk SOH</th>
+                    <th style="text-align: center">WIP SOH</th>
+                    <th style="text-align: center">BMR Not Initiated</th>
+                    <th style="text-align: center">Needed?</th>
+                    <th>Reason</th>
                   </tr>
                 </thead>
                 <tbody></tbody>
               </table>
             </div>
-            <div id="reconStatus" class="small muted">—</div>
           </div>
         </div>
       </section>
@@ -993,34 +1870,132 @@
             </div>
           </div>
           <div class="card-body">
-            <div class="toolbar">
-              <label class="field">
-                <span>From</span>
-                <input type="date" id="aoFrom" />
-              </label>
-              <label class="field">
-                <span>To</span>
-                <input type="date" id="aoTo" />
-              </label>
-              <div class="inline-group">
-                <button id="btnLoadActive" class="btn secondary">Load</button>
-                <button id="btnExportActive" class="btn outline">
-                  Export CSV
-                </button>
+            <!-- Active Overrides filter strip: Product ID | Item | Month -->
+            <div class="filter-panel" style="margin-bottom: 8px">
+              <div class="filters-grid">
+                <label class="field">
+                  <span>PRODUCT ID</span>
+                  <input
+                    type="number"
+                    id="filterAOProductId"
+                    placeholder="e.g. 4102"
+                  />
+                </label>
+                <label class="field">
+                  <span>ITEM</span>
+                  <input
+                    type="text"
+                    id="filterAOItem"
+                    placeholder="Search by item"
+                  />
+                </label>
+                <label class="field">
+                  <span>MONTH</span>
+                  <input type="month" id="filterAOMonth" />
+                </label>
+                <div class="field reset-field">
+                  <span
+                    class="filter-label"
+                    style="
+                      font-size: 0.78rem;
+                      text-transform: uppercase;
+                      letter-spacing: 0.02em;
+                      color: #475569;
+                      font-weight: 600;
+                      margin-bottom: 2px;
+                    "
+                    >Reset</span
+                  >
+                  <button
+                    id="btnResetAOFilters"
+                    class="action-btn reset"
+                    type="button"
+                    title="Reset Filters"
+                    style="
+                      display: flex;
+                      align-items: center;
+                      gap: 4px;
+                      padding: 7px 14px;
+                      border-radius: 8px;
+                      border: 1px solid #cbd5e1;
+                      background: #f8fafc;
+                      color: #1f2937;
+                      cursor: pointer;
+                      font: inherit;
+                      font-weight: 600;
+                      transition: all 0.2s ease;
+                      min-width: 45px;
+                    "
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"
+                      />
+                      <path d="M21 3v5h-5" />
+                      <path
+                        d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"
+                      />
+                      <path d="M3 21v-5h5" />
+                    </svg>
+                  </button>
+                </div>
               </div>
-              <span class="status-text right" id="aoStatus"></span>
             </div>
-            <div class="table-wrap">
+
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 8px;
+                margin-bottom: 8px;
+              "
+            >
+              <div
+                id="aoStatus"
+                class="chips"
+                style="display: flex; align-items: center; gap: 8px"
+              ></div>
+              <div style="display: flex; align-items: center; gap: 8px">
+                <label style="display: flex; align-items: center; gap: 6px">
+                  <span class="small muted">Page size</span>
+                  <select id="aoPageSize">
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                  </select>
+                </label>
+                <button id="aoPagePrev" class="btn outline">◀</button>
+                <div
+                  id="aoPageInfo"
+                  class="muted small"
+                  style="white-space: nowrap"
+                >
+                  No rows
+                </div>
+                <button id="aoPageNext" class="btn outline">▶</button>
+              </div>
+            </div>
+            <div class="table-wrap ao-table-wrap">
               <table id="aoTable">
                 <thead>
                   <tr>
-                    <th>product_id</th>
-                    <th>month_start</th>
-                    <th>delta_units</th>
-                    <th>reason</th>
-                    <th>is_active</th>
-                    <th>created_at</th>
-                    <th>updated_at</th>
+                    <th>Product ID</th>
+                    <th>Item</th>
+                    <th>UOM</th>
+                    <th>Month</th>
+                    <th title="delta">Δ</th>
+                    <th>Reason</th>
+                    <th>Created at</th>
+                    <th>Updated at</th>
                   </tr>
                 </thead>
                 <tbody></tbody>
@@ -1034,8 +2009,143 @@
     <dialog id="poModal">
       <div class="modal-header" id="poModalTitle">Notice</div>
       <div class="modal-body" id="poModalMessage">Message…</div>
-      <div class="modal-footer">
+      <div
+        class="modal-footer"
+        id="poModalFooter"
+        style="
+          display: flex;
+          justify-content: flex-end;
+          gap: 12px;
+          margin-top: 18px;
+        "
+      >
         <button id="poModalClose" class="btn primary">OK</button>
+      </div>
+    </dialog>
+
+    <dialog
+      id="undoConfirmDialog"
+      class="modal"
+      style="min-width: 360px; max-width: 560px"
+    >
+      <div class="modal-header" style="font-weight: 600; font-size: 1.05em">
+        Confirm Undo Apply
+      </div>
+      <div class="modal-body" style="padding: 12px 20px">
+        <p style="margin-bottom: 10px">
+          This will permanently delete overrides applied from the selected
+          manual plan set for its entire window and set the plan status back to
+          <strong>draft</strong>. This action cannot be undone. Proceed?
+        </p>
+      </div>
+      <div
+        class="modal-footer"
+        style="
+          display: flex;
+          justify-content: flex-end;
+          gap: 12px;
+          margin-top: 18px;
+        "
+      >
+        <button id="undoCancelBtn" class="btn outline">Cancel</button>
+        <button id="undoOkBtn" class="btn danger">Yes, Undo</button>
+      </div>
+    </dialog>
+
+    <dialog
+      id="seedConfirmDialog"
+      class="modal"
+      style="min-width: 360px; max-width: 560px"
+    >
+      <div class="modal-header" style="font-weight: 600; font-size: 1.1em">
+        Seed From System
+      </div>
+      <div class="modal-body" style="padding: 12px 20px">
+        <p style="margin-bottom: 10px">
+          This will copy system plan quantities for the selected window into the
+          current manual plan set. Existing lines in that window may be
+          replaced.
+        </p>
+        <div class="chips" style="margin: 8px 0 12px">
+          <span class="chip" id="seedConfirmSetChip">Set: —</span>
+          <span class="chip" id="seedConfirmFromChip">From: —</span>
+          <span class="chip" id="seedConfirmToChip">To: —</span>
+        </div>
+      </div>
+      <div
+        class="modal-footer"
+        style="display: flex; justify-content: flex-end; gap: 12px"
+      >
+        <button id="seedConfirmCancelBtn" class="btn outline">Cancel</button>
+        <button id="seedConfirmOkBtn" class="btn primary">Seed</button>
+      </div>
+    </dialog>
+
+    <dialog
+      id="applyConfirmDialog"
+      class="modal"
+      style="min-width: 340px; max-width: 520px"
+    >
+      <div class="modal-header" style="font-weight: 600; font-size: 1.1em">
+        Apply Overrides?
+      </div>
+      <div
+        class="modal-body"
+        id="applyConfirmMessage"
+        style="padding: 8px 20px"
+      >
+        This will apply overrides for the selected manual plan set across its
+        entire set window. You can reverse this with <b>Undo Apply</b>. Proceed?
+      </div>
+      <div
+        class="modal-footer"
+        style="
+          display: flex;
+          justify-content: flex-end;
+          gap: 12px;
+          margin-top: 16px;
+        "
+      >
+        <button id="applyConfirmCancelBtn" class="btn outline">Cancel</button>
+        <button id="applyConfirmConfirmBtn" class="btn primary">Apply</button>
+      </div>
+    </dialog>
+
+    <!-- Separate Delete Confirmation Modal -->
+    <dialog
+      id="deleteConfirmModal"
+      class="modal"
+      style="min-width: 340px; max-width: 500px"
+    >
+      <div
+        class="modal-header"
+        id="deleteConfirmTitle"
+        style="
+          font-weight: 600;
+          font-size: 1.1em;
+          margin-bottom: 10px;
+          text-align: left;
+        "
+      >
+        Delete Confirmation
+      </div>
+      <div
+        class="modal-body"
+        id="deleteConfirmMessage"
+        style="padding: 8px 20px; text-align: left"
+      ></div>
+      <div
+        class="modal-footer"
+        id="deleteConfirmFooter"
+        style="
+          display: flex;
+          justify-content: flex-end;
+          gap: 12px;
+          margin-top: 18px;
+        "
+      >
+        <button id="deleteConfirmCancelBtn" class="btn outline">Cancel</button>
+        <button id="deleteConfirmDeleteBtn" class="btn danger">Delete</button>
       </div>
     </dialog>
 

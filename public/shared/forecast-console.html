@@ -5,35 +5,224 @@
     <title>Forecast Console</title>
     <link rel="stylesheet" href="css/style.css" />
     <style>
-      .fc-wrap {
-        max-width: 1400px;
-        margin: 0 auto;
+      :root {
+        --muted: #6b7280;
+        --panel-bg: var(--panel-bg, #ffffff);
+        --surface-shadow: rgba(15, 23, 42, 0.06);
       }
+
+      body {
+        font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif;
+        color: var(--text-color, #111827);
+      }
+
+      .fc-wrap {
+        max-width: 1360px;
+        margin: 0 auto;
+        padding: 0 12px 32px;
+      }
+
+      .page-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin: 8px 0 12px;
+        gap: 12px;
+      }
+
+      .page-header h1 {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--primary, #3b82f6);
+      }
+
+      .page-lead {
+        margin: 0 0 20px;
+        color: var(--muted);
+        font-size: 0.9rem;
+        max-width: 720px;
+      }
+
+      .header-actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+
+      #homeBtn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        border: 1px solid #fdba74 !important;
+        border-radius: 6px;
+        background: #fed7aa !important;
+        color: #9a3412 !important;
+        cursor: pointer;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+      }
+
+      #homeBtn svg {
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+      }
+
+      #homeBtn:hover {
+        background: #fdba74 !important;
+        border-color: #fb923c !important;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+      }
+
+      .tabs-wrap {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        margin: 0 0 18px;
+      }
+
       .tabs {
         display: flex;
         gap: 8px;
-        margin: 12px 0;
-        flex-wrap: wrap;
+        padding: 0 16px;
+        background: var(--panel-bg, #fff);
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 12px;
+        box-shadow: 0 10px 24px var(--surface-shadow);
+        overflow-x: auto;
+        flex: 1 1 auto;
+        white-space: nowrap;
+        scroll-snap-type: x proximity;
       }
+
+      .tabs::-webkit-scrollbar {
+        height: 8px;
+      }
+
+      .tabs::-webkit-scrollbar-thumb {
+        background: rgba(15, 23, 42, 0.12);
+        border-radius: 6px;
+      }
+
+      .tabs-chevron {
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        background: var(--panel-bg, #fff);
+        color: var(--muted);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s ease, color 0.2s ease;
+      }
+
+      .tabs-chevron svg {
+        width: 16px;
+        height: 16px;
+      }
+
+      .tabs-chevron:hover:not([disabled]) {
+        background: #f1f5f9;
+        color: #1e3a8a;
+      }
+
+      .tabs-chevron[disabled] {
+        opacity: 0.35;
+        cursor: default;
+      }
+
       .tab-btn {
-        padding: 8px 12px;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        background: #fff;
-        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 14px;
+        border-radius: 10px;
+        border: 1px solid transparent;
+        background: transparent;
+        color: #1f2937;
+        font-size: 0.88rem;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        scroll-snap-align: start;
+        min-height: 54px;
+        text-align: left;
       }
+
+      .tab-btn svg {
+        width: 18px;
+        height: 18px;
+        color: #64748b;
+        flex-shrink: 0;
+        transition: color 0.2s ease;
+      }
+
+      .tab-btn > div {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .tab-description {
+        font-size: 0.72rem;
+        color: #94a3b8;
+        font-weight: 400;
+      }
+
+      .tab-btn:hover {
+        background: rgba(37, 99, 235, 0.08);
+        border-color: rgba(37, 99, 235, 0.16);
+        color: #1d4ed8;
+      }
+
+      .tab-btn:hover svg {
+        color: #2563eb;
+      }
+
+      .tab-btn[aria-selected="true"],
       .tab-btn.active {
-        background: #eef6ff;
-        border-color: #8ec5ff;
+        background: linear-gradient(
+          180deg,
+          rgba(37, 99, 235, 0.18),
+          rgba(37, 99, 235, 0.08)
+        );
+        border-color: rgba(37, 99, 235, 0.32);
+        color: #1e3a8a;
+        box-shadow: 0 8px 20px rgba(37, 99, 235, 0.18);
       }
+
+      .tab-btn[aria-selected="true"] svg,
+      .tab-btn.active svg {
+        color: #1d4ed8;
+      }
+
+      @media (max-width: 720px) {
+        .tab-btn {
+          gap: 8px;
+          padding: 10px 12px;
+          min-height: 48px;
+        }
+
+        .tab-description {
+          display: none;
+        }
+      }
+
       .tab-panel {
         display: none;
-        border: 1px solid #eee;
-        border-radius: 10px;
-        padding: 12px;
       }
+
       .tab-panel.active {
         display: block;
+      }
+
+      .tab-panel[hidden] {
+        display: none !important;
       }
 
       .row {
@@ -41,177 +230,338 @@
         gap: 12px;
         flex-wrap: wrap;
         align-items: flex-end;
+        margin-bottom: 12px;
       }
-      .row > * {
-        margin-bottom: 8px;
-      }
+
       .tile {
-        border: 1px solid #eee;
+        border: 1px solid rgba(15, 23, 42, 0.08);
         border-radius: 10px;
-        padding: 10px 12px;
+        padding: 14px 16px;
         min-width: 180px;
+        background: var(--panel-bg, #fff);
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
       }
+
       .tile h4 {
         margin: 0 0 6px;
-        font-size: 14px;
-        color: #555;
+        font-size: 0.8rem;
+        color: #475569;
+        letter-spacing: 0.01em;
+        text-transform: uppercase;
       }
+
       .tile .big {
-        font-size: 22px;
+        font-size: 1.45rem;
         font-weight: 700;
       }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-      }
-      th,
-      td {
-        padding: 8px;
-        border-bottom: 1px solid #f0f0f0;
-        text-align: left;
-      }
-      th {
-        background: #fafafa;
-        position: sticky;
-        top: 0;
-        z-index: 1;
-      }
-      .controls {
-        display: flex;
-        gap: 10px;
-        align-items: end;
-        flex-wrap: wrap;
-        margin: 8px 0 14px;
-      }
+
       .muted {
-        color: #6b7280;
+        color: var(--muted, #6b7280);
       }
-      .right {
-        margin-left: auto;
-      }
+
       .warn {
         color: #b45309;
       }
+
       .ok {
-        color: #065f46;
+        color: #047857;
       }
-      .btn {
-        padding: 6px 10px;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        background: #fff;
-        cursor: pointer;
-      }
-      .btn.primary {
-        background: #0ea5e9;
-        border-color: #0ea5e9;
-        color: #fff;
-      }
-      .btn.ghost {
-        border-style: dashed;
-      }
-      input,
-      select {
-        padding: 6px 8px;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-      }
-      .small {
-        font-size: 12px;
-      }
+
       .grid {
         overflow: auto;
-        max-height: 60vh;
-        border: 1px solid #eee;
-        border-radius: 10px;
+        border: 1px solid rgba(15, 23, 42, 0.1);
+        border-radius: 12px;
+        background: var(--panel-bg, #fff);
+        box-shadow: 0 8px 16px rgba(15, 23, 42, 0.05);
       }
+
+      .grid table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 720px;
+      }
+
+      .grid thead th {
+        background: #f8fafc;
+        color: #1f2937;
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        padding: 10px 14px;
+        border-bottom: 1px solid rgba(15, 23, 42, 0.1);
+      }
+
+      .grid tbody td {
+        padding: 10px 14px;
+        font-size: 0.85rem;
+        border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+        color: #111827;
+      }
+
+      .grid tbody tr:nth-child(even) {
+        background: rgba(148, 163, 184, 0.08);
+      }
+
+      .grid tbody tr:hover {
+        background: rgba(37, 99, 235, 0.08);
+      }
+
       .section-title {
-        margin: 14px 0 6px;
+        margin: 18px 0 12px;
+        font-size: 1rem;
+        font-weight: 600;
+        color: #1f2937;
       }
+
       #fcModal::backdrop {
-        background: rgba(0, 0, 0, 0.35);
+        background: rgba(15, 23, 42, 0.45);
       }
+
       #fcModal {
         border: none;
         border-radius: 10px;
         padding: 0;
       }
-      .btn {
-        padding: 6px 12px;
-        border-radius: 8px;
-        border: 1px solid #ddd;
-        background: #fff;
-        cursor: pointer;
-      }
-      .btn:hover {
-        background: #f6f6f6;
-      }
-      button.publish-btn {
-        background: var(--brand, #0a62c3);
-        color: #fff;
-        border: none;
-        border-radius: 6px;
-        padding: 6px 14px;
-        font-size: 0.9rem;
-        cursor: pointer;
-        transition: background 0.2s;
-      }
-
-      button.publish-btn:hover {
-        background: var(--brand-600, #084e9c); /* darker shade */
-        color: #fff; /* stays white */
-      }
-
-      /* Header: title on the left, actions on the right */
-      .page-header {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        justify-content: space-between;
-        margin-bottom: 8px;
-      }
-      .page-header .title-left {
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-      }
-      .home-btn {
-        margin-left: 12px;
-      }
     </style>
   </head>
   <body data-theme="system">
     <div class="fc-wrap">
-      <div class="page-header">
-        <div class="title-left">
-          <h1 style="margin: 0">Forecast Console</h1>
-        </div>
+      <header class="page-header">
         <div>
-          <button id="homeBtn" class="btn home-btn" title="Home">HOME</button>
+          <h1>Forecast Console</h1>
         </div>
-      </div>
-      <p class="muted small" style="margin: 6px 0 12px">
-        Run, review, override, and publish SKU×Region×Godown monthly forecasts.
-      </p>
-
+        <div class="header-actions">
+          <button id="homeBtn" type="button" title="Home">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9,22 9,12 15,12 15,22" />
+            </svg>
+            HOME
+          </button>
+        </div>
+      </header>
       <!-- Tabs -->
-      <div class="tabs">
-        <button class="tab-btn active" data-tab="overview">Overview</button>
-        <button class="tab-btn" data-tab="outputs">Model Outputs</button>
-        <button class="tab-btn" data-tab="exceptions">Exceptions</button>
-        <button class="tab-btn" data-tab="overrides">Overrides</button>
-        <button class="tab-btn" data-tab="publish">Publish</button>
-      </div>
+      <div class="tabs-wrap">
+        <button
+          class="tabs-chevron left"
+          type="button"
+          aria-label="Scroll sections left"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path
+              d="M15 18l-6-6 6-6"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <nav
+          class="tabs"
+          role="tablist"
+          aria-label="Forecast Console Sections"
+        >
+          <button
+            class="tab-btn active"
+            id="tab-btn-overview"
+            type="button"
+            role="tab"
+            aria-controls="tab-overview"
+            aria-selected="true"
+            data-tab="overview"
+            tabindex="0"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+              focusable="false"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M3 12h4v8H3z" />
+              <path d="M10 6h4v14h-4z" />
+              <path d="M17 3h4v17h-4z" />
+            </svg>
+            <div>
+              Overview
+              <span class="tab-description">Health & tracking</span>
+            </div>
+          </button>
 
+          <button
+            class="tab-btn"
+            id="tab-btn-outputs"
+            type="button"
+            role="tab"
+            aria-controls="tab-outputs"
+            aria-selected="false"
+            data-tab="outputs"
+            tabindex="-1"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+              focusable="false"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <rect x="3" y="4" width="18" height="16" rx="2" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+              <line x1="9" y1="4" x2="9" y2="20" />
+            </svg>
+            <div>
+              Model Outputs
+              <span class="tab-description">Baseline and LLT views</span>
+            </div>
+          </button>
+
+          <button
+            class="tab-btn"
+            id="tab-btn-exceptions"
+            type="button"
+            role="tab"
+            aria-controls="tab-exceptions"
+            aria-selected="false"
+            data-tab="exceptions"
+            tabindex="-1"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+              focusable="false"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+              />
+              <path d="M12 9v5" />
+              <path d="M12 17h.01" />
+            </svg>
+            <div>
+              Exceptions
+              <span class="tab-description">Gaps & outliers to review</span>
+            </div>
+          </button>
+
+          <button
+            class="tab-btn"
+            id="tab-btn-overrides"
+            type="button"
+            role="tab"
+            aria-controls="tab-overrides"
+            aria-selected="false"
+            data-tab="overrides"
+            tabindex="-1"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+              focusable="false"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M3 17v4h4l10-10-4-4L3 17z" />
+              <path d="M14 7l4 4" />
+            </svg>
+            <div>
+              Overrides
+              <span class="tab-description">Marketing inputs & revisions</span>
+            </div>
+          </button>
+
+          <button
+            class="tab-btn"
+            id="tab-btn-publish"
+            type="button"
+            role="tab"
+            aria-controls="tab-publish"
+            aria-selected="false"
+            data-tab="publish"
+            tabindex="-1"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+              focusable="false"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7,10 12,5 17,10" />
+              <line x1="12" y1="5" x2="12" y2="21" />
+            </svg>
+            <div>
+              Publish
+              <span class="tab-description">Snapshot and share plans</span>
+            </div>
+          </button>
+        </nav>
+        <button
+          class="tabs-chevron right"
+          type="button"
+          aria-label="Scroll sections right"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path
+              d="M9 6l6 6-6 6"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+      </div>
       <!-- Date window + filters (global) -->
       <div class="row">
         <div>
           <label class="small">From</label><br />
-          <input type="date" id="fromDate" />
+          <input type="month" id="fromDate" />
         </div>
         <div>
           <label class="small">To</label><br />
-          <input type="date" id="toDate" />
+          <input type="month" id="toDate" />
         </div>
         <div>
           <label class="small">SKU</label><br />
@@ -228,38 +578,40 @@
         <div>
           <button class="btn" id="resetFilters">Reset</button>
         </div>
-        <div class="right">
-          <span class="small muted" id="sessionUser"></span>
-        </div>
       </div>
 
       <!-- OVERVIEW -->
-      <section class="tab-panel active" id="tab-overview">
+      <section
+        class="tab-panel active"
+        id="tab-overview"
+        role="tabpanel"
+        aria-labelledby="tab-btn-overview"
+      >
         <h3 class="section-title">Health Summary</h3>
         <div class="row" id="overviewTiles">
           <div class="tile">
             <h4>Window</h4>
-            <div class="big" id="tileWindow">—</div>
+            <div class="big" id="tileWindow">--</div>
           </div>
           <div class="tile">
             <h4>Pairs (Combined)</h4>
-            <div class="big" id="tilePairs">—</div>
+            <div class="big" id="tilePairs">--</div>
           </div>
           <div class="tile">
             <h4>Rows (Combined)</h4>
-            <div class="big" id="tileRows">—</div>
+            <div class="big" id="tileRows">--</div>
           </div>
           <div class="tile">
             <h4>Missing LLT</h4>
-            <div class="big warn" id="tileMissLLT">—</div>
+            <div class="big warn" id="tileMissLLT">--</div>
           </div>
           <div class="tile">
             <h4>Missing Seasonal</h4>
-            <div class="big warn" id="tileMissSeason">—</div>
+            <div class="big warn" id="tileMissSeason">--</div>
           </div>
           <div class="tile">
             <h4>Active Overrides</h4>
-            <div class="big ok" id="tileOverrides">—</div>
+            <div class="big ok" id="tileOverrides">--</div>
           </div>
         </div>
 
@@ -284,7 +636,13 @@
       </section>
 
       <!-- MODEL OUTPUTS -->
-      <section class="tab-panel" id="tab-outputs">
+      <section
+        class="tab-panel"
+        id="tab-outputs"
+        role="tabpanel"
+        aria-labelledby="tab-btn-outputs"
+        hidden
+      >
         <div class="controls">
           <label class="small">Dataset</label>
           <select id="outputsDataset">
@@ -313,9 +671,15 @@
       </section>
 
       <!-- EXCEPTIONS (stub for next step) -->
-      <section class="tab-panel" id="tab-exceptions">
+      <section
+        class="tab-panel"
+        id="tab-exceptions"
+        role="tabpanel"
+        aria-labelledby="tab-btn-exceptions"
+        hidden
+      >
         <p class="muted">
-          We’ll wire this next: “missing LLT/Seasonal”, negatives, jumps.
+          We'll wire this next: missing LLT/Seasonal, negatives, jumps.
         </p>
         <div class="controls">
           <button class="btn" id="btnLoadExceptions">Load Exceptions</button>
@@ -341,7 +705,13 @@
       </section>
 
       <!-- OVERRIDES -->
-      <section class="tab-panel" id="tab-overrides">
+      <section
+        class="tab-panel"
+        id="tab-overrides"
+        role="tabpanel"
+        aria-labelledby="tab-btn-overrides"
+        hidden
+      >
         <!-- Run Controls (moved here, only visible in Overrides tab) -->
         <section class="panel" id="runControls">
           <h3>Run Controls</h3>
@@ -377,7 +747,7 @@
               <input id="dryRun" type="checkbox" />
             </div>
             <button id="btnApplyOverridesAndDerived" class="btn btn-primary">
-              Apply Marketing Overrides → Re-run LLT & Seasonal
+              Apply Marketing Overrides -> Re-run LLT & Seasonal
             </button>
             <button id="btnFullRebuild" class="btn btn-danger">
               Full Rebuild: Baseline + LLT + Seasonal
@@ -436,11 +806,11 @@
             <div style="margin-left: auto">
               <label style="display: block; font-weight: 600">Window</label>
               <div style="display: flex; gap: 8px">
-                <input id="moFrom" type="date" />
-                <input id="moTo" type="date" />
+                <input id="moFrom" type="month" />
+                <input id="moTo" type="month" />
               </div>
               <small
-                >Defaults: fence-aware “next 12m”. Set only if you need a custom
+                >Defaults: fence-aware "next 12m". Set only if you need a custom
                 window.</small
               >
             </div>
@@ -506,10 +876,10 @@
           </div>
           <div>
             <label class="small">Month</label><br />
-            <input type="date" id="ovMonth" />
+            <input type="month" id="ovMonth" />
           </div>
           <div>
-            <label class="small">Δ Units (+/-)</label><br />
+            <label class="small">Delta Units (+/-)</label><br />
             <input type="number" id="ovDelta" />
           </div>
           <div style="min-width: 220px">
@@ -538,7 +908,7 @@
                 <th>Region</th>
                 <th>Godown</th>
                 <th>Month</th>
-                <th>Δ Units</th>
+                <th>Delta Units</th>
                 <th>Reason</th>
                 <th>Active</th>
                 <th>Created</th>
@@ -551,9 +921,15 @@
       </section>
 
       <!-- PUBLISH (stub for next step) -->
-      <section class="tab-panel" id="tab-publish">
+      <section
+        class="tab-panel"
+        id="tab-publish"
+        role="tabpanel"
+        aria-labelledby="tab-btn-publish"
+        hidden
+      >
         <p class="muted">
-          We’ll wire snapshotting next (header + lines from combined view).
+          We'll wire snapshotting next (header + lines from combined view).
         </p>
         <div class="row">
           <div>
@@ -614,3 +990,5 @@
     </dialog>
   </body>
 </html>
+
+

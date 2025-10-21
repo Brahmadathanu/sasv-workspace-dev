@@ -53,7 +53,8 @@
     "marked": "^16.2.1",
     "pg": "^8.16.0",
     "sanitize-filename": "^1.6.3",
-    "tom-select": "^2.4.3"
+    "tom-select": "^2.4.3",
+    "luxon": "^3.5.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.33.0",

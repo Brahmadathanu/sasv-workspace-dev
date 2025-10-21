@@ -273,15 +273,41 @@ async function getCurrentUserId() {
 async function loadLookups() {
   // Fetch in parallel. Use the enriched SKU catalog view which contains
   // product and SKU display fields (item, pack_size, uom, sku_label, etc.).
-  const [catalogRes, godownsRes, regionsRes] = await Promise.all([
-    supabase
-      .from("v_sku_catalog_enriched")
-      .select(
-        "sku_id,product_id,item,malayalam_name,status,uom_base,conversion_to_base,pack_size,uom,is_active,sku_label"
-      ),
-    supabase.from("godowns").select("id,code,name,region_id"),
-    supabase.from("regions").select("id,code,name"),
-  ]);
+  // Fetch catalog in pages to avoid server-side limits. We'll request pages of
+  // PAGE_SIZE until a page returns fewer rows than PAGE_SIZE.
+  const PAGE_SIZE = 1000;
+  let page = 0;
+  const catalogRows = [];
+  let catalogErr = null;
+  try {
+    while (true) {
+      const from = page * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      const { data: pageRows, error: pageErr } = await supabase
+        .from("v_sku_catalog_enriched")
+        .select(
+          "sku_id,product_id,item,malayalam_name,status,uom_base,conversion_to_base,pack_size,uom,is_active,sku_label"
+        )
+        .range(from, to);
+      if (pageErr) {
+        catalogErr = pageErr;
+        break;
+      }
+      if (!pageRows || !pageRows.length) break;
+      catalogRows.push(...pageRows);
+      if (pageRows.length < PAGE_SIZE) break;
+      page++;
+    }
+  } catch (e) {
+    catalogErr = e;
+  }
+
+  const godownsRes = await supabase
+    .from("godowns")
+    .select("id,code,name,region_id");
+  const regionsRes = await supabase.from("regions").select("id,code,name");
+
+  const catalogRes = { data: catalogRows, error: catalogErr };
 
   if (catalogRes.error)
     console.error(
@@ -891,6 +917,36 @@ async function debugSkuProduct(skuId) {
 
 if (typeof window !== "undefined") window.debugSkuProduct = debugSkuProduct;
 
+// Expose internal lookup caches to window for debugging in DevTools.
+// These are read-only views of in-memory caches and are only attached when
+// running in a browser environment so console inspection is possible.
+if (typeof window !== "undefined") {
+  try {
+    window.skuMap = skuMap;
+    window.productMap = productMap;
+    window.godownMap = godownMap;
+    window.regionMap = regionMap;
+    // expose loadLookups for manual refresh from console
+    window.loadLookups = loadLookups;
+    // helper to query the catalog view for a product id
+    window.findCatalogProduct = async (pid) => {
+      try {
+        const { data, error } = await supabase
+          .from("v_sku_catalog_enriched")
+          .select("sku_id,product_id,item,sku_label,pack_size,uom")
+          .eq("product_id", pid);
+        console.log("catalog rows:", data, "error:", error);
+        return { data, error };
+      } catch (e) {
+        console.warn("findCatalogProduct failed", e);
+        return { data: null, error: e };
+      }
+    };
+  } catch {
+    // ignore failures in non-browser contexts
+  }
+}
+
 function setStatus(el, text, css = "") {
   el.textContent = text || "";
   el.className = `status ${css}`.trim();
@@ -1397,67 +1453,20 @@ async function loadStaging() {
             .upsert(payload, {
               onConflict: "sku_id,region_id,godown_id,month_start",
             });
-          if (up.error) {
-            const msg = String(up.error.message || "").toLowerCase();
-            // If the DB doesn't have the unique constraint, ON CONFLICT will fail.
-            if (
-              msg.includes("no unique") ||
-              msg.includes("on conflict") ||
-              msg.includes("unique or exclusion constraint")
-            ) {
-              // Fallback: try to find an existing row with the same key and update it; otherwise insert.
-              const key = payload[0];
-              const { data: existing, error: se } = await supabase
-                .from("forecast_demand_overrides")
-                .select("id")
-                .eq("sku_id", key.sku_id)
-                .eq("region_id", key.region_id)
-                .eq("godown_id", key.godown_id)
-                .eq("month_start", key.month_start)
-                .limit(1);
-              if (se) {
-                await showModalError("Promote failed: " + se.message);
-                return;
-              }
-              if (existing && existing.length) {
-                const idToUpdate = existing[0].id;
-                const { error: ue } = await supabase
-                  .from("forecast_demand_overrides")
-                  .update({
-                    delta_units: key.delta_units,
-                    reason: key.reason,
-                    is_active: true,
-                    updated_at: key.updated_at,
-                  })
-                  .eq("id", idToUpdate);
-                if (ue) {
-                  await showModalError(
-                    "Promote failed (update): " + ue.message
-                  );
-                  return;
-                }
-              } else {
-                const { error: ie } = await supabase
-                  .from("forecast_demand_overrides")
-                  .insert([payload[0]]);
-                if (ie) {
-                  await showModalError(
-                    "Promote failed (insert): " + ie.message
-                  );
-                  return;
-                }
-              }
-              await showModalInfo("Promoted successfully.");
-              loadActive();
-              loadStaging();
-              loadBaseline();
-              return;
-            }
 
-            // other errors: show as before
+          // Ensure local caches include this SKU/product after promoting
+          try {
+            await ensureSkusAndProductsForIds([rowData.sku_id]);
+          } catch (e) {
+            // non-fatal: we attempted to fetch missing lookups
+            console.debug("ensureSkusAndProductsForIds error", e);
+          }
+
+          if (up.error) {
             await showModalError("Promote failed: " + up.error.message);
             return;
           }
+
           // success path
           await showModalInfo("Promoted successfully.");
           loadActive();

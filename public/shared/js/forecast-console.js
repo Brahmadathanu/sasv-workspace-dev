@@ -77,7 +77,7 @@ async function refreshTracker() {
         .map((r) => {
           const tone =
             r.status === "OK" ? "ok" : r.status === "ERROR" ? "err" : "warn";
-          return chip(`#${r.id} ${r.module_slot} → ${r.status}`, tone);
+          return chip(`#${r.id} ${r.module_slot} -> ${r.status}`, tone);
         })
         .join(" ") +
       `</div>`;
@@ -97,14 +97,11 @@ function startTracker() {
 // ---------- Button handlers ----------
 let trackerTimer = null;
 async function onPrimaryRun() {
-  // months window control exists in the UI but isn't used by this flow.
-  // Removed the unused variable to satisfy the linter.
   const dryRun = document.getElementById("dryRun").checked;
   const asOfRaw = document.getElementById("asOfDate").value;
-  const today = asOfRaw ? new Date(asOfRaw + "T00:00:00") : new Date();
+  const today = asOfRaw ? new Date(`${asOfRaw}T00:00:00`) : new Date();
 
-  // 1) Apply marketing overrides (auto-window: pass nulls)
-  setStatus(chip("Applying overrides…"));
+  setStatus(chip("Applying overrides...", "warn"));
   const { data: ovData, error: ovErr } = await rpcApplyMarketingOverrides(
     null,
     null
@@ -115,19 +112,12 @@ async function onPrimaryRun() {
     return;
   }
   const [inserted, updated, deactivated] = ovData || [0, 0, 0];
-  setStatus(
-    chip(`Overrides ✓ +${inserted}`, "ok") +
-      chip(`updated ${updated}`) +
-      chip(`deactivated ${deactivated}`)
-  );
+  const overrideSummary =
+    chip(`+${inserted} overrides`, "ok") +
+    chip(`${updated} updated`, "muted") +
+    chip(`${deactivated} deactivated`, "muted");
 
-  // 2) Enqueue LLT (write/dry-run)
-  setStatus(
-    chip(`Overrides ✓ +${inserted}`, "ok") +
-      chip(`updated ${updated}`) +
-      chip(`deactivated ${deactivated}`) +
-      chip("Enqueue LLT…", "warn")
-  );
+  setStatus(overrideSummary + chip("Queueing LLT", "warn"));
   const { error: lltErr } = await rpcEnqueueForecast(
     "FORECAST_LLT",
     fmt(today),
@@ -135,18 +125,15 @@ async function onPrimaryRun() {
     10
   );
   if (lltErr) {
-    setStatus(chip("LLT enqueue failed", "err"));
+    setStatus(chip("LLT queue failed", "err"));
     console.error("FORECAST_LLT", lltErr);
     return;
   }
 
-  // 3) Enqueue Seasonal
   setStatus(
-    chip(`Overrides ✓ +${inserted}`, "ok") +
-      chip(`updated ${updated}`) +
-      chip(`deactivated ${deactivated}`) +
-      chip("LLT ✓", "ok") +
-      chip("Enqueue Seasonal…", "warn")
+    overrideSummary +
+      chip("LLT queued", "ok") +
+      chip("Queueing seasonal", "warn")
   );
   const { error: seasErr } = await rpcEnqueueForecast(
     "FORECAST_SEASONAL",
@@ -155,19 +142,16 @@ async function onPrimaryRun() {
     10
   );
   if (seasErr) {
-    setStatus(chip("Seasonal enqueue failed", "err"));
+    setStatus(chip("Seasonal queue failed", "err"));
     console.error("FORECAST_SEASONAL", seasErr);
     return;
   }
 
-  // 4) Start tracker
   setStatus(
-    chip(`Overrides ✓ +${inserted}`, "ok") +
-      chip(`updated ${updated}`) +
-      chip(`deactivated ${deactivated}`) +
-      chip("LLT ✓", "ok") +
-      chip("Seasonal ✓", "ok") +
-      chip("Tracking…", "warn")
+    overrideSummary +
+      chip("LLT queued", "ok") +
+      chip("Seasonal queued", "ok") +
+      chip("Monitoring runs", "warn")
   );
   startTracker();
 }
@@ -182,7 +166,7 @@ async function onFullRebuild() {
   );
   if (!ok) return;
 
-  setStatus(chip("Enqueue FORECAST_ALL…", "warn"));
+  setStatus(chip("Queueing full rebuild", "warn"));
   const { error } = await rpcEnqueueForecast(
     "FORECAST_ALL",
     asOfISO,
@@ -190,11 +174,14 @@ async function onFullRebuild() {
     10
   );
   if (error) {
-    setStatus(chip("FORECAST_ALL enqueue failed", "err"));
+    setStatus(chip("Full rebuild queue failed", "err"));
     console.error("FORECAST_ALL", error);
     return;
   }
-  setStatus(chip("FORECAST_ALL ✓ queued", "ok") + chip("Tracking…", "warn"));
+
+  setStatus(
+    chip("Full rebuild queued", "ok") + chip("Monitoring runs", "warn")
+  );
   startTracker();
 }
 
@@ -220,7 +207,7 @@ function showModal(message, title = "Notice") {
   const titleEl = document.getElementById("fcModalTitle");
   const msgEl = document.getElementById("fcModalMessage");
   titleEl.textContent = title;
-  msgEl.innerHTML = message; // message can include simple <b>…</b> if needed
+  msgEl.innerHTML = message; // message can include simple <b>...</b> if needed
 
   // Ensure <dialog> works even if not supported
   if (typeof dlg.showModal === "function") {
@@ -236,6 +223,211 @@ function closeModal() {
   if (!dlg) return;
   if (typeof dlg.close === "function") dlg.close();
   else dlg.removeAttribute("open");
+}
+
+// small helpers used by missing modal
+function escapeHtml(s) {
+  return String(s || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function rowsToCsv(rows, cols) {
+  const head = cols.join(",");
+  const body = (rows || [])
+    .map((r) =>
+      cols
+        .map((c) => {
+          const v = r[c] ?? "";
+          if (
+            typeof v === "string" &&
+            (v.includes(",") || v.includes('"') || v.includes("\n"))
+          ) {
+            return '"' + v.replace(/"/g, '""') + '"';
+          }
+          return v;
+        })
+        .join(",")
+    )
+    .join("\n");
+  return head + "\n" + body;
+}
+
+// ---------------- Missing items modal & RPC helpers
+// Fetch a paginated page of missing relevant items (calls DB RPC 'fetch_missing_relevant')
+async function fetchMissingPage(
+  kind,
+  startISO,
+  endISO,
+  page = 0,
+  pageSize = 100
+) {
+  const offset = page * pageSize;
+  const { data, error } = await supabase.rpc("fetch_missing_relevant", {
+    p_start: startISO,
+    p_end: endISO,
+    p_kind: kind,
+    p_limit: pageSize,
+    p_offset: offset,
+  });
+  if (error) throw error;
+  return data || [];
+}
+
+// Render a simple modal with rows and pagination + copy-to-clipboard
+async function showMissingModal(kind) {
+  const start = fenceStart(new Date());
+  const end = addMonths(start, 12);
+  const startISO = fmtDate(start);
+  const endISO = fmtDate(end);
+  const pageSize = 200;
+  let page = 0;
+
+  // Create modal container if missing
+  let modal = document.getElementById("missingItemsModal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "missingItemsModal";
+    modal.style.position = "fixed";
+    modal.style.left = "0";
+    modal.style.top = "0";
+    modal.style.width = "100%";
+    modal.style.height = "100%";
+    modal.style.background = "rgba(0,0,0,0.4)";
+    modal.style.zIndex = 9999;
+    modal.innerHTML = `
+      <div id="missingInner" style="background:#fff;max-width:1000px;margin:5% auto;padding:16px;border-radius:6px;box-shadow:0 6px 24px rgba(0,0,0,0.2);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <h3 id="missingTitle" style="margin:0">Missing Items</h3>
+          <div>
+            <button id="missingCopy" style="margin-right:8px">Copy list</button>
+            <button id="missingClose">Close</button>
+          </div>
+        </div>
+        <div id="missingTableWrap" style="max-height:60vh;overflow:auto;border:1px solid #eee;padding:6px;"></div>
+        <div id="missingPager" style="margin-top:8px;display:flex;align-items:center;justify-content:space-between;">
+          <div id="missingCount">&nbsp;</div>
+          <div>
+            <button id="missingPrev">Prev</button>
+            <button id="missingNext">Next</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    document
+      .getElementById("missingClose")
+      .addEventListener("click", () => modal.remove());
+  }
+
+  const title = document.getElementById("missingTitle");
+  title.textContent =
+    kind === "llt" ? "Missing LLT (relevant)" : "Missing Seasonal (relevant)";
+
+  const wrap = document.getElementById("missingTableWrap");
+  const countEl = document.getElementById("missingCount");
+  const prevBtn = document.getElementById("missingPrev");
+  const nextBtn = document.getElementById("missingNext");
+  const copyBtn = document.getElementById("missingCopy");
+
+  async function render() {
+    try {
+      const rows = await fetchMissingPage(
+        kind,
+        startISO,
+        endISO,
+        page,
+        pageSize
+      );
+      wrap.innerHTML = "";
+      if (!rows || rows.length === 0) {
+        wrap.textContent = "No rows";
+        countEl.textContent = "";
+        prevBtn.disabled = page === 0;
+        nextBtn.disabled = true;
+        return;
+      }
+
+      // total_count is on each row (COUNT OVER)
+      const total = Number(rows[0].total_count || 0);
+      countEl.textContent = `Page ${page + 1} — ${
+        rows.length
+      } rows (total ${total})`;
+
+      // build table
+      const table = document.createElement("table");
+      table.className = "small";
+      const thead = document.createElement("thead");
+      thead.innerHTML =
+        "<tr><th>SKU</th><th>Item</th><th>Pack</th><th>UoM</th><th>Month</th><th>Region</th><th>Godown</th></tr>";
+      table.appendChild(thead);
+      const tbody = document.createElement("tbody");
+      for (const r of rows) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${r.sku_id ?? ""}</td>
+                        <td>${escapeHtml(r.item ?? r.sku_label ?? "")}</td>
+                        <td>${r.pack_size ?? ""}</td>
+                        <td>${r.uom ?? ""}</td>
+                        <td>${r.month_start ?? ""}</td>
+                        <td>${r.region_id ?? ""}</td>
+                        <td>${r.godown_id ?? ""}</td>`;
+        tbody.appendChild(tr);
+      }
+      table.appendChild(tbody);
+      wrap.appendChild(table);
+
+      prevBtn.disabled = page === 0;
+      nextBtn.disabled = (page + 1) * pageSize >= total;
+
+      copyBtn.onclick = () => {
+        // copy CSV lines of sku_id, item, pack_size, uom, month_start
+        const cols = [
+          "sku_id",
+          "item",
+          "pack_size",
+          "uom",
+          "month_start",
+          "region_id",
+          "godown_id",
+        ];
+        const csv = rowsToCsv(
+          rows,
+          cols.map((c) => c)
+        );
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(csv);
+          showToast("Copied to clipboard");
+        } else {
+          const ta = document.createElement("textarea");
+          ta.value = csv;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          ta.remove();
+          showToast("Copied to clipboard");
+        }
+      };
+    } catch (err) {
+      console.error("renderMissingModal", err);
+      wrap.textContent = "Error loading";
+    }
+  }
+
+  prevBtn.onclick = async () => {
+    if (page > 0) {
+      page--;
+      await render();
+    }
+  };
+  nextBtn.onclick = async () => {
+    page++;
+    await render();
+  };
+
+  // initial render
+  await render();
 }
 
 // Close on OK button or ESC
@@ -259,6 +451,55 @@ function fmtDate(d) {
   return `${y}-${m}-${day}`;
 }
 
+function fmtMonthInput(d) {
+  if (!d) return "";
+  const dt = new Date(d);
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
+}
+
+function parseMonthInput(value) {
+  if (!value) return null;
+  const [yy, mm] = String(value).split("-");
+  if (!yy || !mm) return null;
+  const year = Number(yy);
+  const month = Number(mm) - 1;
+  if (Number.isNaN(year) || Number.isNaN(month)) return null;
+  return new Date(year, month, 1);
+}
+
+function monthInputToISO(value) {
+  const parsed = parseMonthInput(value);
+  return parsed ? fmtDate(parsed) : null;
+}
+
+function monthInputToExclusiveISO(value) {
+  const parsed = parseMonthInput(value);
+  if (!parsed) return null;
+  return fmtDate(addMonths(parsed, 1));
+}
+
+const MONTH_LABELS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+function formatMonthLabel(date) {
+  if (!date) return "";
+  return `${MONTH_LABELS[date.getMonth()]} ${date.getFullYear()}`;
+}
+
 function monthFloor(dt = new Date()) {
   return new Date(dt.getFullYear(), dt.getMonth(), 1);
 }
@@ -278,9 +519,12 @@ function addMonths(d, n) {
 }
 
 function getWindow() {
-  const from = document.getElementById("fromDate").valueAsDate;
-  const to = document.getElementById("toDate").valueAsDate;
-  return { from: from ? fmtDate(from) : null, to: to ? fmtDate(to) : null };
+  const fromRaw = document.getElementById("fromDate")?.value;
+  const toRaw = document.getElementById("toDate")?.value;
+  return {
+    from: monthInputToISO(fromRaw),
+    to: monthInputToISO(toRaw),
+  };
 }
 
 function getFilters() {
@@ -337,29 +581,176 @@ async function ensureAuth() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  document.getElementById(
-    "sessionUser"
-  ).textContent = `Logged in as ${user.email}`;
   return user;
 }
 
 function setupTabs() {
-  const btns = [...document.querySelectorAll(".tab-btn")];
-  const panels = {
-    overview: document.getElementById("tab-overview"),
-    outputs: document.getElementById("tab-outputs"),
-    exceptions: document.getElementById("tab-exceptions"),
-    overrides: document.getElementById("tab-overrides"),
-    publish: document.getElementById("tab-publish"),
-  };
-  btns.forEach((b) => {
-    b.addEventListener("click", () => {
-      btns.forEach((x) => x.classList.remove("active"));
-      b.classList.add("active");
-      Object.values(panels).forEach((p) => p.classList.remove("active"));
-      panels[b.dataset.tab].classList.add("active");
+  const tabButtons = Array.from(document.querySelectorAll(".tab-btn"));
+  const tabPanels = Array.from(document.querySelectorAll(".tab-panel"));
+  const tabsEl = document.querySelector(".tabs");
+  const leftChevron = document.querySelector(".tabs-chevron.left");
+  const rightChevron = document.querySelector(".tabs-chevron.right");
+
+  if (!tabButtons.length) return;
+
+  const panelById = new Map();
+  tabPanels.forEach((panel) => {
+    panelById.set(panel.id, panel);
+    if (!panel.classList.contains("active")) panel.setAttribute("hidden", "");
+    else panel.removeAttribute("hidden");
+  });
+
+  tabButtons.forEach((btn) => {
+    const isSelected = btn.getAttribute("aria-selected") === "true";
+    btn.setAttribute("tabindex", isSelected ? "0" : "-1");
+    if (isSelected) btn.classList.add("active");
+    else btn.classList.remove("active");
+  });
+
+  const SCROLL_DELTA = 200;
+
+  function updateChevronState() {
+    if (!tabsEl || !leftChevron || !rightChevron) return;
+    const isOverflowing = tabsEl.scrollWidth > tabsEl.clientWidth + 2;
+    if (!isOverflowing) {
+      leftChevron.style.display = "none";
+      rightChevron.style.display = "none";
+      leftChevron.setAttribute("disabled", "true");
+      rightChevron.setAttribute("disabled", "true");
+      return;
+    }
+
+    leftChevron.style.display = "inline-flex";
+    rightChevron.style.display = "inline-flex";
+
+    const canScrollLeft = tabsEl.scrollLeft > 2;
+    const canScrollRight =
+      tabsEl.scrollLeft + tabsEl.clientWidth < tabsEl.scrollWidth - 2;
+
+    if (canScrollLeft) leftChevron.removeAttribute("disabled");
+    else leftChevron.setAttribute("disabled", "true");
+
+    if (canScrollRight) rightChevron.removeAttribute("disabled");
+    else rightChevron.setAttribute("disabled", "true");
+  }
+
+  function showPanel(panel) {
+    panel.classList.add("active");
+    panel.removeAttribute("hidden");
+  }
+
+  function hidePanel(panel) {
+    panel.classList.remove("active");
+    panel.setAttribute("hidden", "");
+  }
+
+  function centerTab(btn, behavior = "smooth") {
+    if (!tabsEl || !btn) return;
+    const center = btn.offsetLeft + btn.offsetWidth / 2;
+    const target = Math.max(0, center - tabsEl.clientWidth / 2);
+    tabsEl.scrollTo({ left: target, behavior });
+    updateChevronState();
+  }
+
+  function activate(btn, opts = {}) {
+    if (!btn) return;
+    const { focus = true, scroll = true } = opts;
+    const panelId = btn.getAttribute("aria-controls");
+    if (!panelId) return;
+
+    tabButtons.forEach((b) => {
+      b.setAttribute("aria-selected", "false");
+      b.setAttribute("tabindex", "-1");
+      b.classList.remove("active");
+    });
+    tabPanels.forEach((panel) => hidePanel(panel));
+
+    btn.setAttribute("aria-selected", "true");
+    btn.setAttribute("tabindex", "0");
+    btn.classList.add("active");
+    if (focus) btn.focus({ preventScroll: true });
+
+    const panel = panelById.get(panelId);
+    if (panel) showPanel(panel);
+
+    if (scroll) centerTab(btn);
+    else updateChevronState();
+  }
+
+  tabButtons.forEach((btn, index) => {
+    btn.addEventListener("click", () => activate(btn));
+
+    btn.addEventListener("keydown", (event) => {
+      const { key } = event;
+      if (key === "ArrowRight") {
+        event.preventDefault();
+        const next = tabButtons[(index + 1) % tabButtons.length];
+        tabButtons.forEach((b) => b.setAttribute("tabindex", "-1"));
+        next.setAttribute("tabindex", "0");
+        next.focus();
+      } else if (key === "ArrowLeft") {
+        event.preventDefault();
+        const prev =
+          tabButtons[(index - 1 + tabButtons.length) % tabButtons.length];
+        tabButtons.forEach((b) => b.setAttribute("tabindex", "-1"));
+        prev.setAttribute("tabindex", "0");
+        prev.focus();
+      } else if (key === "Home") {
+        event.preventDefault();
+        tabButtons.forEach((b) => b.setAttribute("tabindex", "-1"));
+        const first = tabButtons[0];
+        first.setAttribute("tabindex", "0");
+        first.focus();
+      } else if (key === "End") {
+        event.preventDefault();
+        tabButtons.forEach((b) => b.setAttribute("tabindex", "-1"));
+        const last = tabButtons[tabButtons.length - 1];
+        last.setAttribute("tabindex", "0");
+        last.focus();
+      } else if (key === "Enter" || key === " ") {
+        event.preventDefault();
+        activate(btn);
+      }
     });
   });
+
+  if (leftChevron && tabsEl) {
+    leftChevron.addEventListener("click", () => {
+      const newLeft = Math.max(0, tabsEl.scrollLeft - SCROLL_DELTA);
+      tabsEl.scrollTo({ left: newLeft, behavior: "smooth" });
+      setTimeout(updateChevronState, 120);
+    });
+  }
+
+  if (rightChevron && tabsEl) {
+    rightChevron.addEventListener("click", () => {
+      const maxLeft = tabsEl.scrollWidth - tabsEl.clientWidth;
+      const newLeft = Math.min(maxLeft, tabsEl.scrollLeft + SCROLL_DELTA);
+      tabsEl.scrollTo({ left: newLeft, behavior: "smooth" });
+      setTimeout(updateChevronState, 120);
+    });
+  }
+
+  if (tabsEl) {
+    tabsEl.addEventListener("scroll", () => {
+      window.requestAnimationFrame(updateChevronState);
+    });
+  }
+
+  if (typeof window !== "undefined") {
+    let resizeTimer = null;
+    window.addEventListener("resize", () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(updateChevronState, 120);
+    });
+  }
+
+  updateChevronState();
+  const initiallySelected =
+    tabButtons.find((btn) => btn.getAttribute("aria-selected") === "true") ||
+    tabButtons[0];
+  if (initiallySelected)
+    activate(initiallySelected, { focus: false, scroll: false });
 }
 
 function setDefaultWindow() {
@@ -367,8 +758,8 @@ function setDefaultWindow() {
   const toEl = document.getElementById("toDate");
   const start = fenceStart(new Date());
   const end = addMonths(start, 12);
-  fromEl.value = fmtDate(start);
-  toEl.value = fmtDate(addMonths(end, -1)); // inclusive last month
+  if (fromEl) fromEl.value = fmtMonthInput(start);
+  if (toEl) toEl.value = fmtMonthInput(addMonths(end, -1)); // inclusive last month
 }
 
 // ------------- Overview
@@ -376,59 +767,64 @@ async function loadOverviewTiles() {
   const start = fenceStart(new Date());
   const end = addMonths(start, 12);
 
-  document.getElementById("tileWindow").textContent = `${fmtDate(
-    start
-  )} → ${fmtDate(addMonths(end, -1))}`;
-
-  // Combined: pairs/rows
-  {
-    const { data, error } = await supabase
-      .from("v_forecast_plan_12m")
-      .select("sku_id,region_id,godown_id,month_start", {
-        count: "exact",
-        head: false,
-      })
-      .gte("month_start", fmtDate(start))
-      .lt("month_start", fmtDate(end));
-    if (error) {
-      console.error(error);
-    }
-    const rows = data || [];
-    const pairSet = new Set(
-      rows.map((r) => `${r.sku_id}-${r.region_id}-${r.godown_id}`)
-    );
-    document.getElementById("tilePairs").textContent = pairSet.size || 0;
-    document.getElementById("tileRows").textContent = rows.length || 0;
+  const tileWindow = document.getElementById("tileWindow");
+  if (tileWindow) {
+    tileWindow.textContent = `${formatMonthLabel(start)} to ${formatMonthLabel(
+      addMonths(end, -1)
+    )}`;
   }
 
-  // Missing LLT / Seasonal
-  {
-    const { data, error } = await supabase
-      .from("v_forecast_plan_12m")
-      .select("supply_llt,supply_seasonal,month_start")
-      .gte("month_start", fmtDate(start))
-      .lt("month_start", fmtDate(end));
-    if (error) {
-      console.error(error);
-    }
-    const rows = data || [];
-    const missLLT = rows.filter((r) => r.supply_llt === null).length;
-    const missSeason = rows.filter((r) => r.supply_seasonal === null).length;
-    document.getElementById("tileMissLLT").textContent = missLLT;
-    document.getElementById("tileMissSeason").textContent = missSeason;
+  // Combined: use materialized-view RPC for fast aggregate counts
+  const startISO = fmtDate(start);
+  const endISO = fmtDate(end);
+  const elPairs = document.getElementById("tilePairs");
+  const elRows = document.getElementById("tileRows");
+  const elMissLLT = document.getElementById("tileMissLLT");
+  const elMissSeason = document.getElementById("tileMissSeason");
+  // show loading state
+  if (elPairs) elPairs.textContent = "...";
+  if (elRows) elRows.textContent = "...";
+  if (elMissLLT) elMissLLT.textContent = "...";
+  if (elMissSeason) elMissSeason.textContent = "...";
+
+  try {
+    const { data, error } = await supabase.rpc("count_forecast_health_mv", {
+      p_start: startISO,
+      p_end: endISO,
+    });
+    if (error) throw error;
+    const row = Array.isArray(data) ? data[0] : data;
+    if (elPairs) elPairs.textContent = row?.pairs_count ?? 0;
+    if (elRows) elRows.textContent = row?.rows_count ?? 0;
+    if (elMissLLT) elMissLLT.textContent = row?.missing_llt_relevant ?? 0;
+    if (elMissSeason)
+      elMissSeason.textContent = row?.missing_seasonal_relevant ?? 0;
+    // set overrides tile if present
+    const elOverrides = document.getElementById("tileOverrides");
+    if (elOverrides && typeof row?.active_overrides_count !== "undefined")
+      elOverrides.textContent = row.active_overrides_count;
+  } catch (err) {
+    console.error("count_forecast_health_mv failed", err);
+    if (elPairs) elPairs.textContent = "-";
+    if (elRows) elRows.textContent = "-";
+    if (elMissLLT) elMissLLT.textContent = "-";
+    if (elMissSeason) elMissSeason.textContent = "-";
   }
 
-  // Active overrides
+  // (counts for missing LLT/seasonal are computed above using DB-side counts)
+
+  // Active overrides (use count returned by head:true query)
   {
-    const { data, error } = await supabase
+    const { count, error } = await supabase
       .from("forecast_demand_overrides")
       .select("id", { count: "exact", head: true })
       .eq("is_active", true);
     if (error) {
       console.error(error);
+      document.getElementById("tileOverrides").textContent = "-";
+    } else {
+      document.getElementById("tileOverrides").textContent = count ?? 0;
     }
-    document.getElementById("tileOverrides").textContent =
-      (data?.length ?? 0) || (error ? "—" : "0");
   }
 }
 
@@ -518,7 +914,7 @@ async function loadOutputs() {
   const status = document.getElementById("outputsStatus");
   head.innerHTML = "";
   body.innerHTML = "";
-  status.textContent = "Loading…";
+  status.textContent = "Loading...";
 
   const { from, to } = getWindow();
   const { sku_id, region_id, godown_id } = getFilters();
@@ -583,7 +979,7 @@ async function loadOverrides() {
   const tbody = document.querySelector("#overridesTable tbody");
   const status = document.getElementById("overridesStatus");
   tbody.innerHTML = "";
-  status.textContent = "Loading…";
+  status.textContent = "Loading...";
   const { from, to } = getWindow();
 
   let q = supabase
@@ -620,7 +1016,7 @@ async function upsertOverride() {
   const sku = Number(document.getElementById("ovSku").value);
   const region = Number(document.getElementById("ovRegion").value);
   const godown = Number(document.getElementById("ovGodown").value);
-  const month = document.getElementById("ovMonth").value;
+  const month = monthInputToISO(document.getElementById("ovMonth")?.value);
   const delta = Number(document.getElementById("ovDelta").value);
   const reason = document.getElementById("ovReason").value || null;
   if (!sku || !region || !godown || !month) {
@@ -665,7 +1061,7 @@ async function deleteOverride() {
   const sku = Number(document.getElementById("ovSku").value);
   const region = Number(document.getElementById("ovRegion").value);
   const godown = Number(document.getElementById("ovGodown").value);
-  const month = document.getElementById("ovMonth").value;
+  const month = monthInputToISO(document.getElementById("ovMonth")?.value);
   if (!sku || !region || !godown || !month) {
     showModal("SKU, Region, Godown, Month are required.");
     return;
@@ -712,7 +1108,7 @@ async function loadExceptions() {
   const status = document.getElementById("exceptionsStatus");
   const tbody = document.querySelector("#exceptionsTable tbody");
   tbody.innerHTML = "";
-  status.textContent = "Loading…";
+  status.textContent = "Loading...";
   const { from, to } = getWindow();
 
   let qPlan = supabase
@@ -789,7 +1185,7 @@ function exportExceptions() {
   downloadFile("exceptions.csv", toCSV(rows));
 }
 
-// ------------- Publish (stub – we’ll wire batch snapshot next)
+// ------------- Publish (stub - we'll wire batch snapshot next)
 async function listPublishes() {
   const tbody = document.querySelector("#publishTable tbody");
   tbody.innerHTML = "";
@@ -817,6 +1213,7 @@ async function listPublishes() {
 // ===== Baseline Export/Import (Marketing)
 function showToast(msg) {
   const el = document.getElementById("toast");
+  if (!el) return; // graceful if toast element missing
   el.textContent = msg;
   el.style.display = "block";
   setTimeout(() => (el.style.display = "none"), 3500);
@@ -865,17 +1262,16 @@ async function exportBaselineCsv() {
     // derive window (allow manual override)
     const fromEl = document.getElementById("moFrom");
     const toEl = document.getElementById("moTo");
-    let from = fromEl.value;
-    let to = toEl.value;
-    if (!from || !to) {
+    let from = monthInputToISO(fromEl?.value);
+    let toExclusive = monthInputToExclusiveISO(toEl?.value);
+    if (!from || !toExclusive) {
       const w = fenceWindow(new Date(), 25, months);
       from = w.start;
-      to = w.end;
-      // show them for clarity
-      fromEl.value = from;
-      toEl.value = yyyymmdd(
-        new Date(new Date(to).getTime() - 24 * 3600 * 1000)
-      );
+      toExclusive = w.end;
+      const startDate = new Date(`${w.start}T00:00:00`);
+      const inclusiveEnd = addMonths(new Date(`${w.end}T00:00:00`), -1);
+      if (fromEl) fromEl.value = fmtMonthInput(startDate);
+      if (toEl) toEl.value = fmtMonthInput(inclusiveEnd);
     }
 
     // Pull from v_forecast_baseline_effective (effective demand = baseline + overrides)
@@ -890,7 +1286,7 @@ async function exportBaselineCsv() {
         .from("v_forecast_baseline_effective")
         .select("sku_id,region_id,godown_id,month_start,demand_effective")
         .gte("month_start", from)
-        .lt("month_start", to)
+        .lt("month_start", toExclusive)
         .order("sku_id", { ascending: true })
         .order("region_id", { ascending: true })
         .order("godown_id", { ascending: true })
@@ -937,11 +1333,14 @@ async function exportBaselineCsv() {
         ].join(",")
       );
     }
-    downloadBlob(lines.join("\n"), `marketing_baseline_${from}_to_${to}.csv`);
+    downloadBlob(
+      lines.join("\n"),
+      `marketing_baseline_${from}_to_${toExclusive}.csv`
+    );
     showToast(`Exported ${rows.length} rows`);
   } catch (err) {
     console.error("exportBaselineCsv failed:", err);
-    showToast("Export failed — see console");
+    showToast("Export failed (see console)");
   }
 }
 
@@ -1050,7 +1449,7 @@ async function previewImport() {
     showToast(`Parsed ${importRows.length} valid rows`);
   } catch (err) {
     console.error("previewImport failed:", err);
-    showToast("Preview failed — see console");
+    showToast("Preview failed (see console)");
   }
 }
 
@@ -1059,12 +1458,20 @@ async function applyImport() {
     if (!importRows.length) return showToast("Nothing to apply");
 
     // Window selection (derive if empty)
-    let from = document.getElementById("moFrom").value;
-    let to = document.getElementById("moTo").value;
-    if (!from || !to) {
+    let from = monthInputToISO(document.getElementById("moFrom")?.value);
+    let toExclusive = monthInputToExclusiveISO(
+      document.getElementById("moTo")?.value
+    );
+    if (!from || !toExclusive) {
       const w = fenceWindow(new Date(), 25, 12);
       from = w.start;
-      to = w.end;
+      toExclusive = w.end;
+      const startDate = new Date(`${from}T00:00:00`);
+      const inclusiveEnd = addMonths(new Date(`${toExclusive}T00:00:00`), -1);
+      const fromInput = document.getElementById("moFrom");
+      const toInput = document.getElementById("moTo");
+      if (fromInput) fromInput.value = fmtMonthInput(startDate);
+      if (toInput) toInput.value = fmtMonthInput(inclusiveEnd);
     }
 
     // 1) Clear staging window
@@ -1072,7 +1479,7 @@ async function applyImport() {
       .from("marketing_overrides_staging")
       .delete()
       .gte("month_start", from)
-      .lt("month_start", to);
+      .lt("month_start", toExclusive);
     if (delError) throw delError;
 
     // 2) Insert to staging (chunked)
@@ -1088,7 +1495,7 @@ async function applyImport() {
     // 3) Apply via SQL function
     const { data, error } = await supabase.rpc("apply_marketing_overrides", {
       p_from: from,
-      p_to: to,
+      p_to: toExclusive,
     });
     if (error) throw error;
 
@@ -1103,7 +1510,7 @@ async function applyImport() {
       window.refreshPlanGrids();
   } catch (err) {
     console.error("applyImport failed:", err);
-    showToast("Apply failed — see console");
+    showToast("Apply failed (see console)");
   }
 }
 
@@ -1153,6 +1560,12 @@ function wireEvents() {
   safeAddEventListener("btnLoadExceptions", "click", loadExceptions);
   safeAddEventListener("btnExportExceptions", "click", exportExceptions);
 
+  // Make the missing tiles clickable to show detailed lists
+  safeAddEventListener("tileMissLLT", "click", () => showMissingModal("llt"));
+  safeAddEventListener("tileMissSeason", "click", () =>
+    showMissingModal("seasonal")
+  );
+
   safeAddEventListener("btnPublish", "click", async () => {
     try {
       const plan_key = (document.getElementById("pubKey")?.value || "").trim();
@@ -1179,10 +1592,12 @@ function wireEvents() {
       const plan_id = hdrIns.id;
 
       // 2) Determine window from the page controls
-      const fromEl = document.getElementById("fromDate")?.value;
-      const toEl = document.getElementById("toDate")?.value;
-      if (!fromEl || !toEl) {
-        showModal("Please set From/To dates at the top before publishing.");
+      const fromIso = monthInputToISO(
+        document.getElementById("fromDate")?.value
+      );
+      const toIso = monthInputToISO(document.getElementById("toDate")?.value);
+      if (!fromIso || !toIso) {
+        showModal("Please set From/To months at the top before publishing.");
         return;
       }
 
@@ -1203,8 +1618,8 @@ function wireEvents() {
         .select(
           "sku_id,region_id,godown_id,month_start,demand_baseline,supply_llt,supply_seasonal,supply_final"
         )
-        .gte("month_start", fromEl)
-        .lte("month_start", toEl)
+        .gte("month_start", fromIso)
+        .lte("month_start", toIso)
         .order("sku_id")
         .order("region_id")
         .order("godown_id")
@@ -1270,7 +1685,14 @@ function wireEvents() {
 
 // ------------- Boot
 
+// Boot: wait for DOM content to be ready to avoid races where elements are not yet in DOM
 (async function boot() {
+  if (document.readyState === "loading") {
+    await new Promise((resolve) =>
+      document.addEventListener("DOMContentLoaded", resolve, { once: true })
+    );
+  }
+
   const user = await ensureAuth();
   if (!user) return;
 
@@ -1278,10 +1700,21 @@ function wireEvents() {
   setDefaultWindow();
   wireEvents();
 
-  // Initialize run controls for forecast job UI
-  initRunControls();
+  // Only initialize the forecast UI pieces if the page contains the expected elements
+  const hasForecastUI = !!(
+    document.getElementById("tileWindow") ||
+    document.getElementById("tilePairs") ||
+    document.getElementById("tileRows") ||
+    document.getElementById("tileMissLLT") ||
+    document.getElementById("runsTable")
+  );
 
-  await loadOverviewTiles();
-  await loadRunsTable();
-  await listPublishes();
+  if (hasForecastUI) {
+    // Initialize run controls for forecast job UI
+    initRunControls();
+
+    await loadOverviewTiles();
+    await loadRunsTable();
+    await listPublishes();
+  }
 })();
