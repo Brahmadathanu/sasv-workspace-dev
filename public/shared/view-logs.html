@@ -28,29 +28,28 @@
         transition: background 0.3s, color 0.3s;
       }
 
-      /* Header: title + Home button */
-      .header-bar {
+      /* Page header (use same structure as production pages) */
+      .page-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
         margin-bottom: 16px;
       }
-      .header-bar h2 {
+      .page-header h1 {
         margin: 0;
         color: var(--primary);
+        font-size: 1.5rem;
       }
-      #homeBtn {
-        background: var(--home-btn-bg);
-        color: var(--btn-text);
-        border: none;
-        padding: 8px 12px;
-        border-radius: 4px;
-        font-size: 1rem;
-        cursor: pointer;
+
+      /* Per-page nudge to fix tiny vertical misalignment of HOME label
+         when rendered in this page's header. Keeps change scoped to
+         view-logs only. */
+      .page-header #homeBtn .home-label {
+        position: relative;
+        top: 1px; /* nudge down by 1px */
+        display: inline-block;
       }
-      #homeBtn:hover {
-        background: var(--home-btn-hover-bg);
-      }
+      /* Home button styling is provided by the shared stylesheet (style.css) */
       /* group BACK + HOME at right edge */
       .header-actions {
         display: flex;
@@ -312,13 +311,26 @@
   </head>
 
   <body data-theme="system">
-    <!-- ===== Header bar ===== -->
-    <div class="header-bar">
-      <h2>View Logs</h2>
+    <!-- ===== Page Header (production-style) ===== -->
+    <header class="page-header">
+      <h1>View Logs</h1>
       <div class="header-actions">
-        <button id="homeBtn">HOME</button>
+        <button id="homeBtn">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9,22 9,12 15,12 15,22" />
+          </svg>
+          <span class="home-label">HOME</span>
+        </button>
       </div>
-    </div>
+    </header>
 
     <!-- ===== Primary Filter Strip ===== -->
     <div id="filtersPrimary" class="filter-strip">
@@ -395,24 +407,61 @@
       <span id="downloadPdf">Download PDF</span>
     </div>
 
-    <!-- ===== Logs table ===== -->
-    <table>
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th>Item</th>
-          <th>BN</th>
-          <th>Batch Size</th>
-          <th>UOM</th>
-          <th>Section</th>
-          <th>Plant&nbsp;/&nbsp;Machinery</th>
-          <th>Activity</th>
-          <th>Status</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody id="logsTableBody"></tbody>
-    </table>
+    <!-- ===== Logs table (scrollable container) ===== -->
+    <div class="table-scroll-wrap" id="logsTableWrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Item</th>
+            <th>BN</th>
+            <th>Batch Size</th>
+            <th>UOM</th>
+            <th>Section</th>
+            <th>Plant&nbsp;/&nbsp;Machinery</th>
+            <th>Activity</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="logsTableBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Pagination controls (styled like Forecast Console Overrides) -->
+    <div class="pagination" id="logsPagination">
+      <div class="pagination-controls">
+        <label
+          class="small muted"
+          for="logsPerPage"
+          style="
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-right: 6px;
+          "
+          >Page Size
+          <select
+            id="logsPerPage"
+            class="small"
+            style="
+              margin-left: 6px;
+              padding: 4px 6px;
+              border-radius: 4px;
+              border: 1px solid #d1d5db;
+              background: #fff;
+            "
+          >
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </label>
+        <button id="logsPrev" class="btn">Previous</button>
+        <span class="small muted" id="logsPageInfo">Page 1</span>
+        <button id="logsNext" class="btn">Next</button>
+      </div>
+    </div>
 
     <!-- ===== Details modal ===== -->
     <div id="viewOverlay" class="modal-overlay">

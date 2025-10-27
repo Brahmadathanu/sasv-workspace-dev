@@ -9,8 +9,11 @@
   --bg-color: #f7f9fb;
   --panel-bg: #fff;
 
+  /* Strong primary used for emphasized actions */
   --btn-bg: var(--primary);
   --btn-text: #fff;
+  /* lighter default button background for non-primary actions */
+  --btn-bg-light: #3b82f6; /* bright but lighter than primary */
   --btn-hover-bg: var(--primary-hover);
 
   --home-btn-bg: #d32f2f;
@@ -112,37 +115,45 @@ h1 {
 /* ────────────────────────────────────────────────────────────────────────────
    BUTTONS (specific IDs)
 ──────────────────────────────────────────────────────────────────────────── */
+/* Home button: production-style (yellow/orange variant). Placed here so
+   multiple pages can share the same visual across the workspace. */
 #homeBtn {
-  background: var(--home-btn-bg);
-  color: var(--btn-text);
-  border: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   padding: 8px 12px;
-  border-radius: 4px;
-  font-size: 1rem;
+  border: 1px solid #fdba74;
+  border-radius: 6px;
+  background: #fed7aa;
+  color: #9a3412;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-family: inherit;
+  font-weight: 500;
+  transition: all 0.2s;
 }
 #homeBtn:hover {
-  background: var(--home-btn-hover-bg);
+  background: #fdba74;
+  border-color: #fb923c;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
-/* Make the HOME link look like a proper red button */
+#homeBtn svg {
+  flex-shrink: 0;
+  display: inline-block;
+  vertical-align: middle;
+}
+
 #homeBtn,
 #homeBtn:link,
 #homeBtn:visited {
-  display: inline-block;
-  text-decoration: none; /* ← remove underline */
-  background: var(--home-btn-bg);
-  color: var(--btn-text);
-  border: none;
-  padding: 8px 12px;
-  border-radius: 4px;
-  font-size: 1rem;
-  line-height: 1;
-  font-weight: 600;
-}
-
-#homeBtn:hover,
-#homeBtn:focus {
-  text-decoration: none; /* keep it non-underlined */
-  background: var(--home-btn-hover-bg);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none; /* remove underline */
+  /* let the browser use normal line-height so text vertically aligns with the SVG */
+  font-weight: 500; /* match production-planning-workbench */
+  font-size: 0.875rem;
 }
 
 #btnClear {
@@ -291,6 +302,140 @@ h1 {
   background: none;
   padding: 0;
   flex: 0 0 auto;
+}
+
+/* Enhanced toolbar / filter groups used by Production Planning Workbench and Forecast Console */
+.enhanced-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.enhanced-toolbar.single-line {
+  /* Align filter groups to their bottom so inputs (not labels) line up
+     with action buttons. This makes the Load button align with the
+     filter fields rather than the label text above them. */
+  align-items: flex-end;
+}
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 140px;
+  max-width: 320px;
+}
+.filter-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+}
+.filter-input {
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  /* Use an explicit pixel height to avoid em-based rounding differences
+     between inputs and buttons across platforms/browsers. */
+  min-height: 36px;
+  height: 36px;
+  font: inherit;
+  line-height: 1.1;
+  /* Ensure selects center their content vertically across platforms */
+  display: inline-flex;
+  align-items: center;
+  background: #fff;
+}
+.filter-input[type="month"] {
+  min-height: 36px;
+  height: 36px;
+}
+
+/* Selects are rendered differently across platforms; give them an
+   explicit line-height and remove vertical padding so the selected text
+   sits vertically centered within the control. Use a specific selector
+   for selects to avoid affecting other input types. */
+select.filter-input {
+  /* reset any browser default vertical padding that pushes text down */
+  padding-top: 0;
+  padding-bottom: 0;
+  /* exact line-height matching the explicit height keeps text centered */
+  line-height: 36px !important;
+  height: 36px !important;
+  appearance: menulist; /* standard property for dropdown appearance */
+  -webkit-appearance: menulist; /* keep native dropdown arrow on Chromium */
+}
+
+/* If the browser provides a focus outline, keep it visible and not clipped */
+select.filter-input:focus {
+  outline-offset: 2px;
+}
+
+/* Small status chips used across consoles */
+.chip {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #111827;
+  font-size: 0.82rem;
+  margin-right: 6px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+}
+.chip.ok {
+  background: #ecfeff; /* pale cyan */
+  color: #064e3b; /* green-800 */
+  border-color: rgba(16, 185, 129, 0.15);
+}
+.chip.warn {
+  background: #fff7ed; /* pale amber */
+  color: #92400e; /* amber-800 */
+  border-color: rgba(245, 158, 11, 0.12);
+}
+.chip.err {
+  background: #fff1f2; /* pale red */
+  color: #7f1d1d; /* red-800 */
+  border-color: rgba(220, 38, 38, 0.12);
+}
+
+/* Narrower action group for toolbar buttons (Load / small status) */
+.filter-actions {
+  min-width: 0; /* allow the group to shrink to content */
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* Force the actions group to align to the bottom of the toolbar so
+     the Load button bottom edge lines up with the FROM/TO input bottoms. */
+  align-self: flex-end;
+  /* Push the Load button to the far right of the toolbar line */
+  margin-left: auto;
+}
+.filter-actions .btn {
+  /* Match the filter input height so the toolbar looks uniform.
+     Use a more specific selector and !important so generic .btn rules
+     later in the file don't override these values. */
+  min-width: 72px; /* compact width */
+  min-height: 36px !important; /* same as .filter-input */
+  height: 36px !important;
+  padding: 0 10px !important; /* horizontal padding only, vertical spacing via height */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center; /* center the label */
+  box-sizing: border-box; /* ensure padding + border included in height */
+  font: inherit;
+  line-height: 1; /* keep text vertically centered within explicit height */
+  font-size: 0.95rem;
+}
+.filter-actions .btn:hover:not([disabled]) {
+  /* Use the application's hover color (darker) instead of the generic
+     light-blue applied by the global .btn:hover selector. This keeps the
+     toolbar Load button visually consistent and slightly darker on hover. */
+  background: var(--btn-hover-bg) !important;
+  transform: translateY(-1px);
+}
+.filter-actions .small {
+  margin-left: 6px;
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -527,4 +672,960 @@ button {
     overflow: hidden;
     text-overflow: ellipsis;
   }
+}
+
+/* Generic button classes used across pages and modals. This ensures
+   elements rendered dynamically (modals, JS-injected controls) follow
+   the application's visual style. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--btn-bg-light);
+  color: var(--btn-text);
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.06s ease, box-shadow 0.12s;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+.btn:hover:not([disabled]) {
+  /* slightly darker blue for hover (compatible fallback) */
+  background: #2563eb; /* darker shade of --btn-bg-light */
+  transform: translateY(-1px);
+}
+.btn:active:not([disabled]) {
+  transform: translateY(0);
+}
+.btn[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Ghost / secondary appearance */
+.btn.ghost {
+  background: transparent;
+  color: var(--primary);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow: none;
+}
+
+/* Keep certain ghost-style reset buttons from adopting the global
+   .btn:hover blue background. The Model Outputs Reset button uses
+   #btnResetOutputs — force it to remain visually neutral on hover. */
+#btnResetOutputs,
+#btnResetOutputs svg {
+  background: transparent;
+}
+#btnResetOutputs:hover:not([disabled]),
+#btnResetOutputs:focus:not([disabled]) {
+  background: transparent !important;
+  color: inherit !important; /* keep text/icon color unchanged */
+  transform: none !important; /* prevent lift on hover */
+  box-shadow: none !important;
+}
+
+/* Keep Exceptions Reset button visually neutral on hover as well */
+#btnResetExceptions,
+#btnResetExceptions svg {
+  background: transparent;
+}
+#btnResetExceptions:hover:not([disabled]),
+#btnResetExceptions:focus:not([disabled]) {
+  background: transparent !important;
+  color: inherit !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+#btnResetStagingFilters,
+#btnResetStagingFilters svg,
+#btnResetActiveFilters,
+#btnResetActiveFilters svg {
+  background: transparent;
+}
+#btnResetStagingFilters:hover:not([disabled]),
+#btnResetStagingFilters:focus:not([disabled]),
+#btnResetActiveFilters:hover:not([disabled]),
+#btnResetActiveFilters:focus:not([disabled]) {
+  background: transparent !important;
+  color: inherit !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Primary / emphasized actions */
+.btn.btn-primary,
+.btn.primary {
+  /* emphasized actions keep the original primary color */
+  background: var(--btn-bg);
+  color: var(--btn-text);
+}
+.btn.btn-danger {
+  background: var(--home-btn-bg);
+  color: var(--btn-text);
+}
+
+/* Modal specific tweaks for the missing-items modal created by JS */
+/* Buttons inside the Missing Items modal should be light grey so they
+   don't visually compete with primary actions elsewhere. This also
+   ensures 'Download CSV' (which uses .btn.btn-primary) looks the same.
+*/
+#missingItemsModal .btn {
+  margin-right: 8px;
+  background: #f3f4f6; /* light grey */
+  color: #111827;
+  box-shadow: none;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+}
+#missingItemsModal .btn:hover:not([disabled]) {
+  background: #e6e7ea; /* slightly darker on hover */
+}
+
+#missingItemsModal .btn.btn-primary,
+#missingItemsModal .btn.primary {
+  /* force primary variant inside modal to use the same grey look */
+  background: #f3f4f6;
+  color: #111827;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow: none;
+}
+
+#missingItemsModal #missingInner {
+  background: var(--panel-bg);
+  color: var(--text-color);
+}
+
+/* Layout tweaks for the Latest Runs table in Forecast Console */
+#runsTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+#runsTable th,
+#runsTable td {
+  text-align: center; /* horizontal center */
+  vertical-align: middle; /* vertical center */
+  padding: 10px 12px;
+}
+#runsTable thead th {
+  /* keep the existing header styling but ensure centered */
+  background: #f8fafc;
+  font-weight: 600;
+}
+
+/* Make the runs table body scroll independently with a sticky header.
+   The container .table-scroll-wrap will constrain the height and show a
+   vertical scrollbar for tbody only. Use -webkit for smoother scrolling
+   in Chromium/Electron and fallback for others. */
+.table-scroll-wrap {
+  /* Show more rows by default while staying responsive: take 75% of
+     the viewport height but cap at 920px so it doesn't become too tall. */
+  max-height: min(75vh, 920px);
+  overflow-y: auto;
+  overflow-x: auto; /* allow horizontal scroll if columns overflow */
+  -webkit-overflow-scrolling: touch;
+  border-top: 1px solid rgba(15, 23, 42, 0.04);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.04);
+}
+
+/* Make the thead sticky so it remains visible while tbody scrolls. We
+   keep the header above the rows using z-index and set background to
+   match the header color. */
+#runsTable thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: #f8fafc; /* ensure opaque background for header */
+}
+
+/* Ensure table layout doesn't collapse when columns overflow */
+#runsTable {
+  table-layout: fixed;
+}
+#runsTable tbody td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Pagination styles (copied/adapted from Production Planning Workbench) */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding: 10px;
+  background: #f9fafb;
+  border-radius: 6px;
+}
+
+.pagination-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.pagination button {
+  padding: 6px 12px;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #374151;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.pagination-controls button:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+
+/* Table styling for tables inside .table-scroll-wrap (applies to Outputs and Exceptions)
+   - Freeze header row with position: sticky
+   - Vertically center all cells
+   - Horizontally center all columns by default, with ITEM (.col-item) left-aligned */
+.table-scroll-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed; /* consistent column widths */
+}
+.table-scroll-wrap table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  background: #f8fafc;
+  font-weight: 600;
+  vertical-align: middle;
+  text-align: center; /* header horizontally centered for all columns */
+  padding: 8px 10px;
+  /* Allow header text to wrap onto multiple lines instead of truncating */
+  white-space: normal;
+  word-break: break-word;
+}
+.table-scroll-wrap table th,
+.table-scroll-wrap table td {
+  vertical-align: middle; /* vertically center all cells */
+  text-align: center; /* horizontally center by default */
+  padding: 6px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* data cells remain single-line to preserve row height */
+  white-space: nowrap;
+}
+.table-scroll-wrap table th.col-item,
+.table-scroll-wrap table td.col-item {
+  text-align: left; /* ITEM data cells left-aligned; headers remain centered */
+  white-space: normal;
+}
+.table-scroll-wrap table th.col-note,
+.table-scroll-wrap table td.col-note {
+  text-align: left;
+  white-space: normal;
+}
+
+/* Logs table: prefer content-aware column widths and allow wrapping when needed.
+   This overrides the .table-scroll-wrap fixed layout for the logs table only so
+   other tables keep their fixed behaviour for consistent dashboards. */
+#logsTableWrap table {
+  table-layout: auto;
+}
+
+#logsTableWrap th,
+#logsTableWrap td {
+  white-space: normal; /* allow wrapping */
+  overflow-wrap: anywhere; /* break long words if necessary */
+}
+
+#logsTableWrap td {
+  /* Let cells size to content; remove forced nowrap/ellipsis used elsewhere */
+  text-overflow: clip;
+}
+
+/* Logs table alignment & sticky header rules */
+#logsTableWrap table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  background: var(--panel-bg);
+  /* horizontally centre header labels as requested */
+  text-align: center;
+  vertical-align: middle;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+#logsTableWrap table tbody td,
+#logsTableWrap table tbody th {
+  vertical-align: middle; /* vertically center all body cells */
+  padding: 6px 8px;
+}
+
+/* Column-specific horizontal alignment for body rows:
+   Center: Date(1), BN(3), Batch Size(4), UOM(5), Status(9), Action(10)
+   Left: Item(2), Section(6), Plant/Machinery(7), Activity(8)
+*/
+#logsTableWrap table tbody td:nth-child(1),
+#logsTableWrap table tbody td:nth-child(3),
+#logsTableWrap table tbody td:nth-child(4),
+#logsTableWrap table tbody td:nth-child(5),
+#logsTableWrap table tbody td:nth-child(9),
+#logsTableWrap table tbody td:nth-child(10) {
+  text-align: center;
+}
+
+#logsTableWrap table tbody td:nth-child(2),
+#logsTableWrap table tbody td:nth-child(6),
+#logsTableWrap table tbody td:nth-child(7),
+#logsTableWrap table tbody td:nth-child(8) {
+  text-align: left;
+}
+
+/* Ensure sticky header has a subtle shadow to separate it from scrolled content */
+#logsTableWrap table thead th::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 4px;
+  pointer-events: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+.table-scroll-wrap table th.col-actions,
+.table-scroll-wrap table td.col-actions {
+  text-align: center;
+}
+
+/* Ensure the outputs table scroll area has a reasonable max height */
+.table-scroll-wrap {
+  /* reuse the existing rule but let flex control height inside tab panels */
+  max-height: none;
+  overflow-y: auto;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-top: 1px solid rgba(15, 23, 42, 0.04);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.04);
+}
+
+/* Ensure the Outputs tab can use the larger scroll area when present. This
+   overrides any smaller defaults for other tables and gives the outputs
+   table more vertical room to expand into remaining white space. */
+#tab-outputs .table-scroll-wrap {
+  max-height: none;
+}
+
+/* Give Exceptions tab a table-level vertical scroll with sticky header. The
+   height is intentionally moderate so users see a scrollbar when many rows
+   are present. This does not affect the Outputs tab which keeps its own
+   sizing rules. */
+/* Make the Exceptions panel layout fill available vertical space and let
+   the table-scroll-wrap consume the remaining area. This prevents a large
+   blank region below the table when the surrounding layout provides extra
+   vertical room. We use min-height:0 on flex children so overflow works
+   correctly in many browsers. */
+#tab-exceptions {
+  display: flex;
+  flex-direction: column;
+}
+#tab-exceptions .pagination {
+  flex: 0 0 auto;
+}
+#tab-exceptions .grid {
+  flex: 1 1 auto;
+  min-height: 0; /* allow the child .table-scroll-wrap to shrink/scroll */
+  display: flex;
+  flex-direction: column;
+}
+#tab-exceptions .table-scroll-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none; /* let flex sizing control height */
+  overflow-y: auto;
+}
+
+.pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Action button style copied from Production Planning Workbench for consistent Export button look */
+.action-btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+.action-btn.primary {
+  background: #3b82f6;
+  color: white;
+}
+.action-btn.primary:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+.action-btn.secondary {
+  background: #64748b;
+  color: white;
+}
+.action-btn.secondary:hover {
+  background: #475569;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* --------------------------------------------------------------------------
+   Overrides / Staging & Promoted layout (ERP-style polish)
+   These rules style the copied Staging & Overrides markup inside the
+   Forecast Console Overrides tab without changing HTML structure.
+   ----------------------------------------------------------------------- */
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  align-items: start;
+  margin-bottom: 16px;
+}
+#tab-overrides .grid-2 {
+  grid-template-columns: 1fr;
+}
+@media (max-width: 980px) {
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+#tab-overrides {
+  --btn-bg-light: #e2e8f0;
+  --btn-text: #1f2937;
+}
+#tab-overrides .overrides-window-card {
+  gap: 12px;
+}
+#tab-overrides .overrides-window-header h3 {
+  margin: 0;
+  color: var(--primary);
+}
+#tab-overrides .overrides-window-header .small {
+  margin: 4px 0 0;
+}
+#tab-overrides .overrides-window-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+#tab-overrides .overrides-window-range {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+#tab-overrides .overrides-window-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+#tab-overrides .overrides-window-actions .btn {
+  white-space: nowrap;
+}
+#tab-overrides .baseline-download-trigger {
+  position: relative;
+  display: inline-flex;
+}
+#tab-overrides .baseline-download-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--panel-bg);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  padding: 8px;
+  border-radius: 8px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+  min-width: 180px;
+  z-index: 20;
+}
+#tab-overrides .baseline-download-menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+#tab-overrides .baseline-download-menu .btn {
+  width: 100%;
+  justify-content: flex-start;
+}
+#tab-overrides
+  .card
+  .btn:not(.primary):not(.btn-primary):not(.danger):not(.btn-danger):not(
+    .ghost
+  ) {
+  background: var(--btn-bg-light);
+  color: var(--btn-text);
+  border: 1px solid rgba(15, 23, 42, 0.16);
+  box-shadow: none;
+}
+#tab-overrides
+  .card
+  .btn:not(.primary):not(.btn-primary):not(.danger):not(.btn-danger):not(
+    .ghost
+  ):hover:not([disabled]) {
+  background: #d1d5db;
+  color: #0f172a;
+}
+#tab-overrides .card .btn.primary,
+#tab-overrides .card .btn.btn-primary {
+  background: var(--primary);
+  color: #fff;
+}
+#tab-overrides .card .btn.primary:hover:not([disabled]),
+#tab-overrides .card .btn.btn-primary:hover:not([disabled]) {
+  background: var(--primary-hover);
+  color: #fff;
+}
+#tab-overrides .card .btn.danger,
+#tab-overrides .card .btn.btn-danger {
+  background: #b91c1c;
+  color: #fff;
+  border: none;
+}
+#tab-overrides .card .btn.danger:hover:not([disabled]),
+#tab-overrides .card .btn.btn-danger:hover:not([disabled]) {
+  background: #991b1b;
+}
+#tab-overrides .overrides-window-controls label {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+#tab-overrides .overrides-window-controls input[type="month"] {
+  min-width: 140px;
+}
+
+/* Run Controls header and button styles (match Overrides Window / staging buttons) */
+#tab-overrides #runControls h3 {
+  margin: 0;
+  color: var(--primary);
+}
+#tab-overrides #runControls .btn.primary,
+#tab-overrides #runControls .btn.btn-primary {
+  background: var(--primary);
+  color: #fff;
+}
+#tab-overrides #runControls .btn.primary:hover:not([disabled]),
+#tab-overrides #runControls .btn.btn-primary:hover:not([disabled]) {
+  background: var(--primary-hover);
+  color: #fff;
+}
+#tab-overrides #runControls .btn.danger,
+#tab-overrides #runControls .btn.btn-danger {
+  background: #b91c1c;
+  color: #fff;
+  border: none;
+}
+#tab-overrides #runControls .btn.danger:hover:not([disabled]),
+#tab-overrides #runControls .btn.btn-danger:hover:not([disabled]) {
+  background: #991b1b;
+}
+
+#tab-overrides .overrides-table-wrap {
+  max-height: 52vh;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+  background: #fff;
+  overflow: auto;
+  padding: 0;
+}
+#tab-overrides .overrides-table-wrap table {
+  border-collapse: collapse;
+  width: 100%;
+}
+#tab-overrides .overrides-table-wrap table thead th {
+  background: #f8fafc;
+  color: #1f2937;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+#tab-overrides .overrides-table-wrap table td {
+  font-size: 0.9rem;
+}
+#tab-overrides .overrides-table-wrap table tbody tr {
+  background: #fff;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  transition: background 0.18s ease;
+}
+#tab-overrides .overrides-table-wrap table tbody tr:nth-child(even) {
+  background: #f9fafb;
+}
+#tab-overrides .overrides-table-wrap table tbody tr:hover {
+  background: #eef2ff;
+}
+#tab-overrides .overrides-table-wrap table tbody tr.inactive-row {
+  background: #fff1f2;
+}
+#tab-overrides
+  .overrides-table-wrap
+  table
+  tbody
+  tr.inactive-row:nth-child(even) {
+  background: #ffe4e6;
+}
+#tab-overrides .overrides-table-wrap table tbody tr.inactive-row:hover {
+  background: #fecdd3;
+}
+#tab-overrides .overrides-table-wrap table th.col-actions,
+#tab-overrides .overrides-table-wrap table td.col-actions {
+  width: 84px;
+}
+#tab-overrides .overrides-table-wrap table td.col-note {
+  white-space: normal;
+}
+
+#tab-overrides .pager-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+#tab-overrides .pager-right .pager-size {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+#tab-overrides .pager-right select {
+  padding: 4px 6px;
+  border-radius: 4px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  font-size: 0.85rem;
+  color: #1f2937;
+}
+#tab-overrides .pager-right .btn {
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #374151;
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+#tab-overrides .pager-right .btn:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+#tab-overrides .pager-right .muted.small {
+  color: #4b5563;
+  font-size: 0.85rem;
+}
+
+#tab-overrides .staging-toolbar,
+#tab-overrides .active-toolbar {
+  flex-direction: column;
+  gap: 12px;
+}
+#tab-overrides .staging-toolbar .staging-row,
+#tab-overrides .active-toolbar .active-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+#tab-overrides .staging-toolbar .staging-actions,
+#tab-overrides .active-toolbar .staging-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+#tab-overrides .staging-toolbar .staging-actions .btn,
+#tab-overrides .active-toolbar .staging-actions .btn {
+  padding: 8px 14px;
+}
+#tab-overrides .staging-toolbar .staging-filters.enhanced-toolbar,
+#tab-overrides .active-toolbar .active-filters.enhanced-toolbar {
+  width: 100%;
+  padding: 0;
+  margin-bottom: 0;
+  gap: 16px;
+}
+#tab-overrides .staging-toolbar .filters-row,
+#tab-overrides .active-toolbar .filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+}
+#tab-overrides .staging-toolbar .staging-filters .filter-group,
+#tab-overrides .active-toolbar .active-filters .filter-group {
+  min-width: 160px;
+  max-width: 240px;
+}
+#tab-overrides .staging-toolbar .staging-filters .filter-group .filter-input,
+#tab-overrides .active-toolbar .active-filters .filter-group .filter-input {
+  width: 100%;
+}
+#tab-overrides .staging-toolbar .staging-filters .delta-group,
+#tab-overrides .active-toolbar .active-filters .delta-group {
+  flex: 1 1 320px;
+  min-width: 260px;
+  max-width: 420px;
+}
+#tab-overrides .staging-toolbar .staging-filters .delta-range,
+#tab-overrides .active-toolbar .active-filters .delta-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+#tab-overrides .staging-toolbar .staging-filters .delta-operator,
+#tab-overrides .active-toolbar .active-filters .delta-operator {
+  min-width: 130px;
+  width: 130px;
+}
+#tab-overrides .staging-toolbar .staging-filters .delta-input,
+#tab-overrides .active-toolbar .active-filters .delta-input {
+  min-width: 100px;
+  width: 110px;
+  flex: 1 1 auto;
+}
+#tab-overrides .staging-toolbar .staging-filters #btnResetStagingFilters,
+#tab-overrides .active-toolbar .active-filters #btnResetActiveFilters {
+  margin-left: auto;
+  padding: 8px;
+  min-width: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#tab-overrides .action-menu {
+  position: relative;
+  display: inline-flex;
+}
+#tab-overrides .icon-toggle {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid rgba(37, 99, 235, 0.4);
+  background: linear-gradient(
+    180deg,
+    rgba(59, 130, 246, 0.12),
+    rgba(59, 130, 246, 0.04)
+  );
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #1d4ed8;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+#tab-overrides .icon-toggle:hover {
+  background: rgba(59, 130, 246, 0.16);
+  border-color: rgba(37, 99, 235, 0.5);
+}
+#tab-overrides .icon-toggle:focus-visible {
+  outline: 2px solid rgba(59, 130, 246, 0.5);
+  outline-offset: 2px;
+}
+#tab-overrides .icon-toggle svg {
+  width: 14px;
+  height: 14px;
+}
+#tab-overrides .action-menu-panel {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  box-shadow: 0 18px 32px rgba(15, 23, 42, 0.12);
+  border-radius: 10px;
+  padding: 8px;
+  min-width: 180px;
+  z-index: 40;
+  flex-direction: column;
+  gap: 4px;
+}
+#tab-overrides .action-menu-panel .action-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  color: #1f2937;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-align: left;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+#tab-overrides .action-menu-panel .action-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+#tab-overrides .action-menu-panel .action-btn svg {
+  flex-shrink: 0;
+}
+#tab-overrides .action-menu-panel .action-btn span {
+  flex: 1 1 auto;
+}
+#tab-overrides .action-menu-panel .action-btn.toggle.active {
+  color: #0f766e;
+}
+#tab-overrides .action-menu-panel .action-btn.toggle.inactive {
+  color: #b91c1c;
+}
+
+.card {
+  background: var(--panel-bg);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: 10px;
+  padding: 14px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--primary);
+}
+
+.toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.toolbar .spacer {
+  flex: 1 1 auto;
+  min-width: 8px;
+}
+
+.toolbar .toolbar-fill {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+}
+
+.toolbar-compact,
+.toolbar-compact[type="month"],
+.toolbar-compact[type="date"],
+.toolbar-compact.select {
+  min-width: 120px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  height: 36px;
+}
+
+.pager-compact {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.pager-compact select {
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+}
+
+.status {
+  font-size: 0.93rem;
+  color: var(--muted);
+}
+
+.section-hint {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* Table polish for staging/active/baseline tables */
+#tblStaging thead th,
+#tblActive thead th,
+#tblBaseline thead th {
+  background: linear-gradient(180deg, #fbfdff, #f3f6fb);
+  color: #0f172a;
+  font-weight: 700;
+  font-size: 0.78rem;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  text-align: center;
+}
+
+#tblStaging tbody td,
+#tblActive tbody td,
+#tblBaseline tbody td {
+  padding: 8px 10px;
+  vertical-align: middle;
+  text-align: center;
+}
+
+#tblStaging td.col-item,
+#tblActive td.col-item,
+#tblBaseline td.col-item {
+  text-align: left;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+.right {
+  text-align: right;
+}
+.center {
+  text-align: center;
+}
+
+/* Make table containers restrained but scrollable with sticky headers */
+.card .table-scroll-wrap {
+  max-height: 48vh;
+  overflow: auto;
+}
+
+/* Small visual tweak for action buttons inside toolbars */
+.card .btn {
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.92rem;
+}
+
+/* Make danger buttons more subtle when used on per-module actions */
+.btn.danger,
+.btn.btn-danger {
+  background: #ef4444;
+  color: #fff;
+}
+
+/* Ensure compact pagers inside cards don't stretch the layout */
+.pager-compact .btn {
+  padding: 6px 8px;
+  border-radius: 6px;
 }

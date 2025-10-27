@@ -91,6 +91,10 @@ const sectionMap = {};
 /* Every time we start a new table refresh we bump this number. Only the
    request that finishes _last_ is allowed to update the DOM.            */
 let queryVersion = 0;
+// Pagination state
+let currentPage = 0;
+let perPage = 25;
+let totalRows = null; // null = unknown
 
 /* ── Initial bootstrap ------------------------------------------------------ */
 document.addEventListener("DOMContentLoaded", init);
@@ -102,13 +106,17 @@ async function init() {
   /* Date picker + mask */
   attachMask(fDate);
   flatpickr(fDate, fpBase);
-  fDate.addEventListener("change", loadTable);
+  fDate.addEventListener("change", () => {
+    currentPage = 0;
+    loadTable();
+  });
 
   /* Close details modal */
   btnClose.onclick = () => hide(overlay);
 
   /* Clear filters */
   clearBtn.onclick = () => {
+    currentPage = 0;
     // 1) Reset native filter values
     [fDate, fSection, fSub, fArea, fStatus].forEach((el) => (el.value = ""));
 
@@ -168,6 +176,7 @@ async function init() {
 
   /* Cascading wiring */
   fSection.onchange = () => {
+    currentPage = 0;
     cascadeSub();
     cascadeArea();
     loadBNs();
@@ -176,23 +185,35 @@ async function init() {
     loadTable();
   };
   fSub.onchange = () => {
+    currentPage = 0;
     cascadeArea();
     updatePlantEnabled();
     loadPlants();
     loadTable();
   };
   fArea.onchange = () => {
+    currentPage = 0;
     updatePlantEnabled();
     loadPlants();
     loadTable();
   };
   fPlant.onchange = () => {
+    currentPage = 0;
     loadTable();
   };
 
-  fBN.onchange = loadTable;
-  fAct.onchange = loadTable;
-  fStatus.onchange = loadTable;
+  fBN.onchange = () => {
+    currentPage = 0;
+    loadTable();
+  };
+  fAct.onchange = () => {
+    currentPage = 0;
+    loadTable();
+  };
+  fStatus.onchange = () => {
+    currentPage = 0;
+    loadTable();
+  };
 
   /* First pass */
   cascadeSub();
@@ -201,17 +222,94 @@ async function init() {
   await loadPlants();
 
   await loadTable();
+
+  // Wire pagination controls
+  const prevBtn = document.getElementById("logsPrev");
+  const nextBtn = document.getElementById("logsNext");
+  const perSel = document.getElementById("logsPerPage");
+  if (prevBtn)
+    prevBtn.addEventListener("click", () => {
+      if (currentPage > 0) loadTable(currentPage - 1);
+    });
+  if (nextBtn)
+    nextBtn.addEventListener("click", () => {
+      loadTable(currentPage + 1);
+    });
+  if (perSel) {
+    perSel.value = String(perPage);
+    perSel.addEventListener("change", () => {
+      perPage = Number(perSel.value) || 25;
+      currentPage = 0;
+      loadTable(0);
+    });
+  }
 }
+
+function renderPagination() {
+  const prevBtn = document.getElementById("logsPrev");
+  const nextBtn = document.getElementById("logsNext");
+  const info = document.getElementById("logsPageInfo");
+  const perSel = document.getElementById("logsPerPage");
+  const rowsOnPage = tbody.rows.length;
+
+  if (!info) return;
+
+  const pageNum = currentPage + 1;
+
+  if (typeof totalRows === "number") {
+    const totalPages = Math.max(1, Math.ceil(totalRows / perPage));
+    info.textContent = `Page ${pageNum} of ${totalPages}`;
+    if (prevBtn) prevBtn.disabled = currentPage <= 0;
+    if (nextBtn) nextBtn.disabled = currentPage >= totalPages - 1;
+  } else {
+    // Unknown total: show page number and disable Next if fewer rows than page size
+    info.textContent = `Page ${pageNum}`;
+    if (prevBtn) prevBtn.disabled = currentPage <= 0;
+    if (nextBtn) nextBtn.disabled = rowsOnPage < perPage;
+  }
+
+  if (perSel) perSel.value = String(perPage);
+  // Ensure the table wrapper height is adjusted after pagination updates
+  adjustLogsTableHeight();
+}
+
+// Adjust the logs table wrapper height so the table fills available viewport
+// space and introduces an internal vertical scrollbar when necessary.
+function adjustLogsTableHeight() {
+  const wrap = document.getElementById("logsTableWrap");
+  const pagination = document.getElementById("logsPagination");
+  if (!wrap) return;
+
+  // Compute available vertical space from top of wrapper to bottom of viewport,
+  // but reserve space for the pagination controls and a small gap.
+  const wrapRect = wrap.getBoundingClientRect();
+  const paginationHeight = pagination
+    ? pagination.getBoundingClientRect().height
+    : 0;
+  const gap = 16; // small breathing room
+  const avail = Math.max(
+    120,
+    window.innerHeight - wrapRect.top - paginationHeight - gap - 24
+  );
+  wrap.style.maxHeight = avail + "px";
+}
+
+// Recompute layout on resize
+window.addEventListener("resize", () => {
+  adjustLogsTableHeight();
+});
 
 // ========== AUTOCOMPLETE FOR ITEM FIELD ==========
 
 // Helper function: fetch matching items from Supabase
 async function fetchItemsFromSupabase(query) {
+  const q = query || "";
   let sbQuery = supabase
     .from("daily_work_log")
     .select("item", { distinct: true })
-    .ilike("item", `%${query}%`)
-    .limit(20);
+    .ilike("item", `%${q}%`)
+    .order("item", { ascending: true })
+    .limit(100);
 
   // Optional: add other filters here if needed
 
@@ -220,10 +318,24 @@ async function fetchItemsFromSupabase(query) {
     console.error("Supabase item fetch error:", error);
     return [];
   }
-  // Remove duplicates and empty
-  return [...new Set((data || []).map((r) => r.item).filter(Boolean))].map(
-    (item) => ({ item: item })
-  );
+
+  // Debug: raw rows returned by Supabase
+  console.debug("fetchItemsFromSupabase raw:", data);
+
+  // Trim, remove empty and dedupe (preserve alphabetical order)
+  const seen = new Set();
+  const items = [];
+  (data || []).forEach((r) => {
+    const it = (r.item || "").trim();
+    if (!it) return;
+    if (!seen.has(it)) {
+      seen.add(it);
+      items.push({ item: it });
+    }
+  });
+
+  console.debug("fetchItemsFromSupabase deduped:", items);
+  return items;
 }
 
 // Initialize Tom Select for the Item filter
@@ -231,24 +343,30 @@ const itemTomSelect = new TomSelect("#filterItem", {
   valueField: "item",
   labelField: "item",
   searchField: ["item"],
+  // Preload top items and also fetch on input. Previously the code returned
+  // early for empty queries which meant the list was empty until the user
+  // typed — making it hard to see or discover certain items.
+  preload: true,
   load: function (query, callback) {
-    // Only fetch if user typed something
-    if (!query.length) return callback();
-    fetchItemsFromSupabase(query).then((items) => {
+    // Allow empty query (preload) as well as typed queries
+    const q = query || "";
+    fetchItemsFromSupabase(q).then((items) => {
       callback(items);
     });
   },
-  maxOptions: 20,
+  maxOptions: 100,
   create: false,
 });
 
 // When Item changes, reload BN dropdown and table
 fItem.addEventListener("change", () => {
+  currentPage = 0;
   loadBNs();
   activityTomSelect.clear();
   loadTable();
 });
 fBN.addEventListener("change", () => {
+  currentPage = 0;
   activityTomSelect.clear();
   loadTable();
 });
@@ -414,25 +532,19 @@ function updatePlantEnabled() {
 setPlantEnabled(false);
 
 /* ── Main table refresh ----------------------------------------------------- */
-async function loadTable() {
+async function loadTable(page = currentPage) {
+  /* ensure current page state */
+  currentPage = page || 0;
+
   /* 1️⃣ – stamp THIS request and mark it as “latest so far” */
   const myVersion = ++queryVersion; // bump the global counter
 
   /* 2️⃣ – Detect whether any filter is active (unchanged) */
-  const hasFilter = Boolean(
-    fDate.value ||
-      fSection.value ||
-      fSub.value ||
-      fArea.value ||
-      fPlant.value ||
-      fItem.value ||
-      fBN.value ||
-      fAct.value ||
-      fStatus.value
-  );
+  // Filters are read below when building the query; we don't branch on them for pagination.
 
   /* 3️⃣ – Build the Supabase query (unchanged) */
-  let q = supabase.from("daily_work_log").select(`
+  let q = supabase.from("daily_work_log").select(
+    `
       id,
       log_date,
       item,
@@ -445,7 +557,9 @@ async function loadTable() {
       status,
       created_at,
       plant_machinery(plant_name)
-    `);
+    `,
+    { count: "exact" }
+  );
 
   if (fDate.value) q = q.eq("log_date", toISODate(fDate.value));
   if (fSection.value) q = q.eq("section_id", fSection.value);
@@ -464,10 +578,18 @@ async function loadTable() {
     .order("log_date", { ascending: false })
     .order("created_at", { ascending: false });
 
-  if (!hasFilter) q = q.limit(10);
+  // Pagination: use range-based paging on the server
+  const start = currentPage * perPage;
+  const end = start + perPage - 1;
 
-  /* 4️⃣ – Run the query */
-  const { data, error } = await q;
+  // Request exact count where supported so we can render page numbers
+  q = q.range(start, end);
+
+  /* 4️⃣ – Run the query (requesting count via select options if supported) */
+  // Note: to get `count` from Supabase you'd normally call select(..., { count: 'exact' })
+  // but because we've already built `q` from .from(...).select(...) above, we'll
+  // request the page and rely on returned data length to control pagination.
+  const { data, error, count } = await q;
   if (error) {
     console.error(error);
     return;
@@ -480,6 +602,20 @@ async function loadTable() {
   tbody.replaceChildren();
 
   const rows = data ? data.slice() : [];
+
+  // Update pagination total if server returned a count
+  if (typeof count === "number") {
+    totalRows = count;
+  } else {
+    // If count not available, infer whether this is the last page by rows length
+    if (rows.length < perPage) {
+      totalRows = currentPage * perPage + rows.length;
+    } else if (currentPage === 0 && rows.length === 0) {
+      totalRows = 0;
+    } else {
+      totalRows = null; // unknown
+    }
+  }
 
   /* 7️⃣ – Natural-order sort (unchanged) */
   const coll = new Intl.Collator("en", { numeric: true, sensitivity: "base" });
@@ -530,6 +666,9 @@ async function loadTable() {
   document
     .querySelectorAll(".view-link")
     .forEach((a) => a.addEventListener("click", showDetails));
+
+  // Render pagination UI (buttons / page info)
+  renderPagination();
 }
 
 // Helper: fetch ALL logs with stable pagination (replaces your fetchAllLogs)

@@ -7,206 +7,333 @@
     <link rel="stylesheet" href="css/style.css" />
     <style>
       :root {
-        --brand: #0a62c3;
-        --brand-600: #084e9c;
-        --text-1: #111;
-        --text-2: #555;
-        --border: #e5e7eb;
-        --bg: #fff;
-        --bg-soft: #f8fafc;
-        --card: #ffffff;
-        --pill: #eef2ff;
-        --ok: #16a34a;
-        --warn: #d97706;
-        --bad: #dc2626;
+        --surface: var(--panel-bg, #ffffff);
+        --surface-alt: #f3f4f6;
+        --border: #e2e8f0;
+        --accent: var(--primary, #0a62c3);
+        --accent-strong: #084e9c;
+        --muted: #64748b;
+        --chip-bg: #eef2ff;
       }
+
       * {
         box-sizing: border-box;
       }
+
       body {
         margin: 0;
-        background: var(--bg-soft);
-        color: var(--text-1);
+        padding: 20px;
+        background: var(--bg-color, #f7f9fb);
+        color: var(--text-color, #111);
         font: 14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu,
           "Helvetica Neue", Arial;
       }
+
       .wrap {
-        max-width: min(1400px, 96vw);
-        margin: 20px auto;
-        padding: 12px 12px 36px;
-      }
-      .header {
-        display: grid;
-        grid-template-columns: 1fr auto 1fr;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 12px;
-      }
-      .title {
-        grid-column: 2/3;
-        justify-self: center;
-        margin: 0;
-        font-size: clamp(18px, 2.8vw, 22px);
-        letter-spacing: 0.2px;
-      }
-      .bar {
+        max-width: 1400px;
+        margin: 0 auto;
         display: flex;
-        gap: 8px;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      .header-main {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .title {
+        margin: 0;
+        font-size: 1.75rem;
+        letter-spacing: 0;
+        color: var(--accent);
+      }
+
+      .subtitle {
+        margin: 0;
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+
+      .header-actions {
+        display: flex;
         align-items: center;
         justify-content: flex-end;
+        gap: 12px;
+        flex-wrap: wrap;
       }
+
+      .btn {
+        border: 1px solid var(--border);
+        background: #fff;
+        color: inherit;
+        padding: 8px 14px;
+        border-radius: 8px;
+        font: inherit;
+        cursor: pointer;
+        transition: background 0.2s ease, color 0.2s ease,
+          border-color 0.2s ease;
+      }
+
+      .btn:hover {
+        background: var(--surface-alt);
+      }
+
+      .btn.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+
+      .btn.primary:hover {
+        background: var(--accent-strong);
+        border-color: var(--accent-strong);
+      }
+
+      .btn.ghost {
+        background: transparent;
+        border-color: var(--border);
+        color: var(--muted);
+      }
+
+      #homeBtn {
+        border-color: #fdba74;
+        background: #fee8c7;
+        color: #92400e;
+        font-weight: 600;
+      }
+
+      #homeBtn:hover {
+        background: #fdba74;
+        border-color: #fb923c;
+      }
+
+      .mobile-only {
+        display: none;
+      }
+
       .tag {
-        padding: 4px 8px;
+        padding: 6px 12px;
         border-radius: 999px;
         border: 1px solid var(--border);
-        font-size: 12px;
+        font-size: 0.75rem;
         background: #fff;
+        color: var(--muted);
       }
+
       .tag.green {
-        border-color: var(--ok);
-        color: var(--ok);
+        border-color: #16a34a;
+        color: #16a34a;
       }
+
       .tag.amber {
-        border-color: var(--warn);
-        color: var(--warn);
+        border-color: #d97706;
+        color: #d97706;
       }
+
       .tag.red {
-        border-color: var(--bad);
-        color: var(--bad);
+        border-color: #dc2626;
+        color: #dc2626;
       }
 
       .layout {
         display: grid;
-        grid-template-columns: 280px 1fr;
-        gap: 14px;
-      }
-      .card {
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: 14px;
-      }
-      .section {
-        padding: 12px;
-      }
-      .muted {
-        color: var(--text-2);
-      }
-      .spacer {
-        height: 8px;
+        grid-template-columns: minmax(260px, 300px) minmax(0, 1fr);
+        gap: 20px;
+        align-items: flex-start;
       }
 
-      /* Filter rail */
-      .rail {
-        position: sticky;
-        top: 10px;
-        align-self: start;
-        padding: 12px;
+      .layout main {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 20px;
       }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+      }
+
+      .section {
+        padding: 16px 20px;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .spacer {
+        height: 12px;
+      }
+
+      .rail {
+        position: sticky;
+        top: 20px;
+        align-self: start;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .rail h2 {
+        margin: 0;
+        font-size: 1rem;
+        color: var(--accent);
+      }
+
+      .rail p {
+        margin: 0;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+
       .rail h3 {
-        margin: 6px 0 0 0;
-        font-size: 13px;
-        color: var(--text-2);
+        margin: 8px 0 0;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        color: var(--muted);
       }
+
       .frow {
         display: flex;
-        gap: 8px;
-        align-items: center;
+        gap: 12px;
+        align-items: flex-end;
         flex-wrap: wrap;
       }
+
+      .rail label {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+
+      .rail label.checkbox-field {
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9rem;
+        color: inherit;
+      }
+
       .input,
-      select,
-      button {
+      select {
         border: 1px solid var(--border);
-        border-radius: 10px;
+        border-radius: 8px;
         padding: 8px 10px;
         background: #fff;
+        font-size: 0.95rem;
+        min-width: 140px;
       }
-      .btn {
-        cursor: pointer;
-        user-select: none;
+
+      .chip-row,
+      .frow.chips {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
       }
-      .btn.primary {
-        background: var(--brand);
-        border-color: var(--brand);
-        color: #fff;
-      }
-      .btn.primary:hover {
-        background: var(--brand-600);
-      }
+
       .chip {
-        padding: 6px 10px;
+        padding: 6px 12px;
         border-radius: 999px;
         border: 1px solid var(--border);
-        background: #fff;
+        background: var(--chip-bg);
         cursor: pointer;
+        font-size: 0.88rem;
+        transition: background 0.2s ease, color 0.2s ease,
+          border-color 0.2s ease;
       }
+
       .chip.active {
-        background: var(--brand);
-        border-color: var(--brand);
+        background: var(--accent);
+        border-color: var(--accent);
         color: #fff;
       }
 
-      /* Tabs */
       .tabs {
         display: flex;
         gap: 8px;
-        flex-wrap: nowrap;
-        overflow: auto;
-        padding: 8px;
+        flex-wrap: wrap;
+        padding: 12px 16px;
       }
+
       .tab-pill {
         white-space: nowrap;
-        background: var(--pill);
-        border: 1px solid var(--border);
-        padding: 8px 10px;
+        background: var(--chip-bg);
+        border: 1px solid transparent;
+        padding: 8px 14px;
         border-radius: 999px;
         cursor: pointer;
+        transition: background 0.2s ease, color 0.2s ease,
+          border-color 0.2s ease;
+        font-size: 0.85rem;
       }
+
       .tab-pill[aria-selected="true"] {
-        background: var(--brand);
+        background: var(--accent);
         color: #fff;
-        border-color: var(--brand);
+        border-color: var(--accent);
       }
 
       .tabpanel {
         display: none;
       }
+
       .tabpanel.active {
         display: block;
       }
 
-      /* KPIs & grids */
       .kpis {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 10px;
-        margin: 10px 0;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 12px;
+        margin-top: 16px;
       }
+
       .kpi {
-        padding: 12px;
+        padding: 16px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: #fff;
       }
+
       .kpi h4 {
-        margin: 0 0 4px 0;
-        font-size: 13px;
-      }
-      .kpi p {
         margin: 0 0 8px 0;
-        color: var(--text-2);
-        font-size: 12px;
+        font-size: 0.95rem;
+        color: var(--accent);
       }
+
+      .kpi p {
+        margin: 0 0 12px 0;
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+
       .kpi .v {
         font-weight: 600;
-        font-size: 18px;
+        font-size: 1.3rem;
       }
 
       .grid2 {
         display: grid;
-        grid-template-columns: 1fr;
-        gap: 14px;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 16px;
       }
+
       .table {
         width: 100%;
         border-collapse: separate;
@@ -214,15 +341,26 @@
         background: #fff;
         border: 1px solid var(--border);
         border-radius: 10px;
-        overflow: auto;
+        overflow: hidden;
       }
+
       .table th,
       .table td {
-        padding: 8px 10px;
+        padding: 8px 12px;
         border-bottom: 1px solid var(--border);
         white-space: nowrap;
         text-align: right;
+        font-size: 0.85rem;
       }
+
+      .table th {
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        font-size: 0.78rem;
+        color: var(--muted);
+        background: var(--surface-alt);
+      }
+
       .table th:first-child,
       .table td:first-child {
         text-align: left;
@@ -231,63 +369,77 @@
         background: #fff;
       }
 
-      /* Toolbars */
       .toolbar {
         display: flex;
-        gap: 8px;
+        gap: 10px;
         flex-wrap: wrap;
         align-items: center;
-        margin-bottom: 8px;
-      }
-      .toolbar label {
-        font-size: 12px;
-        color: var(--text-2);
+        margin-bottom: 12px;
+        font-size: 0.85rem;
       }
 
-      /* Pagination */
+      .toolbar label {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        color: var(--muted);
+      }
+
       .pager {
         display: flex;
-        gap: 8px;
+        gap: 10px;
         align-items: center;
         justify-content: flex-end;
-        margin-top: 8px;
+        margin-top: 12px;
+        font-size: 0.85rem;
       }
 
-      /* Small screens */
-      .filters-toggle {
-        display: none;
+      .chart-wrap {
+        height: 320px;
+        position: relative;
       }
-      @media (max-width: 980px) {
+
+      .chart-wrap.tall {
+        height: 360px;
+      }
+
+      @media (max-width: 1200px) {
         .layout {
           grid-template-columns: 1fr;
         }
-        .kpis {
-          grid-template-columns: repeat(2, 1fr);
-        }
-        .filters-toggle {
-          display: flex;
-          justify-content: flex-end;
-          margin-bottom: 8px;
-        }
+
         .rail {
+          position: static;
           display: none;
         }
+
         .rail.open {
           display: flex;
         }
+
+        .mobile-only {
+          display: inline-flex;
+        }
+
+        .header-actions {
+          justify-content: flex-start;
+        }
       }
-      /* Chart wrappers keep charts from growing vertically */
-      .chart-wrap {
-        height: 320px; /* adjust per chart */
-        position: relative; /* required for Chart.js responsive sizing */
-      }
-      .chart-wrap.tall {
-        height: 360px; /* e.g., for stacked bar */
-      }
-      @media (max-width: 980px) {
+
+      @media (max-width: 720px) {
+        .toolbar {
+          align-items: flex-start;
+        }
+
+        .pager {
+          justify-content: center;
+          flex-wrap: wrap;
+        }
+
         .chart-wrap {
           height: 280px;
         }
+
         .chart-wrap.tall {
           height: 320px;
         }
@@ -297,83 +449,108 @@
   <body>
     <div class="wrap">
       <header class="header">
-        <div></div>
-        <h1 class="title">Sales Data Viewer</h1>
-        <div class="bar">
-          <button id="homeBtn" class="btn">HOME</button>
-          <span id="freshness" class="tag">Freshness: —</span>
+        <div class="header-main">
+          <h1 class="title">Sales Viewer</h1>
+          <p class="subtitle">
+            Monitor billed quantity and revenue performance across time, scope,
+            and product hierarchy.
+          </p>
+        </div>
+        <div class="header-actions">
+          <button id="homeBtn" class="btn" type="button">Home</button>
+          <button
+            id="btn-toggle-filters"
+            class="btn ghost mobile-only"
+            type="button"
+          >
+            Filters
+          </button>
+          <span id="freshness" class="tag">Freshness: -</span>
         </div>
       </header>
 
-      <div class="filters-toggle">
-        <button id="btn-toggle-filters" class="btn">Filters ▾</button>
-      </div>
-
       <section class="layout">
-        <!-- Filter Rail -->
         <aside class="rail card" id="filter-rail">
-          <h3>Time</h3>
-          <div class="frow">
-            <label
-              >Anchor Month
-              <input id="f-anchor" class="input" type="month" />
-            </label>
-          </div>
-          <div class="frow" title="Pick reporting window length">
-            <span id="chip-3" class="chip" data-range="3">Last 3</span>
-            <span id="chip-6" class="chip" data-range="6">Last 6</span>
-            <span id="chip-12" class="chip active" data-range="12"
-              >Last 12</span
-            >
+          <div>
+            <h2>Filters</h2>
+            <p>Anchor the month, define the window, and narrow the scope.</p>
           </div>
 
-          <h3>Scope</h3>
-          <div class="frow">
-            <label
-              >Region
-              <select id="f-region" class="input">
-                <option value="">All</option>
-                <option value="1">IK</option>
-                <option value="2">OK</option>
-              </select>
-            </label>
-            <label
-              >Godown
-              <select id="f-godown" class="input">
-                <option value="">All</option>
-                <option value="1">HO_IK</option>
-                <option value="2">HO_OK</option>
-                <option value="3">KKD</option>
-              </select>
-            </label>
-          </div>
-          <div class="frow">
-            <label
-              >Qty Mode
-              <select
-                id="f-mode"
-                class="input"
-                title="Billed = qty_billed, Units = qty_units, Base = qty_base"
+          <div>
+            <h3>Time Window</h3>
+            <div class="frow">
+              <label>
+                Anchor Month
+                <input id="f-anchor" class="input" type="month" />
+              </label>
+            </div>
+            <div class="chip-row" title="Pick reporting window length">
+              <span id="chip-3" class="chip" data-range="3">Last 3</span>
+              <span id="chip-6" class="chip" data-range="6">Last 6</span>
+              <span id="chip-12" class="chip active" data-range="12"
+                >Last 12</span
               >
-                <option value="qty_billed">Billed (default)</option>
-                <option value="qty_units">Units</option>
-                <option value="qty_base">Base Qty</option>
-              </select>
-            </label>
-            <label title="Show only SKUs marked as active">
-              <input id="f-active" type="checkbox" checked /> Active SKUs only
-            </label>
+            </div>
           </div>
+
+          <div>
+            <h3>Scope</h3>
+            <div class="frow">
+              <label>
+                Region
+                <select id="f-region" class="input">
+                  <option value="">All</option>
+                  <option value="1">IK</option>
+                  <option value="2">OK</option>
+                </select>
+              </label>
+              <label>
+                Godown
+                <select id="f-godown" class="input">
+                  <option value="">All</option>
+                  <option value="1">HO_IK</option>
+                  <option value="2">HO_OK</option>
+                  <option value="3">KKD</option>
+                </select>
+              </label>
+            </div>
+            <div class="frow">
+              <label title="Choose the metric used throughout the module">
+                Metric
+                <select id="f-mode" class="input">
+                  <option value="qty_billed">Billed Qty (default)</option>
+                  <option value="qty_units">Units</option>
+                  <option value="qty_base">Base Qty</option>
+                  <option value="billed_amount">Amount (INR)</option>
+                </select>
+              </label>
+              <label title="Denominator used for ASP = Amount / Denominator">
+                ASP Basis
+                <select id="f-asp" class="input">
+                  <option value="qty_billed">Per Billed Qty</option>
+                  <option value="qty_units">Per Unit</option>
+                  <option value="qty_base">Per Base Qty</option>
+                </select>
+              </label>
+              <label class="checkbox-field" title="Show only active SKUs">
+                <input id="f-active" type="checkbox" checked />
+                Active SKUs only
+              </label>
+            </div>
+          </div>
+
           <div class="frow">
-            <button id="btn-apply" class="btn primary">Apply</button>
-            <button id="btn-export" class="btn">Export CSV</button>
+            <button id="btn-apply" class="btn primary" type="button">
+              Apply
+            </button>
+            <button id="btn-export" class="btn" type="button">
+              Export CSV
+            </button>
           </div>
         </aside>
 
-        <!-- Content -->
         <main>
-          <!-- Tabs -->
-          <nav class="tabs" role="tablist" aria-label="Sales Data Tabs">
+          <nav class="tabs card" role="tablist" aria-label="Sales Data Tabs">
             <button
               class="tab-pill"
               role="tab"
@@ -400,7 +577,6 @@
             </button>
           </nav>
 
-          <!-- OVERVIEW -->
           <section
             id="tab-overview"
             class="tabpanel active"
@@ -410,54 +586,64 @@
             <div class="section card">
               <h3>Key Performance Indicators</h3>
               <p class="muted">
-                High-level metrics for the selected month and window. ERP
-                abbreviations shown in brackets.
+                High-level metrics for the selected anchor month, reporting
+                window, and metric.
               </p>
               <div class="kpis">
                 <div class="kpi card">
                   <h4>This Month Total</h4>
-                  <p>Total billed quantity for the anchor month.</p>
-                  <div id="k-mtd" class="v">—</div>
+                  <p>Total value for the anchor month.</p>
+                  <div id="k-mtd" class="v">-</div>
                 </div>
                 <div class="kpi card">
                   <h4>Previous Month</h4>
-                  <p>
-                    Total billed quantity for the month before the anchor month.
-                  </p>
-                  <div id="k-prev" class="v">—</div>
+                  <p>Total value for the month preceding the anchor month.</p>
+                  <div id="k-prev" class="v">-</div>
                 </div>
                 <div class="kpi card">
-                  <h4>Month-over-Month Change (MoM%)</h4>
-                  <p>Change vs previous month, as a percent.</p>
-                  <div id="k-mom" class="v">—</div>
+                  <h4>Month-over-Month Change (%)</h4>
+                  <p>Change versus the previous month.</p>
+                  <div id="k-mom" class="v">-</div>
                 </div>
                 <div class="kpi card">
-                  <h4>Year-over-Year Change (YoY%)</h4>
-                  <p>Change vs the same month last year, as a percent.</p>
-                  <div id="k-yoy" class="v">—</div>
+                  <h4>Year-over-Year Change (%)</h4>
+                  <p>Change versus the same month last year.</p>
+                  <div id="k-yoy" class="v">-</div>
                 </div>
                 <div class="kpi card">
-                  <h4>Last 3 Months Average (L3M Avg)</h4>
-                  <p>
-                    Average billed quantity over the last 3 months (incl.
-                    current).
-                  </p>
-                  <div id="k-l3m" class="v">—</div>
+                  <h4>Last 3 Months Average</h4>
+                  <p>Average across the current and prior two months.</p>
+                  <div id="k-l3m" class="v">-</div>
                 </div>
                 <div class="kpi card">
-                  <h4>Last 12 Months Total (L12M)</h4>
-                  <p>Sum of billed quantity across the last 12 months.</p>
-                  <div id="k-l12m" class="v">—</div>
+                  <h4>Last 12 Months Total</h4>
+                  <p>Sum across the rolling 12-month window.</p>
+                  <div id="k-l12m" class="v">-</div>
+                </div>
+                <div class="kpi card">
+                  <h4>ASP - This Month</h4>
+                  <p>Amount per <span id="asp-den-1">Billed Qty</span>.</p>
+                  <div id="k-asp-mtd" class="v">-</div>
+                </div>
+                <div class="kpi card">
+                  <h4>ASP - Last 3 Months Avg</h4>
+                  <p>Average of monthly ASP values (including current month).</p>
+                  <div id="k-asp-l3m" class="v">-</div>
+                </div>
+                <div class="kpi card">
+                  <h4>ASP - Last 12 Months</h4>
+                  <p>Total amount divided by total denominator.</p>
+                  <div id="k-asp-l12m" class="v">-</div>
                 </div>
               </div>
             </div>
 
             <div class="grid2">
               <section class="section card">
-                <h3>IK vs OK — Monthly Trend</h3>
+                <h3>IK vs OK Monthly Trend</h3>
                 <p class="muted">
-                  Billed quantity by month split by Inside Kerala (IK) and
-                  Outside Kerala (OK).
+                  Monthly totals split by Inside Kerala (IK) and Outside Kerala
+                  (OK).
                 </p>
                 <table class="table" id="tbl-trend">
                   <thead>
@@ -469,7 +655,6 @@
             </div>
           </section>
 
-          <!-- TRENDS -->
           <section
             id="tab-trends"
             class="tabpanel"
@@ -477,15 +662,15 @@
             aria-labelledby="Trends"
           >
             <div class="section card">
-              <h3>Sales Trend — by Selected Level</h3>
+              <h3>Sales Trend by Level</h3>
               <p class="muted">
-                Time-series of billed quantity by level. Choose Region, Godown,
-                Product, or SKU. Shows Top K series for readability.
+                Time series of the selected metric by region, godown, product,
+                or SKU. Use Top K to limit the number of lines.
               </p>
 
               <div class="toolbar">
-                <label
-                  >Level
+                <label>
+                  Level
                   <select id="t-level" class="input">
                     <option value="region">Region</option>
                     <option value="godown">Godown</option>
@@ -493,8 +678,8 @@
                     <option value="sku">SKU</option>
                   </select>
                 </label>
-                <label
-                  >Top K
+                <label>
+                  Top K
                   <input
                     id="t-topk"
                     class="input"
@@ -507,23 +692,18 @@
                 </label>
                 <span
                   class="muted"
-                  title="Uses global Qty Mode filter for the measure"
-                  >Measure: global (Qty Mode)</span
+                  title="Uses the global metric selection from the filter rail"
+                  >Metric: global (from left rail)</span
                 >
-                <button id="t-refresh" class="btn">Refresh</button>
+                <button id="t-refresh" class="btn" type="button">Refresh</button>
               </div>
 
-              <div class="spacer"></div>
               <div class="chart-wrap">
-                <canvas
-                  id="trend-canvas"
-                  aria-label="Sales trend chart"
-                ></canvas>
+                <canvas id="trend-canvas" aria-label="Sales trend chart"></canvas>
               </div>
             </div>
           </section>
 
-          <!-- MIX -->
           <section
             id="tab-mix"
             class="tabpanel"
@@ -531,14 +711,14 @@
             aria-labelledby="Mix"
           >
             <div class="section card">
-              <h3>Category/Subcategory Mix</h3>
+              <h3>Category and Subcategory Mix</h3>
               <p class="muted">
-                Share of billed quantity by Category → Subcategory per month
-                (stacked bars). Limit to Top K subcategories for readability.
+                Stacked bars showing the share of the selected metric by
+                subcategory. Limit to the top contributors for readability.
               </p>
               <div class="toolbar">
-                <label
-                  >Top K Subcategories
+                <label>
+                  Top K Subcategories
                   <input
                     id="m-topk"
                     class="input"
@@ -549,36 +729,46 @@
                     style="width: 80px"
                   />
                 </label>
-                <button id="m-refresh" class="btn">Refresh</button>
+                <button id="m-refresh" class="btn" type="button">Refresh</button>
               </div>
               <div class="chart-wrap tall">
-                <canvas id="mix-canvas" aria-label="Mix stacked chart"></canvas>
+                <canvas
+                  id="mix-canvas"
+                  aria-label="Category and subcategory mix chart"
+                ></canvas>
               </div>
             </div>
           </section>
 
-          <!-- TOP / BOTTOM -->
           <section
             id="tab-top"
             class="tabpanel"
             role="tabpanel"
-            aria-labelledby="Top / Bottom"
+            aria-labelledby="Top and Bottom"
           >
             <div class="section card">
-              <h3>Top / Bottom</h3>
+              <h3>Top and Bottom Performers</h3>
               <p class="muted">
-                Rank entities by total billed quantity over the selected window.
+                Rank SKUs or products by the selected metric. Choose ascending
+                to see laggards or descending for leaders.
               </p>
               <div class="toolbar">
-                <label
-                  >Entity
+                <label>
+                  Entity
                   <select id="tb-entity" class="input">
                     <option value="sku">SKU</option>
                     <option value="product">Product</option>
                   </select>
                 </label>
-                <label
-                  >N
+                <label>
+                  Order
+                  <select id="tb-order" class="input">
+                    <option value="desc">Descending</option>
+                    <option value="asc">Ascending</option>
+                  </select>
+                </label>
+                <label>
+                  Count
                   <input
                     id="tb-n"
                     class="input"
@@ -589,17 +779,11 @@
                     style="width: 80px"
                   />
                 </label>
-                <label
-                  >Order
-                  <select id="tb-order" class="input">
-                    <option value="desc">Top (Desc)</option>
-                    <option value="asc">Bottom (Asc)</option>
-                  </select>
-                </label>
-                <button id="tb-refresh" class="btn">Refresh</button>
+                <button id="tb-refresh" class="btn" type="button">
+                  Refresh
+                </button>
               </div>
-
-              <table class="table" id="tbl-topn">
+              <table class="table" id="tbl-top">
                 <thead>
                   <tr>
                     <th>Entity</th>
@@ -611,7 +795,6 @@
             </div>
           </section>
 
-          <!-- DETAIL -->
           <section
             id="tab-detail"
             class="tabpanel"
@@ -619,23 +802,23 @@
             aria-labelledby="Detail Grid"
           >
             <div class="section card">
-              <h3>Detail Grid — SKU × Month</h3>
+              <h3>Detail Grid - SKU x Month</h3>
               <p class="muted">
-                Pivot-style table for month-on-month comparison with simple
-                pagination and CSV export.
+                Pivot-style table for month-on-month comparison with search,
+                pagination, and CSV export.
               </p>
               <div class="toolbar">
-                <label
-                  >Search
+                <label>
+                  Search
                   <input
                     id="dg-search"
                     class="input"
                     type="text"
-                    placeholder="SKU / Product / Pack…"
+                    placeholder="SKU / Product / Pack"
                     style="width: 260px"
                   />
                 </label>
-                <button id="dg-clear" class="btn">Clear</button>
+                <button id="dg-clear" class="btn" type="button">Clear</button>
               </div>
               <table class="table" id="tbl-detail">
                 <thead>
@@ -644,11 +827,11 @@
                 <tbody id="tb-detail"></tbody>
               </table>
               <div class="pager">
-                <button id="pg-prev" class="btn">Prev</button>
-                <span id="pg-info" class="muted">Page —</span>
-                <button id="pg-next" class="btn">Next</button>
-                <label
-                  >Rows / page
+                <button id="pg-prev" class="btn" type="button">Prev</button>
+                <span id="pg-info" class="muted">Page -</span>
+                <button id="pg-next" class="btn" type="button">Next</button>
+                <label>
+                  Rows / page
                   <input
                     id="pg-size"
                     class="input"
@@ -663,7 +846,6 @@
             </div>
           </section>
 
-          <!-- EXCEPTIONS -->
           <section
             id="tab-exceptions"
             class="tabpanel"
@@ -671,14 +853,14 @@
             aria-labelledby="Exceptions"
           >
             <div class="section card">
-              <h3>Zero Sellers (Last N Months)</h3>
+              <h3>Zero Sellers</h3>
               <p class="muted">
-                SKUs with no billed quantity in the last N months within the
-                selected scope.
+                Identify SKUs with no billed quantity across the last N months
+                within the selected scope.
               </p>
               <div class="toolbar">
-                <label
-                  >Last N months
+                <label>
+                  Last N months
                   <input
                     id="ex-n"
                     class="input"
@@ -689,7 +871,9 @@
                     style="width: 80px"
                   />
                 </label>
-                <button id="ex-refresh" class="btn">Refresh</button>
+                <button id="ex-refresh" class="btn" type="button">
+                  Refresh
+                </button>
               </div>
 
               <table class="table" id="tbl-zero">
@@ -706,7 +890,6 @@
             </div>
           </section>
 
-          <!-- STATUS -->
           <section
             id="tab-status"
             class="tabpanel"
@@ -714,21 +897,19 @@
             aria-labelledby="Status"
           >
             <div class="section card">
-              <h3>Data Freshness & Context</h3>
+              <h3>Data Freshness and Scope</h3>
               <p class="muted">
-                Latest source timestamp, health color, and the filters/window in
-                effect.
+                Latest source timestamp, freshness color, and a summary of the
+                scope currently applied.
               </p>
-              <div id="status-content" class="muted">—</div>
+              <div id="status-content" class="muted">-</div>
             </div>
           </section>
         </main>
       </section>
     </div>
 
-    <!-- Local Chart.js (place file here or change path) -->
     <script src="../vendor/chart.umd.js"></script>
-    <!-- Module JS -->
     <script type="module" src="js/sales-viewer.js"></script>
   </body>
 </html>

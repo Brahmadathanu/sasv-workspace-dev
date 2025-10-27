@@ -6,10 +6,122 @@ import { Platform } from "./platform.js";
 
 // ---------- Helpers ----------
 const $ = (id) => document.getElementById(id);
+// --- Indian numbering (lakh/crore) formatters ---
+const nfIN0 = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
+const cfIN0 = new Intl.NumberFormat("en-IN", {
+  style: "currency",
+  currency: "INR",
+  maximumFractionDigits: 0,
+});
+const cfIN2 = new Intl.NumberFormat("en-IN", {
+  style: "currency",
+  currency: "INR",
+  maximumFractionDigits: 2,
+});
+
 const fmtInt = (n) =>
-  n == null || Number.isNaN(n) ? "—" : Math.round(n).toLocaleString();
+  n == null || Number.isNaN(n) ? "—" : nfIN0.format(Math.round(n));
 const pct = (v) =>
   v == null || !isFinite(v) ? "—" : (v * 100).toFixed(1) + "%";
+
+const fmtAmt = (n, frac = 0) =>
+  n == null || Number.isNaN(n) ? "—" : frac ? cfIN2.format(n) : cfIN0.format(n);
+
+const isAmount = () => state.mode === "billed_amount";
+const fmtVal = (n) => (isAmount() ? fmtAmt(n) : fmtInt(n));
+
+// Human label for current metric
+const metricLabel = () =>
+  ({
+    qty_billed: "Billed Qty",
+    qty_units: "Units",
+    qty_base: "Base Qty",
+    billed_amount: "Amount (₹)",
+  }[state.mode] || state.mode);
+
+// Expose helpers globally for other UI code
+window.fmtAmt = fmtAmt;
+window.isAmount = isAmount;
+window.fmtVal = fmtVal;
+window.metricLabel = metricLabel;
+
+// Update the small subtitle paragraphs under the KPI cards depending on metric
+function setKpiSubtitles() {
+  const isAmt = isAmount();
+  // These are the <p> right under each KPI h4 in HTML (they're the 6 .kpi p elements)
+  const subs = Array.from(document.querySelectorAll(".kpis .kpi p"));
+  if (subs.length >= 6) {
+    subs[0].textContent = isAmt
+      ? "Total revenue for the anchor month."
+      : "Total billed quantity for the anchor month.";
+    subs[1].textContent = isAmt
+      ? "Revenue for the month before the anchor month."
+      : "Total billed quantity for the month before the anchor month.";
+    subs[2].textContent = "Change vs previous month, as a percent.";
+    subs[3].textContent = "Change vs the same month last year, as a percent.";
+    subs[4].textContent = isAmt
+      ? "Average revenue over the last 3 months (incl. current)."
+      : "Average billed quantity over the last 3 months (incl. current).";
+    subs[5].textContent = isAmt
+      ? "Sum of revenue across the last 12 months."
+      : "Sum of billed quantity across the last 12 months.";
+  }
+}
+
+// --- ASP helpers ---
+function safeDiv(num, den) {
+  num = +num || 0;
+  den = +den || 0;
+  return den === 0 ? null : num / den;
+}
+
+function computeAspKPIs(rows, basis) {
+  // group amounts and denominators by month
+  const byMonth = groupBy(rows || [], (r) => r.month_start);
+  const anchorKey = ymd(state.anchor);
+
+  const sumAmt = (m) => sumBy(byMonth.get(m) || [], (r) => r.billed_amount);
+  const sumDen = (m) => sumBy(byMonth.get(m) || [], (r) => r[basis]);
+
+  // ASP this month
+  const aspMTD = safeDiv(sumAmt(anchorKey), sumDen(anchorKey));
+
+  // L3M average of monthly ASPs (average of month-level ASP values)
+  const m3 = [0, -1, -2].map((i) => ymd(addMonths(state.anchor, i)));
+  const aspVals3 = m3
+    .map((k) => safeDiv(sumAmt(k), sumDen(k)))
+    .filter((x) => x != null);
+  const aspL3M = aspVals3.length
+    ? aspVals3.reduce((a, b) => a + b, 0) / aspVals3.length
+    : null;
+
+  // L12M: total amt / total den over 12 months ("rolled" ASP)
+  const last12 = Array.from({ length: 12 }, (_, i) =>
+    ymd(addMonths(state.anchor, -i))
+  ).reverse();
+  const totAmt12 = last12.map(sumAmt).reduce((a, b) => a + b, 0);
+  const totDen12 = last12.map(sumDen).reduce((a, b) => a + b, 0);
+  const aspL12M = safeDiv(totAmt12, totDen12);
+
+  return { aspMTD, aspL3M, aspL12M };
+}
+
+function renderAspKPIs(rows) {
+  // update the little "basis" label
+  const denLabel =
+    {
+      qty_billed: "Billed Qty",
+      qty_units: "Unit",
+      qty_base: "Base Qty",
+    }[state.aspBasis] || state.aspBasis;
+  const denSpn = document.getElementById("asp-den-1");
+  if (denSpn) denSpn.textContent = denLabel;
+
+  const r = computeAspKPIs(rows || [], state.aspBasis);
+  $("k-asp-mtd").textContent = r.aspMTD == null ? "—" : fmtAmt(r.aspMTD, 2);
+  $("k-asp-l3m").textContent = r.aspL3M == null ? "—" : fmtAmt(r.aspL3M, 2);
+  $("k-asp-l12m").textContent = r.aspL12M == null ? "—" : fmtAmt(r.aspL12M, 2);
+}
 
 function startOfMonth(d) {
   const x = new Date(d);
@@ -96,6 +208,7 @@ const state = {
   // detail pagination
   pageIndex: 0,
   pageSize: 50,
+  aspBasis: "qty_billed",
 };
 
 // ---------- Filters UI ----------
@@ -125,7 +238,15 @@ function bindFilters() {
     "change",
     (e) => (state.godownId = e.target.value)
   );
-  $("f-mode").addEventListener("change", (e) => (state.mode = e.target.value));
+  $("f-mode").addEventListener("change", (e) => {
+    state.mode = e.target.value;
+    // Update KPI subtitles immediately when metric changes
+    setKpiSubtitles();
+  });
+  $("f-asp")?.addEventListener(
+    "change",
+    (e) => (state.aspBasis = e.target.value)
+  );
   $("f-active").addEventListener(
     "change",
     (e) => (state.activeOnly = e.target.checked)
@@ -196,7 +317,7 @@ async function fetchWindowed() {
     let q = supabase
       .from("v_sdv_sales_enriched")
       .select(
-        "month_start, month_label_short, region_code, region_id, godown_id, godown_code, product_id, product_name, category_name, subcategory_name, sku_id, pack_size, uom, is_active, qty_billed, qty_units, qty_base",
+        "month_start, month_label_short, region_code, region_id, godown_id, godown_code, product_id, product_name, category_name, subcategory_name, sku_id, pack_size, uom, is_active, qty_billed, qty_units, qty_base, billed_amount",
         { count: "exact" }
       )
       .gte("month_start", from) // inclusive
@@ -268,12 +389,14 @@ function computeKPIs(rows) {
   return { MTD, PREV, MoM, YoY, L3Mavg, L12M };
 }
 function renderKPIs(k) {
-  $("k-mtd").textContent = fmtInt(k.MTD);
-  $("k-prev").textContent = fmtInt(k.PREV);
+  $("k-mtd").textContent = fmtVal(k.MTD);
+  $("k-prev").textContent = fmtVal(k.PREV);
   $("k-mom").textContent = pct(k.MoM);
   $("k-yoy").textContent = pct(k.YoY);
-  $("k-l3m").textContent = fmtInt(k.L3Mavg);
-  $("k-l12m").textContent = fmtInt(k.L12M);
+  $("k-l3m").textContent = fmtVal(k.L3Mavg);
+  $("k-l12m").textContent = fmtVal(k.L12M);
+  // Update the small subtitles under KPI cards to match metric
+  setKpiSubtitles();
 }
 
 // ---------- Overview: IK/OK trend table ----------
@@ -296,9 +419,9 @@ function renderIkOkTable(rows) {
     const b = byMonthRegion.get(m);
     const total = (b.IK || 0) + (b.OK || 0);
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${monthKey(m)}</td><td>${fmtInt(b.IK)}</td><td>${fmtInt(
+    tr.innerHTML = `<td>${monthKey(m)}</td><td>${fmtVal(b.IK)}</td><td>${fmtVal(
       b.OK
-    )}</td><td>${fmtInt(total)}</td>`;
+    )}</td><td>${fmtVal(total)}</td>`;
     tb.appendChild(tr);
   }
 }
@@ -375,9 +498,9 @@ function renderDetailPage() {
   const slice = filtered.slice(start, start + state.pageSize);
 
   for (const row of slice) {
-    const tds = row.series.map((v) => `<td>${fmtInt(v)}</td>`).join("");
+    const tds = row.series.map((v) => `<td>${fmtVal(v)}</td>`).join("");
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${row.display}</td>${tds}<td>${fmtInt(row.total)}</td>`;
+    tr.innerHTML = `<td>${row.display}</td>${tds}<td>${fmtVal(row.total)}</td>`;
     tb.appendChild(tr);
   }
 
@@ -431,7 +554,7 @@ function renderFreshness(info) {
 // ---------- Export (detail CSV) ----------
 async function exportCSV() {
   const header = [
-    "product_name",
+    metricLabel(), // optional: first column header label
     ...detailMonths.map((m) => monthKey(m)),
     "total",
   ];
@@ -515,7 +638,15 @@ function renderTrendChart(rows) {
       maintainAspectRatio: false,
       interaction: { mode: "nearest", intersect: false },
       plugins: { legend: { position: "top" }, title: { display: false } },
-      scales: { x: { ticks: { maxRotation: 0 } }, y: { beginAtZero: true } },
+      scales: {
+        x: { ticks: { maxRotation: 0 } },
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: (v) => (isAmount() ? fmtAmt(v) : fmtInt(v)),
+          },
+        },
+      },
     },
   });
 }
@@ -589,7 +720,16 @@ function renderMixChart(rows) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: { legend: { position: "top" } },
-      scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } },
+      scales: {
+        x: { stacked: true },
+        y: {
+          stacked: true,
+          beginAtZero: true,
+          ticks: {
+            callback: (v) => (isAmount() ? fmtAmt(v) : fmtInt(v)),
+          },
+        },
+      },
     },
   });
 }
@@ -619,7 +759,7 @@ function renderTopBottom(rows) {
   tb.innerHTML = "";
   for (const r of arr) {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${r.name}</td><td>${fmtInt(r.total)}</td>`;
+    tr.innerHTML = `<td>${r.name}</td><td>${fmtVal(r.total)}</td>`;
     tb.appendChild(tr);
   }
 }
@@ -720,7 +860,7 @@ function renderStatus() {
         ? `${titleCase(f.freshness_status)} • ${fmtDateTime(f.max_source_at)}`
         : "—"
     }</p>
-    <p class="muted">Measures: qty_billed, qty_units, qty_base (selected via Qty Mode). Tabs compute client-side from the windowed dataset.</p>
+    <p class="muted">Measures: qty_billed, qty_units, qty_base, billed_amount (selected via Metric).</p>
   `;
   $("status-content").innerHTML = html;
 }
@@ -733,6 +873,7 @@ async function runAll() {
 
   // Overview
   renderKPIs(computeKPIs(rows));
+  renderAspKPIs(rows);
   renderIkOkTable(rows);
   renderFreshness(fresh);
 
@@ -753,7 +894,11 @@ async function runAll() {
 }
 
 function renderActiveTab() {
-  if (state.tab === "overview") return;
+  if (state.tab === "overview") {
+    // refresh ASP KPIs when returning to overview
+    renderAspKPIs(state.rows);
+    return;
+  }
   if (state.tab === "trends") {
     renderTrendChart(state.rows);
     return;

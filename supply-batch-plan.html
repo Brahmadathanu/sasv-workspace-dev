@@ -66,6 +66,24 @@
         background: #fde68a;
         border-color: #d97706;
       }
+      /* Ensure Refresh and per-row Edit buttons in Batch Size References use black text
+         (scoped to avoid changing other button colors elsewhere). Target only the
+         Refresh control and the Edit action button; leave Delete buttons (which
+         intentionally use red) unaffected. */
+      #tab-batch-sizes #refreshBatchSizesBtn,
+      #tab-batch-sizes table tbody button[onclick^="editBatchSizeRef"] {
+        color: #000 !important;
+      }
+      /* Ensure the small header reload button (after plan selector) shows a
+         black icon regardless of other button color rules. Targets SVG
+         shapes and uses current color fallback. */
+      #btnReloadHeaders,
+      #btnReloadHeaders svg,
+      #btnReloadHeaders svg * {
+        color: #000 !important;
+        fill: #000 !important;
+        stroke: #000 !important;
+      }
       /* Responsive Table Container */
       .table-container {
         width: 100%;
@@ -2101,41 +2119,115 @@
       <!-- Search and Add Controls -->
       <div class="card">
         <h4>Controls</h4>
-        <div class="row" style="margin-bottom: 12px">
-          <input
-            type="text"
-            id="batchSizeSearchInput"
-            placeholder="Search products..."
+        <div
+          class="row"
+          style="
+            margin-bottom: 12px;
+            justify-content: space-between;
+            align-items: center;
+          "
+        >
+          <div
             style="
-              width: 300px;
-              padding: 8px 12px;
-              border: 1px solid #d1d5db;
-              border-radius: 6px;
-              font-size: 14px;
+              display: flex;
+              gap: 12px;
+              align-items: center;
+              flex-wrap: wrap;
             "
-          />
-          <button
-            id="clearBatchSizeSearchBtn"
-            class="btn"
-            style="display: none"
-            title="Clear search"
           >
-            Clear
-          </button>
-          <button
-            id="addNewBatchSizeBtn"
-            class="btn primary"
-            title="Add new product batch size reference"
-          >
-            Add New Product
-          </button>
-          <button
-            id="refreshBatchSizesBtn"
-            class="btn"
-            title="Refresh batch size list"
-          >
-            Refresh
-          </button>
+            <input
+              type="text"
+              id="batchSizeSearchInput"
+              placeholder="Search products..."
+              style="
+                width: 300px;
+                padding: 8px 12px;
+                border: 1px solid #d1d5db;
+                border-radius: 6px;
+                font-size: 14px;
+              "
+            />
+            <button
+              id="clearBatchSizeSearchBtn"
+              class="btn"
+              style="display: none"
+              title="Clear search"
+            >
+              Clear
+            </button>
+
+            <!-- Boolean filters for presence/absence of sizes -->
+            <label
+              title="Filter by Preferred Batch Size: set / not set"
+              style="display: flex; align-items: center"
+            >
+              <select
+                id="batchSizeFilterPreferredMode"
+                style="
+                  padding: 6px;
+                  border-radius: 6px;
+                  border: 1px solid #d1d5db;
+                "
+              >
+                <option value="any">Preferred: any</option>
+                <option value="set">Preferred = set</option>
+                <option value="notset">Preferred = not set</option>
+              </select>
+            </label>
+
+            <label
+              title="Filter by Min Batch Size: set / not set"
+              style="display: flex; align-items: center"
+            >
+              <select
+                id="batchSizeFilterMinMode"
+                style="
+                  padding: 6px;
+                  border-radius: 6px;
+                  border: 1px solid #d1d5db;
+                "
+              >
+                <option value="any">Min: any</option>
+                <option value="set">Min = set</option>
+                <option value="notset">Min = not set</option>
+              </select>
+            </label>
+
+            <label
+              title="Filter by Max Batch Size: set / not set"
+              style="display: flex; align-items: center"
+            >
+              <select
+                id="batchSizeFilterMaxMode"
+                style="
+                  padding: 6px;
+                  border-radius: 6px;
+                  border: 1px solid #d1d5db;
+                "
+              >
+                <option value="any">Max: any</option>
+                <option value="set">Max = set</option>
+                <option value="notset">Max = not set</option>
+              </select>
+            </label>
+          </div>
+
+          <div style="display: flex; gap: 8px; align-items: center">
+            <button
+              id="addNewBatchSizeBtn"
+              class="btn primary"
+              title="Add new product batch size reference"
+            >
+              Add New Product
+            </button>
+            <button
+              id="refreshBatchSizesBtn"
+              class="btn"
+              title="Refresh batch size list"
+            >
+              Refresh
+            </button>
+          </div>
         </div>
       </div>
 

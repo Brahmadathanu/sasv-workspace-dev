@@ -3107,10 +3107,37 @@ function renderBatchSizeReferences() {
 
   let filteredRefs = _batchSizeRefsCache;
 
+  // Apply text search filter
   if (searchTerm) {
-    filteredRefs = _batchSizeRefsCache.filter((ref) => {
+    filteredRefs = filteredRefs.filter((ref) => {
       const productDisplay = getProductDisplay(ref.product_id).toLowerCase();
       return productDisplay.includes(searchTerm);
+    });
+  }
+
+  // Apply boolean presence filters from the Controls card
+  const preferredMode = q("batchSizeFilterPreferredMode")?.value || "any";
+  const minMode = q("batchSizeFilterMinMode")?.value || "any";
+  const maxMode = q("batchSizeFilterMaxMode")?.value || "any";
+
+  if (preferredMode !== "any" || minMode !== "any" || maxMode !== "any") {
+    filteredRefs = filteredRefs.filter((ref) => {
+      // presence checks (treat null/undefined/"" as not set)
+      const hasPreferred =
+        ref.preferred_batch_size != null && ref.preferred_batch_size !== "";
+      const hasMin = ref.min_batch_size != null && ref.min_batch_size !== "";
+      const hasMax = ref.max_batch_size != null && ref.max_batch_size !== "";
+
+      if (preferredMode === "set" && !hasPreferred) return false;
+      if (preferredMode === "notset" && hasPreferred) return false;
+
+      if (minMode === "set" && !hasMin) return false;
+      if (minMode === "notset" && hasMin) return false;
+
+      if (maxMode === "set" && !hasMax) return false;
+      if (maxMode === "notset" && hasMax) return false;
+
+      return true;
     });
   }
 
@@ -3185,6 +3212,18 @@ function initializeBatchSizeSearch() {
     searchInput.value = "";
     renderBatchSizeReferences();
     clearBtn.style.display = "none";
+  });
+
+  // Wire boolean filter selects to re-render on change
+  const prefSel = q("batchSizeFilterPreferredMode");
+  const minSel = q("batchSizeFilterMinMode");
+  const maxSel = q("batchSizeFilterMaxMode");
+
+  [prefSel, minSel, maxSel].forEach((sel) => {
+    if (!sel) return;
+    sel.addEventListener("change", () => {
+      renderBatchSizeReferences();
+    });
   });
 }
 

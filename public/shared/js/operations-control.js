@@ -236,6 +236,28 @@ async function loadPresetsIntoSelect() {
   }
 }
 
+// Safe RPC wrapper for build_preset_jobs: some Supabase/Postgres setups
+// expect a JSON string for complex params. Try object first, then retry
+// with a JSON string if the first attempt returns an error. Returns the
+// same { data, error } shape as supabase.rpc.
+async function rpcBuildPresetJobs(p_preset, p_ctx) {
+  const res = await supabase.rpc("build_preset_jobs", {
+    p_preset,
+    p_ctx,
+  });
+  if (!res.error) return res;
+  // Log first error and try stringified ctx as a fallback
+  console.warn("build_preset_jobs failed with object p_ctx", res.error);
+  const retry = await supabase.rpc("build_preset_jobs", {
+    p_preset,
+    p_ctx: JSON.stringify(p_ctx),
+  });
+  if (!retry.error) return retry;
+  // attach original error for debugging
+  retry.error._first = res.error;
+  return retry;
+}
+
 function gatherPresetContext() {
   const ymdDash = $("enq-date")?.value || todayYmd(true);
   const ymd = ymdDash.replaceAll("-", "");
@@ -298,10 +320,7 @@ async function fillSample() {
   }
   const ctx = gatherPresetContext();
   try {
-    const { data, error } = await supabase.rpc("build_preset_jobs", {
-      p_preset: preset,
-      p_ctx: ctx,
-    });
+    const { data, error } = await rpcBuildPresetJobs(preset, ctx);
     if (error) throw error;
     const first = (data || [])[0];
     txt.value = first
@@ -347,10 +366,7 @@ async function enqueueJob() {
 
   const ctx = gatherPresetContext();
   try {
-    const { data, error } = await supabase.rpc("build_preset_jobs", {
-      p_preset: preset,
-      p_ctx: ctx,
-    });
+    const { data, error } = await rpcBuildPresetJobs(preset, ctx);
     if (error) throw error;
     const jobs = data || [];
     if (!jobs.length) {

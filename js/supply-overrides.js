@@ -111,6 +111,10 @@ let linesStatusDefaultLabel = ""; // what we want to show normally (row count)
 let linesStatusResetTimer = null; // timer to revert from transient status
 let __unifiedLoadInFlight = false;
 let __rollbackInFlight = false;
+// request call id to avoid race conditions when multiple loadLines() overlap
+let __linesLoadCallId = 0;
+// Toggle debug logging for loadLines (set true to trace overlapping calls)
+const __linesLoadDebug = true;
 import { DateTime } from "https://cdn.jsdelivr.net/npm/luxon@3.5.0/build/es6/luxon.js";
 
 /* ========== utilities ========== */
@@ -993,6 +997,12 @@ let linesFilteredRows = 0;
 let linesFilteredPages = 1;
 
 async function loadLines() {
+  // Prevent overlapping requests from stomping each other: mark this call
+  const __thisCallId = ++__linesLoadCallId;
+
+  if (__linesLoadDebug)
+    console.debug("loadLines start", { callId: __thisCallId });
+
   // Prefer the persistent header selection (selPlanHeader) for the active set.
   // Fall back to the local "Current Set" selector (selSetForLines) if the
   // header selection is not present or empty. This makes the Edit Lines table
@@ -1007,6 +1017,8 @@ async function loadLines() {
   }
   const tbody = $("linesTable").querySelector("tbody");
   tbody.innerHTML = "";
+  // If another loadLines call started after this one, bail early
+  if (__thisCallId !== __linesLoadCallId) return;
   if (!setId) {
     $("linesStatus").innerHTML = chip("Pick a set");
     return;
@@ -1020,6 +1032,8 @@ async function loadLines() {
   const fProposed = document.getElementById("filterProposedPresence")?.value;
   const fNote = document.getElementById("filterNote")?.value;
   syncProposedToggle();
+  if (__linesLoadDebug)
+    console.debug("loadLines filters", { callId: __thisCallId, fProposed });
 
   // base query
   let q = supabase
@@ -1036,8 +1050,17 @@ async function loadLines() {
     if (Number.isFinite(num)) q = q.eq("product_id", num);
   }
   if (fMonth) q = q.eq("month_start", fMonth + "-01");
-  if (fProposed === "nonzero") q = q.gt("proposed_qty", 0);
-  if (fProposed === "zero") q = q.eq("proposed_qty", 0);
+  // Proposed presence semantics:
+  // - 'present' or legacy 'nonzero' => proposed_qty != 0 (treated as > 0 here)
+  // - 'absent' or legacy 'zero' => proposed_qty == 0
+  if (
+    fProposed === "nonzero" ||
+    fProposed === "nonZero" ||
+    fProposed === "present"
+  )
+    q = q.gt("proposed_qty", 0);
+  if (fProposed === "zero" || fProposed === "absent")
+    q = q.eq("proposed_qty", 0);
   if (fNote) q = q.eq("note", fNote);
   // For product name search, we filter client-side after fetching matching rows by product_id OR fetch matching product ids first
   // For server-side pagination we apply product-name filtering by resolving matching product_ids first
@@ -1102,13 +1125,20 @@ async function loadLines() {
       if (Number.isFinite(num)) countQ = countQ.eq("product_id", num);
     }
     if (fMonth) countQ = countQ.eq("month_start", fMonth + "-01");
-    if (fProposed === "present")
-      countQ = countQ.not("proposed_qty", "is", null);
-    if (fProposed === "absent") countQ = countQ.is("proposed_qty", null);
+    // For counting, map presence tokens to same semantics as above
+    if (
+      fProposed === "nonzero" ||
+      fProposed === "nonZero" ||
+      fProposed === "present"
+    )
+      countQ = countQ.gt("proposed_qty", 0);
+    if (fProposed === "zero" || fProposed === "absent")
+      countQ = countQ.eq("proposed_qty", 0);
     if (fNote) countQ = countQ.eq("note", fNote);
     if (matchingPids && Array.isArray(matchingPids))
       countQ = countQ.in("product_id", matchingPids);
     const headRes = await countQ;
+    if (__thisCallId !== __linesLoadCallId) return; // stale
     totalCount = Number.isFinite(Number(headRes?.count))
       ? Number(headRes.count)
       : null;
@@ -1132,9 +1162,14 @@ async function loadLines() {
         if (Number.isFinite(num)) countQ2 = countQ2.eq("product_id", num);
       }
       if (fMonth) countQ2 = countQ2.eq("month_start", fMonth + "-01");
-      if (fProposed === "present")
-        countQ2 = countQ2.not("proposed_qty", "is", null);
-      if (fProposed === "absent") countQ2 = countQ2.is("proposed_qty", null);
+      if (
+        fProposed === "nonzero" ||
+        fProposed === "nonZero" ||
+        fProposed === "present"
+      )
+        countQ2 = countQ2.gt("proposed_qty", 0);
+      if (fProposed === "zero" || fProposed === "absent")
+        countQ2 = countQ2.eq("proposed_qty", 0);
       if (fNote) countQ2 = countQ2.eq("note", fNote);
       if (matchingPids && Array.isArray(matchingPids))
         countQ2 = countQ2.in("product_id", matchingPids);
@@ -1155,19 +1190,54 @@ async function loadLines() {
     res = await q
       .select("id,set_id,product_id,month_start,proposed_qty,note,updated_at")
       .range(serverStartIdx, serverEnd);
+    if (__thisCallId !== __linesLoadCallId) return; // stale
   } catch (e) {
     console.error(e);
     $("linesStatus").innerHTML = chip("Load error", "err");
     return;
   }
   const { data, error } = res || {};
+  if (__linesLoadDebug) {
+    try {
+      const sample = (data || []).slice(0, 6).map((r) => r.proposed_qty);
+      console.debug("loadLines: main fetch returned sample proposed_qty", {
+        callId: __thisCallId,
+        sample,
+      });
+    } catch {
+      /* ignore sample logging errors */
+    }
+  }
   if (error) {
     console.error(error);
     $("linesStatus").innerHTML = chip("Load error", "err");
     return;
   }
 
+  if (__thisCallId !== __linesLoadCallId) return; // stale
+
   let lines = data || [];
+  // Defensive client-side enforcement: ensure 'Present' means non-zero and
+  // 'Absent' means zero for proposed_qty. This fixes cases where server
+  // responses or views may return unexpected rows.
+  try {
+    if (
+      fProposed === "nonzero" ||
+      fProposed === "nonZero" ||
+      fProposed === "present"
+    ) {
+      lines = (lines || []).filter((r) => {
+        // treat null/undefined as not-present
+        if (r.proposed_qty === null || r.proposed_qty === undefined)
+          return false;
+        return Number(r.proposed_qty) !== 0;
+      });
+    } else if (fProposed === "zero" || fProposed === "absent") {
+      lines = (lines || []).filter((r) => Number(r.proposed_qty) === 0);
+    }
+  } catch (e) {
+    console.debug("loadLines: client-side proposed filter failed", e);
+  }
   // total rows after filters (from earlier count-only query)
   linesFilteredRows = Number.isFinite(Number(totalCount))
     ? Number(totalCount)
@@ -1187,8 +1257,41 @@ async function loadLines() {
       const retryRes = await q
         .select("id,set_id,product_id,month_start,proposed_qty,note,updated_at")
         .range(retryStart, retryEnd);
+      if (__linesLoadDebug)
+        console.debug("loadLines: retryRes returned for call", __thisCallId);
+      if (__thisCallId !== __linesLoadCallId) {
+        if (__linesLoadDebug)
+          console.debug(
+            "loadLines: aborting after retryRes because a newer call started",
+            __thisCallId,
+            __linesLoadCallId
+          );
+        return;
+      }
       if (!retryRes.error) {
         lines = retryRes.data || [];
+        // Re-apply client-side enforcement for proposed presence in case retry
+        // page returned rows that don't match the 'present'/'absent' semantics.
+        try {
+          if (
+            fProposed === "nonzero" ||
+            fProposed === "nonZero" ||
+            fProposed === "present"
+          ) {
+            lines = (lines || []).filter((r) => {
+              if (r.proposed_qty === null || r.proposed_qty === undefined)
+                return false;
+              return Number(r.proposed_qty) !== 0;
+            });
+          } else if (fProposed === "zero" || fProposed === "absent") {
+            lines = (lines || []).filter((r) => Number(r.proposed_qty) === 0);
+          }
+        } catch (e) {
+          console.debug(
+            "loadLines: client-side proposed filter after retry failed",
+            e
+          );
+        }
       }
     } catch {
       /* ignore and continue with whatever we have */
@@ -1203,6 +1306,17 @@ async function loadLines() {
       .eq("set_id", setId)
       .not("note", "is", null)
       .limit(1000);
+    if (__linesLoadDebug)
+      console.debug("loadLines: notesRes returned for call", __thisCallId);
+    if (__thisCallId !== __linesLoadCallId) {
+      if (__linesLoadDebug)
+        console.debug(
+          "loadLines: aborting after notesRes (stale)",
+          __thisCallId
+        );
+      return;
+    }
+
     if (!notesRes.error && notesRes.data) {
       const noteSel = document.getElementById("filterNote");
       if (noteSel) {
@@ -1240,6 +1354,20 @@ async function loadLines() {
         .from("v_product_details")
         .select("product_id,product_name,uom_base")
         .in("product_id", pids);
+      if (__linesLoadDebug)
+        console.debug(
+          "loadLines: product details returned for call",
+          __thisCallId
+        );
+      if (__thisCallId !== __linesLoadCallId) {
+        if (__linesLoadDebug)
+          console.debug(
+            "loadLines: aborting after product fetch (stale)",
+            __thisCallId
+          );
+        return;
+      }
+
       if (!perr && prods)
         prodMap = new Map(
           prods.map((p) => [

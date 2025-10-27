@@ -1,5 +1,8 @@
 import { supabase } from "../public/shared/js/supabaseClient.js";
 
+const DISABLE_MONTH_WINDOW =
+  typeof window !== "undefined" && window.DO_DISABLE_MONTH_WINDOW;
+
 /** Utilities */
 const $ = (id) => document.getElementById(id);
 const fmtInt = (v) => (v == null ? "" : Number(v).toString());
@@ -226,7 +229,24 @@ function fmtMonthLabel(monthStart) {
   }
 }
 
-// (fmtTimestamp removed — Updated column replaced by Actions column)
+function fmtDateTimeLocal(value) {
+  if (!value) return "";
+  try {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return String(value);
+    return d.toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return String(value);
+  }
+}
+
+// (fmtTimestamp removed - Updated column replaced by Actions column)
 
 // Inline SVG icons (use fill/currentColor or stroke=currentColor as appropriate)
 const SVG_TRASH =
@@ -673,6 +693,24 @@ async function loadLookups() {
         )
       );
     }
+
+    const copySelectOptions = (sourceEl, targetEl) => {
+      if (!sourceEl || !targetEl) return;
+      const previous = targetEl.value;
+      targetEl.innerHTML = sourceEl.innerHTML;
+      if (
+        previous &&
+        Array.from(targetEl.options || []).some((opt) => opt.value === previous)
+      ) {
+        targetEl.value = previous;
+      } else {
+        targetEl.value = "";
+      }
+    };
+
+    copySelectOptions($("filterProduct"), $("activeFilterProduct"));
+    copySelectOptions($("filterRegion"), $("activeFilterRegion"));
+    copySelectOptions($("filterGodown"), $("activeFilterGodown"));
   } catch (e) {
     console.warn("populate baseline filters failed", e);
   }
@@ -945,6 +983,7 @@ function addMonths(dt, n) {
 
 /** Safely read the months window from DOM and return { from, to } or nulls */
 function getWindowRange() {
+  if (DISABLE_MONTH_WINDOW) return { from: null, to: null };
   const fromEl = $("fromMonth");
   const toEl = $("toMonth");
   const from = fromEl ? parseMonth(fromEl.value) : null;
@@ -1115,6 +1154,7 @@ function showImportValidationModal({ validCount, invalidRows, skippedCount }) {
 
 /** Init default window */
 function initWindow() {
+  if (DISABLE_MONTH_WINDOW) return;
   // Ensure selectors exist synchronously before attempting to set values
   try {
     ensureMonthSelectors();
@@ -1134,12 +1174,16 @@ function initWindow() {
     if (toEl) toEl.value = fmtMonthInput(end);
     return;
   }
-  fromEl.value = fmtMonthInput(start);
-  toEl.value = fmtMonthInput(end);
+  // Only set defaults if the inputs are empty. This allows embedding pages
+  // to pre-populate the visible month inputs (e.g. to current month) and
+  // prevents overwriting values provided by the host page.
+  if (!fromEl.value) fromEl.value = fmtMonthInput(start);
+  if (!toEl.value) toEl.value = fmtMonthInput(end);
 }
 
 /** Ensure the from/to month selectors exist in the toolbar; if missing, insert them */
 function ensureMonthSelectors() {
+  if (DISABLE_MONTH_WINDOW) return;
   let fromEl = $("fromMonth");
   let toEl = $("toMonth");
   if (fromEl && toEl) return; // already present
@@ -1459,7 +1503,11 @@ async function loadStaging() {
 
   if (regionId) q = q.eq("region_id", regionId);
   if (godownId) q = q.eq("godown_id", godownId);
-  if (monthStart) q = q.eq("month_start", monthStart);
+  if (from && to) {
+    q = q.gte("month_start", from).lte("month_start", to);
+  } else if (monthStart) {
+    q = q.eq("month_start", monthStart);
+  }
 
   // delta operator
   if (deltaOp && deltaVal1 != null) {
@@ -1514,30 +1562,68 @@ async function loadStaging() {
     const tr = document.createElement("tr");
     const skuParts = getSkuLabelParts(r.sku_id);
     tr.innerHTML = `
-      <td class="nowrap mono">${fmtInt(r.id)}</td>
-      <td>${skuParts.item}</td>
+      <td class="nowrap mono col-id">${fmtInt(r.id)}</td>
+      <td class="col-item">${skuParts.item}</td>
       <td>${skuParts.pack}</td>
       <td>${skuParts.uom}</td>
       <td>${fmtRegionDisplay(r.region_id)}</td>
       <td>${fmtGodownDisplay(r.godown_id)}</td>
-  <td>${fmtMonthLabel(r.month_start)}</td>
+      <td>${fmtMonthLabel(r.month_start)}</td>
       <td class="right nowrap mono">${fmtNum(r.delta_units)}</td>
-      <td>${r.note || ""}</td>
-      <td class="center">
-        <div class="action-menu" style="position:relative;display:inline-block">
-          <button class="icon-toggle" data-menu-toggle data-id="${
-            r.id
-          }" title="Actions">⋯</button>
-          <div class="action-menu-panel" style="display:none;">
-            <button class="action-btn" data-action="delete" data-id="${
-              r.id
-            }" title="Delete" aria-label="Delete">${SVG_TRASH}</button>
-            <button class="action-btn" data-action="edit" data-id="${
-              r.id
-            }" title="Edit" aria-label="Edit">${SVG_PENCIL}</button>
-            <button class="action-btn" data-action="promote" data-id="${
-              r.id
-            }" title="Promote" aria-label="Promote">${SVG_PROMOTE}</button>
+      <td class="col-note">${r.note || ""}</td>
+      <td class="col-actions">
+        <div class="action-menu">
+          <button
+            class="icon-toggle"
+            type="button"
+            data-menu-toggle
+            data-id="${r.id}"
+            aria-label="Actions"
+            title="Actions"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="5" r="1.6"></circle>
+              <circle cx="12" cy="12" r="1.6"></circle>
+              <circle cx="12" cy="19" r="1.6"></circle>
+            </svg>
+          </button>
+          <div class="action-menu-panel">
+            <button
+              type="button"
+              class="action-btn"
+              data-action="delete"
+              data-id="${r.id}"
+              title="Delete"
+              aria-label="Delete"
+            >
+              ${SVG_TRASH}<span>Delete</span>
+            </button>
+            <button
+              type="button"
+              class="action-btn"
+              data-action="edit"
+              data-id="${r.id}"
+              title="Edit"
+              aria-label="Edit"
+            >
+              ${SVG_PENCIL}<span>Edit</span>
+            </button>
+            <button
+              type="button"
+              class="action-btn"
+              data-action="promote"
+              data-id="${r.id}"
+              title="Promote"
+              aria-label="Promote"
+            >
+              ${SVG_PROMOTE}<span>Promote</span>
+            </button>
           </div>
         </div>
       </td>
@@ -1767,6 +1853,10 @@ async function loadActive() {
   const start = (page - 1) * pageSize;
   const end = start + pageSize - 1;
 
+  const tableEl = $("tblActive");
+  const tbody = tableEl ? tableEl.querySelector("tbody") : null;
+  if (!tableEl || !tbody) return;
+
   // set loading state (disable active pager controls)
   window.__DO_loading = true;
   ["activePrev", "activeNext", "activePageSize"].forEach((id) => {
@@ -1774,15 +1864,85 @@ async function loadActive() {
     if (e) e.disabled = true;
   });
 
-  const { data, error, count } = await supabase
+  const prodFilterEl = $("activeFilterProduct");
+  const regionFilterEl = $("activeFilterRegion");
+  const godownFilterEl = $("activeFilterGodown");
+  const deltaOpEl = $("activeFilterDeltaOp");
+  const deltaVal1El = $("activeFilterDeltaVal1");
+  const deltaVal2El = $("activeFilterDeltaVal2");
+
+  const parseId = (val) => {
+    if (val === undefined || val === null || val === "") return null;
+    const n = Number(val);
+    return Number.isFinite(n) ? n : null;
+  };
+  const parseDelta = (val) => {
+    if (val === undefined || val === null || val === "") return null;
+    const n = Number(val);
+    return Number.isNaN(n) ? null : n;
+  };
+
+  const prodId = parseId(prodFilterEl?.value);
+  const regionId = parseId(regionFilterEl?.value);
+  const godownId = parseId(godownFilterEl?.value);
+  const deltaOp = deltaOpEl && deltaOpEl.value ? String(deltaOpEl.value) : "";
+  const deltaVal1 = parseDelta(deltaVal1El?.value);
+  const deltaVal2 = parseDelta(deltaVal2El?.value);
+
+  let productSkuIds = null;
+  if (prodId != null) {
+    productSkuIds = Array.from(skuMap.entries())
+      .filter(
+        ([, v]) => v && v.product_id != null && Number(v.product_id) === prodId
+      )
+      .map(([id]) => Number(id));
+    if (!productSkuIds.length) {
+      if (tbody) tbody.innerHTML = "";
+      const countsEl = $("activeCounts");
+      if (countsEl) countsEl.textContent = "0 of 0 active in window";
+      const pagerEl = $("activePager");
+      if (pagerEl) pagerEl.textContent = `Page ${page} / 1`;
+      window.__DO_loading = false;
+      const prevBtn = $("activePrev");
+      const nextBtn = $("activeNext");
+      const sizeSel = $("activePageSize");
+      if (prevBtn) prevBtn.disabled = true;
+      if (nextBtn) nextBtn.disabled = true;
+      if (sizeSel) sizeSel.disabled = false;
+      return;
+    }
+  }
+
+  let q = supabase
     .from("forecast_demand_overrides")
     .select(
       "id,sku_id,region_id,godown_id,month_start,delta_units,reason,updated_at,is_active",
       { count: "exact" }
-    )
+    );
+
+  if (from) q = q.gte("month_start", from);
+  if (to) q = q.lte("month_start", to);
+  if (productSkuIds && productSkuIds.length)
+    q = q.in("sku_id", productSkuIds);
+  if (regionId != null) q = q.eq("region_id", regionId);
+  if (godownId != null) q = q.eq("godown_id", godownId);
+
+  if (deltaOp && deltaVal1 != null) {
+    if (deltaOp === "lt") q = q.lt("delta_units", deltaVal1);
+    else if (deltaOp === "gt") q = q.gt("delta_units", deltaVal1);
+    else if (deltaOp === "between" && deltaVal2 != null) {
+      const lo = Math.min(deltaVal1, deltaVal2);
+      const hi = Math.max(deltaVal1, deltaVal2);
+      q = q.gte("delta_units", lo).lte("delta_units", hi);
+    }
+  }
+
+  q = q
     .order("month_start", { ascending: true })
     .order("sku_id", { ascending: true })
     .range(start, end);
+
+  const { data, error, count } = await q;
   if (error) {
     console.error(error);
     setStatus($("activeCounts"), "Failed to load overrides", "danger");
@@ -1819,7 +1979,6 @@ async function loadActive() {
   // Ensure lookups exist for SKUs referenced in this dataset
   await ensureSkusAndProductsForIds(rows.map((r) => r.sku_id));
 
-  const tbody = $("tblActive").querySelector("tbody");
   tbody.innerHTML = "";
   // Keep a map of rows by id so action handlers can inspect fields (sku_id, region_id, etc.)
   const rowsMap = new Map();
@@ -1829,35 +1988,58 @@ async function loadActive() {
     const skuParts = getSkuLabelParts(r.sku_id);
     if (r.is_active === false) tr.classList.add("inactive-row");
     tr.innerHTML = `
-      <td>${skuParts.item}</td>
+      <td class="col-item">${skuParts.item}</td>
       <td>${skuParts.pack}</td>
       <td>${skuParts.uom}</td>
       <td>${fmtRegionDisplay(r.region_id)}</td>
       <td>${fmtGodownDisplay(r.godown_id)}</td>
       <td>${fmtMonthLabel(r.month_start)}</td>
       <td class="right nowrap mono">${fmtNum(r.delta_units)}</td>
-      <td>${r.reason || ""}</td>
-      <td class="center">
-        <div class="action-menu" style="position:relative;display:inline-block">
-          <button class="icon-toggle" data-menu-toggle data-id="${
-            r.id
-          }" title="Actions">⋯</button>
-          <div class="action-menu-panel" style="display:none;">
-            <button class="action-btn" data-action="delete" data-id="${
-              r.id
-            }" title="Delete" aria-label="Delete">${SVG_TRASH}</button>
-            <button class="action-btn toggle ${
-              r.is_active ? "active" : "inactive"
-            }" data-action="toggle_active" data-id="${r.id}" data-active="${
-      r.is_active
-    }" title="Toggle active" aria-label="Toggle active" style="color:${
-      r.is_active ? "#16a34a" : "#dc2626"
-    }">${
-      SVG_CHECK_CIRCLE +
-      ' <span class="sr-only">' +
-      (r.is_active ? "Deactivate" : "Activate") +
-      "</span>"
-    }</button>
+      <td class="col-note">${r.reason || ""}</td>
+      <td class="col-actions">
+        <div class="action-menu">
+          <button
+            class="icon-toggle"
+            type="button"
+            data-menu-toggle
+            data-id="${r.id}"
+            aria-label="Actions"
+            title="Actions"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="5" r="1.6"></circle>
+              <circle cx="12" cy="12" r="1.6"></circle>
+              <circle cx="12" cy="19" r="1.6"></circle>
+            </svg>
+          </button>
+          <div class="action-menu-panel">
+            <button
+              type="button"
+              class="action-btn"
+              data-action="delete"
+              data-id="${r.id}"
+              title="Delete"
+              aria-label="Delete"
+            >
+              ${SVG_TRASH}<span>Delete</span>
+            </button>
+            <button
+              type="button"
+              class="action-btn toggle ${r.is_active ? "active" : "inactive"}"
+              data-action="toggle_active"
+              data-id="${r.id}"
+              data-active="${r.is_active}"
+              title="${r.is_active ? "Deactivate" : "Activate"} override"
+              aria-label="${r.is_active ? "Deactivate override" : "Activate override"}"
+            >
+              ${SVG_CHECK_CIRCLE}<span>${r.is_active ? "Deactivate" : "Activate"}</span>
+            </button>
           </div>
         </div>
       </td>
@@ -1962,11 +2144,9 @@ async function loadActive() {
             toggleBtn.dataset.active = "true";
             toggleBtn.classList.remove("inactive");
             toggleBtn.classList.add("active");
-            toggleBtn.style.color = "#16a34a";
-            toggleBtn.innerHTML =
-              SVG_CHECK_CIRCLE + ' <span class="sr-only">Deactivate</span>';
-            toggleBtn.title = "Deactivate";
-            toggleBtn.setAttribute("aria-label", "Deactivate");
+            toggleBtn.innerHTML = `${SVG_CHECK_CIRCLE}<span>Deactivate</span>`;
+            toggleBtn.title = "Deactivate override";
+            toggleBtn.setAttribute("aria-label", "Deactivate override");
           }
           await Promise.all([loadActive(), loadBaseline()]);
           return;
@@ -2028,16 +2208,16 @@ async function loadActive() {
 
           if (tr) {
             tr.classList.remove("inactive-row");
-            const toggleBtn = tr.querySelector('[data-action="toggle_active"]');
+            const toggleBtn = tr.querySelector(
+              '[data-action="toggle_active"]'
+            );
             if (toggleBtn) {
               toggleBtn.dataset.active = "true";
               toggleBtn.classList.remove("inactive");
               toggleBtn.classList.add("active");
-              toggleBtn.style.color = "#16a34a";
-              toggleBtn.innerHTML =
-                SVG_CHECK_CIRCLE + ' <span class="sr-only">Deactivate</span>';
-              toggleBtn.title = "Deactivate";
-              toggleBtn.setAttribute("aria-label", "Deactivate");
+              toggleBtn.innerHTML = `${SVG_CHECK_CIRCLE}<span>Deactivate</span>`;
+              toggleBtn.title = "Deactivate override";
+              toggleBtn.setAttribute("aria-label", "Deactivate override");
             }
           }
           await Promise.all([loadActive(), loadBaseline()]);
@@ -2062,11 +2242,9 @@ async function loadActive() {
             toggleBtn.dataset.active = "false";
             toggleBtn.classList.remove("active");
             toggleBtn.classList.add("inactive");
-            toggleBtn.style.color = "#dc2626";
-            toggleBtn.innerHTML =
-              SVG_CHECK_CIRCLE + ' <span class="sr-only">Activate</span>';
-            toggleBtn.title = "Activate";
-            toggleBtn.setAttribute("aria-label", "Activate");
+            toggleBtn.innerHTML = `${SVG_CHECK_CIRCLE}<span>Activate</span>`;
+            toggleBtn.title = "Activate override";
+            toggleBtn.setAttribute("aria-label", "Activate override");
           }
         }
         await Promise.all([loadActive(), loadBaseline()]);
@@ -2098,6 +2276,18 @@ async function loadActive() {
   if (pager) pager.textContent = `Page ${page} / ${totalPages}`;
 }
 
+document.addEventListener("forecast-staging-filters-change", () => {
+  if (!$("tblStaging")) return;
+  window.__DO_stagingPage = 1;
+  void loadStaging();
+});
+
+document.addEventListener("forecast-active-filters-change", () => {
+  if (!$("tblActive")) return;
+  window.__DO_activePage = 1;
+  void loadActive();
+});
+
 // Pagination state for active slab (improved)
 async function activePrevPage() {
   if (window.__DO_activePage > 1) {
@@ -2111,6 +2301,11 @@ async function activeNextPage() {
 }
 
 async function loadBaseline() {
+  const baselineTable = $("tblBaseline");
+  if (!baselineTable) {
+    return;
+  }
+
   const { from, to } = getWindowRange();
   const pageSize = window.__DO_pageSize || 50;
   const page = window.__DO_baselinePage || 1;
@@ -2136,13 +2331,21 @@ async function loadBaseline() {
 
   // New filters
   // Prefer exact SKU ID filter if supplied; otherwise use the label-based select
-  const skuExact = Number($("filterSkuIdExact")?.value || 0);
-  const sku = skuExact || Number($("filterSkuId").value || 0);
-  const productFilter = Number($("filterProduct").value || 0);
-  const reg = Number($("filterRegion").value || 0);
-  const gdn = Number($("filterGodown").value || 0);
-  const monthFilter = $("filterMonth").value || null;
-  const deltaOnly = $("filterDelta").checked;
+  const skuExactEl = $("filterSkuIdExact");
+  const skuEl = $("filterSkuId");
+  const productEl = $("filterProduct");
+  const regionEl = $("filterRegion");
+  const godownEl = $("filterGodown");
+  const monthEl = $("filterMonth");
+  const deltaEl = $("filterDelta");
+
+  const skuExact = Number(skuExactEl?.value || 0);
+  const sku = skuExact || Number(skuEl?.value || 0);
+  const productFilter = Number(productEl?.value || 0);
+  const reg = Number(regionEl?.value || 0);
+  const gdn = Number(godownEl?.value || 0);
+  const monthFilter = monthEl?.value || null;
+  const deltaOnly = !!(deltaEl && deltaEl.checked);
 
   // The view now exposes product_id and item/pack_size/uom columns; filter by
   // product_id directly on the view when supplied.
@@ -2167,7 +2370,8 @@ async function loadBaseline() {
   const { data, error, count } = await q;
   if (error) {
     console.error(error);
-    setStatus($("baselineCounts"), "Failed to load baseline", "danger");
+    const countsEl = $("baselineCounts");
+    if (countsEl) setStatus(countsEl, "Failed to load baseline", "danger");
     window.__DO_loading = false;
     ["baselinePrev", "baselineNext", "baselinePageSize"].forEach((id) => {
       const e = $(id);
@@ -2180,7 +2384,7 @@ async function loadBaseline() {
   }
   const rows = data || [];
 
-  const tbody = $("tblBaseline").querySelector("tbody");
+  const tbody = baselineTable.querySelector("tbody");
   tbody.innerHTML = "";
   rows.forEach((r) => {
     const tr = document.createElement("tr");
@@ -2224,9 +2428,9 @@ async function loadBaseline() {
     console.warn("Failed to compute overrides count", e);
   }
 
-  $(
-    "baselineCounts"
-  ).textContent = `${overridesCount} of ${baselineTotal} with active overrides delta`;
+  const countsEl = $("baselineCounts");
+  if (countsEl)
+    countsEl.textContent = `${overridesCount} of ${baselineTotal} with active overrides delta`;
   // Update compact pager label (Page X / Y)
   const totalPages = Math.max(1, Math.ceil((baselineTotal || 0) / pageSize));
   const bpg = $("baselinePager");
@@ -2927,117 +3131,24 @@ async function promoteAllStaging() {
   );
   if (!ok) return;
 
-  // Fetch staging rows in window (limit reasonably large)
-  const { data, error } = await supabase
-    .from("marketing_overrides_staging")
-    .select("id,sku_id,region_id,godown_id,month_start,delta_units,note")
-    .gte("month_start", from)
-    .lte("month_start", to)
-    .order("month_start", { ascending: true })
-    .limit(5000);
+  setStatus($("applyStatus"), "Promoting…");
+  const { data, error } = await supabase.rpc("promote_all_staging", {
+    p_from: from,
+    p_to: to,
+  });
   if (error) {
-    await showModalError("Failed to fetch staging rows: " + error.message);
+    console.error("promote_all_staging RPC error", error);
+    await showModalError("Promote failed: " + error.message);
+    setStatus($("applyStatus"), "Promote failed", "danger");
     return;
   }
-  const rows = data || [];
-  if (!rows.length) {
-    await showModalInfo("No staged overrides found in the selected window.");
-    return;
-  }
-
-  // Confirm count and proceed
-  const proceed = await showModalConfirm(
-    `About to promote ${rows.length} rows. Continue?`
+  const inserted = data?.inserted_count || 0;
+  const updated = data?.updated_count || 0;
+  const deleted = data?.deleted_staging_count || 0;
+  setStatus(
+    $("applyStatus"),
+    `Promoted: +${inserted} / ~${updated} (staging removed: ${deleted})`
   );
-  if (!proceed) return;
-
-  // Build payloads and promote in chunks, using upsert with onConflict and fallback per-chunk
-  const payloads = rows.map((r) => ({
-    sku_id: r.sku_id,
-    region_id: r.region_id,
-    godown_id: r.godown_id,
-    month_start: r.month_start,
-    delta_units: r.delta_units,
-    reason: r.note || "Promoted from staging (bulk)",
-    is_active: true,
-    updated_at: new Date().toISOString(),
-  }));
-
-  const chunkSize = 500;
-  for (let i = 0; i < payloads.length; i += chunkSize) {
-    const chunk = payloads.slice(i, i + chunkSize);
-    try {
-      const up = await supabase
-        .from("forecast_demand_overrides")
-        .upsert(chunk, {
-          onConflict: "sku_id,region_id,godown_id,month_start",
-        });
-      if (up.error) {
-        const msg = String(up.error.message || "").toLowerCase();
-        if (
-          msg.includes("no unique") ||
-          msg.includes("on conflict") ||
-          msg.includes("unique or exclusion constraint")
-        ) {
-          // Fallback: for each row in chunk, select existing -> update or insert
-          for (const p of chunk) {
-            const { data: existing, error: se } = await supabase
-              .from("forecast_demand_overrides")
-              .select("id")
-              .eq("sku_id", p.sku_id)
-              .eq("region_id", p.region_id)
-              .eq("godown_id", p.godown_id)
-              .eq("month_start", p.month_start)
-              .limit(1);
-            if (se) {
-              console.warn("promoteAll: fallback select error", se);
-              continue;
-            }
-            if (existing && existing.length) {
-              const idToUpdate = existing[0].id;
-              const { error: ue } = await supabase
-                .from("forecast_demand_overrides")
-                .update({
-                  delta_units: p.delta_units,
-                  reason: p.reason,
-                  is_active: true,
-                  updated_at: p.updated_at,
-                })
-                .eq("id", idToUpdate);
-              if (ue) console.warn("promoteAll: update failed", ue);
-            } else {
-              const { error: ie } = await supabase
-                .from("forecast_demand_overrides")
-                .insert([p]);
-              if (ie) console.warn("promoteAll: insert failed", ie);
-            }
-          }
-        } else {
-          await showModalError("Promote failed: " + up.error.message);
-          return;
-        }
-      }
-    } catch (e) {
-      console.error("promoteAll chunk error", e);
-      await showModalError("Promote failed: " + (e.message || e));
-      return;
-    }
-  }
-
-  // Optional: remove staged rows that were promoted (best-effort)
-  try {
-    const stagingIds = rows.map((r) => r.id);
-    const { error: delErr } = await supabase
-      .from("marketing_overrides_staging")
-      .delete()
-      .in("id", stagingIds);
-    if (delErr)
-      console.warn("promoteAll: failed to delete staging rows", delErr);
-  } catch (e) {
-    console.warn("promoteAll: delete staging cleanup failed", e);
-  }
-
-  await showModalInfo(`Promoted ${rows.length} staged overrides.`);
   await Promise.all([loadStaging(), loadActive(), loadBaseline()]);
 }
 
@@ -3453,23 +3564,25 @@ function wire() {
     });
   // numeric page input removed for compact pager
 
-  const fromEl = $("fromMonth");
-  const toEl = $("toMonth");
-  if (fromEl) {
-    fromEl.addEventListener("change", () => {
-      window.__DO_stagingPage = 1;
-      window.__DO_activePage = 1;
-      loadStaging();
-      loadActive();
-    });
-  }
-  if (toEl) {
-    toEl.addEventListener("change", () => {
-      window.__DO_stagingPage = 1;
-      window.__DO_activePage = 1;
-      loadStaging();
-      loadActive();
-    });
+  if (!DISABLE_MONTH_WINDOW) {
+    const fromEl = $("fromMonth");
+    const toEl = $("toMonth");
+    if (fromEl) {
+      fromEl.addEventListener("change", () => {
+        window.__DO_stagingPage = 1;
+        window.__DO_activePage = 1;
+        loadStaging();
+        loadActive();
+      });
+    }
+    if (toEl) {
+      toEl.addEventListener("change", () => {
+        window.__DO_stagingPage = 1;
+        window.__DO_activePage = 1;
+        loadStaging();
+        loadActive();
+      });
+    }
   }
 
   // Home button handler (like log-add module)
@@ -3493,12 +3606,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Load lookups first so we can render human-readable names
   await loadLookups();
   // Ensure month selectors exist (inject them if the HTML omitted them), then init
-  try {
-    ensureMonthSelectors();
-  } catch (e) {
-    console.warn("ensureMonthSelectors error", e);
+  if (!DISABLE_MONTH_WINDOW) {
+    try {
+      ensureMonthSelectors();
+    } catch (e) {
+      console.warn("ensureMonthSelectors error", e);
+    }
+    initWindow();
   }
-  initWindow();
   wire();
   // Initialize pager control defaults
   const sp = $("stagingPageSize");

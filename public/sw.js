@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "sasv-utils-v55"; // bump!
+const CACHE_NAME = "sasv-utils-v73"; // bump: treat certain scripts network-first
 
 const PRECACHE = [
   // Hub shell
@@ -80,6 +80,27 @@ self.addEventListener("fetch", (event) => {
     url.pathname === "/utilities-hub/js/admin.js"
   ) {
     event.respondWith(fetch(req));
+    return;
+  }
+
+  // Ensure forecast-console gets the freshest copy on first load to avoid
+  // stale cached JS causing DOM-race errors. Use network-first for this file.
+  if (url.pathname === "/shared/js/forecast-console.js") {
+    event.respondWith(
+      (async () => {
+        try {
+          const fresh = await fetch(req);
+          if (fresh && fresh.ok) {
+            const cache = await caches.open(CACHE_NAME);
+            cache.put(req, fresh.clone());
+          }
+          return fresh;
+        } catch {
+          const hit = await caches.match(req);
+          return hit || fetch(req);
+        }
+      })()
+    );
     return;
   }
 

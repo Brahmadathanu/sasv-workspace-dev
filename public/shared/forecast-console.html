@@ -11,15 +11,71 @@
         --surface-shadow: rgba(15, 23, 42, 0.06);
       }
 
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+      }
       body {
         font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif;
         color: var(--text-color, #111827);
+        margin: 0; /* remove external gutters so module can use full viewport */
+        padding: 0;
       }
 
       .fc-wrap {
-        max-width: 1360px;
+        /* Provide safe side gutters so elements don't overflow the viewport.
+           Use full available width but subtract a fixed gutter so horizontal
+           scrollbars caused by platform scrollbars or rounding won't appear. */
+        width: 100%;
+        max-width: calc(100vw - 32px);
         margin: 0 auto;
-        padding: 0 12px 32px;
+        padding: 0 16px 24px;
+        box-sizing: border-box;
+        /* Make the main wrapper a column flex container so the central
+           grid area can flex and allow internal scrolling without causing
+           the page to overflow. This prevents using both page scrollbar
+           and internal table scrollbar simultaneously. */
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        min-height: 0;
+      }
+
+      /* Ensure each tab panel uses a column layout and that its grid area
+         can shrink (min-height:0) so the internal .table-scroll-wrap can
+         manage its own scrolling without growing the page. */
+      .tab-panel {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        flex: 1 1 auto; /* allow active panel to take remaining space */
+      }
+
+      .tab-panel .grid {
+        /* grid should take remaining vertical space inside the tab-panel */
+        flex: 1 1 auto;
+        min-height: 0; /* allow children to set overflow */
+        overflow: hidden; /* prevent grid from adding page scroll */
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* table-scroll-wrap will scroll internally */
+      .table-scroll-wrap {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+      }
+
+      /* Ensure grids/tables can scroll internally on small viewports rather
+         than forcing the entire page to overflow horizontally. */
+      .grid {
+        overflow-x: auto; /* prefer horizontal scroll inside the grid */
+      }
+      .grid table {
+        max-width: none; /* allow table to be wider than container and let .grid scroll */
+        width: 100%;
       }
 
       .page-header {
@@ -30,10 +86,21 @@
         gap: 12px;
       }
 
+      /* allow header to wrap on narrow viewports so buttons don't force overflow */
+      .page-header {
+        flex-wrap: wrap;
+      }
+      .page-header h1 {
+        flex: 1 1 auto;
+        min-width: 0; /* allow truncation if needed */
+      }
+      .header-actions {
+        flex: 0 0 auto;
+      }
+
       .page-header h1 {
         margin: 0;
-        font-size: 1.5rem;
-        font-weight: 600;
+        font-size: 2rem;
         color: var(--primary, #3b82f6);
       }
 
@@ -218,7 +285,7 @@
       }
 
       .tab-panel.active {
-        display: block;
+        display: flex;
       }
 
       .tab-panel[hidden] {
@@ -231,6 +298,77 @@
         flex-wrap: wrap;
         align-items: flex-end;
         margin-bottom: 12px;
+      }
+
+      /* Layout for the toolbar: ensure the toolbar wraps and FILTERS takes
+         a full new row. Force ordering so Load stays on the first line and
+         FILTERS occupies the next line. */
+      .enhanced-toolbar.single-line {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: flex-end;
+      }
+
+      /* Place the Load actions earlier in order so they remain on the first line. */
+      .enhanced-toolbar.single-line .filter-actions {
+        order: 10;
+      }
+
+      /* Make FILTERS occupy a full-width row below the main controls. */
+      .enhanced-toolbar.single-line .filter-group.filter-row {
+        order: 99;
+        flex-basis: 100% !important;
+        width: 100% !important;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding-top: 6px;
+        /* Ensure filter row behaves as a block-level row where the label
+           sits on the left and the checkbox container takes the remaining
+           width. This allows checkboxes to start under the DATASET control. */
+        justify-content: flex-start;
+      }
+
+      .enhanced-toolbar.single-line .filter-group.filter-row > .filter-label {
+        /* Increase label width so the checkbox group begins under inputs
+           (not under the label text). Tweak this value if your labels or
+           inputs use different widths on your platform. */
+        min-width: 140px;
+        margin-bottom: 0;
+      }
+
+      .enhanced-toolbar.single-line .filter-checkboxes {
+        display: flex;
+        gap: 18px;
+        align-items: center;
+        flex-wrap: wrap;
+        flex: 1 1 auto; /* allow the checkbox row to take remaining space */
+        /* Distribute the checkboxes across remaining width */
+        justify-content: space-between;
+      }
+
+      /* Row for outputs filters placed below the toolbar; left-align the
+         checkbox group so filters start at the content edge. */
+      .outputs-filters-row {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        padding-left: 0; /* left align */
+        margin-bottom: 12px;
+      }
+
+      /* Ensure checkboxes in the outputs filters are left-aligned and
+         grouped closely. */
+      .outputs-filters-row .filter-checkboxes {
+        justify-content: flex-start !important;
+        gap: 12px;
+      }
+      .outputs-filters-row #btnResetOutputs {
+        margin-left: auto; /* push the Reset button to the far right of the row */
+      }
+      .outputs-filters-row #btnResetExceptions {
+        margin-left: auto; /* push the Exceptions Reset button to the far right */
       }
 
       .tile {
@@ -281,6 +419,20 @@
         min-width: 720px;
       }
 
+      /* On narrow viewports allow the table to shrink and rely on internal
+         horizontal scrolling rather than forcing the entire page to overflow. */
+      @media (max-width: 760px) {
+        .grid table {
+          min-width: 0;
+        }
+        .fc-wrap {
+          padding: 0 12px 20px;
+        }
+        .page-header h1 {
+          font-size: 1.25rem; /* slightly smaller on very narrow screens */
+        }
+      }
+
       .grid thead th {
         background: #f8fafc;
         color: #1f2937;
@@ -290,6 +442,14 @@
         text-transform: uppercase;
         padding: 10px 14px;
         border-bottom: 1px solid rgba(15, 23, 42, 0.1);
+      }
+
+      /* Ensure the ITEM column header and cells are left-aligned while
+         keeping other headers centered by default. The JS rendering adds
+         the `col-item` class to ITEM cells/headers. */
+      #outputsTable thead th.col-item,
+      #outputsTable tbody td.col-item {
+        text-align: left;
       }
 
       .grid tbody td {
@@ -374,11 +534,7 @@
             />
           </svg>
         </button>
-        <nav
-          class="tabs"
-          role="tablist"
-          aria-label="Forecast Console Sections"
-        >
+        <nav class="tabs" role="tablist" aria-label="Forecast Console Sections">
           <button
             class="tab-btn active"
             id="tab-btn-overview"
@@ -406,6 +562,35 @@
             <div>
               Overview
               <span class="tab-description">Health & tracking</span>
+            </div>
+          </button>
+
+          <button
+            class="tab-btn"
+            id="tab-btn-overrides"
+            type="button"
+            role="tab"
+            aria-controls="tab-overrides"
+            aria-selected="false"
+            data-tab="overrides"
+            tabindex="-1"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+              focusable="false"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M3 17v4h4l10-10-4-4L3 17z" />
+              <path d="M14 7l4 4" />
+            </svg>
+            <div>
+              Overrides
+              <span class="tab-description">Marketing inputs & revisions</span>
             </div>
           </button>
 
@@ -473,35 +658,6 @@
 
           <button
             class="tab-btn"
-            id="tab-btn-overrides"
-            type="button"
-            role="tab"
-            aria-controls="tab-overrides"
-            aria-selected="false"
-            data-tab="overrides"
-            tabindex="-1"
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              aria-hidden="true"
-              focusable="false"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M3 17v4h4l10-10-4-4L3 17z" />
-              <path d="M14 7l4 4" />
-            </svg>
-            <div>
-              Overrides
-              <span class="tab-description">Marketing inputs & revisions</span>
-            </div>
-          </button>
-
-          <button
-            class="tab-btn"
             id="tab-btn-publish"
             type="button"
             role="tab"
@@ -553,32 +709,7 @@
           </svg>
         </button>
       </div>
-      <!-- Date window + filters (global) -->
-      <div class="row">
-        <div>
-          <label class="small">From</label><br />
-          <input type="month" id="fromDate" />
-        </div>
-        <div>
-          <label class="small">To</label><br />
-          <input type="month" id="toDate" />
-        </div>
-        <div>
-          <label class="small">SKU</label><br />
-          <input type="number" id="skuId" placeholder="(any)" />
-        </div>
-        <div>
-          <label class="small">Region</label><br />
-          <input type="number" id="regionId" placeholder="(any)" />
-        </div>
-        <div>
-          <label class="small">Godown</label><br />
-          <input type="number" id="godownId" placeholder="(any)" />
-        </div>
-        <div>
-          <button class="btn" id="resetFilters">Reset</button>
-        </div>
-      </div>
+      <!-- Filters removed: From/To/SKU/Region/Godown/Reset (handled via defaults) -->
 
       <!-- OVERVIEW -->
       <section
@@ -617,21 +748,23 @@
 
         <h3 class="section-title">Latest Runs</h3>
         <div class="grid">
-          <table id="runsTable">
-            <thead>
-              <tr>
-                <th>Run ID</th>
-                <th>Module</th>
-                <th>As Of</th>
-                <th>Horizon</th>
-                <th>Status</th>
-                <th>Created</th>
-                <th>Closed</th>
-                <th>Notes</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
+          <div class="table-scroll-wrap">
+            <table id="runsTable">
+              <thead>
+                <tr>
+                  <th>Run ID</th>
+                  <th>Module</th>
+                  <th>As Of</th>
+                  <th>Horizon</th>
+                  <th>Status</th>
+                  <th>Created</th>
+                  <th>Closed</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
         </div>
       </section>
 
@@ -643,30 +776,153 @@
         aria-labelledby="tab-btn-outputs"
         hidden
       >
-        <div class="controls">
-          <label class="small">Dataset</label>
-          <select id="outputsDataset">
-            <option value="baseline">Baseline (effective)</option>
-            <option value="llt">LLT</option>
-            <option value="seasonal">Seasonal</option>
-            <option value="combined">Combined Plan</option>
-          </select>
-          <button class="btn" id="btnLoadOutputs">Load</button>
-          <button class="btn ghost" id="btnExportOutputs">Export CSV</button>
-          <span class="small muted" id="outputsStatus"></span>
+        <div class="enhanced-toolbar single-line">
+          <div class="filter-group">
+            <label class="filter-label">DATASET</label>
+            <select id="outputsDataset" class="filter-input">
+              <option value="baseline">Baseline (effective)</option>
+              <option value="llt">LLT</option>
+              <option value="seasonal">Seasonal</option>
+              <option value="combined">Combined Plan</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label class="filter-label" for="outputsFrom">FROM</label>
+            <input id="outputsFrom" class="filter-input" type="month" />
+          </div>
+
+          <div class="filter-group">
+            <label class="filter-label" for="outputsTo">TO</label>
+            <input id="outputsTo" class="filter-input" type="month" />
+          </div>
+
+          <div class="filter-group">
+            <label class="filter-label" for="outputsSku">SKU ID</label>
+            <input id="outputsSku" class="filter-input" type="number" />
+          </div>
+
+          <div class="filter-group">
+            <label class="filter-label" for="outputsItem">ITEM</label>
+            <input id="outputsItem" class="filter-input" type="text" />
+          </div>
+
+          <div class="filter-group">
+            <label class="filter-label" for="outputsRegion">REGION</label>
+            <input
+              id="outputsRegion"
+              class="filter-input"
+              type="text"
+              placeholder="region code"
+            />
+          </div>
+
+          <div class="filter-group">
+            <label class="filter-label" for="outputsGodown">GODOWN</label>
+            <input
+              id="outputsGodown"
+              class="filter-input"
+              type="text"
+              placeholder="godown code"
+            />
+          </div>
+
+          <!-- FILTERS moved below Load button (see further down) -->
+
+          <div class="filter-group filter-actions">
+            <button class="btn primary" id="btnLoadOutputs">Load</button>
+          </div>
+
+          <!-- FILTERS moved out of the toolbar and will be rendered below -->
+        </div>
+
+        <!-- FILTERS: placed on a separate row under the toolbar so checkboxes
+             start aligned under the dataset control. -->
+        <div class="outputs-filters-row">
+          <div class="filter-checkboxes">
+            <label style="font-weight: 400"
+              ><input type="checkbox" id="outputsFilterOverride" /> OVERRIDE
+              Δ</label
+            >
+            <label style="font-weight: 400"
+              ><input type="checkbox" id="outputsFilterSupplyLlt" /> SUPPLY
+              LLT</label
+            >
+            <label style="font-weight: 400"
+              ><input type="checkbox" id="outputsFilterSupplySeasonal" /> SUPPLY
+              SEASONAL</label
+            >
+          </div>
+          <button
+            id="btnResetOutputs"
+            class="btn ghost"
+            type="button"
+            title="Reset Filters"
+            aria-label="Reset Filters"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+              <path d="M21 3v5h-5" />
+              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+              <path d="M3 21v-5h5" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Pagination & actions: moved to top-right to match Production Planning Workbench -->
+        <div class="pagination">
+          <button id="btnExportOutputs" class="action-btn secondary">
+            Export CSV
+          </button>
+          <div class="pagination-controls">
+            <label
+              class="small muted"
+              for="outputsPageSize"
+              style="
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                margin-right: 4px;
+              "
+              >Page Size
+              <select
+                id="outputsPageSize"
+                class="small"
+                style="
+                  margin-left: 6px;
+                  padding: 4px 6px;
+                  border-radius: 4px;
+                  border: 1px solid #d1d5db;
+                  background: #fff;
+                "
+              >
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+            <button class="btn" id="prevPageOutputs">Previous</button>
+            <span class="small muted" id="pageInfoOutputs">Page 1</span>
+            <button class="btn" id="nextPageOutputs">Next</button>
+          </div>
         </div>
         <div class="grid">
-          <table id="outputsTable">
-            <thead>
-              <tr id="outputsHeader"></tr>
-            </thead>
-            <tbody id="outputsBody"></tbody>
-          </table>
-        </div>
-        <div class="controls">
-          <button class="btn" id="prevPageOutputs">Prev</button>
-          <span class="small muted" id="pageInfoOutputs">Page 1</span>
-          <button class="btn" id="nextPageOutputs">Next</button>
+          <div class="table-scroll-wrap">
+            <table id="outputsTable">
+              <thead>
+                <tr id="outputsHeader"></tr>
+              </thead>
+              <tbody id="outputsBody"></tbody>
+            </table>
+          </div>
         </div>
       </section>
 
@@ -678,29 +934,127 @@
         aria-labelledby="tab-btn-exceptions"
         hidden
       >
-        <p class="muted">
-          We'll wire this next: missing LLT/Seasonal, negatives, jumps.
-        </p>
-        <div class="controls">
-          <button class="btn" id="btnLoadExceptions">Load Exceptions</button>
-          <button class="btn ghost" id="btnExportExceptions">Export CSV</button>
-          <span class="small muted" id="exceptionsStatus"></span>
+        <!-- Filters for Exceptions -->
+        <div class="enhanced-toolbar single-line">
+          <div class="filter-group">
+            <label class="filter-label" for="exceptionsSku">SKU ID</label>
+            <input id="exceptionsSku" class="filter-input" type="number" />
+          </div>
+          <div class="filter-group">
+            <label class="filter-label" for="exceptionsItem">ITEM</label>
+            <input id="exceptionsItem" class="filter-input" type="text" />
+          </div>
+          <div class="filter-group">
+            <label class="filter-label" for="exceptionsRegion">REGION</label>
+            <input
+              id="exceptionsRegion"
+              class="filter-input"
+              type="text"
+              placeholder="region code or id"
+            />
+          </div>
+          <div class="filter-group">
+            <label class="filter-label" for="exceptionsGodown">GODOWN</label>
+            <input
+              id="exceptionsGodown"
+              class="filter-input"
+              type="text"
+              placeholder="godown code or id"
+            />
+          </div>
+        </div>
+
+        <div class="outputs-filters-row">
+          <div class="filter-checkboxes">
+            <label style="font-weight: 400"
+              ><input type="checkbox" id="exceptionsFilterSupplyLlt" /> SUPPLY
+              LLT</label
+            >
+            <label style="font-weight: 400"
+              ><input type="checkbox" id="exceptionsFilterSupplySeasonal" />
+              SUPPLY SEASONAL</label
+            >
+          </div>
+          <button
+            id="btnResetExceptions"
+            class="btn ghost"
+            type="button"
+            title="Reset Filters"
+            aria-label="Reset Exceptions Filters"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+              <path d="M21 3v5h-5" />
+              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+              <path d="M3 21v-5h5" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="pagination">
+          <button id="btnExportExceptions" class="action-btn secondary">
+            Export CSV
+          </button>
+          <div class="pagination-controls">
+            <label
+              class="small muted"
+              for="exceptionsPageSize"
+              style="
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                margin-right: 4px;
+              "
+              >Page Size
+              <select
+                id="exceptionsPageSize"
+                class="small"
+                style="
+                  margin-left: 6px;
+                  padding: 4px 6px;
+                  border-radius: 4px;
+                  border: 1px solid #d1d5db;
+                  background: #fff;
+                "
+              >
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+            <button class="btn" id="prevPageExceptions">Previous</button>
+            <span class="small muted" id="pageInfoExceptions">Page 1</span>
+            <button class="btn" id="nextPageExceptions">Next</button>
+          </div>
         </div>
         <div class="grid">
-          <table id="exceptionsTable">
-            <thead>
-              <tr>
-                <th>SKU</th>
-                <th>Region</th>
-                <th>Godown</th>
-                <th>Month</th>
-                <th>Demand (effective)</th>
-                <th>LLT</th>
-                <th>Seasonal</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
+          <div class="table-scroll-wrap">
+            <table id="exceptionsTable">
+              <thead>
+                <tr>
+                  <th class="col-center">SKU ID</th>
+                  <th class="col-item">Item</th>
+                  <th class="col-center">Pack Size</th>
+                  <th class="col-center">UOM</th>
+                  <th class="col-center">Region Code</th>
+                  <th class="col-center">Godown Code</th>
+                  <th class="col-center">Month</th>
+                  <th class="col-center">Demand (effective)</th>
+                  <th class="col-center">Supply LLT</th>
+                  <th class="col-center">Supply Seasonal</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
         </div>
       </section>
 
@@ -746,10 +1100,10 @@
               ><br />
               <input id="dryRun" type="checkbox" />
             </div>
-            <button id="btnApplyOverridesAndDerived" class="btn btn-primary">
+            <button id="btnApplyOverridesAndDerived" class="btn primary">
               Apply Marketing Overrides -> Re-run LLT & Seasonal
             </button>
-            <button id="btnFullRebuild" class="btn btn-danger">
+            <button id="btnFullRebuild" class="btn danger">
               Full Rebuild: Baseline + LLT + Seasonal
             </button>
           </div>
@@ -761,83 +1115,7 @@
             <!-- status chips appear here -->
           </div>
         </section>
-        <!-- Marketing Overrides: Export/Import -->
-        <section class="panel" style="margin-top: 16px">
-          <h3>Marketing Overrides</h3>
-          <div
-            style="
-              display: flex;
-              gap: 12px;
-              align-items: flex-end;
-              flex-wrap: wrap;
-            "
-          >
-            <!-- Export -->
-            <div>
-              <label for="moMonths" style="display: block; font-weight: 600"
-                >Export months</label
-              >
-              <input
-                id="moMonths"
-                type="number"
-                min="1"
-                max="12"
-                value="3"
-                style="width: 90px"
-              />
-            </div>
-            <button id="btnExportBaselineCsv" type="button">
-              Export Baseline (CSV)
-            </button>
-
-            <!-- Import -->
-            <div style="margin-left: 24px">
-              <label for="moFile" style="display: block; font-weight: 600"
-                >Import CSV</label
-              >
-              <input id="moFile" type="file" accept=".csv" />
-            </div>
-            <button id="btnPreviewImport" type="button">Preview</button>
-            <button id="btnApplyImport" type="button" disabled>
-              Apply Overrides
-            </button>
-
-            <!-- Window -->
-            <div style="margin-left: auto">
-              <label style="display: block; font-weight: 600">Window</label>
-              <div style="display: flex; gap: 8px">
-                <input id="moFrom" type="month" />
-                <input id="moTo" type="month" />
-              </div>
-              <small
-                >Defaults: fence-aware "next 12m". Set only if you need a custom
-                window.</small
-              >
-            </div>
-          </div>
-
-          <!-- Import preview table -->
-          <div id="moPreview" style="margin-top: 12px; display: none">
-            <strong>Import Preview</strong>
-            <div
-              id="moPreviewInfo"
-              style="margin: 6px 0 8px; color: #555"
-            ></div>
-            <div
-              style="
-                max-height: 240px;
-                overflow: auto;
-                border: 1px solid #ddd;
-                border-radius: 6px;
-              "
-            >
-              <table id="moPreviewTable" class="data-grid">
-                <thead></thead>
-                <tbody></tbody>
-              </table>
-            </div>
-          </div>
-        </section>
+        <!-- Marketing Overrides removed per request -->
 
         <!-- Toast -->
         <div
@@ -855,68 +1133,425 @@
           "
         ></div>
 
-        <div class="controls">
-          <button class="btn" id="btnLoadOverrides">Load</button>
-          <button class="btn ghost" id="btnExportOverrides">Export CSV</button>
-          <span class="small muted" id="overridesStatus"></span>
+        <!-- Overrides interactive controls removed per request -->
+        <!-- Window selection -->
+        <div class="card overrides-window-card">
+          <div class="overrides-window-header">
+            <h3>Overrides Window</h3>
+            <p class="muted small">
+              Choose the month range to scope both staging and promoted
+              overrides.
+            </p>
+          </div>
+          <div class="overrides-window-controls">
+            <div class="overrides-window-range">
+              <label for="fromMonth" class="small muted">From</label>
+              <input
+                id="fromMonth"
+                type="month"
+                title="From month"
+                class="toolbar-compact"
+              />
+              <label for="toMonth" class="small muted">To</label>
+              <input
+                id="toMonth"
+                type="month"
+                title="To month"
+                class="toolbar-compact"
+              />
+              <!-- keep original filterMonth id as hidden (backwards compatibility for JS) -->
+              <input id="filterMonth" type="hidden" />
+            </div>
+            <div class="overrides-window-actions">
+              <div class="baseline-download-trigger">
+                <button
+                  id="btnDownloadTemplate"
+                  class="btn"
+                  title="Download Baseline Forecasts"
+                >
+                  Download Baseline Forecast
+                </button>
+                <div id="baselineDownloads" class="baseline-download-menu">
+                  <div class="baseline-download-menu-list">
+                    <button id="downloadBaseline1" class="btn">
+                      HO:IK Baseline
+                    </button>
+                    <button id="downloadBaseline3" class="btn">
+                      KKD Baseline
+                    </button>
+                    <button id="downloadBaseline2" class="btn">
+                      HO:OK Baseline
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <input id="csvFile" type="file" accept=".csv" hidden />
+              <button
+                id="btnImportCsv"
+                class="btn"
+                title="Import overrides into staging table"
+              >
+                Import Overrides (CSV)
+              </button>
+            </div>
+          </div>
         </div>
+        <!-- Staging & Overrides (copied from demand-overrides) -->
+        <div class="grid-2">
+          <div class="card">
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                justify-content: space-between;
+                margin-bottom: 10px;
+              "
+            >
+              <h3 style="margin: 0">
+                Overrides Staging
+                <span class="muted" style="font-size: 0.85rem; font-weight: 400"
+                  >(marketing_overrides_staging)</span
+                >
+              </h3>
+              <span
+                id="stagingCounts"
+                class="status muted"
+                style="margin-left: 16px"
+              ></span>
+            </div>
+            <div class="toolbar staging-toolbar">
+              <div class="staging-filters enhanced-toolbar">
+                <div class="filters-row">
+                  <div class="filter-group">
+                    <label class="filter-label" for="filterProduct"
+                      >Product</label
+                    >
+                    <select
+                      id="filterProduct"
+                      class="filter-input"
+                      title="Product"
+                    >
+                      <option value="">All Products</option>
+                    </select>
+                  </div>
+                  <div class="filter-group">
+                    <label class="filter-label" for="filterRegion"
+                      >Region</label
+                    >
+                    <select
+                      id="filterRegion"
+                      class="filter-input"
+                      title="Region"
+                    >
+                      <option value="">All Regions</option>
+                    </select>
+                  </div>
+                  <div class="filter-group">
+                    <label class="filter-label" for="filterGodown"
+                      >Godown</label
+                    >
+                    <select
+                      id="filterGodown"
+                      class="filter-input"
+                      title="Godown"
+                    >
+                      <option value="">All Godowns</option>
+                    </select>
+                  </div>
+                  <div class="filter-group delta-group">
+                    <label class="filter-label" for="filterDeltaOp"
+                      >Delta</label
+                    >
+                    <div class="delta-range">
+                      <select
+                        id="filterDeltaOp"
+                        class="filter-input delta-operator"
+                        title="Delta operator"
+                      >
+                        <option value="">All Delta</option>
+                        <option value="lt">Delta &lt; threshold</option>
+                        <option value="gt">Delta &gt; threshold</option>
+                        <option value="between">Delta between</option>
+                      </select>
+                      <input
+                        id="filterDeltaVal1"
+                        class="filter-input delta-input"
+                        type="number"
+                        placeholder="threshold"
+                      />
+                      <input
+                        id="filterDeltaVal2"
+                        class="filter-input delta-input"
+                        type="number"
+                        placeholder="to"
+                        style="display: none"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    id="btnResetStagingFilters"
+                    class="btn ghost"
+                    type="button"
+                    title="Reset Filters"
+                    aria-label="Reset Staging Filters"
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"
+                      />
+                      <path d="M21 3v5h-5" />
+                      <path
+                        d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"
+                      />
+                      <path d="M3 21v-5h5" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="staging-row">
+                <div class="staging-actions">
+                  <button id="btnAddRow" class="btn">Add Row</button>
+                  <button
+                    id="btnPromoteAll"
+                    class="btn primary"
+                    title="Promote all staged overrides in window"
+                  >
+                    Promote All
+                  </button>
+                  <button id="btnClearStaging" class="btn danger">
+                    Delete All
+                  </button>
+                </div>
+                <div class="pager-compact pager-right staging-pager">
+                  <label class="small muted pager-size" for="stagingPageSize">
+                    Page Size
+                    <select id="stagingPageSize" aria-label="Staging page size">
+                      <option value="20">20</option>
+                      <option value="50" selected>50</option>
+                      <option value="100">100</option>
+                    </select>
+                  </label>
+                  <button
+                    id="stagingPrev"
+                    class="btn"
+                    aria-label="Previous page"
+                  >
+                    Previous
+                  </button>
+                  <span id="stagingPager" class="muted small">Page 1 / 1</span>
+                  <button id="stagingNext" class="btn" aria-label="Next page">
+                    Next
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="table-scroll-wrap overrides-table-wrap">
+              <table id="tblStaging">
+                <thead>
+                  <tr>
+                    <th class="nowrap">ID</th>
+                    <th class="col-item">Product</th>
+                    <th>Pack Size</th>
+                    <th>UOM</th>
+                    <th>Region</th>
+                    <th>Godown</th>
+                    <th>Month</th>
+                    <th class="right">Delta Units</th>
+                    <th class="col-note">Note</th>
+                    <th class="col-actions center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- filled by JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
 
-        <div class="row">
-          <div>
-            <label class="small">SKU</label><br />
-            <input type="number" id="ovSku" />
+          <div class="card">
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                justify-content: space-between;
+                margin-bottom: 10px;
+              "
+            >
+              <h3 style="margin: 0">
+                Promoted Overrides
+                <span class="muted" style="font-size: 0.85rem; font-weight: 400"
+                  >(forecast_demand_overrides)</span
+                >
+              </h3>
+              <span
+                id="activeCounts"
+                class="status muted"
+                style="margin-left: 16px"
+              ></span>
+            </div>
+            <div class="toolbar active-toolbar">
+              <div class="active-filters enhanced-toolbar">
+                <div class="filters-row">
+                  <div class="filter-group">
+                    <label class="filter-label" for="activeFilterProduct"
+                      >Product</label
+                    >
+                    <select
+                      id="activeFilterProduct"
+                      class="filter-input"
+                      title="Product"
+                    >
+                      <option value="">All Products</option>
+                    </select>
+                  </div>
+                  <div class="filter-group">
+                    <label class="filter-label" for="activeFilterRegion"
+                      >Region</label
+                    >
+                    <select
+                      id="activeFilterRegion"
+                      class="filter-input"
+                      title="Region"
+                    >
+                      <option value="">All Regions</option>
+                    </select>
+                  </div>
+                  <div class="filter-group">
+                    <label class="filter-label" for="activeFilterGodown"
+                      >Godown</label
+                    >
+                    <select
+                      id="activeFilterGodown"
+                      class="filter-input"
+                      title="Godown"
+                    >
+                      <option value="">All Godowns</option>
+                    </select>
+                  </div>
+                  <div class="filter-group delta-group">
+                    <label class="filter-label" for="activeFilterDeltaOp"
+                      >Delta</label
+                    >
+                    <div class="delta-range">
+                      <select
+                        id="activeFilterDeltaOp"
+                        class="filter-input delta-operator"
+                        title="Delta operator"
+                      >
+                        <option value="">All Delta</option>
+                        <option value="lt">Delta &lt; threshold</option>
+                        <option value="gt">Delta &gt; threshold</option>
+                        <option value="between">Delta between</option>
+                      </select>
+                      <input
+                        id="activeFilterDeltaVal1"
+                        class="filter-input delta-input"
+                        type="number"
+                        placeholder="threshold"
+                      />
+                      <input
+                        id="activeFilterDeltaVal2"
+                        class="filter-input delta-input"
+                        type="number"
+                        placeholder="to"
+                        style="display: none"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    id="btnResetActiveFilters"
+                    class="btn ghost"
+                    type="button"
+                    title="Reset Filters"
+                    aria-label="Reset Promoted Filters"
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"
+                      />
+                      <path d="M21 3v5h-5" />
+                      <path
+                        d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"
+                      />
+                      <path d="M3 21v-5h5" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="active-row">
+                <div class="staging-actions">
+                  <button id="btnDeactivateAll" class="btn danger">
+                    Deactivate All
+                  </button>
+                  <button
+                    id="btnDeleteAllActive"
+                    class="btn danger"
+                    title="Delete all promoted overrides in window"
+                    style="margin-left: 8px"
+                  >
+                    Delete All
+                  </button>
+                </div>
+                <div class="pager-compact pager-right">
+                  <label class="small muted pager-size" for="activePageSize">
+                    Page Size
+                    <select id="activePageSize" aria-label="Active page size">
+                      <option value="20">20</option>
+                      <option value="50" selected>50</option>
+                      <option value="100">100</option>
+                    </select>
+                  </label>
+                  <button
+                    id="activePrev"
+                    class="btn"
+                    aria-label="Previous page"
+                  >
+                    Previous
+                  </button>
+                  <span id="activePager" class="muted small">Page 1 / 1</span>
+                  <button id="activeNext" class="btn" aria-label="Next page">
+                    Next
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="table-scroll-wrap overrides-table-wrap">
+              <table id="tblActive">
+                <thead>
+                  <tr>
+                    <th class="col-item">Product</th>
+                    <th>Pack Size</th>
+                    <th>UOM</th>
+                    <th>Region</th>
+                    <th>Godown</th>
+                    <th>Month</th>
+                    <th class="right">Delta Units</th>
+                    <th class="col-note">Reason</th>
+                    <th class="col-actions center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- filled by JS -->
+                </tbody>
+              </table>
+            </div>
           </div>
-          <div>
-            <label class="small">Region</label><br />
-            <input type="number" id="ovRegion" />
-          </div>
-          <div>
-            <label class="small">Godown</label><br />
-            <input type="number" id="ovGodown" />
-          </div>
-          <div>
-            <label class="small">Month</label><br />
-            <input type="month" id="ovMonth" />
-          </div>
-          <div>
-            <label class="small">Delta Units (+/-)</label><br />
-            <input type="number" id="ovDelta" />
-          </div>
-          <div style="min-width: 220px">
-            <label class="small">Reason</label><br />
-            <input
-              type="text"
-              id="ovReason"
-              placeholder="Marketing commit / campaign / etc."
-            />
-          </div>
-          <div>
-            <button class="btn primary" id="btnUpsertOverride">
-              Save / Replace
-            </button>
-          </div>
-          <div>
-            <button class="btn" id="btnDeleteOverride">Delete</button>
-          </div>
-        </div>
-
-        <div class="grid">
-          <table id="overridesTable">
-            <thead>
-              <tr>
-                <th>SKU</th>
-                <th>Region</th>
-                <th>Godown</th>
-                <th>Month</th>
-                <th>Delta Units</th>
-                <th>Reason</th>
-                <th>Active</th>
-                <th>Created</th>
-                <th>Updated</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
         </div>
       </section>
 
@@ -970,6 +1605,66 @@
     <!-- Supabase -->
     <script type="module" src="js/supabaseClient.js"></script>
     <script type="module" src="js/forecast-console.js"></script>
+    <!-- Demand Overrides module: provides Staging & Overrides behaviour inside Overrides tab -->
+    <script>
+      // Enable month window filtering by default for Forecast Console Overrides
+      window.DO_DISABLE_MONTH_WINDOW = false;
+    </script>
+    <script>
+      (function () {
+        function pad(n) {
+          return n < 10 ? "0" + n : String(n);
+        }
+        function formatYM(d) {
+          return d.getFullYear() + "-" + pad(d.getMonth() + 1);
+        }
+        document.addEventListener("DOMContentLoaded", function () {
+          try {
+            // Visible inputs now use IDs `fromMonth` and `toMonth` (so the module
+            // can find them if desired). Keep a hidden `filterMonth` for
+            // backwards-compatible DB equality and notify listeners when the
+            // visible window changes.
+            var fromEl = document.getElementById("fromMonth");
+            var toEl = document.getElementById("toMonth");
+            var hiddenEl = document.getElementById("filterMonth");
+            if (fromEl && toEl && hiddenEl) {
+              var now = new Date();
+              var cur = new Date(now.getFullYear(), now.getMonth(), 1);
+              var ym = formatYM(cur);
+              // Always default both From and To to current month
+              fromEl.value = ym;
+              toEl.value = ym;
+
+              function syncHiddenAndTrigger() {
+                var fromVal = fromEl.value || "";
+                var toVal = toEl.value || fromVal;
+                hiddenEl.value = fromVal;
+                // notify existing listeners in demand-overrides.js which watch 'filterMonth'
+                try {
+                  hiddenEl.dispatchEvent(
+                    new Event("change", { bubbles: true })
+                  );
+                } catch (e) {
+                  /* ignore */
+                }
+              }
+
+              // Wire change events on the visible window inputs so changing either
+              // FROM or TO updates the hidden filter and triggers reloads.
+              fromEl.addEventListener("change", syncHiddenAndTrigger);
+              toEl.addEventListener("change", syncHiddenAndTrigger);
+
+              // Initial sync: set hidden filterMonth to the current FROM value
+              // and notify listeners so initial load aligns to the window.
+              syncHiddenAndTrigger();
+            }
+          } catch (e) {
+            console && console.error && console.error(e);
+          }
+        });
+      })();
+    </script>
+    <script type="module" src="../../js/demand-overrides.js"></script>
 
     <!-- Forecast Console Modal -->
     <dialog id="fcModal">
@@ -990,5 +1685,3 @@
     </dialog>
   </body>
 </html>
-
-
