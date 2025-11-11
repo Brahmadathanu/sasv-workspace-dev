@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Manage UOM</title>
+    <link rel="stylesheet" href="public/shared/css/style.css" />
+    <link rel="stylesheet" href="css/shared-ui.css" />
+    <style>
+      /* Home Button */
+      #homeBtn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        border: 1px solid #fdba74 !important;
+        border-radius: 6px;
+        background: #fed7aa !important;
+        color: #9a3412 !important;
+        cursor: pointer;
+        font-size: 0.875rem;
+        font-family: inherit;
+        font-weight: 500;
+        transition: all 0.2s;
+      }
+      #homeBtn:hover {
+        background: #fdba74 !important;
+        border-color: #fb923c !important;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      #homeBtn svg {
+        flex-shrink: 0;
+      }
+
+      /* Tabs navigator look (like reference) */
+      .tabs-wrap {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+      }
+      .tabs {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .tabs .tab {
+        padding: 8px 12px;
+        border-radius: 8px 8px 0 0;
+        border: 1px solid transparent;
+        background: transparent;
+        cursor: pointer;
+        font-weight: 600;
+        color: var(--muted, #6b7280);
+        transition: all 0.15s ease;
+        white-space: nowrap;
+      }
+      .tabs .tab:hover {
+        background: #f1f5f9;
+        color: #374151;
+      }
+      .tabs .tab.active {
+        background: linear-gradient(
+          180deg,
+          rgba(37, 99, 235, 0.08),
+          rgba(37, 99, 235, 0.03)
+        );
+        color: #0b3a9a;
+        border-color: rgba(13, 60, 160, 0.08);
+        border-bottom-color: transparent;
+        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+      }
+
+      /* Table typography/layout adjustments to match reference */
+      .table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+        font-size: 1.15rem; /* increased for better readability */
+        color: #111827;
+        border: none; /* use single-line row separators instead of cell borders */
+      }
+      .table th,
+      .table td {
+        padding: 12px 14px;
+        border: none; /* remove vertical cell borders */
+        font-size: 1.15rem; /* ensure cell content matches table font */
+        text-align: center; /* horizontally center all cells */
+        vertical-align: middle; /* vertically center content */
+        border-bottom: 1px solid #eef2f7; /* single horizontal separator */
+      }
+      /* remove bottom border on last row for a clean edge */
+      .table tbody tr:last-child td {
+        border-bottom: none;
+      }
+
+      /* Icon-only action buttons */
+      .actions .icon {
+        width: 36px;
+        height: 32px;
+        padding: 6px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+      }
+      /* Ensure action cell centers its buttons horizontally and vertically */
+      .table td.actions,
+      .table th.actions {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+      }
+      .actions .icon svg {
+        width: 14px;
+        height: 14px;
+      }
+      .actions .icon:hover {
+        background: #f3f4f6;
+      }
+
+      /* Input small tweaks */
+      .toolbar input {
+        padding: 8px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div
+        style="
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        "
+      >
+        <div>
+          <h1 style="text-align: left; margin: 0">Manage UOM</h1>
+          <p class="section-hint">
+            Manage unit of measurements and their dimensions
+          </p>
+        </div>
+        <div class="header-actions">
+          <button
+            id="homeBtn"
+            type="button"
+            onclick="location.href='index.html'"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9,22 9,12 15,12 15,22" />
+            </svg>
+            HOME
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="panel" style="padding: 16px">
+      <!-- Tab navigator (like reference) -->
+      <div
+        class="tabs-wrap"
+        style="
+          margin: 12px 0;
+          padding: 8px 12px;
+          background: transparent;
+          border-bottom: 1px solid #eef2f7;
+          border-radius: 6px;
+        "
+      >
+        <div
+          id="subTabs"
+          class="tabs"
+          style="display: flex; gap: 8px; align-items: center"
+        >
+          <button id="tabUoms" class="tab active">UOMs</button>
+          <button id="tabDims" class="tab">Dimensions</button>
+        </div>
+      </div>
+
+      <!-- Toolbar for UOMs (appears immediately above the UOMs table) -->
+      <div id="uomToolbar" class="toolbar" style="margin-bottom: 8px">
+        <button id="btnAdd" class="primary">New UOM</button>
+        <span id="rowCount" style="margin-left: auto; color: #6b7280"></span>
+      </div>
+
+      <table class="table" id="uomTable" aria-label="UOM list">
+        <thead>
+          <tr>
+            <th style="width: 120px">Code</th>
+            <th>Dimension</th>
+            <th style="width: 120px">Is Base?</th>
+            <th style="width: 220px">Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <!-- Dimensions panel (hidden by default) -->
+      <section id="dimensionsPanel" style="display: none; margin-top: 18px">
+        <h3>New UOM Dimension</h3>
+        <div
+          class="toolbar"
+          style="justify-content: space-between; align-items: center"
+        >
+          <div style="display: flex; gap: 8px; align-items: center">
+            <input id="dimName" type="text" placeholder="Name (e.g., Mass)" />
+            <input id="dimNotes" type="text" placeholder="Optional notes" />
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center">
+            <button id="btnAddDim" class="primary">Add Dimension</button>
+          </div>
+        </div>
+        <table class="table" id="dimTable" style="margin-top: 12px">
+          <thead>
+            <tr>
+              <th style="width: 80px">ID</th>
+              <th>Name</th>
+              <th>Notes</th>
+              <th style="width: 160px">Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <!-- Drawer / modal substitute -->
+      <section id="editor" style="margin-top: 18px; display: none">
+        <h3 id="editorTitle">New UOM</h3>
+        <div class="form-row">
+          <label for="code">Code</label>
+          <input id="code" type="text" placeholder="e.g., Kg, L, Nos, g, mL" />
+        </div>
+        <div class="form-row">
+          <label for="dimension_id">Dimension</label>
+          <select id="dimension_id">
+            <option value="">-- Select dimension --</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label for="notes">Notes</label>
+          <input id="notes" type="text" placeholder="Optional notes" />
+        </div>
+        <div class="form-row">
+          <label for="is_base">Base</label>
+          <select id="is_base">
+            <option value="true" selected>True</option>
+            <option value="false">False</option>
+          </select>
+        </div>
+        <div class="actions" style="margin-top: 10px">
+          <button id="btnSave" class="primary">Save</button>
+          <button id="btnCancel" class="ghost">Cancel</button>
+        </div>
+        <input type="hidden" id="uomId" />
+      </section>
+    </main>
+
+    <script type="module" src="public/shared/js/manage-uom.js"></script>
+  </body>
+</html>

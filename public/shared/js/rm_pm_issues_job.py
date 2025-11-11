@@ -72,11 +72,27 @@ def _fetch_vreg_xml(date_ymd: str, company: str) -> bytes:
     r.raise_for_status()
     return r.content
 
-def _try_storage_download(sb, source_key: str) -> Optional[bytes]:
-    try:
-        return sb.storage.from_(RAW_BUCKET).download(source_key)
-    except Exception:
+def _try_storage_download(sb, source_key: str, date_ymd: Optional[str]) -> Optional[bytes]:
+    # Prefer centralized helper which handles legacy keys and chunked runs.
+    if not source_key:
         return None
+    try:
+        # Import helper dynamically to handle different package layouts
+        try:
+            from storage_utils import download_legacy_or_chunk
+        except Exception:
+            try:
+                from .storage_utils import download_legacy_or_chunk
+            except Exception:
+                from ..storage_utils import download_legacy_or_chunk
+        xml_text = download_legacy_or_chunk(source_key, date_ymd)
+        return xml_text.encode("utf-8")
+    except Exception:
+        # fallback to direct download if helper fails for some reason
+        try:
+            return sb.storage.from_(RAW_BUCKET).download(source_key)
+        except Exception:
+            return None
 
 def _first_text(el, names: List[str]) -> str:
     for n in names:
@@ -249,7 +265,7 @@ def _ensure_xml_bytes(params: Dict) -> Tuple[bytes, str]:
         raise ValueError("UPSERT_RM_PM_ISSUES: missing company (set params['company'] or TALLY_COMPANY in .env)")
 
     if source_key:
-        blob = _try_storage_download(sb, source_key)
+        blob = _try_storage_download(sb, source_key, date_ymd)
         if blob:
             return blob, f"storage:{source_key}"
 

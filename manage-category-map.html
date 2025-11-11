@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Inventory Classification Mapping</title>
+    <link rel="stylesheet" href="public/shared/css/style.css" />
+    <link rel="stylesheet" href="css/shared-ui.css" />
+    <style>
+      /* Professional ERP Layout */
+      .erp-layout {
+        display: grid;
+        grid-template-columns: 420px 1fr;
+        gap: 24px;
+        height: calc(100vh - 140px);
+        margin: 0;
+        padding: 0;
+      }
+
+      /* Left Panel - Taxonomy Management */
+      .taxonomy-panel {
+        display: flex;
+        flex-direction: column;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        /* Allow tooltips to escape panel bounds */
+        overflow: visible;
+        /* Critical so inner flex children can shrink and scroll */
+        min-height: 0;
+        position: relative;
+        z-index: 1;
+      }
+
+      .panel-header {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border-bottom: 1px solid #e2e8f0;
+        padding: 16px 20px;
+      }
+
+      .panel-header h3 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+        color: #1e293b;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .panel-header .icon {
+        width: 20px;
+        height: 20px;
+        fill: #64748b;
+      }
+
+      .panel-content {
+        flex: 1;
+        padding: 20px;
+        /* Make only the tree area scroll, keep header/instructions static */
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        min-height: 0; /* allow children to shrink for scrolling */
+      }
+
+      /* Category Creation Form */
+      .category-form {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 20px;
+      }
+
+      .category-form h4 {
+        margin: 0 0 12px 0;
+        font-size: 14px;
+        font-weight: 600;
+        color: #475569;
+      }
+
+      .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .form-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 12px;
+      }
+
+      /* Tree Styling */
+      .tree-container {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        flex: 1;
+        min-height: 0; /* critical for flex children to enable scrolling */
+        overflow-y: auto;
+        overscroll-behavior: contain; /* prevent page scroll chaining */
+        height: 100%;
+        padding: 20px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+      }
+
+      .tree-container:empty::before {
+        content: "No categories found. Create your first category using the form above.";
+        display: block;
+        text-align: center;
+        color: #94a3b8;
+        font-style: italic;
+        padding: 40px 20px;
+        background: #f8fafc;
+        border-radius: 6px;
+        border: 2px dashed #cbd5e1;
+      }
+
+      .tree-container ul {
+        list-style: none;
+        padding-left: 0;
+        margin: 0;
+      }
+
+      .tree-container li {
+        margin: 0;
+        position: relative;
+      }
+
+      /* VS Code-like simple nested list */
+      .tree-container ul ul {
+        padding-left: 18px;
+        margin-left: 0;
+        position: relative;
+      }
+
+      /* Node Styling */
+      .node {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 12px 14px;
+        margin: 5px 0;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        background: #ffffff;
+        border: 1px solid transparent;
+        position: relative;
+        min-height: 48px;
+      }
+
+      .node:hover {
+        background: #f8fafc;
+        border-color: #e2e8f0;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        transform: translateX(2px);
+      }
+
+      .node.selected {
+        background: #e0f2fe;
+        border-color: #0ea5e9;
+        box-shadow: 0 2px 8px rgba(14, 165, 233, 0.15);
+      }
+
+      .node.selected::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 4px;
+        background: #0ea5e9;
+        border-radius: 0 4px 4px 0;
+      }
+
+      /* Level-specific styling */
+      .node[data-node="cat"] {
+        background: linear-gradient(135deg, #fefefe 0%, #f8fafc 100%);
+        border-left: 4px solid #3b82f6;
+        font-weight: 500;
+      }
+
+      .node[data-node="sub"] {
+        background: linear-gradient(135deg, #fefefe 0%, #f0f9ff 100%);
+        border-left: 3px solid #06b6d4;
+        margin-left: 8px;
+      }
+
+      .node[data-node="grp"] {
+        background: linear-gradient(135deg, #fefefe 0%, #ecfdf5 100%);
+        border-left: 2px solid #10b981;
+        margin-left: 16px;
+      }
+
+      .node[data-node="sgrp"] {
+        background: linear-gradient(135deg, #fefefe 0%, #fefce8 100%);
+        border-left: 2px solid #f59e0b;
+        margin-left: 24px;
+      }
+
+      .node .label {
+        color: #475569;
+        flex: 1;
+        font-weight: 500;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      /* Body-level tooltip now handled via JS; no per-node pseudo tooltip needed */
+
+      .node-actions {
+        display: flex;
+        gap: 4px;
+        opacity: 0;
+        transition: all 0.2s ease;
+        margin-left: 8px;
+      }
+
+      .node:hover .node-actions {
+        opacity: 1;
+      }
+
+      .node button {
+        padding: 6px 10px;
+        font-size: 11px;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+        background: #ffffff;
+        color: #64748b;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        min-width: 32px;
+        justify-content: center;
+      }
+
+      /* Explorer-style toggle button */
+      .node .toggle {
+        width: 20px;
+        height: 20px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid transparent;
+        background: transparent;
+        color: #64748b;
+        border-radius: 4px;
+        cursor: pointer;
+        flex: 0 0 auto;
+      }
+      .node .toggle:hover {
+        background: #f1f5f9;
+        border-color: #e2e8f0;
+      }
+
+      .node button:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+        color: #475569;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .node button.danger {
+        color: #dc2626;
+        border-color: #fecaca;
+      }
+
+      .node button.danger:hover {
+        background: #fef2f2;
+        border-color: #fca5a5;
+        color: #b91c1c;
+      }
+
+      /* Add some spacing for better readability */
+      .tree-container > ul > li {
+        margin-bottom: 8px;
+      }
+
+      .tree-container ul ul > li {
+        margin-bottom: 4px;
+      }
+
+      /* Empty state for tree levels */
+      .tree-container ul:empty {
+        display: none;
+      }
+
+      /* Right Panel - Items Management */
+      .items-panel {
+        display: flex;
+        flex-direction: column;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+
+      .items-header {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border-bottom: 1px solid #e2e8f0;
+        padding: 16px 20px;
+      }
+
+      .items-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .search-box {
+        flex: 1;
+        min-width: 250px;
+        max-width: 400px;
+        position: relative;
+      }
+
+      .search-box input {
+        width: 100%;
+        padding: 8px 12px 8px 36px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 14px;
+      }
+
+      .search-icon {
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 16px;
+        height: 16px;
+        fill: #9ca3af;
+      }
+
+      .filter-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #e0f2fe;
+        border: 1px solid #0ea5e9;
+        color: #0c4a6e;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+      }
+
+      /* Bulk Operations Panel */
+      .bulk-panel {
+        background: #fffbeb;
+        border: 1px solid #f59e0b;
+        border-radius: 8px;
+        padding: 16px;
+        margin: 16px 20px;
+      }
+
+      .bulk-panel h4 {
+        margin: 0 0 12px 0;
+        font-size: 14px;
+        font-weight: 600;
+        color: #92400e;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .bulk-selectors {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      .bulk-selectors label {
+        display: block;
+        font-size: 12px;
+        font-weight: 500;
+        color: #92400e;
+        margin-bottom: 4px;
+      }
+
+      .bulk-selectors select {
+        width: 100%;
+        padding: 6px 8px;
+        border: 1px solid #d97706;
+        border-radius: 4px;
+        background: #ffffff;
+        font-size: 13px;
+      }
+
+      .bulk-actions {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+      }
+
+      .bulk-actions-left {
+        display: flex;
+        gap: 8px;
+      }
+
+      .bulk-info {
+        font-size: 12px;
+        color: #92400e;
+      }
+
+      /* Bulk preview */
+      .bulk-preview {
+        margin: 12px 0 0 0;
+        border-top: 1px dashed #f59e0b;
+        padding-top: 12px;
+        display: none;
+      }
+      .bulk-preview h5 {
+        margin: 0 0 8px 0;
+        font-size: 13px;
+        color: #92400e;
+      }
+      .bulk-preview table {
+        width: 100%;
+        border-collapse: collapse;
+        background: #fffaf0;
+        border: 1px solid #fde68a;
+      }
+      .bulk-preview th,
+      .bulk-preview td {
+        padding: 6px 8px;
+        font-size: 12px;
+        border-bottom: 1px solid #fff3c4;
+      }
+      .bulk-preview th {
+        text-align: left;
+        color: #92400e;
+        background: #fef3c7;
+      }
+      .bulk-preview .ok {
+        color: #166534;
+      }
+      .bulk-preview .fail {
+        color: #b91c1c;
+      }
+
+      /* Items Table */
+      .table-container {
+        flex: 1;
+        overflow: auto;
+        margin: 0 20px 20px 20px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+      }
+
+      .table {
+        width: 100%;
+        border-collapse: collapse;
+        background: #ffffff;
+      }
+
+      .table thead {
+        background: #f8fafc;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+
+      .table th {
+        padding: 12px 16px;
+        text-align: left;
+        font-weight: 600;
+        color: #374151;
+        border-bottom: 1px solid #e2e8f0;
+        font-size: 13px;
+      }
+
+      .table td {
+        padding: 12px 16px;
+        border-bottom: 1px solid #f1f5f9;
+        vertical-align: middle;
+      }
+
+      .table tbody tr:hover {
+        background: #f8fafc;
+      }
+
+      .table tbody tr:nth-child(even) {
+        background: #fafafa;
+      }
+
+      .table tbody tr:nth-child(even):hover {
+        background: #f1f5f9;
+      }
+
+      /* Table Footer */
+      .table-footer {
+        padding: 12px 20px;
+        background: #f8fafc;
+        border-top: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 13px;
+        color: #64748b;
+      }
+
+      /* Quick Action Buttons in Table */
+      .quick-actions {
+        display: flex;
+        gap: 6px;
+      }
+
+      .quick-actions button {
+        padding: 4px 8px;
+        font-size: 11px;
+        border-radius: 4px;
+        border: 1px solid #e2e8f0;
+        background: #ffffff;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .quick-actions .btn-set {
+        color: #059669;
+        border-color: #d1fae5;
+      }
+
+      .quick-actions .btn-set:hover {
+        background: #ecfdf5;
+        border-color: #a7f3d0;
+      }
+
+      .quick-actions .btn-clear {
+        color: #dc2626;
+        border-color: #fecaca;
+      }
+
+      .quick-actions .btn-clear:hover {
+        background: #fef2f2;
+        border-color: #fca5a5;
+      }
+
+      /* Responsive Design */
+      @media (max-width: 1200px) {
+        .erp-layout {
+          grid-template-columns: 380px 1fr;
+          gap: 16px;
+        }
+      }
+
+      @media (max-width: 1024px) {
+        .erp-layout {
+          grid-template-columns: 1fr;
+          grid-template-rows: auto 1fr;
+          height: auto;
+        }
+
+        .taxonomy-panel {
+          max-height: 400px;
+        }
+      }
+
+      /* Utility Classes */
+      .muted {
+        color: #6b7280;
+      }
+
+      .danger {
+        color: #dc2626;
+      }
+
+      .success {
+        color: #059669;
+      }
+
+      .pill {
+        font-size: 11px;
+        padding: 4px 8px;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        background: #f8fafc;
+        color: #334155;
+        white-space: nowrap;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Clean header (remove duplicate old header & stray insertion later in file) -->
+    <header>
+      <div
+        style="
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        "
+      >
+        <div>
+          <h1 style="margin: 0; text-align: left">
+            Inventory Classification Mapping
+          </h1>
+          <p
+            class="section-hint"
+            style="margin: 4px 0 0 0; padding-left: 0; text-align: left"
+          >
+            Manage inventory classification taxonomy and assign items to
+            categories
+          </p>
+        </div>
+        <div class="header-actions">
+          <button
+            id="homeBtn"
+            type="button"
+            onclick="location.href='index.html'"
+            style="display: inline-flex; align-items: center; gap: 6px"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9,22 9,12 15,12 15,22" />
+            </svg>
+            HOME
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="erp-layout">
+      <!-- LEFT: Taxonomy Management Panel -->
+      <section class="taxonomy-panel">
+        <div class="panel-header">
+          <h3
+            style="
+              display: flex;
+              align-items: center;
+              gap: 12px;
+              margin: 0;
+              width: 100%;
+            "
+          >
+            <span>Taxonomy Management</span>
+            <button
+              id="btnRefreshTree"
+              class="ghost"
+              title="Refresh Taxonomy Tree"
+              style="
+                margin-left: auto;
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+              "
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path
+                  d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"
+                />
+              </svg>
+              <span>Refresh</span>
+            </button>
+          </h3>
+        </div>
+
+        <div class="panel-content">
+          <!-- Taxonomy Tree -->
+          <div style="margin-bottom: 12px">
+            <p
+              style="
+                margin: 0 0 12px 0;
+                font-size: 12px;
+                color: #64748b;
+                display: flex;
+                align-items: flex-start;
+                gap: 6px;
+              "
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                aria-hidden="true"
+                style="flex: 0 0 auto; margin-top: 2px"
+              >
+                <path
+                  d="M9 21h6v-1.5H9V21zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V18.5c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-3.76c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7zm2.85 11.1l-.85.6V17h-2v-3.3l-.85-.6A4.978 4.978 0 0 1 7 9c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.61-.78 3.14-2.15 4.1z"
+                />
+              </svg>
+              <span
+                >Click any node to filter items on the right. Use action buttons
+                to manage the hierarchy.</span
+              >
+            </p>
+            <div
+              class="tree-bulk-actions"
+              style="display: flex; gap: 8px; flex-wrap: nowrap; width: 100%"
+            >
+              <button
+                id="btnCollapseAll"
+                class="ghost"
+                title="Collapse all nodes"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path d="M19 13H5v-2h14v2z" />
+                </svg>
+                Collapse All
+              </button>
+              <button
+                id="btnExpandAll"
+                class="ghost"
+                title="Expand all nodes"
+                style="margin-left: auto"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path d="M19 13H13v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                </svg>
+                Expand All
+              </button>
+            </div>
+          </div>
+          <div class="tree-container">
+            <div id="treeContainer" aria-live="polite"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT: Items Management Panel -->
+      <section class="items-panel">
+        <!-- Bulk Operations Panel (moved above search) -->
+        <div class="bulk-panel">
+          <h4>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path
+                d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"
+              />
+            </svg>
+            Bulk Operations - Apply to Selected Items
+          </h4>
+          <div class="bulk-selectors">
+            <div>
+              <label for="bulkCat">Category</label>
+              <select id="bulkCat">
+                <option value="">(none)</option>
+              </select>
+            </div>
+            <div>
+              <label for="bulkSub">Sub-category</label>
+              <select id="bulkSub">
+                <option value="">(none)</option>
+              </select>
+            </div>
+            <div>
+              <label for="bulkGrp">Group</label>
+              <select id="bulkGrp">
+                <option value="">(none)</option>
+              </select>
+            </div>
+            <div>
+              <label for="bulkSgrp">Sub-group</label>
+              <select id="bulkSgrp">
+                <option value="">(none)</option>
+              </select>
+            </div>
+          </div>
+          <div class="bulk-actions">
+            <div class="bulk-actions-left">
+              <button
+                id="btnBulkPreview"
+                class="ghost"
+                title="Preview (dry run)"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M12 6.5C7 6.5 2.73 9.61 1 14c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5C21.27 9.61 17 6.5 12 6.5zm0 12c-3.04 0-5.5-2.46-5.5-5.5S8.96 7.5 12 7.5 17.5 9.96 17.5 13 15.04 18.5 12 18.5zm0-9c-1.93 0-3.5 1.57-3.5 3.5S10.07 16.5 12 16.5 15.5 14.93 15.5 13 13.93 9.5 12 9.5z"
+                  />
+                </svg>
+                Preview Changes
+              </button>
+              <button
+                id="btnBulkReset"
+                class="ghost danger"
+                title="Cancel preview and clear fields"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+                  />
+                </svg>
+                Cancel & Clear
+              </button>
+              <button id="btnBulkAssign" class="primary">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                </svg>
+                Apply Mapping
+              </button>
+              <button id="btnBulkClear" class="ghost danger">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+                  />
+                </svg>
+                Clear Mappings
+              </button>
+            </div>
+            <div
+              class="bulk-info"
+              style="
+                display: flex;
+                align-items: flex-start;
+                gap: 6px;
+                color: #92400e;
+              "
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                aria-hidden="true"
+                style="flex: 0 0 auto; margin-top: 2px"
+              >
+                <path
+                  d="M9 21h6v-1.5H9V21zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V18.5c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-3.76c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7zm2.85 11.1l-.85.6V17h-2v-3.3l-.85-.6A4.978 4.978 0 0 1 7 9c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.61-.78 3.14-2.15 4.1z"
+                />
+              </svg>
+              <span
+                >Select items below with checkboxes, then use buttons
+                above</span
+              >
+            </div>
+          </div>
+
+          <div id="bulkPreview" class="bulk-preview">
+            <h5>Dry-run preview</h5>
+            <div style="overflow: auto">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Item ID</th>
+                    <th>Action</th>
+                    <th>Changed</th>
+                    <th>Before</th>
+                    <th>After</th>
+                    <th>Message</th>
+                  </tr>
+                </thead>
+                <tbody id="bulkPreviewBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="items-header">
+          <div
+            class="items-toolbar"
+            style="display: flex; align-items: center; gap: 12px; width: 100%"
+          >
+            <div class="search-box">
+              <svg class="search-icon" viewBox="0 0 24 24" fill="currentColor">
+                <path
+                  d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"
+                />
+              </svg>
+              <input
+                id="q"
+                type="text"
+                placeholder="Search items by code or name..."
+              />
+            </div>
+
+            <div class="filter-badge" id="selectedNodeBadge">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z" />
+              </svg>
+              No filter active
+            </div>
+
+            <button id="btnClearNode" class="ghost">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path
+                  d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+                />
+              </svg>
+              Clear Filter
+            </button>
+
+            <button
+              id="btnReloadItems"
+              class="ghost"
+              title="Refresh Items"
+              style="
+                margin-left: auto;
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+              "
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"
+                />
+              </svg>
+              <span>Refresh</span>
+            </button>
+            <span id="rowCount" style="font-size: 12px; color: #64748b"
+              >Loading items...</span
+            >
+          </div>
+          <div
+            style="
+              margin-top: 8px;
+              font-size: 12px;
+              color: #64748b;
+              display: flex;
+              align-items: flex-start;
+              gap: 6px;
+            "
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              aria-hidden="true"
+              style="flex: 0 0 auto; margin-top: 2px"
+            >
+              <path
+                d="M9 21h6v-1.5H9V21zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V18.5c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-3.76c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7zm2.85 11.1l-.85.6V17h-2v-3.3l-.85-.6A4.978 4.978 0 0 1 7 9c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.61-.78 3.14-2.15 4.1z"
+              />
+            </svg>
+            <span
+              >Use checkboxes + bulk operations above to make change in
+              Classification Mapping</span
+            >
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="table" id="tblItems">
+            <thead>
+              <tr>
+                <th style="width: 40px">
+                  <input type="checkbox" id="chkAll" />
+                </th>
+                <th style="width: 120px">Item Code</th>
+                <th>Item Name</th>
+                <th style="width: 80px">Status</th>
+                <th style="width: 220px">Current Classification</th>
+                <!-- Quick Actions column removed -->
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <!-- Minimal paginator -->
+        <div
+          id="paginationBar"
+          style="
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 10px 16px;
+            font-size: 12px;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+            border-top: none;
+            background: #f8fafc;
+            border-radius: 0 0 8px 8px;
+          "
+        >
+          <div id="pageInfo" style="white-space: nowrap">Page 1</div>
+          <div style="display: flex; align-items: center; gap: 6px">
+            <button
+              id="btnFirstPage"
+              class="ghost"
+              title="First page"
+              style="padding: 4px 8px"
+            >
+              «
+            </button>
+            <button
+              id="btnPrevPage"
+              class="ghost"
+              title="Previous page"
+              style="padding: 4px 8px"
+            >
+              ‹
+            </button>
+            <span
+              id="currentPageDisplay"
+              style="min-width: 70px; text-align: center; font-weight: 500"
+              >1 / 1</span
+            >
+            <button
+              id="btnNextPage"
+              class="ghost"
+              title="Next page"
+              style="padding: 4px 8px"
+            >
+              ›
+            </button>
+            <button
+              id="btnLastPage"
+              class="ghost"
+              title="Last page"
+              style="padding: 4px 8px"
+            >
+              »
+            </button>
+            <select
+              id="pageSizeSel"
+              title="Rows per page"
+              style="
+                padding: 4px 6px;
+                border: 1px solid #cbd5e1;
+                border-radius: 6px;
+                background: #ffffff;
+              "
+            >
+              <option value="25">25</option>
+              <option value="50" selected>50</option>
+              <option value="100">100</option>
+              <option value="250">250</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-footer" style="display: none"></div>
+      </section>
+    </main>
+
+    <script
+      type="module"
+      src="public/shared/js/manage-category-map.js"
+    ></script>
+  </body>
+</html>

@@ -8,6 +8,10 @@
   --text-color: #333;
   --bg-color: #f7f9fb;
   --panel-bg: #fff;
+  /* table divider color (theme-adaptive) */
+  --table-divider: rgba(15, 23, 42, 0.06);
+  /* subtle header elevation color (used as a faint shadow) */
+  --table-header-elevation: rgba(15, 23, 42, 0.04);
 
   /* Strong primary used for emphasized actions */
   --btn-bg: var(--primary);
@@ -35,6 +39,8 @@
 
   --clear-btn-bg: #9ca3af;
   --clear-btn-hover-bg: #6b7280;
+  --table-divider: rgba(255, 255, 255, 0.06);
+  --table-header-elevation: rgba(255, 255, 255, 0.03);
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -68,6 +74,13 @@ table td {
   white-space: nowrap; /* keep body cells one-line */
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Center actions and cells for the Publish table specifically */
+#publishTable th,
+#publishTable td {
+  text-align: center;
+  vertical-align: middle;
 }
 button {
   font: inherit;
@@ -352,6 +365,33 @@ h1 {
   height: 36px;
 }
 
+/* Ensure month inputs used in small toolbars have enough width to show the
+   native month-picker control and icon without truncation. Scoped to
+   filter-group to avoid interfering with other month inputs. */
+.filter-group {
+  /* Allow flex children to shrink below their content when the toolbar
+     becomes narrow; avoids visual overlap in tight containers. */
+  min-width: 0;
+}
+
+.filter-group .filter-input[type="month"] {
+  /* Prefer full-width within the group but cap the maximum so it doesn't
+     consume too much space. Use padding-right to keep the native icon visible. */
+  width: 100%;
+  max-width: 220px;
+  min-width: 120px;
+  padding-right: 36px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .filter-group .filter-input[type="month"] {
+    max-width: 160px;
+    min-width: 100px;
+    padding-right: 28px;
+  }
+}
+
 /* Selects are rendered differently across platforms; give them an
    explicit line-height and remove vertical padding so the selected text
    sits vertically centered within the control. Use a specific selector
@@ -397,6 +437,54 @@ select.filter-input:focus {
   background: #fff1f2; /* pale red */
   color: #7f1d1d; /* red-800 */
   border-color: rgba(220, 38, 38, 0.12);
+}
+
+/* subtle pulsing for queued / in-progress chips */
+.chip.pulse {
+  animation: fc-pulse 1.4s ease-in-out infinite;
+}
+@keyframes fc-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.04);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* dismiss button inside chips */
+.chip .chip-dismiss {
+  background: transparent;
+  border: none;
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+  color: inherit;
+  padding: 0 4px;
+  margin-left: 6px;
+}
+.chip .chip-dismiss:focus {
+  outline: none;
+}
+
+/* Row count pill used in some listing pages (e.g. Manage Stock Items) */
+.row-count-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  background: rgba(14, 165, 233, 0.08); /* subtle cyan */
+  color: var(--primary);
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  border: 1px solid rgba(14, 165, 233, 0.15);
+  white-space: nowrap;
 }
 
 /* Narrower action group for toolbar buttons (Load / small status) */
@@ -769,25 +857,40 @@ button {
   background: var(--home-btn-bg);
   color: var(--btn-text);
 }
+/* Keep danger buttons visually dangerous on hover instead of adopting
+   the generic blue hover applied to .btn:hover. Use the defined hover
+   token so color system remains consistent. */
+.btn.btn-danger:hover:not([disabled]) {
+  background: var(--home-btn-hover-bg);
+  transform: translateY(-1px);
+}
 
 /* Modal specific tweaks for the missing-items modal created by JS */
 /* Buttons inside the Missing Items modal should be light grey so they
    don't visually compete with primary actions elsewhere. This also
    ensures 'Download CSV' (which uses .btn.btn-primary) looks the same.
 */
-#missingItemsModal .btn {
+#missingItemsModal .btn,
+#incompletePairsModal .btn,
+#publishLinesModal .btn {
   margin-right: 8px;
   background: #f3f4f6; /* light grey */
   color: #111827;
   box-shadow: none;
   border: 1px solid rgba(15, 23, 42, 0.06);
 }
-#missingItemsModal .btn:hover:not([disabled]) {
+#missingItemsModal .btn:hover:not([disabled]),
+#incompletePairsModal .btn:hover:not([disabled]),
+#publishLinesModal .btn:hover:not([disabled]) {
   background: #e6e7ea; /* slightly darker on hover */
 }
 
 #missingItemsModal .btn.btn-primary,
-#missingItemsModal .btn.primary {
+#missingItemsModal .btn.primary,
+#incompletePairsModal .btn.btn-primary,
+#incompletePairsModal .btn.primary,
+#publishLinesModal .btn.btn-primary,
+#publishLinesModal .btn.primary {
   /* force primary variant inside modal to use the same grey look */
   background: #f3f4f6;
   color: #111827;
@@ -795,7 +898,8 @@ button {
   box-shadow: none;
 }
 
-#missingItemsModal #missingInner {
+#missingItemsModal #missingInner,
+#incompletePairsModal #pairsInner {
   background: var(--panel-bg);
   color: var(--text-color);
 }
@@ -831,6 +935,13 @@ button {
   border-top: 1px solid rgba(15, 23, 42, 0.04);
   border-bottom: 1px solid rgba(15, 23, 42, 0.04);
 }
+
+/* Reserve a bit of right padding inside the overrides table wrapper so the
+   sticky Actions column (position:sticky; right:0) does not overlap the
+   final data column when the table scrolls horizontally. This helps keep
+   the last data column readable and the action buttons reachable. */
+/* Removed extra right padding; staging actions are now part of the
+   table scroll area so reserving wrapper space is unnecessary. */
 
 /* Make the thead sticky so it remains visible while tbody scrolls. We
    keep the header above the rows using z-index and set background to
@@ -953,7 +1064,7 @@ button {
   text-align: center;
   vertical-align: middle;
   padding: 8px 10px;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  border-bottom: 1px solid var(--table-divider);
 }
 
 #logsTableWrap table tbody td,
@@ -996,6 +1107,59 @@ button {
 .table-scroll-wrap table th.col-actions,
 .table-scroll-wrap table td.col-actions {
   text-align: center;
+}
+
+/* Keep the Actions column visible for the Promoted Overrides table (#tblActive).
+   Use sticky positioning so the Actions column stays fixed to the right while
+   the rest of the table scrolls horizontally. We set different z-index for
+   header vs body so header remains above body cells. */
+.grid .table-scroll-wrap #tblActive thead th.col-actions,
+.grid .table-scroll-wrap #tblActive tbody td.col-actions {
+  position: -webkit-sticky; /* Safari */
+  position: sticky;
+  right: 0;
+  white-space: nowrap;
+  background: var(--panel-bg, #fff);
+  border-left: 1px solid rgba(15, 23, 42, 0.06);
+  min-width: 84px;
+}
+.grid .table-scroll-wrap #tblActive thead th.col-actions {
+  z-index: 9;
+}
+.grid .table-scroll-wrap #tblActive tbody td.col-actions {
+  z-index: 6;
+}
+.grid .table-scroll-wrap #tblActive tbody td.col-actions > * {
+  margin-left: 6px;
+}
+
+/* Keep the Actions column visible for the Staging Overrides table (#tblStaging).
+   Mirror the behavior used for #tblActive so action buttons remain reachable
+   when the table scrolls horizontally. */
+/* For the staging table keep Actions as a normal column (not sticky)
+   so its buttons are part of the table's scroll width and never rendered
+   outside the table. Give it a fixed width to keep layout stable. */
+#tab-overrides .overrides-table-wrap table th.col-actions,
+#tab-overrides .overrides-table-wrap table td.col-actions {
+  position: static;
+  width: 84px;
+  min-width: 84px;
+  white-space: nowrap;
+  text-align: center;
+}
+#tab-overrides .overrides-table-wrap table td.col-actions > * {
+  margin-left: 6px;
+}
+
+/* Reserve space on the table's right so the sticky Actions column does not
+   overlap content when scrolling. This helps keep the last data column
+   readable while the Actions column overlays the scroll area. */
+#tblActive {
+  table-layout: auto;
+}
+#tblActive thead th:last-child,
+#tblActive tbody td:last-child {
+  box-sizing: border-box;
 }
 
 /* Ensure the outputs table scroll area has a reasonable max height */
@@ -1158,6 +1322,10 @@ button {
   min-width: 180px;
   z-index: 20;
 }
+/* Show when open */
+#tab-overrides .baseline-download-menu.open {
+  display: block;
+}
 #tab-overrides .baseline-download-menu-list {
   display: flex;
   flex-direction: column;
@@ -1245,12 +1413,19 @@ button {
   border-radius: 12px;
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
   background: #fff;
-  overflow: auto;
+  /* allow horizontal scrolling when table is wider than container */
+  overflow-x: auto;
+  overflow-y: auto;
   padding: 0;
 }
 #tab-overrides .overrides-table-wrap table {
   border-collapse: collapse;
-  width: 100%;
+  /* Let the table size to content so a horizontal scrollbar appears when
+     columns (like Note or Product) are wide; at the same time enforce a
+     minimum of 100% so it fills the wrapper when content is small. */
+  display: inline-table;
+  width: auto;
+  min-width: 100%;
 }
 #tab-overrides .overrides-table-wrap table thead th {
   background: #f8fafc;
@@ -1577,6 +1752,31 @@ button {
   font-size: 0.78rem;
   padding: 10px 12px;
   border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  text-align: center;
+}
+
+/* Make the main items table header sticky so it remains visible while scrolling */
+#tbl thead th {
+  position: sticky;
+  top: 0;
+  /* flat header to blend with module panel */
+  background: var(--panel-bg);
+  color: var(--text-color);
+  /* make header visually distinct from body rows */
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  font-size: 0.78rem;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--table-divider);
+  z-index: 10;
+  /* subtle elevation shadow to separate header from rows */
+  box-shadow: 0 2px 6px var(--table-header-elevation);
+}
+
+#tbl tbody td {
+  padding: 8px 10px;
+  vertical-align: middle;
   text-align: center;
 }
 

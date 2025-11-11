@@ -344,7 +344,7 @@
     <script>
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker
-          .register("/sw.js", { scope: "/" })
+          .register("/public/sw.js", { scope: "/public/" })
           .catch(console.error);
       }
     </script>

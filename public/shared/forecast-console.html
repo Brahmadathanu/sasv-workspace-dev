@@ -300,6 +300,12 @@
         margin-bottom: 12px;
       }
 
+      #overviewTiles {
+        gap: 16px;
+        align-items: stretch;
+        margin-bottom: 16px;
+      }
+
       /* Layout for the toolbar: ensure the toolbar wraps and FILTERS takes
          a full new row. Force ordering so Load stays on the first line and
          FILTERS occupies the next line. */
@@ -372,25 +378,107 @@
       }
 
       .tile {
-        border: 1px solid rgba(15, 23, 42, 0.08);
-        border-radius: 10px;
+        --tile-accent: rgba(37, 99, 235, 0.45);
+        --tile-glow: rgba(37, 99, 235, 0.1);
+        flex: 1 1 calc(33.333% - 18px);
+        min-width: 170px;
+        max-width: 240px;
         padding: 14px 16px;
-        min-width: 180px;
-        background: var(--panel-bg, #fff);
-        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+        border-radius: 10px;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-top: 4px solid var(--tile-accent);
+        background: linear-gradient(
+          140deg,
+          #ffffff 0%,
+          #f8fafc 60%,
+          #ecf1f8 100%
+        );
+        position: relative;
+        box-shadow: none;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        overflow: hidden;
+        transition: transform 0.18s ease, border-color 0.18s ease;
+      }
+
+      .tile::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(
+          circle at 110% -10%,
+          var(--tile-glow),
+          transparent 55%
+        );
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        pointer-events: none;
+      }
+
+      .tile:hover {
+        transform: translateY(-2px);
+        border-color: rgba(37, 99, 235, 0.22);
+      }
+
+      .tile:hover::after {
+        opacity: 0.8;
       }
 
       .tile h4 {
-        margin: 0 0 6px;
-        font-size: 0.8rem;
-        color: #475569;
-        letter-spacing: 0.01em;
+        margin: 0;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #334155;
+        letter-spacing: 0.05em;
         text-transform: uppercase;
       }
 
       .tile .big {
-        font-size: 1.45rem;
+        font-size: 1.32rem;
         font-weight: 700;
+        color: #0f172a;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .tile-warn {
+        --tile-accent: rgba(234, 88, 12, 0.6);
+        --tile-glow: rgba(234, 88, 12, 0.2);
+        background: linear-gradient(
+          150deg,
+          #fff7ed 0%,
+          #fff3e7 65%,
+          #fff9f1 100%
+        );
+      }
+
+      .tile-ok {
+        --tile-accent: rgba(22, 163, 74, 0.55);
+        --tile-glow: rgba(22, 163, 74, 0.18);
+        background: linear-gradient(
+          150deg,
+          #ecfdf5 0%,
+          #e6fff3 70%,
+          #f0fff7 100%
+        );
+      }
+
+      .tile-info {
+        --tile-accent: rgba(14, 165, 233, 0.55);
+        --tile-glow: rgba(14, 165, 233, 0.2);
+        background: linear-gradient(
+          150deg,
+          #f0f9ff 0%,
+          #e8f6ff 70%,
+          #f4fbff 100%
+        );
+      }
+
+      @media (max-width: 768px) {
+        .tile {
+          min-width: 150px;
+          flex: 1 1 calc(50% - 10px);
+        }
       }
 
       .muted {
@@ -398,11 +486,19 @@
       }
 
       .warn {
-        color: #b45309;
+        color: #c2410c;
       }
 
       .ok {
-        color: #047857;
+        color: #0f7a44;
+      }
+
+      .tile .big.warn {
+        color: #c2410c;
+      }
+
+      .tile .big.ok {
+        color: #0d7a42;
       }
 
       .grid {
@@ -472,6 +568,25 @@
         font-size: 1rem;
         font-weight: 600;
         color: #1f2937;
+        letter-spacing: 0.02em;
+      }
+
+      .section-title.compact {
+        margin: 0 0 8px;
+      }
+
+      /* Keep action buttons visible: stick the Actions column to the right
+         so buttons remain in-view even when the table is wide. Applies only
+         to the Promoted Overrides table (#tblActive). */
+      #tblActive thead th.col-actions,
+      #tblActive tbody td.col-actions {
+        position: sticky;
+        right: 0;
+        background: var(--panel-bg, #fff);
+        z-index: 3;
+        min-width: 140px;
+        white-space: nowrap;
+        text-align: center;
       }
 
       #fcModal::backdrop {
@@ -589,8 +704,10 @@
               <path d="M14 7l4 4" />
             </svg>
             <div>
-              Overrides
-              <span class="tab-description">Marketing inputs & revisions</span>
+              Demand Overrides
+              <span class="tab-description"
+                >Stage, promote & rebuild forecast</span
+              >
             </div>
           </button>
 
@@ -620,7 +737,9 @@
             </svg>
             <div>
               Model Outputs
-              <span class="tab-description">Baseline and LLT views</span>
+              <span class="tab-description"
+                >Baseline, LLT & Seasonal views</span
+              >
             </div>
           </button>
 
@@ -720,7 +839,7 @@
       >
         <h3 class="section-title">Health Summary</h3>
         <div class="row" id="overviewTiles">
-          <div class="tile">
+          <div class="tile tile-info">
             <h4>Window</h4>
             <div class="big" id="tileWindow">--</div>
           </div>
@@ -732,15 +851,31 @@
             <h4>Rows (Combined)</h4>
             <div class="big" id="tileRows">--</div>
           </div>
-          <div class="tile">
+          <div class="tile tile-ok">
+            <h4>Pairs w/ Full 12m</h4>
+            <div class="big" id="tilePairsFull">--</div>
+          </div>
+          <div class="tile tile-warn">
+            <h4>Pairs Missing Months</h4>
+            <div class="big warn" id="tilePairsMissing">--</div>
+          </div>
+          <div class="tile tile-warn">
+            <h4>Missing Month-Rows</h4>
+            <div class="big warn" id="tileMissingRows">--</div>
+          </div>
+          <div class="tile tile-info">
+            <h4>Coverage %</h4>
+            <div class="big" id="tileCoverage">--</div>
+          </div>
+          <div class="tile tile-warn">
             <h4>Missing LLT</h4>
             <div class="big warn" id="tileMissLLT">--</div>
           </div>
-          <div class="tile">
+          <div class="tile tile-warn">
             <h4>Missing Seasonal</h4>
             <div class="big warn" id="tileMissSeason">--</div>
           </div>
-          <div class="tile">
+          <div class="tile tile-ok">
             <h4>Active Overrides</h4>
             <div class="big ok" id="tileOverrides">--</div>
           </div>
@@ -1068,49 +1203,54 @@
       >
         <!-- Run Controls (moved here, only visible in Overrides tab) -->
         <section class="panel" id="runControls">
-          <h3>Run Controls</h3>
+          <h3 class="section-title">Run Controls</h3>
           <div
             style="
               display: flex;
               gap: 16px;
               flex-wrap: wrap;
               align-items: flex-end;
+              margin-top: 12px;
             "
           >
             <!-- Primary: Apply overrides then LLT+Seasonal -->
-            <div>
-              <label for="monthsWindow"><small>Months window</small></label
-              ><br />
+            <div class="filter-group">
+              <label class="filter-label" for="asOfDate"
+                >As-of month (optional)</label
+              >
               <input
-                id="monthsWindow"
-                type="number"
-                min="1"
-                max="12"
-                value="3"
-                style="width: 80px"
+                id="asOfDate"
+                type="month"
+                title="As-of month"
+                class="filter-input"
               />
             </div>
-            <div>
-              <label for="asOfDate"><small>As-of date (optional)</small></label
-              ><br />
-              <input id="asOfDate" type="date" />
+
+            <div class="filter-group" style="min-width: 120px">
+              <label class="filter-label" for="dryRun">Dry-run</label>
+              <div style="display: flex; align-items: center; gap: 8px">
+                <input id="dryRun" type="checkbox" />
+                <span class="small muted"
+                  >Dry run — do not persist changes</span
+                >
+              </div>
             </div>
-            <div>
-              <label for="dryRun"><small>Dry-run</small></label
-              ><br />
-              <input id="dryRun" type="checkbox" />
-            </div>
-            <button id="btnApplyOverridesAndDerived" class="btn primary">
-              Apply Marketing Overrides -> Re-run LLT & Seasonal
+            <button
+              id="btnApplyOverridesAndDerived"
+              class="btn primary"
+              title="Queue LLT and Seasonal jobs only; does not apply marketing overrides."
+            >
+              Rerun LLT & Seasonal Only
             </button>
-            <button id="btnFullRebuild" class="btn danger">
+            <button
+              id="btnFullRebuild"
+              class="btn danger"
+              title="Regenerates Baseline before queuing LLT & Seasonal."
+            >
               Full Rebuild: Baseline + LLT + Seasonal
             </button>
           </div>
-          <div id="runNotes" class="section-hint" style="margin-top: 8px">
-            Tip: Primary button does <b>not</b> re-stat baseline. Full rebuild
-            regenerates baseline first.
-          </div>
+
           <div id="runStatus" style="margin-top: 12px">
             <!-- status chips appear here -->
           </div>
@@ -1137,7 +1277,7 @@
         <!-- Window selection -->
         <div class="card overrides-window-card">
           <div class="overrides-window-header">
-            <h3>Overrides Window</h3>
+            <h3 class="section-title compact">Overrides Window</h3>
             <p class="muted small">
               Choose the month range to scope both staging and promoted
               overrides.
@@ -1208,7 +1348,7 @@
                 margin-bottom: 10px;
               "
             >
-              <h3 style="margin: 0">
+              <h3 class="section-title compact">
                 Overrides Staging
                 <span class="muted" style="font-size: 0.85rem; font-weight: 400"
                   >(marketing_overrides_staging)</span
@@ -1386,7 +1526,7 @@
                 margin-bottom: 10px;
               "
             >
-              <h3 style="margin: 0">
+              <h3 class="section-title compact">
                 Promoted Overrides
                 <span class="muted" style="font-size: 0.85rem; font-weight: 400"
                   >(forecast_demand_overrides)</span
@@ -1563,24 +1703,37 @@
         aria-labelledby="tab-btn-publish"
         hidden
       >
-        <p class="muted">
-          We'll wire snapshotting next (header + lines from combined view).
-        </p>
-        <div class="row">
-          <div>
-            <label class="small">Plan Key</label><br />
-            <input type="text" id="pubKey" placeholder="Plan 2025-10 (R1)" />
+        <div
+          class="enhanced-toolbar single-line"
+          style="align-items: flex-end; gap: 12px"
+        >
+          <div class="filter-group" style="flex: 1; min-width: 220px">
+            <label class="filter-label" for="pubKey">Plan Key</label>
+            <input
+              id="pubKey"
+              class="filter-input"
+              type="text"
+              placeholder="e.g. Plan 2025-11 (R1)"
+            />
           </div>
-          <div>
-            <label class="small">As Of</label><br />
-            <input type="date" id="pubAsOf" />
+
+          <div class="filter-group" style="flex: 0 0 200px">
+            <label class="filter-label" for="pubAsOf">As of (month)</label>
+            <input id="pubAsOf" class="filter-input" type="month" />
           </div>
-          <div style="min-width: 260px">
-            <label class="small">Notes</label><br />
-            <input type="text" id="pubNotes" />
+
+          <div class="filter-group" style="flex: 1; min-width: 260px">
+            <label class="filter-label" for="pubNotes">Notes</label>
+            <input
+              id="pubNotes"
+              class="filter-input"
+              type="text"
+              placeholder="Optional notes (purpose, approver, comments)"
+            />
           </div>
-          <div>
-            <button id="publishSnapshot" class="publish-btn">
+
+          <div class="filter-actions">
+            <button id="publishSnapshot" class="btn btn-primary">
               Publish Snapshot
             </button>
           </div>
@@ -1594,6 +1747,7 @@
                 <th>As Of</th>
                 <th>Created</th>
                 <th>Notes</th>
+                <th>ACTIONS</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -1664,7 +1818,7 @@
         });
       })();
     </script>
-    <script type="module" src="../../js/demand-overrides.js"></script>
+    <!-- demand-overrides module removed; no additional module script required -->
 
     <!-- Forecast Console Modal -->
     <dialog id="fcModal">

@@ -128,13 +128,55 @@ async function onPrimaryRun() {
   );
 }
 
+// Enqueue LLT and Seasonal only (do NOT apply marketing overrides)
+async function onRerunLLTSeasonalOnly() {
+  const dryRun = document.getElementById("dryRun")?.checked ?? false;
+  const asOfRaw = document.getElementById("asOfDate")?.value || "";
+  const today = asOfRaw ? new Date(`${asOfRaw}T00:00:00`) : new Date();
+
+  setStatus(chip("Queueing LLT", "warn"));
+  const { error: lltErr } = await rpcEnqueueForecast(
+    "FORECAST_LLT",
+    fmt(today),
+    dryRun,
+    10
+  );
+  if (lltErr) {
+    setStatus(chip("LLT queue failed", "err"));
+    console.error("FORECAST_LLT", lltErr);
+    return;
+  }
+
+  setStatus(chip("LLT queued", "ok") + chip("Queueing seasonal", "warn"));
+  const { error: seasErr } = await rpcEnqueueForecast(
+    "FORECAST_SEASONAL",
+    fmt(today),
+    dryRun,
+    10
+  );
+  if (seasErr) {
+    setStatus(chip("Seasonal queue failed", "err"));
+    console.error("FORECAST_SEASONAL", seasErr);
+    return;
+  }
+
+  setStatus(
+    chip("LLT queued", "ok") +
+      chip("Seasonal queued", "ok") +
+      chip("Monitoring runs", "warn")
+  );
+}
+
+// Expose legacy apply+derived runner for external invocation if needed
+window.applyOverridesAndDerived = onPrimaryRun;
+
 async function onFullRebuild() {
   const dryRun = document.getElementById("dryRun")?.checked ?? false;
   const asOfRaw = document.getElementById("asOfDate")?.value || "";
   const asOfISO = asOfRaw || fmt(new Date());
-
-  const ok = window.confirm(
-    "This will regenerate Baseline before LLT & Seasonal.\nUse at cycle start or when you intend to refresh the foundation.\n\nProceed?"
+  const ok = await showConfirmInPage(
+    "This will regenerate Baseline before LLT & Seasonal.\n\nUse at cycle start or when you intend to refresh the foundation.\n\nProceed?",
+    "Confirm Full Rebuild"
   );
   if (!ok) return;
 
@@ -160,7 +202,17 @@ async function onFullRebuild() {
 function initRunControls() {
   const a = document.getElementById("btnApplyOverridesAndDerived");
   const b = document.getElementById("btnFullRebuild");
-  if (a) a.addEventListener("click", onPrimaryRun);
+  // Ensure As-of month defaults to current month when empty
+  try {
+    const asOfEl = document.getElementById("asOfDate");
+    if (asOfEl && !asOfEl.value)
+      asOfEl.value = fmtMonthInput(monthFloor(new Date()));
+  } catch (e) {
+    void e;
+  }
+
+  // Rerun LLT & Seasonal Only should enqueue forecast jobs only (do not apply overrides)
+  if (a) a.addEventListener("click", onRerunLLTSeasonalOnly);
   if (b) b.addEventListener("click", onFullRebuild);
   // tracker removed: do not auto-start polling for recent runs
 }
@@ -223,6 +275,87 @@ function closeModal() {
   if (!dlg) return;
   if (typeof dlg.close === "function") dlg.close();
   else dlg.removeAttribute("open");
+}
+
+// In-page confirm modal (returns Promise<boolean>). Uses the same visual
+// language as the Missing modal and Publish modal buttons so the UX is
+// consistent. Falls back to window.confirm if DOM creation fails.
+function showConfirmInPage(message, title = "Confirm") {
+  return new Promise((resolve) => {
+    try {
+      // create single shared modal if missing
+      let cm = document.getElementById("confirmModal");
+      if (!cm) {
+        cm = document.createElement("div");
+        cm.id = "confirmModal";
+        cm.style.position = "fixed";
+        cm.style.left = "0";
+        cm.style.top = "0";
+        cm.style.width = "100%";
+        cm.style.height = "100%";
+        cm.style.background = "rgba(0,0,0,0.4)";
+        cm.style.zIndex = 11000;
+        cm.innerHTML = `
+          <div style="background:#fff;max-width:520px;margin:8% auto;padding:16px;border-radius:6px;box-shadow:0 6px 24px rgba(0,0,0,0.2);">
+            <div style="margin-bottom:12px;">
+              <h3 id="confirmModalTitle" style="margin:0;font-size:16px">${escapeHtml(
+                title
+              )}</h3>
+            </div>
+            <div id="confirmModalMessage" style="margin-bottom:14px;line-height:1.4"></div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;">
+              <button id="confirmModalCancel" class="btn">Cancel</button>
+              <button id="confirmModalOk" class="btn btn-primary">Confirm</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(cm);
+      }
+
+      const titleEl = cm.querySelector("#confirmModalTitle");
+      const msgEl = cm.querySelector("#confirmModalMessage");
+      const okBtn = cm.querySelector("#confirmModalOk");
+      const cancelBtn = cm.querySelector("#confirmModalCancel");
+
+      if (titleEl) titleEl.textContent = title || "Confirm";
+      if (msgEl) {
+        // Escape HTML but preserve newlines as <br> so callers can pass plain text
+        msgEl.innerHTML = escapeHtml(String(message || "")).replace(
+          /\n/g,
+          "<br>"
+        );
+      }
+
+      function cleanup() {
+        okBtn?.removeEventListener("click", onOk);
+        cancelBtn?.removeEventListener("click", onCancel);
+        try {
+          if (cm && cm.parentNode) cm.parentNode.removeChild(cm);
+        } catch {
+          /* ignore */
+        }
+      }
+
+      function onOk() {
+        cleanup();
+        resolve(true);
+      }
+      function onCancel() {
+        cleanup();
+        resolve(false);
+      }
+
+      okBtn?.addEventListener("click", onOk);
+      cancelBtn?.addEventListener("click", onCancel);
+    } catch {
+      // fallback to native confirm
+      try {
+        resolve(window.confirm(message));
+      } catch {
+        resolve(false);
+      }
+    }
+  });
 }
 
 // small helpers used by missing modal
@@ -323,12 +456,15 @@ async function showMissingModal(kind) {
       const ts = document.createElement("style");
       ts.id = "fc-missing-table-styles";
       ts.textContent = `
-        .fc-missing-table{ width:100%; border-collapse:collapse; font-size:13px; }
+        /* Tables used by Missing & Publish modals: allow horizontal scrolling when content is wide */
+        .fc-missing-table{ width: max-content; min-width:100%; border-collapse:collapse; font-size:13px; }
         .fc-missing-table thead th{ position:sticky; top:0; background:#f7f7f8; z-index:1; text-align:left; padding:8px 10px; border:1px solid #e9e9ea; }
         .fc-missing-table th, .fc-missing-table td{ padding:8px 10px; border:1px solid #e9e9ea; }
         .fc-missing-table tbody tr:nth-child(odd){ background:#ffffff; }
         .fc-missing-table tbody tr:nth-child(even){ background:#fbfbfb; }
         .fc-missing-table td{ vertical-align:middle; }
+        /* allow long words/labels to break so table doesn't force an awkward overflow */
+        .fc-missing-table td, .fc-missing-table th { word-break: break-word; }
         @media (max-width:640px){ .fc-missing-table th, .fc-missing-table td{ padding:6px 8px; font-size:12px; } }
       `;
       document.head.appendChild(ts);
@@ -933,15 +1069,94 @@ async function loadOverviewTiles() {
     });
     if (error) throw error;
     const row = Array.isArray(data) ? data[0] : data;
-    if (elPairs) elPairs.textContent = row?.pairs_count ?? 0;
-    if (elRows) elRows.textContent = row?.rows_count ?? 0;
-    if (elMissLLT) elMissLLT.textContent = row?.missing_llt_relevant ?? 0;
-    if (elMissSeason)
-      elMissSeason.textContent = row?.missing_seasonal_relevant ?? 0;
+    // basic counts from the health MV
+    const pairsCount = Number(row?.pairs_count ?? 0);
+    const rowsCount = Number(row?.rows_count ?? 0);
+    const missingLlt = Number(row?.missing_llt_relevant ?? 0);
+    const missingSeason = Number(row?.missing_seasonal_relevant ?? 0);
+
+    if (elPairs) elPairs.textContent = pairsCount;
+    if (elRows) elRows.textContent = rowsCount;
+    if (elMissLLT) elMissLLT.textContent = missingLlt;
+    if (elMissSeason) elMissSeason.textContent = missingSeason;
+
     // set overrides tile if present
     const elOverrides = document.getElementById("tileOverrides");
     if (elOverrides && typeof row?.active_overrides_count !== "undefined")
       elOverrides.textContent = row.active_overrides_count;
+
+    // Compute pairs missing months and missing month-rows using server RPCs
+    try {
+      // rpc_incomplete_pairs returns jsonb with total_count; request 1 row page to obtain totals cheaply
+      const { data: incData, error: incErr } = await supabase.rpc(
+        "rpc_incomplete_pairs",
+        { p_start: startISO, p_end: endISO, p_page: 1, p_page_size: 1 }
+      );
+      let pairsMissing = 0;
+      if (!incErr && incData) {
+        // supabase.rpc returns array-wrapped or raw jsonb; normalize
+        const inc = Array.isArray(incData) ? incData[0] || {} : incData || {};
+        pairsMissing = Number(inc.total_count ?? 0);
+      }
+
+      const pairsFull = Math.max(0, pairsCount - pairsMissing);
+      const elPairsFull = document.getElementById("tilePairsFull");
+      const elPairsMissing = document.getElementById("tilePairsMissing");
+      if (elPairsFull) elPairsFull.textContent = pairsFull;
+      if (elPairsMissing) elPairsMissing.textContent = pairsMissing;
+
+      // missing month-rows and refined missing counts from exceptions summary RPC
+      try {
+        const { data: excData, error: excErr } = await supabase.rpc(
+          "count_forecast_exceptions_summary",
+          { p_start: startISO, p_end: endISO }
+        );
+        if (!excErr && excData) {
+          const exc = Array.isArray(excData) ? excData[0] || {} : excData || {};
+          const missingRows = Number(exc.missing_month_rows ?? 0);
+          const missLltRefined = Number(exc.missing_llt_relevant ?? missingLlt);
+          const missSeasonRefined = Number(
+            exc.missing_seasonal_relevant ?? missingSeason
+          );
+          const elMissingRows = document.getElementById("tileMissingRows");
+          if (elMissingRows) elMissingRows.textContent = missingRows;
+          // prefer refined counts if available
+          if (elMissLLT) elMissLLT.textContent = missLltRefined;
+          if (elMissSeason) elMissSeason.textContent = missSeasonRefined;
+        } else {
+          // fallback: estimate missing month-rows as pairsMissing * months_expected
+          const monthsExpected = Math.max(
+            1,
+            (new Date(end).getFullYear() - new Date(start).getFullYear()) * 12 +
+              (new Date(end).getMonth() - new Date(start).getMonth())
+          );
+          const estMissingRows = pairsMissing * monthsExpected;
+          const elMissingRows = document.getElementById("tileMissingRows");
+          if (elMissingRows) elMissingRows.textContent = estMissingRows;
+        }
+      } catch (e) {
+        console.debug("count_forecast_exceptions_summary unavailable", e);
+      }
+
+      // Coverage %: proportion of actual rows over the maximum possible (pairs * months_expected)
+      try {
+        const s = start; // start and end DOM variables defined above
+        const e = end;
+        const monthsExpected = Math.max(
+          1,
+          (e.getFullYear() - s.getFullYear()) * 12 +
+            (e.getMonth() - s.getMonth())
+        );
+        const denom = Math.max(1, pairsCount * monthsExpected);
+        const coveragePct = Math.round((rowsCount / denom) * 100);
+        const elCoverage = document.getElementById("tileCoverage");
+        if (elCoverage) elCoverage.textContent = `${coveragePct}%`;
+      } catch (e) {
+        console.debug("coverage calc failed", e);
+      }
+    } catch (e) {
+      console.debug("rpc_incomplete_pairs unavailable", e);
+    }
   } catch (err) {
     console.error("count_forecast_health_mv failed", err);
     if (elPairs) elPairs.textContent = "-";
@@ -1119,6 +1334,8 @@ let outputsPage = 0;
 let PAGE_SIZE = 100;
 // Exceptions paging state
 let exceptionsPage = 0;
+// Active (Promoted overrides) paging state
+let activePage = 0;
 
 // In-memory metadata caches to avoid repeated DB lookups while paging
 // Lightweight LRU + TTL cache used for metadata lookups.
@@ -1313,308 +1530,347 @@ function buildOutputsQuery(dataset) {
 }
 
 async function loadOutputs() {
-  const dsEl = document.getElementById("outputsDataset");
-  const head = document.getElementById("outputsHeader");
-  const body = document.getElementById("outputsBody");
-  if (!dsEl || !head || !body) return; // outputs UI missing
-  const ds = dsEl.value;
-  const cfg = buildOutputsQuery(ds);
-  head.innerHTML = "";
-  body.innerHTML = "";
-
-  // Prefer outputs-specific window inputs when present, fall back to global window
-  let { from, to } = getWindow();
+  // Prevent overlapping invocations which can leave the table DOM in a
+  // half-updated state (navigating tabs rapidly could trigger multiple
+  // concurrent runs). Use a simple flag on the function object.
+  if (loadOutputs._running) return;
+  loadOutputs._running = true;
   try {
-    const of = document.getElementById("outputsFrom")?.value;
-    const ot = document.getElementById("outputsTo")?.value;
-    const ofISO = monthInputToISO(of);
-    const otISO = monthInputToISO(ot);
-    // If both month inputs provided, use them
-    if (ofISO) from = ofISO;
-    if (otISO) to = otISO;
-  } catch {
-    // ignore and continue with global window
-  }
-
-  // Local outputs filters (UI fields)
-  const skuInput = document.getElementById("outputsSku")?.value?.trim();
-  const itemInput = document.getElementById("outputsItem")?.value?.trim();
-  const regionCodeInput = document
-    .getElementById("outputsRegion")
-    ?.value?.trim();
-  const godownCodeInput = document
-    .getElementById("outputsGodown")
-    ?.value?.trim();
-  const filterOverride = !!document.getElementById("outputsFilterOverride")
-    ?.checked;
-  const filterSupplyLlt = !!document.getElementById("outputsFilterSupplyLlt")
-    ?.checked;
-  const filterSupplySeasonal = !!document.getElementById(
-    "outputsFilterSupplySeasonal"
-  )?.checked;
-
-  // Resolve textual filters to ids when necessary (item -> sku_ids, region/godown codes -> ids)
-  let skuIdsFromItem = [];
-  if (itemInput) {
+    const dsEl = document.getElementById("outputsDataset");
+    const head = document.getElementById("outputsHeader");
+    const body = document.getElementById("outputsBody");
+    if (!dsEl || !head || !body) return; // outputs UI missing
+    const ds = dsEl.value;
+    const cfg = buildOutputsQuery(ds);
+    // Ensure we operate on the single canonical table inside the scroll wrapper.
+    // Occasionally stray tables can be left behind by previous runs; remove
+    // any extra tables inside the scroll wrapper so we always render into the
+    // expected IDs.
     try {
-      const { data: skudata, error: skuErr } = await supabase
-        .from("v_sku_catalog_enriched")
-        .select("sku_id")
-        .ilike("item", `%${itemInput}%`);
-      if (!skuErr && skudata)
-        skuIdsFromItem = skudata.map((s) => Number(s.sku_id)).filter(Boolean);
-    } catch (e) {
-      console.debug("item -> sku lookup failed", e);
-    }
-  }
-
-  let regionIdsFromCode = [];
-  if (regionCodeInput) {
-    try {
-      const { data: rdata, error: rErr } = await supabase
-        .from("v_sdv_dim_godown_region")
-        .select("region_id")
-        .ilike("region_code", `%${regionCodeInput}%`);
-      if (!rErr && rdata)
-        regionIdsFromCode = rdata
-          .map((r) => Number(r.region_id))
-          .filter(Boolean);
-    } catch (e) {
-      console.debug("region code lookup failed", e);
-    }
-  }
-
-  let godownIdsFromCode = [];
-  if (godownCodeInput) {
-    try {
-      const { data: gdata, error: gErr } = await supabase
-        .from("v_sdv_dim_godown_region")
-        .select("godown_id")
-        .ilike("godown_code", `%${godownCodeInput}%`);
-      if (!gErr && gdata)
-        godownIdsFromCode = gdata
-          .map((g) => Number(g.godown_id))
-          .filter(Boolean);
-    } catch (e) {
-      console.debug("godown code lookup failed", e);
-    }
-  }
-
-  // Also respect any global filters (if present elsewhere)
-  const {
-    sku_id: globalSkuId,
-    region_id: globalRegionId,
-    godown_id: globalGodownId,
-  } = getFilters();
-
-  // Request exact count so we can show "Page X of Y" in the paginator
-  let q = supabase
-    .from(cfg.table)
-    .select(cfg.cols.join(","), { count: "exact" });
-  if (from) q = q.gte("month_start", from);
-  if (to) q = q.lte("month_start", to);
-
-  // SKU filter precedence: explicit SKU ID input > item-derived sku ids > global filter
-  if (skuInput) {
-    const n = Number(skuInput);
-    if (!Number.isNaN(n)) q = q.eq("sku_id", n);
-  } else if (skuIdsFromItem.length) {
-    q = q.in("sku_id", skuIdsFromItem);
-  } else if (globalSkuId) {
-    q = q.eq("sku_id", globalSkuId);
-  }
-
-  // Region / Godown: prefer code-based lookups, fall back to global filters
-  if (regionIdsFromCode.length) q = q.in("region_id", regionIdsFromCode);
-  else if (globalRegionId) q = q.eq("region_id", globalRegionId);
-
-  if (godownIdsFromCode.length) q = q.in("godown_id", godownIdsFromCode);
-  else if (globalGodownId) q = q.eq("godown_id", globalGodownId);
-
-  // Dataset-specific boolean filters (only apply when relevant)
-  // When checked, these boxes should filter rows where the column is
-  // present and non-zero (not null AND not equal to 0).
-  if (ds === "baseline" && filterOverride) {
-    q = q.not("override_delta", "is", null).neq("override_delta", 0);
-  }
-  if (ds === "combined") {
-    if (filterSupplyLlt)
-      q = q.not("supply_llt", "is", null).neq("supply_llt", 0);
-    if (filterSupplySeasonal)
-      q = q.not("supply_seasonal", "is", null).neq("supply_seasonal", 0);
-  }
-
-  q = q
-    .order("sku_id")
-    .order("region_id")
-    .order("godown_id")
-    .order("month_start")
-    .range(outputsPage * PAGE_SIZE, outputsPage * PAGE_SIZE + PAGE_SIZE - 1);
-
-  const { data, error, count } = await q;
-  if (error) {
-    console.error(error);
-    const pageInfoErr = document.getElementById("pageInfoOutputs");
-    if (pageInfoErr) pageInfoErr.textContent = "Error loading.";
-    return;
-  }
-
-  // Determine display columns: prefer expanded SKU / region / godown labels
-  const hasSku = cfg.cols.includes("sku_id");
-  const hasRegion = cfg.cols.includes("region_id");
-  const hasGodown = cfg.cols.includes("godown_id");
-
-  const otherCols = cfg.cols.filter(
-    (c) => !["sku_id", "region_id", "godown_id"].includes(c)
-  );
-
-  // desired order: SKU ID, ITEM, PACK SIZE, UOM, REGION, GODOWN, ...otherCols
-  const displayCols = [];
-  if (hasSku) {
-    displayCols.push("sku_id", "item", "pack_size", "uom");
-  }
-  if (hasRegion) displayCols.push("region");
-  if (hasGodown) displayCols.push("godown");
-  displayCols.push(...otherCols);
-
-  // Fetch metadata for SKUs, regions and godowns in this page so we can render labels
-  const skuIds = Array.from(
-    new Set((data || []).map((r) => Number(r.sku_id)).filter(Boolean))
-  );
-  const regionIds = Array.from(
-    new Set((data || []).map((r) => Number(r.region_id)).filter(Boolean))
-  );
-  const godownIds = Array.from(
-    new Set((data || []).map((r) => Number(r.godown_id)).filter(Boolean))
-  );
-
-  const skuMap = new Map();
-  const regionMap = new Map();
-  const godownMap = new Map();
-
-  // Use in-memory caches: ensure metadata for missing ids only
-  await ensureSkuMetadata(skuIds);
-  for (const id of skuIds) {
-    const m = skuMetadataCache.get(Number(id));
-    if (m) skuMap.set(Number(id), m);
-  }
-
-  await ensureGodownCodes(godownIds);
-  for (const id of godownIds) {
-    const code = godownCodeCache.get(Number(id));
-    if (code) godownMap.set(Number(id), code);
-  }
-
-  await ensureRegionCodes(regionIds);
-  for (const id of regionIds) {
-    const code = regionCodeCache.get(Number(id));
-    if (code) regionMap.set(Number(id), code);
-  }
-
-  // header
-  displayCols.forEach((c) => {
-    const th = document.createElement("th");
-
-    // dataset-aware pretty labels
-    const prettyLabel = (col, dataset) => {
-      // base overrides for commonly-expanded columns
-      if (col === "sku_id") return "SKU ID";
-      if (col === "item") return "ITEM";
-      if (col === "pack_size") return "PACK SIZE";
-      if (col === "uom") return "UOM";
-      if (col === "region") return "REGION";
-      if (col === "godown") return "GODOWN";
-      if (col === "month_start") return "MONTH";
-
-      // dataset-specific overrides
-      const ds = (dataset || "").toLowerCase();
-      if (ds === "baseline") {
-        if (col === "demand_baseline") return "DEMAND BASELINE";
-        if (col === "override_delta") return "OVERRIDE Δ";
-        if (col === "demand_effective") return "DEMAND EFFECTIVE";
-      }
-      if (ds === "llt" || ds === "seasonal") {
-        if (col === "y_supply") return "Y SUPPLY";
-      }
-      if (ds === "combined") {
-        if (col === "demand_effective") return "DEMAND EFFECTIVE";
-        if (col === "supply_llt") return "SUPPLY LLT";
-        if (col === "supply_seasonal") return "SUPPLY SEASONAL";
-        if (col === "supply_final") return "SUPPLY FINAL";
-        if (col === "demand_baseline") return "DEMAND BASELINE";
-      }
-
-      // fallback: turn snake_case into words and uppercase
-      return String(col).replace(/_/g, " ").toUpperCase();
-    };
-
-    th.textContent = prettyLabel(c, ds);
-    // add classes so we can control alignment via CSS
-    if (c === "item") th.classList.add("col-item");
-    else th.classList.add("col-center");
-    head.appendChild(th);
-  });
-
-  // rows
-  (data || []).forEach((r) => {
-    const tr = document.createElement("tr");
-    const cells = displayCols.map((c) => {
-      if (c === "sku_id")
-        return `<td class="col-center">${escapeHtml(r.sku_id ?? "")}</td>`;
-      if (c === "item") {
-        const m = skuMap.get(Number(r.sku_id));
-        return `<td class="col-item">${escapeHtml(
-          m?.item ?? r.sku_label ?? ""
-        )}</td>`;
-      }
-      if (c === "pack_size") {
-        const m = skuMap.get(Number(r.sku_id));
-        return `<td class="col-center">${escapeHtml(m?.pack_size ?? "")}</td>`;
-      }
-      if (c === "month_start") {
-        const ms = r.month_start;
-        let mlabel = "";
-        try {
-          if (ms) mlabel = formatMonthLabel(new Date(ms + "T00:00:00"));
-        } catch {
-          mlabel = String(ms || "");
+      const scrollWrap = document
+        .querySelector("#outputsTable")
+        ?.closest(".table-scroll-wrap");
+      if (scrollWrap) {
+        const tables = Array.from(scrollWrap.querySelectorAll("table"));
+        for (const t of tables) {
+          if (t.id && t.id !== "outputsTable") {
+            t.remove();
+          }
         }
-        return `<td class="col-center">${escapeHtml(mlabel)}</td>`;
       }
-      if (c === "uom") {
-        const m = skuMap.get(Number(r.sku_id));
-        return `<td class="col-center">${escapeHtml(m?.uom ?? "")}</td>`;
-      }
-      if (c === "region") {
-        const code = regionMap.get(Number(r.region_id));
-        return `<td class="col-center">${escapeHtml(
-          code ?? r.region_id ?? ""
-        )}</td>`;
-      }
-      if (c === "godown") {
-        const code = godownMap.get(Number(r.godown_id));
-        return `<td class="col-center">${escapeHtml(
-          code ?? r.godown_id ?? ""
-        )}</td>`;
-      }
-      return `<td class="col-center">${escapeHtml(r[c] ?? "")}</td>`;
-    });
-    tr.innerHTML = cells.join("");
-    body.appendChild(tr);
-  });
+    } catch (e) {
+      // non-fatal
+      void e;
+    }
 
-  // row counter removed — page info/paginator shows counts instead
-  const pageInfo = document.getElementById("pageInfoOutputs");
-  const prevBtn = document.getElementById("prevPageOutputs");
-  const nextBtn = document.getElementById("nextPageOutputs");
-  const total = Number(count || 0);
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  if (pageInfo)
-    pageInfo.textContent = `Page ${
-      outputsPage + 1
-    } of ${totalPages} (${total} records)`;
-  if (prevBtn) prevBtn.disabled = outputsPage === 0;
-  if (nextBtn) nextBtn.disabled = outputsPage + 1 >= totalPages;
+    head.innerHTML = "";
+    body.innerHTML = "";
+
+    // Prefer outputs-specific window inputs when present, fall back to global window
+    let { from, to } = getWindow();
+    try {
+      const of = document.getElementById("outputsFrom")?.value;
+      const ot = document.getElementById("outputsTo")?.value;
+      const ofISO = monthInputToISO(of);
+      const otISO = monthInputToISO(ot);
+      // If both month inputs provided, use them
+      if (ofISO) from = ofISO;
+      if (otISO) to = otISO;
+    } catch {
+      // ignore and continue with global window
+    }
+
+    // Local outputs filters (UI fields)
+    const skuInput = document.getElementById("outputsSku")?.value?.trim();
+    const itemInput = document.getElementById("outputsItem")?.value?.trim();
+    const regionCodeInput = document
+      .getElementById("outputsRegion")
+      ?.value?.trim();
+    const godownCodeInput = document
+      .getElementById("outputsGodown")
+      ?.value?.trim();
+    const filterOverride = !!document.getElementById("outputsFilterOverride")
+      ?.checked;
+    const filterSupplyLlt = !!document.getElementById("outputsFilterSupplyLlt")
+      ?.checked;
+    const filterSupplySeasonal = !!document.getElementById(
+      "outputsFilterSupplySeasonal"
+    )?.checked;
+
+    // Resolve textual filters to ids when necessary (item -> sku_ids, region/godown codes -> ids)
+    let skuIdsFromItem = [];
+    if (itemInput) {
+      try {
+        const { data: skudata, error: skuErr } = await supabase
+          .from("v_sku_catalog_enriched")
+          .select("sku_id")
+          .ilike("item", `%${itemInput}%`);
+        if (!skuErr && skudata)
+          skuIdsFromItem = skudata.map((s) => Number(s.sku_id)).filter(Boolean);
+      } catch (e) {
+        console.debug("item -> sku lookup failed", e);
+      }
+    }
+
+    let regionIdsFromCode = [];
+    if (regionCodeInput) {
+      try {
+        const { data: rdata, error: rErr } = await supabase
+          .from("v_sdv_dim_godown_region")
+          .select("region_id")
+          .ilike("region_code", `%${regionCodeInput}%`);
+        if (!rErr && rdata)
+          regionIdsFromCode = rdata
+            .map((r) => Number(r.region_id))
+            .filter(Boolean);
+      } catch (e) {
+        console.debug("region code lookup failed", e);
+      }
+    }
+
+    let godownIdsFromCode = [];
+    if (godownCodeInput) {
+      try {
+        const { data: gdata, error: gErr } = await supabase
+          .from("v_sdv_dim_godown_region")
+          .select("godown_id")
+          .ilike("godown_code", `%${godownCodeInput}%`);
+        if (!gErr && gdata)
+          godownIdsFromCode = gdata
+            .map((g) => Number(g.godown_id))
+            .filter(Boolean);
+      } catch (e) {
+        console.debug("godown code lookup failed", e);
+      }
+    }
+
+    // Also respect any global filters (if present elsewhere)
+    const {
+      sku_id: globalSkuId,
+      region_id: globalRegionId,
+      godown_id: globalGodownId,
+    } = getFilters();
+
+    // Request exact count so we can show "Page X of Y" in the paginator
+    let q = supabase
+      .from(cfg.table)
+      .select(cfg.cols.join(","), { count: "exact" });
+    if (from) q = q.gte("month_start", from);
+    if (to) q = q.lte("month_start", to);
+
+    // SKU filter precedence: explicit SKU ID input > item-derived sku ids > global filter
+    if (skuInput) {
+      const n = Number(skuInput);
+      if (!Number.isNaN(n)) q = q.eq("sku_id", n);
+    } else if (skuIdsFromItem.length) {
+      q = q.in("sku_id", skuIdsFromItem);
+    } else if (globalSkuId) {
+      q = q.eq("sku_id", globalSkuId);
+    }
+
+    // Region / Godown: prefer code-based lookups, fall back to global filters
+    if (regionIdsFromCode.length) q = q.in("region_id", regionIdsFromCode);
+    else if (globalRegionId) q = q.eq("region_id", globalRegionId);
+
+    if (godownIdsFromCode.length) q = q.in("godown_id", godownIdsFromCode);
+    else if (globalGodownId) q = q.eq("godown_id", globalGodownId);
+
+    // Dataset-specific boolean filters (only apply when relevant)
+    // When checked, these boxes should filter rows where the column is
+    // present and non-zero (not null AND not equal to 0).
+    if (ds === "baseline" && filterOverride) {
+      q = q.not("override_delta", "is", null).neq("override_delta", 0);
+    }
+    if (ds === "combined") {
+      if (filterSupplyLlt)
+        q = q.not("supply_llt", "is", null).neq("supply_llt", 0);
+      if (filterSupplySeasonal)
+        q = q.not("supply_seasonal", "is", null).neq("supply_seasonal", 0);
+    }
+
+    q = q
+      .order("sku_id")
+      .order("region_id")
+      .order("godown_id")
+      .order("month_start")
+      .range(outputsPage * PAGE_SIZE, outputsPage * PAGE_SIZE + PAGE_SIZE - 1);
+
+    const { data, error, count } = await q;
+    if (error) {
+      console.error(error);
+      const pageInfoErr = document.getElementById("pageInfoOutputs");
+      if (pageInfoErr) pageInfoErr.textContent = "Error loading.";
+      return;
+    }
+
+    // Determine display columns: prefer expanded SKU / region / godown labels
+    const hasSku = cfg.cols.includes("sku_id");
+    const hasRegion = cfg.cols.includes("region_id");
+    const hasGodown = cfg.cols.includes("godown_id");
+
+    const otherCols = cfg.cols.filter(
+      (c) => !["sku_id", "region_id", "godown_id"].includes(c)
+    );
+
+    // desired order: SKU ID, ITEM, PACK SIZE, UOM, REGION, GODOWN, ...otherCols
+    const displayCols = [];
+    if (hasSku) {
+      displayCols.push("sku_id", "item", "pack_size", "uom");
+    }
+    if (hasRegion) displayCols.push("region");
+    if (hasGodown) displayCols.push("godown");
+    displayCols.push(...otherCols);
+
+    // Fetch metadata for SKUs, regions and godowns in this page so we can render labels
+    const skuIds = Array.from(
+      new Set((data || []).map((r) => Number(r.sku_id)).filter(Boolean))
+    );
+    const regionIds = Array.from(
+      new Set((data || []).map((r) => Number(r.region_id)).filter(Boolean))
+    );
+    const godownIds = Array.from(
+      new Set((data || []).map((r) => Number(r.godown_id)).filter(Boolean))
+    );
+
+    const skuMap = new Map();
+    const regionMap = new Map();
+    const godownMap = new Map();
+
+    // Use in-memory caches: ensure metadata for missing ids only
+    await ensureSkuMetadata(skuIds);
+    for (const id of skuIds) {
+      const m = skuMetadataCache.get(Number(id));
+      if (m) skuMap.set(Number(id), m);
+    }
+
+    // Defensive: ensure skuMap is always available for render-time lookups
+    // (some rows may not include pack_size/uom directly from the DB RPC)
+
+    await ensureGodownCodes(godownIds);
+    for (const id of godownIds) {
+      const code = godownCodeCache.get(Number(id));
+      if (code) godownMap.set(Number(id), code);
+    }
+
+    await ensureRegionCodes(regionIds);
+    for (const id of regionIds) {
+      const code = regionCodeCache.get(Number(id));
+      if (code) regionMap.set(Number(id), code);
+    }
+
+    // header
+    displayCols.forEach((c) => {
+      const th = document.createElement("th");
+
+      // dataset-aware pretty labels
+      const prettyLabel = (col, dataset) => {
+        // base overrides for commonly-expanded columns
+        if (col === "sku_id") return "SKU ID";
+        if (col === "item") return "ITEM";
+        if (col === "pack_size") return "PACK SIZE";
+        if (col === "uom") return "UOM";
+        if (col === "region") return "REGION";
+        if (col === "godown") return "GODOWN";
+        if (col === "month_start") return "MONTH";
+
+        // dataset-specific overrides
+        const ds = (dataset || "").toLowerCase();
+        if (ds === "baseline") {
+          if (col === "demand_baseline") return "DEMAND BASELINE";
+          if (col === "override_delta") return "OVERRIDE Δ";
+          if (col === "demand_effective") return "DEMAND EFFECTIVE";
+        }
+        if (ds === "llt" || ds === "seasonal") {
+          if (col === "y_supply") return "Y SUPPLY";
+        }
+        if (ds === "combined") {
+          if (col === "demand_effective") return "DEMAND EFFECTIVE";
+          if (col === "supply_llt") return "SUPPLY LLT";
+          if (col === "supply_seasonal") return "SUPPLY SEASONAL";
+          if (col === "supply_final") return "SUPPLY FINAL";
+          if (col === "demand_baseline") return "DEMAND BASELINE";
+        }
+
+        // fallback: turn snake_case into words and uppercase
+        return String(col).replace(/_/g, " ").toUpperCase();
+      };
+
+      th.textContent = prettyLabel(c, ds);
+      // add classes so we can control alignment via CSS
+      if (c === "item") th.classList.add("col-item");
+      else th.classList.add("col-center");
+      head.appendChild(th);
+    });
+
+    // rows
+    (data || []).forEach((r) => {
+      const tr = document.createElement("tr");
+      const cells = displayCols.map((c) => {
+        if (c === "sku_id")
+          return `<td class="col-center">${escapeHtml(r.sku_id ?? "")}</td>`;
+        if (c === "item") {
+          const m = skuMap.get(Number(r.sku_id));
+          return `<td class="col-item">${escapeHtml(
+            m?.item ?? r.sku_label ?? ""
+          )}</td>`;
+        }
+        if (c === "pack_size") {
+          const m = skuMap.get(Number(r.sku_id));
+          // prefer direct value from row (in case RPC supplied it), else fall back to metadata
+          const val = r.pack_size ?? m?.pack_size ?? "";
+          return `<td class="col-center">${escapeHtml(val)}</td>`;
+        }
+        if (c === "month_start") {
+          const ms = r.month_start;
+          let mlabel = "";
+          try {
+            if (ms) mlabel = formatMonthLabel(new Date(ms + "T00:00:00"));
+          } catch {
+            mlabel = String(ms || "");
+          }
+          return `<td class="col-center">${escapeHtml(mlabel)}</td>`;
+        }
+        if (c === "uom") {
+          const m = skuMap.get(Number(r.sku_id));
+          const val = r.uom ?? m?.uom ?? "";
+          return `<td class="col-center">${escapeHtml(val)}</td>`;
+        }
+        if (c === "region") {
+          const code = regionMap.get(Number(r.region_id));
+          return `<td class="col-center">${escapeHtml(
+            code ?? r.region_id ?? ""
+          )}</td>`;
+        }
+        if (c === "godown") {
+          const code = godownMap.get(Number(r.godown_id));
+          return `<td class="col-center">${escapeHtml(
+            code ?? r.godown_id ?? ""
+          )}</td>`;
+        }
+        return `<td class="col-center">${escapeHtml(r[c] ?? "")}</td>`;
+      });
+      tr.innerHTML = cells.join("");
+      body.appendChild(tr);
+    });
+
+    // row counter removed — page info/paginator shows counts instead
+    const pageInfo = document.getElementById("pageInfoOutputs");
+    const prevBtn = document.getElementById("prevPageOutputs");
+    const nextBtn = document.getElementById("nextPageOutputs");
+    const total = Number(count || 0);
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    if (pageInfo)
+      pageInfo.textContent = `Page ${
+        outputsPage + 1
+      } of ${totalPages} (${total} records)`;
+    if (prevBtn) prevBtn.disabled = outputsPage === 0;
+    if (nextBtn) nextBtn.disabled = outputsPage + 1 >= totalPages;
+  } finally {
+    // Always clear the running flag so subsequent loads can proceed. Using
+    // a finally block ensures the flag is reset even when early returns or
+    // errors occur earlier in the function.
+    loadOutputs._running = false;
+  }
 }
 
 function exportOutputs() {
@@ -1890,6 +2146,23 @@ async function loadExceptions() {
     }
 
     // render with new columns: SKU ID, ITEM, PACK SIZE, UOM, REGION CODE, GODOWN CODE, MONTH (MMM YYYY), DEMAND (EFFECTIVE)
+    // Ensure SKU metadata is available for this page so PACK / UOM can be filled
+    const skuIdsForRender = Array.from(
+      new Set((renderRows || []).map((r) => Number(r.sku_id)).filter(Boolean))
+    );
+    if (skuIdsForRender.length) {
+      try {
+        await ensureSkuMetadata(skuIdsForRender);
+      } catch (e) {
+        console.debug("ensureSkuMetadata for exceptions failed", e);
+      }
+    }
+    const skuMap = new Map();
+    for (const id of skuIdsForRender) {
+      const m = skuMetadataCache.get(Number(id));
+      if (m) skuMap.set(Number(id), m);
+    }
+
     let shown = 0;
     for (const r of renderRows) {
       try {
@@ -1909,8 +2182,9 @@ async function loadExceptions() {
 
         const skuId = escapeHtml(r.sku_id ?? "");
         const item = escapeHtml(r.item ?? r.sku_label ?? "");
-        const pack = escapeHtml(r.pack_size ?? "");
-        const uom = escapeHtml(r.uom ?? "");
+        const skuMeta = skuMap.get(Number(r.sku_id));
+        const pack = escapeHtml(r.pack_size ?? skuMeta?.pack_size ?? "");
+        const uom = escapeHtml(r.uom ?? skuMeta?.uom ?? "");
         const region = escapeHtml(r.region_code ?? r.region_id ?? "");
         const godown = escapeHtml(r.godown_code ?? r.godown_id ?? "");
         const demand = escapeHtml(
@@ -2017,6 +2291,146 @@ function exportExceptions() {
   downloadFile("exceptions.csv", toCSV(rows));
 }
 
+// Load Promoted Overrides (simple client-side renderer)
+async function loadActiveOverrides() {
+  const tbody = document.querySelector("#tblActive tbody");
+  if (!tbody) return; // UI missing
+  tbody.innerHTML = "";
+
+  const pageSize =
+    Number(document.getElementById("activePageSize")?.value) || 50;
+  const start = activePage * pageSize;
+  const end = start + pageSize - 1;
+
+  // Query promoted overrides table
+  try {
+    const { data, error, count } = await supabase
+      .from("forecast_demand_overrides")
+      // pack_size and uom are not stored on the overrides table in some schemas;
+      // fetch only stable columns here and obtain pack/uom via SKU metadata lookup.
+      .select(
+        "id,sku_id,region_id,godown_id,month_start,delta_units,reason,is_active",
+        { count: "exact" }
+      )
+      .order("sku_id")
+      .range(start, end);
+    if (error) {
+      console.error("loadActiveOverrides query failed", error);
+      return;
+    }
+
+    const rows = data || [];
+
+    // Ensure metadata available
+    const skuIds = Array.from(
+      new Set(rows.map((r) => Number(r.sku_id)).filter(Boolean))
+    );
+    const regionIds = Array.from(
+      new Set(rows.map((r) => Number(r.region_id)).filter(Boolean))
+    );
+    const godownIds = Array.from(
+      new Set(rows.map((r) => Number(r.godown_id)).filter(Boolean))
+    );
+    try {
+      if (skuIds.length) await ensureSkuMetadata(skuIds);
+      if (regionIds.length) await ensureRegionCodes(regionIds);
+      if (godownIds.length) await ensureGodownCodes(godownIds);
+    } catch (e) {
+      console.debug("metadata ensures failed", e);
+    }
+
+    for (const r of rows) {
+      const tr = document.createElement("tr");
+      const m = skuMetadataCache.get(Number(r.sku_id)) || {};
+      const item = escapeHtml(m.item ?? r.sku_label ?? "");
+      const pack = escapeHtml(m.pack_size ?? "");
+      const uom = escapeHtml(m.uom ?? "");
+      const region = escapeHtml(
+        regionCodeCache.get(Number(r.region_id)) ?? r.region_id ?? ""
+      );
+      const godown = escapeHtml(
+        godownCodeCache.get(Number(r.godown_id)) ?? r.godown_id ?? ""
+      );
+      let monthLabel = "";
+      try {
+        if (r.month_start)
+          monthLabel = formatMonthLabel(new Date(r.month_start + "T00:00:00"));
+      } catch {
+        monthLabel = String(r.month_start ?? "");
+      }
+      const delta = escapeHtml(r.delta_units ?? "");
+      const reason = escapeHtml(r.reason ?? "");
+
+      const deactivateBtn = r.is_active
+        ? `<button class="btn btn-ghost" data-deactivate-id="${r.id}" title="Deactivate" aria-label="Deactivate">
+             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+               <circle cx="12" cy="12" r="9" />
+               <line x1="8" y1="12" x2="16" y2="12" />
+             </svg>
+           </button>`
+        : `<button class="btn" disabled title="Deactivated" aria-label="Deactivated">
+             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+               <circle cx="12" cy="12" r="9" />
+               <line x1="8" y1="12" x2="16" y2="12" />
+             </svg>
+           </button>`;
+      const deleteBtn = `<button class="btn btn-danger" data-delete-id="${r.id}" title="Delete" aria-label="Delete">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+              <path d="M10 11v6" />
+              <path d="M14 11v6" />
+              <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+            </svg>
+          </button>`;
+
+      tr.innerHTML = `
+        <td class="col-item">${item}</td>
+        <td class="col-center">${pack}</td>
+        <td class="col-center">${uom}</td>
+        <td class="col-center">${region}</td>
+        <td class="col-center">${godown}</td>
+        <td class="col-center">${escapeHtml(monthLabel)}</td>
+        <td class="col-center">${delta}</td>
+        <td class="col-center">${reason}</td>
+        <td class="col-actions col-center">${deactivateBtn} ${deleteBtn}</td>
+      `;
+      tbody.appendChild(tr);
+    }
+
+    // Wire row-level action handlers via event delegation (single attachment)
+    try {
+      tbody.removeEventListener("click", onActiveRowClick);
+    } catch (e) {
+      void e;
+    }
+    tbody.addEventListener("click", onActiveRowClick);
+
+    // Paginator UI
+    try {
+      const pager = document.getElementById("activePager");
+      const prev = document.getElementById("activePrev");
+      const next = document.getElementById("activeNext");
+      const total = Number(count || 0);
+      const totalPages = Math.max(1, Math.ceil(total / pageSize));
+      if (pager)
+        pager.textContent = `Page ${
+          activePage + 1
+        } of ${totalPages} (${total} records)`;
+      if (prev) prev.disabled = activePage === 0;
+      if (next) next.disabled = activePage + 1 >= totalPages;
+    } catch (e) {
+      void e;
+    }
+  } catch (err) {
+    console.error("loadActiveOverrides failed", err);
+  }
+}
+
+// expose legacy names so requestActiveReload() can invoke them
+window.loadActiveOverrides = loadActiveOverrides;
+window.loadActive = loadActiveOverrides;
+
 // ------------- Publish (stub - we'll wire batch snapshot next)
 async function listPublishes() {
   const tbody = document.querySelector("#publishTable tbody");
@@ -2034,13 +2448,918 @@ async function listPublishes() {
   (data || []).forEach((r) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${r.id}</td><td>${r.plan_key}</td><td>${r.as_of_date ?? ""}</td>
-      <td>${r.created_at ?? ""}</td><td class="small muted">${
-      r.notes ?? ""
-    }</td>
+      <td>${r.id}</td>
+      <td>${escapeHtml(r.plan_key)}</td>
+      <td>${r.as_of_date ?? ""}</td>
+      <td>${r.created_at ?? ""}</td>
+      <td class="small muted">${r.notes ?? ""}</td>
+      <td>
+        <button class="btn" data-publish-view="${r.id}">View</button>
+        <button class="btn btn-danger" data-publish-delete="${
+          r.id
+        }">Delete</button>
+      </td>
     `;
     tbody.appendChild(tr);
+    // wire actions
+    tr.querySelector("[data-publish-view]")?.addEventListener("click", () =>
+      showPublishLines(r.id)
+    );
+    tr.querySelector("[data-publish-delete]")?.addEventListener(
+      "click",
+      async () => {
+        const ok = await showConfirmInPage(
+          `Delete publish #${r.id}? This will remove its lines as well.`,
+          "Confirm Delete"
+        );
+        if (!ok) return;
+        try {
+          const { error } = await supabase.rpc("delete_publish", {
+            p_plan_id: r.id,
+          });
+          if (error) {
+            console.error(error);
+            showModal("Delete failed: " + error.message);
+            return;
+          }
+          showModal(`Deleted publish #${r.id}`);
+          await listPublishes();
+        } catch (e) {
+          console.error(e);
+          showModal("Unexpected error while deleting.");
+        }
+      }
+    );
   });
+}
+
+// Load Staging overrides (marketing_overrides_staging)
+async function loadStagingOverrides() {
+  const tbody = document.querySelector("#tblStaging tbody");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+
+  const from = document.getElementById("fromMonth")?.value;
+  const to = document.getElementById("toMonth")?.value || from;
+
+  try {
+    let q = supabase
+      .from("marketing_overrides_staging")
+      .select("id,sku_id,region_id,godown_id,month_start,delta_units,note");
+    if (from) q = q.gte("month_start", monthInputToISO(from));
+    if (to) q = q.lte("month_start", monthInputToISO(to));
+    const { data, error } = await q.order("sku_id");
+    if (error) {
+      console.error("loadStagingOverrides failed", error);
+      return;
+    }
+    const rows = data || [];
+
+    const skuIds = Array.from(
+      new Set(rows.map((r) => Number(r.sku_id)).filter(Boolean))
+    );
+    const regionIds = Array.from(
+      new Set(rows.map((r) => Number(r.region_id)).filter(Boolean))
+    );
+    const godownIds = Array.from(
+      new Set(rows.map((r) => Number(r.godown_id)).filter(Boolean))
+    );
+    try {
+      if (skuIds.length) await ensureSkuMetadata(skuIds);
+      if (regionIds.length) await ensureRegionCodes(regionIds);
+      if (godownIds.length) await ensureGodownCodes(godownIds);
+    } catch (e) {
+      console.debug("staging metadata ensures failed", e);
+    }
+
+    for (const r of rows) {
+      const tr = document.createElement("tr");
+      const m = skuMetadataCache.get(Number(r.sku_id)) || {};
+      const item = escapeHtml(m.item ?? r.sku_label ?? "");
+      const pack = escapeHtml(m.pack_size ?? "");
+      const uom = escapeHtml(m.uom ?? "");
+      const region = escapeHtml(
+        regionCodeCache.get(Number(r.region_id)) ?? r.region_id ?? ""
+      );
+      const godown = escapeHtml(
+        godownCodeCache.get(Number(r.godown_id)) ?? r.godown_id ?? ""
+      );
+      let monthLabel = "";
+      try {
+        if (r.month_start)
+          monthLabel = formatMonthLabel(new Date(r.month_start + "T00:00:00"));
+      } catch {
+        monthLabel = String(r.month_start ?? "");
+      }
+      const delta = escapeHtml(r.delta_units ?? "");
+      const note = escapeHtml(r.note ?? "");
+
+      tr.innerHTML = `
+        <td class="nowrap">${r.id}</td>
+        <td class="col-item">${item}</td>
+        <td>${pack}</td>
+        <td>${uom}</td>
+        <td>${region}</td>
+        <td>${godown}</td>
+        <td>${escapeHtml(monthLabel)}</td>
+        <td class="right">${delta}</td>
+        <td class="col-note">${note}</td>
+        <td class="col-actions center">
+          <button class="btn" data-staging-edit-id="${
+            r.id
+          }" title="Edit" aria-label="Edit">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+            </svg>
+          </button>
+          <button class="btn" data-staging-promote-id="${
+            r.id
+          }" data-staging-month="${
+        r.month_start
+      }" title="Promote" aria-label="Promote">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 16V8" />
+              <path d="M8 12l4-4 4 4" />
+            </svg>
+          </button>
+          <button class="btn btn-danger" data-staging-delete-id="${
+            r.id
+          }" title="Delete" aria-label="Delete">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+              <path d="M10 11v6" />
+              <path d="M14 11v6" />
+              <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+            </svg>
+          </button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    }
+
+    // wire staging row delete via delegation
+    try {
+      tbody.removeEventListener("click", onStagingRowClick);
+    } catch (e) {
+      void e;
+    }
+    tbody.addEventListener("click", onStagingRowClick);
+  } catch (e) {
+    console.error("loadStagingOverrides error", e);
+  }
+}
+
+window.loadStagingOverrides = loadStagingOverrides;
+window.loadStaging = loadStagingOverrides;
+
+// staging row actions: delete single staging row
+async function onStagingRowClick(ev) {
+  const btn = ev.target.closest && ev.target.closest("button");
+  if (!btn) return;
+  const delId = btn.getAttribute("data-staging-delete-id");
+  const promoteId = btn.getAttribute("data-staging-promote-id");
+  const promoteMonth = btn.getAttribute("data-staging-month");
+  const editId = btn.getAttribute("data-staging-edit-id");
+  const saveId = btn.getAttribute("data-staging-save-id");
+  const cancelId = btn.getAttribute("data-staging-cancel-id");
+  // Edit inline delta units
+  if (editId) {
+    try {
+      const tr = btn.closest("tr");
+      if (!tr) return;
+      const deltaTd = tr.querySelector("td.right");
+      const actionsTd = tr.querySelector("td.col-actions");
+      if (!deltaTd || !actionsTd) return;
+      // preserve originals for cancel
+      if (!deltaTd.dataset.original)
+        deltaTd.dataset.original = deltaTd.textContent || "";
+      if (!actionsTd.dataset.original)
+        actionsTd.dataset.original = actionsTd.innerHTML || "";
+
+      const current = (deltaTd.dataset.original || "").trim();
+      deltaTd.innerHTML = "";
+      const input = document.createElement("input");
+      input.type = "number";
+      input.className = "filter-input inline-delta-input";
+      input.style.width = "88px";
+      input.value = current;
+      deltaTd.appendChild(input);
+      input.focus();
+
+      // replace actions with Save / Cancel
+      actionsTd.innerHTML = `
+        <button class="btn" data-staging-save-id="${editId}" title="Save" aria-label="Save">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </button>
+        <button class="btn" data-staging-cancel-id="${editId}" title="Cancel" aria-label="Cancel">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      `;
+    } catch (e) {
+      console.error(e);
+    }
+    return;
+  }
+
+  if (delId) {
+    const ok = await showConfirmInPage(
+      `Delete staging row #${delId}?`,
+      "Confirm Delete"
+    );
+    if (!ok) return;
+    try {
+      const { error } = await supabase
+        .from("marketing_overrides_staging")
+        .delete()
+        .eq("id", Number(delId));
+      if (error) {
+        console.error("delete staging failed", error);
+        showModal("Delete failed: " + (error.message || error.code || ""));
+        return;
+      }
+      showToast("Deleted staging row");
+      if (typeof loadStagingOverrides === "function")
+        await loadStagingOverrides();
+    } catch (e) {
+      console.error(e);
+      showModal("Unexpected error while deleting staging row.");
+    }
+  }
+  // Promote single staging row (uses promote_all_staging RPC for that month)
+  if (promoteId) {
+    const ok = await showConfirmInPage(
+      `Promote staging row #${promoteId} into active overrides (month ${promoteMonth})?`,
+      "Confirm Promote"
+    );
+    if (!ok) return;
+    try {
+      // promote_all_staging will promote all staging rows in the month; to
+      // keep behavior simple we call it for the single row's month.
+      const p_from = promoteMonth;
+      const p_to = promoteMonth;
+      const { data, error } = await supabase.rpc("promote_all_staging", {
+        p_from,
+        p_to,
+      });
+      if (error) {
+        console.error("promote_all_staging failed", error);
+        showModal("Promote failed: " + (error.message || error.code || ""));
+        return;
+      }
+      showModal("Promote result: " + JSON.stringify(data));
+      if (typeof loadStagingOverrides === "function")
+        await loadStagingOverrides();
+      if (typeof loadActiveOverrides === "function")
+        await loadActiveOverrides();
+    } catch (e) {
+      console.error(e);
+      showModal("Unexpected error while promoting staging row.");
+    }
+    return;
+  }
+  // Save inline edited delta
+  if (saveId) {
+    const id = Number(saveId);
+    try {
+      const tr = btn.closest("tr");
+      if (!tr) return;
+      const input = tr.querySelector("input.inline-delta-input");
+      if (!input) return;
+      const newVal = Number(input.value) || 0;
+      const ok = await showConfirmInPage(
+        `Save changes to staging #${id}?`,
+        "Confirm Save"
+      );
+      if (!ok) return;
+      const { error } = await supabase
+        .from("marketing_overrides_staging")
+        .update({ delta_units: newVal })
+        .eq("id", id);
+      if (error) {
+        console.error("update staging failed", error);
+        showModal("Save failed: " + (error.message || error.code || ""));
+        return;
+      }
+      showToast("Staging row updated");
+      if (typeof loadStagingOverrides === "function")
+        await loadStagingOverrides();
+    } catch (e) {
+      console.error(e);
+      showModal("Unexpected error while saving staging row.");
+    }
+    return;
+  }
+
+  // Cancel inline edit
+  if (cancelId) {
+    try {
+      const tr = btn.closest("tr");
+      if (!tr) return;
+      const deltaTd = tr.querySelector("td.right");
+      const actionsTd = tr.querySelector("td.col-actions");
+      if (!deltaTd || !actionsTd) return;
+      // restore originals
+      if (deltaTd.dataset.original != null)
+        deltaTd.textContent = deltaTd.dataset.original;
+      if (actionsTd.dataset.original != null)
+        actionsTd.innerHTML = actionsTd.dataset.original;
+      // cleanup datasets
+      delete deltaTd.dataset.original;
+      delete actionsTd.dataset.original;
+    } catch (e) {
+      console.error(e);
+    }
+    return;
+  }
+}
+
+// Download baseline CSV for a given ISO from/to (YYYY-MM-DD)
+// Download baseline (optionally for a specific godown_id)
+async function downloadBaseline(fromISO, toISO, godownId = null) {
+  try {
+    const cfg = buildOutputsQuery("baseline");
+    let q = supabase
+      .from(cfg.table)
+      .select(cfg.cols.join(","), { count: "exact" });
+    if (fromISO) q = q.gte("month_start", fromISO);
+    if (toISO) q = q.lte("month_start", toISO);
+    if (godownId) q = q.eq("godown_id", godownId);
+    // fetch up to 10k rows for export; if more needed we can stream in chunks
+    const { data, error } = await q.range(0, 10000);
+    if (error) {
+      console.error("downloadBaseline query failed", error);
+      showModal(
+        "Baseline export failed: " + (error.message || error.code || "")
+      );
+      return;
+    }
+    const rows = data || [];
+    // enrich metadata
+    const skuIds = Array.from(
+      new Set(rows.map((r) => Number(r.sku_id)).filter(Boolean))
+    );
+    const regionIds = Array.from(
+      new Set(rows.map((r) => Number(r.region_id)).filter(Boolean))
+    );
+    const godownIds = Array.from(
+      new Set(rows.map((r) => Number(r.godown_id)).filter(Boolean))
+    );
+    try {
+      if (skuIds.length) await ensureSkuMetadata(skuIds);
+      if (regionIds.length) await ensureRegionCodes(regionIds);
+      if (godownIds.length) await ensureGodownCodes(godownIds);
+    } catch (e) {
+      console.debug("baseline metadata ensures failed", e);
+    }
+
+    // Build CSV rows with friendly columns
+    const out = rows.map((r) => {
+      const m = skuMetadataCache.get(Number(r.sku_id)) || {};
+      const item = m.item ?? r.sku_label ?? "";
+      const pack = m.pack_size ?? "";
+      const uom = m.uom ?? "";
+      const region =
+        regionCodeCache.get(Number(r.region_id)) ?? r.region_id ?? "";
+      const godown =
+        godownCodeCache.get(Number(r.godown_id)) ?? r.godown_id ?? "";
+      return {
+        sku_id: r.sku_id,
+        item,
+        pack_size: pack,
+        uom,
+        region_code: region,
+        godown_code: godown,
+        month_start: r.month_start,
+        demand_baseline: r.demand_baseline ?? r.demand_effective ?? "",
+        override_delta: r.override_delta ?? "",
+        demand_effective: r.demand_effective ?? "",
+      };
+    });
+    const cols = [
+      "sku_id",
+      "item",
+      "pack_size",
+      "uom",
+      "region_code",
+      "godown_code",
+      "month_start",
+      "demand_baseline",
+      "override_delta",
+      "demand_effective",
+    ];
+    const csv = rowsToCsv(out, cols);
+    const now = new Date();
+    const yyyymmdd = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(
+      2,
+      "0"
+    )}${String(now.getDate()).padStart(2, "0")}`;
+
+    // If a specific godown was requested, include its code in the filename.
+    let godownLabel = "";
+    try {
+      if (godownId) {
+        const cached = godownCodeCache.get(Number(godownId));
+        if (cached) godownLabel = String(cached);
+        else {
+          // fallback: query the godown code directly
+          try {
+            const { data: gdata, error: gerr } = await supabase
+              .from("v_sdv_dim_godown_region")
+              .select("godown_code")
+              .eq("godown_id", Number(godownId))
+              .limit(1);
+            if (!gerr && gdata && gdata.length) {
+              godownLabel = String(gdata[0].godown_code || "");
+              if (godownLabel)
+                godownCodeCache.set(Number(godownId), godownLabel);
+            }
+          } catch (qq) {
+            void qq;
+          }
+        }
+      }
+    } catch (ee) {
+      void ee;
+    }
+
+    // sanitize label for filename
+    if (godownLabel) {
+      godownLabel = godownLabel
+        .replace(/\s+/g, "-")
+        .replace(/[^A-Za-z0-9-_]/g, "")
+        .toUpperCase();
+    }
+
+    const filename = godownLabel
+      ? `baseline_${godownLabel}_${yyyymmdd}.csv`
+      : `baseline_${yyyymmdd}.csv`;
+    downloadFile(filename, csv);
+  } catch (e) {
+    console.error(e);
+    showModal("Unexpected error while exporting baseline.");
+  }
+}
+
+// Wire file import for staging CSV
+const csvFileEl = document.getElementById("csvFile");
+if (csvFileEl) {
+  csvFileEl.addEventListener("change", async (ev) => {
+    const f = ev.target.files && ev.target.files[0];
+    if (!f) return;
+    try {
+      const txt = await f.text();
+      const lines = txt
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter(Boolean);
+      if (!lines.length) {
+        showModal("CSV is empty");
+        return;
+      }
+      const header = lines[0].split(",").map((h) => h.trim().toLowerCase());
+      const expected = [
+        "sku_id",
+        "region_id",
+        "godown_id",
+        "month_start",
+        "delta_units",
+        "note",
+      ];
+      // If header looks like expected, use it; otherwise assume CSV columns are in expected order
+      let dataLines = lines.slice(1);
+      if (header.length && expected.every((c) => header.includes(c))) {
+        // parse with header mapping
+        const idx = Object.fromEntries(header.map((h, i) => [h, i]));
+        const rows = dataLines.map((ln) => {
+          const cols = ln.split(",").map((v) => v.trim().replace(/^"|"$/g, ""));
+          return {
+            sku_id: Number(cols[idx["sku_id"]] || 0) || null,
+            region_id: Number(cols[idx["region_id"]] || 0) || null,
+            godown_id: Number(cols[idx["godown_id"]] || 0) || null,
+            month_start: cols[idx["month_start"]] || null,
+            delta_units: Number(cols[idx["delta_units"]] || 0) || 0,
+            note: cols[idx["note"]] || null,
+          };
+        });
+        // Insert in chunks to avoid long inserts
+        const chunkSize = 200;
+        for (let i = 0; i < rows.length; i += chunkSize) {
+          const chunk = rows.slice(i, i + chunkSize);
+          const { error } = await supabase
+            .from("marketing_overrides_staging")
+            .insert(chunk);
+          if (error) {
+            console.error("csv insert failed", error);
+            showModal(
+              "CSV import failed: " + (error.message || error.code || "")
+            );
+            return;
+          }
+        }
+        showToast("Imported CSV into staging");
+        if (typeof loadStagingOverrides === "function")
+          await loadStagingOverrides();
+      } else {
+        showModal(
+          "CSV header missing expected columns. Required: sku_id,region_id,godown_id,month_start,delta_units,note"
+        );
+      }
+    } catch (e) {
+      console.error("CSV import error", e);
+      showModal("Failed to import CSV.");
+    } finally {
+      csvFileEl.value = null;
+    }
+  });
+}
+
+// Row action handler for promoted overrides (deactivate/delete)
+async function onActiveRowClick(ev) {
+  const btn = ev.target.closest && ev.target.closest("button");
+  if (!btn) return;
+  const delId = btn.getAttribute("data-delete-id");
+  const deactId = btn.getAttribute("data-deactivate-id");
+  if (delId) {
+    const ok = await showConfirmInPage(
+      `Delete override #${delId}? This cannot be undone.`,
+      "Confirm Delete"
+    );
+    if (!ok) return;
+    try {
+      const { error } = await supabase
+        .from("forecast_demand_overrides")
+        .delete()
+        .eq("id", Number(delId));
+      if (error) {
+        console.error("delete override failed", error);
+        showModal("Delete failed: " + (error.message || error.code || ""));
+        return;
+      }
+      showToast("Deleted override");
+      if (typeof loadActiveOverrides === "function")
+        await loadActiveOverrides();
+    } catch (e) {
+      console.error(e);
+      showModal("Unexpected error while deleting override.");
+    }
+    return;
+  }
+  if (deactId) {
+    const ok = await showConfirmInPage(
+      `Deactivate override #${deactId}? This will mark it inactive.`,
+      "Confirm Deactivate"
+    );
+    if (!ok) return;
+    try {
+      const { error } = await supabase
+        .from("forecast_demand_overrides")
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .eq("id", Number(deactId));
+      if (error) {
+        console.error("deactivate failed", error);
+        showModal("Deactivate failed: " + (error.message || error.code || ""));
+        return;
+      }
+      showToast("Override deactivated");
+      if (typeof loadActiveOverrides === "function")
+        await loadActiveOverrides();
+    } catch (e) {
+      console.error(e);
+      showModal("Unexpected error while deactivating override.");
+    }
+    return;
+  }
+}
+
+// Show lines for a published plan in a modal with paging; uses server RPC get_publish_lines
+async function showPublishLines(planId) {
+  const pageSize = 200;
+  let page = 0;
+
+  let modal = document.getElementById("publishLinesModal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "publishLinesModal";
+    modal.style.position = "fixed";
+    modal.style.left = "0";
+    modal.style.top = "0";
+    modal.style.width = "100%";
+    modal.style.height = "100%";
+    modal.style.background = "rgba(0,0,0,0.4)";
+    modal.style.zIndex = 10000;
+    modal.innerHTML = `
+      <div id="publishInner" style="background:#fff;max-width:1000px;width:calc(100% - 32px);box-sizing:border-box;margin:5% auto;padding:16px;border-radius:6px;box-shadow:0 6px 24px rgba(0,0,0,0.2);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <h3 id="publishLinesTitle" style="margin:0">Publish Lines</h3>
+          <div>
+            <button id="publishLinesCopy" class="btn">Copy</button>
+            <button id="publishLinesDownload" class="btn btn-primary">Download CSV</button>
+            <button id="publishLinesClose" class="btn">Close</button>
+          </div>
+        </div>
+        <div id="publishLinesWrap" style="max-height:60vh;overflow:auto;overflow-x:auto;border:1px solid #eee;padding:6px;white-space:nowrap;"></div>
+        <div id="publishLinesPager" style="margin-top:8px;display:flex;align-items:center;justify-content:space-between;">
+          <div id="publishLinesCount">&nbsp;</div>
+          <div>
+            <button id="publishLinesPrev" class="btn">Prev</button>
+            <button id="publishLinesNext" class="btn">Next</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal
+      .querySelector("#publishLinesClose")
+      .addEventListener("click", () => modal.remove());
+    // ensure table styles are present
+    if (!document.getElementById("fc-missing-table-styles")) {
+      const ts = document.createElement("style");
+      ts.id = "fc-missing-table-styles";
+      ts.textContent = `
+        /* Tables used by Missing & Publish modals: allow horizontal scrolling when content is wide */
+        .fc-missing-table{ width: max-content; min-width:100%; border-collapse:collapse; font-size:13px; }
+        .fc-missing-table thead th{ position:sticky; top:0; background:#f7f7f8; z-index:1; text-align:left; padding:8px 10px; border:1px solid #e9e9ea; }
+        .fc-missing-table th, .fc-missing-table td{ padding:8px 10px; border:1px solid #e9e9ea; }
+        .fc-missing-table tbody tr:nth-child(odd){ background:#ffffff; }
+        .fc-missing-table tbody tr:nth-child(even){ background:#fbfbfb; }
+        .fc-missing-table td{ vertical-align:middle; }
+        /* allow long words/labels to break so table doesn't force an awkward overflow */
+        .fc-missing-table td, .fc-missing-table th { word-break: break-word; }
+        @media (max-width:640px){ .fc-missing-table th, .fc-missing-table td{ padding:6px 8px; font-size:12px; } }
+      `;
+      document.head.appendChild(ts);
+    }
+  }
+
+  const wrap = modal.querySelector("#publishLinesWrap");
+  const countEl = modal.querySelector("#publishLinesCount");
+  const prevBtn = modal.querySelector("#publishLinesPrev");
+  const nextBtn = modal.querySelector("#publishLinesNext");
+  const copyBtn = modal.querySelector("#publishLinesCopy");
+  const downloadBtn = modal.querySelector("#publishLinesDownload");
+
+  async function render() {
+    wrap.innerHTML = "Loading...";
+    try {
+      // Fetch page of rows and the total count in parallel (count uses a small RPC)
+      const [countRes, pageRes] = await Promise.allSettled([
+        supabase.rpc("count_publish_lines", { p_plan_id: planId }),
+        supabase.rpc("get_publish_lines", {
+          p_plan_id: planId,
+          p_page: page,
+          p_page_size: pageSize,
+        }),
+      ]);
+
+      // Robustly parse the RPC count result: Supabase RPCs may return
+      // a scalar, an array-wrapped scalar, or an array with an object
+      // like [{ count: 123 }]. Handle common shapes to extract a number.
+      let total = 0;
+      if (
+        countRes.status === "fulfilled" &&
+        countRes.value &&
+        !countRes.value.error
+      ) {
+        const cdata = countRes.value.data;
+        const parseCount = (v) => {
+          if (v == null) return 0;
+          if (Array.isArray(v)) {
+            if (v.length === 0) return 0;
+            const first = v[0];
+            if (first == null) return 0;
+            if (typeof first === "number") return Number(first) || 0;
+            if (typeof first === "string") return Number(first) || 0;
+            if (typeof first === "object") {
+              // common property names
+              for (const k of ["count", "total", "total_count"]) {
+                if (typeof first[k] !== "undefined" && first[k] !== null)
+                  return Number(first[k]) || 0;
+              }
+              // fallback: take first value
+              const vals = Object.values(first);
+              if (vals.length) return Number(vals[0]) || 0;
+              return 0;
+            }
+            return Number(first) || 0;
+          }
+          if (typeof v === "number") return Number(v) || 0;
+          if (typeof v === "string") return Number(v) || 0;
+          if (typeof v === "object") {
+            for (const k of ["count", "total", "total_count"]) {
+              if (typeof v[k] !== "undefined" && v[k] !== null)
+                return Number(v[k]) || 0;
+            }
+            const vals = Object.values(v);
+            if (vals.length) return Number(vals[0]) || 0;
+            return 0;
+          }
+          return 0;
+        };
+
+        total = parseCount(cdata);
+      }
+
+      if (pageRes.status === "rejected" || pageRes.value?.error) {
+        const err =
+          pageRes.status === "rejected" ? pageRes.reason : pageRes.value.error;
+        throw err;
+      }
+      const rows = pageRes.value.data;
+
+      const totalRows = Array.isArray(rows) ? rows.length : 0;
+      // Prefer to show the authoritative total when the RPC provided one.
+      // If the RPC returned a smaller number than the cumulative rows we
+      // have already seen, show the cumulative as a better lower-bound.
+      const cumulativeSeen = page * pageSize + totalRows;
+      const totalFromServer =
+        Number.isFinite(Number(total)) && total > 0 ? total : null;
+      let pageLabel = `Page ${page + 1} — ${totalRows} rows`;
+      if (totalFromServer !== null) {
+        const displayTotal = Math.max(totalFromServer, cumulativeSeen);
+        pageLabel += ` (total ${displayTotal})`;
+      }
+      countEl.textContent = pageLabel;
+      if (!rows || rows.length === 0) {
+        wrap.textContent = "No rows";
+        prevBtn.disabled = page === 0;
+        nextBtn.disabled = true;
+        return;
+      }
+
+      const table = document.createElement("table");
+      table.className = "small fc-missing-table";
+      const thead = document.createElement("thead");
+      thead.innerHTML = `<tr><th>SKU</th><th>Item</th><th>Pack</th><th>UOM</th><th>Month</th><th>Region</th><th>Godown</th><th>Baseline</th><th>LLT</th><th>Seasonal</th><th>Final</th></tr>`;
+      table.appendChild(thead);
+      const tbody = document.createElement("tbody");
+      for (const r of rows) {
+        let monthLabel = "";
+        try {
+          if (r.month_start)
+            monthLabel = formatMonthLabel(
+              new Date(r.month_start + "T00:00:00")
+            );
+        } catch {
+          monthLabel = String(r.month_start || "");
+        }
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td class="col-center">${r.sku_id ?? ""}</td>
+          <td class="col-item">${escapeHtml(r.item ?? r.sku_label ?? "")}</td>
+          <td class="col-center">${r.pack_size ?? ""}</td>
+          <td class="col-center">${r.uom ?? ""}</td>
+          <td class="col-center">${monthLabel}</td>
+          <td class="col-center">${escapeHtml(
+            r.region_code ?? r.region_id ?? ""
+          )}</td>
+          <td class="col-center">${escapeHtml(
+            r.godown_code ?? r.godown_id ?? ""
+          )}</td>
+          <td class="col-center">${r.demand_baseline ?? ""}</td>
+          <td class="col-center">${r.supply_llt ?? ""}</td>
+          <td class="col-center">${r.supply_seasonal ?? ""}</td>
+          <td class="col-center">${r.supply_final ?? ""}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+      table.appendChild(tbody);
+      wrap.innerHTML = "";
+      wrap.appendChild(table);
+      // Ensure the wrap allows horizontal scrolling and the table uses its
+      // natural width. On some platforms the scrollbar wasn't appearing;
+      // explicitly enable overflow and set sizing to encourage a scrollbar
+      // when the table is wider than the modal.
+      try {
+        wrap.style.overflowX = "auto";
+        wrap.style.overflowY = "auto";
+        wrap.style.boxSizing = "border-box";
+        // Let the table expand to its content width so the wrapper can show a scrollbar
+        table.style.width = "max-content";
+        // Ensure minWidth does not force the table to match the wrapper width
+        // (that would prevent horizontal overflow). Allow the table to be
+        // narrower if content allows, or wider when needed.
+        table.style.minWidth = "0";
+        // Use inline-table so the table can size to content and allow horizontal scroll
+        table.style.display = "inline-table";
+        // Force a reflow and ensure scroll starts at left
+        // (some embedded browsers need this to render scrollbars immediately)
+        void wrap.offsetWidth;
+        wrap.scrollLeft = 0;
+      } catch (e) {
+        void e;
+      }
+      prevBtn.disabled = page === 0;
+      if (totalFromServer && totalFromServer >= cumulativeSeen) {
+        // authoritative total available
+        nextBtn.disabled = (page + 1) * pageSize >= totalFromServer;
+      } else {
+        // unknown or unreliable total: enable Next whenever current page is full
+        nextBtn.disabled = totalRows < pageSize;
+      }
+
+      copyBtn.onclick = () => {
+        const cols = [
+          "sku_id",
+          "item",
+          "pack_size",
+          "uom",
+          "month",
+          "region",
+          "godown",
+          "demand_baseline",
+          "supply_llt",
+          "supply_seasonal",
+          "supply_final",
+        ];
+        const exportRows = rows.map((r) => ({
+          sku_id: r.sku_id,
+          item: r.item ?? r.sku_label ?? "",
+          pack_size: r.pack_size ?? "",
+          uom: r.uom ?? "",
+          month: (() => {
+            try {
+              return r.month_start
+                ? formatMonthLabel(new Date(r.month_start + "T00:00:00"))
+                : "";
+            } catch {
+              return r.month_start ?? "";
+            }
+          })(),
+          region: r.region_code ?? r.region_id ?? "",
+          godown: r.godown_code ?? r.godown_id ?? "",
+          demand_baseline: r.demand_baseline ?? "",
+          supply_llt: r.supply_llt ?? "",
+          supply_seasonal: r.supply_seasonal ?? "",
+          supply_final: r.supply_final ?? "",
+        }));
+        const csv = rowsToCsv(exportRows, cols);
+        navigator.clipboard?.writeText(csv);
+        showToast("Copied to clipboard");
+      };
+      downloadBtn.onclick = () => {
+        const cols = [
+          "sku_id",
+          "item",
+          "pack_size",
+          "uom",
+          "month",
+          "region",
+          "godown",
+          "demand_baseline",
+          "supply_llt",
+          "supply_seasonal",
+          "supply_final",
+        ];
+        const exportRows = rows.map((r) => ({
+          sku_id: r.sku_id,
+          item: r.item ?? r.sku_label ?? "",
+          pack_size: r.pack_size ?? "",
+          uom: r.uom ?? "",
+          month: (() => {
+            try {
+              return r.month_start
+                ? formatMonthLabel(new Date(r.month_start + "T00:00:00"))
+                : "";
+            } catch {
+              return r.month_start ?? "";
+            }
+          })(),
+          region: r.region_code ?? r.region_id ?? "",
+          godown: r.godown_code ?? r.godown_id ?? "",
+          demand_baseline: r.demand_baseline ?? "",
+          supply_llt: r.supply_llt ?? "",
+          supply_seasonal: r.supply_seasonal ?? "",
+          supply_final: r.supply_final ?? "",
+        }));
+        const csv = rowsToCsv(exportRows, cols);
+        downloadFile(`publish_${planId}.csv`, csv);
+      };
+    } catch (err) {
+      console.error(err);
+      wrap.textContent = "Error loading";
+    }
+  }
+
+  prevBtn.onclick = async () => {
+    if (page > 0) {
+      page--;
+      await render();
+    }
+  };
+  nextBtn.onclick = async () => {
+    page++;
+    await render();
+  };
+
+  await render();
 }
 
 // ===== Baseline Export/Import (Marketing)
@@ -2127,6 +3446,95 @@ function wireEvents() {
       }
     } catch {
       /* ignore */
+    }
+  }
+
+  // Populate filter select boxes for staging and active overrides
+  async function populateOverridesFilterOptions() {
+    try {
+      // Fetch products (SKUs) - limit to 2000 to avoid huge payloads
+      const { data: skuData, error: skuErr } = await supabase
+        .from("v_sku_catalog_enriched")
+        .select("sku_id,item,sku_label")
+        .order("item", { ascending: true })
+        .limit(2000);
+
+      if (skuErr) {
+        console.debug("populateFilters: sku fetch failed", skuErr);
+      }
+
+      // Fetch region/godown codes
+      const { data: rgData, error: rgErr } = await supabase
+        .from("v_sdv_dim_godown_region")
+        .select("region_id,region_code,godown_id,godown_code")
+        .order("region_code", { ascending: true });
+      if (rgErr) {
+        console.debug("populateFilters: region/godown fetch failed", rgErr);
+      }
+
+      const skuRows = Array.isArray(skuData) ? skuData : [];
+      const rgRows = Array.isArray(rgData) ? rgData : [];
+
+      // Build unique region and godown maps
+      const regionMap = new Map();
+      const godownMap = new Map();
+      for (const r of rgRows) {
+        if (r.region_id && r.region_code && !regionMap.has(Number(r.region_id)))
+          regionMap.set(Number(r.region_id), String(r.region_code));
+        if (r.godown_id && r.godown_code && !godownMap.has(Number(r.godown_id)))
+          godownMap.set(Number(r.godown_id), String(r.godown_code));
+      }
+
+      // Helper to populate a select preserving current selection
+      function fillSelect(id, items) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const cur = el.value;
+        // Clear existing options but keep first default option if present
+        const first = el.querySelector("option[value='']");
+        el.innerHTML = "";
+        if (first) el.appendChild(first);
+        // Append items
+        for (const it of items) {
+          const opt = document.createElement("option");
+          opt.value = String(it.value);
+          opt.textContent = it.label;
+          el.appendChild(opt);
+        }
+        // try restore previous value
+        try {
+          if (cur) el.value = cur;
+        } catch (e) {
+          void e;
+        }
+      }
+
+      // Build product items
+      const prodItems = skuRows.map((s) => ({
+        value: s.sku_id,
+        label: s.item || s.sku_label || String(s.sku_id),
+      }));
+      // Build region and godown items
+      const regionItems = Array.from(regionMap.entries()).map(([id, code]) => ({
+        value: id,
+        label: code,
+      }));
+      const godownItems = Array.from(godownMap.entries()).map(([id, code]) => ({
+        value: id,
+        label: code,
+      }));
+
+      // Populate both staging and active selects
+      fillSelect("filterProduct", prodItems);
+      fillSelect("activeFilterProduct", prodItems);
+
+      fillSelect("filterRegion", regionItems);
+      fillSelect("activeFilterRegion", regionItems);
+
+      fillSelect("filterGodown", godownItems);
+      fillSelect("activeFilterGodown", godownItems);
+    } catch (e) {
+      console.error("populateOverridesFilterOptions failed", e);
     }
   }
 
@@ -2312,6 +3720,447 @@ function wireEvents() {
   // initialize filters state
   updateOutputsFiltersState();
 
+  // --- Active (Promoted overrides) UI wiring ---
+  // Wire active pager and page-size controls so the Promoted Overrides table responds
+  safeAddEventListener("activePageSize", "change", () => {
+    activePage = 0;
+    try {
+      if (typeof window.loadActive === "function") window.loadActive();
+      else if (typeof window.loadActiveOverrides === "function")
+        window.loadActiveOverrides();
+    } catch (e) {
+      console.debug("loadActive trigger failed", e);
+    }
+  });
+
+  safeAddEventListener("activePrev", "click", () => {
+    activePage = Math.max(0, activePage - 1);
+    try {
+      if (typeof window.loadActive === "function") window.loadActive();
+      else if (typeof window.loadActiveOverrides === "function")
+        window.loadActiveOverrides();
+    } catch (e) {
+      console.debug("loadActive prev failed", e);
+    }
+  });
+  safeAddEventListener("activeNext", "click", () => {
+    activePage += 1;
+    try {
+      if (typeof window.loadActive === "function") window.loadActive();
+      else if (typeof window.loadActiveOverrides === "function")
+        window.loadActiveOverrides();
+    } catch (e) {
+      console.debug("loadActive next failed", e);
+    }
+  });
+
+  // Auto-load active/staging when the Overrides tab is shown (click handler)
+  safeAddEventListener("tab-btn-overrides", "click", () => {
+    activePage = 0;
+    try {
+      if (typeof window.loadActive === "function") window.loadActive();
+      else if (typeof window.loadActiveOverrides === "function")
+        window.loadActiveOverrides();
+    } catch (e) {
+      console.debug("auto-load overrides failed", e);
+    }
+    // signal staging module (if present) to reload
+    requestStagingReload();
+  });
+
+  // Wire Promote All and Clear Staging buttons (minimal wiring)
+  safeAddEventListener("btnPromoteAll", "click", async () => {
+    const from = document.getElementById("fromMonth")?.value;
+    const to = document.getElementById("toMonth")?.value || from;
+    if (!from || !to) {
+      showModal("Please select a From and To month before promoting.");
+      return;
+    }
+    const ok = await showConfirmInPage(
+      `Promote staged overrides from ${from} to ${to}?`,
+      "Confirm Promote"
+    );
+    if (!ok) return;
+    try {
+      const p_from = monthInputToISO(from);
+      const p_to = monthInputToISO(to);
+      const { data, error } = await supabase.rpc("promote_all_staging", {
+        p_from,
+        p_to,
+      });
+      if (error) {
+        console.error("promote_all_staging failed", error);
+        showModal("Promote failed: " + (error.message || error.code || ""));
+        return;
+      }
+      showModal("Promote result: " + JSON.stringify(data));
+      // reload both staging and active lists
+      requestStagingReload();
+      try {
+        if (typeof loadActiveOverrides === "function")
+          await loadActiveOverrides();
+      } catch (e) {
+        void e;
+      }
+    } catch (e) {
+      console.error(e);
+      showModal("Unexpected error while promoting staged overrides.");
+    }
+  });
+
+  safeAddEventListener("btnClearStaging", "click", async () => {
+    const from = document.getElementById("fromMonth")?.value;
+    const to = document.getElementById("toMonth")?.value || from;
+    const ok = await showConfirmInPage(
+      `Delete staging rows from ${from || "(all)"} to ${to || "(all)"}?`,
+      "Confirm Delete Staging"
+    );
+    if (!ok) return;
+    try {
+      let q = supabase.from("marketing_overrides_staging").delete();
+      if (from) q = q.gte("month_start", monthInputToISO(from));
+      if (to) q = q.lte("month_start", monthInputToISO(to));
+      const { error } = await q;
+      if (error) {
+        console.error("clear staging failed", error);
+        showModal(
+          "Clear staging failed: " + (error.message || error.code || "")
+        );
+        return;
+      }
+      showToast("Cleared staging rows");
+      requestStagingReload();
+    } catch (e) {
+      console.error(e);
+      showModal("Unexpected error while clearing staging.");
+    }
+  });
+
+  // Basic UX handlers for Overrides controls so buttons respond (minimal implementations)
+  safeAddEventListener("btnImportCsv", "click", () => {
+    const fileEl = document.getElementById("csvFile");
+    if (fileEl) fileEl.click();
+  });
+  // Godown-specific baseline downloads. Buttons map to exact godown codes
+  // (case-insensitive match).
+  async function resolveGodownIdByCode(codeFrag) {
+    try {
+      const code = String(codeFrag || "").trim();
+      const { data: gdata, error: gerr } = await supabase
+        .from("v_sdv_dim_godown_region")
+        .select("godown_id")
+        // ilike without wildcards performs a case-insensitive exact match
+        .ilike("godown_code", code)
+        .limit(1);
+      if (gerr) throw gerr;
+      if (!gdata || !gdata.length) return null;
+      return Number(gdata[0].godown_id) || null;
+    } catch (e) {
+      console.debug("resolveGodownIdByCode failed", e);
+      return null;
+    }
+  }
+
+  safeAddEventListener("downloadBaseline1", "click", async () => {
+    // HO:IK
+    try {
+      const from = document.getElementById("fromMonth")?.value;
+      const to = document.getElementById("toMonth")?.value || from;
+      if (!from || !to) {
+        showModal(
+          "Please select From and To months before downloading baseline."
+        );
+        return;
+      }
+      const godownId = await resolveGodownIdByCode("IK");
+      if (!godownId) return showModal("Could not resolve godown IK");
+      await downloadBaseline(
+        monthInputToISO(from),
+        monthInputToISO(to),
+        godownId
+      );
+      const menu = document.getElementById("baselineDownloads");
+      if (menu) menu.classList.remove("open");
+    } catch (e) {
+      console.error("downloadBaseline1 failed", e);
+      showModal("Failed to download baseline for godown");
+    }
+  });
+
+  safeAddEventListener("downloadBaseline2", "click", async () => {
+    // HO:OK
+    try {
+      const from = document.getElementById("fromMonth")?.value;
+      const to = document.getElementById("toMonth")?.value || from;
+      if (!from || !to) {
+        showModal(
+          "Please select From and To months before downloading baseline."
+        );
+        return;
+      }
+      const godownId = await resolveGodownIdByCode("OK");
+      if (!godownId) return showModal("Could not resolve godown OK");
+      await downloadBaseline(
+        monthInputToISO(from),
+        monthInputToISO(to),
+        godownId
+      );
+      const menu = document.getElementById("baselineDownloads");
+      if (menu) menu.classList.remove("open");
+    } catch (e) {
+      console.error("downloadBaseline2 failed", e);
+      showModal("Failed to download baseline for godown");
+    }
+  });
+
+  safeAddEventListener("downloadBaseline3", "click", async () => {
+    // KKD
+    try {
+      const from = document.getElementById("fromMonth")?.value;
+      const to = document.getElementById("toMonth")?.value || from;
+      if (!from || !to) {
+        showModal(
+          "Please select From and To months before downloading baseline."
+        );
+        return;
+      }
+      const godownId = await resolveGodownIdByCode("KKD");
+      if (!godownId) return showModal("Could not resolve godown KKD");
+      await downloadBaseline(
+        monthInputToISO(from),
+        monthInputToISO(to),
+        godownId
+      );
+      const menu = document.getElementById("baselineDownloads");
+      if (menu) menu.classList.remove("open");
+    } catch (e) {
+      console.error("downloadBaseline3 failed", e);
+      showModal("Failed to download baseline for godown");
+    }
+  });
+  // Wire main Download Baseline button to toggle the drawer with godown buttons
+  safeAddEventListener("btnDownloadTemplate", "click", (ev) => {
+    try {
+      ev?.stopPropagation?.();
+      const menu = document.getElementById("baselineDownloads");
+      if (!menu) return;
+      menu.classList.toggle("open");
+    } catch (e) {
+      console.error("toggle baseline menu failed", e);
+    }
+  });
+
+  // Close the baseline menu when clicking outside or pressing Escape. Ensure we only add listeners once.
+  if (!window.__fc_baseline_menu_listeners) {
+    window.__fc_baseline_menu_listeners = true;
+    document.addEventListener("click", (ev) => {
+      try {
+        const menu = document.getElementById("baselineDownloads");
+        const trigger = document.querySelector(".baseline-download-trigger");
+        if (!menu || !trigger) return;
+        const inside =
+          ev.target &&
+          (menu.contains(ev.target) || trigger.contains(ev.target));
+        if (!inside) menu.classList.remove("open");
+      } catch (e) {
+        void e;
+      }
+    });
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") {
+        try {
+          const menu = document.getElementById("baselineDownloads");
+          if (menu) menu.classList.remove("open");
+        } catch (e) {
+          void e;
+        }
+      }
+    });
+  }
+
+  // Minimal handlers for staging/active actions so buttons are responsive
+  safeAddEventListener("btnAddRow", "click", async () => {
+    // Create an in-page Add Row modal for staging overrides
+    try {
+      let modal = document.getElementById("addStagingModal");
+      if (!modal) {
+        modal = document.createElement("div");
+        modal.id = "addStagingModal";
+        modal.style.position = "fixed";
+        modal.style.left = "0";
+        modal.style.top = "0";
+        modal.style.width = "100%";
+        modal.style.height = "100%";
+        modal.style.background = "rgba(0,0,0,0.4)";
+        modal.style.zIndex = 11000;
+        modal.innerHTML = `
+          <div style="background:#fff;max-width:640px;margin:6% auto;padding:18px;border-radius:8px;box-shadow:0 8px 36px rgba(0,0,0,0.24);">
+            <h3 style="margin:0 0 12px;">Add Staging Override</h3>
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;align-items:start;">
+              <label style="display:block">Product (SKU)
+                <select id="addRowSku" class="filter-input" style="width:100%"><option value="">(select)</option></select>
+              </label>
+              <label style="display:block">Month
+                <input id="addRowMonth" type="month" class="filter-input" style="width:100%" />
+              </label>
+              <label style="display:block">Region
+                <select id="addRowRegion" class="filter-input" style="width:100%"><option value="">(select)</option></select>
+              </label>
+              <label style="display:block">Godown
+                <select id="addRowGodown" class="filter-input" style="width:100%"><option value="">(select)</option></select>
+              </label>
+              <label style="display:block">Delta units
+                <input id="addRowDelta" type="number" class="filter-input" style="width:100%" />
+              </label>
+              <div></div>
+              <label style="display:block;grid-column:1 / -1">Note
+                <textarea id="addRowNote" class="filter-input" rows="3" style="width:100%"></textarea>
+              </label>
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+              <button id="addRowCancel" class="btn">Cancel</button>
+              <button id="addRowSubmit" class="btn btn-primary">Add</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+      }
+
+      // Populate selects by cloning options from existing filter selects if present
+      function cloneOptions(srcId, dstId) {
+        const src = document.getElementById(srcId);
+        const dst = document.getElementById(dstId);
+        if (!dst) return;
+        dst.innerHTML = "";
+        const defaultOpt = document.createElement("option");
+        defaultOpt.value = "";
+        defaultOpt.textContent = "(select)";
+        dst.appendChild(defaultOpt);
+        if (!src) return;
+        for (const opt of Array.from(src.options || [])) {
+          try {
+            // Skip the 'All ...' / empty-value options which are used in
+            // filter selects to mean "no filter". In the Add Row modal we
+            // need concrete selections, so ignore options with empty value.
+            if (opt.value === "" || opt.value == null) continue;
+            const text = (opt.textContent || "").trim();
+            // Also skip textual placeholders that begin with "All"
+            if (/^all\b/i.test(text)) continue;
+
+            const o = document.createElement("option");
+            o.value = opt.value;
+            o.textContent = text;
+            dst.appendChild(o);
+          } catch (e) {
+            void e;
+          }
+        }
+      }
+
+      cloneOptions("filterProduct", "addRowSku");
+      cloneOptions("filterRegion", "addRowRegion");
+      cloneOptions("filterGodown", "addRowGodown");
+
+      // default month to current month
+      try {
+        const mr = document.getElementById("addRowMonth");
+        if (mr && !mr.value) mr.value = fmtMonthInput(monthFloor(new Date()));
+      } catch (e) {
+        void e;
+      }
+      // default note
+      try {
+        const noteEl = document.getElementById("addRowNote");
+        if (noteEl && !noteEl.value) noteEl.value = "Overrides by MKT";
+      } catch (e) {
+        void e;
+      }
+
+      // Wire buttons
+      const cancelBtn = document.getElementById("addRowCancel");
+      const submitBtn = document.getElementById("addRowSubmit");
+
+      function cleanup() {
+        try {
+          cancelBtn?.removeEventListener("click", onCancel);
+          submitBtn?.removeEventListener("click", onSubmit);
+        } catch (e) {
+          void e;
+        }
+        try {
+          if (modal && modal.parentNode) modal.parentNode.removeChild(modal);
+        } catch (e) {
+          void e;
+        }
+      }
+
+      function onCancel() {
+        cleanup();
+      }
+
+      async function onSubmit() {
+        try {
+          const sku = document.getElementById("addRowSku")?.value || null;
+          const region = document.getElementById("addRowRegion")?.value || null;
+          const godown = document.getElementById("addRowGodown")?.value || null;
+          const month = document.getElementById("addRowMonth")?.value || null;
+          const delta =
+            Number(document.getElementById("addRowDelta")?.value || 0) || 0;
+          const note = document.getElementById("addRowNote")?.value || null;
+
+          if (!sku) {
+            showModal("Please select a Product (SKU)");
+            return;
+          }
+          if (!month) {
+            showModal("Please select Month");
+            return;
+          }
+
+          const row = {
+            sku_id: Number(sku) || null,
+            region_id: region ? Number(region) : null,
+            godown_id: godown ? Number(godown) : null,
+            month_start: monthInputToISO(month),
+            delta_units: Number(delta) || 0,
+            note: note || null,
+          };
+
+          const { error } = await supabase
+            .from("marketing_overrides_staging")
+            .insert([row]);
+          if (error) {
+            console.error("add staging insert failed", error);
+            showModal(
+              "Failed to add staging row: " +
+                (error.message || error.code || "")
+            );
+            return;
+          }
+          showToast("Added staging row");
+          cleanup();
+          if (typeof loadStagingOverrides === "function")
+            await loadStagingOverrides();
+        } catch (e) {
+          console.error("add staging error", e);
+          showModal("Unexpected error while adding staging row.");
+        }
+      }
+
+      cancelBtn?.addEventListener("click", onCancel);
+      submitBtn?.addEventListener("click", onSubmit);
+    } catch (e) {
+      console.error(e);
+      showModal("Failed to open Add Row dialog.");
+    }
+  });
+  safeAddEventListener("btnDeactivateAll", "click", async () => {
+    showModal("Deactivate All not implemented in this console.");
+  });
+  safeAddEventListener("btnDeleteAllActive", "click", async () => {
+    showModal("Delete All (active) not implemented in this console.");
+  });
+
   // When boolean filters change, reload outputs immediately
   [
     "outputsFilterOverride",
@@ -2424,6 +4273,15 @@ function wireEvents() {
     // non-fatal; reference err to satisfy linters
     void err;
   }
+
+  // Populate staging/active filter select options (do not block UI)
+  (async () => {
+    try {
+      await populateOverridesFilterOptions();
+    } catch (e) {
+      console.debug("populateOverridesFilterOptions failed on init", e);
+    }
+  })();
 
   // Wire exceptions filter inputs: Enter key to apply, checkboxes to auto-apply
   [

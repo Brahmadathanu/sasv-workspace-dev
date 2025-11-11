@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "sasv-utils-v73"; // bump: treat certain scripts network-first
+const CACHE_NAME = "sasv-utils-v90"; // bumped to force asset refresh
 
 const PRECACHE = [
   // Hub shell

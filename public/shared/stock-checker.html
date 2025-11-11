@@ -812,7 +812,7 @@
   <script>
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker
-        .register("/sw.js", { scope: "/public/" })
+        .register("/public/sw.js", { scope: "/public/" })
         .catch(console.error);
     }
   </script>
