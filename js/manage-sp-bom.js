@@ -1,9 +1,9 @@
 /* eslint-env browser */
 import { supabase } from "../public/shared/js/supabaseClient.js";
 
-// Elements
+// Elements (reuse RM IDs for minimal HTML changes)
 const el = (id) => document.getElementById(id);
-const productPicker = el("productPicker");
+const productPicker = el("productPicker"); // Owner picker (SP)
 const refQty = el("refQty");
 const refUom = el("refUom");
 const lossPct = el("lossPct");
@@ -11,15 +11,11 @@ const linesBody = el("linesBody");
 const qaList = el("qaList");
 const qaChip = el("qaChip");
 const qaPopover = el("qaPopover");
-// Floating toast container (replaces inline status panel)
 const toastContainer = el("statusToastContainer");
 let activeToast = null;
 let activeToastTimer = null;
-// Header pill displays
 const pillRefOutput = el("pillRefOutput");
 const pillLossPct = el("pillLossPct");
-
-// const checkAll = el("checkAll"); // removed (legacy bulk select no longer used with SN column)
 const reloadBtn = el("reloadBtn");
 const saveBtn = el("saveBtn");
 const cloneBtn = el("cloneBtn");
@@ -27,24 +23,24 @@ const deleteBtn = el("deleteBtn");
 const editHeaderBtn = el("editHeaderBtn");
 const moreMenuBtn = el("moreMenuBtn");
 const moreMenu = el("moreMenu");
-// Export menu elements
 const exportBtn = el("exportBtn");
-const exportMenu = el("exportMenu");
+// const exportMenu = el("exportMenu"); // menu element resolved by id; variable not needed
 const exportCsvBtn = el("exportCsv");
 const exportPdfBtn = el("exportPdf");
 const exportHtmlBtn = el("exportHtml");
-// Lines view/edit toggle
 const linesPanel = el("linesPanel");
 const linesViewBtn = el("linesViewBtn");
 const linesEditBtn = el("linesEditBtn");
 const kbHelpBtn = el("kbHelpBtn");
 const kbHelpPopover = el("kbHelpPopover");
-let LINES_EDIT_MODE = false; // default View mode
+let LINES_EDIT_MODE = false;
+
 // Permissions
-const MODULE_ID = "manage-rm-bom";
+const MODULE_ID = "manage-sp-bom";
 let PERM_CAN_VIEW = true;
 let PERM_CAN_EDIT = true;
-// Horizontal scroll sync and back-to-top
+
+// Horizontal scroll sync
 const linesScroll = document.getElementById("linesScroll");
 const linesHScrollTop = document.getElementById("linesHScrollTop");
 const linesHScrollInner = document.getElementById("linesHScrollInner");
@@ -53,75 +49,67 @@ let _hSyncing = false;
 
 function applyLinesMode() {
   if (linesPanel) {
-    if (LINES_EDIT_MODE) {
-      linesPanel.classList.remove("view-mode");
-    } else {
-      linesPanel.classList.add("view-mode");
-    }
+    if (LINES_EDIT_MODE) linesPanel.classList.remove("view-mode");
+    else linesPanel.classList.add("view-mode");
   }
   if (!LINES_EDIT_MODE && kbHelpPopover) kbHelpPopover.style.display = "none";
-  // Re-render table according to mode
   renderLines();
 }
 function applyPermissionUi() {
-  // When no edit permission, force view and hide edit affordances
   if (!PERM_CAN_EDIT) {
     LINES_EDIT_MODE = false;
     applyLinesMode();
-    if (linesEditBtn) linesEditBtn.style.display = "none";
-    if (linesViewBtn) linesViewBtn.style.display = "none"; // hide toggle entirely
-    if (kbHelpBtn) kbHelpBtn.style.display = "none";
+    linesEditBtn && (linesEditBtn.style.display = "none");
+    linesViewBtn && (linesViewBtn.style.display = "none");
+    kbHelpBtn && (kbHelpBtn.style.display = "none");
     document.body.classList.add("no-edit");
-    // Hide export for non-editors
-    if (exportBtn) exportBtn.style.display = "none";
+    exportBtn && (exportBtn.style.display = "none");
   } else {
-    if (linesEditBtn) linesEditBtn.style.display = "";
-    if (linesViewBtn) linesViewBtn.style.display = "";
-    if (kbHelpBtn) kbHelpBtn.style.display = "";
+    linesEditBtn && (linesEditBtn.style.display = "");
+    linesViewBtn && (linesViewBtn.style.display = "");
+    kbHelpBtn && (kbHelpBtn.style.display = "");
     document.body.classList.remove("no-edit");
-    // Show export for editors
-    if (exportBtn) exportBtn.style.display = "";
+    exportBtn && (exportBtn.style.display = "");
   }
-  // Additionally guard when no view at all
   if (!PERM_CAN_VIEW && exportBtn) exportBtn.style.display = "none";
 }
-// Modal elements for new header / clone lines
+
+// Modals
 const nhModal = el("newHeaderModal");
 const nhCloseBtn = el("nhCloseBtn");
 const nhCancelBtn = el("nhCancelBtn");
 const nhCreateBtn = el("nhCreateBtn");
-const nhProduct = el("nhProduct");
+const nhProduct = el("nhProduct"); // owner in modal
 const nhRefQty = el("nhRefQty");
 const nhRefUom = el("nhRefUom");
 const nhLossPct = el("nhLossPct");
 const nhCloneToggle = el("nhCloneToggle");
 const nhCloneSection = el("nhCloneSection");
 const nhCloneProduct = el("nhCloneProduct");
-// Loading mask elements
+
 const pageMask = el("pageMask");
 const pageMaskText = el("pageMaskText");
-// Delete modal elements
+
 const dhModal = el("deleteHeaderModal");
 const dhCloseBtn = el("dhCloseBtn");
 const dhCancelBtn = el("dhCancelBtn");
 const dhConfirmBtn = el("dhConfirmBtn");
 const dhProductName = el("dhProductName");
-// Delete line modal elements
+
 const dlModal = el("deleteLineModal");
 const dlCloseBtn = el("dlCloseBtn");
 const dlCancelBtn = el("dlCancelBtn");
 const dlConfirmBtn = el("dlConfirmBtn");
 const dlText = el("dlText");
 let PENDING_DELETE_LINE_INDEX = null;
-// Insert popover elements
+
 const insertPopover = el("insertPopover");
 const insCountInput = el("insCountInput");
 const insCancelBtn = el("insCancelBtn");
 const insOkBtn = el("insOkBtn");
 let INSERT_TARGET_INDEX = null;
-let INSERT_TARGET_MODE = null; // 'above' | 'below'
+let INSERT_TARGET_MODE = null;
 
-// Edit Header modal elements
 const ehModal = el("editHeaderModal");
 const ehCloseBtn = el("ehCloseBtn");
 const ehCancelBtn = el("ehCancelBtn");
@@ -132,14 +120,13 @@ const ehLossPct = el("ehLossPct");
 const ehNotes = el("ehNotes");
 
 function showMask(msg = "Loading…") {
-  if (pageMaskText) pageMaskText.textContent = msg;
-  if (pageMask) pageMask.style.display = "flex";
+  pageMaskText && (pageMaskText.textContent = msg);
+  pageMask && (pageMask.style.display = "flex");
 }
 function hideMask() {
-  if (pageMask) pageMask.style.display = "none";
+  pageMask && (pageMask.style.display = "none");
 }
 
-// Focus trap management
 let focusTrapDispose = null;
 function trapFocusIn(modalEl) {
   const FOCUSABLE = [
@@ -178,13 +165,13 @@ function trapFocusIn(modalEl) {
 }
 
 // Data caches
-let UOMS = []; // [{id, code}]
-let RM_ITEMS = []; // [{id, name}]
-let PRODUCTS = []; // [{id, label, uom_code?}]
-let CURRENT_PRODUCT_ID = null;
-let CURRENT_HEADER = null; // {id,...}
-let CURRENT_LINES = []; // array of line objects
-let CURRENT_HEADER_NOTES = ""; // local-only notes (optional UI)
+let UOMS = [];
+let STOCK_ITEMS = []; // generic picker (not restricted to RM)
+let OWNERS = []; // SP owners
+let CURRENT_OWNER_ID = null;
+let CURRENT_HEADER = null;
+let CURRENT_LINES = [];
+let CURRENT_HEADER_NOTES = "";
 
 function escapeHtml(s = "") {
   return s.replace(
@@ -206,7 +193,7 @@ function blankLine() {
   };
 }
 
-/* ---------------- Load pickers ---------------- */
+/* Load pickers */
 async function loadUoms() {
   const { data, error } = await supabase
     .from("inv_uom")
@@ -218,71 +205,50 @@ async function loadUoms() {
     (u) => `<option value="${u.id}">${u.code}</option>`
   ).join("");
 }
-
-async function loadProducts() {
-  // Adjust view name/columns if different in your schema
-  const { data, error } = await supabase
-    .from("v_picker_products")
-    .select("id, label, uom_code")
+async function loadOwners() {
+  // Prefer server-provided SP owners view; else fallback to generic stock item picker filtered to RM
+  const tryView = await supabase
+    .from("v_picker_sp_owners")
+    .select("id, label, default_uom_code")
     .order("label", { ascending: true });
-  if (error) throw error;
-  PRODUCTS = data || [];
-  productPicker.innerHTML = PRODUCTS.map(
+  if (!tryView.error && Array.isArray(tryView.data)) {
+    OWNERS = tryView.data || [];
+  } else {
+    const { data, error } = await supabase
+      .from("v_stock_item_picker")
+      .select(
+        "stock_item_id, stock_item_name, stock_item_code, default_uom_code, category_code, active, is_rm"
+      )
+      .order("stock_item_name", { ascending: true });
+    if (error) throw error;
+    const rows = (data || []).filter((r) => r.active !== false && r.is_rm);
+    OWNERS = rows.map((r) => ({
+      id: r.stock_item_id,
+      label:
+        (r.stock_item_code ? `[${r.stock_item_code}] ` : "") +
+        r.stock_item_name,
+      default_uom_code: r.default_uom_code || null,
+    }));
+  }
+  productPicker.innerHTML = OWNERS.map(
     (p) => `<option value="${p.id}">${escapeHtml(p.label)}</option>`
   ).join("");
 }
+// loadStockItems defined later with pagination
 
-async function loadRmItems() {
-  // Preferred: dedicated RPC returning RM items
-  try {
-    const { data, error } = await supabase.rpc("rpc_get_rm_items");
-    if (!error && Array.isArray(data) && data.length) {
-      RM_ITEMS = (data || []).map((r) => ({
-        id: r.id,
-        name: r.name,
-        code: r.code || null,
-      }));
-      return;
-    }
-  } catch (e) {
-    console.warn("rpc_get_rm_items failed; falling back", e);
-  }
-  // Fallback: filter by category code 'RM'
-  const { data: rows, error: err2 } = await supabase
-    .from("inv_stock_item")
-    .select(
-      "id,name,code,inv_stock_item_class_map(category_id, inv_class_category(code))"
-    )
-    .order("name", { ascending: true });
-  if (err2) throw err2;
-  RM_ITEMS = (rows || [])
-    .filter((r) => {
-      const maps = r.inv_stock_item_class_map;
-      if (!Array.isArray(maps)) return false;
-      return maps.some((m) => m.inv_class_category?.code === "RM");
-    })
-    .map((r) => ({ id: r.id, name: r.name, code: r.code || null }));
-}
-
-/* ---------------- Rendering ---------------- */
+/* Rendering */
 function renderLines() {
   linesBody.innerHTML = CURRENT_LINES.map((ln, i) => {
     if (!LINES_EDIT_MODE) {
-      // View mode row rendering
-      const itemName = (() => {
-        const item = RM_ITEMS.find((x) => x.id === ln.stock_item_id);
-        if (item) return item.name;
-        if (ln.stock_item_id) return `Item #${ln.stock_item_id}`;
-        return "";
-      })();
-      const itemCode = (() => {
-        const item = RM_ITEMS.find((x) => x.id === ln.stock_item_id);
-        return item?.code || "";
-      })();
-      const uomCode = (() => {
-        const u = UOMS.find((u) => u.id === ln.uom_id);
-        return u ? u.code : "";
-      })();
+      const item = STOCK_ITEMS.find((x) => x.id === ln.stock_item_id);
+      const itemName = item
+        ? item.name
+        : ln.stock_item_id
+        ? `Item #${ln.stock_item_id}`
+        : "";
+      const itemCode = item?.code || "";
+      const u = UOMS.find((u) => u.id === ln.uom_id);
+      const uomCode = u ? u.code : "";
       const qtyStr =
         ln.qty_per_reference_output == null
           ? ""
@@ -290,7 +256,7 @@ function renderLines() {
       const wastStr = (() => {
         if (ln.wastage_pct == null) return "";
         const raw = Number(ln.wastage_pct);
-        const pct = raw <= 1.5 ? raw * 100 : raw; // heuristic: fractions vs. legacy percent
+        const pct = raw <= 1.5 ? raw * 100 : raw;
         return `${pct.toFixed(2)}%`;
       })();
       const optStr = ln.is_optional ? "Yes" : "No";
@@ -310,7 +276,7 @@ function renderLines() {
     }
     const itemOptions = [`<option value="">— select —</option>`]
       .concat(
-        RM_ITEMS.map(
+        STOCK_ITEMS.map(
           (x) =>
             `<option value="${x.id}" ${
               x.id === ln.stock_item_id ? "selected" : ""
@@ -318,48 +284,6 @@ function renderLines() {
         )
       )
       .join("");
-    // If line references a stock_item_id missing from RM_ITEMS (e.g., not classified as RM yet), add a temporary fallback option
-    if (
-      ln.stock_item_id &&
-      !RM_ITEMS.some((x) => x.id === ln.stock_item_id) &&
-      !itemOptions.includes(`value="${ln.stock_item_id}"`)
-    ) {
-      const fallbackLabel = `Unknown Item (#${ln.stock_item_id})`;
-      // Append fallback selected option
-      const injected = `${itemOptions}<option value="${
-        ln.stock_item_id
-      }" selected>${escapeHtml(fallbackLabel)}</option>`;
-      const itemCode = ""; // unknown fallback has no code
-      // replace itemOptions string for this row
-      return `
-      <tr data-i="${i}">
-        <td class="nowrap">${i + 1}</td>
-        <td class="nowrap code-cell">${escapeHtml(itemCode)}</td>
-        <td class="item-cell"><select class="cell item">${injected}</select></td>
-        <td class="right"><input class="cell qty" type="number" step="0.0001" min="0" value="${
-          ln.qty_per_reference_output ?? ""
-        }" /></td>
-        <td><select class="cell uom">${[`<option value="">— select —</option>`]
-          .concat(
-            UOMS.map(
-              (u) =>
-                `<option value="${u.id}" ${
-                  u.id === ln.uom_id ? "selected" : ""
-                }>${u.code}</option>`
-            )
-          )
-          .join("")}</select></td>
-        <td class="right"><input class="cell wast" type="number" step="0.0001" min="0" max="0.9999" value="${
-          ln.wastage_pct ?? ""
-        }" /></td>
-        <td><input type="checkbox" class="cell opt" ${
-          ln.is_optional ? "checked" : ""
-        } /></td>
-        <td><input type="text" class="cell rem" value="${escapeHtml(
-          ln.remarks || ""
-        )}" /></td>
-      </tr>`;
-    }
     const uomOptions = [`<option value="">— select —</option>`]
       .concat(
         UOMS.map(
@@ -370,10 +294,8 @@ function renderLines() {
         )
       )
       .join("");
-    const itemCode = (() => {
-      const it = RM_ITEMS.find((x) => x.id === ln.stock_item_id);
-      return it?.code || "";
-    })();
+    const itemCode =
+      STOCK_ITEMS.find((x) => x.id === ln.stock_item_id)?.code || "";
     return `
       <tr data-i="${i}">
         <td class="nowrap">${i + 1}</td>
@@ -394,69 +316,39 @@ function renderLines() {
         )}" /></td>
         <td>
           <div class="row-actions">
-            <button class="icon-btn small" data-act="up" title="Move up" aria-label="Move up">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-            </button>
-            <button class="icon-btn small" data-act="down" title="Move down" aria-label="Move down">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <button class="icon-btn small" data-act="insAbove" title="Insert rows above" aria-label="Insert rows above">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v8"/><path d="M8 9h8"/></svg>
-            </button>
-            <button class="icon-btn small" data-act="insBelow" title="Insert rows below" aria-label="Insert rows below">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19v-8"/><path d="M8 15h8"/></svg>
-            </button>
-            <button class="icon-btn small" data-act="del" title="Delete row" aria-label="Delete row">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-            </button>
+            <button class="icon-btn small" data-act="up" title="Move up" aria-label="Move up"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg></button>
+            <button class="icon-btn small" data-act="down" title="Move down" aria-label="Move down"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+            <button class="icon-btn small" data-act="insAbove" title="Insert rows above" aria-label="Insert rows above"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v8"/><path d="M8 9h8"/></svg></button>
+            <button class="icon-btn small" data-act="insBelow" title="Insert rows below" aria-label="Insert rows below"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19v-8"/><path d="M8 15h8"/></svg></button>
+            <button class="icon-btn small" data-act="del" title="Delete row" aria-label="Delete row"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
           </div>
         </td>
       </tr>`;
   }).join("");
-
-  // Append add-row provision at end in edit mode
   if (LINES_EDIT_MODE) {
-    const colCount = 9; // SN, Code, Item, Qty, UOM, Wastage, Optional, Remarks, Actions
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td colspan="${colCount}" style="text-align:center; padding:10px;">
-      <button class="icon-btn small" data-act="addEnd" title="Add row" aria-label="Add row">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-      </button>
-      <span class="hint" style="margin-left:6px; color:#64748b; font-size:12px;">Add new row</span>
-    </td>`;
+    tr.innerHTML = `<td colspan="9" style="text-align:center; padding:10px;"><button class="icon-btn small" data-act="addEnd" title="Add row" aria-label="Add row"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg></button><span class="hint" style="margin-left:6px; color:#64748b; font-size:12px;">Add new row</span></td>`;
     linesBody.appendChild(tr);
   }
-  // Update scroll shadow state
   const scrollWrap = linesScroll;
-  if (scrollWrap) {
-    // Attach one-time scroll listener if not already
-    if (!scrollWrap.dataset.shadowBound) {
-      scrollWrap.addEventListener("scroll", () => {
-        // vertical shadow
-        if (scrollWrap.scrollTop > 2) scrollWrap.classList.add("scrolled");
-        else scrollWrap.classList.remove("scrolled");
-        // sync horizontal to top bar
-        if (!_hSyncing && linesHScrollTop) {
-          _hSyncing = true;
-          linesHScrollTop.scrollLeft = scrollWrap.scrollLeft;
-          _hSyncing = false;
-        }
-        // back-to-top visibility
-        if (linesBackToTop) {
-          if (scrollWrap.scrollTop > 120) linesBackToTop.classList.add("show");
-          else linesBackToTop.classList.remove("show");
-        }
-      });
-      scrollWrap.dataset.shadowBound = "1";
-    }
-    // Initial state
-    if (scrollWrap.scrollTop > 2) scrollWrap.classList.add("scrolled");
-    else scrollWrap.classList.remove("scrolled");
+  if (scrollWrap && !scrollWrap.dataset.shadowBound) {
+    scrollWrap.addEventListener("scroll", () => {
+      if (scrollWrap.scrollTop > 2) scrollWrap.classList.add("scrolled");
+      else scrollWrap.classList.remove("scrolled");
+      if (!_hSyncing && linesHScrollTop) {
+        _hSyncing = true;
+        linesHScrollTop.scrollLeft = scrollWrap.scrollLeft;
+        _hSyncing = false;
+      }
+      if (linesBackToTop) {
+        if (scrollWrap.scrollTop > 120) linesBackToTop.classList.add("show");
+        else linesBackToTop.classList.remove("show");
+      }
+    });
+    scrollWrap.dataset.shadowBound = "1";
   }
-  // Setup top horizontal scrollbar width/visibility
   setupHorizontalScrollSync();
 }
-
 function setupHorizontalScrollSync() {
   if (!linesScroll || !linesHScrollTop || !linesHScrollInner) return;
   const needH = linesScroll.scrollWidth > linesScroll.clientWidth + 1;
@@ -467,7 +359,6 @@ function setupHorizontalScrollSync() {
     linesHScrollTop.classList.remove("visible");
     linesHScrollInner.style.width = "0px";
   }
-  // Bind sync listeners once
   if (!linesHScrollTop.dataset.bound) {
     linesHScrollTop.addEventListener("scroll", () => {
       if (_hSyncing) return;
@@ -480,17 +371,14 @@ function setupHorizontalScrollSync() {
 }
 
 function collectHeader() {
-  // UI shows percent (e.g. 5 for 5%). DB should store fractional (e.g. 0.05).
-  // Backward compatibility: if existing headers were saved as percent (>= 1.5) we normalize on load.
   const percentVal = lossPct.value === "" ? null : parseFloat(lossPct.value);
   return {
     reference_output_qty: refQty.value ? parseFloat(refQty.value) : null,
     reference_output_uom_id: refUom.value ? parseInt(refUom.value, 10) : null,
-    process_loss_pct: percentVal == null ? null : percentVal / 100, // convert to fraction for persistence
+    process_loss_pct: percentVal == null ? null : percentVal / 100,
   };
 }
 function collectLines() {
-  // Only pick real data rows (those with data-i); ignore footer add-row
   return Array.from(linesBody.querySelectorAll("tr[data-i]"))
     .map((tr) => parseInt(tr.dataset.i, 10))
     .filter((i) => Number.isFinite(i) && i >= 0 && i < CURRENT_LINES.length)
@@ -498,7 +386,6 @@ function collectLines() {
 }
 
 function updateHeaderPills() {
-  // Reference Output: qty + UOM code
   const q = refQty.value === "" ? null : parseFloat(refQty.value);
   const uId = refUom.value ? parseInt(refUom.value, 10) : null;
   const u = UOMS.find((x) => x.id === uId);
@@ -511,7 +398,6 @@ function updateHeaderPills() {
       pillRefOutput.removeAttribute("data-state");
     }
   }
-  // Loss percent pill
   const p = lossPct.value === "" ? null : parseFloat(lossPct.value);
   if (pillLossPct) {
     if (p == null) {
@@ -527,7 +413,6 @@ function updateHeaderPills() {
 function renderQA() {
   const issues = [];
   const h = collectHeader();
-  // Validate using percent entered (before division)
   const percentVal = lossPct.value === "" ? null : parseFloat(lossPct.value);
   if (!h.reference_output_qty || h.reference_output_qty <= 0)
     issues.push("Header: reference output qty must be > 0");
@@ -543,43 +428,41 @@ function renderQA() {
     if (ln.qty_per_reference_output == null || ln.qty_per_reference_output <= 0)
       issues.push(`Line ${i + 1}: qty per reference must be > 0`);
   });
-  qaList.innerHTML = issues.length
-    ? issues.map((m) => `<li class="danger">${escapeHtml(m)}</li>`).join("")
-    : '<li class="success">Looks good ✅</li>';
-  // Update compact QA status chip (if present)
+  qaList &&
+    (qaList.innerHTML = issues.length
+      ? issues.map((m) => `<li class="danger">${escapeHtml(m)}</li>`).join("")
+      : '<li class="success">Looks good ✅</li>');
   if (qaChip) {
     qaChip.style.display = "inline-flex";
     if (issues.length) {
       qaChip.classList.remove("ok");
       qaChip.classList.add("warn");
-      const warnSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>`;
-      qaChip.querySelector(".qa-icon").innerHTML = warnSvg;
+      qaChip.querySelector(".qa-icon").innerHTML =
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>';
       qaChip.setAttribute("aria-label", `Validation issues: ${issues.length}`);
     } else {
       qaChip.classList.remove("warn");
       qaChip.classList.add("ok");
-      const okSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
-      qaChip.querySelector(".qa-icon").innerHTML = okSvg;
+      qaChip.querySelector(".qa-icon").innerHTML =
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>';
       qaChip.setAttribute("aria-label", "All checks passed");
     }
   }
   if (qaPopover) {
-    if (issues.length) {
+    if (issues.length)
       qaPopover.innerHTML = `<button type="button" class="qa-popover-close" aria-label="Close">×</button><h4 id="qaPopoverTitle">Validation Issues (${
         issues.length
       })</h4><ul class="qa-issues">${issues
         .map((m) => `<li class="danger">${escapeHtml(m)}</li>`)
         .join("")}</ul>`;
-    } else {
+    else
       qaPopover.innerHTML = `<button type="button" class="qa-popover-close" aria-label="Close">×</button><h4 id="qaPopoverTitle">All Checks Passed</h4><p class="success-msg">No validation issues detected.</p>`;
-    }
   }
   return issues;
 }
 
 function setStatus(msg, kind = "info", timeoutMs = 5000) {
   if (!toastContainer) return;
-  // If msg is empty/falsey, clear any active toast and return
   if (!msg) {
     if (activeToastTimer) {
       clearTimeout(activeToastTimer);
@@ -591,18 +474,15 @@ function setStatus(msg, kind = "info", timeoutMs = 5000) {
     }
     return;
   }
-
-  // Ensure only one toast is visible; update existing or create one
   if (!activeToast) {
     activeToast = document.createElement("div");
-    toastContainer.innerHTML = ""; // safety: clear any stale toasts
+    toastContainer.innerHTML = "";
     toastContainer.appendChild(activeToast);
   }
   activeToast.className = `toast ${kind}`;
   activeToast.innerHTML = `<div style="flex:1">${escapeHtml(
     msg
   )}</div><button class="toast-close" aria-label="Dismiss">×</button>`;
-
   const closeBtn = activeToast.querySelector(".toast-close");
   closeBtn.addEventListener("click", () => {
     if (activeToastTimer) {
@@ -614,7 +494,6 @@ function setStatus(msg, kind = "info", timeoutMs = 5000) {
       activeToast = null;
     }
   });
-
   if (activeToastTimer) {
     clearTimeout(activeToastTimer);
     activeToastTimer = null;
@@ -631,58 +510,114 @@ function setStatus(msg, kind = "info", timeoutMs = 5000) {
   }
 }
 
-/* ---------------- Data IO ---------------- */
-async function loadBom(pid) {
+/* Data IO for SP BOM */
+async function loadStockItems() {
+  // Try paged load from v_stock_item_picker with RM filter
+  const pageSize = 1000;
+  let from = 0;
+  let all = [];
+  // try paginated view first; on error fall back to base tables
+  while (true) {
+    const to = from + pageSize - 1;
+    const { data, error } = await supabase
+      .from("v_stock_item_picker")
+      .select("stock_item_id, stock_item_name, stock_item_code, active, is_rm")
+      .eq("active", true)
+      .eq("is_rm", true)
+      .order("stock_item_name", { ascending: true })
+      .range(from, to);
+    if (error) {
+      all = [];
+      break;
+    }
+    if (!data || data.length === 0) break;
+    all.push(...data);
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+  if (all.length) {
+    STOCK_ITEMS = all.map((r) => ({
+      id: r.stock_item_id,
+      name: r.stock_item_name,
+      code: r.stock_item_code || null,
+    }));
+    return;
+  }
+  // Fallback: paginate base table with category join, then filter to RM
+  from = 0;
+  all = [];
+  while (true) {
+    const to = from + pageSize - 1;
+    const { data: rows, error: err2 } = await supabase
+      .from("inv_stock_item")
+      .select(
+        "id,name,code,inv_stock_item_class_map(category_id, inv_class_category(code))"
+      )
+      .order("name", { ascending: true })
+      .range(from, to);
+    if (err2) throw err2;
+    if (!rows || rows.length === 0) break;
+    all.push(...rows);
+    if (rows.length < pageSize) break;
+    from += pageSize;
+  }
+  STOCK_ITEMS = all
+    .filter((r) => {
+      const maps = r.inv_stock_item_class_map;
+      if (!Array.isArray(maps)) return false;
+      return maps.some((m) => m.inv_class_category?.code === "RM");
+    })
+    .map((r) => ({ id: r.id, name: r.name, code: r.code || null }));
+}
+
+async function loadBom(ownerId) {
   // Header
   const { data: hdr, error: hdrErr } = await supabase
-    .from("rm_bom_header")
+    .from("sp_bom_header")
     .select(
-      "id, reference_output_qty, reference_output_uom_id, process_loss_pct"
+      "id, reference_output_qty, reference_output_uom_id, process_loss_pct, notes"
     )
-    .eq("product_id", pid)
-    .limit(1)
+    .eq("owner_item_id", ownerId)
     .maybeSingle();
   if (hdrErr) throw hdrErr;
   CURRENT_HEADER = hdr || null;
+  CURRENT_HEADER_NOTES = hdr?.notes || "";
 
   // Lines
   let lines = [];
   if (CURRENT_HEADER?.id) {
     const { data: lnRows, error: lnErr } = await supabase
-      .from("rm_bom_line")
+      .from("sp_bom_line")
       .select(
         "stock_item_id, qty_per_reference_output, uom_id, wastage_pct, is_optional, remarks"
       )
-      .eq("rm_bom_id", CURRENT_HEADER.id)
+      .eq("sp_bom_id", CURRENT_HEADER.id)
       .order("line_no", { ascending: true });
     if (lnErr) throw lnErr;
     lines = lnRows || [];
   }
   CURRENT_LINES = lines.length ? lines : [blankLine()];
 
-  // Ensure any stock_item_ids referenced in lines but missing from RM_ITEMS are fetched (so names appear)
-  await ensureMissingRmItems();
+  await ensureMissingStockItems();
 
   // Seed header UI
   if (CURRENT_HEADER) {
     refQty.value = CURRENT_HEADER.reference_output_qty ?? "";
     refUom.value = CURRENT_HEADER.reference_output_uom_id ?? "";
-    // Display percent to user. DB may have stored fraction (<1) or legacy percent (>=1.5)
     if (CURRENT_HEADER.process_loss_pct == null) {
       lossPct.value = "";
     } else {
       const raw = Number(CURRENT_HEADER.process_loss_pct);
-      const displayPct = raw <= 1.5 ? raw * 100 : raw; // heuristic: treat <=1.5 as fractional
+      const displayPct = raw <= 1.5 ? raw * 100 : raw;
       lossPct.value = displayPct.toFixed(2);
     }
   } else {
     refQty.value = "1";
     lossPct.value = "";
-    // Attempt auto UOM selection from product.uom_code
-    const prod = PRODUCTS.find((p) => p.id === pid);
-    if (prod?.uom_code) {
+    const owner = OWNERS.find((p) => p.id === ownerId);
+    if (owner?.default_uom_code) {
       const match = UOMS.find(
-        (u) => u.code.toLowerCase() === prod.uom_code.toLowerCase()
+        (u) => u.code.toLowerCase() === owner.default_uom_code.toLowerCase()
       );
       if (match) refUom.value = match.id;
     }
@@ -691,8 +626,8 @@ async function loadBom(pid) {
   renderLines();
   renderQA();
   updateHeaderPills();
-  if (deleteBtn) deleteBtn.disabled = !CURRENT_HEADER;
-  if (editHeaderBtn) editHeaderBtn.disabled = !pid; // enable when a product is selected
+  deleteBtn && (deleteBtn.disabled = !CURRENT_HEADER);
+  editHeaderBtn && (editHeaderBtn.disabled = !ownerId);
   if (typeof syncMenuState === "function") syncMenuState();
 }
 
@@ -703,35 +638,100 @@ async function saveBom() {
   const header = collectHeader();
   const lines = collectLines();
   saveBtn.disabled = true;
-  if (deleteBtn) deleteBtn.disabled = true; // prevent race during save
-  if (editHeaderBtn) editHeaderBtn.disabled = true; // mirror delete transient disable
+  deleteBtn && (deleteBtn.disabled = true);
+  editHeaderBtn && (editHeaderBtn.disabled = true);
   setStatus("Saving…");
-  const { error } = await supabase.rpc("fn_rm_bom_upsert", {
-    p_product_id: CURRENT_PRODUCT_ID,
-    p_header: header,
-    p_lines: lines,
-  });
-  saveBtn.disabled = false;
-  if (error) {
-    console.error(error);
-    setStatus(`Save failed: ${error.message}`, "error");
-    if (deleteBtn) deleteBtn.disabled = !CURRENT_HEADER; // restore prior state
-    if (editHeaderBtn) editHeaderBtn.disabled = !CURRENT_PRODUCT_ID; // restore based on product selection
-    return;
+  try {
+    // Upsert header
+    const u = UOMS.find((x) => x.id === header.reference_output_uom_id);
+    const uomCode = u ? u.code : null;
+    if (!uomCode) throw new Error("Reference Output UOM invalid.");
+    const { error: upHdrErr } = await supabase.rpc("rpc_sp_bom_upsert_header", {
+      p_owner_item_id: CURRENT_OWNER_ID,
+      p_reference_output_qty: header.reference_output_qty,
+      p_reference_output_uom: uomCode,
+      p_process_loss_pct: header.process_loss_pct,
+      p_notes: null,
+    });
+    if (upHdrErr) throw upHdrErr;
+
+    // Fetch existing lines to compute deletes
+    const { data: dbLines, error: listErr } = await supabase.rpc(
+      "rpc_sp_bom_list_lines",
+      { p_owner_item_id: CURRENT_OWNER_ID }
+    );
+    if (listErr) throw listErr;
+    const toKey = (sid, uid) => `${sid}::${uid}`;
+    const dbKeys = new Set(
+      (dbLines || []).map((r) => toKey(r.stock_item_id, r.uom_id))
+    );
+    const newKeys = new Set(lines.map((l) => toKey(l.stock_item_id, l.uom_id)));
+
+    // Deletes (present in DB but not in new set)
+    const delTasks = [];
+    for (const key of dbKeys) {
+      if (!newKeys.has(key)) {
+        const [sidStr, uidStr] = key.split("::");
+        const sid = parseInt(sidStr, 10);
+        const uid = parseInt(uidStr, 10);
+        const uom = UOMS.find((x) => x.id === uid);
+        if (sid && uom) {
+          delTasks.push(
+            supabase.rpc("rpc_sp_bom_delete_line", {
+              p_owner_item_id: CURRENT_OWNER_ID,
+              p_stock_item_id: sid,
+              p_uom_code: uom.code,
+            })
+          );
+        }
+      }
+    }
+    if (delTasks.length) await Promise.all(delTasks);
+
+    // Upserts (for all lines)
+    const upTasks = lines.map((l) => {
+      const u = UOMS.find((x) => x.id === l.uom_id);
+      const code = u ? u.code : null;
+      if (!l.stock_item_id || !code || !l.qty_per_reference_output)
+        return Promise.resolve({});
+      return supabase.rpc("rpc_sp_bom_upsert_line", {
+        p_owner_item_id: CURRENT_OWNER_ID,
+        p_stock_item_id: l.stock_item_id,
+        p_qty: l.qty_per_reference_output,
+        p_uom_code: code,
+        p_wastage_pct: l.wastage_pct,
+        p_is_optional: l.is_optional,
+        p_remarks: l.remarks || null,
+      });
+    });
+    await Promise.all(upTasks);
+
+    // Renumber
+    const { error: renErr } = await supabase.rpc("rpc_sp_bom_renumber", {
+      p_owner_item_id: CURRENT_OWNER_ID,
+    });
+    if (renErr) throw renErr;
+
+    setStatus("Saved successfully.", "success");
+    await loadBom(CURRENT_OWNER_ID);
+  } catch (e) {
+    console.error(e);
+    setStatus(`Save failed: ${e.message}`, "error");
+  } finally {
+    saveBtn.disabled = false;
+    deleteBtn && (deleteBtn.disabled = !CURRENT_HEADER);
+    editHeaderBtn && (editHeaderBtn.disabled = !CURRENT_OWNER_ID);
+    if (typeof syncMenuState === "function") syncMenuState();
   }
-  setStatus("Saved successfully.", "success");
-  await loadBom(CURRENT_PRODUCT_ID);
-  if (deleteBtn) deleteBtn.disabled = !CURRENT_HEADER;
-  if (typeof syncMenuState === "function") syncMenuState();
 }
 
-/* ---------------- Events ---------------- */
+/* Events */
 productPicker.addEventListener("change", async () => {
-  CURRENT_PRODUCT_ID = parseInt(productPicker.value, 10);
+  CURRENT_OWNER_ID = parseInt(productPicker.value, 10);
   setStatus("");
   showMask("Loading…");
   try {
-    await loadBom(CURRENT_PRODUCT_ID);
+    await loadBom(CURRENT_OWNER_ID);
   } finally {
     hideMask();
   }
@@ -740,18 +740,16 @@ productPicker.addEventListener("change", async () => {
   inp.addEventListener("input", renderQA)
 );
 
-// Removed bulk select logic since SN column replaced checkboxes
 linesBody.addEventListener("change", (e) => {
-  if (!LINES_EDIT_MODE) return; // view mode blocks edits
+  if (!LINES_EDIT_MODE) return;
   const tr = e.target.closest("tr");
   if (!tr) return;
   const i = parseInt(tr.dataset.i, 10);
   const ln = CURRENT_LINES[i];
   if (e.target.classList.contains("item"))
     ln.stock_item_id = e.target.value ? parseInt(e.target.value, 10) : null;
-  // Update code cell in-place when item changes
   if (e.target.classList.contains("item")) {
-    const it = RM_ITEMS.find((x) => x.id === ln.stock_item_id);
+    const it = STOCK_ITEMS.find((x) => x.id === ln.stock_item_id);
     const codeTd = tr.querySelector(".code-cell");
     if (codeTd) codeTd.textContent = it?.code || "";
   }
@@ -766,7 +764,6 @@ linesBody.addEventListener("change", (e) => {
   if (e.target.classList.contains("rem")) ln.remarks = e.target.value || null;
   renderQA();
 });
-// Track last focused/clicked row index for keyboard shortcuts
 let FOCUSED_ROW_INDEX = null;
 linesBody.addEventListener("focusin", (e) => {
   const tr = e.target.closest("tr[data-i]");
@@ -776,7 +773,7 @@ linesBody.addEventListener("click", (e) => {
   const tr = e.target.closest("tr[data-i]");
   if (tr) FOCUSED_ROW_INDEX = parseInt(tr.dataset.i, 10);
 });
-// Row-level actions (Edit mode)
+
 linesBody.addEventListener("click", (e) => {
   if (!LINES_EDIT_MODE) return;
   const btn = e.target.closest("button[data-act]");
@@ -791,14 +788,11 @@ linesBody.addEventListener("click", (e) => {
   const tr = e.target.closest("tr[data-i]");
   if (!tr) return;
   const i = parseInt(tr.dataset.i, 10);
-  if (Number.isNaN(i)) return;
-  // update focused index based on last clicked row
   FOCUSED_ROW_INDEX = i;
   switch (act) {
     case "del": {
-      // Open confirmation modal
       PENDING_DELETE_LINE_INDEX = i;
-      if (dlText) dlText.textContent = `Delete line ${i + 1}?`;
+      dlText && (dlText.textContent = `Delete line ${i + 1}?`);
       if (dlModal) {
         dlModal.style.display = "flex";
         if (focusTrapDispose) focusTrapDispose();
@@ -842,18 +836,20 @@ linesBody.addEventListener("click", (e) => {
       break;
   }
 });
+
 reloadBtn.addEventListener("click", async () => {
-  if (CURRENT_PRODUCT_ID) {
+  if (CURRENT_OWNER_ID) {
     showMask("Refreshing…");
     try {
-      await loadBom(CURRENT_PRODUCT_ID);
+      await loadBom(CURRENT_OWNER_ID);
     } finally {
       hideMask();
     }
   }
 });
 saveBtn.addEventListener("click", saveBom);
-// QA chip popover interaction
+
+// QA chip popover wiring (same as RM)
 if (qaChip && qaPopover) {
   let qaHideTimer = null;
   function positionQaPopover() {
@@ -918,19 +914,18 @@ if (qaChip && qaPopover) {
     { passive: true }
   );
 }
-// Back to top click
+
 if (linesBackToTop && linesScroll) {
   linesBackToTop.addEventListener("click", () => {
     linesScroll.scrollTo({ top: 0, behavior: "smooth" });
   });
 }
-/* -------- Edit Header Modal Logic -------- */
+
+// Edit header modal
 function openEditHeaderModal() {
-  // Populate UOMs
   ehRefUom.innerHTML = UOMS.map(
     (u) => `<option value="${u.id}">${u.code}</option>`
   ).join("");
-  // Seed with current inline values (UI shows percent)
   ehRefQty.value = refQty.value || "";
   ehRefUom.value = refUom.value || "";
   ehLossPct.value = lossPct.value || "";
@@ -939,7 +934,6 @@ function openEditHeaderModal() {
   if (focusTrapDispose) focusTrapDispose();
   focusTrapDispose = trapFocusIn(ehModal);
   ehRefQty.focus();
-  // ESC and backdrop close
   const onKey = (e) => {
     if (e.key === "Escape" && ehModal.style.display === "flex")
       closeEditHeaderModal();
@@ -960,8 +954,8 @@ function closeEditHeaderModal() {
     focusTrapDispose = null;
   }
 }
-if (editHeaderBtn) editHeaderBtn.addEventListener("click", openEditHeaderModal);
-if (ehCloseBtn) ehCloseBtn.addEventListener("click", closeEditHeaderModal);
+editHeaderBtn && editHeaderBtn.addEventListener("click", openEditHeaderModal);
+ehCloseBtn && ehCloseBtn.addEventListener("click", closeEditHeaderModal);
 if (ehCancelBtn)
   ehCancelBtn.addEventListener("click", (e) => {
     e.preventDefault();
@@ -970,7 +964,6 @@ if (ehCancelBtn)
 if (ehApplyBtn)
   ehApplyBtn.addEventListener("click", (e) => {
     e.preventDefault();
-    // Basic validation on modal inputs
     const q = ehRefQty.value === "" ? null : parseFloat(ehRefQty.value);
     const u = ehRefUom.value ? parseInt(ehRefUom.value, 10) : null;
     const p = ehLossPct.value === "" ? null : parseFloat(ehLossPct.value);
@@ -978,24 +971,23 @@ if (ehApplyBtn)
     if (!u) return alert("Reference Output UOM required.");
     if (p != null && (p < 0 || p > 100))
       return alert("Process Loss % must be between 0 and 100.");
-    // Apply back to main, which is the source of truth for Save
     refQty.value = q.toFixed(3);
     refUom.value = String(u);
     lossPct.value = p == null ? "" : p.toFixed(2);
-    CURRENT_HEADER_NOTES = ehNotes.value || ""; // local only
+    CURRENT_HEADER_NOTES = ehNotes.value || "";
     closeEditHeaderModal();
     renderQA();
     updateHeaderPills();
     setStatus("Header updated. Press Save to persist.", "info");
     if (typeof syncMenuState === "function") syncMenuState();
   });
-/* -------- New Header / Clone Lines Modal Logic -------- */
+
+// New header / clone modal
 function openNewHeaderModal() {
-  // Populate product select with only products lacking a header
-  nhProduct.innerHTML = "<option value=''>— select product —</option>";
-  loadProductsWithoutHeader().then((list) => {
+  nhProduct.innerHTML = "<option value=''>— select owner —</option>";
+  loadOwnersWithoutHeader().then((list) => {
     nhProduct.innerHTML =
-      "<option value=''>— select product —</option>" +
+      "<option value=''>— select owner —</option>" +
       list
         .map((p) => `<option value="${p.id}">${escapeHtml(p.label)}</option>`)
         .join("");
@@ -1004,8 +996,7 @@ function openNewHeaderModal() {
       nhCreateBtn.disabled = true;
       nhProduct.disabled = true;
       if (msgDiv) {
-        msgDiv.textContent =
-          "All products already have BOM headers. No new header can be initialized.";
+        msgDiv.textContent = "All selected owners already have BOM headers.";
         msgDiv.classList.remove("muted");
         msgDiv.classList.add("danger");
       }
@@ -1013,7 +1004,7 @@ function openNewHeaderModal() {
       nhCreateBtn.disabled = false;
       nhProduct.disabled = false;
       if (msgDiv) {
-        msgDiv.textContent = "Choose the product for the new header.";
+        msgDiv.textContent = "Choose the owner for the new header.";
         msgDiv.classList.remove("danger");
         msgDiv.classList.add("muted");
       }
@@ -1022,16 +1013,13 @@ function openNewHeaderModal() {
   nhRefUom.innerHTML = UOMS.map(
     (u) => `<option value="${u.id}">${u.code}</option>`
   ).join("");
-  // Default selections
-  if (CURRENT_PRODUCT_ID) nhProduct.value = String(CURRENT_PRODUCT_ID);
+  if (CURRENT_OWNER_ID) nhProduct.value = String(CURRENT_OWNER_ID);
   nhRefQty.value = "1.000";
   nhLossPct.value = "";
   nhCloneToggle.checked = false;
   nhCloneSection.style.display = "none";
-  // Populate clone sources (exclude currently selected target product)
   populateCloneSources(nhProduct.value ? parseInt(nhProduct.value, 10) : null);
   nhModal.style.display = "flex";
-  // Focus first field
   nhProduct.focus();
   if (focusTrapDispose) {
     focusTrapDispose();
@@ -1046,10 +1034,10 @@ function closeNewHeaderModal() {
   }
 }
 function openDeleteHeaderModal() {
-  if (!CURRENT_HEADER || !CURRENT_PRODUCT_ID) return;
-  const prod = PRODUCTS.find((p) => p.id === CURRENT_PRODUCT_ID);
+  if (!CURRENT_OWNER_ID) return;
+  const owner = OWNERS.find((p) => p.id === CURRENT_OWNER_ID);
   if (dhProductName)
-    dhProductName.textContent = prod ? prod.label : `ID ${CURRENT_PRODUCT_ID}`;
+    dhProductName.textContent = owner ? owner.label : `ID ${CURRENT_OWNER_ID}`;
   dhModal.style.display = "flex";
   dhConfirmBtn.disabled = false;
   if (focusTrapDispose) {
@@ -1082,7 +1070,6 @@ nhCancelBtn.addEventListener("click", (e) => {
 nhCloneToggle.addEventListener("change", () => {
   nhCloneSection.style.display = nhCloneToggle.checked ? "block" : "none";
 });
-// Rebuild clone source list when target product changes to avoid self-clone
 nhProduct.addEventListener("change", () => {
   const targetId = nhProduct.value ? parseInt(nhProduct.value, 10) : null;
   populateCloneSources(targetId);
@@ -1090,122 +1077,7 @@ nhProduct.addEventListener("change", () => {
 nhModal.addEventListener("click", (e) => {
   if (e.target === nhModal) closeNewHeaderModal();
 });
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && nhModal.style.display === "flex")
-    closeNewHeaderModal();
-});
 
-/* ---------------- Keyboard help popover (Edit mode only) ---------------- */
-function positionKbHelp(anchor) {
-  if (!kbHelpPopover || !anchor) return;
-  kbHelpPopover.style.display = "block";
-  kbHelpPopover.style.top = "0px";
-  kbHelpPopover.style.left = "0px";
-  const a = anchor.getBoundingClientRect();
-  const popW = kbHelpPopover.offsetWidth || 260;
-  const popH = kbHelpPopover.offsetHeight || 160;
-  let top = a.bottom + 6;
-  let left = a.left;
-  if (left + popW > window.innerWidth - 8) left = window.innerWidth - popW - 8;
-  if (top + popH > window.innerHeight - 8) top = a.top - popH - 8; // flip if needed
-  if (top < 8) top = 8;
-  if (left < 8) left = 8;
-  kbHelpPopover.style.top = `${top + window.scrollY}px`;
-  kbHelpPopover.style.left = `${left + window.scrollX}px`;
-}
-if (kbHelpBtn && kbHelpPopover) {
-  const showKb = () => {
-    if (!LINES_EDIT_MODE) return;
-    positionKbHelp(kbHelpBtn);
-    kbHelpBtn.setAttribute("aria-expanded", "true");
-  };
-  const hideKb = () => {
-    kbHelpPopover.style.display = "none";
-    kbHelpBtn.setAttribute("aria-expanded", "false");
-  };
-  // Click-to-toggle
-  kbHelpBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    const open = kbHelpPopover.style.display === "block";
-    if (open) hideKb();
-    else showKb();
-  });
-  // Outside click closes
-  document.addEventListener("click", (e) => {
-    if (kbHelpPopover.style.display !== "block") return;
-    if (!kbHelpPopover.contains(e.target) && e.target !== kbHelpBtn) {
-      hideKb();
-    }
-  });
-  // ESC closes
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && kbHelpPopover.style.display === "block") hideKb();
-  });
-  // Focus leaving popover/button closes
-  document.addEventListener("focusin", (e) => {
-    if (kbHelpPopover.style.display !== "block") return;
-    if (!kbHelpPopover.contains(e.target) && e.target !== kbHelpBtn) hideKb();
-  });
-  // Reposition on scroll/resize when open
-  window.addEventListener(
-    "scroll",
-    () => {
-      if (kbHelpPopover.style.display === "block") positionKbHelp(kbHelpBtn);
-    },
-    { passive: true }
-  );
-  window.addEventListener("resize", () => {
-    if (kbHelpPopover.style.display === "block") positionKbHelp(kbHelpBtn);
-  });
-}
-
-async function loadProductsWithoutHeader() {
-  const { data: hdrRows, error } = await supabase
-    .from("rm_bom_header")
-    .select("product_id");
-  if (error) {
-    console.warn("Failed to load existing headers", error);
-    return PRODUCTS; // fallback: show all
-  }
-  const existing = new Set((hdrRows || []).map((r) => r.product_id));
-  return PRODUCTS.filter((p) => !existing.has(p.id));
-}
-
-async function loadProductsWithBomLines() {
-  // Load products that have a BOM header with at least one line
-  const { data, error } = await supabase
-    .from("rm_bom_header")
-    .select("id, product_id, rm_bom_line(count)");
-  if (error) {
-    console.warn("Failed to load clone sources", error);
-    return [];
-  }
-  const withLines = (data || []).filter(
-    (h) => Array.isArray(h.rm_bom_line) && h.rm_bom_line[0]?.count > 0
-  );
-  const ids = new Set(withLines.map((h) => h.product_id));
-  return PRODUCTS.filter((p) => ids.has(p.id));
-}
-
-async function populateCloneSources(excludeProductId) {
-  const list = await loadProductsWithBomLines();
-  const filtered = list.filter((p) => p.id !== excludeProductId);
-  if (!filtered.length) {
-    nhCloneProduct.innerHTML = `<option value="">— no sources available —</option>`;
-    nhCloneToggle.checked = false;
-    nhCloneSection.style.display = "none";
-    nhCloneToggle.disabled = true;
-  } else {
-    nhCloneToggle.disabled = false;
-    nhCloneProduct.innerHTML =
-      `<option value="">— select source —</option>` +
-      filtered
-        .map((p) => `<option value="${p.id}">${escapeHtml(p.label)}</option>`)
-        .join("");
-  }
-}
-
-// Delete header modal bindings
 if (dhCloseBtn) dhCloseBtn.addEventListener("click", closeDeleteHeaderModal);
 if (dhCancelBtn)
   dhCancelBtn.addEventListener("click", (e) => {
@@ -1214,38 +1086,45 @@ if (dhCancelBtn)
   });
 if (dhConfirmBtn)
   dhConfirmBtn.addEventListener("click", async () => {
-    if (!CURRENT_HEADER?.id) return;
+    if (!CURRENT_OWNER_ID) return;
     dhConfirmBtn.disabled = true;
-    if (deleteBtn) deleteBtn.disabled = true; // already in a delete operation
-    if (editHeaderBtn) editHeaderBtn.disabled = true; // mirror transient disable
+    deleteBtn && (deleteBtn.disabled = true);
+    editHeaderBtn && (editHeaderBtn.disabled = true);
     showMask("Deleting…");
     try {
-      const { error } = await supabase
-        .from("rm_bom_header")
-        .delete()
-        .eq("id", CURRENT_HEADER.id);
-      if (error) {
-        console.error(error);
-        setStatus(`Delete failed: ${error.message}`, "error");
-      } else {
-        setStatus("Header deleted.", "success");
-        CURRENT_HEADER = null;
-        CURRENT_LINES = [blankLine()];
-        await loadBom(CURRENT_PRODUCT_ID);
+      const { data: hdr, error: findErr } = await supabase
+        .from("sp_bom_header")
+        .select("id")
+        .eq("owner_item_id", CURRENT_OWNER_ID)
+        .maybeSingle();
+      if (findErr) throw findErr;
+      if (hdr?.id) {
+        const { error } = await supabase
+          .from("sp_bom_header")
+          .delete()
+          .eq("id", hdr.id);
+        if (error) {
+          console.error(error);
+          setStatus(`Delete failed: ${error.message}`, "error");
+        } else {
+          setStatus("Header deleted.", "success");
+          CURRENT_HEADER = null;
+          CURRENT_LINES = [blankLine()];
+          await loadBom(CURRENT_OWNER_ID);
+        }
       }
     } finally {
       hideMask();
       closeDeleteHeaderModal();
-      if (deleteBtn) deleteBtn.disabled = !CURRENT_HEADER; // reflect new state
-      if (editHeaderBtn) editHeaderBtn.disabled = !CURRENT_PRODUCT_ID; // reflect product selection
+      deleteBtn && (deleteBtn.disabled = !CURRENT_HEADER);
+      editHeaderBtn && (editHeaderBtn.disabled = !CURRENT_OWNER_ID);
       if (typeof syncMenuState === "function") syncMenuState();
     }
   });
 
 nhCreateBtn.addEventListener("click", async () => {
-  // Collect modal header data
-  const prodId = parseInt(nhProduct.value, 10);
-  if (!prodId) return alert("Select a product for the new header.");
+  const ownerId = parseInt(nhProduct.value, 10);
+  if (!ownerId) return alert("Select an owner for the new header.");
   const refQtyVal = nhRefQty.value ? parseFloat(nhRefQty.value) : null;
   const refUomId = nhRefUom.value ? parseInt(nhRefUom.value, 10) : null;
   const lossVal = nhLossPct.value === "" ? null : parseFloat(nhLossPct.value);
@@ -1255,53 +1134,48 @@ nhCreateBtn.addEventListener("click", async () => {
   if (lossVal != null && (lossVal < 0 || lossVal > 100))
     return alert("Process Loss % must be between 0 and 100.");
 
-  // Warn if existing BOM header present
   const { data: existingHdr } = await supabase
-    .from("rm_bom_header")
+    .from("sp_bom_header")
     .select("id")
-    .eq("product_id", prodId)
+    .eq("owner_item_id", ownerId)
     .limit(1)
     .maybeSingle();
   if (existingHdr?.id) {
     const proceed = confirm(
-      "A BOM already exists for this product. Initialize new unsaved header anyway?"
+      "A BOM already exists for this owner. Initialize new unsaved header anyway?"
     );
     if (!proceed) return;
   }
 
-  CURRENT_PRODUCT_ID = prodId;
-  productPicker.value = String(prodId);
-  CURRENT_HEADER = null; // new unsaved header state
+  CURRENT_OWNER_ID = ownerId;
+  productPicker.value = String(ownerId);
+  CURRENT_HEADER = null;
   refQty.value = refQtyVal.toFixed(3);
   refUom.value = refUomId;
-  // Main form shows percent
   lossPct.value = lossVal == null ? "" : lossVal.toFixed(2);
   CURRENT_LINES = [blankLine()];
 
-  // Optional clone lines from source product
   if (nhCloneToggle.checked && nhCloneProduct.value) {
     const sourceId = parseInt(nhCloneProduct.value, 10);
-    if (sourceId && sourceId !== prodId) {
+    if (sourceId && sourceId !== ownerId) {
       const { data: sh, error: e1 } = await supabase
-        .from("rm_bom_header")
+        .from("sp_bom_header")
         .select("id")
-        .eq("product_id", sourceId)
+        .eq("owner_item_id", sourceId)
         .maybeSingle();
-      if (e1) {
-        console.warn("Clone source header read error", e1);
-      } else if (sh?.id) {
+      if (!e1 && sh?.id) {
         const { data: sl, error: e2 } = await supabase
-          .from("rm_bom_line")
+          .from("sp_bom_line")
           .select(
             "stock_item_id, qty_per_reference_output, uom_id, wastage_pct, is_optional, remarks"
           )
-          .eq("rm_bom_id", sh.id)
+          .eq("sp_bom_id", sh.id)
           .order("line_no", { ascending: true });
         if (!e2 && sl && sl.length) CURRENT_LINES = sl;
       }
     }
   }
-  await ensureMissingRmItems();
+  await ensureMissingStockItems();
   closeNewHeaderModal();
   renderLines();
   renderQA();
@@ -1310,7 +1184,7 @@ nhCreateBtn.addEventListener("click", async () => {
   if (typeof syncMenuState === "function") syncMenuState();
 });
 
-/* ---------------- Line delete modal handlers ---------------- */
+/* Delete line modal handlers */
 function closeDeleteLineModal() {
   if (dlModal) dlModal.style.display = "none";
   if (focusTrapDispose) {
@@ -1337,7 +1211,7 @@ if (dlConfirmBtn)
     closeDeleteLineModal();
   });
 
-/* ---------------- Insert popover logic ---------------- */
+/* Insert popover logic (same as RM) */
 let insertPopoverResizeHandler = null;
 function positionInsertPopover(anchorBtn) {
   if (!insertPopover || !anchorBtn) return;
@@ -1352,9 +1226,7 @@ function positionInsertPopover(anchorBtn) {
     : { left: 0, right: window.innerWidth, top: 0, bottom: window.innerHeight };
   let top = anchorRect.bottom + 6;
   let left = anchorRect.left - 40;
-  if (top + popH > cardRect.bottom - 8) {
-    top = anchorRect.top - popH - 8; // flip above
-  }
+  if (top + popH > cardRect.bottom - 8) top = anchorRect.top - popH - 8;
   const minTop = Math.max(cardRect.top + 8, 8);
   const maxTop = Math.min(
     cardRect.bottom - popH - 8,
@@ -1373,7 +1245,7 @@ function positionInsertPopover(anchorBtn) {
 function openInsertPopover(anchorBtn, index, mode) {
   if (!insertPopover) return;
   INSERT_TARGET_INDEX = index;
-  INSERT_TARGET_MODE = mode; // 'above' or 'below'
+  INSERT_TARGET_MODE = mode;
   insertPopover.style.display = "block";
   positionInsertPopover(anchorBtn);
   if (window.innerWidth < 600) insertPopover.classList.add("compact");
@@ -1436,7 +1308,7 @@ function performInsertRows(count) {
       "success",
       3000
     );
-    FOCUSED_ROW_INDEX = pos; // focus first inserted row
+    FOCUSED_ROW_INDEX = pos;
     focusLineRow(FOCUSED_ROW_INDEX);
   }
   closeInsertPopover();
@@ -1463,22 +1335,21 @@ if (insertPopover)
     }
   });
 
-/* ---------------- Boot ---------------- */
+/* Boot */
 (async function init() {
   try {
     const {
       data: { session },
     } = await supabase.auth.getSession();
     if (!session) return (window.location.href = "login.html");
-    // Load permissions for this module
     try {
-      const { data: permRows, error: permErr } = await supabase
+      const { data: permRows } = await supabase
         .from("user_permissions")
         .select("module_id, can_view, can_edit")
         .eq("user_id", session.user.id)
         .eq("module_id", MODULE_ID)
         .limit(1);
-      if (!permErr && Array.isArray(permRows) && permRows.length) {
+      if (Array.isArray(permRows) && permRows.length) {
         PERM_CAN_VIEW = !!permRows[0].can_view;
         PERM_CAN_EDIT = !!permRows[0].can_edit;
       }
@@ -1490,17 +1361,16 @@ if (insertPopover)
       return;
     }
     await loadUoms();
-    await loadProducts();
-    await loadRmItems();
-    // Backfill codes if any missing (some RPC versions might not return code)
-    await ensureRmItemCodes();
-    if (PRODUCTS.length) {
-      CURRENT_PRODUCT_ID = PRODUCTS[0].id;
-      productPicker.value = String(CURRENT_PRODUCT_ID);
-      await loadBom(CURRENT_PRODUCT_ID);
-      await ensureRmItemCodes();
+    await loadOwners();
+    await loadStockItems();
+    await ensureStockItemCodes();
+    if (OWNERS.length) {
+      CURRENT_OWNER_ID = OWNERS[0].id;
+      productPicker.value = String(CURRENT_OWNER_ID);
+      await loadBom(CURRENT_OWNER_ID);
+      await ensureStockItemCodes();
     } else {
-      setStatus("No products available.", "error");
+      setStatus("No SP owners available.", "error");
     }
     applyPermissionUi();
   } catch (err) {
@@ -1509,63 +1379,54 @@ if (insertPopover)
   }
 })();
 
-/* ---------------- Helpers ---------------- */
-async function ensureMissingRmItems() {
-  // Gather unique missing IDs from CURRENT_LINES
+/* Helpers */
+async function ensureMissingStockItems() {
   const missingIds = Array.from(
     new Set(
       CURRENT_LINES.map((l) => l.stock_item_id).filter(
         (id) =>
-          id && !RM_ITEMS.some((x) => x.id === id) && typeof id === "number"
+          id && !STOCK_ITEMS.some((x) => x.id === id) && typeof id === "number"
       )
     )
   );
   if (!missingIds.length) return;
-  // Fetch their names directly (they may not be classified yet as RM)
   const { data, error } = await supabase
     .from("inv_stock_item")
     .select("id,name,code")
     .in("id", missingIds);
   if (error) {
-    console.warn("Failed fetching missing RM item names", error);
-    // Add placeholders to avoid blank selects
+    console.warn("Failed fetching missing item names", error);
     missingIds.forEach((id) =>
-      RM_ITEMS.push({ id, name: `Item #${id}`, code: null })
+      STOCK_ITEMS.push({ id, name: `Item #${id}`, code: null })
     );
     return;
   }
   (data || []).forEach((row) =>
-    RM_ITEMS.push({ id: row.id, name: row.name, code: row.code || null })
+    STOCK_ITEMS.push({ id: row.id, name: row.name, code: row.code || null })
   );
 }
-
-// Ensure codes exist for any RM_ITEMS entries lacking a code (RPC may omit)
-async function ensureRmItemCodes() {
-  const need = RM_ITEMS.filter((r) => !r.code).map((r) => r.id);
+async function ensureStockItemCodes() {
+  const need = STOCK_ITEMS.filter((r) => !r.code).map((r) => r.id);
   if (!need.length) return;
   const { data, error } = await supabase
     .from("inv_stock_item")
     .select("id, code")
     .in("id", need);
   if (error) {
-    console.warn("ensureRmItemCodes failed", error);
+    console.warn("ensureStockItemCodes failed", error);
     return;
   }
   const map = new Map((data || []).map((r) => [r.id, r.code]));
-  RM_ITEMS.forEach((r) => {
+  STOCK_ITEMS.forEach((r) => {
     if (!r.code) r.code = map.get(r.id) || r.code || null;
   });
 }
 
-/* -------- Kebab menu interactions -------- */
+/* Kebab menu interactions */
 function syncMenuState() {
-  // Reflect disabled states that are already managed elsewhere
-  // Delete is enabled only when a header exists
-  if (deleteBtn) deleteBtn.disabled = !CURRENT_HEADER;
-  // Edit is enabled when a product is selected
-  if (editHeaderBtn) editHeaderBtn.disabled = !CURRENT_PRODUCT_ID;
+  deleteBtn && (deleteBtn.disabled = !CURRENT_HEADER);
+  editHeaderBtn && (editHeaderBtn.disabled = !CURRENT_OWNER_ID);
 }
-
 if (moreMenuBtn && moreMenu) {
   const closeMenu = () => {
     moreMenu.classList.remove("open");
@@ -1605,7 +1466,6 @@ if (moreMenuBtn && moreMenu) {
       moreMenuBtn.setAttribute("aria-expanded", "true");
       positionMenu();
       window.addEventListener("resize", onMenuResize);
-      // Defer binding to avoid immediate close from this click
       setTimeout(() => {
         const onDocClick = (ev) => {
           if (!moreMenu.contains(ev.target) && ev.target !== moreMenuBtn) {
@@ -1624,77 +1484,14 @@ if (moreMenuBtn && moreMenu) {
         document.addEventListener("click", onDocClick);
         document.addEventListener("keydown", onEsc);
       }, 0);
-    } else {
-      closeMenu();
-    }
+    } else closeMenu();
   });
-  // Close when clicking a menu item
   moreMenu.addEventListener("click", (e) => {
     if (e.target.closest(".menu-item")) closeMenu();
   });
 }
 
-/* -------- Export menu interactions -------- */
-function positionMenuFixed(panel, anchor) {
-  if (!panel || !anchor) return;
-  panel.style.top = "0px";
-  panel.style.left = "0px";
-  const a = anchor.getBoundingClientRect();
-  // ensure we have dimensions
-  const w = panel.offsetWidth || 220;
-  const h = panel.offsetHeight || 140;
-  let top = a.bottom + 6;
-  let left = a.left;
-  // clamp within viewport
-  if (left + w > window.innerWidth - 8) left = window.innerWidth - w - 8;
-  if (top + h > window.innerHeight - 8) top = a.top - h - 8;
-  if (left < 8) left = 8;
-  if (top < 8) top = 8;
-  panel.style.top = `${top + window.scrollY}px`;
-  panel.style.left = `${left + window.scrollX}px`;
-}
-
-if (exportBtn && exportMenu) {
-  const closeExport = () => {
-    exportMenu.classList.remove("open");
-    exportBtn.setAttribute("aria-expanded", "false");
-  };
-  exportBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    const willOpen = !exportMenu.classList.contains("open");
-    if (willOpen) {
-      exportMenu.classList.add("open");
-      exportBtn.setAttribute("aria-expanded", "true");
-      // Position relative to button and clamp within viewport
-      requestAnimationFrame(() => positionMenuFixed(exportMenu, exportBtn));
-      setTimeout(() => {
-        const onDocClick = (ev) => {
-          if (!exportMenu.contains(ev.target) && ev.target !== exportBtn) {
-            closeExport();
-            document.removeEventListener("click", onDocClick);
-            document.removeEventListener("keydown", onEsc);
-          }
-        };
-        const onEsc = (ev) => {
-          if (ev.key === "Escape") {
-            closeExport();
-            document.removeEventListener("click", onDocClick);
-            document.removeEventListener("keydown", onEsc);
-          }
-        };
-        document.addEventListener("click", onDocClick);
-        document.addEventListener("keydown", onEsc);
-      }, 0);
-    } else {
-      closeExport();
-    }
-  });
-  exportMenu.addEventListener("click", (e) => {
-    if (e.target.closest(".menu-item")) closeExport();
-  });
-}
-
-/* -------- Export helpers -------- */
+/* Export helpers */
 function sanitizeFilename(s) {
   return (s || "untitled")
     .replace(/[^a-z0-9\-_]+/gi, "-")
@@ -1708,26 +1505,25 @@ function formatDateStamp() {
     d.getHours()
   )}${pad(d.getMinutes())}`;
 }
-function getProductLabel(pid) {
-  const p = PRODUCTS.find((x) => x.id === pid);
-  return p ? p.label : `Product-${pid}`;
+function getOwnerLabel(id) {
+  const p = OWNERS.find((x) => x.id === id);
+  return p ? p.label : `Owner-${id}`;
 }
 function getUomCode(id) {
   const u = UOMS.find((x) => x.id === id);
   return u ? u.code : "";
 }
 function getItemName(id) {
-  const it = RM_ITEMS.find((x) => x.id === id);
+  const it = STOCK_ITEMS.find((x) => x.id === id);
   return it ? it.name : id ? `Item #${id}` : "";
 }
 function getItemCode(id) {
-  const it = RM_ITEMS.find((x) => x.id === id);
+  const it = STOCK_ITEMS.find((x) => x.id === id);
   return it?.code || "";
 }
 function buildBomSnapshot() {
-  const productLabel = getProductLabel(CURRENT_PRODUCT_ID);
+  const ownerLabel = getOwnerLabel(CURRENT_OWNER_ID);
   const header = collectHeader();
-  // display percent with 2 decimals for output
   const displayPct = lossPct.value === "" ? null : parseFloat(lossPct.value);
   const lines = collectLines().map((ln, idx) => ({
     sn: idx + 1,
@@ -1745,7 +1541,7 @@ function buildBomSnapshot() {
     remarks: ln.remarks || "",
   }));
   return {
-    productLabel,
+    ownerLabel,
     refQty: header.reference_output_qty,
     refUom: getUomCode(header.reference_output_uom_id),
     lossPct: displayPct,
@@ -1768,16 +1564,15 @@ function downloadBlob(content, mime, filename) {
 function exportCsv() {
   if (!PERM_CAN_EDIT)
     return setStatus("You do not have permission to export.", "error");
-  if (!CURRENT_PRODUCT_ID)
-    return setStatus("Select a product to export.", "error");
+  if (!CURRENT_OWNER_ID)
+    return setStatus("Select an owner to export.", "error");
   const snap = buildBomSnapshot();
   const esc = (v) => {
     const s = v == null ? "" : String(v);
-    if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-    return s;
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const rows = [];
-  rows.push(["Product", snap.productLabel]);
+  rows.push(["Owner", snap.ownerLabel]);
   rows.push([
     "Reference Output",
     snap.refQty != null ? snap.refQty : "",
@@ -1791,14 +1586,14 @@ function exportCsv() {
   rows.push([
     "SN",
     "Stock Item Code",
-    "Stock Item (RM)",
+    "Stock Item",
     "Qty per Ref",
     "UOM",
     "Wastage %",
     "Optional",
     "Remarks",
   ]);
-  for (const ln of snap.lines) {
+  for (const ln of snap.lines)
     rows.push([
       ln.sn,
       ln.itemCode,
@@ -1809,124 +1604,70 @@ function exportCsv() {
       ln.optional,
       ln.remarks,
     ]);
-  }
   const csv = rows.map((r) => r.map(esc).join(",")).join("\n");
-  const filename = `rm-bom_${sanitizeFilename(
-    snap.productLabel
+  const filename = `sp-bom_${sanitizeFilename(
+    snap.ownerLabel
   )}_${formatDateStamp()}.csv`;
   downloadBlob(csv, "text/csv;charset=utf-8", filename);
   setStatus("CSV exported.", "success", 1800);
 }
 function buildHtmlDocument({ snap, color = true, autoPrint = false }) {
-  const title = `Raw Material BOM — ${snap.productLabel}`;
+  const title = `Semi-finished BOM — ${snap.ownerLabel}`;
   const style = color
-    ? `
-    body{font-family:Segoe UI,Roboto,Arial,sans-serif;color:#0f172a;margin:24px}
-    h1{font-size:20px;margin:0 0 12px 0}
-    .meta{display:grid;grid-template-columns:220px 1fr;row-gap:6px;column-gap:12px;margin:12px 0 16px}
-    .meta .label{color:#64748b;text-transform:uppercase;letter-spacing:.5px;font-size:12px;font-weight:600}
-    .pill{display:inline-flex;align-items:center;border:1px solid #0ea5e9;background:#f0f9ff;border-radius:999px;padding:4px 10px;color:#0c4a6e;font-weight:600}
-    table{border-collapse:collapse;width:100%}
-    th,td{border:1px solid #e2e8f0;padding:8px 10px;font-size:13px}
-    thead th{background:#f1f5f9;text-align:center}
-    tbody tr:nth-child(even){background:#fafafa}
-    td.right{text-align:right}
-    td.center{text-align:center}
-    .muted{color:#64748b}
-  `
-    : `
-    @media screen{body{margin:24px}}
-    body{font-family:Segoe UI,Roboto,Arial,sans-serif;color:#000}
-    h1{font-size:18px;margin:0 0 10px 0}
-    .meta{display:grid;grid-template-columns:220px 1fr;row-gap:6px;column-gap:12px;margin:10px 0 14px}
-    .meta .label{color:#000;text-transform:uppercase;letter-spacing:.5px;font-size:11px;font-weight:700}
-    table{border-collapse:collapse;width:100%}
-    th,td{border:1px solid #000;padding:6px 8px;font-size:12px}
-    thead th{text-align:center;background:#fff}
-    td.right{text-align:right}
-    td.center{text-align:center}
-    @media print{
-      *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-      body{margin:0}
-      h1{font-size:16px;margin:0 0 8px 0}
-    }
-  `;
+    ? `body{font-family:Segoe UI,Roboto,Arial,sans-serif;color:#0f172a;margin:24px}h1{font-size:20px;margin:0 0 12px 0}.meta{display:grid;grid-template-columns:220px 1fr;row-gap:6px;column-gap:12px;margin:12px 0 16px}.meta .label{color:#64748b;text-transform:uppercase;letter-spacing:.5px;font-size:12px;font-weight:600}.pill{display:inline-flex;align-items:center;border:1px solid #0ea5e9;background:#f0f9ff;border-radius:999px;padding:4px 10px;color:#0c4a6e;font-weight:600}table{border-collapse:collapse;width:100%}th,td{border:1px solid #e2e8f0;padding:8px 10px;font-size:13px}thead th{background:#f1f5f9;text-align:center}tbody tr:nth-child(even){background:#fafafa}td.right{text-align:right}td.center{text-align:center}.muted{color:#64748b}`
+    : `@media screen{body{margin:24px}}body{font-family:Segoe UI,Roboto,Arial,sans-serif;color:#000}h1{font-size:18px;margin:0 0 10px 0}.meta{display:grid;grid-template-columns:220px 1fr;row-gap:6px;column-gap:12px;margin:10px 0 14px}.meta .label{color:#000;text-transform:uppercase;letter-spacing:.5px;font-size:11px;font-weight:700}table{border-collapse:collapse;width:100%}th,td{border:1px solid #000;padding:6px 8px;font-size:12px}thead th{text-align:center;background:#fff}td.right{text-align:right}td.center{text-align:center}@media print{*{-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0}h1{font-size:16px;margin:0 0 8px 0}}`;
   const loss = snap.lossPct != null ? `${snap.lossPct.toFixed(2)}%` : "—";
-  const headerHtml = `
-    <div class="meta">
-      <div class="label">Product</div><div>${snap.productLabel}</div>
-      <div class="label">Reference Output</div><div>${snap.refQty ?? "—"} ${
+  const headerHtml = `<div class="meta"><div class="label">Owner</div><div>${
+    snap.ownerLabel
+  }</div><div class="label">Reference Output</div><div>${snap.refQty ?? "—"} ${
     snap.refUom || ""
-  }</div>
-      <div class="label">Process Loss %</div><div>${loss}</div>
-      <div class="label">Exported At</div><div>${new Date().toLocaleString()}</div>
-    </div>
-  `;
+  }</div><div class="label">Process Loss %</div><div>${loss}</div><div class="label">Exported At</div><div>${new Date().toLocaleString()}</div></div>`;
   const rows = snap.lines
     .map(
-      (ln) => `
-      <tr>
-        <td class="center">${ln.sn}</td>
-        <td class="center">${ln.itemCode || ""}</td>
-        <td>${ln.itemName || ""}</td>
-        <td class="right">${ln.qty ?? ""}</td>
-        <td class="center">${ln.uom || ""}</td>
-        <td class="right">${
+      (ln) =>
+        `<tr><td class="center">${ln.sn}</td><td class="center">${
+          ln.itemCode || ""
+        }</td><td>${ln.itemName || ""}</td><td class="right">${
+          ln.qty ?? ""
+        }</td><td class="center">${ln.uom || ""}</td><td class="right">${
           ln.wastagePct === "" ? "" : Number(ln.wastagePct).toFixed(2)
-        }%</td>
-        <td class="center">${ln.optional}</td>
-        <td>${(ln.remarks || "")
+        }%</td><td class="center">${ln.optional}</td><td>${(ln.remarks || "")
           .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")}</td>
-      </tr>`
+          .replace(/</g, "&lt;")}</td></tr>`
     )
     .join("");
-  const html = `<!DOCTYPE html>
-  <html><head><meta charset="utf-8" />
-  <title>${title}</title>
-  <style>${style}</style></head>
-  <body>
-    <h1>${title}</h1>
-    ${headerHtml}
-    <table>
-      <thead><tr><th>SN</th><th>Stock Item Code</th><th>Stock Item (RM)</th><th>Qty per Ref</th><th>UOM</th><th>Wastage %</th><th>Optional</th><th>Remarks</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-    ${autoPrint ? "<script>window.onload=()=>{window.print();}</script>" : ""}
-  </body></html>`;
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><title>${title}</title><style>${style}</style></head><body><h1>${title}</h1>${headerHtml}<table><thead><tr><th>SN</th><th>Stock Item Code</th><th>Stock Item</th><th>Qty per Ref</th><th>UOM</th><th>Wastage %</th><th>Optional</th><th>Remarks</th></tr></thead><tbody>${rows}</tbody></table>${
+    autoPrint ? "<script>window.onload=()=>{window.print();}</script>" : ""
+  }</body></html>`;
   return html;
 }
 function exportPdf() {
   if (!PERM_CAN_EDIT)
     return setStatus("You do not have permission to export.", "error");
-  if (!CURRENT_PRODUCT_ID)
-    return setStatus("Select a product to export.", "error");
+  if (!CURRENT_OWNER_ID)
+    return setStatus("Select an owner to export.", "error");
   const snap = buildBomSnapshot();
   const jspdfNS = window.jspdf || window.jsPDF || {};
   const jsPDF = jspdfNS.jsPDF || jspdfNS;
-  if (typeof jsPDF !== "function") {
+  if (typeof jsPDF !== "function")
     return setStatus(
       "PDF generator unavailable. Check network or jsPDF load.",
       "error"
     );
-  }
   const doc = new jsPDF({ orientation: "p", unit: "pt", format: "a4" });
   const margin = 36;
   const page = doc.internal.pageSize;
   const pageWidth = page.getWidth ? page.getWidth() : page.width;
   const pageHeight = page.getHeight ? page.getHeight() : page.height;
   let y = margin;
-  // Title
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
-  doc.setTextColor(0, 0, 0);
-  doc.text(`Raw Material BOM — ${snap.productLabel}`, margin, y);
+  doc.text(`Semi-finished BOM — ${snap.ownerLabel}`, margin, y);
   y += 18;
-  // Meta
   doc.setFont("helvetica", "normal");
   doc.setFontSize(11);
   const meta = [
-    ["Product", snap.productLabel],
+    ["Owner", snap.ownerLabel],
     ["Reference Output", `${snap.refQty ?? "—"} ${snap.refUom || ""}`],
     [
       "Process Loss %",
@@ -1950,7 +1691,7 @@ function exportPdf() {
     [
       "SN",
       "Stock Item Code",
-      "Stock Item (RM)",
+      "Stock Item",
       "Qty per Ref",
       "UOM",
       "Wastage %",
@@ -1997,7 +1738,6 @@ function exportPdf() {
         7: { halign: "left" },
       },
       didDrawPage: () => {
-        // footer page number
         const str = `Page ${doc.internal.getNumberOfPages()}`;
         doc.setFontSize(9);
         doc.text(str, pageWidth - margin, pageHeight - 12, { align: "right" });
@@ -2005,7 +1745,6 @@ function exportPdf() {
       margin: { left: margin, right: margin },
     });
   } else {
-    // Basic fallback table
     doc.setFontSize(10);
     const colX = [
       margin,
@@ -2034,10 +1773,9 @@ function exportPdf() {
       y += 14;
     });
   }
-  const filename = `rm-bom_${sanitizeFilename(
-    snap.productLabel
+  const filename = `sp-bom_${sanitizeFilename(
+    snap.ownerLabel
   )}_${formatDateStamp()}.pdf`;
-  // Prefer explicit blob download to avoid environment-specific quirks
   try {
     const blob = doc.output("blob");
     const url = URL.createObjectURL(blob);
@@ -2052,7 +1790,6 @@ function exportPdf() {
     }, 0);
     setStatus("PDF export initiated.", "success", 1800);
   } catch (e) {
-    // Fallback to jsPDF's built-in saver
     console.warn("PDF blob download failed; falling back to doc.save", e);
     doc.save(filename);
   }
@@ -2060,18 +1797,16 @@ function exportPdf() {
 function exportHtml() {
   if (!PERM_CAN_EDIT)
     return setStatus("You do not have permission to export.", "error");
-  if (!CURRENT_PRODUCT_ID)
-    return setStatus("Select a product to export.", "error");
+  if (!CURRENT_OWNER_ID)
+    return setStatus("Select an owner to export.", "error");
   const snap = buildBomSnapshot();
   const html = buildHtmlDocument({ snap, color: true, autoPrint: false });
-  // Offer both open-in-new-tab and download
-  const filename = `rm-bom_${sanitizeFilename(
-    snap.productLabel
+  const filename = `sp-bom_${sanitizeFilename(
+    snap.ownerLabel
   )}_${formatDateStamp()}.html`;
   const blob = new Blob([html], { type: "text/html;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   window.open(url, "_blank");
-  // Also trigger a download silently
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
@@ -2082,16 +1817,13 @@ function exportHtml() {
     URL.revokeObjectURL(url);
   }, 1000);
 }
-
-// Wire export actions
 if (exportCsvBtn) exportCsvBtn.addEventListener("click", exportCsv);
 if (exportPdfBtn) exportPdfBtn.addEventListener("click", exportPdf);
 if (exportHtmlBtn) exportHtmlBtn.addEventListener("click", exportHtml);
 
-// Toggle handlers
 if (linesViewBtn) {
   linesViewBtn.addEventListener("click", () => {
-    if (!LINES_EDIT_MODE) return; // already in view
+    if (!LINES_EDIT_MODE) return;
     LINES_EDIT_MODE = false;
     linesViewBtn.classList.add("active");
     linesEditBtn?.classList.remove("active");
@@ -2100,7 +1832,7 @@ if (linesViewBtn) {
 }
 if (linesEditBtn) {
   linesEditBtn.addEventListener("click", () => {
-    if (LINES_EDIT_MODE) return; // already in edit
+    if (LINES_EDIT_MODE) return;
     LINES_EDIT_MODE = true;
     linesEditBtn.classList.add("active");
     linesViewBtn?.classList.remove("active");
@@ -2108,7 +1840,6 @@ if (linesEditBtn) {
   });
 }
 
-/* ---------------- Keyboard shortcuts (Edit Mode) ---------------- */
 function focusLineRow(idx) {
   if (!LINES_EDIT_MODE) return;
   setTimeout(() => {
@@ -2120,9 +1851,9 @@ function focusLineRow(idx) {
     focusEl?.focus?.();
   }, 30);
 }
+
 document.addEventListener("keydown", (e) => {
-  if (!LINES_EDIT_MODE) return; // only in edit mode
-  // Ignore if modal/popover open
+  if (!LINES_EDIT_MODE) return;
   if (
     nhModal?.style.display === "flex" ||
     dhModal?.style.display === "flex" ||
@@ -2130,11 +1861,10 @@ document.addEventListener("keydown", (e) => {
     ehModal?.style.display === "flex"
   )
     return;
-  if (insertPopover?.style.display === "block") return; // let popover handle keys
+  if (insertPopover?.style.display === "block") return;
   const activeTag = document.activeElement?.tagName;
   const isTyping = activeTag === "INPUT" || activeTag === "TEXTAREA";
   const idx = FOCUSED_ROW_INDEX != null ? FOCUSED_ROW_INDEX : 0;
-  // Alt+ArrowUp / Alt+ArrowDown to move rows
   if (e.altKey && e.key === "ArrowUp") {
     e.preventDefault();
     if (idx > 0) {
@@ -2149,7 +1879,6 @@ document.addEventListener("keydown", (e) => {
     }
     return;
   }
-  // Shift+Insert: open insert popover for Insert Above
   if (
     e.key === "Insert" &&
     e.shiftKey &&
@@ -2161,9 +1890,7 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     const tr = linesBody.querySelector(`tr[data-i='${idx}']`);
     const btn = tr?.querySelector('button[data-act="insAbove"]');
-    if (btn) {
-      openInsertPopover(btn, idx, "above");
-    }
+    if (btn) openInsertPopover(btn, idx, "above");
     return;
   }
   if (e.altKey && e.key === "ArrowDown") {
@@ -2180,7 +1907,6 @@ document.addEventListener("keydown", (e) => {
     }
     return;
   }
-  // Insert key to add a row below focused row (ignore when typing inside a text field)
   if (
     e.key === "Insert" &&
     !e.altKey &&
@@ -2198,7 +1924,6 @@ document.addEventListener("keydown", (e) => {
     focusLineRow(FOCUSED_ROW_INDEX);
     return;
   }
-  // Delete key opens delete confirmation (unless typing in a field)
   if (
     e.key === "Delete" &&
     !e.altKey &&
@@ -2218,3 +1943,50 @@ document.addEventListener("keydown", (e) => {
     }
   }
 });
+
+/* Clone modal data sources (mirror RM patterns) */
+async function loadOwnersWithoutHeader() {
+  const { data: hdrRows, error } = await supabase
+    .from("sp_bom_header")
+    .select("owner_item_id");
+  if (error) {
+    console.warn("Failed to load existing SP headers", error);
+    return OWNERS; // fallback: show all owners
+  }
+  const existing = new Set((hdrRows || []).map((r) => r.owner_item_id));
+  return OWNERS.filter((p) => !existing.has(p.id));
+}
+
+async function loadOwnersWithBomLines() {
+  // Load owners that have a BOM header with at least one line
+  const { data, error } = await supabase
+    .from("sp_bom_header")
+    .select("id, owner_item_id, sp_bom_line(count)");
+  if (error) {
+    console.warn("Failed to load SP clone sources", error);
+    return [];
+  }
+  const withLines = (data || []).filter(
+    (h) => Array.isArray(h.sp_bom_line) && h.sp_bom_line[0]?.count > 0
+  );
+  const ids = new Set(withLines.map((h) => h.owner_item_id));
+  return OWNERS.filter((p) => ids.has(p.id));
+}
+
+async function populateCloneSources(excludeOwnerId) {
+  const list = await loadOwnersWithBomLines();
+  const filtered = list.filter((p) => p.id !== excludeOwnerId);
+  if (!filtered.length) {
+    nhCloneProduct.innerHTML = `<option value="">— no sources available —</option>`;
+    nhCloneToggle.checked = false;
+    nhCloneSection.style.display = "none";
+    nhCloneToggle.disabled = true;
+  } else {
+    nhCloneToggle.disabled = false;
+    nhCloneProduct.innerHTML =
+      `<option value="">— select source —</option>` +
+      filtered
+        .map((p) => `<option value="${p.id}">${escapeHtml(p.label)}</option>`)
+        .join("");
+  }
+}

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>PLM SKU ↔ Template Map</title>
+    <link rel="stylesheet" href="public/shared/css/style.css" />
+    <link rel="stylesheet" href="css/shared-ui.css" />
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Arial, sans-serif;
+        font-size: 14px;
+      }
+      .panel {
+        padding: 0;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+        margin: 16px 0;
+      }
+      .panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        border-bottom: 1px solid #e2e8f0;
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+      }
+      .panel-body {
+        padding: 16px;
+        display: grid;
+        gap: 12px;
+        grid-template-columns: 1fr 1fr;
+      }
+      label {
+        display: grid;
+        gap: 6px;
+        font-size: 13px;
+        color: #475569;
+      }
+      select,
+      input {
+        padding: 8px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        font: inherit;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #f8fafc 0%, #eef2f6 100%);
+        cursor: pointer;
+      }
+      .btn.primary {
+        background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+        border-color: #0ea5e9;
+        color: #fff;
+      }
+      #statusToastContainer {
+        position: fixed;
+        right: 16px;
+        bottom: 16px;
+        z-index: 1000;
+      }
+      .toast {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        max-width: 460px;
+        padding: 10px 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        background: #fff;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+      }
+      .toast .toast-close {
+        background: none;
+        border: none;
+        font: inherit;
+        cursor: pointer;
+      }
+      .muted {
+        color: #64748b;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>PLM SKU ↔ Template Map</h1>
+      <button id="homeBtn" class="btn" type="button">HOME</button>
+      <div id="statusToastContainer"></div>
+    </header>
+
+    <section class="panel">
+      <div class="panel-header">
+        <strong>Mapping</strong>
+        <div style="display: flex; gap: 8px">
+          <button id="setBtn" class="btn primary">Set Mapping</button>
+          <button id="clearBtn" class="btn">Clear Mapping</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <label
+          >Select SKU
+          <select id="skuPicker"></select>
+        </label>
+        <label
+          >Select Template
+          <select id="tplPicker"></select>
+        </label>
+        <div class="muted" style="grid-column: 1/-1">
+          Use the pickers to set or clear PLM template for the selected SKU.
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <strong>Mapped SKUs</strong>
+        <div style="display: flex; gap: 8px">
+          <button id="refreshMapListBtn" class="btn">Refresh</button>
+        </div>
+      </div>
+      <div class="panel-body" style="display: block">
+        <div class="muted" style="margin-bottom: 8px">
+          Current mappings from <code>plm_sku_pack_map</code>.
+        </div>
+        <div style="overflow: auto">
+          <table style="width: 100%; border-collapse: collapse">
+            <thead>
+              <tr>
+                <th
+                  style="
+                    text-align: left;
+                    padding: 6px;
+                    border-bottom: 1px solid #e2e8f0;
+                  "
+                >
+                  SKU
+                </th>
+                <th
+                  style="
+                    text-align: left;
+                    padding: 6px;
+                    border-bottom: 1px solid #e2e8f0;
+                  "
+                >
+                  Template
+                </th>
+                <th
+                  style="
+                    text-align: left;
+                    padding: 6px;
+                    border-bottom: 1px solid #e2e8f0;
+                  "
+                >
+                  Notes
+                </th>
+                <th
+                  style="
+                    text-align: left;
+                    padding: 6px;
+                    border-bottom: 1px solid #e2e8f0;
+                  "
+                >
+                  Updated
+                </th>
+              </tr>
+            </thead>
+            <tbody id="mappedBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <script type="module" src="public/shared/js/supabaseClient.js"></script>
+    <script type="module" src="js/manage-plm-map.js"></script>
+  </body>
+</html>

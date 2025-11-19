@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>PLM Overrides Editor</title>
+    <link rel="stylesheet" href="public/shared/css/style.css" />
+    <link rel="stylesheet" href="css/shared-ui.css" />
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Arial, sans-serif;
+        font-size: 14px;
+      }
+      .panel {
+        padding: 0;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+        margin: 16px 0;
+      }
+      .panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        border-bottom: 1px solid #e2e8f0;
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+      }
+      .panel-body {
+        padding: 14px;
+      }
+      .two-col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        align-items: start;
+      }
+      label {
+        display: grid;
+        gap: 6px;
+        font-size: 13px;
+        color: #475569;
+      }
+      select,
+      input {
+        padding: 8px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        font: inherit;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #f8fafc 0%, #eef2f6 100%);
+        cursor: pointer;
+      }
+      .btn.primary {
+        background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+        border-color: #0ea5e9;
+        color: #fff;
+      }
+      .grid {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .grid th,
+      .grid td {
+        border: 1px solid #e2e8f0;
+        padding: 8px 10px;
+        font-size: 13px;
+      }
+      .grid thead th {
+        position: sticky;
+        top: 0;
+        background: #f1f5f9;
+      }
+      .row-actions {
+        display: inline-flex;
+        gap: 4px;
+      }
+      .icon-btn.small {
+        width: 28px;
+        height: 28px;
+        padding: 4px;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        background: #fff;
+        cursor: pointer;
+      }
+      .icon-btn.small:hover {
+        background: #f1f5f9;
+      }
+      #statusToastContainer {
+        position: fixed;
+        right: 16px;
+        bottom: 16px;
+        z-index: 1000;
+      }
+      .toast {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        max-width: 520px;
+        padding: 10px 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        background: #fff;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+      }
+      .toast .toast-close {
+        background: none;
+        border: none;
+        font: inherit;
+        cursor: pointer;
+      }
+      .muted {
+        color: #64748b;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>PLM Overrides Editor</h1>
+      <button id="homeBtn" class="btn" type="button">HOME</button>
+      <div id="statusToastContainer"></div>
+    </header>
+
+    <section class="panel">
+      <div class="panel-header">
+        <div style="display: flex; gap: 10px; align-items: center">
+          <label style="margin: 0"
+            >Select SKU
+            <select id="skuPicker"></select>
+          </label>
+        </div>
+        <div style="display: flex; gap: 8px">
+          <button id="addOverrideBtn" class="btn">Add Override</button>
+          <button id="saveOverridesBtn" class="btn primary">
+            Save Overrides
+          </button>
+          <button id="applyRebuildBtn" class="btn">Apply & Rebuild</button>
+        </div>
+      </div>
+      <div class="panel-body two-col">
+        <div>
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              margin-bottom: 8px;
+            "
+          >
+            <strong>Overrides</strong>
+          </div>
+          <div style="overflow: auto; max-height: 70vh">
+            <table class="grid">
+              <thead>
+                <tr>
+                  <th>Op</th>
+                  <th>Stock Item</th>
+                  <th>Qty per Ref</th>
+                  <th>UOM</th>
+                  <th>Wastage %</th>
+                  <th>Optional</th>
+                  <th>Remarks</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="ovrBody"></tbody>
+            </table>
+          </div>
+          <div class="muted" style="margin-top: 8px">
+            Use 'set' to replace template values for the item+UOM, 'add' to add
+            new rows, and 'remove' to remove item+UOM from effective BOM.
+          </div>
+        </div>
+        <div>
+          <strong>Effective BOM Preview</strong>
+          <div class="muted" style="margin: 6px 0 8px">
+            Live preview of template + overrides.
+          </div>
+          <div style="overflow: auto; max-height: 70vh">
+            <table class="grid">
+              <thead>
+                <tr>
+                  <th>SN</th>
+                  <th>Item Code</th>
+                  <th>Stock Item</th>
+                  <th>Qty per Ref</th>
+                  <th>UOM</th>
+                  <th>Wastage %</th>
+                  <th>Optional</th>
+                  <th>Remarks</th>
+                </tr>
+              </thead>
+              <tbody id="previewBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <script type="module" src="public/shared/js/supabaseClient.js"></script>
+    <script type="module" src="js/manage-plm-overrides.js"></script>
+  </body>
+</html>

@@ -289,6 +289,7 @@ async function init() {
     // wire drawer buttons if present
     const drGod = $("sc-export-godowns");
     const drReg = $("sc-export-region");
+    const drHO = $("sc-export-ho");
     if (drGod)
       drGod.addEventListener("click", async () => {
         try {
@@ -306,6 +307,19 @@ async function init() {
       drReg.addEventListener("click", async () => {
         try {
           await exportCoveragePDFRegion();
+        } finally {
+          const d = $("sc-export-drawer");
+          if (d) {
+            d.style.display = "none";
+            d.setAttribute("aria-hidden", "true");
+            elExportPDF.setAttribute("aria-expanded", "false");
+          }
+        }
+      });
+    if (drHO)
+      drHO.addEventListener("click", async () => {
+        try {
+          await exportCoveragePDFHODepot();
         } finally {
           const d = $("sc-export-drawer");
           if (d) {
@@ -1556,7 +1570,8 @@ async function exportCoveragePDFRegion() {
         const stockIK = (Number(r.stock_ik) || 0) + (Number(r.stock_kkd) || 0);
         const forecastIK =
           (Number(r.forecast_ik) || 0) + (Number(r.forecast_kkd) || 0);
-        const mosIK = (Number(r.mos_ik) || 0) + (Number(r.mos_kkd) || 0);
+        // Compute MOS IK as a ratio of aggregated stock/demand; guard zero/blank demand
+        const mosIK = forecastIK > 0 ? stockIK / forecastIK : null;
 
         body.push([
           { content: ++sn, __shade: shade },
@@ -1683,6 +1698,227 @@ async function exportCoveragePDFRegion() {
 
     doc.save(
       `Stock_Coverage_Report_Region_${new Date()
+        .toISOString()
+        .slice(0, 10)}.pdf`
+    );
+  } catch (err) {
+    console.error(err);
+    setMsg("PDF export failed: " + (err.message || String(err)));
+  } finally {
+    __pdfExporting = false;
+    if (btn) btn.disabled = false;
+  }
+}
+
+// HO Depot report: Godown-level without considering KKD depot values
+async function exportCoveragePDFHODepot() {
+  if (__pdfExporting) return;
+  __pdfExporting = true;
+  const btn = $("sc-export-ho");
+  if (btn) btn.disabled = true;
+
+  try {
+    setMsg("");
+    await loadPdfEngine();
+    if (!ensurePdfReady()) return;
+
+    // 1) FETCH DATA (same fields as others)
+    const sel =
+      "category_name,product_group_name,sub_group_name," +
+      "item,pack_size," +
+      "stock_ik,forecast_ik,mos_ik," +
+      "stock_kkd,forecast_kkd,mos_kkd," +
+      "stock_ok,forecast_ok,mos_ok," +
+      "shade_flag";
+
+    const { data: rows, error } = await supabase
+      .from("v_stock_checker")
+      .select(sel)
+      .order("category_name")
+      .order("product_group_name")
+      .order("sub_group_name")
+      .order("item")
+      .order("pack_size")
+      .limit(20000);
+
+    if (error) throw error;
+    const records = (rows || []).filter((r) => r && r.item);
+
+    // 2) HEAD and helpers: omit KKD entirely, compute MOS IK without KKD influence
+    const HEAD = [
+      "SN",
+      "ITEM PACK",
+      "STOCK\nIK",
+      "DEMAND\nIK",
+      "MOS\nIK",
+      "STOCK\nOK",
+      "DEMAND\nOK",
+      "MOS\nOK",
+    ];
+    const I = (v) => (v == null ? "" : Number(v).toFixed(0));
+    const M = (v) => (v == null ? "" : Number(v).toFixed(2));
+    const itemPack = (r) =>
+      `${(r.item || "").trim()}_${String(r.pack_size ?? "").trim()}`;
+    const isSiddha = (cat) =>
+      String(cat || "")
+        .trim()
+        .toUpperCase() === "SIDDHA";
+
+    function buildBodyHO(recs) {
+      const body = [];
+      let prevCat = null;
+      let prevSub = null;
+      let sn = 0;
+
+      for (const r of recs) {
+        const cat = r.category_name || "";
+        const sub = r.sub_group_name || "";
+
+        if (cat !== prevCat) {
+          body.push([{ content: String(cat).toUpperCase(), _h: "cat" }]);
+          prevCat = cat;
+          prevSub = null;
+          sn = 0;
+        }
+
+        if (sub !== prevSub) {
+          body.push([{ content: sub, _h: "sub" }]);
+          prevSub = sub;
+        }
+
+        const shade = r.shade_flag === true;
+
+        // IK only (no KKD influence)
+        const stockIK = Number(r.stock_ik) || 0;
+        const forecastIK = Number(r.forecast_ik) || 0;
+        const mosIK = forecastIK > 0 ? stockIK / forecastIK : null;
+
+        body.push([
+          { content: ++sn, __shade: shade },
+          { content: itemPack(r), __shade: shade },
+          I(stockIK),
+          I(forecastIK),
+          M(mosIK),
+          I(r.stock_ok),
+          I(r.forecast_ok),
+          M(r.mos_ok),
+        ]);
+      }
+      return body;
+    }
+
+    // 3) split at SIDDHA (same behavior)
+    let splitIdx = records.findIndex((r) => isSiddha(r.category_name));
+    if (splitIdx < 0) splitIdx = records.length;
+
+    const partA = records.slice(0, splitIdx);
+    const partB = records.slice(splitIdx);
+
+    const doc = new window.jspdf.jsPDF({ unit: "pt", format: "a4" });
+    const margin = { l: 36, r: 36, t: 56, b: 48 };
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+
+    const TITLE = "STOCK COVERAGE REPORT - HO DEPOT";
+    const ORG = "Santhigiri Ayurveda Siddha Vaidyasala";
+    const today = new Date().toLocaleDateString("en-GB");
+
+    const drawHeaderFooter = () => {
+      doc.setFont("helvetica", "bold").setFontSize(10);
+      doc.text(TITLE, margin.l, margin.t - 26, { baseline: "bottom" });
+      doc.setFont("helvetica", "normal");
+      doc.text(today, pageW - margin.r, margin.t - 26, {
+        align: "right",
+        baseline: "bottom",
+      });
+
+      const y = pageH - 16;
+      doc.text(ORG, margin.l, y, { baseline: "bottom" });
+      doc.text(
+        `Page ${doc.internal.getCurrentPageInfo().pageNumber}`,
+        pageW - margin.r,
+        y,
+        { align: "right", baseline: "bottom" }
+      );
+    };
+
+    const W_SN = 24;
+    const W_PACK = 150;
+    const columnStyles = {
+      0: { cellWidth: W_SN, halign: "center" },
+      1: { cellWidth: W_PACK, halign: "left", overflow: "linebreak" },
+    };
+
+    const didParseCell = ({ section, row, cell }) => {
+      if (section !== "body" || !row || !cell) return;
+
+      if (
+        Array.isArray(row.raw) &&
+        row.raw.length === 1 &&
+        row.raw[0] &&
+        row.raw[0]._h
+      ) {
+        cell.colSpan = HEAD.length;
+        cell.styles.fontStyle = "bold";
+        cell.styles.halign = "left";
+        cell.styles.fillColor = [255, 255, 255];
+        return;
+      }
+
+      const shaded =
+        Array.isArray(row.raw) &&
+        ((row.raw[0] && row.raw[0].__shade === true) ||
+          (row.raw[1] && row.raw[1].__shade === true));
+      if (shaded) cell.styles.fillColor = [235, 235, 235];
+    };
+
+    function renderTable(body) {
+      runAutoTable(doc, {
+        head: [HEAD],
+        body,
+        margin,
+        startY: margin.t + 2,
+        tableWidth: "auto",
+        theme: "grid",
+        styles: {
+          fontSize: 8.5,
+          halign: "center",
+          valign: "middle",
+          lineColor: [0, 0, 0],
+          lineWidth: 0.5,
+          textColor: [0, 0, 0],
+          cellPadding: { top: 2, bottom: 2, left: 3, right: 3 },
+          overflow: "visible",
+        },
+        headStyles: {
+          fontStyle: "bold",
+          fontSize: 7.5,
+          fillColor: [255, 255, 255],
+          textColor: [0, 0, 0],
+          lineColor: [0, 0, 0],
+          lineWidth: 0.5,
+          overflow: "linebreak",
+        },
+        bodyStyles: { fillColor: [255, 255, 255] },
+        columnStyles,
+        showHead: "everyPage",
+        rowPageBreak: "avoid",
+        didParseCell,
+        didDrawPage: drawHeaderFooter,
+      });
+    }
+
+    if (partA.length > 0) {
+      renderTable(buildBodyHO(partA));
+    }
+
+    if (partB.length > 0) {
+      if (partA.length > 0) doc.addPage();
+      renderTable(buildBodyHO(partB));
+    }
+
+    doc.save(
+      `Stock_Coverage_Report_HO_Depot_${new Date()
         .toISOString()
         .slice(0, 10)}.pdf`
     );

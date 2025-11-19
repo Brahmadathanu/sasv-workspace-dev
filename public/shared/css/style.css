@@ -768,6 +768,8 @@ button {
 .btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center; /* center label/content horizontally */
+  text-align: center; /* ensure text aligns center when width expands */
   gap: 8px;
   background: var(--btn-bg-light);
   color: var(--btn-text);
@@ -780,9 +782,9 @@ button {
   transition: background 0.15s ease, transform 0.06s ease, box-shadow 0.12s;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }
+/* Unify hover color with brand token; avoid unintended light‑blue shift */
 .btn:hover:not([disabled]) {
-  /* slightly darker blue for hover (compatible fallback) */
-  background: #2563eb; /* darker shade of --btn-bg-light */
+  background: var(--btn-hover-bg);
   transform: translateY(-1px);
 }
 .btn:active:not([disabled]) {
@@ -800,6 +802,14 @@ button {
   background: transparent;
   color: var(--primary);
   border: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow: none;
+}
+/* Keep ghost buttons neutral on hover; avoid adopting primary hover */
+.btn.ghost:hover:not([disabled]) {
+  background: transparent !important;
+  color: var(--primary);
+  border-color: rgba(15, 23, 42, 0.18);
+  transform: translateY(-1px);
   box-shadow: none;
 }
 

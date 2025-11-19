@@ -1,124 +1,267 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset="UTF-8">
-  <title>SASV WORKSPACE | Login</title>
-  <link rel="stylesheet" href="public/shared/css/style.css">
-  <style>
-    :root {
-      --primary: #005A8D;
-      --primary-dark: #004876;
-      --text: #333;
-      --bg: #f7f9fb;
-    }
-    body {
-      font-family: Arial, sans-serif;
-      background-color: var(--bg);
-      color: var(--text);
-      margin: 0;
-      display: flex;
-      height: 100vh;
-      align-items: center;
-      justify-content: center;
-    }
-    .login-container {
-      background: #fff;
-      padding: 32px;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-      width: 320px;
-    }
-    h2 {
-      text-align: center;
-      margin-bottom: 24px;
-      color: var(--primary);
-    }
-    .input-group {
-      margin-bottom: 16px;
-    }
-    .input-group label {
-      display: block;
-      font-size: 0.9em;
-      margin-bottom: 4px;
-    }
-    .input-group input {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 0.9em;
-      box-sizing: border-box;
-    }
-    .btn-group {
-      display: flex;
-      gap: 12px;
-      margin-top: 24px;
-    }
-    .btn {
-      flex: 1;
-      padding: 12px;
-      border: none;
-      border-radius: 4px;
-      font-size: 0.9em;
-      cursor: pointer;
-      background-color: var(--primary);
-      color: #fff;
-      text-align: center;
-      transition: background-color 0.2s;
-    }
-    .btn:hover {
-      background-color: var(--primary-dark);
-    }
-    .reset-btn {
-      display: block;
-      margin: 16px auto 0;
-      background: none;
-      border: none;
-      color: var(--primary);
-      text-decoration: none;
-      font-size: 0.85em;
-      cursor: pointer;
-      padding: 0;
-    }
-    /* remove any hover background */
-    .reset-btn:hover {
-      background: none;
-      opacity: 0.8;
-    }
-    .error {
-      margin-top: 16px;
-      color: #D32F2F;
-      font-size: 0.85em;
-      text-align: center;
-    }
-  </style>
-</head>
-<body>
+  <head>
+    <meta charset="UTF-8" />
+    <title>SASV WORKSPACE | Login</title>
+    <link rel="stylesheet" href="public/shared/css/style.css" />
+    <style>
+      :root {
+        --primary: #005a8d;
+        --primary-dark: #004876;
+        --text: #333;
+        --bg: #f7f9fb;
+      }
+      body {
+        font-family: Arial, sans-serif;
+        background-color: var(--bg);
+        color: var(--text);
+        margin: 0;
+        display: flex;
+        height: 100vh;
+        align-items: center;
+        justify-content: center;
+      }
+      .login-container {
+        background: #fff;
+        padding: 32px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        width: 320px;
+      }
+      h2 {
+        text-align: center;
+        margin-bottom: 24px;
+        color: var(--primary);
+      }
+      .input-group {
+        margin-bottom: 16px;
+      }
+      .input-group label {
+        display: block;
+        font-size: 0.9em;
+        margin-bottom: 4px;
+      }
+      .input-group input {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 0.9em;
+        box-sizing: border-box;
+      }
+      .btn-group {
+        display: flex;
+        gap: 12px;
+        margin-top: 24px;
+      }
+      .btn-group .btn {
+        flex: 1;
+        min-height: 40px;
+      }
 
-  <div class="login-container">
-    <h2>Sign In</h2>
+      /* Password toggle button inside the field */
+      .password-group {
+        position: relative;
+      }
+      .password-group .icon-btn {
+        position: absolute;
+        right: 8px;
+        top: 32px;
+        border: 0;
+        background: transparent;
+        cursor: pointer;
+        color: #6b7280;
+        padding: 4px;
+        line-height: 1;
+        z-index: 2; /* ensure above input for clickability */
+      }
+      .password-group .icon-btn:focus-visible {
+        outline: 2px solid rgba(37, 99, 235, 0.6);
+        outline-offset: 2px;
+      }
+      .caps-hint {
+        margin-top: 6px;
+        font-size: 0.8em;
+        color: #92400e;
+        display: none;
+      }
 
-    <div class="input-group">
-      <label for="email">Email</label>
-      <input id="email" type="email" placeholder="you@example.com" />
+      /* Remember/reset row */
+      .meta-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 10px;
+        font-size: 0.9em;
+      }
+      .remember input {
+        margin-right: 6px;
+      }
+      .reset-link,
+      .reset-btn {
+        background: none;
+        border: none;
+        padding: 0;
+        color: var(--primary);
+        text-decoration: underline;
+        font-size: 0.9em;
+        cursor: pointer;
+      }
+      .reset-link:hover,
+      .reset-btn:hover {
+        opacity: 0.85;
+      }
+      .aux-row {
+        display: flex;
+        justify-content: center; /* center the forgot password link */
+        margin-top: 16px; /* increased spacing from buttons */
+      }
+      .reset-btn {
+        background: none;
+        border: none;
+        color: var(--primary);
+        text-decoration: underline;
+        font-size: 0.9em;
+        cursor: pointer;
+        padding: 0;
+      }
+      .reset-btn:hover {
+        background: none;
+        opacity: 0.8;
+      }
+      .error {
+        margin-top: 16px;
+        color: #d32f2f;
+        font-size: 0.85em;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="login-container">
+      <h2>Sign In</h2>
+
+      <div class="input-group">
+        <label for="email">Email</label>
+        <input
+          id="email"
+          type="email"
+          placeholder="you@example.com"
+          autocomplete="username"
+        />
+      </div>
+
+      <div class="input-group password-group">
+        <label for="password">Password</label>
+        <input
+          id="password"
+          type="password"
+          placeholder="••••••••"
+          autocomplete="current-password"
+        />
+        <button
+          type="button"
+          class="icon-btn"
+          id="togglePwd"
+          aria-label="Show password"
+          aria-pressed="false"
+          title="Show/Hide password"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        </button>
+        <div id="capsHint" class="caps-hint">Caps Lock is ON</div>
+      </div>
+
+      <div class="meta-row">
+        <label class="remember"
+          ><input type="checkbox" id="rememberMe" /> Remember me</label
+        >
+      </div>
+
+      <div class="btn-group">
+        <button id="signInBtn" class="btn primary">Sign In</button>
+        <button id="signUpBtn" class="btn ghost">Sign Up</button>
+      </div>
+
+      <div class="aux-row">
+        <button id="resetBtn" class="reset-btn">Forgot Password?</button>
+      </div>
+
+      <p id="errorMsg" class="error" role="status" aria-live="polite"></p>
     </div>
 
-    <div class="input-group">
-      <label for="password">Password</label>
-      <input id="password" type="password" placeholder="••••••••" />
-    </div>
+    <script type="module" src="js/supabaseClient.js"></script>
+    <script type="module" src="js/login.js"></script>
+    <script type="module">
+      import { toast } from "/public/shared/js/ui-helpers.js";
+      const api = window.electronAPI;
+      if (api && api.onUpdateStatus) {
+        let shownAvailable = false;
+        api.onUpdateStatus(({ status, version, message }) => {
+          switch (status) {
+            case "available":
+              if (!shownAvailable) {
+                toast(
+                  `Downloading update${version ? " v" + version : ""}…`,
+                  "info"
+                );
+                shownAvailable = true;
+              }
+              break;
+            case "downloaded":
+              showUpdateBanner(version);
+              break;
+            case "error":
+              toast(`Update error: ${message || "Unknown error"}`, "error");
+              break;
+            default:
+              // suppress noisy 'checking'/'not-available' to reduce annoyance
+              break;
+          }
+        });
+      }
 
-    <div class="btn-group">
-      <button id="signInBtn"  class="btn">Sign In</button>
-      <button id="signUpBtn"  class="btn">Sign Up</button>
-    </div>
-
-    <button id="resetBtn" class="reset-btn">Forgot Password?</button>
-
-    <p id="errorMsg" class="error"></p>
-  </div>
-
-  <script type="module" src="js/supabaseClient.js"></script>
-  <script type="module" src="js/login.js"></script>
-</body>
+      function showUpdateBanner(version) {
+        const id = "update-banner";
+        if (document.getElementById(id)) return;
+        const wrap = document.createElement("div");
+        wrap.id = id;
+        wrap.style.cssText = `
+          position: fixed; left: 50%; transform: translateX(-50%);
+          bottom: 24px; z-index: 9999; background: #0f172a; color: #fff;
+          padding: 10px 14px; border-radius: 10px; box-shadow: 0 10px 20px rgba(0,0,0,.2);
+          display: flex; align-items: center; gap: 10px; font-size: 14px;`;
+        const label = document.createElement("span");
+        label.textContent = `Update${
+          version ? " v" + version : ""
+        } downloaded.`;
+        const btn = document.createElement("button");
+        btn.textContent = "Restart now";
+        btn.style.cssText =
+          "margin-left:8px; background:#22c55e; color:#0b2816; border:none; padding:6px 10px; border-radius:6px; font-weight:600; cursor:pointer;";
+        btn.onclick = () => api && api.restartNow && api.restartNow();
+        const later = document.createElement("button");
+        later.textContent = "Later";
+        later.style.cssText =
+          "background:transparent; color:#cbd5e1; border:1px solid rgba(203,213,225,.4); padding:6px 10px; border-radius:6px; cursor:pointer;";
+        later.onclick = () => wrap.remove();
+        wrap.append(label, btn, later);
+        document.body.appendChild(wrap);
+      }
+    </script>
+  </body>
 </html>

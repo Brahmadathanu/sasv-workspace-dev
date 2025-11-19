@@ -14,6 +14,7 @@ const toast = (m) => {
 let _batchesCache = []; // last loadBatches() result
 let _headerStatus = "draft"; // track current header status
 let _productsCache = new Map(); // product_id -> product info cache
+let _bnPickerCleanup = null; // cleanup handlers for inline BN picker
 
 // Product lookup utilities
 async function loadProductsCache() {
@@ -147,6 +148,16 @@ function formatMonthDisplay(dateString) {
   };
 
   return date.toLocaleDateString("en-US", options);
+}
+
+// Format numbers without rounding: show full precision present in the value.
+// - null/undefined => empty string
+// - numeric => minimal string representation (no forced decimals)
+function formatExact(val) {
+  if (val === null || val === undefined) return "";
+  const n = Number(val);
+  if (Number.isFinite(n)) return String(n);
+  return String(val);
 }
 
 // lightweight DOM prompt (returns string or null)
@@ -438,12 +449,12 @@ async function onHeaderChanged() {
 }
 
 // ========= CORE RPCs (direct to SQL) =========
-async function rpcBuildBatchPlan(headerId, fromISO, toISO) {
-  return supabase.rpc("build_batch_plan", {
-    p_header_id: headerId,
-    p_from: fromISO,
-    p_to: toISO,
-  });
+// Legacy build RPC (retained for backwards migration; currently unused)
+// Removed invocation; can delete after confirming rebuild_batch_plan adoption.
+
+// New: full recompute using improved batching logic (compute_batches via rebuild_batch_plan)
+async function rpcRebuildBatchPlan(headerId) {
+  return supabase.rpc("rebuild_batch_plan", { p_header_id: headerId });
 }
 
 async function rpcRecalcForProduct(headerId, productId) {
@@ -542,11 +553,67 @@ async function onCreateHeader() {
     console.error(error);
     return toast("Create failed");
   }
-  toast(`Created header #${data.id}`);
+  // Immediately attempt initial build so the user sees lines without extra clicks.
+  let built = false;
+  try {
+    // Use new rebuild RPC (ignores provided window; header stores window_from/to)
+    const { data: buildData, error: buildError } = await rpcRebuildBatchPlan(
+      data.id
+    );
+    if (buildError) {
+      console.error("Initial build failed:", buildError);
+      if (
+        buildError.message &&
+        /v_product_batches_plan/i.test(buildError.message)
+      ) {
+        toast(
+          `Header #${data.id} created – missing view v_product_batches_plan.`
+        );
+      } else {
+        toast(`Created header #${data.id} (initial build failed)`);
+      }
+    } else {
+      built = true;
+      let linesInfo = "?",
+        batchesInfo = "?";
+      if (Array.isArray(buildData) && buildData.length) {
+        const row = buildData[0];
+        const li = row.lines_inserted ?? 0;
+        const lu = row.lines_updated ?? 0;
+        const br = row.batches_replaced ?? 0;
+        linesInfo = `${li} ins, ${lu} upd`;
+        batchesInfo = `${br}`;
+      }
+      toast(
+        `Created & built header #${data.id} (lines: ${linesInfo}, batches: ${batchesInfo})`
+      );
+    }
+  } catch (e) {
+    console.error("Initial build exception:", e);
+    toast(`Created header #${data.id} (build exception)`);
+  }
   q("newHeaderTitle").value = "";
+  // Reload headers list so new header appears; then select and load its data.
   await loadHeaders();
   q("bpHeaderSel").value = data.id;
+  // onHeaderChanged will load lines/batches; they will exist if build succeeded.
   await onHeaderChanged();
+  // If build succeeded we already toasted; if not, offer quick rebuild hint.
+  if (!built) {
+    const hint = q("bpStatusMsg");
+    if (hint) hint.textContent = "Initial build failed – use Rebuild All.";
+  }
+  // Built but still no lines? Surface probable root cause (source view empty)
+  const linesBody = q("bpLinesBody");
+  if (built && linesBody && linesBody.children.length === 0) {
+    toast(
+      "Built header – no lines: upstream consolidated view returned 0 rows."
+    );
+    const hint = q("bpStatusMsg");
+    if (hint)
+      hint.textContent =
+        "No source data; check v_product_bulk_consolidated_effective.";
+  }
 }
 
 async function onRenameHeader() {
@@ -888,16 +955,32 @@ async function onRebuildAll() {
   );
   if (!ok) return;
 
-  const { error } = await rpcBuildBatchPlan(
-    headerId,
-    hdr.window_from,
-    hdr.window_to
-  );
+  const { data: buildData, error } = await rpcRebuildBatchPlan(headerId);
   if (error) {
-    console.error(error);
-    return toast("Rebuild failed");
+    console.error("Rebuild failed:", error);
+    if (error.message && /v_product_batches_plan/i.test(error.message)) {
+      toast("Missing view v_product_batches_plan – deploy SQL fix script.");
+    } else {
+      toast("Rebuild failed");
+    }
+    return;
   }
-  toast("Rebuilt ✔");
+  // Debug: log the raw response structure
+  console.log("rebuild_batch_plan response:", buildData);
+
+  // buildData is array with one row containing lines_inserted, lines_updated, batches_replaced
+  let linesInfo = "?",
+    batchesInfo = "?";
+  if (Array.isArray(buildData) && buildData.length) {
+    const row = buildData[0];
+    console.log("First row:", row);
+    const li = row.lines_inserted ?? 0;
+    const lu = row.lines_updated ?? 0;
+    const br = row.batches_replaced ?? 0;
+    linesInfo = `${li} ins, ${lu} upd`;
+    batchesInfo = `${br}`;
+  }
+  toast(`Rebuilt ✔ (lines: ${linesInfo}, batches: ${batchesInfo})`);
   await loadRollup();
   await loadLines();
   await loadBatches();
@@ -1084,12 +1167,12 @@ async function loadLines() {
       <td>${getProductDisplay(r.product_id)}</td>
       <td>${getProductMalayalam(r.product_id) || ""}</td>
       <td>${formatMonthDisplay(r.month_start)}</td>
-      <td>${Number(r.final_make_qty).toFixed(0)}</td>
+      <td>${formatExact(r.final_make_qty)}</td>
       <td>${r.batch_count}</td>
       ${preferredBatchSizeCell}
-      <td>${Number(r.residual_qty).toFixed(0)}</td>
-      <td>${Number(r.overrides_delta || 0).toFixed(0)}</td>
-      <td>${Number(r.effective_total || r.final_make_qty).toFixed(0)}</td>`;
+      <td>${formatExact(r.residual_qty)}</td>
+      <td>${formatExact(r.overrides_delta ?? 0)}</td>
+      <td>${formatExact(r.effective_total ?? r.final_make_qty)}</td>`;
     tbody.appendChild(tr);
   });
 }
@@ -1326,7 +1409,7 @@ async function loadUnmappedBatches() {
     opt.value = r.batch_id;
     opt.textContent =
       `#${r.batch_id} · ${productName} ${r.month_start} · #${r.batch_no_seq} ` +
-      `(${Number(r.batch_size).toFixed(0)} via ${r.source_rule})`;
+      `(${formatExact(r.batch_size)} via ${r.source_rule})`;
     opt.dataset.productId = r.product_id;
     opt.dataset.batchSize = r.batch_size;
     sel.appendChild(opt);
@@ -1373,7 +1456,7 @@ async function loadBmrCandidates() {
     .forEach((r) => {
       const opt = document.createElement("option");
       opt.value = r.bn; // NOTE: pass BN, not ID, to the RPC
-      opt.textContent = `${r.bn} · ${Number(r.batch_size).toFixed(0)} ${r.uom}`;
+      opt.textContent = `${r.bn} · ${formatExact(r.batch_size)} ${r.uom}`;
       sel.appendChild(opt);
     });
 
@@ -1413,6 +1496,9 @@ async function onUnlinkBmr(evt) {
 
 async function onPickBmrForBatch(evt) {
   const batchId = Number(evt.currentTarget.dataset.batch);
+  // Pre-flight: ensure this batch is still unmapped before prompting/RPC
+  const ok = await assertUnmappedBatchOrToast(batchId);
+  if (!ok) return;
   // read batch context (product_id)
   const { data: b, error: e1 } = await supabase
     .from("batch_plan_batches")
@@ -1454,10 +1540,8 @@ async function onPickBmrForBatch(evt) {
   if (!choices.length)
     return toast("No eligible BMR cards for this product this month.");
 
-  const sel = await showPrompt(
-    "Pick BN (enter the BN):\n" + choices.join("\n")
-  );
-  const chosenBn = sel?.split("::")[0].trim();
+  // Show interactive BN picker modal instead of text prompt
+  const chosenBn = await showBnPickerModal(choices, b.product_id, batchId);
   if (!chosenBn) return;
 
   // map using the new RPC that takes BN
@@ -1467,14 +1551,40 @@ async function onPickBmrForBatch(evt) {
   });
   if (e3) {
     console.error(e3);
-    return toast(e3.message || "Map failed");
+    const msg = normalizeMapError(e3);
+    toast(msg);
+    // Refresh to reflect any mapping that may have occurred elsewhere
+    await loadBatches();
+    return;
   }
   toast("Mapped ✔");
   await loadBatches();
 }
 
+function normalizeMapError(err) {
+  const raw = (err && (err.message || err.error_description)) || "";
+  const code = err && (err.code || err.hint || "");
+  if (code === "PGRST203") {
+    return "Mapping service misconfigured: duplicate RPC overloads (integer vs bigint). Please consolidate to one function signature.";
+  }
+  if (/unrecognized exception condition/i.test(raw)) {
+    // Backend raised an unknown condition name (e.g., CHECK_VIOLATION spelled/quoted wrong)
+    return "Mapping failed due to a validation error. Please ensure the BN is valid, not already mapped, and meets constraints.";
+  }
+  if (code === "23514" || /check constraint/i.test(raw)) {
+    return raw || "Mapping violates a database check constraint.";
+  }
+  // Avoid dumping very large SQL or HTML into toast
+  if (raw && raw.length > 280)
+    return "Mapping failed (see console for details).";
+  return raw || "Map failed";
+}
+
 async function onMapByBN(evt) {
   const batchId = Number(evt.currentTarget.dataset.batch);
+  // Pre-flight: ensure this batch is still unmapped before prompting/RPC
+  const ok = await assertUnmappedBatchOrToast(batchId);
+  if (!ok) return;
   const bn = await showPrompt("Enter BN to map this planned batch:");
   if (!bn) return;
   const { error } = await supabase.rpc("map_batch_to_bmr_by_bn", {
@@ -1483,10 +1593,500 @@ async function onMapByBN(evt) {
   });
   if (error) {
     console.error(error);
-    return toast(error.message || "Map by BN failed");
+    const msg = normalizeMapError(error);
+    toast(msg);
+    await loadBatches();
+    return;
   }
   toast("Mapped by BN ✔");
   await loadBatches();
+}
+
+// Guard: verify batch is still unmapped before attempting to map
+async function assertUnmappedBatchOrToast(batchId) {
+  try {
+    const { data, error } = await supabase
+      .from("batch_plan_batches")
+      .select("bmr_id")
+      .eq("id", batchId)
+      .single();
+    if (error) {
+      console.error("Failed to check batch mapping state", error);
+      // If check fails, allow flow to continue to server-side validation
+      return true;
+    }
+    if (data && data.bmr_id) {
+      toast(`Batch #${batchId} is already mapped to a BMR.`);
+      await loadBatches();
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error("assertUnmappedBatchOrToast exception", e);
+    return true;
+  }
+}
+
+// Inline BN picker for table cells - ERP style dropdown
+window.showInlineBnPicker = async function (button) {
+  const batchId = Number(button.dataset.batch);
+  const productId = Number(button.dataset.product);
+  const batchSize = Number(button.dataset.size);
+  // Toggle: if already open for this button, close it
+  if (button.getAttribute("aria-expanded") === "true") {
+    closeAllInlineBnPickers();
+    return;
+  }
+
+  const ok = await assertUnmappedBatchOrToast(batchId);
+  if (!ok) return;
+
+  closeAllInlineBnPickers();
+
+  const candidates = await getBnCandidates(productId, batchSize);
+  if (!candidates.length) {
+    return toast("No eligible BMR cards for this product this month.");
+  }
+
+  const dropdown = document.createElement("div");
+  dropdown.className = "bn-picker-dropdown";
+  // Narrower min width so dropdown stays compact (bn only).
+  // Cap the dropdown width so it doesn't expand to the whole table column.
+  const suggestedWidth = Math.max(120, button.offsetWidth + 8);
+  const capped = Math.min(suggestedWidth, 300); // never wider than 300px
+  dropdown.style.minWidth = capped + "px";
+  dropdown.style.maxWidth = "320px";
+  dropdown.style.boxSizing = "border-box";
+
+  // Tooltip element (singleton) for option descriptions (keyboard accessible)
+  let tooltip = document.getElementById("bn-picker-tooltip");
+  if (!tooltip) {
+    tooltip = document.createElement("div");
+    tooltip.id = "bn-picker-tooltip";
+    tooltip.className = "bn-tooltip";
+    document.body.appendChild(tooltip);
+  }
+
+  candidates.forEach((candidate) => {
+    const option = document.createElement("button");
+    option.className = "bn-picker-option";
+
+    const [bn, description] = candidate.split(" :: ");
+    // Show BN on the left and a small badge with size on the right
+    option.dataset.description = description || "";
+    const leftSpan = document.createElement("span");
+    leftSpan.className = "bn-picker-text";
+    leftSpan.textContent = bn.trim();
+    option.appendChild(leftSpan);
+
+    // No inline badge: rely on tooltip for size/details to keep UI compact
+
+    // Tooltip handlers (delayed show for hover/focus, keyboard accessible)
+    let _bnTooltipTimer = null;
+    const showTooltip = () => {
+      const desc = option.dataset.description;
+      if (!desc) return;
+      tooltip.textContent = desc;
+      tooltip.classList.add("show");
+      // Position tooltip near the option
+      const oRect = option.getBoundingClientRect();
+      const tRect = tooltip.getBoundingClientRect();
+      let left = Math.min(window.innerWidth - tRect.width - 8, oRect.right + 8);
+      left = Math.max(8, left);
+      let top = oRect.top + (oRect.height - tRect.height) / 2;
+      top = Math.max(8, Math.min(window.innerHeight - tRect.height - 8, top));
+      tooltip.style.left = left + "px";
+      tooltip.style.top = top + "px";
+    };
+    const hideTooltip = () => {
+      clearTimeout(_bnTooltipTimer);
+      tooltip.classList.remove("show");
+    };
+    const scheduleShow = () => {
+      clearTimeout(_bnTooltipTimer);
+      _bnTooltipTimer = setTimeout(showTooltip, 250);
+    };
+    option.addEventListener("mouseenter", scheduleShow);
+    option.addEventListener("focus", scheduleShow);
+    option.addEventListener("mouseleave", hideTooltip);
+    option.addEventListener("blur", hideTooltip);
+
+    option.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      closeAllInlineBnPickers();
+
+      button.innerHTML = `
+        <span class="bn-picker-text">Mapping...</span>
+        <div style="width: 14px; height: 14px; border: 2px solid #e5e7eb; border-top: 2px solid #3b82f6; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+      `;
+
+      const { error } = await supabase.rpc("map_batch_to_bmr_by_bn", {
+        p_batch_id: batchId,
+        p_bn: bn.trim(),
+      });
+
+      if (error) {
+        console.error(error);
+        const msg = normalizeMapError(error);
+        toast(msg);
+        await loadBatches();
+        return;
+      }
+
+      toast("Mapped");
+      await loadBatches();
+    });
+
+    dropdown.appendChild(option);
+  });
+
+  dropdown.style.visibility = "hidden";
+  document.body.appendChild(dropdown);
+
+  const spacing = 6;
+  const positionDropdown = () => {
+    if (!dropdown.isConnected) return;
+    const rect = button.getBoundingClientRect();
+    const dropdownRect = dropdown.getBoundingClientRect();
+
+    let top = rect.bottom + spacing;
+    let openAbove = false;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    if (
+      spaceBelow < dropdownRect.height + spacing &&
+      rect.top > dropdownRect.height + spacing
+    ) {
+      top = Math.max(8, rect.top - dropdownRect.height - spacing);
+      openAbove = true;
+    } else {
+      top = Math.min(
+        window.innerHeight - dropdownRect.height - 8,
+        rect.bottom + spacing
+      );
+    }
+
+    let left = rect.left;
+    const maxLeft = window.innerWidth - dropdownRect.width - 8;
+    left = Math.min(Math.max(8, left), Math.max(8, maxLeft));
+
+    dropdown.style.top = `${top}px`;
+    dropdown.style.left = `${left}px`;
+    dropdown.classList.toggle("bn-picker-dropdown--above", openAbove);
+  };
+
+  // Position and show immediately on next frame for snappy UX
+  positionDropdown();
+  dropdown.style.visibility = "visible";
+  dropdown.classList.add("show");
+  // Focus the first option so keyboard users can navigate immediately
+  const firstOption = dropdown.querySelector(".bn-picker-option");
+  if (firstOption) firstOption.focus();
+
+  // Keyboard navigation inside the dropdown: ArrowUp/ArrowDown, Enter to select,
+  // Escape handled globally. Also implement quick type-ahead (buffered).
+  let typeBuffer = "";
+  let typeTimer = null;
+  const optionList = () =>
+    Array.from(dropdown.querySelectorAll(".bn-picker-option"));
+  const handleDropdownKeydown = (e) => {
+    const opts = optionList();
+    if (!opts.length) return;
+
+    const active = document.activeElement;
+    const idx = opts.indexOf(active);
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      const next = idx < opts.length - 1 ? opts[idx + 1] : opts[0];
+      next.focus();
+      return;
+    }
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      const prev = idx > 0 ? opts[idx - 1] : opts[opts.length - 1];
+      prev.focus();
+      return;
+    }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (
+        document.activeElement &&
+        document.activeElement.classList.contains("bn-picker-option")
+      ) {
+        document.activeElement.click();
+      }
+      return;
+    }
+
+    // Type-ahead: accumulate printable characters to jump to matching BN
+    if (e.key && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      typeBuffer += e.key.toLowerCase();
+      clearTimeout(typeTimer);
+      typeTimer = setTimeout(() => (typeBuffer = ""), 800);
+      const match = opts.find((o) =>
+        o.textContent.trim().toLowerCase().startsWith(typeBuffer)
+      );
+      if (match) {
+        match.focus();
+      }
+    }
+  };
+  dropdown.addEventListener("keydown", handleDropdownKeydown);
+  button.style.borderColor = "#3b82f6";
+  button.style.background = "#eff6ff";
+  button.setAttribute("aria-expanded", "true");
+
+  const handleOutsideClick = (e) => {
+    if (e.target === button || button.contains(e.target)) return;
+    if (dropdown.contains(e.target)) return;
+    closeAllInlineBnPickers();
+  };
+  const handleScroll = () => closeAllInlineBnPickers();
+  const handleResize = () => closeAllInlineBnPickers();
+  const handleKeydown = (e) => {
+    if (e.key === "Escape" || e.key === "Esc") {
+      e.preventDefault();
+      closeAllInlineBnPickers();
+    }
+  };
+
+  // Attach listeners immediately
+  document.addEventListener("click", handleOutsideClick, true);
+  document.addEventListener("scroll", handleScroll, true);
+  window.addEventListener("resize", handleResize);
+  document.addEventListener("keydown", handleKeydown, true);
+
+  _bnPickerCleanup = () => {
+    document.removeEventListener("click", handleOutsideClick, true);
+    document.removeEventListener("scroll", handleScroll, true);
+    window.removeEventListener("resize", handleResize);
+    document.removeEventListener("keydown", handleKeydown, true);
+    // remove dropdown-specific keyboard handler
+    try {
+      dropdown.removeEventListener("keydown", handleDropdownKeydown);
+    } catch {
+      /* ignore */
+    }
+    // Hide tooltip if visible
+    const _tt = document.getElementById("bn-picker-tooltip");
+    if (_tt) _tt.classList.remove("show");
+  };
+};
+// Helper function to close all inline BN pickers
+function closeAllInlineBnPickers() {
+  document.querySelectorAll(".bn-picker-dropdown").forEach((dropdown) => {
+    dropdown.remove();
+  });
+
+  document.querySelectorAll(".bn-picker-btn").forEach((btn) => {
+    btn.style.borderColor = "#d1d5db";
+    btn.style.background = "#f9fafb";
+    btn.setAttribute("aria-expanded", "false");
+  });
+
+  if (_bnPickerCleanup) {
+    _bnPickerCleanup();
+    _bnPickerCleanup = null;
+  }
+}
+
+// Keyboard helper: when a `.bn-picker-btn` has focus, pressing ArrowDown opens the picker
+document.addEventListener(
+  "keydown",
+  (e) => {
+    try {
+      const el = document.activeElement;
+      if (!el || !el.classList) return;
+      if (!el.classList.contains("bn-picker-btn")) return;
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        if (typeof window.showInlineBnPicker === "function") {
+          if (el.getAttribute("aria-expanded") !== "true")
+            window.showInlineBnPicker(el);
+        } else {
+          el.click();
+        }
+      }
+    } catch {
+      // defensive: do nothing
+    }
+  },
+  true
+);
+
+// Helper function to get BN candidates for a product
+async function getBnCandidates(productId, batchSize) {
+  let query = supabase
+    .from("bmr_card_not_initiated")
+    .select("bmr_id,bn,batch_size,uom,created_at")
+    .eq("product_id", productId)
+    .order("bn");
+
+  // Apply month window filter if available
+  if (window._headerFrom) {
+    query = query.gte("created_at", window._headerFrom + " 00:00:00");
+  }
+  if (window._headerTo) {
+    query = query.lte("created_at", window._headerTo + " 23:59:59");
+  }
+
+  const { data: rows, error } = await query;
+  if (error) {
+    console.error(error);
+    return [];
+  }
+
+  // Filter by size and build choices
+  const eps = 1e-6;
+  return (rows || [])
+    .filter((r) => Math.abs(Number(r.batch_size) - Number(batchSize)) <= eps)
+    .map((r) => `${r.bn} :: ${r.bn} × ${r.batch_size} ${r.uom}`);
+}
+
+// Interactive BN picker modal for better UX
+function showBnPickerModal(choices, productId, batchId) {
+  return new Promise((resolve) => {
+    // Create modal backdrop
+    const backdrop = document.createElement("div");
+    backdrop.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    `;
+
+    // Create modal content
+    const modal = document.createElement("div");
+    modal.style.cssText = `
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    `;
+
+    // Modal header
+    const header = document.createElement("h3");
+    header.textContent = `Select BN for Batch #${batchId}`;
+    header.style.cssText =
+      "margin: 0 0 16px 0; font-size: 18px; font-weight: 600; color: #1f2937;";
+    modal.appendChild(header);
+
+    // Instructions
+    const instructions = document.createElement("p");
+    instructions.textContent =
+      "Click on a BN below to map it to this planned batch:";
+    instructions.style.cssText =
+      "margin: 0 0 16px 0; color: #6b7280; font-size: 14px;";
+    modal.appendChild(instructions);
+
+    // BN options container
+    const optionsContainer = document.createElement("div");
+    optionsContainer.style.cssText =
+      "margin-bottom: 20px; max-height: 300px; overflow-y: auto;";
+
+    // Create clickable BN options
+    choices.forEach((choice) => {
+      const [bn, description] = choice.split(" :: ");
+
+      const option = document.createElement("button");
+      option.style.cssText = `
+        width: 100%;
+        text-align: left;
+        padding: 12px 16px;
+        margin: 4px 0;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        background: #f9fafb;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        font-family: inherit;
+        font-size: 14px;
+      `;
+
+      const bnSpan = document.createElement("div");
+      bnSpan.textContent = bn.trim();
+      bnSpan.style.cssText =
+        "font-weight: 600; color: #1f2937; margin-bottom: 4px;";
+
+      const descSpan = document.createElement("div");
+      descSpan.textContent = description;
+      descSpan.style.cssText = "font-size: 13px; color: #6b7280;";
+
+      option.appendChild(bnSpan);
+      option.appendChild(descSpan);
+
+      // Hover effects
+      option.addEventListener("mouseenter", () => {
+        option.style.borderColor = "#3b82f6";
+        option.style.background = "#eff6ff";
+        option.style.transform = "translateY(-1px)";
+        option.style.boxShadow = "0 4px 6px -1px rgba(0, 0, 0, 0.1)";
+      });
+
+      option.addEventListener("mouseleave", () => {
+        option.style.borderColor = "#e5e7eb";
+        option.style.background = "#f9fafb";
+        option.style.transform = "none";
+        option.style.boxShadow = "none";
+      });
+
+      // Click handler
+      option.addEventListener("click", () => {
+        document.body.removeChild(backdrop);
+        resolve(bn.trim());
+      });
+
+      optionsContainer.appendChild(option);
+    });
+
+    modal.appendChild(optionsContainer);
+
+    // Cancel button
+    const cancelBtn = document.createElement("button");
+    cancelBtn.textContent = "Cancel";
+    cancelBtn.style.cssText = `
+      padding: 8px 16px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      background: white;
+      color: #374151;
+      cursor: pointer;
+      font-family: inherit;
+      margin-top: 8px;
+    `;
+
+    cancelBtn.addEventListener("click", () => {
+      document.body.removeChild(backdrop);
+      resolve(null);
+    });
+
+    modal.appendChild(cancelBtn);
+    backdrop.appendChild(modal);
+    document.body.appendChild(backdrop);
+
+    // Close on backdrop click
+    backdrop.addEventListener("click", (e) => {
+      if (e.target === backdrop) {
+        document.body.removeChild(backdrop);
+        resolve(null);
+      }
+    });
+
+    // Focus first option for keyboard navigation
+    if (optionsContainer.firstChild) {
+      optionsContainer.firstChild.focus();
+    }
+  });
 }
 
 // ========= METRIC MODAL FUNCTIONALITY =========
@@ -2051,7 +2651,7 @@ function renderBatches() {
         `<button class="kebab-item" onclick="window.open('add-bmr-entry.html?item=${encodeURIComponent(
           productDisplay
         )}&size=${encodeURIComponent(
-          Number(r.batch_size || 0).toFixed(0)
+          String(formatExact(r.batch_size ?? 0))
         )}', '_blank')">Create BN</button>`,
       ];
     } else {
@@ -2092,12 +2692,27 @@ function renderBatches() {
              data-seq="${
                r.batch_no_seq
              }" class="bpEditSize" style="width:100px" />`
-          : Number(r.batch_size).toFixed(0)
+          : formatExact(r.batch_size)
       }</td>
       <td>${getProductUom(r.product_id) || ""}</td>
       <td>${r.source_rule || ""}</td>
       <td>${r.map_status === "UNMAPPED" ? "Unmapped" : "Mapped"}</td>
-      <td>${r.mapped_bn || ""}</td>
+      <td>${
+        r.map_status === "UNMAPPED" && _headerStatus !== "applied"
+          ? `<div class="bn-picker-container">
+             <button class="bn-picker-btn" 
+                     data-batch="${r.batch_id}" 
+                     data-product="${r.product_id}"
+                     data-size="${r.batch_size}"
+                     onclick="showInlineBnPicker(this)">
+               <span class="bn-picker-text">Pick BN</span>
+               <svg class="bn-picker-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                 <polyline points="6,9 12,15 18,9"></polyline>
+               </svg>
+             </button>
+           </div>`
+          : r.mapped_bn || ""
+      }</td>
       <td>${actionHtml}</td>`;
     tbody.appendChild(tr);
   });
@@ -2106,6 +2721,8 @@ function renderBatches() {
   tbody.querySelectorAll(".bpEditSize").forEach((inp) => {
     inp.addEventListener("change", onEditBatchSize);
   });
+
+  // BN pickers are wired via onclick in HTML
 }
 
 // Handle kebab menu toggle

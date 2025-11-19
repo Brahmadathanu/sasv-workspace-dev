@@ -11,6 +11,9 @@ contextBridge.exposeInMainWorld("app", {
 
 contextBridge.exposeInMainWorld("electronAPI", {
   getAppVersion: () => ipcRenderer.invoke("get-app-version"),
+  onUpdateStatus: (cb) =>
+    ipcRenderer.on("updater:status", (_evt, payload) => cb && cb(payload)),
+  restartNow: () => ipcRenderer.invoke("updater:restart"),
 });
 
 contextBridge.exposeInMainWorld("sopAPI", {

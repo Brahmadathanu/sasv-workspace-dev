@@ -20,6 +20,10 @@ const btnYes = document.getElementById("btnYes");
 const btnNo = document.getElementById("btnNo");
 const btnOk = document.getElementById("btnOk");
 const itemList = document.getElementById("itemList");
+const processingOverlay = document.getElementById("processingOverlay");
+const processingMessage = document.getElementById("processingMessage");
+const processingBar = document.getElementById("processingBar");
+const processingProgress = document.getElementById("processingProgress");
 
 let csvPreviewData = null;
 const maxRows = 10;
@@ -70,6 +74,25 @@ function askConfirm(msg) {
       res(false);
     };
   });
+}
+
+function showProcessing(msg, { showProgress = false } = {}) {
+  if (processingMessage) processingMessage.textContent = msg;
+  if (processingBar) processingBar.style.width = "0%";
+  if (processingProgress)
+    processingProgress.style.display = showProgress ? "block" : "none";
+  if (processingOverlay) processingOverlay.style.display = "flex";
+}
+
+function updateProcessingProgress(pct) {
+  if (processingBar) {
+    const v = Math.max(0, Math.min(100, pct));
+    processingBar.style.width = `${v}%`;
+  }
+}
+
+function hideProcessing() {
+  if (processingOverlay) processingOverlay.style.display = "none";
 }
 
 /** Keep focus on the first item input */
@@ -205,11 +228,14 @@ confirmPreview.onclick = async () => {
       size: r.querySelector(".m-size").value,
       uom: r.querySelector(".m-uom").value,
     }));
+  showProcessing("Uploading entries…", { showProgress: true });
+
   let added = 0,
     dup = 0,
     err = 0;
   const missingProducts = new Set();
-  for (const d of data) {
+  for (let i = 0; i < data.length; i++) {
+    const d = data[i];
     const res = await insertBmr(d);
     if (res.ok) added++;
     else if (res.dup) dup++;
@@ -217,7 +243,9 @@ confirmPreview.onclick = async () => {
       err++;
       missingProducts.add(d.item);
     } else err++;
+    updateProcessingProgress(((i + 1) / data.length) * 100);
   }
+  hideProcessing();
   let msg = `Added: ${added}\nDuplicates: ${dup}\nErrors: ${err}`;
   if (missingProducts.size) {
     msg += `\n\nMissing products (no matching product record):\n`;
@@ -273,6 +301,7 @@ uploadCsvBtn.onclick = async () => {
   }
   if (!(await askConfirm(`Upload ${file.name}?`))) return;
 
+  showProcessing("Processing CSV…");
   const text = await new Promise((r) => {
     const fr = new FileReader();
     fr.onload = (e) => r(e.target.result);
@@ -282,15 +311,33 @@ uploadCsvBtn.onclick = async () => {
   const lines = text.split(/\r?\n/).filter((l) => l.trim());
   const data = [];
 
+  const expectedHeader = ["item", "bn", "batch_size", "uom"];
+  const hasHeader = (() => {
+    if (!lines.length) return false;
+    // Remove BOM if present on first line
+    const firstLine = lines[0].replace(/^\uFEFF/, "");
+    const cols = firstLine
+      .split(",")
+      .map((c) => c.trim().replace(/^"|"$/g, "").toLowerCase());
+    if (cols.length !== expectedHeader.length) return false;
+    for (let i = 0; i < cols.length; i++) {
+      if (cols[i] !== expectedHeader[i]) return false;
+    }
+    return true;
+  })();
+
   try {
-    lines.forEach((ln, idx) => {
-      const [item, bn, size, uom] = ln.split(",").map((c) => c.trim());
+    (hasHeader ? lines.slice(1) : lines).forEach((ln, idx) => {
+      const rawCols = ln.split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
+      const [item, bn, size, uom] = rawCols;
       if (!item || !bn || !uom) {
-        throw new Error(`CSV row ${idx + 1} incomplete`);
+        const rowNum = hasHeader ? idx + 2 : idx + 1;
+        throw new Error(`CSV row ${rowNum} incomplete`);
       }
       data.push({ item, bn, size: parseFloat(size) || null, uom });
     });
   } catch (err) {
+    hideProcessing();
     await showAlert(err.message);
     return;
   }
@@ -310,6 +357,7 @@ uploadCsvBtn.onclick = async () => {
     )
     .join("");
   previewOverlay.style.display = "flex";
+  hideProcessing();
 };
 
 // — Initialize on DOMContentLoaded —

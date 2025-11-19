@@ -93,6 +93,206 @@
         margin: 12px 0;
       }
 
+      /* Scrollable table containers for Lines and Batches tabs */
+      #tab-lines .table-container,
+      #tab-batches .table-container {
+        max-height: calc(
+          100vh - 320px
+        ); /* Reserve space for header, tabs, filters, and intro */
+        overflow-y: auto;
+        overflow-x: auto;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        margin: 12px 0;
+        background: white;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      }
+
+      /* Sticky table headers for scrollable tables */
+      #tab-lines .table-container thead,
+      #tab-batches .table-container thead {
+        position: sticky;
+        top: 0;
+        background: var(--table-header, #f9fafb);
+        z-index: 10;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+      }
+
+      /* Enhanced scrollbar styling for table containers */
+      #tab-lines .table-container::-webkit-scrollbar,
+      #tab-batches .table-container::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+
+      #tab-lines .table-container::-webkit-scrollbar-track,
+      #tab-batches .table-container::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 4px;
+      }
+
+      #tab-lines .table-container::-webkit-scrollbar-thumb,
+      #tab-batches .table-container::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+      }
+
+      #tab-lines .table-container::-webkit-scrollbar-thumb:hover,
+      #tab-batches .table-container::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+      }
+
+      /* Corner styling when both scrollbars are present */
+      #tab-lines .table-container::-webkit-scrollbar-corner,
+      #tab-batches .table-container::-webkit-scrollbar-corner {
+        background: #f1f5f9;
+      }
+
+      /* Inline BN Picker Styles */
+      .bn-picker-container {
+        position: relative;
+        display: inline-block;
+        width: 100%;
+      }
+
+      .bn-picker-btn {
+        display: inline-flex;
+        width: auto;
+        max-width: 220px; /* keep BN column compact */
+        min-width: 96px;
+        padding: 4px 8px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        background: #f9fafb;
+        color: #374151;
+        font-family: inherit;
+        font-size: 12px;
+        cursor: pointer;
+        align-items: center;
+        justify-content: space-between;
+        transition: all 0.12s ease;
+        overflow: hidden;
+      }
+
+      .bn-picker-btn:hover {
+        border-color: #9ca3af;
+        background: #f3f4f6;
+      }
+
+      .bn-picker-btn:focus {
+        outline: 2px solid #3b82f6;
+        outline-offset: -2px;
+      }
+
+      .bn-picker-text {
+        flex: 1 1 auto;
+        text-align: left;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 12px;
+      }
+
+      .bn-picker-icon {
+        margin-left: 4px;
+        transition: transform 0.15s ease;
+      }
+
+      .bn-picker-btn[aria-expanded="true"] .bn-picker-icon {
+        transform: rotate(180deg);
+      }
+
+      .bn-picker-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: auto;
+        min-width: 120px; /* Narrower dropdown */
+        background: white;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+          0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        z-index: 9999; /* Increased z-index to appear above everything */
+        max-height: 200px;
+        overflow-y: auto;
+        margin-top: 2px;
+        opacity: 0;
+        transform: scale(0.98);
+        pointer-events: none;
+        transition: opacity 120ms ease, transform 120ms ease;
+      }
+
+      .bn-picker-dropdown.show {
+        opacity: 1;
+        transform: scale(1);
+        pointer-events: auto;
+      }
+
+      /* Tooltip for BN options (keyboard accessible) */
+      .bn-tooltip {
+        position: fixed;
+        background: rgba(17, 24, 39, 0.95);
+        color: white;
+        padding: 6px 8px;
+        font-size: 12px;
+        border-radius: 6px;
+        box-shadow: 0 4px 12px rgba(2, 6, 23, 0.4);
+        z-index: 12000;
+        opacity: 0;
+        transform: translateY(-4px);
+        transition: opacity 120ms ease, transform 120ms ease;
+        pointer-events: none;
+      }
+      .bn-tooltip.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      /* ERP-styled vertical BN option list */
+      .bn-picker-option {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        padding: 10px 12px;
+        background: white;
+        border: none;
+        text-align: left;
+        color: #0f172a;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .bn-picker-option + .bn-picker-option {
+        border-top: 1px solid #eef2f7;
+      }
+      .bn-picker-option:focus,
+      .bn-picker-option:hover {
+        background: #f8fafc;
+        outline: none;
+      }
+
+      /* badge removed — size/details available in tooltip */
+
+      .bn-picker-option:hover {
+        background: #f3f4f6;
+      }
+
+      .bn-picker-option:not(:last-child) {
+        border-bottom: 1px solid #f3f4f6;
+      }
+
+      /* Loading spinner animation */
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
       table {
         border-collapse: collapse;
         width: 100%;

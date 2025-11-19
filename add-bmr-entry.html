@@ -1,340 +1,417 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>SASV WORKSPACE | Add BMR Entry</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="public/shared/css/style.css">
+  <head>
+    <meta charset="UTF-8" />
+    <title>SASV WORKSPACE | Add BMR Entry</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="public/shared/css/style.css" />
 
-  <style>
-    /* === Container & Responsiveness === */
-    body {
-      margin: 0;
-      padding: 20px;
-      font-family: Arial, sans-serif;
-      background: var(--bg-color);
-      color: var(--text-color);
-      transition: background .3s, color .3s;
-    }
-    section {
-      /* allow full width, no fixed max */
-      width: 100%;
-      margin-bottom: 30px;
-      padding: 0 20px;     /* inner gutter */
-    }
+    <style>
+      /* === Container & Responsiveness === */
+      body {
+        margin: 0;
+        padding: 20px;
+        font-family: Arial, sans-serif;
+        background: var(--bg-color);
+        color: var(--text-color);
+        transition: background 0.3s, color 0.3s;
+      }
+      section {
+        /* allow full width, no fixed max */
+        width: 100%;
+        margin-bottom: 30px;
+        padding: 0 20px; /* inner gutter */
+      }
 
-    /* === Header === */
-    .header-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-    }
-    .header-bar h2 {
-      margin: 0;
-      color: #005A8D;
-      font-size: 1.5rem;
-    }
-    #homeBtn {
-      background: var(--home-btn-bg);
-      color: var(--btn-text);
-      border: none;
-      padding: 8px 16px;
-      border-radius: 4px;
-      font-size: 1rem;
-      cursor: pointer;
-    }
-    #homeBtn:hover {
-      background: var(--home-btn-hover-bg);
-    }
+      /* === Header === */
+      .header-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+      }
+      .header-bar h2 {
+        margin: 0;
+        color: #005a8d;
+        font-size: 1.5rem;
+      }
+      #homeBtn {
+        background: var(--home-btn-bg);
+        color: var(--btn-text);
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-size: 1rem;
+        cursor: pointer;
+      }
+      #homeBtn:hover {
+        background: var(--home-btn-hover-bg);
+      }
 
-    /* === CSV & Bulk Upload === */
-    h3 {
-      margin: 16px 0 8px;
-      color: #005A8D;
-      font-size: 1.2rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .link-button {
-      background: none;
-      border: none;
-      color: var(--btn-bg);
-      text-decoration: underline;
-      cursor: pointer;
-      font-size: 0.9rem;
-    }
-    .link-button:hover {
-      opacity: 0.7;
-    }
-    input[type="file"] {
-      margin-bottom: 12px;
-      width: 100%;            /* full width */
-    }
-    .btn {
-      background: var(--btn-bg);
-      color: var(--btn-text);
-      border: none;
-      padding: 8px 16px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 0.9rem;
-      margin-right: 8px;
-    }
-    .btn:hover {
-      background: var(--btn-hover-bg);
-    }
+      /* === CSV & Bulk Upload === */
+      h3 {
+        margin: 16px 0 8px;
+        color: #005a8d;
+        font-size: 1.2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .link-button {
+        background: none;
+        border: none;
+        color: var(--btn-bg);
+        text-decoration: underline;
+        cursor: pointer;
+        font-size: 0.9rem;
+      }
+      .link-button:hover {
+        opacity: 0.7;
+      }
+      input[type="file"] {
+        margin-bottom: 12px;
+        width: 100%; /* full width */
+      }
+      .btn {
+        background: var(--btn-bg);
+        color: var(--btn-text);
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        margin-right: 8px;
+      }
+      .btn:hover {
+        background: var(--btn-hover-bg);
+      }
 
-    /* === CSV preview table === */
-    table.csv-preview {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 20px;
-      font-size: 0.9rem;
-    }
-    table.csv-preview th,
-    table.csv-preview td {
-      border: 1px dashed #999;
-      padding: 6px;
-      background: #fafafa;
-    }
+      /* === CSV preview table === */
+      table.csv-preview {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+        font-size: 0.9rem;
+      }
+      table.csv-preview th,
+      table.csv-preview td {
+        border: 1px dashed #999;
+        padding: 6px;
+        background: #fafafa;
+      }
 
-    /* === Main input table === */
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 20px;
-      table-layout: auto;  /* allow columns to grow */
-    }
-    th, td {
-      padding: 8px;
-      border: 1px solid #ccc;
-      vertical-align: middle;
-    }
-    input[type="number"],
-    input[type="text"],
-    select {
-      width: 100%;
-      padding: 6px;
-      box-sizing: border-box;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    }
+      /* === Main input table === */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+        table-layout: auto; /* allow columns to grow */
+      }
+      th,
+      td {
+        padding: 8px;
+        border: 1px solid #ccc;
+        vertical-align: middle;
+      }
+      input[type="number"],
+      input[type="text"],
+      select {
+        width: 100%;
+        padding: 6px;
+        box-sizing: border-box;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
 
-    /* === Row controls === */
-    .row-controls {
-      display: flex;
-      gap: 4px;
-      justify-content: center;
-      align-items: center;
-    }
-    .row-add, .row-remove {
-      background: none;
-      border: none;
-      cursor: pointer;
-      font-size: 1.2rem;
-      line-height: 1;
-      padding: 0 4px;
-    }
-    .row-add { color: green; }
-    .row-remove { color: red; }
-    .row-add:hover, .row-remove:hover {
-      opacity: 0.7;
-    }
+      /* === Row controls === */
+      .row-controls {
+        display: flex;
+        gap: 4px;
+        justify-content: center;
+        align-items: center;
+      }
+      .row-add,
+      .row-remove {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 1.2rem;
+        line-height: 1;
+        padding: 0 4px;
+      }
+      .row-add {
+        color: green;
+      }
+      .row-remove {
+        color: red;
+      }
+      .row-add:hover,
+      .row-remove:hover {
+        opacity: 0.7;
+      }
 
-    /* === Preview overlay === */
-    #previewOverlay {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.5);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-      padding: 20px;
-    }
-    #previewBox {
-      background: var(--bg-color);
-      color: var(--text-color);
-      padding: 20px;
-      border-radius: 8px;
-      width: 100%;
-      max-width: 700px;
-      max-height: 80vh;
-      overflow-y: auto;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    }
-    #previewTable {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 16px;
-    }
-    #previewTable th, #previewTable td {
-      border: 1px solid #ccc;
-      padding: 6px;
-      text-align: left;
-    }
-    .modal-actions {
-      text-align: right;
-      display: flex;
-      justify-content: flex-end;
-      gap: 10px;
-    }
+      /* === Preview overlay === */
+      #previewOverlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        padding: 20px;
+      }
+      #previewBox {
+        background: var(--bg-color);
+        color: var(--text-color);
+        padding: 20px;
+        border-radius: 8px;
+        width: 100%;
+        max-width: 700px;
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      }
+      #previewTable {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 16px;
+      }
+      #previewTable th,
+      #previewTable td {
+        border: 1px solid #ccc;
+        padding: 6px;
+        text-align: left;
+      }
+      .modal-actions {
+        text-align: right;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+      }
 
-    /* === Generic dialog overlay === */
-    #dialogOverlay {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.5);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 2000;
-    }
-    #dialogBox {
-      background: var(--bg-color);
-      color: var(--text-color);
-      padding: 20px;
-      border-radius: 8px;
-      max-width: 320px;
-      text-align: center;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    }
-    #dialogMessage {
-      margin-bottom: 20px;
-      font-size: 0.95rem;
-    }
-    #dialogButtons button {
-      margin: 0 8px;
-      padding: 6px 14px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      background: var(--btn-bg);
-      color: var(--btn-text);
-      font-size: 0.9rem;
-    }
-    #dialogButtons button:hover {
-      background: var(--btn-hover-bg);
-    }
-  </style>
-</head>
-<body data-theme="system">
+      /* === Generic dialog overlay === */
+      #dialogOverlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+      }
+      #dialogBox {
+        background: var(--bg-color);
+        color: var(--text-color);
+        padding: 20px;
+        border-radius: 8px;
+        max-width: 320px;
+        text-align: center;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      }
+      #dialogMessage {
+        margin-bottom: 20px;
+        font-size: 0.95rem;
+      }
+      #dialogButtons button {
+        margin: 0 8px;
+        padding: 6px 14px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        background: var(--btn-bg);
+        color: var(--btn-text);
+        font-size: 0.9rem;
+      }
+      #dialogButtons button:hover {
+        background: var(--btn-hover-bg);
+      }
 
-  <!-- HEADER -->
-  <div class="header-bar">
-    <h2>Add BMR Entry</h2>
-    <button id="homeBtn">HOME</button>
-  </div>
-
-  <!-- CSV FORMAT PREVIEW & BULK UPLOAD -->
-  <section>
-    <h3>CSV Format Preview</h3>
-    <table class="csv-preview">
-      <thead>
-        <tr>
-          <th>item</th>
-          <th>bn</th>
-          <th>batch_size</th>
-          <th>uom</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>ExampleItem</td>
-          <td>EX123</td>
-          <td>10</td>
-          <td>Kg</td>
-        </tr>
-      </tbody>
-    </table>
-
-    <h3>
-      Bulk Upload
-      <button id="downloadTemplate" class="link-button">Download Template</button>
-    </h3>
-    <input type="file" id="csvFile" accept=".csv" />
-    <button id="uploadCsv" class="btn">Upload CSV</button>
-  </section>
-
-  <!-- MULTIPLE ENTRY -->
-  <section>
-    <h3>Add BMR Entries</h3>
-    <datalist id="itemList"></datalist>
-
-    <table id="multiTable">
-      <thead>
-        <tr>
-          <th>Item</th>
-          <th>BN</th>
-          <th>Batch Size</th>
-          <th>UOM</th>
-          <th> </th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>
-            <input type="text" class="m-item" list="itemList" placeholder="Type to search…" autocomplete="off" />
-          </td>
-          <td><input type="text" class="m-bn" /></td>
-          <td><input type="number" class="m-size" step="0.01" min="0" /></td>
-          <td>
-            <select class="m-uom">
-              <option value="">— UOM —</option>
-              <option>Kg</option>
-              <option>L</option>
-              <option>Nos</option>
-              <option>g</option>
-              <option>mL</option>
-            </select>
-          </td>
-          <td>
-            <div class="row-controls">
-              <button class="row-add" title="Add row">➕</button>
-              <button class="row-remove" title="Remove row">➖</button>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-
-    <div class="controls">
-      <button id="multiAdd" class="btn">Add All</button>
-      <button id="multiClear" class="btn">Clear</button>
+      /* === Processing overlay (blocks UI and shows status/progress) === */
+      #processingOverlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(2px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 3000;
+        padding: 20px;
+      }
+      #processingBox {
+        background: var(--bg-color);
+        color: var(--text-color);
+        padding: 20px 24px;
+        border-radius: 8px;
+        width: 100%;
+        max-width: 420px;
+        text-align: center;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+      }
+      #processingMessage {
+        margin-bottom: 12px;
+        font-weight: 600;
+      }
+      #processingProgress {
+        height: 8px;
+        background: #e9ecef;
+        border-radius: 5px;
+        overflow: hidden;
+        display: none;
+      }
+      #processingBar {
+        height: 100%;
+        width: 0%;
+        background: var(--btn-bg);
+        transition: width 0.2s ease;
+      }
+    </style>
+  </head>
+  <body data-theme="system">
+    <!-- HEADER -->
+    <div class="header-bar">
+      <h2>Add BMR Entry</h2>
+      <button id="homeBtn">HOME</button>
     </div>
-  </section>
 
-  <!-- PREVIEW OVERLAY -->
-  <div id="previewOverlay">
-    <div id="previewBox">
-      <h3>Confirm BMR Entries</h3>
-      <table id="previewTable">
+    <!-- CSV FORMAT PREVIEW & BULK UPLOAD -->
+    <section>
+      <h3>CSV Format Preview</h3>
+      <table class="csv-preview">
         <thead>
-          <tr><th>#</th><th>Item</th><th>BN</th><th>Size</th><th>UOM</th></tr>
+          <tr>
+            <th>item</th>
+            <th>bn</th>
+            <th>batch_size</th>
+            <th>uom</th>
+          </tr>
         </thead>
-        <tbody></tbody>
+        <tbody>
+          <tr>
+            <td>ExampleItem</td>
+            <td>EX123</td>
+            <td>10</td>
+            <td>Kg</td>
+          </tr>
+        </tbody>
       </table>
-      <div class="modal-actions">
-        <button id="cancelPreview" class="btn">Edit</button>
-        <button id="confirmPreview" class="btn">Confirm</button>
+
+      <h3>
+        Bulk Upload
+        <button id="downloadTemplate" class="link-button">
+          Download Template
+        </button>
+      </h3>
+      <input type="file" id="csvFile" accept=".csv" />
+      <button id="uploadCsv" class="btn">Upload CSV</button>
+    </section>
+
+    <!-- MULTIPLE ENTRY -->
+    <section>
+      <h3>Add BMR Entries</h3>
+      <datalist id="itemList"></datalist>
+
+      <table id="multiTable">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>BN</th>
+            <th>Batch Size</th>
+            <th>UOM</th>
+            <th> </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <input
+                type="text"
+                class="m-item"
+                list="itemList"
+                placeholder="Type to search…"
+                autocomplete="off"
+              />
+            </td>
+            <td><input type="text" class="m-bn" /></td>
+            <td><input type="number" class="m-size" step="0.01" min="0" /></td>
+            <td>
+              <select class="m-uom">
+                <option value="">— UOM —</option>
+                <option>Kg</option>
+                <option>L</option>
+                <option>Nos</option>
+                <option>g</option>
+                <option>mL</option>
+              </select>
+            </td>
+            <td>
+              <div class="row-controls">
+                <button class="row-add" title="Add row">➕</button>
+                <button class="row-remove" title="Remove row">➖</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="controls">
+        <button id="multiAdd" class="btn">Add All</button>
+        <button id="multiClear" class="btn">Clear</button>
+      </div>
+    </section>
+
+    <!-- PREVIEW OVERLAY -->
+    <div id="previewOverlay">
+      <div id="previewBox">
+        <h3>Confirm BMR Entries</h3>
+        <table id="previewTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Item</th>
+              <th>BN</th>
+              <th>Size</th>
+              <th>UOM</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div class="modal-actions">
+          <button id="cancelPreview" class="btn">Edit</button>
+          <button id="confirmPreview" class="btn">Confirm</button>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- GENERIC DIALOG OVERLAY -->
-  <div id="dialogOverlay">
-    <div id="dialogBox">
-      <div id="dialogMessage"></div>
-      <div id="dialogButtons">
-        <button id="btnYes">Yes</button>
-        <button id="btnNo">No</button>
-        <button id="btnOk">OK</button>
+    <!-- GENERIC DIALOG OVERLAY -->
+    <div id="dialogOverlay">
+      <div id="dialogBox">
+        <div id="dialogMessage"></div>
+        <div id="dialogButtons">
+          <button id="btnYes">Yes</button>
+          <button id="btnNo">No</button>
+          <button id="btnOk">OK</button>
+        </div>
       </div>
     </div>
-  </div>
 
-  <script type="module" src="js/bmr-add.js"></script>
-</body>
+    <!-- PROCESSING OVERLAY -->
+    <div id="processingOverlay" aria-live="polite" aria-busy="true">
+      <div id="processingBox">
+        <div id="processingMessage">Processing…</div>
+        <div id="processingProgress">
+          <div id="processingBar"></div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="js/bmr-add.js"></script>
+  </body>
 </html>

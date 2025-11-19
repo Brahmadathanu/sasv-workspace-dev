@@ -291,6 +291,8 @@ async function rollbackUnifiedOverrides() {
   }
 }
 let filterInputTimer = null;
+// Debounce timer for Active Overrides Item filter
+let aoFilterInputTimer = null;
 function scheduleLoadLines(delay = 300) {
   clearTimeout(filterInputTimer);
   filterInputTimer = setTimeout(() => {
@@ -2244,6 +2246,25 @@ async function applyUnifiedOverrides() {
   const thr = 0.0; // keep, but no UI control
 
   try {
+    // If this plan is already marked as applied, rollback first so re-apply is idempotent
+    try {
+      const opt = headerSet?.options[headerSet.selectedIndex];
+      const status = opt?.dataset?.status || "";
+      if (String(status).toLowerCase() === "applied") {
+        console.debug(
+          "Plan already applied; performing rollback before re-apply"
+        );
+        const { data: rbResp, error: rbErr } = await supabase.rpc(
+          "rollback_manual_plan_apply",
+          { p_set_id: setId }
+        );
+        console.debug("rollback before apply resp:", rbResp, rbErr);
+        // proceed even if rbErr; the subsequent apply will reconcile state
+      }
+    } catch (preErr) {
+      console.warn("Pre-apply rollback attempt failed; continuing", preErr);
+    }
+
     let { data: resp1, error: e1 } = await supabase.rpc(
       "apply_manual_plan_set",
       { p_set_id: setId, p_from: from, p_to: to, p_threshold: thr }
@@ -2786,6 +2807,7 @@ async function loadActiveOverrides(fromParam = null, toParam = null) {
   try {
     const fid = document.getElementById("filterAOProductId")?.value?.trim();
     const fmonth = document.getElementById("filterAOMonth")?.value; // YYYY-MM
+    const itemFilter = document.getElementById("filterAOItem")?.value?.trim();
     if (fid) {
       const pnum = Number(fid);
       if (Number.isFinite(pnum)) q = q.eq("product_id", pnum);
@@ -2802,9 +2824,56 @@ async function loadActiveOverrides(fromParam = null, toParam = null) {
         q = q.gte("month_start", start).lt("month_start", next);
       }
     }
-    // Note: item filter will be applied client-side after fetching rows to avoid
-    // server-side relation filtering which can sometimes return rows without
-    // the joined v_product_details payload. This keeps item/uom available.
+    // Server-side Item filter across full dataset:
+    // Resolve matching product_ids from v_product_details, then filter overrides
+    if (itemFilter) {
+      try {
+        const term = `%${itemFilter}%`;
+        const batchSize = 500;
+        let fromIdx = 0;
+        const pids = new Set();
+        while (true) {
+          const { data: pdRows, error: pdErr } = await supabase
+            .from("v_product_details")
+            .select("product_id")
+            .ilike("product_name", term)
+            .order("product_id", { ascending: true })
+            .range(fromIdx, fromIdx + batchSize - 1);
+          if (pdErr) throw pdErr;
+          const rows = Array.isArray(pdRows) ? pdRows : [];
+          rows.forEach((r) => {
+            const pid = Number(r?.product_id);
+            if (Number.isFinite(pid)) pids.add(pid);
+          });
+          if (rows.length < batchSize) break;
+          fromIdx += batchSize;
+        }
+        const pidList = Array.from(pids);
+        if (pidList.length === 0) {
+          // Short-circuit: no matches — render empty state and paginator
+          const tbody = document
+            .getElementById("aoTable")
+            ?.querySelector("tbody");
+          if (tbody) tbody.innerHTML = "";
+          document.getElementById("aoStatus").innerHTML = chip("No rows");
+          const aoInfo = document.getElementById("aoPageInfo");
+          if (aoInfo) aoInfo.textContent = "No rows";
+          document
+            .getElementById("aoPagePrev")
+            ?.toggleAttribute("disabled", true);
+          document
+            .getElementById("aoPageNext")
+            ?.toggleAttribute("disabled", true);
+          return;
+        }
+        q = q.in("product_id", pidList);
+      } catch (e) {
+        console.debug(
+          "Item filter resolution failed; continuing without item filter",
+          e
+        );
+      }
+    }
   } catch {
     /* ignore filter parsing errors */
   }
@@ -2816,8 +2885,11 @@ async function loadActiveOverrides(fromParam = null, toParam = null) {
       .select("is_active")
       .limit(1);
     if (!probeErr) {
-      q = q.eq("is_active", true);
-      console.debug("Applied is_active=true filter for Active Overrides");
+      // Treat NULL as active for backward compatibility with older rows
+      q = q.or("is_active.is.null,is_active.eq.true");
+      console.debug(
+        "Applied is_active in (true,NULL) filter for Active Overrides"
+      );
     } else {
       console.debug(
         "is_active column not present on production_qty_overrides; skipping filter"
@@ -2828,8 +2900,7 @@ async function loadActiveOverrides(fromParam = null, toParam = null) {
   }
   if (from) q = q.gte("month_start", from);
   if (to) q = q.lte("month_start", to);
-  // Exclude rows where delta_units is exactly zero (not meaningful overrides)
-  q = q.neq("delta_units", 0);
+  // Include zero-delta rows as well so the UI reflects all overrides
 
   // apply pagination range
   aoPageSize =
@@ -2884,19 +2955,8 @@ async function loadActiveOverrides(fromParam = null, toParam = null) {
     }
   }
 
-  // Apply client-side Item filter (if present) to the fetched page rows so we
-  // don't rely on server-side relation filtering which can strip joined data.
-  const itemFilter = document.getElementById("filterAOItem")?.value?.trim();
-  const filteredRows = itemFilter
-    ? pageRows.filter((rr) => {
-        const nested = rr.v_product_details || null;
-        const pd = Array.isArray(nested) ? nested[0] || {} : nested || {};
-        const name = String(pd.product_name || "");
-        return name.toLowerCase().includes(itemFilter.toLowerCase());
-      })
-    : pageRows;
-
-  filteredRows.forEach((r) => {
+  // Render rows (server-side filters already applied)
+  pageRows.forEach((r) => {
     const tr = document.createElement("tr");
     // Supabase returns joined related rows either as an array or an object
     const nested = r.v_product_details || null;
@@ -3084,8 +3144,12 @@ function wire() {
       });
     if (item)
       item.addEventListener("input", () => {
-        aoPage = 1;
-        loadActiveOverrides();
+        // Debounce to reduce query churn while typing
+        clearTimeout(aoFilterInputTimer);
+        aoFilterInputTimer = setTimeout(() => {
+          aoPage = 1;
+          loadActiveOverrides();
+        }, 250);
       });
     if (mon)
       mon.addEventListener("change", () => {

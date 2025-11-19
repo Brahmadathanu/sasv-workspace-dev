@@ -40,39 +40,39 @@ const { autoUpdater } = require("electron-updater");
 const safeName = (s, def = "SOP") =>
   String(s || def).replace(/[\\/:*?"<>|]+/g, "_");
 
-// ---------------- Auto-update events ----------------
+// ---------------- Auto-update events (non-blocking ERP-style) ----------------
+function sendUpdate(payload) {
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("updater:status", payload);
+    }
+  } catch (e) {
+    console.warn("updater:status send failed", e && e.message);
+  }
+}
+
 autoUpdater.on("checking-for-update", () => {
-  dialog.showMessageBox({ type: "info", message: "Checking for updates…" });
+  // quiet; renderer may choose to show subtle indicator if needed
+  sendUpdate({ status: "checking" });
 });
 autoUpdater.on("update-available", (info) => {
-  dialog.showMessageBox({
-    type: "info",
-    message: `Update available: v${info.version}. Downloading…`,
-  });
+  sendUpdate({ status: "available", version: info && info.version });
 });
 autoUpdater.on("update-not-available", () => {
-  dialog.showMessageBox({
-    type: "info",
-    message: "No update available (you’re on the latest version).",
-  });
+  sendUpdate({ status: "not-available" });
 });
 autoUpdater.on("error", (err) => {
-  dialog.showErrorBox("Update error", (err && err.message) || "Unknown error");
+  console.error("Auto-update error:", err);
+  sendUpdate({
+    status: "error",
+    message: (err && err.message) || "Unknown error",
+  });
 });
 autoUpdater.on("download-progress", (p) => {
-  console.log(`Download speed: ${p.bytesPerSecond}
-Downloaded ${Math.round(p.percent)}%
-(${p.transferred}/${p.total})`);
+  sendUpdate({ status: "progress", percent: p.percent, bps: p.bytesPerSecond });
 });
 autoUpdater.on("update-downloaded", (info) => {
-  dialog
-    .showMessageBox({
-      type: "question",
-      buttons: ["Restart now", "Later"],
-      defaultId: 0,
-      message: `v${info.version} downloaded — restart to install?`,
-    })
-    .then(({ response }) => response === 0 && autoUpdater.quitAndInstall());
+  sendUpdate({ status: "downloaded", version: info && info.version });
 });
 
 // ---------------- Static server (http://localhost:3000) ----------------
@@ -129,6 +129,14 @@ ipcMain.on("open-module-url", (event, { absUrl, opts = {} }) => {
 });
 
 ipcMain.handle("get-app-version", () => app.getVersion());
+ipcMain.handle("updater:restart", () => {
+  try {
+    autoUpdater.quitAndInstall();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e && e.message };
+  }
+});
 
 // ---------------- App lifecycle ----------------
 app.whenReady().then(() => {
