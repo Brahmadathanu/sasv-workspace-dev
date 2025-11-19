@@ -10,6 +10,45 @@ const toast = (m) => {
   setTimeout(() => (t.style.display = "none"), 3000);
 };
 
+// Processing overlay helpers
+function showProcessingOverlay(message) {
+  let ov = document.getElementById("processingOverlay");
+  if (!ov) {
+    ov = document.createElement("div");
+    ov.id = "processingOverlay";
+    ov.className = "processing-overlay";
+    ov.innerHTML = `
+      <div class="processing-box">
+        <div class="processing-spinner" aria-hidden="true"></div>
+        <div class="processing-text" id="processingOverlayText">${
+          message || "Processing..."
+        }</div>
+      </div>
+    `;
+    document.body.appendChild(ov);
+  } else {
+    const txt = document.getElementById("processingOverlayText");
+    if (txt) txt.textContent = message || "Processing...";
+    ov.style.display = "flex";
+  }
+  // prevent page interactions via overlay
+  document.body.style.pointerEvents = "none";
+  ov.style.pointerEvents = "auto";
+}
+
+function updateProcessingOverlay(message) {
+  const txt = document.getElementById("processingOverlayText");
+  if (txt) txt.textContent = message || "Processing...";
+}
+
+function hideProcessingOverlay() {
+  const ov = document.getElementById("processingOverlay");
+  if (ov) ov.style.display = "none";
+  document.body.style.pointerEvents = "auto";
+}
+
+// (use existing `showConfirm` modal defined elsewhere in this file)
+
 // track some local state
 let _batchesCache = []; // last loadBatches() result
 let _headerStatus = "draft"; // track current header status
@@ -1650,6 +1689,8 @@ window.showInlineBnPicker = async function (button) {
 
   const dropdown = document.createElement("div");
   dropdown.className = "bn-picker-dropdown";
+  // force fixed positioning so top/left are viewport coordinates
+  dropdown.style.position = "fixed";
   // Narrower min width so dropdown stays compact (bn only).
   // Cap the dropdown width so it doesn't expand to the whole table column.
   const suggestedWidth = Math.max(120, button.offsetWidth + 8);
@@ -1715,26 +1756,33 @@ window.showInlineBnPicker = async function (button) {
       e.stopPropagation();
       closeAllInlineBnPickers();
 
-      button.innerHTML = `
-        <span class="bn-picker-text">Mapping...</span>
-        <div style="width: 14px; height: 14px; border: 2px solid #e5e7eb; border-top: 2px solid #3b82f6; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-      `;
+      // show overlay to block edits while mapping
+      showProcessingOverlay(`Mapping batch ${batchId} → ${bn.trim()}...`);
+      try {
+        const { error } = await supabase.rpc("map_batch_to_bmr_by_bn", {
+          p_batch_id: batchId,
+          p_bn: bn.trim(),
+        });
 
-      const { error } = await supabase.rpc("map_batch_to_bmr_by_bn", {
-        p_batch_id: batchId,
-        p_bn: bn.trim(),
-      });
+        if (error) {
+          console.error(error);
+          const msg = normalizeMapError(error);
+          hideProcessingOverlay();
+          toast(msg);
+          await loadBatches();
+          return;
+        }
 
-      if (error) {
-        console.error(error);
-        const msg = normalizeMapError(error);
-        toast(msg);
+        // success
         await loadBatches();
-        return;
+        hideProcessingOverlay();
+        toast("Mapped");
+      } catch (ex) {
+        console.error(ex);
+        hideProcessingOverlay();
+        toast("Mapping failed (see console)");
+        await loadBatches();
       }
-
-      toast("Mapped");
-      await loadBatches();
     });
 
     dropdown.appendChild(option);
@@ -1841,7 +1889,17 @@ window.showInlineBnPicker = async function (button) {
     if (dropdown.contains(e.target)) return;
     closeAllInlineBnPickers();
   };
-  const handleScroll = () => closeAllInlineBnPickers();
+
+  // Only close on scroll if the scroll event did NOT originate from the dropdown itself.
+  // This prevents dragging the dropdown's scrollbar from closing it.
+  const handleScroll = (e) => {
+    try {
+      if (e && dropdown && dropdown.contains(e.target)) return;
+    } catch {
+      // defensive
+    }
+    closeAllInlineBnPickers();
+  };
   const handleResize = () => closeAllInlineBnPickers();
   const handleKeydown = (e) => {
     if (e.key === "Escape" || e.key === "Esc") {
@@ -2724,6 +2782,99 @@ function renderBatches() {
 
   // BN pickers are wired via onclick in HTML
 }
+
+// Map rows that have exactly one eligible BN (manual, on-demand)
+window.mapSingleBnRows = async function () {
+  const headerId = Number(q("bpHeaderSel").value);
+  if (!headerId) return toast("Pick a header");
+  if (_headerStatus === "applied")
+    return toast("Header is applied (read-only)");
+
+  // Find currently visible UNMAPPED rows from the rendered table
+  const tbody = q("bpBatchesBody");
+  if (!tbody) return toast("No batches table");
+
+  const candidatesToMap = [];
+
+  // iterate rows to respect current filters/visibility
+  const rows = Array.from(tbody.querySelectorAll("tr"));
+  for (const tr of rows) {
+    if (tr.style.display === "none") continue; // filtered out
+    const pickBtn = tr.querySelector(".bn-picker-btn");
+    if (!pickBtn) continue; // not an unmapped/editable row
+
+    const batchId = Number(pickBtn.dataset.batch);
+    const productId = Number(pickBtn.dataset.product);
+    const batchSize = Number(pickBtn.dataset.size);
+
+    // get candidates for this product/size
+    try {
+      const cands = await getBnCandidates(productId, batchSize);
+      if (cands && cands.length === 1) {
+        const [bn] = cands[0].split(" :: ");
+        candidatesToMap.push({ batchId, bn: bn.trim(), productId });
+      }
+    } catch (e) {
+      console.error("Candidate lookup failed", e);
+    }
+  }
+
+  if (!candidatesToMap.length) return toast("No single-candidate rows found");
+
+  // Confirm with user (list count and example)
+  const example = candidatesToMap
+    .slice(0, 5)
+    .map((c) => `#${c.batchId} → ${c.bn}`)
+    .join("\n");
+  const ok = await showConfirm(
+    `Map ${candidatesToMap.length} rows that each have exactly one eligible BN?\n\nExamples:\n${example}\n\nProceed?`,
+    "Map Single BN Rows"
+  );
+  if (!ok) return;
+
+  // Sequentially map each candidate to avoid overload and provide progress feedback
+  let successCount = 0;
+  const errors = [];
+
+  showProcessingOverlay(`Mapping 0 / ${candidatesToMap.length}...`);
+  for (let i = 0; i < candidatesToMap.length; i++) {
+    const item = candidatesToMap[i];
+    updateProcessingOverlay(
+      `Mapping ${i + 1} / ${candidatesToMap.length}: #${item.batchId} → ${
+        item.bn
+      }`
+    );
+    try {
+      const { error } = await supabase.rpc("map_batch_to_bmr_by_bn", {
+        p_batch_id: item.batchId,
+        p_bn: item.bn,
+      });
+      if (error) {
+        errors.push({ batchId: item.batchId, error });
+        console.error("Map error", item, error);
+      } else {
+        successCount++;
+      }
+    } catch (e) {
+      errors.push({ batchId: item.batchId, error: e });
+      console.error("Map exception", item, e);
+    }
+  }
+
+  await loadBatches();
+  hideProcessingOverlay();
+  if (successCount) toast(`Mapped ${successCount} rows`);
+  if (errors.length) {
+    console.error(errors);
+    toast(`${errors.length} rows failed to map (see console)`);
+  }
+};
+
+// Wire the new button after DOM ready
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = q("bpMapSinglesBtn");
+  if (btn) btn.addEventListener("click", () => window.mapSingleBnRows());
+});
 
 // Handle kebab menu toggle
 window.toggleKebabMenu = function (button) {

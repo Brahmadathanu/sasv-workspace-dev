@@ -5,6 +5,12 @@
     <title>Supply Batch Plan</title>
     <link rel="stylesheet" href="public/shared/css/style.css" />
     <style>
+      :root {
+        /* Page-local button tokens so standard .btn matches this page's light buttons */
+        --btn-text: #0f172a; /* dark text for light-button backgrounds */
+        --btn-bg-light: #f3f4f6;
+        --btn-hover-bg: #e6eef8;
+      }
       body {
         font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif;
         margin: 16px;
@@ -204,7 +210,7 @@
       }
 
       .bn-picker-dropdown {
-        position: absolute;
+        position: fixed;
         top: 100%;
         left: 0;
         width: auto;
@@ -248,6 +254,108 @@
       .bn-tooltip.show {
         opacity: 1;
         transform: translateY(0);
+      }
+
+      /* Full-page processing overlay */
+      .processing-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(2, 6, 23, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 13000;
+        pointer-events: auto;
+      }
+      .processing-box {
+        background: white;
+        padding: 18px 20px;
+        border-radius: 10px;
+        box-shadow: 0 10px 30px rgba(2, 6, 23, 0.3);
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        min-width: 220px;
+      }
+      .processing-spinner {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        border: 3px solid #e5e7eb;
+        border-top: 3px solid #3b82f6;
+        animation: spin 1s linear infinite;
+      }
+      .processing-text {
+        font-weight: 600;
+        color: #0f172a;
+      }
+
+      /* In-page confirm modal (ERP style) */
+      .inpage-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(2, 6, 23, 0.45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 14000;
+      }
+      .inpage-modal {
+        background: #ffffff;
+        border-radius: 10px;
+        padding: 18px 18px;
+        min-width: 360px;
+        max-width: 720px;
+        max-height: 80vh;
+        overflow: auto;
+        box-shadow: 0 20px 40px rgba(2, 6, 23, 0.3);
+      }
+      .inpage-modal .modal-header {
+        font-weight: 700;
+        margin-bottom: 8px;
+        color: #0f172a;
+      }
+      .inpage-modal .modal-body {
+        color: #374151;
+        font-size: 13px;
+        margin-bottom: 12px;
+      }
+      .inpage-modal .modal-list {
+        border: 1px solid #e6e9ef;
+        border-radius: 6px;
+        padding: 8px;
+        max-height: 26vh;
+        overflow: auto;
+        background: #fafafa;
+        margin-bottom: 12px;
+      }
+      .inpage-modal .modal-list-item {
+        padding: 6px 8px;
+        font-weight: 600;
+        color: #0f172a;
+        border-bottom: 1px solid #eef2f7;
+      }
+      .inpage-modal .modal-actions {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+      .inpage-modal .btn-primary {
+        background: #3b82f6;
+        color: white;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 700;
+      }
+      .inpage-modal .btn-secondary {
+        background: #f3f4f6;
+        color: #0f172a;
+        border: 1px solid #e6e9ef;
+        padding: 8px 12px;
+        border-radius: 6px;
+        cursor: pointer;
       }
 
       /* ERP-styled vertical BN option list */
@@ -1678,6 +1786,17 @@
         background: #f1f5f9;
         border-color: #94a3b8;
       }
+      /* Accent button for important actions (subtle ERP-blue) */
+      .btn-accent {
+        background: #eef2ff;
+        border: 1px solid #bfdbfe;
+        color: #1e3a8a;
+        font-weight: 600;
+      }
+      .btn-accent:hover:not(:disabled) {
+        background: #e0f2ff;
+        border-color: #93c5fd;
+      }
       .btn.warn {
         background: #fef2f2;
         border: 1px solid #fca5a5;
@@ -2274,6 +2393,16 @@
             style="padding: 6px 10px; margin-left: 8px"
           >
             Reset Filters
+          </button>
+
+          <!-- Map single-candidate BN rows button (manual trigger only) -->
+          <button
+            id="bpMapSinglesBtn"
+            class="btn"
+            title="Map rows that have exactly one eligible BN"
+            style="padding: 6px 10px; margin-left: 8px"
+          >
+            Map Single BN Rows
           </button>
 
           <div
