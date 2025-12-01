@@ -24,7 +24,7 @@ const editHeaderBtn = el("editHeaderBtn");
 const moreMenuBtn = el("moreMenuBtn");
 const moreMenu = el("moreMenu");
 const exportBtn = el("exportBtn");
-// const exportMenu = el("exportMenu"); // menu element resolved by id; variable not needed
+const exportMenu = el("exportMenu");
 const exportCsvBtn = el("exportCsv");
 const exportPdfBtn = el("exportPdf");
 const exportHtmlBtn = el("exportHtml");
@@ -34,6 +34,16 @@ const linesEditBtn = el("linesEditBtn");
 const kbHelpBtn = el("kbHelpBtn");
 const kbHelpPopover = el("kbHelpPopover");
 let LINES_EDIT_MODE = false;
+// Selection UI elements
+const selectionPills = el("selectionPills");
+
+// Selection state
+const SELECTED_CELLS = new Set(); // keys like "row:col"
+let ANCHOR = null;
+let LAST_SELECTED = null;
+let SELECTION_OP = false; // during drag
+let LAST_DRAG_AT = 0; // timestamp of last drag end
+let LAST_DRAG_POS = null; // {x,y} of last mouseup during drag
 
 // Permissions
 const MODULE_ID = "manage-sp-bom";
@@ -54,6 +64,8 @@ function applyLinesMode() {
   }
   if (!LINES_EDIT_MODE && kbHelpPopover) kbHelpPopover.style.display = "none";
   renderLines();
+  // Clear any selection when entering edit mode
+  if (LINES_EDIT_MODE) clearSelection();
 }
 function applyPermissionUi() {
   if (!PERM_CAN_EDIT) {
@@ -263,14 +275,16 @@ function renderLines() {
       const remStr = escapeHtml(ln.remarks || "");
       return `
       <tr data-i="${i}">
-        <td class="nowrap">${i + 1}</td>
-        <td class="nowrap code-cell">${escapeHtml(itemCode)}</td>
-        <td class="item-cell">${escapeHtml(itemName)}</td>
-        <td>${escapeHtml(qtyStr)}</td>
-        <td>${escapeHtml(uomCode)}</td>
-        <td>${escapeHtml(wastStr)}</td>
-        <td>${optStr}</td>
-        <td>${remStr}</td>
+        <td class="nowrap" data-col="sn">${i + 1}</td>
+        <td class="nowrap code-cell" data-col="code">${escapeHtml(
+          itemCode
+        )}</td>
+        <td class="item-cell" data-col="item">${escapeHtml(itemName)}</td>
+        <td data-col="qty">${escapeHtml(qtyStr)}</td>
+        <td data-col="uom">${escapeHtml(uomCode)}</td>
+        <td data-col="wast">${escapeHtml(wastStr)}</td>
+        <td data-col="opt">${optStr}</td>
+        <td data-col="rem">${remStr}</td>
         <td></td>
       </tr>`;
     }
@@ -301,17 +315,17 @@ function renderLines() {
         <td class="nowrap">${i + 1}</td>
         <td class="nowrap code-cell">${escapeHtml(itemCode)}</td>
         <td class="item-cell"><select class="cell item">${itemOptions}</select></td>
-        <td class="right"><input class="cell qty" type="number" step="0.0001" min="0" value="${
+        <td class="right" data-col="qty"><input class="cell qty" type="number" step="0.0001" min="0" value="${
           ln.qty_per_reference_output ?? ""
         }" /></td>
-        <td><select class="cell uom">${uomOptions}</select></td>
-        <td class="right"><input class="cell wast" type="number" step="0.0001" min="0" max="0.9999" value="${
+        <td data-col="uom"><select class="cell uom">${uomOptions}</select></td>
+        <td class="right" data-col="wast"><input class="cell wast" type="number" step="0.0001" min="0" max="0.9999" value="${
           ln.wastage_pct ?? ""
         }" /></td>
-        <td><input type="checkbox" class="cell opt" ${
+        <td data-col="opt"><input type="checkbox" class="cell opt" ${
           ln.is_optional ? "checked" : ""
         } /></td>
-        <td><input type="text" class="cell rem" value="${escapeHtml(
+        <td data-col="rem"><input type="text" class="cell rem" value="${escapeHtml(
           ln.remarks || ""
         )}" /></td>
         <td>
@@ -348,6 +362,9 @@ function renderLines() {
     scrollWrap.dataset.shadowBound = "1";
   }
   setupHorizontalScrollSync();
+  // Ensure the selection pills (including the unconditional "Lines" pill)
+  // are updated whenever the lines are (re)rendered.
+  updateSelectionPills();
 }
 function setupHorizontalScrollSync() {
   if (!linesScroll || !linesHScrollTop || !linesHScrollInner) return;
@@ -368,6 +385,602 @@ function setupHorizontalScrollSync() {
     });
     linesHScrollTop.dataset.bound = "1";
   }
+}
+
+/* ---------------- Selection UI (view mode) ---------------- */
+// make `linesBody` focusable so we can move focus off individual cells when needed
+if (linesBody && typeof linesBody.setAttribute === "function")
+  linesBody.tabIndex = -1;
+
+// Column ordering used for rectangle selection and arrow navigation
+const COL_ORDER = ["sn", "code", "item", "qty", "uom", "wast", "opt", "rem"];
+function getColIndex(col) {
+  return COL_ORDER.indexOf(col);
+}
+function getColByIndex(idx) {
+  return COL_ORDER[Math.max(0, Math.min(COL_ORDER.length - 1, idx))];
+}
+
+function makeCellKey(i, col) {
+  return `${i}:${col}`;
+}
+function parseCellKey(k) {
+  const [si, col] = String(k).split(":");
+  return { i: parseInt(si, 10), col };
+}
+
+function refreshSelectionVisuals() {
+  // Build a quick lookup for selected cells
+  const isSelected = (r, c) => SELECTED_CELLS.has(makeCellKey(r, c));
+  Array.from(linesBody.querySelectorAll("td[data-col]")).forEach((td) => {
+    const tr = td.closest("tr[data-i]");
+    const i = tr ? parseInt(tr.dataset.i, 10) : null;
+    const col = td.dataset.col;
+    if (!Number.isFinite(i) || !col) return;
+    const k = makeCellKey(i, col);
+    const selected = SELECTED_CELLS.has(k);
+    // Clear edge classes
+    td.classList.remove(
+      "cell-selected",
+      "sel-t",
+      "sel-b",
+      "sel-l",
+      "sel-r",
+      "cell-active",
+      "cell-focused"
+    );
+    if (selected) {
+      td.classList.add("cell-selected");
+      // Determine which edges need an outer border by checking neighbors
+      const upSel = isSelected(i - 1, col);
+      const downSel = isSelected(i + 1, col);
+      const leftCol = getColByIndex(getColIndex(col) - 1);
+      const rightCol = getColByIndex(getColIndex(col) + 1);
+      const leftSel = leftCol ? isSelected(i, leftCol) : false;
+      const rightSel = rightCol ? isSelected(i, rightCol) : false;
+      if (!upSel) td.classList.add("sel-t");
+      if (!downSel) td.classList.add("sel-b");
+      if (!leftSel) td.classList.add("sel-l");
+      if (!rightSel) td.classList.add("sel-r");
+    }
+    // Accessibility: expose selection state, indices and make cells focusable
+    td.setAttribute("aria-selected", selected ? "true" : "false");
+    td.setAttribute("role", "gridcell");
+    td.setAttribute("aria-rowindex", String(i + 1));
+    td.setAttribute("aria-colindex", String(getColIndex(col) + 1));
+    td.tabIndex = 0;
+    // Ensure row has role
+    if (tr) tr.setAttribute("role", "row");
+  });
+  // Highlight LAST_SELECTED (active cell) with stronger border
+  if (LAST_SELECTED) {
+    const lastEl = linesBody.querySelector(
+      `tr[data-i='${LAST_SELECTED.i}'] td[data-col='${LAST_SELECTED.col}']`
+    );
+    if (lastEl) {
+      lastEl.classList.add("cell-active");
+      try {
+        lastEl.scrollIntoView({ block: "nearest", inline: "nearest" });
+      } catch (err) {
+        void err;
+      }
+    }
+  }
+}
+
+function getNeighborCoords(i, col) {
+  const idx = getColIndex(col);
+  const neighbors = [];
+  neighbors.push({ i: i - 1, col });
+  neighbors.push({ i: i + 1, col });
+  if (idx - 1 >= 0) neighbors.push({ i, col: getColByIndex(idx - 1) });
+  if (idx + 1 < COL_ORDER.length)
+    neighbors.push({ i, col: getColByIndex(idx + 1) });
+  return neighbors;
+}
+
+function getConnectedComponent(anchor) {
+  if (!anchor) return new Set();
+  const startKey = makeCellKey(anchor.i, anchor.col);
+  if (!SELECTED_CELLS.has(startKey)) return new Set([startKey]);
+  const visited = new Set();
+  const q = [anchor];
+  while (q.length) {
+    const cur = q.shift();
+    const k = makeCellKey(cur.i, cur.col);
+    if (visited.has(k)) continue;
+    if (!SELECTED_CELLS.has(k)) continue;
+    visited.add(k);
+    const neigh = getNeighborCoords(cur.i, cur.col);
+    for (const n of neigh) {
+      const nk = makeCellKey(n.i, n.col);
+      if (!visited.has(nk) && SELECTED_CELLS.has(nk)) q.push(n);
+    }
+  }
+  return visited;
+}
+
+function componentBottomRight(component) {
+  let maxI = -Infinity;
+  let maxColIdx = -Infinity;
+  for (const k of component) {
+    const { i, col } = parseCellKey(k);
+    if (i > maxI) maxI = i;
+    const cidx = getColIndex(col);
+    if (cidx > maxColIdx) maxColIdx = cidx;
+  }
+  if (maxI === -Infinity) return null;
+  return { i: maxI, col: getColByIndex(maxColIdx) };
+}
+
+function selectRectangle(a, b, additive = false) {
+  if (!a || !b) return;
+  const r1 = Math.min(a.i, b.i);
+  const r2 = Math.max(a.i, b.i);
+  const c1 = Math.min(getColIndex(a.col), getColIndex(b.col));
+  const c2 = Math.max(getColIndex(a.col), getColIndex(b.col));
+  if (!additive) SELECTED_CELLS.clear();
+  for (let r = r1; r <= r2; r++) {
+    for (let c = c1; c <= c2; c++) {
+      const col = getColByIndex(c);
+      SELECTED_CELLS.add(makeCellKey(r, col));
+    }
+  }
+  refreshSelectionVisuals();
+  updateSelectionPills();
+}
+
+function reconcileDomWithSet() {
+  try {
+    const els = Array.from(
+      linesBody.querySelectorAll("td.cell-selected, td.cell-active")
+    );
+    for (const el of els) {
+      const tr = el.closest("tr[data-i]");
+      const ri = tr ? parseInt(tr.dataset.i, 10) : -1;
+      const col = el.dataset.col || "";
+      const k = makeCellKey(ri, col);
+      if (!SELECTED_CELLS.has(k)) {
+        el.classList.remove(
+          "cell-selected",
+          "sel-t",
+          "sel-b",
+          "sel-l",
+          "sel-r",
+          "cell-active",
+          "cell-focused"
+        );
+        el.setAttribute("aria-selected", "false");
+      }
+    }
+  } catch (err) {
+    void err;
+  }
+}
+
+function clearAllSelectionVisuals() {
+  try {
+    const els = Array.from(linesBody.querySelectorAll("td[data-col]"));
+    for (const el of els) {
+      el.classList.remove(
+        "cell-selected",
+        "sel-t",
+        "sel-b",
+        "sel-l",
+        "sel-r",
+        "cell-active",
+        "cell-focused"
+      );
+      el.setAttribute("aria-selected", "false");
+    }
+  } catch (err) {
+    void err;
+  }
+}
+
+// Prevent native select when we are performing selection operations
+document.addEventListener("selectstart", (e) => {
+  if (SELECTION_OP) e.preventDefault();
+});
+
+// Drag selection
+linesBody.addEventListener("mousedown", (e) => {
+  if (LINES_EDIT_MODE) return;
+  if (e.button !== 0) return; // left button only
+  const td = e.target.closest("td[data-col]");
+  if (!td) return;
+  if (e.shiftKey || e.ctrlKey || e.metaKey) return;
+  e.preventDefault();
+  const tr = td.closest("tr[data-i]");
+  const i = parseInt(tr.dataset.i, 10);
+  const col = td.dataset.col;
+  if (!Number.isFinite(i) || !col) return;
+  ANCHOR = { i, col };
+  LAST_SELECTED = { i, col };
+  selectRectangle(ANCHOR, ANCHOR, false);
+  SELECTION_OP = true;
+  const prevUserSelect = document.body.style.userSelect;
+  document.body.style.userSelect = "none";
+  const onMove = (ev) => {
+    const ctd = document
+      .elementFromPoint(ev.clientX, ev.clientY)
+      ?.closest("td[data-col]");
+    if (!ctd) return;
+    const ctr = ctd.closest("tr[data-i]");
+    const ci = parseInt(ctr.dataset.i, 10);
+    const ccol = ctd.dataset.col;
+    if (!Number.isFinite(ci) || !ccol) return;
+    selectRectangle(ANCHOR, { i: ci, col: ccol }, false);
+    LAST_SELECTED = { i: ci, col: ccol };
+  };
+  const onUp = (ev) => {
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", onUp);
+    SELECTION_OP = false;
+    document.body.style.userSelect = prevUserSelect || "";
+    refreshSelectionVisuals();
+    updateSelectionPills();
+    LAST_DRAG_AT = Date.now();
+    LAST_DRAG_POS = { x: ev.clientX, y: ev.clientY };
+    setTimeout(() => {
+      LAST_DRAG_AT = 0;
+      LAST_DRAG_POS = null;
+    }, 300);
+  };
+  document.addEventListener("mousemove", onMove);
+  document.addEventListener("mouseup", onUp);
+});
+
+// Click / Ctrl / Shift handling
+linesBody.addEventListener("click", (e) => {
+  if (LINES_EDIT_MODE) return;
+  const td = e.target.closest("td[data-col]");
+  if (!td) return;
+  const tr = td.closest("tr[data-i]");
+  if (!tr) return;
+  const i = parseInt(tr.dataset.i, 10);
+  const col = td.dataset.col;
+  if (!Number.isFinite(i) || !col) return;
+  const coord = { i, col };
+  try {
+    window.getSelection()?.removeAllRanges();
+  } catch (err) {
+    void err;
+  }
+  if (
+    typeof LAST_DRAG_AT !== "undefined" &&
+    LAST_DRAG_AT &&
+    Date.now() - LAST_DRAG_AT < 300
+  ) {
+    if (LAST_DRAG_POS) {
+      const dx = Math.abs((e.clientX || 0) - LAST_DRAG_POS.x);
+      const dy = Math.abs((e.clientY || 0) - LAST_DRAG_POS.y);
+      if (dx < 6 && dy < 6) return;
+    }
+  }
+  clearAllSelectionVisuals();
+  reconcileDomWithSet();
+  const beforeSize = SELECTED_CELLS.size;
+  const resolveAnchor = () => {
+    if (ANCHOR) return ANCHOR;
+    if (LAST_SELECTED) return LAST_SELECTED;
+    if (SELECTED_CELLS.size) {
+      const first = SELECTED_CELLS.values().next().value;
+      if (first) return parseCellKey(first);
+    }
+    return null;
+  };
+  if (e.shiftKey) {
+    const base = resolveAnchor();
+    if (base) {
+      const additive = e.ctrlKey || e.metaKey;
+      selectRectangle(base, coord, additive);
+      if (additive) {
+        const comp = getConnectedComponent(ANCHOR || base || coord);
+        const br = componentBottomRight(comp);
+        if (br) LAST_SELECTED = br;
+      } else {
+        LAST_SELECTED = coord;
+        ANCHOR = base;
+      }
+      refreshSelectionVisuals();
+      updateSelectionPills();
+      try {
+        td.blur && td.blur();
+      } catch (err) {
+        void err;
+      }
+      return;
+    }
+  }
+  if (e.ctrlKey || e.metaKey) {
+    const k = makeCellKey(i, col);
+    const had = SELECTED_CELLS.has(k);
+    const domHas =
+      td.classList.contains("cell-selected") ||
+      td.classList.contains("cell-active");
+    const treatAsHad = had || (!had && domHas);
+    if (treatAsHad) SELECTED_CELLS.delete(k);
+    else SELECTED_CELLS.add(k);
+    if (SELECTED_CELLS.size === 0) {
+      ANCHOR = null;
+      LAST_SELECTED = null;
+      refreshSelectionVisuals();
+      updateSelectionPills();
+      return;
+    }
+    if (beforeSize === 0) {
+      ANCHOR = coord;
+      LAST_SELECTED = coord;
+    } else {
+      if (ANCHOR && !SELECTED_CELLS.has(makeCellKey(ANCHOR.i, ANCHOR.col))) {
+        const first = SELECTED_CELLS.values().next().value;
+        ANCHOR = first ? parseCellKey(first) : null;
+      }
+      const comp = getConnectedComponent(ANCHOR || LAST_SELECTED || coord);
+      const br = componentBottomRight(comp);
+      if (br) LAST_SELECTED = br;
+    }
+    refreshSelectionVisuals();
+    updateSelectionPills();
+    return;
+  }
+  // Simple click
+  SELECTED_CELLS.clear();
+  SELECTED_CELLS.add(makeCellKey(i, col));
+  ANCHOR = coord;
+  LAST_SELECTED = coord;
+  refreshSelectionVisuals();
+  updateSelectionPills();
+});
+
+// Keyboard navigation
+document.addEventListener("keydown", (e) => {
+  if (LINES_EDIT_MODE) return;
+  const arrows = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
+  const specials = ["Home", "End"];
+  if (e.key === "Escape") {
+    if (SELECTED_CELLS.size) clearSelection();
+    return;
+  }
+  if (!arrows.includes(e.key) && !specials.includes(e.key)) return;
+  const focused = LAST_SELECTED || ANCHOR;
+  if (!focused) return;
+  e.preventDefault();
+  let target = { i: focused.i, col: focused.col };
+  const colIdx = getColIndex(focused.col);
+  if (e.key === "Home") {
+    if (e.ctrlKey) {
+      target.i = 0;
+      target.col = getColByIndex(0);
+    } else {
+      target.col = getColByIndex(0);
+    }
+  }
+  if (e.key === "End") {
+    if (e.ctrlKey) {
+      target.i = Math.max(0, CURRENT_LINES.length - 1);
+      target.col = getColByIndex(COL_ORDER.length - 1);
+    } else {
+      target.col = getColByIndex(COL_ORDER.length - 1);
+    }
+  }
+  if (arrows.includes(e.key)) {
+    if (e.key === "ArrowUp")
+      target.i = e.ctrlKey ? 0 : Math.max(0, focused.i - 1);
+    if (e.key === "ArrowDown")
+      target.i = e.ctrlKey
+        ? Math.min(CURRENT_LINES.length - 1, CURRENT_LINES.length - 1)
+        : Math.min(CURRENT_LINES.length - 1, focused.i + 1);
+    if (e.key === "ArrowLeft")
+      target.col = getColByIndex(e.ctrlKey ? 0 : Math.max(0, colIdx - 1));
+    if (e.key === "ArrowRight")
+      target.col = getColByIndex(
+        e.ctrlKey
+          ? COL_ORDER.length - 1
+          : Math.min(COL_ORDER.length - 1, colIdx + 1)
+      );
+  }
+  if (e.shiftKey) {
+    const base = ANCHOR || focused;
+    selectRectangle(base, target, !!e.ctrlKey);
+    LAST_SELECTED = target;
+    refreshSelectionVisuals();
+    updateSelectionPills();
+  } else if (e.ctrlKey || e.metaKey) {
+    if (!e.shiftKey) {
+      SELECTED_CELLS.clear();
+      SELECTED_CELLS.add(makeCellKey(target.i, target.col));
+      ANCHOR = target;
+      LAST_SELECTED = target;
+      refreshSelectionVisuals();
+      updateSelectionPills();
+    } else {
+      ANCHOR = target;
+      LAST_SELECTED = target;
+      refreshSelectionVisuals();
+    }
+  } else {
+    SELECTED_CELLS.clear();
+    SELECTED_CELLS.add(makeCellKey(target.i, target.col));
+    ANCHOR = target;
+    LAST_SELECTED = target;
+    refreshSelectionVisuals();
+    updateSelectionPills();
+  }
+});
+function isNumericColumn(col) {
+  return col === "qty" || col === "wastage" || col === "wast";
+}
+function getCellValue(i, col) {
+  const ln = CURRENT_LINES[i];
+  if (!ln) return null;
+  if (col === "qty")
+    return ln.qty_per_reference_output == null
+      ? null
+      : Number(ln.qty_per_reference_output);
+  if (col === "wastage" || col === "wast") {
+    if (ln.wastage_pct == null) return null;
+    const raw = Number(ln.wastage_pct);
+    return raw <= 1.5 ? raw * 100 : raw; // return percent
+  }
+  if (col === "code") {
+    const item = STOCK_ITEMS.find((x) => x.id === ln.stock_item_id);
+    return item?.code || "";
+  }
+  if (col === "item") {
+    const item = STOCK_ITEMS.find((x) => x.id === ln.stock_item_id);
+    return item?.name || "";
+  }
+  if (col === "uom") {
+    const u = UOMS.find((u) => u.id === ln.uom_id);
+    return u?.code || "";
+  }
+  if (col === "optional" || col === "opt") return ln.is_optional ? "Yes" : "No";
+  if (col === "remarks" || col === "rem") return ln.remarks || "";
+  if (col === "sn") return i + 1;
+  return null;
+}
+function clearSelection() {
+  SELECTED_CELLS.clear();
+  ANCHOR = null;
+  LAST_SELECTED = null;
+  refreshSelectionVisuals();
+  if (selectionPills) selectionPills.innerHTML = "";
+}
+function copySelection() {
+  if (!SELECTED_CELLS.size) return;
+  const lines = ["Row,Column,Value"];
+  for (const k of SELECTED_CELLS) {
+    const { i, col } = parseCellKey(k);
+    const v = getCellValue(i, col);
+    lines.push(`${i + 1},${col},"${String(v ?? "").replace(/"/g, '""')}"`);
+  }
+  const text = lines.join("\n");
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard
+      .writeText(text)
+      .then(() => setStatus("Copied selection to clipboard.", "success", 1400));
+  } else {
+    setStatus("Clipboard unavailable.", "error", 2000);
+  }
+}
+function exportSelectionCsv() {
+  if (!SELECTED_CELLS.size) return;
+  const rows = [["Row", "Column", "Value"]];
+  for (const k of SELECTED_CELLS) {
+    const { i, col } = parseCellKey(k);
+    const v = getCellValue(i, col);
+    rows.push([String(i + 1), col, v == null ? "" : String(v)]);
+  }
+  const esc = (s) => {
+    const ss = s == null ? "" : String(s);
+    if (/[",\n]/.test(ss)) return `"${ss.replace(/"/g, '""')}"`;
+    return ss;
+  };
+  const csv = rows.map((r) => r.map(esc).join(",")).join("\n");
+  const filename = `selection_${new Date()
+    .toISOString()
+    .slice(0, 19)
+    .replace(/[:T]/g, "")}.csv`;
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  }, 800);
+  setStatus("Selection exported.", "success", 1400);
+}
+function updateSelectionPills() {
+  if (!selectionPills) return;
+  const totalLines = CURRENT_LINES.length;
+  const selCount = SELECTED_CELLS.size;
+  const cols = new Map();
+  for (const k of SELECTED_CELLS) {
+    const { i, col } = parseCellKey(k);
+    if (!cols.has(col)) cols.set(col, []);
+    cols.get(col).push(i);
+  }
+  const parts = [];
+
+  parts.push(
+    `<div class="erp-pill-chip small"><span class="pill-seg title"><span class="title-text">Lines</span></span><span class="pill-seg value">${totalLines}</span></div>`
+  );
+  if (selCount) {
+    parts.push(
+      `<div class="erp-pill-chip small" title="Selected cells"><span class="pill-seg title"><span class="title-text">Selected</span></span><span class="pill-seg value">${selCount}</span></div>`
+    );
+    if (cols.size === 1) {
+      const col = Array.from(cols.keys())[0];
+      if (isNumericColumn(col)) {
+        const vals = cols
+          .get(col)
+          .map((r) => getCellValue(r, col))
+          .filter((v) => Number.isFinite(v));
+        const sum = vals.reduce((a, b) => a + b, 0);
+        const avg = vals.length ? sum / vals.length : 0;
+        const min = vals.length ? Math.min(...vals) : 0;
+        const max = vals.length ? Math.max(...vals) : 0;
+        parts.push(
+          `<div class="erp-pill-chip small" title="Sum"><span class="pill-seg title"><span class="title-text">Sum</span></span><span class="pill-seg value">${sum.toFixed(
+            3
+          )}</span></div>`
+        );
+        parts.push(
+          `<div class="erp-pill-chip small" title="Avg"><span class="pill-seg title"><span class="title-text">Avg</span></span><span class="pill-seg value">${avg.toFixed(
+            3
+          )}</span></div>`
+        );
+        parts.push(
+          `<div class="erp-pill-chip small" title="Min"><span class="pill-seg title"><span class="title-text">Min</span></span><span class="pill-seg value">${min.toFixed(
+            3
+          )}</span></div>`
+        );
+        parts.push(
+          `<div class="erp-pill-chip small" title="Max"><span class="pill-seg title"><span class="title-text">Max</span></span><span class="pill-seg value">${max.toFixed(
+            3
+          )}</span></div>`
+        );
+      } else {
+        const uniq = new Set(
+          cols.get(col).map((r) => String(getCellValue(r, col)))
+        );
+        parts.push(
+          `<div class="erp-pill-chip small" title="Unique values"><span class="pill-seg title"><span class="title-text">Unique</span></span><span class="pill-seg value">${uniq.size}</span></div>`
+        );
+      }
+    } else if (cols.size > 1) {
+      for (const [col, rows] of cols) {
+        parts.push(
+          `<div class="erp-pill-chip small" title="${col}"><span class="pill-seg title"><span class="title-text">${col}</span></span><span class="pill-seg value">${rows.length}</span></div>`
+        );
+      }
+    }
+    parts.push(
+      `<button id="selCopyBtn" class="btn ghost" title="Copy selection" style="padding:6px 8px">Copy</button>`
+    );
+    parts.push(
+      `<button id="selCsvBtn" class="btn ghost" title="Export selection CSV" style="padding:6px 8px">Export CSV</button>`
+    );
+    parts.push(
+      `<button id="selClearBtn" class="btn ghost" title="Clear selection" style="padding:6px 8px">Clear</button>`
+    );
+  }
+  selectionPills.innerHTML = parts.join("");
+  const copyBtn = document.getElementById("selCopyBtn");
+  const csvBtn = document.getElementById("selCsvBtn");
+  const clearBtn = document.getElementById("selClearBtn");
+  if (copyBtn) copyBtn.addEventListener("click", copySelection);
+  if (csvBtn) csvBtn.addEventListener("click", exportSelectionCsv);
+  if (clearBtn)
+    clearBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      clearSelection();
+    });
 }
 
 function collectHeader() {
@@ -1820,6 +2433,72 @@ function exportHtml() {
 if (exportCsvBtn) exportCsvBtn.addEventListener("click", exportCsv);
 if (exportPdfBtn) exportPdfBtn.addEventListener("click", exportPdf);
 if (exportHtmlBtn) exportHtmlBtn.addEventListener("click", exportHtml);
+
+/* -------- Export menu interactions -------- */
+function positionMenuFixed(panel, anchor) {
+  if (!panel || !anchor) return;
+  // Use fixed positioning so the panel escapes any overflow clipping
+  panel.style.position = "fixed";
+  panel.style.top = "0px";
+  panel.style.left = "0px";
+  const a = anchor.getBoundingClientRect();
+  // ensure we have dimensions
+  const w = panel.offsetWidth || 220;
+  const h = panel.offsetHeight || 140;
+  let top = a.bottom + 6;
+  let left = a.left;
+  // clamp within viewport
+  if (left + w > window.innerWidth - 8) left = window.innerWidth - w - 8;
+  if (top + h > window.innerHeight - 8) top = a.top - h - 8;
+  if (left < 8) left = 8;
+  if (top < 8) top = 8;
+  panel.style.top = `${top + window.scrollY}px`;
+  panel.style.left = `${left + window.scrollX}px`;
+}
+
+if (exportBtn && exportMenu) {
+  const closeExport = () => {
+    exportMenu.classList.remove("open");
+    exportBtn.setAttribute("aria-expanded", "false");
+    // Clear fixed positioning when closed
+    exportMenu.style.position = "";
+    exportMenu.style.top = "";
+    exportMenu.style.left = "";
+  };
+  exportBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const willOpen = !exportMenu.classList.contains("open");
+    if (willOpen) {
+      exportMenu.classList.add("open");
+      exportBtn.setAttribute("aria-expanded", "true");
+      // Position relative to button and clamp within viewport
+      requestAnimationFrame(() => positionMenuFixed(exportMenu, exportBtn));
+      setTimeout(() => {
+        const onDocClick = (ev) => {
+          if (!exportMenu.contains(ev.target) && ev.target !== exportBtn) {
+            closeExport();
+            document.removeEventListener("click", onDocClick);
+            document.removeEventListener("keydown", onEsc);
+          }
+        };
+        const onEsc = (ev) => {
+          if (ev.key === "Escape") {
+            closeExport();
+            document.removeEventListener("click", onDocClick);
+            document.removeEventListener("keydown", onEsc);
+          }
+        };
+        document.addEventListener("click", onDocClick);
+        document.addEventListener("keydown", onEsc);
+      }, 0);
+    } else {
+      closeExport();
+    }
+  });
+  exportMenu.addEventListener("click", (e) => {
+    if (e.target.closest(".menu-item")) closeExport();
+  });
+}
 
 if (linesViewBtn) {
   linesViewBtn.addEventListener("click", () => {

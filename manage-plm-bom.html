@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>PLM Templates and Mapping</title>
+    <title>Manage PLM BOM</title>
     <link rel="stylesheet" href="public/shared/css/style.css" />
     <link rel="stylesheet" href="css/shared-ui.css" />
     <style>
@@ -28,10 +28,6 @@
         border-radius: 8px;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
         margin-bottom: 18px;
-        overflow: hidden;
-      }
-      /* Allow dropdowns in the header panel to render outside without appearing as a white extension */
-      .panel.panel-drop-allow {
         overflow: visible;
       }
       .panel-header {
@@ -74,6 +70,48 @@
         border-color: #cbd5e1;
         box-shadow: 0 -1px 0 #ffffff inset;
       }
+      /* Tabs wrapper and chevron buttons: chevrons at ends, tabs centered */
+      .tabs-wrap {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 10px;
+        width: 100%;
+      }
+      /* make the middle .tabs expand and center its children */
+      .tabs {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex: 1 1 auto;
+        justify-content: flex-start; /* left-align tab buttons */
+        padding-left: 6px; /* small gap after left chevron */
+      }
+      .tabs-chevron {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 6px;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        background: linear-gradient(135deg, #f8fafc 0%, #eef2f6 100%);
+        cursor: pointer;
+        width: 36px;
+        height: 36px;
+        flex: 0 0 auto;
+      }
+      .tabs-chevron svg {
+        pointer-events: none;
+      }
+      @media (max-width: 640px) {
+        .tabs-wrap {
+          gap: 6px;
+        }
+        .tabs-chevron {
+          width: 32px;
+          height: 32px;
+        }
+      }
       .tab-panel {
         display: none;
       }
@@ -109,102 +147,12 @@
         border: 2px solid #cbd5e1;
         border-top-color: #0ea5e9;
         border-radius: 50%;
-        animation: spin 0.9s linear infinite;
+        animation: spin 720ms linear infinite;
       }
       @keyframes spin {
         to {
           transform: rotate(360deg);
         }
-      }
-      /* ERP-style tab wrapper with scrollable tab strip and chevrons */
-      .tabs-wrap {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        margin-top: 10px;
-        border-bottom: 1px solid #e2e8f0;
-      }
-      .tabs-wrap .tabs {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        overflow-x: auto;
-        overscroll-behavior-inline: contain;
-        scrollbar-width: none;
-        -ms-overflow-style: none;
-        flex: 1;
-      }
-      .tabs-wrap .tabs::-webkit-scrollbar {
-        display: none;
-      }
-      .tabs-wrap .tabs-chevron {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 28px;
-        height: 28px;
-        padding: 0;
-        border-radius: 6px;
-        border: 1px solid #cbd5e1;
-        background: #ffffff;
-        color: #0f172a;
-        cursor: pointer;
-      }
-      .tabs-wrap .tabs-chevron:hover {
-        background: #f8fafc;
-      }
-      .tabs-wrap .tabs-chevron:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-      /* Prominent selector styling (match RM-BOM 'Product') */
-      .product-heading-label {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-size: 15px;
-        font-weight: 600;
-        color: #0f172a;
-        margin: 0;
-      }
-      .product-heading-label span.title {
-        letter-spacing: 0.5px;
-        text-transform: uppercase;
-        font-size: 12px;
-        font-weight: 600;
-        color: #64748b;
-      }
-      .product-heading-label select {
-        font-size: 15px;
-        font-weight: 600;
-        padding: 8px 14px;
-        min-width: 240px;
-        border: 1px solid #0ea5e9;
-        background: #e0f2fe;
-        color: #0c4a6e;
-        border-radius: 8px;
-        outline: none;
-        transition: border-color 0.15s, background 0.15s;
-      }
-      .product-heading-label select:focus {
-        border-color: #0369a1;
-        background: #cfe9fa;
-      }
-      .product-heading-label select:hover {
-        background: #cfe9fa;
-      }
-      .panel-body {
-        padding: 14px;
-      }
-      label {
-        font-size: 13px;
-        color: #475569;
-        display: grid;
-        gap: 6px;
-      }
-      .hint {
-        color: var(--muted, #6b7280);
-        font-size: 13px;
       }
       select,
       input[type="number"],
@@ -276,6 +224,51 @@
       }
       .erp-pill-chip .pill-seg.value[data-state="empty"] {
         color: #64748b;
+      }
+      /* Orange unmapped pill styling - future proof */
+      .erp-pill-chip.orange {
+        border-color: #f97316;
+        background: transparent;
+        padding: 0;
+        height: 32px;
+        display: inline-flex;
+        align-items: stretch;
+        overflow: hidden;
+        border-radius: 999px;
+      }
+      .erp-pill-chip.orange .pill-seg {
+        height: 100%;
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 10px;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      .erp-pill-chip.orange .pill-seg.title {
+        background: linear-gradient(135deg, #f97316, #ea580c);
+        color: #ffffff;
+        border-radius: 0;
+        position: relative;
+        z-index: 2;
+        flex-shrink: 0;
+      }
+      .erp-pill-chip.orange .pill-seg.value {
+        background: #fff7ed;
+        color: #c2410c;
+        border-radius: 0;
+        margin-left: -1px;
+        position: relative;
+        z-index: 1;
+        min-width: 70px;
+        font-size: 14px;
+        text-transform: none;
+        letter-spacing: 0;
       }
       /* Compact QA status chip (match RM-BOM) */
       .qa-chip {
@@ -445,11 +438,24 @@
         font-weight: 600;
         text-align: center;
       }
+      /* Center Template and Status columns specifically for the Rebuild tab table */
+      #tabRebuild .grid th:nth-child(2),
+      #tabRebuild .grid th:nth-child(3),
+      #tabRebuild .grid td:nth-child(2),
+      #tabRebuild .grid td:nth-child(3) {
+        text-align: center;
+      }
       .grid tbody tr:nth-child(even) {
         background: #fafafa;
       }
       .grid tbody tr:hover {
         background: #f1f5f9;
+      }
+      /* Center Template, Notes and Updated columns in Mapping table body */
+      #mapPanel table.grid tbody td:nth-child(2),
+      #mapPanel table.grid tbody td:nth-child(3),
+      #mapPanel table.grid tbody td:nth-child(4) {
+        text-align: center;
       }
       .row-actions {
         display: inline-flex;
@@ -463,6 +469,16 @@
       }
       #linesTable th.item-col,
       #linesTable td.item-cell {
+        text-align: left;
+      }
+      /* Generic code/item column classes for other tables (Overrides, Preview) */
+      th.code-col,
+      td.code-cell {
+        text-align: center;
+        width: 90px;
+      }
+      th.item-col,
+      td.item-cell {
         text-align: left;
       }
       /* Segmented toggle for View/Edit */
@@ -488,6 +504,54 @@
         background: #0ea5e9;
         color: #ffffff;
       }
+      /* Kebab menu (vertical ellipsis) for narrow screens */
+      .menu-wrap {
+        position: relative;
+        display: none; /* shown only on narrow widths */
+      }
+      .menu-panel {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.14);
+        padding: 6px;
+        min-width: 160px;
+        display: none;
+        z-index: 1100;
+      }
+      .menu-panel.open {
+        display: block;
+      }
+      .menu-item {
+        width: 100%;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        background: transparent;
+        border: none;
+        border-radius: 8px;
+        color: #0f172a;
+        font: inherit;
+        cursor: pointer;
+      }
+      .menu-item:hover:not(:disabled) {
+        background: #f1f5f9;
+      }
+      @media (max-width: 640px) {
+        /* hide segmented toggle on small screens, show kebab (panel-header + header-actions) */
+        .header-actions .seg-toggle,
+        .panel-header .seg-toggle {
+          display: none;
+        }
+        .header-actions .menu-wrap,
+        .panel-header .menu-wrap {
+          display: inline-block;
+        }
+      }
       /* View-mode presentation */
       #linesPanel.view-mode #linesTable th,
       #linesPanel.view-mode #linesTable td {
@@ -503,6 +567,11 @@
       /* Hide Actions column in view mode */
       #linesPanel.view-mode #linesTable th:last-child,
       #linesPanel.view-mode #linesTable td:last-child {
+        display: none;
+      }
+      /* Mapping panel: hide Actions column in view mode */
+      #mapPanel.view-mode table.grid th:last-child,
+      #mapPanel.view-mode table.grid td:last-child {
         display: none;
       }
       /* First SN column and last Actions width (match RM-BOM) */
@@ -651,12 +720,38 @@
         gap: 12px;
         width: 100%;
       }
-      .panel-header .hdr-top {
+      /* Search row (ensures search input sits on its own line) */
+      .map-search-row {
+        width: 100%;
+        display: block;
+        margin-bottom: 12px;
+      }
+      .map-search-row input {
+        width: 320px;
+        max-width: 100%;
+        display: block;
+      }
+      /* Ensure second header line can wrap when needed, keep top line on one row */
+      .panel-header .hdr-line + .hdr-line {
         flex-wrap: wrap;
+        align-items: center;
+      }
+      .panel-header .hdr-top {
+        flex-wrap: nowrap;
       }
       .panel-header .product-heading-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
         flex: 1 1 240px;
         min-width: 220px;
+      }
+      .panel-header .product-heading-label .title {
+        min-width: 88px;
+        font-weight: 700;
+        color: #475569;
+        font-size: 13px;
+        white-space: nowrap;
       }
       .panel-header .erp-pills-bar {
         flex: 2 1 420px;
@@ -688,6 +783,20 @@
         }
         .panel-header .erp-pills-bar {
           margin-top: 4px;
+        }
+        /* Make the search input full-width on small screens and stack header second line */
+        #mapSearchInput {
+          width: 100% !important;
+          max-width: none !important;
+        }
+        .panel-header .hdr-line + .hdr-line {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 8px;
+        }
+        .panel-header .header-actions {
+          justify-content: flex-start;
+          width: 100%;
         }
       }
       /* Top horizontal scroll sync bar (parity with RM-BOM) */
@@ -903,6 +1012,109 @@
         gap: 8px;
         justify-content: flex-end;
       }
+      /* Overrides table: ERP-style spacing and alignment */
+      #tabOverrides .grid tbody tr td,
+      #tabOverrides .grid tbody tr th {
+        padding: 12px 14px;
+        vertical-align: middle;
+        line-height: 1.25;
+      }
+      #tabOverrides .grid tbody tr {
+        border-bottom: 1px solid var(--border, #eef2f7);
+      }
+      /* Column sizing to mimic ERP layout */
+      #tabOverrides .code-col {
+        width: 120px;
+      }
+      #tabOverrides .item-col {
+        min-width: 260px;
+      }
+      #tabOverrides .grid tbody tr td.right {
+        text-align: right;
+      }
+      /* Make inputs/selects taller and visually consistent */
+      #tabOverrides .grid tbody tr td .cell,
+      #tabOverrides .grid tbody tr td select,
+      #tabOverrides .grid tbody tr td input[type="text"],
+      #tabOverrides .grid tbody tr td input[type="number"] {
+        padding: 8px 10px;
+        height: 36px;
+        box-sizing: border-box;
+        border-radius: 6px;
+      }
+      #tabOverrides .grid tbody tr td .muted {
+        color: #64748b;
+        display: inline-block;
+        min-width: 90px;
+      }
+      /* Space around the Overrides title to separate it from header card and table */
+      #tabOverrides .panel-body > div > strong {
+        display: block;
+        margin: 12px 0 10px 0;
+        font-size: 15px;
+        color: #0f172a;
+      }
+      /* Extra breathing room between header/card and the panel body and balanced side padding */
+      #tabOverrides .panel-header {
+        padding: 12px 16px;
+      }
+      #tabOverrides .panel-body {
+        padding: 12px 16px;
+      }
+      /* Ensure the table scroll wrapper doesn't touch card edges */
+      #tabOverrides .panel-body > div > div[style*="overflow: auto"] {
+        padding: 6px 0;
+      }
+      /* Overrides view mode styling - professional layout like Mapping tab */
+      #tabOverrides.view-mode .grid tbody tr td {
+        padding: 14px 16px;
+        border-bottom: 1px solid #f1f5f9;
+      }
+      #tabOverrides.view-mode .grid tbody tr:hover {
+        background: #f8fafc;
+      }
+      #tabOverrides.view-mode .grid tbody tr td.right {
+        text-align: right;
+        font-weight: 500;
+      }
+      #tabOverrides.view-mode .grid tbody tr td.code-cell,
+      #tabOverrides.view-mode .grid tbody tr td.item-cell {
+        font-weight: 500;
+      }
+      /* Center numeric and short-code columns horizontally (view mode only) */
+      #tabOverrides.view-mode .grid th.qty-col,
+      #tabOverrides.view-mode .grid td.qty-col,
+      #tabOverrides.view-mode .grid th.uom-col,
+      #tabOverrides.view-mode .grid td.uom-col,
+      #tabOverrides.view-mode .grid th.wast-col,
+      #tabOverrides.view-mode .grid td.wast-col,
+      #tabOverrides.view-mode .grid th.opt-col,
+      #tabOverrides.view-mode .grid td.opt-col,
+      #tabOverrides.view-mode .grid th.code-col,
+      #tabOverrides.view-mode .grid td.code-col {
+        text-align: center;
+      }
+      /* Hide row actions in view mode */
+      #tabOverrides.view-mode .row-actions {
+        display: none;
+      }
+      /* Hide Op and Actions columns entirely in view mode */
+      #tabOverrides.view-mode th.op-col,
+      #tabOverrides.view-mode td.op-col,
+      #tabOverrides.view-mode th.actions-col,
+      #tabOverrides.view-mode td.actions-col {
+        display: none;
+      }
+      /* Edit mode specific styling */
+      #tabOverrides:not(.view-mode) .grid tbody tr td .cell {
+        background: #ffffff;
+        border: 1px solid #d1d5db;
+      }
+      #tabOverrides:not(.view-mode) .grid tbody tr td .cell:focus {
+        outline: 2px solid #3b82f6;
+        outline-offset: -2px;
+        border-color: #3b82f6;
+      }
     </style>
     <!-- jsPDF (for PDF export) -->
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
@@ -919,7 +1131,10 @@
         "
       >
         <div>
-          <h1 style="margin: 0; text-align: left">PLM Templates and Mapping</h1>
+          <h1 style="margin: 0; text-align: left">Manage PLM BOM</h1>
+          <!-- Rebuild Tab Panel removed from header and placed with other tab panels -->
+
+          <!-- Templates Tab Panel -->
           <p
             class="hint"
             style="margin: 4px 0 0 0; padding-left: 0; text-align: left"
@@ -966,7 +1181,7 @@
           <polyline points="15 18 9 12 15 6" />
         </svg>
       </button>
-      <div class="tabs" role="tablist" aria-label="PLM Templates Tabs">
+      <div class="tabs" role="tablist" aria-label="Manage PLM BOM Tabs">
         <button
           id="tabBtnTemplates"
           class="tab-btn"
@@ -985,6 +1200,33 @@
         >
           Mapping
         </button>
+        <button
+          id="tabBtnOverrides"
+          class="tab-btn"
+          role="tab"
+          aria-selected="false"
+          aria-controls="tabOverrides"
+        >
+          Overrides
+        </button>
+        <button
+          id="tabBtnPreview"
+          class="tab-btn"
+          role="tab"
+          aria-selected="false"
+          aria-controls="tabPreview"
+        >
+          Preview
+        </button>
+        <button
+          id="tabBtnRebuild"
+          class="tab-btn"
+          role="tab"
+          aria-selected="false"
+          aria-controls="tabRebuild"
+        >
+          Rebuild
+        </button>
       </div>
       <button
         class="tabs-chevron right"
@@ -1002,6 +1244,339 @@
           <polyline points="9 18 15 12 9 6" />
         </svg>
       </button>
+    </div>
+
+    <!-- Overrides Tab Panel (cloned/adapted into this page) -->
+    <div
+      id="tabOverrides"
+      class="tab-panel"
+      role="tabpanel"
+      aria-hidden="true"
+      tabindex="0"
+    >
+      <section class="panel">
+        <div class="panel-header">
+          <div style="display: flex; gap: 10px; align-items: center">
+            <label class="product-heading-label">
+              <span class="title">SKU</span>
+              <select id="ovr_skuPicker"></select>
+            </label>
+          </div>
+          <!-- Removed bulk override actions: row-level Save/Delete are used instead -->
+        </div>
+        <div class="panel-body">
+          <div>
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-bottom: 8px;
+              "
+            >
+              <strong>Overrides</strong>
+              <div class="seg-toggle" role="group" aria-label="Overrides mode">
+                <button
+                  id="ovr_viewBtn"
+                  class="seg active"
+                  type="button"
+                  data-short="V"
+                >
+                  View
+                </button>
+                <button
+                  id="ovr_editBtn"
+                  class="seg"
+                  type="button"
+                  data-short="E"
+                >
+                  Edit
+                </button>
+              </div>
+            </div>
+            <div style="overflow: auto; max-height: 70vh">
+              <table class="grid">
+                <thead>
+                  <tr>
+                    <th class="code-col">Item Code</th>
+                    <th class="item-col">Stock Item</th>
+                    <th class="qty-col">Qty per Ref</th>
+                    <th class="uom-col">UOM</th>
+                    <th class="wast-col">Wastage %</th>
+                    <th class="opt-col">Optional</th>
+                    <th>Remarks</th>
+                    <th class="actions-col">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="ovr_ovrBody"></tbody>
+              </table>
+            </div>
+            <!-- Instructional text removed: per-row actions are self-explanatory -->
+          </div>
+          <!-- Effective BOM Preview moved to its own Preview tab -->
+        </div>
+      </section>
+    </div>
+
+    <!-- Preview Tab Panel -->
+    <div
+      id="tabPreview"
+      class="tab-panel"
+      role="tabpanel"
+      aria-hidden="true"
+      tabindex="0"
+    >
+      <section class="panel">
+        <div class="panel-header">
+          <div
+            style="
+              display: flex;
+              gap: 10px;
+              align-items: center;
+              width: 100%;
+              justify-content: space-between;
+            "
+          >
+            <label
+              class="product-heading-label"
+              style="
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                flex: 1 1 320px;
+                min-width: 180px;
+              "
+            >
+              <span class="title">SKU</span>
+              <select
+                id="ovr_previewSkuPicker"
+                style="min-width: 220px; max-width: 60vw; width: 40%"
+              ></select>
+            </label>
+            <div
+              class="erp-pills-bar"
+              style="
+                margin-left: 12px;
+                margin-right: 6px;
+                flex: 0 1 auto;
+                display: flex;
+                gap: 8px;
+                flex-wrap: wrap;
+                justify-content: flex-end;
+              "
+            >
+              <div class="erp-pill-chip small" title="SKUs with overrides">
+                <div class="pill-seg title">Has Overrides</div>
+                <div
+                  class="pill-seg value"
+                  id="previewPillWithCount"
+                  data-state="empty"
+                >
+                  0
+                </div>
+              </div>
+              <button
+                id="previewNoOvrBtn"
+                class="erp-pill-chip small orange"
+                title="SKUs without overrides"
+                style="cursor: pointer"
+              >
+                <div class="pill-seg title">No Overrides</div>
+                <div
+                  class="pill-seg value"
+                  id="previewPillWithoutCount"
+                  data-state="empty"
+                >
+                  0
+                </div>
+              </button>
+              <div
+                style="
+                  display: inline-flex;
+                  align-items: center;
+                  gap: 8px;
+                  margin-left: 6px;
+                "
+              >
+                <div class="seg-toggle" role="group" aria-label="Preview mode">
+                  <button id="previewViewBtn" class="seg active" type="button">
+                    View
+                  </button>
+                  <button id="previewEditBtn" class="seg" type="button">
+                    Edit
+                  </button>
+                </div>
+                <div
+                  id="previewEditActions"
+                  style="display: inline-flex; gap: 8px; align-items: center"
+                >
+                  <button
+                    id="previewSaveBtn"
+                    class="btn primary"
+                    type="button"
+                    style="display: none"
+                  >
+                    Save Changes
+                  </button>
+                  <button
+                    id="previewCancelBtn"
+                    class="btn ghost"
+                    type="button"
+                    style="display: none"
+                  >
+                    Cancel Edits
+                  </button>
+                </div>
+              </div>
+              <div class="menu-wrap" style="position: relative">
+                <button
+                  id="previewExportBtn"
+                  class="btn"
+                  aria-haspopup="true"
+                  aria-expanded="false"
+                  style="
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    background: #f3f4f6;
+                    border: 1px solid #e5e7eb;
+                    padding: 6px 10px;
+                    border-radius: 8px;
+                    margin-left: 6px;
+                    z-index: 1;
+                  "
+                >
+                  Export <span style="font-size: 10px; line-height: 1">▾</span>
+                </button>
+                <div
+                  id="previewExportMenu"
+                  class="menu-panel"
+                  style="right: 0; display: none"
+                >
+                  <button
+                    id="previewExportCopyMd"
+                    class="menu-item"
+                    style="
+                      display: block;
+                      width: 100%;
+                      text-align: left;
+                      padding: 8px 12px;
+                      background: none;
+                      border: none;
+                      cursor: pointer;
+                    "
+                  >
+                    Copy as markdown
+                  </button>
+                  <button
+                    id="previewExportDownloadCsv"
+                    class="menu-item"
+                    style="
+                      display: block;
+                      width: 100%;
+                      text-align: left;
+                      padding: 8px 12px;
+                      background: none;
+                      border: none;
+                      cursor: pointer;
+                    "
+                  >
+                    Download as CSV
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- (search input moved to mapping header) -->
+        </div>
+        <div class="panel-body" style="padding: 16px 18px">
+          <div style="padding: 6px 0">
+            <strong>Effective BOM Preview</strong>
+            <div style="overflow: auto; max-height: 70vh; padding-top: 8px">
+              <table class="grid">
+                <thead>
+                  <tr>
+                    <th>SN</th>
+                    <th class="code-col">Item Code</th>
+                    <th class="item-col">Stock Item</th>
+                    <th>Qty per Ref</th>
+                    <th>UOM</th>
+                    <th>Wastage %</th>
+                    <th>Optional</th>
+                    <th>Remarks</th>
+                  </tr>
+                </thead>
+                <tbody id="ovr_previewBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Rebuild Tab Panel -->
+    <div
+      id="tabRebuild"
+      class="tab-panel"
+      role="tabpanel"
+      aria-hidden="true"
+      tabindex="0"
+    >
+      <section class="panel">
+        <div class="panel-header">
+          <div style="display: flex; gap: 10px; align-items: center">
+            <label class="product-heading-label">
+              <span class="title">Template</span>
+              <select id="rebuildTplPicker"></select>
+            </label>
+          </div>
+          <div style="position: relative; display: inline-block">
+            <button id="rebuildMenuBtn" class="btn primary">Actions ▾</button>
+            <div
+              id="rebuildMenu"
+              style="
+                display: none;
+                position: absolute;
+                right: 0;
+                top: 100%;
+                background: white;
+                border: 1px solid #ddd;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+                z-index: 40;
+              "
+            >
+              <div
+                style="display: flex; flex-direction: column; min-width: 160px"
+              >
+                <button id="rebuildTplBtn" class="btn" style="text-align: left">
+                  Rebuild for Template
+                </button>
+                <button id="dryRunBtn" class="btn" style="text-align: left">
+                  Dry Run (All)
+                </button>
+                <button id="rebuildAllBtn" class="btn" style="text-align: left">
+                  Rebuild All
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="muted" style="margin-bottom: 8px"></div>
+          <div style="overflow: auto; max-height: 70vh">
+            <table class="grid">
+              <thead>
+                <tr>
+                  <th>SKU</th>
+                  <th>Template</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="rebuildResultBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
     </div>
     <!-- Templates Tab Panel -->
     <div
@@ -1253,7 +1828,20 @@
       <section id="linesPanel" class="panel view-mode">
         <div class="panel-header">
           <h3>Lines</h3>
-          <div style="display: flex; gap: 8px; align-items: center">
+          <div
+            id="selectionPills"
+            class="erp-pills-bar"
+            style="margin-left: 12px"
+          ></div>
+          <div
+            class="header-actions"
+            style="
+              display: flex;
+              gap: 8px;
+              align-items: center;
+              margin-left: auto;
+            "
+          >
             <div class="seg-toggle" role="group" aria-label="Lines mode">
               <button id="linesViewBtn" class="seg active" type="button">
                 View
@@ -1265,7 +1853,6 @@
               class="btn ghost icon-btn small"
               type="button"
               aria-label="Keyboard shortcuts"
-              style="margin-left: 4px"
             >
               <svg
                 width="18"
@@ -1306,7 +1893,23 @@
                   <th>Actions</th>
                 </tr>
               </thead>
-              <tbody id="linesBody"></tbody>
+              <tbody id="linesBody">
+                <!-- Example row with dynamic attributes -->
+                <tr data-row-index="0">
+                  <td data-col-index="0">1</td>
+                  <td data-col-index="1" class="code-cell">ITEM001</td>
+                  <td data-col-index="2" class="item-cell">Stock Item A</td>
+                  <td data-col-index="3">10</td>
+                  <td data-col-index="4">kg</td>
+                  <td data-col-index="5">5%</td>
+                  <td data-col-index="6">No</td>
+                  <td data-col-index="7">Remarks here</td>
+                  <td data-col-index="8" class="row-actions">
+                    <button>Edit</button>
+                    <button>Delete</button>
+                  </td>
+                </tr>
+              </tbody>
             </table>
           </div>
           <!-- Back to top button -->
@@ -1643,7 +2246,7 @@
     </div>
     <!-- end Templates tab panel -->
 
-    <!-- Mapping Tab Panel (cloned from manage-plm-map; IDs renamed) -->
+    <!-- Mapping Tab Panel -->
     <div
       id="tabMapping"
       class="tab-panel"
@@ -1651,125 +2254,203 @@
       aria-hidden="true"
       tabindex="0"
     >
-      <section class="panel">
+      <section id="mapPanel" class="panel view-mode">
         <div class="panel-header">
-          <strong>Mapping</strong>
-          <div style="display: flex; gap: 8px">
-            <button id="mapSetBtn" class="btn primary">Set Mapping</button>
-            <button id="mapClearBtn" class="btn">Clear Mapping</button>
-          </div>
-        </div>
-        <div
-          class="panel-body"
-          style="display: grid; gap: 12px; grid-template-columns: 1fr 1fr"
-        >
-          <label>
-            <span>Select SKU</span>
-            <select id="mapSkuPicker"></select>
-          </label>
-          <label>
-            <span>Select Template</span>
-            <select id="mapTplPicker"></select>
-          </label>
-          <div class="muted" style="grid-column: 1/-1">
-            Use the pickers to set or clear PLM template for the selected SKU.
-          </div>
-        </div>
-      </section>
-
-      <section class="panel">
-        <div class="panel-header">
-          <strong>Mapped SKUs</strong>
-          <div style="display: flex; gap: 8px">
-            <button
-              id="mapRefreshBtn"
-              class="btn ghost icon-btn"
-              title="Reload mapped SKUs"
-              aria-label="Reload mapped SKUs"
-            >
-              <svg
-                width="26"
-                height="26"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
+          <div class="hdr-line hdr-top">
+            <strong>Mapped SKUs</strong>
+            <div class="erp-pills-bar" style="margin-left: 12px">
+              <div class="erp-pill-chip small" title="Mapped SKUs">
+                <div class="pill-seg title">Mapped</div>
+                <div
+                  class="pill-seg value"
+                  id="mapPillMappedCount"
+                  data-state="empty"
+                >
+                  0
+                </div>
+              </div>
+              <button
+                id="mapUnmappedBtn"
+                class="erp-pill-chip small orange"
+                title="Show unmapped SKUs"
+                style="cursor: pointer"
               >
-                <polyline points="23 4 23 10 17 10" />
-                <polyline points="1 20 1 14 7 14" />
-                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10" />
-                <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14" />
-              </svg>
-            </button>
-            <button
-              id="mapNewBtn"
-              class="btn primary icon-btn"
-              title="New mapping"
-              aria-label="New mapping"
-            >
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
+                <div class="pill-seg title">Unmapped</div>
+                <div
+                  class="pill-seg value"
+                  id="mapPillUnmappedCount"
+                  data-state="empty"
+                >
+                  0
+                </div>
+              </button>
+            </div>
+          </div>
+          <div class="hdr-line" style="margin-top: 8px; align-items: center">
+            <div class="header-actions" style="align-items: center">
+              <button
+                id="mapRefreshBtn"
+                class="btn ghost icon-btn"
+                title="Reload mapped SKUs"
+                aria-label="Reload mapped SKUs"
               >
-                <circle cx="12" cy="12" r="9" />
-                <line x1="12" y1="8" x2="12" y2="16" />
-                <line x1="8" y1="12" x2="16" y2="12" />
-              </svg>
-            </button>
+                <svg
+                  width="26"
+                  height="26"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="23 4 23 10 17 10" />
+                  <polyline points="1 20 1 14 7 14" />
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10" />
+                  <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14" />
+                </svg>
+              </button>
+              <button
+                id="mapNewBtn"
+                class="btn primary icon-btn"
+                title="New mapping"
+                aria-label="New mapping"
+              >
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="12" cy="12" r="9" />
+                  <line x1="12" y1="8" x2="12" y2="16" />
+                  <line x1="8" y1="12" x2="16" y2="12" />
+                </svg>
+              </button>
+              <div
+                style="
+                  display: inline-flex;
+                  align-items: center;
+                  gap: 8px;
+                  margin-left: 6px;
+                "
+              >
+                <div class="seg-toggle" role="group" aria-label="Mapping mode">
+                  <button id="mapViewBtn" class="seg active" type="button">
+                    View
+                  </button>
+                  <button id="mapEditBtn" class="seg" type="button">
+                    Edit
+                  </button>
+                </div>
+                <div
+                  id="mapEditActions"
+                  style="display: inline-flex; gap: 8px; align-items: center"
+                >
+                  <button
+                    id="mapSaveBtn"
+                    class="btn primary"
+                    type="button"
+                    style="display: none"
+                  >
+                    Save Changes
+                  </button>
+                  <button
+                    id="mapCancelBtn"
+                    class="btn ghost"
+                    type="button"
+                    style="display: none"
+                  >
+                    Cancel Edits
+                  </button>
+                </div>
+              </div>
+              <!-- Kebab fallback: shown on narrow screens to toggle View/Edit -->
+              <div class="menu-wrap" style="margin-left: 6px">
+                <button
+                  id="mapKebabBtn"
+                  class="btn ghost icon-btn small"
+                  aria-haspopup="true"
+                  aria-expanded="false"
+                  aria-controls="mapKebabMenu"
+                  title="More"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="12" cy="5" r="1" />
+                    <circle cx="12" cy="12" r="1" />
+                    <circle cx="12" cy="19" r="1" />
+                  </svg>
+                </button>
+                <div
+                  id="mapKebabMenu"
+                  class="menu-panel"
+                  role="menu"
+                  aria-labelledby="mapKebabBtn"
+                >
+                  <button
+                    id="mapKebabViewBtn"
+                    class="menu-item"
+                    role="menuitem"
+                  >
+                    View
+                  </button>
+                  <button
+                    id="mapKebabEditBtn"
+                    class="menu-item"
+                    role="menuitem"
+                  >
+                    Edit
+                  </button>
+                </div>
+              </div>
+              <!-- search input moved into panel-body to ensure table sits below it -->
+            </div>
           </div>
         </div>
         <div class="panel-body" style="display: block">
-          <div class="muted" style="margin-bottom: 8px">
-            Current mappings from <code>plm_sku_pack_map</code>.
+          <div class="map-search-row" style="display: block; width: 100%">
+            <input
+              id="mapSearchInput"
+              type="search"
+              placeholder="Search SKU label or ID"
+              style="
+                padding: 8px 10px;
+                border: 1px solid #d1d5db;
+                border-radius: 6px;
+              "
+            />
           </div>
-          <div style="overflow: auto">
-            <table style="width: 100%; border-collapse: collapse">
+          <div
+            id="mapScroll"
+            style="
+              overflow: auto;
+              max-height: 70vh;
+              clear: both;
+              display: block;
+              width: 100%;
+            "
+          >
+            <table class="grid" style="width: 100%">
               <thead>
                 <tr>
-                  <th
-                    style="
-                      text-align: left;
-                      padding: 6px;
-                      border-bottom: 1px solid #e2e8f0;
-                    "
-                  >
-                    SKU
-                  </th>
-                  <th
-                    style="
-                      text-align: left;
-                      padding: 6px;
-                      border-bottom: 1px solid #e2e8f0;
-                    "
-                  >
-                    Template
-                  </th>
-                  <th
-                    style="
-                      text-align: left;
-                      padding: 6px;
-                      border-bottom: 1px solid #e2e8f0;
-                    "
-                  >
-                    Notes
-                  </th>
-                  <th
-                    style="
-                      text-align: left;
-                      padding: 6px;
-                      border-bottom: 1px solid #e2e8f0;
-                    "
-                  >
-                    Updated
-                  </th>
+                  <th>SKU</th>
+                  <th>Template</th>
+                  <th>Notes</th>
+                  <th>Updated</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody id="mapMappedBody"></tbody>
@@ -1816,6 +2497,472 @@
         </div>
       </div>
     </div>
+    <!-- Unmapped SKUs Modal -->
+    <div
+      id="mapUnmappedModal"
+      class="modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="mapUnmappedTitle"
+      style="display: none"
+    >
+      <div
+        class="modal"
+        style="
+          max-width: 920px;
+          width: 98%;
+          max-height: 90vh;
+          display: flex;
+          flex-direction: column;
+        "
+      >
+        <div
+          class="modal-header"
+          style="
+            border-bottom: 1px solid #e2e8f0;
+            padding: 16px 20px;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+          "
+        >
+          <div style="display: flex; align-items: center; gap: 12px">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              style="color: #f97316"
+            >
+              <path d="M3 3h18v18H3z" />
+              <path d="M21 9H3" />
+              <path d="M9 21V9" />
+            </svg>
+            <h3
+              id="mapUnmappedTitle"
+              style="
+                margin: 0;
+                font-size: 17px;
+                font-weight: 600;
+                color: #0f172a;
+              "
+            >
+              Unmapped SKUs
+            </h3>
+          </div>
+          <!-- Preview: SKUs Without Overrides Modal -->
+          <div
+            id="previewNoOvrModal"
+            class="modal-backdrop"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="previewNoOvrTitle"
+            style="display: none"
+          >
+            <div
+              class="modal"
+              style="
+                max-width: 920px;
+                width: 98%;
+                max-height: 90vh;
+                display: flex;
+                flex-direction: column;
+              "
+            >
+              <div
+                class="modal-header"
+                style="
+                  border-bottom: 1px solid #e2e8f0;
+                  padding: 16px 20px;
+                  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+                "
+              >
+                <div style="display: flex; align-items: center; gap: 12px">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    style="color: #0ea5e9"
+                  >
+                    <path d="M3 3h18v18H3z" />
+                    <path d="M21 9H3" />
+                    <path d="M9 21V9" />
+                  </svg>
+                  <h3
+                    id="previewNoOvrTitle"
+                    style="
+                      margin: 0;
+                      font-size: 17px;
+                      font-weight: 600;
+                      color: #0f172a;
+                    "
+                  >
+                    SKUs Without Overrides
+                  </h3>
+                </div>
+                <button
+                  id="previewNoOvrCloseBtn"
+                  class="icon-btn"
+                  aria-label="Close"
+                  style="color: #64748b"
+                >
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+              <div
+                class="modal-body"
+                style="
+                  padding: 16px 20px;
+                  flex: 1;
+                  min-height: 0;
+                  display: flex;
+                  flex-direction: column;
+                  gap: 16px;
+                "
+              >
+                <div
+                  style="
+                    display: flex;
+                    gap: 10px;
+                    align-items: center;
+                    padding: 12px 16px;
+                    background: #f8fafc;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 8px;
+                  "
+                >
+                  <button
+                    id="previewNoOvrCopyBtn"
+                    class="btn primary"
+                    style="display: inline-flex; align-items: center; gap: 6px"
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                      <path
+                        d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                      />
+                    </svg>
+                    Copy All
+                  </button>
+                  <button
+                    id="previewNoOvrExportBtn"
+                    class="btn"
+                    style="
+                      display: inline-flex;
+                      align-items: center;
+                      gap: 6px;
+                      border-color: #0ea5e9;
+                      color: #0ea5e9;
+                    "
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    Export CSV
+                  </button>
+                  <div style="flex: 1"></div>
+                  <div
+                    style="
+                      display: flex;
+                      align-items: center;
+                      gap: 8px;
+                      color: #64748b;
+                      font-size: 13px;
+                      font-weight: 500;
+                    "
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="6" x2="12" y2="10" />
+                      <line x1="12" y1="14" x2="12.01" y2="14" />
+                    </svg>
+                    <span id="previewNoOvrCountText" class="muted"></span>
+                  </div>
+                </div>
+                <div
+                  style="
+                    flex: 1;
+                    min-height: 400px;
+                    max-height: 600px;
+                    overflow: auto;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 10px;
+                    background: #fff;
+                  "
+                >
+                  <table
+                    class="grid"
+                    style="width: 100%; border-collapse: collapse; margin: 0"
+                  >
+                    <thead style="position: sticky; top: 0; z-index: 2">
+                      <tr>
+                        <th
+                          style="
+                            width: 60px;
+                            text-align: center;
+                            background: #f8fafc;
+                          "
+                        >
+                          #
+                        </th>
+                        <th style="text-align: left; background: #f8fafc">
+                          SKU Label
+                        </th>
+                        <th
+                          style="
+                            width: 120px;
+                            text-align: center;
+                            background: #f8fafc;
+                          "
+                        >
+                          SKU ID
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody id="previewNoOvrList"></tbody>
+                  </table>
+                </div>
+              </div>
+              <div
+                class="modal-actions"
+                style="
+                  padding: 12px 20px;
+                  border-top: 1px solid #e2e8f0;
+                  background: #fafbfc;
+                "
+              >
+                <button id="previewNoOvrCloseBottomBtn" class="btn ghost">
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+          <button
+            id="mapUnmappedCloseBtn"
+            class="icon-btn"
+            aria-label="Close"
+            style="color: #64748b"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div
+          class="modal-body"
+          style="
+            padding: 16px 20px;
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+          "
+        >
+          <div
+            style="
+              display: flex;
+              gap: 10px;
+              align-items: center;
+              padding: 12px 16px;
+              background: #f8fafc;
+              border: 1px solid #e2e8f0;
+              border-radius: 8px;
+            "
+          >
+            <button
+              id="mapUnmappedCopyBtn"
+              class="btn primary"
+              style="display: inline-flex; align-items: center; gap: 6px"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                <path
+                  d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                />
+              </svg>
+              Copy All
+            </button>
+            <button
+              id="mapUnmappedExportBtn"
+              class="btn"
+              style="
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                border-color: #0ea5e9;
+                color: #0ea5e9;
+              "
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Export CSV
+            </button>
+            <div style="flex: 1"></div>
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                color: #64748b;
+                font-size: 13px;
+                font-weight: 500;
+              "
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="6" x2="12" y2="10" />
+                <line x1="12" y1="14" x2="12.01" y2="14" />
+              </svg>
+              <span id="mapUnmappedCountText" class="muted"></span>
+            </div>
+          </div>
+          <div
+            style="
+              flex: 1;
+              min-height: 400px;
+              max-height: 600px;
+              overflow: auto;
+              border: 1px solid #e2e8f0;
+              border-radius: 10px;
+              background: #fff;
+            "
+          >
+            <table
+              class="grid"
+              style="width: 100%; border-collapse: collapse; margin: 0"
+            >
+              <thead style="position: sticky; top: 0; z-index: 2">
+                <tr>
+                  <th
+                    style="width: 60px; text-align: center; background: #f8fafc"
+                  >
+                    #
+                  </th>
+                  <th style="text-align: left; background: #f8fafc">
+                    SKU Label
+                  </th>
+                  <th
+                    style="
+                      width: 120px;
+                      text-align: center;
+                      background: #f8fafc;
+                    "
+                  >
+                    SKU ID
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="mapUnmappedList"></tbody>
+            </table>
+          </div>
+        </div>
+        <div
+          class="modal-actions"
+          style="
+            padding: 12px 20px;
+            border-top: 1px solid #e2e8f0;
+            background: #fafbfc;
+          "
+        >
+          <button
+            id="mapUnmappedCloseBottomBtn"
+            class="btn ghost"
+            style="margin-left: auto"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- Delete Line Confirm Modal -->
     <div
@@ -1847,6 +2994,33 @@
         </div>
       </div>
     </div>
+    <!-- Overrides Confirm Modal -->
+    <div
+      id="ovr_confirmModal"
+      class="modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="ovrConfirmTitle"
+      style="display: none"
+    >
+      <div class="modal">
+        <div class="modal-header">
+          <h3 id="ovrConfirmTitle" style="margin: 0; font-size: 16px">
+            Confirm
+          </h3>
+          <button id="ovrConfirmClose" class="btn ghost" aria-label="Close">
+            Close
+          </button>
+        </div>
+        <div class="modal-body">
+          <p id="ovr_confirmText">Are you sure?</p>
+        </div>
+        <div class="modal-actions">
+          <button id="ovrConfirmCancelBtn" class="btn ghost">Cancel</button>
+          <button id="ovrConfirmBtn" class="btn danger">Confirm</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Loading Mask -->
     <div id="pageMask" class="screen-mask" aria-live="polite" aria-busy="true">
@@ -1857,6 +3031,6 @@
     </div>
 
     <script type="module" src="public/shared/js/supabaseClient.js"></script>
-    <script type="module" src="js/manage-plm-templates.js"></script>
+    <script type="module" src="js/manage-plm-bom.js"></script>
   </body>
 </html>

@@ -18,6 +18,8 @@ let activeToastTimer = null;
 // Header pill displays
 const pillRefOutput = el("pillRefOutput");
 const pillLossPct = el("pillLossPct");
+// Selection pills container (view mode)
+const selectionPills = el("selectionPills");
 
 // const checkAll = el("checkAll"); // removed (legacy bulk select no longer used with SN column)
 const reloadBtn = el("reloadBtn");
@@ -62,6 +64,8 @@ function applyLinesMode() {
   if (!LINES_EDIT_MODE && kbHelpPopover) kbHelpPopover.style.display = "none";
   // Re-render table according to mode
   renderLines();
+  // Clear any selection when entering edit mode
+  if (LINES_EDIT_MODE) clearSelection();
 }
 function applyPermissionUi() {
   // When no edit permission, force view and hide edit affordances
@@ -297,15 +301,17 @@ function renderLines() {
       const remStr = escapeHtml(ln.remarks || "");
       return `
       <tr data-i="${i}">
-        <td class="nowrap">${i + 1}</td>
-        <td class="nowrap code-cell">${escapeHtml(itemCode)}</td>
-        <td class="item-cell">${escapeHtml(itemName)}</td>
-        <td>${escapeHtml(qtyStr)}</td>
-        <td>${escapeHtml(uomCode)}</td>
-        <td>${escapeHtml(wastStr)}</td>
-        <td>${optStr}</td>
-        <td>${remStr}</td>
-        <td></td>
+        <td class="nowrap" data-col="sn">${i + 1}</td>
+        <td class="nowrap code-cell" data-col="code">${escapeHtml(
+          itemCode
+        )}</td>
+        <td class="item-cell" data-col="item">${escapeHtml(itemName)}</td>
+        <td data-col="qty">${escapeHtml(qtyStr)}</td>
+        <td data-col="uom">${escapeHtml(uomCode)}</td>
+        <td data-col="wastage">${escapeHtml(wastStr)}</td>
+        <td data-col="optional">${optStr}</td>
+        <td data-col="remarks">${remStr}</td>
+        <td data-col="actions"></td>
       </tr>`;
     }
     const itemOptions = [`<option value="">— select —</option>`]
@@ -333,13 +339,17 @@ function renderLines() {
       // replace itemOptions string for this row
       return `
       <tr data-i="${i}">
-        <td class="nowrap">${i + 1}</td>
-        <td class="nowrap code-cell">${escapeHtml(itemCode)}</td>
-        <td class="item-cell"><select class="cell item">${injected}</select></td>
-        <td class="right"><input class="cell qty" type="number" step="0.0001" min="0" value="${
+        <td class="nowrap" data-col="sn">${i + 1}</td>
+        <td class="nowrap code-cell" data-col="code">${escapeHtml(
+          itemCode
+        )}</td>
+        <td class="item-cell" data-col="item"><select class="cell item">${injected}</select></td>
+        <td class="right" data-col="qty"><input class="cell qty" type="number" step="0.0001" min="0" value="${
           ln.qty_per_reference_output ?? ""
         }" /></td>
-        <td><select class="cell uom">${[`<option value="">— select —</option>`]
+        <td data-col="uom"><select class="cell uom">${[
+          `<option value="">— select —</option>`,
+        ]
           .concat(
             UOMS.map(
               (u) =>
@@ -349,13 +359,13 @@ function renderLines() {
             )
           )
           .join("")}</select></td>
-        <td class="right"><input class="cell wast" type="number" step="0.0001" min="0" max="0.9999" value="${
+        <td class="right" data-col="wastage"><input class="cell wast" type="number" step="0.0001" min="0" max="0.9999" value="${
           ln.wastage_pct ?? ""
         }" /></td>
-        <td><input type="checkbox" class="cell opt" ${
+        <td data-col="optional"><input type="checkbox" class="cell opt" ${
           ln.is_optional ? "checked" : ""
         } /></td>
-        <td><input type="text" class="cell rem" value="${escapeHtml(
+        <td data-col="remarks"><input type="text" class="cell rem" value="${escapeHtml(
           ln.remarks || ""
         )}" /></td>
       </tr>`;
@@ -691,6 +701,8 @@ async function loadBom(pid) {
   renderLines();
   renderQA();
   updateHeaderPills();
+  // Refresh selection pills (initially empty)
+  updateSelectionPills();
   if (deleteBtn) deleteBtn.disabled = !CURRENT_HEADER;
   if (editHeaderBtn) editHeaderBtn.disabled = !pid; // enable when a product is selected
   if (typeof syncMenuState === "function") syncMenuState();
@@ -1557,6 +1569,742 @@ async function ensureRmItemCodes() {
   });
 }
 
+/* ---------------- Selection & Pills (View mode) ---------------- */
+// selection set stores keys like "row:col" (e.g. "3:qty")
+let SELECTED_CELLS = new Set();
+let ANCHOR = null; // {i, col}
+let LAST_SELECTED = null; // {i, col}
+let SELECTION_OP = false; // when true, suppress native text selection
+let LAST_DRAG_AT = 0; // timestamp of last drag end, used to ignore immediate click after drag
+let LAST_DRAG_POS = null; // {x,y} of last mouseup during drag
+// make `linesBody` focusable so we can move focus off individual cells when needed
+if (linesBody && typeof linesBody.setAttribute === "function")
+  linesBody.tabIndex = -1;
+
+// Debug helpers removed for production — keep a no-op to avoid references
+function dbg() {
+  /* debug logging removed */
+}
+
+// Column ordering used for rectangle selection and arrow navigation
+const COL_ORDER = [
+  "sn",
+  "code",
+  "item",
+  "qty",
+  "uom",
+  "wastage",
+  "optional",
+  "remarks",
+];
+function getColIndex(col) {
+  return COL_ORDER.indexOf(col);
+}
+function getColByIndex(idx) {
+  return COL_ORDER[Math.max(0, Math.min(COL_ORDER.length - 1, idx))];
+}
+
+function cellKey(i, col) {
+  return `${i}:${col}`;
+}
+function parseCellKey(k) {
+  const [sI, col] = String(k).split(":");
+  return { i: parseInt(sI, 10), col };
+}
+
+function isNumericColumn(col) {
+  return col === "qty" || col === "wastage";
+}
+
+function getCellValue(i, col) {
+  const ln = CURRENT_LINES[i];
+  if (!ln) return null;
+  if (col === "qty")
+    return ln.qty_per_reference_output == null
+      ? null
+      : Number(ln.qty_per_reference_output);
+  if (col === "wastage") {
+    if (ln.wastage_pct == null) return null;
+    const raw = Number(ln.wastage_pct);
+    return raw <= 1.5 ? raw * 100 : raw; // return percent
+  }
+  if (col === "code") return getItemCode(ln.stock_item_id) || "";
+  if (col === "item") return getItemName(ln.stock_item_id) || "";
+  if (col === "uom") return getUomCode(ln.uom_id) || "";
+  if (col === "optional") return ln.is_optional ? "Yes" : "No";
+  if (col === "remarks") return ln.remarks || "";
+  if (col === "sn") return i + 1;
+  return null;
+}
+
+function clearSelection() {
+  SELECTED_CELLS.clear();
+  ANCHOR = null;
+  LAST_SELECTED = null;
+  refreshSelectionVisuals();
+  updateSelectionPills();
+}
+
+function refreshSelectionVisuals() {
+  dbg("refreshSelectionVisuals:start", { size: SELECTED_CELLS.size });
+  // Build a quick lookup for selected cells
+  const isSelected = (r, c) => SELECTED_CELLS.has(cellKey(r, c));
+  Array.from(linesBody.querySelectorAll("td[data-col]")).forEach((td) => {
+    const tr = td.closest("tr[data-i]");
+    const i = tr ? parseInt(tr.dataset.i, 10) : null;
+    const col = td.dataset.col;
+    if (!Number.isFinite(i) || !col) return;
+    const k = cellKey(i, col);
+    const selected = SELECTED_CELLS.has(k);
+    // Clear edge classes
+    td.classList.remove(
+      "cell-selected",
+      "sel-t",
+      "sel-b",
+      "sel-l",
+      "sel-r",
+      "cell-active",
+      "cell-focused"
+    );
+    if (selected) {
+      td.classList.add("cell-selected");
+      // Determine which edges need an outer border by checking neighbors
+      const upSel = isSelected(i - 1, col);
+      const downSel = isSelected(i + 1, col);
+      const leftCol = getColByIndex(getColIndex(col) - 1);
+      const rightCol = getColByIndex(getColIndex(col) + 1);
+      const leftSel = leftCol ? isSelected(i, leftCol) : false;
+      const rightSel = rightCol ? isSelected(i, rightCol) : false;
+      if (!upSel) td.classList.add("sel-t");
+      if (!downSel) td.classList.add("sel-b");
+      if (!leftSel) td.classList.add("sel-l");
+      if (!rightSel) td.classList.add("sel-r");
+    }
+    // Accessibility: expose selection state, indices and make cells focusable
+    td.setAttribute("aria-selected", selected ? "true" : "false");
+    td.setAttribute("role", "gridcell");
+    td.setAttribute("aria-rowindex", String(i + 1));
+    td.setAttribute("aria-colindex", String(getColIndex(col) + 1));
+    td.tabIndex = 0;
+    // Ensure row has role
+    if (tr) tr.setAttribute("role", "row");
+  });
+  // Highlight LAST_SELECTED (active cell) with stronger border
+  if (LAST_SELECTED) {
+    const lastEl = linesBody.querySelector(
+      `tr[data-i='${LAST_SELECTED.i}'] td[data-col='${LAST_SELECTED.col}']`
+    );
+    if (lastEl) {
+      lastEl.classList.add("cell-active");
+      // ensure active cell is visible
+      try {
+        lastEl.scrollIntoView({ block: "nearest", inline: "nearest" });
+      } catch (err) {
+        void err;
+      }
+    }
+  }
+  dbg("refreshSelectionVisuals:end", { size: SELECTED_CELLS.size });
+  // Diagnostic: compare DOM selected cells to the set
+  try {
+    const domEls = Array.from(
+      linesBody.querySelectorAll("td.cell-selected, td.cell-active")
+    );
+    const domCount = domEls.length;
+    const domKeys = domEls
+      .map((el) => {
+        const r = el.closest("tr[data-i]");
+        const ri = r ? parseInt(r.dataset.i, 10) : -1;
+        const c = el.dataset.col || "";
+        return `${ri}:${c}`;
+      })
+      .slice(0, 20);
+    if (domCount !== SELECTED_CELLS.size) {
+      dbg("refreshSelectionVisuals:mismatch", {
+        domCount,
+        setSize: SELECTED_CELLS.size,
+        domSample: domKeys,
+        setSample: Array.from(SELECTED_CELLS).slice(0, 20),
+      });
+    } else {
+      dbg("refreshSelectionVisuals:match", { domCount, sample: domKeys });
+    }
+  } catch (err) {
+    void err;
+  }
+}
+
+// Helpers for connected component and selection operations
+function getNeighborCoords(i, col) {
+  const idx = getColIndex(col);
+  const neighbors = [];
+  neighbors.push({ i: i - 1, col });
+  neighbors.push({ i: i + 1, col });
+  if (idx - 1 >= 0) neighbors.push({ i, col: getColByIndex(idx - 1) });
+  if (idx + 1 < COL_ORDER.length)
+    neighbors.push({ i, col: getColByIndex(idx + 1) });
+  return neighbors;
+}
+
+function getConnectedComponent(anchor) {
+  if (!anchor) return new Set();
+  const startKey = cellKey(anchor.i, anchor.col);
+  if (!SELECTED_CELLS.has(startKey)) return new Set([startKey]);
+  const visited = new Set();
+  const q = [anchor];
+  while (q.length) {
+    const cur = q.shift();
+    const k = cellKey(cur.i, cur.col);
+    if (visited.has(k)) continue;
+    if (!SELECTED_CELLS.has(k)) continue;
+    visited.add(k);
+    const neigh = getNeighborCoords(cur.i, cur.col);
+    for (const n of neigh) {
+      const nk = cellKey(n.i, n.col);
+      if (!visited.has(nk) && SELECTED_CELLS.has(nk)) q.push(n);
+    }
+  }
+  return visited;
+}
+
+function componentBottomRight(component) {
+  let maxI = -Infinity;
+  let maxColIdx = -Infinity;
+  for (const k of component) {
+    const { i, col } = parseCellKey(k);
+    if (i > maxI) maxI = i;
+    const cidx = getColIndex(col);
+    if (cidx > maxColIdx) maxColIdx = cidx;
+  }
+  if (maxI === -Infinity) return null;
+  return { i: maxI, col: getColByIndex(maxColIdx) };
+}
+
+function selectRectangle(a, b, additive = false) {
+  // a and b are {i, col}
+  if (!a || !b) return;
+  const r1 = Math.min(a.i, b.i);
+  const r2 = Math.max(a.i, b.i);
+  const c1 = Math.min(getColIndex(a.col), getColIndex(b.col));
+  const c2 = Math.max(getColIndex(a.col), getColIndex(b.col));
+  dbg("selectRectangle", { a, b, additive, r1, r2, c1, c2 });
+  if (!additive) SELECTED_CELLS.clear();
+  for (let r = r1; r <= r2; r++) {
+    for (let c = c1; c <= c2; c++) {
+      const col = getColByIndex(c);
+      SELECTED_CELLS.add(cellKey(r, col));
+    }
+  }
+  dbg("selectRectangle:after", {
+    size: SELECTED_CELLS.size,
+    sample: Array.from(SELECTED_CELLS).slice(0, 12),
+  });
+  refreshSelectionVisuals();
+  updateSelectionPills();
+}
+
+// Reconcile DOM selection classes with internal SET: remove any visual-only
+// selection markers that are not present in SELECTED_CELLS. This is defensive
+// against transient DOM state left behind by race conditions.
+function reconcileDomWithSet() {
+  try {
+    const els = Array.from(
+      linesBody.querySelectorAll("td.cell-selected, td.cell-active")
+    );
+    let removed = 0;
+    for (const el of els) {
+      const tr = el.closest("tr[data-i]");
+      const ri = tr ? parseInt(tr.dataset.i, 10) : -1;
+      const col = el.dataset.col || "";
+      const k = cellKey(ri, col);
+      if (!SELECTED_CELLS.has(k)) {
+        el.classList.remove(
+          "cell-selected",
+          "sel-t",
+          "sel-b",
+          "sel-l",
+          "sel-r",
+          "cell-active",
+          "cell-focused"
+        );
+        el.setAttribute("aria-selected", "false");
+        removed++;
+      }
+    }
+    if (removed)
+      dbg("reconcileDomWithSet", { removed, setSize: SELECTED_CELLS.size });
+  } catch (err) {
+    void err;
+  }
+}
+
+// Force clear all selection visuals from the table. This is a blunt tool
+// to remove any stray highlight element immediately. The real selection
+// state (`SELECTED_CELLS`) is not modified; `refreshSelectionVisuals`
+// will reapply visuals for the real set when needed.
+function clearAllSelectionVisuals() {
+  try {
+    const els = Array.from(linesBody.querySelectorAll("td[data-col]"));
+    for (const el of els) {
+      el.classList.remove(
+        "cell-selected",
+        "sel-t",
+        "sel-b",
+        "sel-l",
+        "sel-r",
+        "cell-active",
+        "cell-focused"
+      );
+      el.setAttribute("aria-selected", "false");
+    }
+    dbg("clearAllSelectionVisuals");
+  } catch (err) {
+    void err;
+  }
+}
+
+// Detect if any table cell is showing a persistent visual (outline/box-shadow/bg)
+// after shift-based selection and, conservatively, blur it to remove the visual.
+// This is intentionally conservative: it only blurs focused/visually-highlighted
+// cells after shift actions so we don't interfere with normal keyboard navigation.
+// `linesBody` was made focusable above so we can move focus off cells.
+
+// Prevent native select when we are performing selection operations
+document.addEventListener("selectstart", (e) => {
+  if (SELECTION_OP) e.preventDefault();
+});
+
+function updateSelectionPills() {
+  if (!selectionPills) return;
+  const totalLines = CURRENT_LINES.length;
+  const selCount = SELECTED_CELLS.size;
+  const cols = new Map();
+  for (const k of SELECTED_CELLS) {
+    const { i, col } = parseCellKey(k);
+    if (!cols.has(col)) cols.set(col, []);
+    cols.get(col).push(i);
+  }
+  const parts = [];
+
+  parts.push(
+    `<div class="erp-pill-chip small"><span class="pill-seg title"><span class="title-text">Lines</span></span><span class="pill-seg value">${totalLines}</span></div>`
+  );
+  if (selCount) {
+    parts.push(
+      `<div class="erp-pill-chip small" title="Selected cells"><span class="pill-seg title"><span class="title-text">Selected</span></span><span class="pill-seg value">${selCount}</span></div>`
+    );
+    if (cols.size === 1) {
+      const col = Array.from(cols.keys())[0];
+      if (isNumericColumn(col)) {
+        const vals = cols
+          .get(col)
+          .map((r) => getCellValue(r, col))
+          .filter((v) => Number.isFinite(v));
+        const sum = vals.reduce((a, b) => a + b, 0);
+        const avg = vals.length ? sum / vals.length : 0;
+        const min = vals.length ? Math.min(...vals) : 0;
+        const max = vals.length ? Math.max(...vals) : 0;
+        parts.push(
+          `<div class="erp-pill-chip small" title="Sum"><span class="pill-seg title"><span class="title-text">Sum</span></span><span class="pill-seg value">${sum.toFixed(
+            3
+          )}</span></div>`
+        );
+        parts.push(
+          `<div class="erp-pill-chip small" title="Avg"><span class="pill-seg title"><span class="title-text">Avg</span></span><span class="pill-seg value">${avg.toFixed(
+            3
+          )}</span></div>`
+        );
+        parts.push(
+          `<div class="erp-pill-chip small" title="Min"><span class="pill-seg title"><span class="title-text">Min</span></span><span class="pill-seg value">${min.toFixed(
+            3
+          )}</span></div>`
+        );
+        parts.push(
+          `<div class="erp-pill-chip small" title="Max"><span class="pill-seg title"><span class="title-text">Max</span></span><span class="pill-seg value">${max.toFixed(
+            3
+          )}</span></div>`
+        );
+      } else {
+        const uniq = new Set(
+          cols.get(col).map((r) => String(getCellValue(r, col)))
+        );
+        parts.push(
+          `<div class="erp-pill-chip small" title="Unique values"><span class="pill-seg title"><span class="title-text">Unique</span></span><span class="pill-seg value">${uniq.size}</span></div>`
+        );
+      }
+    } else if (cols.size > 1) {
+      for (const [col, rows] of cols) {
+        parts.push(
+          `<div class="erp-pill-chip small" title="${col}"><span class="pill-seg title"><span class="title-text">${col}</span></span><span class="pill-seg value">${rows.length}</span></div>`
+        );
+      }
+    }
+    parts.push(
+      `<button id="selCopyBtn" class="btn ghost" title="Copy selection" style="padding:6px 8px">Copy</button>`
+    );
+    parts.push(
+      `<button id="selCsvBtn" class="btn ghost" title="Export selection CSV" style="padding:6px 8px">Export CSV</button>`
+    );
+    parts.push(
+      `<button id="selClearBtn" class="btn ghost" title="Clear selection" style="padding:6px 8px">Clear</button>`
+    );
+  }
+  selectionPills.innerHTML = parts.join("");
+  const copyBtn = document.getElementById("selCopyBtn");
+  const csvBtn = document.getElementById("selCsvBtn");
+  const clearBtn = document.getElementById("selClearBtn");
+  if (copyBtn) copyBtn.addEventListener("click", copySelection);
+  if (csvBtn) csvBtn.addEventListener("click", exportSelectionCsv);
+  if (clearBtn)
+    clearBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      clearSelection();
+    });
+}
+
+function copySelection() {
+  if (!SELECTED_CELLS.size) return;
+  const lines = ["Row,Column,Value"];
+  for (const k of SELECTED_CELLS) {
+    const { i, col } = parseCellKey(k);
+    const v = getCellValue(i, col);
+    lines.push(`${i + 1},${col},"${String(v ?? "").replace(/"/g, '""')}"`);
+  }
+  const text = lines.join("\n");
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard
+      .writeText(text)
+      .then(() => setStatus("Copied selection to clipboard.", "success", 1400));
+  } else {
+    setStatus("Clipboard unavailable.", "error", 2000);
+  }
+}
+
+function exportSelectionCsv() {
+  if (!SELECTED_CELLS.size) return;
+  const rows = [["Row", "Column", "Value"]];
+  for (const k of SELECTED_CELLS) {
+    const { i, col } = parseCellKey(k);
+    const v = getCellValue(i, col);
+    rows.push([String(i + 1), col, v == null ? "" : String(v)]);
+  }
+  const esc = (s) => {
+    const ss = s == null ? "" : String(s);
+    if (/[",\n]/.test(ss)) return `"${ss.replace(/"/g, '""')}"`;
+    return ss;
+  };
+  const csv = rows.map((r) => r.map(esc).join(",")).join("\n");
+  const filename = `selection_${formatDateStamp()}.csv`;
+  downloadBlob(csv, "text/csv;charset=utf-8", filename);
+  setStatus("Selection exported.", "success", 1400);
+}
+
+// Mouse/keyboard selection handling (view mode)
+function getTdFromPoint(x, y) {
+  const el = document.elementFromPoint(x, y);
+  return el ? el.closest("td[data-col]") : null;
+}
+
+// Drag selection
+linesBody.addEventListener("mousedown", (e) => {
+  if (LINES_EDIT_MODE) return;
+  if (e.button !== 0) return; // left button only
+  const td = e.target.closest("td[data-col]");
+  if (!td) return;
+  // If modifier keys present, do not start a drag selection here
+  // (click handler will handle Ctrl/Shift semantics)
+  if (e.shiftKey || e.ctrlKey || e.metaKey) return;
+  e.preventDefault();
+  const tr = td.closest("tr[data-i]");
+  const i = parseInt(tr.dataset.i, 10);
+  const col = td.dataset.col;
+  if (!Number.isFinite(i) || !col) return;
+  ANCHOR = { i, col };
+  LAST_SELECTED = { i, col };
+  selectRectangle(ANCHOR, ANCHOR, false);
+  // disable native text selection during drag
+  SELECTION_OP = true;
+  const prevUserSelect = document.body.style.userSelect;
+  document.body.style.userSelect = "none";
+  const onMove = (ev) => {
+    const ctd = getTdFromPoint(ev.clientX, ev.clientY);
+    if (!ctd) return;
+    const ctr = ctd.closest("tr[data-i]");
+    const ci = parseInt(ctr.dataset.i, 10);
+    const ccol = ctd.dataset.col;
+    if (!Number.isFinite(ci) || !ccol) return;
+    dbg("drag:onMove", {
+      x: ev.clientX,
+      y: ev.clientY,
+      to: { i: ci, col: ccol },
+    });
+    selectRectangle(ANCHOR, { i: ci, col: ccol }, false);
+    LAST_SELECTED = { i: ci, col: ccol };
+  };
+  const onUp = (ev) => {
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", onUp);
+    // restore text selection
+    SELECTION_OP = false;
+    document.body.style.userSelect = prevUserSelect || "";
+    // finalise visuals
+    refreshSelectionVisuals();
+    updateSelectionPills();
+    // done
+    // mark recent drag end so a subsequent click (from the same action) is ignored
+    LAST_DRAG_AT = Date.now();
+    LAST_DRAG_POS = { x: ev.clientX, y: ev.clientY };
+    setTimeout(() => {
+      LAST_DRAG_AT = 0;
+      LAST_DRAG_POS = null;
+    }, 300);
+    dbg("drag:onUp", {
+      selectedSize: SELECTED_CELLS.size,
+      anchor: ANCHOR,
+      last: LAST_SELECTED,
+      lastDragAt: LAST_DRAG_AT,
+    });
+  };
+  document.addEventListener("mousemove", onMove);
+  document.addEventListener("mouseup", onUp);
+});
+
+// Click / Ctrl / Shift handling
+linesBody.addEventListener("click", (e) => {
+  if (LINES_EDIT_MODE) return;
+  const td = e.target.closest("td[data-col]");
+  if (!td) return;
+  const tr = td.closest("tr[data-i]");
+  if (!tr) return;
+  const i = parseInt(tr.dataset.i, 10);
+  const col = td.dataset.col;
+  if (!Number.isFinite(i) || !col) return;
+  const coord = { i, col };
+
+  // Clear any native text selection that may occur during clicks
+  try {
+    window.getSelection()?.removeAllRanges();
+  } catch (err) {
+    void err;
+  }
+  // If a drag just ended very recently, ignore the click only if it is the
+  // synthetic click generated by the same mouseup (i.e. located at the same
+  // coordinates). This avoids swallowing intentional quick clicks elsewhere.
+  if (LAST_DRAG_AT && Date.now() - LAST_DRAG_AT < 300) {
+    if (LAST_DRAG_POS) {
+      const dx = Math.abs((e.clientX || 0) - LAST_DRAG_POS.x);
+      const dy = Math.abs((e.clientY || 0) - LAST_DRAG_POS.y);
+      if (dx < 6 && dy < 6) return; // likely the synthetic click from mouseup
+    }
+  }
+  // Now that we know the click will be processed, clear any visual-only
+  // selection artifacts and reconcile DOM with the internal set.
+  clearAllSelectionVisuals();
+  reconcileDomWithSet();
+  const beforeSize = SELECTED_CELLS.size;
+  dbg("click:start", {
+    coord,
+    shift: e.shiftKey,
+    ctrl: e.ctrlKey,
+    beforeSize,
+    anchor: ANCHOR,
+    last: LAST_SELECTED,
+    tdClass: Array.from(td.classList),
+    lastDragAt: LAST_DRAG_AT,
+  });
+
+  // Helper: derive a usable anchor when needed
+  const resolveAnchor = () => {
+    if (ANCHOR) return ANCHOR;
+    if (LAST_SELECTED) return LAST_SELECTED;
+    if (SELECTED_CELLS.size) {
+      const first = SELECTED_CELLS.values().next().value;
+      if (first) return parseCellKey(first);
+    }
+    return null;
+  };
+
+  // SHIFT handling: rectangle select from anchor/last to clicked cell
+  if (e.shiftKey) {
+    const base = resolveAnchor();
+    if (base) {
+      // Ctrl+Shift makes the rectangle additive
+      const additive = e.ctrlKey || e.metaKey;
+      selectRectangle(base, coord, additive);
+      // If additive, keep the anchor as-is and place LAST_SELECTED at bottom-right of
+      // the connected component containing the anchor, otherwise make the clicked cell the last
+      if (additive) {
+        const comp = getConnectedComponent(ANCHOR || base || coord);
+        const br = componentBottomRight(comp);
+        if (br) LAST_SELECTED = br;
+      } else {
+        LAST_SELECTED = coord;
+        ANCHOR = base;
+      }
+      refreshSelectionVisuals();
+      updateSelectionPills();
+      // After mouse/Shift selection, move focus off the clicked cell so
+      // the browser's mouse-focus ring does not remain visible on the td.
+      try {
+        td.blur && td.blur();
+        // don't move focus to the container; leaving focus cleared
+        // prevents the UA focus ring from appearing around the whole table
+      } catch (err) {
+        void err;
+      }
+      return;
+    }
+    // If no anchor to expand from, fall through to simple selection
+  }
+
+  // CTRL toggle individual cell (preserve existing anchor when possible)
+  if (e.ctrlKey || e.metaKey) {
+    const k = cellKey(i, col);
+    // account for possible DOM vs set mismatch: sometimes a stray visual
+    // highlight may remain on a cell though SELECTED_CELLS doesn't include it.
+    // In that case, prefer the DOM state and toggle accordingly so Ctrl-click
+    // on the same visually-highlighted cell will clear it.
+    const had = SELECTED_CELLS.has(k);
+    const domHas =
+      td.classList.contains("cell-selected") ||
+      td.classList.contains("cell-active");
+    // If DOM indicates selected but set doesn't, treat as had=true so we remove it
+    const treatAsHad = had || (!had && domHas);
+    dbg("ctrl:toggle:pre", { coord, had, domHas, beforeSize });
+    if (treatAsHad) SELECTED_CELLS.delete(k);
+    else SELECTED_CELLS.add(k);
+    dbg("ctrl:toggle:post", { coord, size: SELECTED_CELLS.size });
+    // If selection became empty, clear anchor/active
+    if (SELECTED_CELLS.size === 0) {
+      ANCHOR = null;
+      LAST_SELECTED = null;
+      refreshSelectionVisuals();
+      updateSelectionPills();
+      return;
+    }
+
+    // If there was no prior selection, this becomes the anchor
+    if (beforeSize === 0) {
+      ANCHOR = coord;
+      LAST_SELECTED = coord;
+    } else {
+      // If anchor was removed, pick a new anchor
+      if (ANCHOR && !SELECTED_CELLS.has(cellKey(ANCHOR.i, ANCHOR.col))) {
+        const first = SELECTED_CELLS.values().next().value;
+        ANCHOR = first ? parseCellKey(first) : null;
+      }
+      // Ensure LAST_SELECTED is within the connected component of the anchor
+      const comp = getConnectedComponent(ANCHOR || LAST_SELECTED || coord);
+      const br = componentBottomRight(comp);
+      if (br) LAST_SELECTED = br;
+    }
+    refreshSelectionVisuals();
+    updateSelectionPills();
+    return;
+  }
+
+  // Simple click: single select
+  SELECTED_CELLS.clear();
+  SELECTED_CELLS.add(cellKey(i, col));
+  ANCHOR = coord;
+  LAST_SELECTED = coord;
+  refreshSelectionVisuals();
+  updateSelectionPills();
+});
+
+// Keyboard: Shift+Arrows expand selection; Arrow alone moves anchor/last
+document.addEventListener("keydown", (e) => {
+  if (LINES_EDIT_MODE) return;
+  const arrows = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
+  const specials = ["Home", "End"];
+  if (e.key === "Escape") {
+    if (SELECTED_CELLS.size) clearSelection();
+    return;
+  }
+  if (!arrows.includes(e.key) && !specials.includes(e.key)) return;
+  const focused = LAST_SELECTED || ANCHOR;
+  if (!focused) return;
+  e.preventDefault();
+  let target = { i: focused.i, col: focused.col };
+  const colIdx = getColIndex(focused.col);
+  // Home/End handling
+  if (e.key === "Home") {
+    if (e.ctrlKey) {
+      // Ctrl+Home -> first cell of table
+      target.i = 0;
+      target.col = getColByIndex(0);
+    } else {
+      // Home -> first cell of row
+      target.col = getColByIndex(0);
+    }
+  }
+  if (e.key === "End") {
+    if (e.ctrlKey) {
+      // Ctrl+End -> last cell of table
+      target.i = Math.max(0, CURRENT_LINES.length - 1);
+      target.col = getColByIndex(COL_ORDER.length - 1);
+    } else {
+      // End -> last cell of row
+      target.col = getColByIndex(COL_ORDER.length - 1);
+    }
+  }
+  // Arrow navigation with Ctrl to jump to ends
+  if (arrows.includes(e.key)) {
+    if (e.key === "ArrowUp") {
+      target.i = e.ctrlKey ? 0 : Math.max(0, focused.i - 1);
+    }
+    if (e.key === "ArrowDown") {
+      target.i = e.ctrlKey
+        ? Math.min(CURRENT_LINES.length - 1, CURRENT_LINES.length - 1)
+        : Math.min(CURRENT_LINES.length - 1, focused.i + 1);
+    }
+    if (e.key === "ArrowLeft") {
+      target.col = getColByIndex(e.ctrlKey ? 0 : Math.max(0, colIdx - 1));
+    }
+    if (e.key === "ArrowRight") {
+      target.col = getColByIndex(
+        e.ctrlKey
+          ? COL_ORDER.length - 1
+          : Math.min(COL_ORDER.length - 1, colIdx + 1)
+      );
+    }
+  }
+
+  if (e.shiftKey) {
+    // expand rectangle from anchor (or focused) to target
+    const base = ANCHOR || focused;
+    // if Ctrl also pressed, make it additive
+    selectRectangle(base, target, !!e.ctrlKey);
+    LAST_SELECTED = target;
+    refreshSelectionVisuals();
+    updateSelectionPills();
+  } else if (e.ctrlKey || e.metaKey) {
+    // If Ctrl alone (no Shift): move selection/focus to target (single cell)
+    // This matches spreadsheet behavior when a single cell is selected.
+    if (!e.shiftKey) {
+      SELECTED_CELLS.clear();
+      SELECTED_CELLS.add(cellKey(target.i, target.col));
+      ANCHOR = target;
+      LAST_SELECTED = target;
+      refreshSelectionVisuals();
+      updateSelectionPills();
+    } else {
+      // otherwise move focus without changing selection
+      ANCHOR = target;
+      LAST_SELECTED = target;
+      refreshSelectionVisuals();
+    }
+  } else {
+    // move single selection
+    SELECTED_CELLS.clear();
+    SELECTED_CELLS.add(cellKey(target.i, target.col));
+    ANCHOR = target;
+    LAST_SELECTED = target;
+    refreshSelectionVisuals();
+    updateSelectionPills();
+  }
+});
+
 /* -------- Kebab menu interactions -------- */
 function syncMenuState() {
   // Reflect disabled states that are already managed elsewhere
@@ -1637,6 +2385,8 @@ if (moreMenuBtn && moreMenu) {
 /* -------- Export menu interactions -------- */
 function positionMenuFixed(panel, anchor) {
   if (!panel || !anchor) return;
+  // Use fixed positioning so the panel escapes any overflow clipping
+  panel.style.position = "fixed";
   panel.style.top = "0px";
   panel.style.left = "0px";
   const a = anchor.getBoundingClientRect();
@@ -1658,6 +2408,10 @@ if (exportBtn && exportMenu) {
   const closeExport = () => {
     exportMenu.classList.remove("open");
     exportBtn.setAttribute("aria-expanded", "false");
+    // Clear fixed positioning when closed
+    exportMenu.style.position = "";
+    exportMenu.style.top = "";
+    exportMenu.style.left = "";
   };
   exportBtn.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -1692,6 +2446,95 @@ if (exportBtn && exportMenu) {
   exportMenu.addEventListener("click", (e) => {
     if (e.target.closest(".menu-item")) closeExport();
   });
+}
+
+/* -------- Mode overflow menu (for very small screens) -------- */
+const modeOverflowBtn = el("modeOverflowBtn");
+const modeOverflowMenu = el("modeOverflowMenu");
+const modeViewItem = el("modeViewItem");
+const modeEditItem = el("modeEditItem");
+
+if (modeOverflowBtn && modeOverflowMenu) {
+  const closeMenu = () => {
+    modeOverflowMenu.classList.remove("open");
+    modeOverflowBtn.setAttribute("aria-expanded", "false");
+    modeOverflowMenu.style.position = "";
+    modeOverflowMenu.style.top = "";
+    modeOverflowMenu.style.left = "";
+    modeOverflowMenu.style.display = "";
+    window.removeEventListener("resize", onMenuResize);
+  };
+  const positionMenu = () => {
+    if (!modeOverflowMenu.classList.contains("open")) return;
+    modeOverflowMenu.style.position = "fixed";
+    modeOverflowMenu.style.display = "block";
+    const rect = modeOverflowBtn.getBoundingClientRect();
+    const menuW = modeOverflowMenu.offsetWidth || 180;
+    const menuH = modeOverflowMenu.offsetHeight || 120;
+    let top = rect.bottom + 6;
+    let left = rect.left;
+    if (left + menuW > window.innerWidth - 8)
+      left = window.innerWidth - menuW - 8;
+    if (left < 8) left = 8;
+    if (top + menuH > window.innerHeight - 8) top = rect.top - menuH - 8;
+    if (top < 8) top = 8;
+    modeOverflowMenu.style.top = `${top}px`;
+    modeOverflowMenu.style.left = `${left}px`;
+  };
+  const onMenuResize = () => positionMenu();
+
+  modeOverflowBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const willOpen = !modeOverflowMenu.classList.contains("open");
+    if (willOpen) {
+      modeOverflowMenu.classList.add("open");
+      modeOverflowBtn.setAttribute("aria-expanded", "true");
+      positionMenu();
+      window.addEventListener("resize", onMenuResize);
+      setTimeout(() => {
+        const onDocClick = (ev) => {
+          if (
+            !modeOverflowMenu.contains(ev.target) &&
+            ev.target !== modeOverflowBtn
+          ) {
+            closeMenu();
+            document.removeEventListener("click", onDocClick);
+            document.removeEventListener("keydown", onEsc);
+          }
+        };
+        const onEsc = (ev) => {
+          if (ev.key === "Escape") {
+            closeMenu();
+            document.removeEventListener("click", onDocClick);
+            document.removeEventListener("keydown", onEsc);
+          }
+        };
+        document.addEventListener("click", onDocClick);
+        document.addEventListener("keydown", onEsc);
+      }, 0);
+    } else {
+      closeMenu();
+    }
+  });
+
+  // Wire menu item clicks to the same handlers as the inline toggle
+  if (modeViewItem) {
+    modeViewItem.addEventListener("click", (e) => {
+      e.stopPropagation();
+      // trigger inline handler so state and UI remain in sync
+      linesViewBtn?.click();
+      modeOverflowMenu.classList.remove("open");
+      modeOverflowBtn.setAttribute("aria-expanded", "false");
+    });
+  }
+  if (modeEditItem) {
+    modeEditItem.addEventListener("click", (e) => {
+      e.stopPropagation();
+      linesEditBtn?.click();
+      modeOverflowMenu.classList.remove("open");
+      modeOverflowBtn.setAttribute("aria-expanded", "false");
+    });
+  }
 }
 
 /* -------- Export helpers -------- */

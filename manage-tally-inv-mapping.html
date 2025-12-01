@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Tally Stock Item Mapping</title>
+    <link rel="stylesheet" href="public/shared/css/style.css" />
+    <link rel="stylesheet" href="css/shared-ui.css" />
+    <style>
+      :root {
+        --bg: #f7f8fb;
+        --card: #fff;
+        --muted: #6b7280;
+        --accent: #2563eb;
+        --pill-mapped: #d1fae5;
+        --pill-unmapped: #fee2e2;
+        --pill-ignored: #f3f4f6;
+        --pill-suspect: #fff7cc;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Oxygen, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
+        font-size: 14px;
+        line-height: 1.35;
+        margin: 0;
+        background: var(--bg);
+        color: #111;
+        /* Reserve scrollbar space to avoid layout shift in browsers that support it */
+        scrollbar-gutter: stable;
+      }
+      .container {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 12px 16px;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .topbar {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        flex-wrap: wrap; /* allow children to wrap to new lines */
+      }
+      .filters {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(180px, 1fr));
+        gap: 12px;
+        align-items: end;
+        flex: 1 1 100%; /* occupy full width so stats can flow to next line */
+      }
+      /* ERP-style label + control layout */
+      .filters label {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-weight: 600;
+        font-size: 13px;
+        color: #0f172a;
+        text-align: left;
+      }
+      .filters label .hint {
+        font-weight: 400;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .filters select,
+      .filters input[type="search"] {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid #e6e9ef;
+        background: #fff;
+      }
+      .search-input-wrapper {
+        position: relative;
+      }
+      .search-input-wrapper .input-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--muted);
+        pointer-events: none;
+      }
+      .search-input-wrapper input {
+        padding-left: 40px; /* room for icon */
+      }
+      @media (max-width: 800px) {
+        .filters { grid-template-columns: 1fr; }
+      }
+      /* On wide screens, right-align the coverage cards under the filters */
+      @media (min-width: 1000px) {
+        .stats { justify-content: flex-end; }
+        /* limit card growth so they don't become too wide when right-aligned */
+        .stat { flex: 0 1 220px; }
+      }
+      select,
+      input[type="search"] {
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+      }
+      /* Ensure search input keeps left padding even when generic rules apply */
+      .search-input-wrapper input {
+        padding-left: 40px !important;
+      }
+      .stats {
+        display: flex;
+        gap: 8px;
+        margin-left: 0;
+        width: 100%;
+        margin-top: 8px; /* small gap between filters and cards */
+      }
+      .stats {
+        display: flex;
+        gap: 12px;
+        margin-left: 0;
+        width: 100%;
+        margin-top: 8px; /* small gap between filters and cards */
+        flex-wrap: wrap;
+        align-items: stretch;
+        justify-content: space-between; /* distribute cards across full width */
+      }
+      .stat {
+        background: linear-gradient(180deg, #ffffff, #fbfdff);
+        padding: 12px 14px;
+        border-radius: 8px;
+        border: 1px solid rgba(15,23,42,0.06);
+        box-shadow: 0 6px 14px rgba(11,22,39,0.04);
+        font-size: 13px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        flex: 1 1 0; /* grow/shrink equally to fill width */
+        min-width: 160px;
+        max-width: none;
+        color: #0f172a;
+        padding-left: 14px; /* keep room for left accent border */
+      }
+      .stat .stat-title {
+        font-weight: 700;
+        color: #0b61d1; /* subtle ERP accent for title */
+        margin-bottom: 8px;
+        letter-spacing: 0.01em;
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .stat .stat-icon {
+        display: inline-block;
+        width: 18px;
+        height: 18px;
+        color: rgba(11,97,209,0.95); /* default icon color */
+      }
+      /* Per-source icon color overrides (matching stat-num accents) */
+      .stat.source-rm .stat-icon { color: #b91c1c; }
+      .stat.source-plm .stat-icon { color: #047857; }
+      .stat.source-consumable .stat-icon { color: #b45309; }
+      .stat.source-fuel .stat-icon { color: #881337; }
+      /* clickable affordance */
+      .stat .stat-icon { cursor: pointer; }
+      /* active card style when a source-kind is selected */
+      .stat.active {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 30px rgba(11,22,39,0.08);
+        background: linear-gradient(180deg,#ffffff,#f8fbff);
+      }
+      .stat.active::before {
+        content: "";
+        display: block;
+      }
+      .stat .stat-title-text { display:inline-block; }
+      .stat .stat-grid {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .stat .stat-item {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .stat .stat-num {
+        font-size: 18px;
+        font-weight: 700;
+        color: #0b61d1;
+        line-height: 1;
+      }
+      .stat .stat-label {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      @media (max-width: 640px) {
+        .stat { flex: 1 1 100%; max-width: 100%; }
+      }
+      /* Left accent per source-kind (subtle tones) */
+      .stat.source-rm {
+        border-left: 4px solid rgba(220,38,38,0.18);
+        background: linear-gradient(180deg, #fff5f5, #ffffff);
+      }
+      .stat.source-plm {
+        border-left: 4px solid rgba(5,150,105,0.18);
+        background: linear-gradient(180deg, #f6fffb, #ffffff);
+      }
+      .stat.source-consumable {
+        border-left: 4px solid rgba(217,119,6,0.18);
+        background: linear-gradient(180deg, #fff9f3, #ffffff);
+      }
+      .stat.source-fuel {
+        border-left: 4px solid rgba(185,28,28,0.18);
+        background: linear-gradient(180deg, #fff6f8, #ffffff);
+      }
+      /* Stronger accent for the numeric counts per source-kind */
+      .stat.source-rm .stat-num { color: #b91c1c; }
+      .stat.source-plm .stat-num { color: #047857; }
+      .stat.source-consumable .stat-num { color: #b45309; }
+      .stat.source-fuel .stat-num { color: #881337; }
+      .main {
+        display: flex;
+        gap: 12px;
+      }
+      .list {
+        flex: 1;
+        background: var(--card);
+        padding: 12px;
+        border-radius: 8px;
+        min-height: 320px;
+      }
+      /* Table styles: match PLM BOM `.grid` look for visual parity */
+      table.grid {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+        background: var(--card);
+      }
+      table.grid th,
+      table.grid td {
+        border: 1px solid var(--border, #e2e8f0);
+        padding: 10px 12px;
+        vertical-align: middle;
+        line-height: 1.25;
+        font-size: 14px;
+      }
+      table.grid thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: var(--table-header, #f1f5f9);
+        color: #1f2937;
+        font-weight: 600;
+        text-align: center;
+      }
+      table.grid tbody tr:nth-child(even) {
+        background: #fafafa;
+      }
+      table.grid tbody tr:hover {
+        background: #f1f5f9;
+      }
+      /* Center body cells for Source, Status, Last Seen, and Details columns
+         Keep Tally Name (1) and Mapped To (4) left-aligned for readability */
+      table.grid tbody td:nth-child(2),
+      table.grid tbody td:nth-child(3),
+      table.grid tbody td:nth-child(5),
+      table.grid tbody td:nth-child(6) {
+        text-align: center;
+        vertical-align: middle;
+      }
+      tr.clickable {
+        cursor: pointer;
+      }
+      .pill {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 999px;
+        font-weight: 600;
+        font-size: 12px;
+      }
+      .pill.mapped {
+        background: var(--pill-mapped);
+        color: #065f46;
+      }
+      .pill.unmapped {
+        background: var(--pill-unmapped);
+        color: #991b1b;
+      }
+      .pill.ignored {
+        background: var(--pill-ignored);
+        color: #374151;
+      }
+      .pill.suspect {
+        background: var(--pill-suspect);
+        color: #92400e;
+      }
+      .panel {
+        width: 420px;
+        background: var(--card);
+        padding: 12px;
+        border-radius: 8px;
+        min-height: 320px;
+      }
+      .heading {
+        font-size: 15px;
+        font-weight: 700;
+        margin-bottom: 8px;
+      }
+      .meta {
+        color: var(--muted);
+        font-size: 13px;
+        margin-bottom: 8px;
+      }
+      .section {
+        margin-bottom: 10px;
+      }
+      .search-results {
+        max-height: 200px;
+        overflow: auto;
+        border: 1px solid #eee;
+        border-radius: 6px;
+        margin-top: 8px;
+        margin-bottom: 12px;
+      }
+      .result-row {
+        padding: 8px;
+        border-bottom: 1px solid #f3f3f3;
+        cursor: pointer;
+      }
+      .result-row:hover {
+        background: #f8fafc;
+      }
+      button {
+        padding: 8px 10px;
+        border-radius: 6px;
+        border: 1px solid #ddd;
+        background: linear-gradient(#fff, #f6f7fb);
+        cursor: pointer;
+      }
+      .row-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .loading {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      textarea {
+        width: 100%;
+        min-height: 80px;
+        padding: 8px;
+        border: 1px solid #e6e6e6;
+        border-radius: 6px;
+      }
+      .mini-form {
+        padding: 8px;
+        border: 1px dashed #eee;
+        border-radius: 6px;
+        margin-top: 8px;
+      }
+      /* Form layout inside modal/create area */
+      .form-row {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-bottom: 8px;
+        align-items: flex-start;
+      }
+      .form-row label {
+        font-size: 13px;
+        color: #0f172a;
+        font-weight: 600;
+        display: block;
+        text-align: left;
+        width: 100%;
+        margin: 0 0 4px 0;
+      }
+      .form-row input,
+      .form-row select,
+      .form-row textarea {
+        padding: 8px 10px;
+        border: 1px solid #e6e9ef;
+        border-radius: 6px;
+        font-size: 14px;
+        box-sizing: border-box;
+        width: 100%;
+        background: #fff;
+        text-align: left;
+      }
+      .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        align-items: start;
+        align-content: start;
+      }
+      .create-form-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .modal .row-actions {
+        justify-content: flex-start;
+        gap: 10px;
+        margin-top: 6px;
+      }
+      .mapped-to {
+        background: transparent;
+        border-radius: 6px;
+        padding: 6px 8px;
+        font-weight: 600;
+      }
+      /* Master search list improvements */
+      .search-results .result-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+      }
+      .search-results .result-row .meta-small {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      /* modal sections subtle divider */
+      .modal-panel .section {
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(14, 20, 28, 0.03);
+      }
+      .modal-panel .section:last-of-type {
+        border-bottom: none;
+      }
+      /* Modal / ERP-styled dialog */
+      .modal {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+        background: rgba(15, 23, 42, 0.45);
+        padding: 20px;
+        box-sizing: border-box;
+      }
+      .modal-panel {
+        background: var(--card);
+        border-radius: 10px;
+        padding: 18px;
+        /* Reduced width for a tighter modal */
+        max-width: 760px;
+        width: 100%;
+        max-height: 88%;
+        overflow: auto;
+        box-shadow: 0 18px 50px rgba(11, 22, 39, 0.45);
+        border: 1px solid rgba(16, 24, 40, 0.06);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .modal-close {
+        background: transparent;
+        border: 1px solid rgba(15, 23, 42, 0.06);
+        padding: 6px 8px;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      .modal-close:hover {
+        background: #f3f4f6;
+      }
+      /* ERP-like subtle section headings */
+      .modal .heading {
+        font-size: 16px;
+        color: #0f172a;
+      }
+      /* Ensure modal titles are consistently uppercase for emphasis */
+      #aliasDetailTitle {
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+      }
+      /* Tally name in modal should use accent (blue) */
+      #detail-tally {
+        color: var(--accent);
+        margin-bottom: 12px;
+      }
+      .modal .meta {
+        color: var(--muted);
+      }
+      /* small chip styles for source/status in modal */
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        background: #f3f4f6;
+        color: #0f172a;
+        border: 1px solid rgba(15, 23, 42, 0.04);
+      }
+      .chip.source-rm {
+        background: #eef2ff;
+        color: #1e3a8a;
+      }
+      .chip.source-plm {
+        background: #ecfdf5;
+        color: #065f46;
+      }
+      .chip.source-consumable {
+        background: #fff7ed;
+        color: #92400e;
+      }
+      .chip.source-fuel {
+        background: #fff1f2;
+        color: #991b1b;
+      }
+      .chip.status-mapped {
+        background: var(--pill-mapped);
+        color: #065f46;
+      }
+      .chip.status-unmapped {
+        background: var(--pill-unmapped);
+        color: #991b1b;
+      }
+      .chip.status-ignored {
+        background: var(--pill-ignored);
+        color: #374151;
+      }
+      .chip.status-suspect {
+        background: var(--pill-suspect);
+        color: #92400e;
+      }
+      /* Modal action button styles */
+      .btn-primary {
+        padding: 8px 12px;
+        border-radius: 8px;
+        background: linear-gradient(180deg, var(--accent), #155bd8);
+        color: #fff;
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        box-shadow: 0 8px 22px rgba(37, 99, 235, 0.12);
+        font-weight: 600;
+      }
+      .btn-primary:hover {
+        filter: brightness(0.96);
+      }
+      .btn-secondary {
+        padding: 8px 12px;
+        border-radius: 8px;
+        background: linear-gradient(#fff, #f6f7fb);
+        color: #0f172a;
+        border: 1px solid #e6e9ef;
+      }
+      .btn-secondary:hover {
+        background: #f8fafc;
+      }
+      /* Paginator buttons: match .btn-primary shape/padding, unbold text */
+      #paginator .btn {
+        padding: 8px 12px; /* align with .btn-primary */
+        border-radius: 8px; /* match primary rounded shape */
+        border: 1px solid #e6e9ef;
+        background: linear-gradient(#f3f4f6, #eaedef);
+        color: #0f172a;
+        font-weight: 400; /* unbold text */
+        box-shadow: none;
+        cursor: pointer;
+      }
+      #paginator .btn:hover:not(:disabled) {
+        filter: brightness(0.98);
+        background: linear-gradient(#ececec,#e0e3e6);
+      }
+      /* Disabled paginator buttons: muted text color per request */
+      #paginator .btn:disabled,
+      #paginator .btn[disabled] {
+        background: linear-gradient(#f8f8f8,#f2f2f2);
+        color: var(--muted);
+        border-color: #e9eaec;
+        box-shadow: none;
+        cursor: default;
+        opacity: 0.95;
+      }
+      @media (min-width: 900px) {
+        .modal-panel {
+          width: 720px;
+        }
+      }
+      /* Toasts and confirm modal */
+      #statusToastContainer {
+        position: fixed;
+        right: 18px;
+        top: 18px;
+        z-index: 3000;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        pointer-events: none;
+      }
+      .toast {
+        pointer-events: auto;
+        background: #111827;
+        color: #fff;
+        padding: 10px 14px;
+        border-radius: 8px;
+        box-shadow: 0 8px 20px rgba(2,6,23,0.3);
+        font-size: 13px;
+        min-width: 220px;
+      }
+      .toast.error { background: #b91c1c; }
+      .toast.info { background: #111827; }
+      .toast.success { background: #0f766e; }
+      /* Confirm modal overrides */
+      .confirm-modal .modal-panel { max-width: 420px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div
+        style="
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          margin-bottom: 10px;
+        "
+      >
+        <div>
+          <h1 style="margin: 0; text-align: left">Tally Stock Item Mapping</h1>
+          <p
+            class="hint"
+            style="margin: 4px 0 0 0; padding-left: 0; text-align: left"
+          >
+            Map Tally item names to canonical stock items
+          </p>
+        </div>
+        <div class="header-actions">
+          <button
+            id="homeBtn"
+            type="button"
+            style="display: inline-flex; align-items: center; gap: 6px"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9,22 9,12 15,12 15,22" />
+            </svg>
+            HOME
+          </button>
+        </div>
+      </div>
+      <div id="statusToastContainer"></div>
+    </header>
+
+    <div class="container">
+      <div class="topbar">
+        <div class="filters">
+          <label
+            >Source Kind
+            <select id="filter-source-kind">
+              <option value="all">All</option>
+              <option value="rm">RM</option>
+              <option value="plm">PLM</option>
+              <option value="consumable">Consumable</option>
+              <option value="fuel">Fuel</option>
+            </select>
+          </label>
+          <label
+            >Status
+            <select id="filter-status">
+              <option value="all">All</option>
+              <option value="unmapped">Unmapped</option>
+              <option value="mapped">Mapped</option>
+              <option value="ignored">Ignored</option>
+              <option value="suspect">Suspect</option>
+            </select>
+          </label>
+          <label>Search
+            <div class="search-input-wrapper">
+              <input
+                id="filter-search"
+                type="search"
+                placeholder="Search tally name, code or item name"
+                aria-label="Search aliases"
+              />
+              <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                <circle cx="11" cy="11" r="6" stroke="currentColor" stroke-width="1.6" fill="none" />
+              </svg>
+            </div>
+          </label>
+        </div>
+        <div class="stats" id="coverage-stats" aria-hidden="false">
+          <!-- coverage cards injected here -->
+        </div>
+      </div>
+
+      <div class="main">
+        <div class="list">
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 8px;
+            "
+          >
+            <div class="heading">Aliases</div>
+            <div style="display:flex;align-items:center;gap:12px">
+              <span id="list-loading" class="loading" style="display: none">Loading…</span>
+              <div style="display:inline-flex;align-items:center;gap:6px">
+                <select id="p-size" title="Rows per page" aria-label="Rows per page" style="padding:6px;border-radius:6px;border:1px solid #e6e9ef">
+                  <option value="25">25</option>
+                  <option value="50" selected>50</option>
+                  <option value="100">100</option>
+                </select>
+              </div>
+              <div id="paginator" style="display:inline-flex;align-items:center;gap:8px">
+                <button id="p-first" class="btn" aria-label="First page">«</button>
+                <button id="p-prev" class="btn" aria-label="Previous page">‹ Prev</button>
+                <div style="display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--border,#e2e8f0);border-radius:8px;background:#fff">
+                  <span style="font-weight:600" id="p-info">Page 1</span>
+                  <span style="color:var(--muted);font-size:13px" id="p-count">(0 items)</span>
+                </div>
+                <button id="p-next" class="btn" aria-label="Next page">Next ›</button>
+                <button id="p-last" class="btn" aria-label="Last page">»</button>
+              </div>
+            </div>
+          </div>
+          <div style="overflow: auto; max-height: 560px">
+            <table id="aliases-table" class="grid">
+              <thead>
+                <tr>
+                  <th>Tally Name</th>
+                  <th>Source</th>
+                  <th>Status</th>
+                  <th>Mapped To</th>
+                  <th>Last Seen</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody id="aliases-tbody"></tbody>
+            </table>
+          <!-- paginator moved to header (top-right) for ERP parity -->
+        </div>
+
+        <!-- Alias detail moved to modal. Modal contains the same IDs used by JS. -->
+        <div id="aliasModal" class="modal">
+          <div
+            class="modal-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="aliasDetailTitle"
+          >
+            <div class="modal-header">
+              <div>
+                <div id="aliasDetailTitle" class="heading">Alias Detail</div>
+                <div class="meta" style="font-size: 12px">
+                  View and manage mapping for this alias
+                </div>
+              </div>
+              <button id="modal-close" class="modal-close" aria-label="Close">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+
+            <div id="detail-empty" class="meta">
+              Select an alias to view / edit mapping.
+            </div>
+
+            <div id="detail-content" style="display: none">
+              <div class="section">
+                <div
+                  id="detail-tally"
+                  style="font-size: 18px; font-weight: 700"
+                ></div>
+                <div
+                  class="meta chips"
+                  style="
+                    display: flex;
+                    gap: 8px;
+                    align-items: center;
+                    flex-wrap: wrap;
+                  "
+                >
+                  <span id="detail-source-kind" class="chip"></span>
+                  <span id="detail-status" class="chip"></span>
+                  <span
+                    style="
+                      font-size: 13px;
+                      color: var(--muted);
+                      margin-left: 6px;
+                    "
+                    >Mapped to:</span
+                  >
+                  <span
+                    id="detail-mapped-to"
+                    class="chip mapped-to"
+                    style="margin-left: 4px"
+                  ></span>
+                </div>
+                <!-- First/Last seen removed per UX request -->
+              </div>
+              <div class="section">
+                <div
+                  class="meta"
+                  style="
+                    font-size: 12px;
+                    font-weight: 700;
+                    text-transform: uppercase;
+                    margin-bottom: 6px;
+                  "
+                >
+                  NEW MAPPING
+                </div>
+                <div class="heading" style="font-size: 14px">
+                  Find canonical item
+                </div>
+                <input
+                  id="master-search"
+                  type="search"
+                  placeholder="Search by name or code"
+                />
+                <div class="search-results" id="master-results"></div>
+              </div>
+
+              <div class="section">
+                <div class="heading" style="font-size: 14px">Note</div>
+                <textarea
+                  id="alias-note"
+                  placeholder="Optional note"
+                ></textarea>
+              </div>
+
+              <div class="section row-actions">
+                <button id="save-mapping" class="btn-primary">
+                  Save Mapping
+                </button>
+                <button id="create-and-map" class="btn-primary">
+                  Create & Map
+                </button>
+                <button id="ignore" class="btn-secondary">Ignore</button>
+                <button id="mark-suspect" class="btn-secondary">
+                  Mark Suspect
+                </button>
+                <button id="clear-mapping" class="btn-secondary">
+                  Clear Mapping
+                </button>
+              </div>
+
+              <div id="create-form" class="mini-form" style="display: none">
+                <div class="create-form-header">
+                  <div style="font-weight:700">Create new item</div>
+                  <div style="font-size:12px;color:var(--muted)">Creates a canonical item and maps this alias</div>
+                </div>
+                <div class="form-grid">
+                  <div class="form-row">
+                    <label for="new-code">Code (optional)</label>
+                    <input id="new-code" />
+                  </div>
+                  <div class="form-row">
+                    <label for="new-uom">Default UOM</label>
+                    <select id="new-uom">
+                      <option value="">(choose UOM)</option>
+                    </select>
+                  </div>
+                  <div class="form-row" style="grid-column: 1 / -1">
+                    <label for="new-name">Name</label>
+                    <input id="new-name" />
+                  </div>
+                  <div class="form-row" style="grid-column: 1 / -1">
+                    <label for="new-hsn">HSN Code (optional)</label>
+                    <input id="new-hsn" />
+                  </div>
+                </div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+                  <button id="create-cancel" class="btn-secondary">Cancel</button>
+                  <button id="create-submit" class="btn-primary">Create & Map</button>
+                </div>
+              </div>
+
+              <div
+                id="detail-loading"
+                class="loading"
+                style="display: none; margin-top: 8px"
+              >
+                Working…
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- In-page confirm modal -->
+    <div id="confirmModal" class="modal confirm-modal" style="display:none">
+      <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+        <div class="modal-header">
+          <div>
+            <div id="confirmTitle" class="heading">Confirm</div>
+            <div id="confirmText" class="meta" style="font-size:13px">Are you sure?</div>
+          </div>
+          <button id="confirm-close" class="modal-close" aria-label="Close">✕</button>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
+          <button id="confirm-no" class="btn-secondary">No</button>
+          <button id="confirm-yes" class="btn-primary">Yes</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./js/manage-tally-inv-mapping.js"></script>
+  </body>
+</html>

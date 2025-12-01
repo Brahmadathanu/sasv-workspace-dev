@@ -209,6 +209,44 @@
         overflow: hidden;
         background: #f8fafc;
       }
+      /* Make segmented toggle compact-friendly */
+      .seg-toggle .seg {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 6px 10px;
+        min-width: 44px;
+      }
+      /* Responsive: collapse labels into short letters using data-short */
+      @media (max-width: 360px) {
+        .seg-toggle {
+          border-radius: 8px;
+        }
+        .seg-toggle .seg {
+          padding: 6px 6px;
+          min-width: 34px;
+          font-size: 0; /* hide full label text visually */
+          position: relative;
+        }
+        .seg-toggle .seg::before {
+          content: attr(data-short);
+          font-size: 12px;
+          color: inherit;
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          transform: translate(-50%, -50%);
+        }
+      }
+      /* Show overflow menu for mode and hide inline segmented toggle at very small widths */
+      @media (max-width: 360px) {
+        .seg-toggle {
+          display: none !important;
+        }
+        .mode-overflow {
+          display: inline-flex !important;
+        }
+      }
       .seg-toggle .seg {
         padding: 6px 10px;
         font-size: 12px;
@@ -547,6 +585,7 @@
       .erp-pill-chip .pill-seg.value[data-state="empty"] {
         color: #64748b;
       }
+      /* selection pills use the shared .erp-pill-chip styles above; no selection-specific overrides */
       /* Compact QA status chip (small pill with icon) */
       .qa-chip {
         display: inline-flex;
@@ -821,10 +860,10 @@
       }
       .panel-header .erp-pills-bar {
         display: flex;
-        flex: 2 1 420px;
+        flex: 1 1 auto; /* allow pills to shrink when space is tight */
         gap: 8px;
-        min-width: 280px;
-        flex-wrap: wrap;
+        min-width: 0; /* allow flex children to shrink below their content width */
+        flex-wrap: wrap; /* allow pills to flow to new lines naturally */
       }
       .panel-header .hdr-actions {
         display: flex;
@@ -833,10 +872,13 @@
         flex: 0 0 auto;
       }
       /* Prevent overflow: allow actions to move to next row on narrow widths */
-      @media (max-width: 1100px) {
+      /* Move the wrap breakpoint lower so pills have room to shrink first */
+      @media (max-width: 360px) {
         .panel-header .erp-pills-bar {
           flex-basis: 100%;
           order: 2;
+          flex-wrap: wrap; /* only allow wrap at narrower widths */
+          overflow-x: visible;
         }
         .panel-header .hdr-actions {
           order: 3;
@@ -871,6 +913,52 @@
       /* Use absolute positioning for open state (fixed caused off-screen placement on some browsers) */
       .menu-panel.open {
         position: absolute;
+      }
+      /* Selected cell highlight for view-mode selection */
+      td.cell-selected {
+        background: transparent;
+        /* base: no visual until we set edge classes */
+      }
+      /* Edge classes draw the single rectangular border without doubling */
+      td.cell-selected.sel-t {
+        border-top: 2px solid #f97316;
+      }
+      td.cell-selected.sel-b {
+        border-bottom: 2px solid #f97316;
+      }
+      td.cell-selected.sel-l {
+        border-left: 2px solid #f97316;
+      }
+      td.cell-selected.sel-r {
+        border-right: 2px solid #f97316;
+      }
+      /* Active (last-selected) cell uses same stroke but a subtle highlight */
+      td.cell-active.sel-t {
+        border-top: 2px solid #ea580c;
+      }
+      td.cell-active.sel-b {
+        border-bottom: 2px solid #ea580c;
+      }
+      td.cell-active.sel-l {
+        border-left: 2px solid #ea580c;
+      }
+      td.cell-active.sel-r {
+        border-right: 2px solid #ea580c;
+      }
+      td.cell-active {
+        box-shadow: none;
+      }
+      /* Drag handle (bottom-right) similar to Sheets' fill handle */
+      td.cell-active {
+        position: relative;
+      }
+      /* Removed active-cell handle to avoid stray persistent highlight */
+      td.cell-active::after {
+        display: none !important;
+      }
+      td[data-col] {
+        /* allow JS to focus cells for keyboard navigation */
+        cursor: pointer;
       }
     </style>
     <!-- jsPDF (for PDF export) -->
@@ -1156,12 +1244,69 @@
     <section id="linesPanel" class="panel view-mode">
       <div class="panel-header">
         <h3>Lines</h3>
-        <div style="display: flex; gap: 8px; align-items: center">
+        <div
+          id="selectionPills"
+          class="erp-pills-bar"
+          style="margin-left: 12px"
+        ></div>
+        <div
+          class="hdr-actions"
+          style="display: flex; gap: 8px; align-items: center"
+        >
           <div class="seg-toggle" role="group" aria-label="Lines mode">
-            <button id="linesViewBtn" class="seg active" type="button">
+            <button
+              id="linesViewBtn"
+              class="seg active"
+              type="button"
+              data-short="V"
+            >
               View
             </button>
-            <button id="linesEditBtn" class="seg" type="button">Edit</button>
+            <button id="linesEditBtn" class="seg" type="button" data-short="E">
+              Edit
+            </button>
+          </div>
+          <!-- Overflow menu for mode (shown at very small widths) -->
+          <div
+            class="menu-wrap mode-overflow"
+            style="margin-left: 6px; display: none"
+          >
+            <button
+              id="modeOverflowBtn"
+              class="btn ghost icon-btn"
+              aria-haspopup="true"
+              aria-expanded="false"
+              aria-controls="modeOverflowMenu"
+              title="Mode"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                aria-hidden="true"
+              >
+                <circle cx="6.5" cy="12" r="1.2"></circle>
+                <circle cx="12" cy="12" r="1.2"></circle>
+                <circle cx="17.5" cy="12" r="1.2"></circle>
+              </svg>
+              <span class="visually-hidden">Mode</span>
+            </button>
+            <div
+              id="modeOverflowMenu"
+              class="menu-panel"
+              role="menu"
+              aria-labelledby="modeOverflowBtn"
+            >
+              <button id="modeViewItem" class="menu-item" role="menuitem">
+                View
+              </button>
+              <button id="modeEditItem" class="menu-item" role="menuitem">
+                Edit
+              </button>
+            </div>
           </div>
           <button
             id="kbHelpBtn"

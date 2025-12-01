@@ -914,6 +914,66 @@ button {
   color: var(--text-color);
 }
 
+/* Rebuild actions dropdown menu styling — Actions toggle is primary blue,
+   inner menu buttons are plain white with dark text. Layout is constrained
+   to viewport to avoid right-edge overflow (responsive + ERP-friendly). */
+#rebuildMenu {
+  min-width: 180px;
+  max-width: calc(100vw - 24px); /* never overflow the viewport */
+  padding: 8px;
+  background: var(--panel-bg);
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+/* Menu toggle: emphasize as a primary action (blue) */
+#rebuildMenuBtn {
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: transform 0.12s, background 0.12s;
+}
+#rebuildMenuBtn:hover:not([disabled]) {
+  background: var(--btn-hover-bg);
+  transform: translateY(-1px);
+}
+#rebuildMenuBtn:focus {
+  outline: 3px solid rgba(59, 130, 246, 0.18);
+}
+
+#rebuildMenu .btn {
+  width: 100%;
+  justify-content: flex-start;
+  background: var(--panel-bg);
+  color: var(--text-color);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin: 4px 0; /* remove horizontal margin to prevent overflow */
+  box-sizing: border-box;
+  text-align: left;
+}
+/* subtle hover: light grey background, keep dark text */
+#rebuildMenu .btn:hover:not([disabled]) {
+  background: #f3f4f6;
+  color: var(--text-color);
+  transform: translateY(-1px);
+}
+#rebuildMenu .btn:active:not([disabled]) {
+  transform: translateY(0);
+}
+#rebuildMenu .btn:focus {
+  outline: 3px solid rgba(15, 23, 42, 0.06);
+}
+
+/* ensure inner content doesn't force extra width (future-proof) */
+#rebuildMenu div {
+  box-sizing: border-box;
+}
+
 /* Layout tweaks for the Latest Runs table in Forecast Console */
 #runsTable {
   width: 100%;

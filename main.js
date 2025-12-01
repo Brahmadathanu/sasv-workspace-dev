@@ -77,6 +77,22 @@ autoUpdater.on("update-downloaded", (info) => {
 
 // ---------------- Static server (http://localhost:3000) ----------------
 const webApp = express();
+
+// Add CORS headers for development
+webApp.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept, Authorization, apikey"
+  );
+  if (req.method === "OPTIONS") {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+});
+
 webApp.use(express.static(path.join(__dirname)));
 webApp.listen(3000, () =>
   console.log("Static server at http://localhost:3000")
@@ -92,6 +108,7 @@ function createWindow() {
       preload: path.join(__dirname, "preload.js"),
       nodeIntegration: false,
       contextIsolation: true,
+      webSecurity: false, // Disable web security to allow CORS in desktop app
     },
   });
   mainWindow.loadURL("http://localhost:3000/login.html");

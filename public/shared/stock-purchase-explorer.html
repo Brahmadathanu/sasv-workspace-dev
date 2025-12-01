@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Stock & Purchase Explorer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="./css/style.css" />
+    <link rel="stylesheet" href="../vendor/flatpickr.min.css" />
+    <link rel="stylesheet" href="../vendor/tom-select/tom-select.css" />
+    <style>
+      :root {
+        --erp-bg: #f7f8fb;
+        --erp-card: #ffffff;
+        --erp-border: rgba(15, 23, 42, 0.08);
+        --erp-text: #0f172a;
+        --erp-muted: #6b7280;
+        --erp-accent: #2563eb;
+        --erp-accent-2: #0ea5e9;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+      }
+      body {
+        background: var(--erp-bg);
+        color: var(--erp-text);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Oxygen, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
+      }
+      .page {
+        height: 100vh;
+        padding: 16px 18px 20px;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .page-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .page-header h2 {
+        margin: 0;
+        color: var(--primary, var(--erp-accent));
+        letter-spacing: 0.01em;
+      }
+      .eyebrow {
+        color: var(--erp-muted);
+        font-size: 13px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 4px;
+      }
+      .subtitle {
+        margin: 2px 0 0;
+        color: #0a62c3;
+        font-weight: 600;
+      }
+      .card {
+        background: var(--erp-card);
+        border: 1px solid var(--erp-border);
+        border-radius: 10px;
+        padding: 14px;
+        box-shadow: 0 10px 26px rgba(15, 23, 42, 0.05);
+      }
+      .filters-card {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .filters-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(180px, 1fr));
+        gap: 12px;
+        align-items: end;
+      }
+      /* Primary / advanced filter layout */
+      .filters-primary {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        justify-content: flex-start;
+        flex-wrap: nowrap;
+      }
+      .filters-primary .primary-item {
+        min-width: 160px;
+        flex: 0 1 auto;
+      }
+      /* ordering: source kind (promoted) -> search -> date -> reset -> advanced toggle */
+      .filters-primary .primary-item.source {
+        order: 0;
+        flex: 0 0 160px;
+        min-width: 120px;
+      }
+      .filters-primary .primary-item.search {
+        order: 1;
+      }
+      .filters-primary .primary-item.reset {
+        order: 3;
+        margin-left: auto; /* push reset to the right, advanced will follow */
+        flex: 0 0 auto;
+      }
+      .advanced-toggle-container {
+        order: 4;
+        margin-left: 8px; /* small gap between reset and Advanced */
+        display: flex;
+        align-items: center;
+        align-self: flex-end; /* align toggle to lower border of filter fields */
+        padding-bottom: 6px;
+      }
+      /* Make search larger and date inputs compact */
+      .filters-primary .primary-item.search {
+        flex: 0 0 420px; /* fixed preferred width to avoid large gaps */
+        min-width: 240px;
+        max-width: 560px;
+      }
+      .input-with-icon {
+        display: flex;
+        align-items: center;
+      }
+      .input-with-icon input[type="text"] {
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .filters-primary .primary-item.date {
+        flex: 0 0 220px;
+        min-width: 160px;
+      }
+
+      /* Responsive: stack primary filters on narrow screens */
+      @media (max-width: 900px) {
+        .filters-primary {
+          flex-wrap: wrap;
+        }
+        .filters-primary .primary-item.search {
+          order: 1;
+          flex: 1 1 100%;
+        }
+        .filters-primary .primary-item.date {
+          order: 2;
+          flex: 1 1 200px;
+        }
+        .advanced-toggle-container {
+          order: 4;
+          margin-left: 0;
+          width: 100%;
+          justify-content: flex-end;
+        }
+      }
+      .input-with-icon {
+        position: relative;
+      }
+      .input-with-icon svg {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 18px;
+        height: 18px;
+        color: var(--erp-muted);
+        pointer-events: none;
+        fill: none;
+      }
+      /* Hide native browser clear/reveal controls that can appear in inputs
+         (Chrome/Edge/WebKit/IE) so they don't conflict with our custom button */
+      .input-with-icon input[type="text"]::-ms-clear,
+      .input-with-icon input[type="text"]::-ms-reveal {
+        display: none;
+        width: 0;
+        height: 0;
+      }
+      .input-with-icon input[type="text"]::-webkit-search-decoration,
+      .input-with-icon input[type="text"]::-webkit-search-cancel-button,
+      .input-with-icon input[type="text"]::-webkit-search-results-button,
+      .input-with-icon input[type="text"]::-webkit-search-results-decoration {
+        display: none;
+      }
+      .input-with-icon input[type="text"] {
+        padding-left: 52px; /* leave space for icon + gap */
+        padding-right: 16px;
+      }
+      .advanced-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        border: 1px solid var(--erp-border);
+        background: #fff;
+        cursor: pointer;
+        font-weight: 600;
+        color: var(--erp-text);
+      }
+      .advanced-toggle .adv-chevron {
+        transition: transform 0.18s ease;
+        transform: rotate(0deg);
+        width: 12px;
+        height: 12px;
+      }
+      .advanced-toggle[aria-expanded="true"] .adv-chevron {
+        transform: rotate(180deg);
+      }
+      .advanced-drawer {
+        overflow: hidden;
+        max-height: 0;
+        transition: max-height 0.28s ease, padding 0.18s ease;
+        padding-top: 0;
+      }
+      .advanced-drawer.open {
+        max-height: 420px; /* enough for the grid */
+        padding-top: 12px;
+      }
+      /* Filters: modern ERP style */
+      .filters-grid label {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-weight: 600;
+        color: var(--erp-text);
+        font-size: 13px;
+      }
+      /* Advanced grid controls: match the light-blue fill as well */
+      .filters-grid select,
+      .filters-grid input[type="text"] {
+        padding: 10px 12px;
+        height: 40px;
+        border-radius: 8px;
+        border: 1px solid #e6eef8;
+        background-color: #f4fbff;
+        font-family: inherit;
+        font-size: 13px;
+        color: var(--erp-text);
+        box-shadow: inset 0 1px 0 rgba(15, 23, 42, 0.03);
+      }
+
+      /* Slightly stronger focus ring on filter controls for accessibility */
+      .filters-primary input[type="text"]:focus,
+      .filters-primary select:focus,
+      .filters-grid select:focus,
+      .filters-grid input[type="text"]:focus {
+        outline: 2px solid rgba(14, 165, 233, 0.16);
+        outline-offset: 2px;
+      }
+      /* Make primary filters visually match advanced filters */
+      .filters-primary label {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-weight: 600;
+        color: var(--erp-text);
+        font-size: 13px;
+      }
+      /* Keep the Reset control visually consistent when not using a <label> wrapper */
+      .filters-primary .primary-item.reset .reset-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-weight: 600;
+        color: var(--erp-text);
+        font-size: 13px;
+      }
+      .filters-primary input[type="text"],
+      .filters-primary select {
+        padding: 10px 12px;
+        height: 40px;
+        border-radius: 8px;
+        border: 1px solid #e6eef8;
+        background-color: #f4fbff; /* very light blue fill */
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 400;
+        color: var(--erp-text);
+        box-shadow: inset 0 1px 0 rgba(15, 23, 42, 0.03);
+        -webkit-appearance: none;
+        appearance: none;
+      }
+      /* Ensure inputs inside .input-with-icon keep the larger left padding (override shorthand) */
+      .filters-primary .input-with-icon input[type="text"] {
+        padding-left: 52px;
+        padding-right: 40px;
+      }
+      .filters-primary input::placeholder {
+        color: var(--erp-muted);
+        font-weight: 400;
+        opacity: 1;
+      }
+      /* Auto-select hint badge */
+      .auto-hint {
+        display: inline-block;
+        margin-left: 8px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: rgba(37, 99, 235, 0.08);
+        color: var(--erp-accent);
+        font-size: 12px;
+        font-weight: 700;
+        align-self: center;
+      }
+      /* link-style button used by other filter bars (e.g. edit-log-entry) */
+      .link-btn {
+        background: none;
+        border: none;
+        padding: 6px 10px;
+        color: var(--erp-accent);
+        text-decoration: none;
+        font-size: 13px;
+        cursor: pointer;
+        border-radius: 8px;
+      }
+      .link-btn:hover {
+        background: rgba(37, 99, 235, 0.06);
+      }
+      .link-btn:focus {
+        outline: 2px solid rgba(37, 99, 235, 0.16);
+        outline-offset: 2px;
+      }
+      .filters-grid .label-text {
+        font-size: 12px;
+        color: var(--erp-muted);
+        font-weight: 600;
+        text-transform: none;
+        letter-spacing: 0.01em;
+      }
+      .filters-grid input[type="text"],
+      .filters-grid select {
+        padding: 10px 12px;
+        height: 40px;
+        border-radius: 8px;
+        border: 1px solid #e6eef8;
+        background-color: #f4fbff;
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 400;
+        color: var(--erp-text);
+        box-shadow: inset 0 1px 0 rgba(15, 23, 42, 0.03);
+        -webkit-appearance: none;
+        appearance: none;
+      }
+      .filters-grid select option {
+        font-weight: 400;
+        color: var(--erp-text);
+      }
+      .filters-grid input::placeholder {
+        color: var(--erp-muted);
+        font-weight: 400;
+        opacity: 1;
+      }
+      .filters-grid input:focus,
+      .filters-grid select:focus {
+        outline: none;
+        border-color: var(--erp-accent);
+        box-shadow: 0 6px 18px rgba(37, 99, 235, 0.08),
+          0 0 0 3px rgba(37, 99, 235, 0.06);
+      }
+      /* Small chevron indicator for selects */
+      .filters-grid select {
+        background-image: linear-gradient(
+            45deg,
+            transparent 50%,
+            var(--erp-text) 50%
+          ),
+          linear-gradient(135deg, var(--erp-text) 50%, transparent 50%);
+        background-position: calc(100% - 14px) calc(1em + 2px),
+          calc(100% - 10px) calc(1em + 2px);
+        background-size: 6px 6px, 6px 6px;
+        background-repeat: no-repeat;
+      }
+      .tab-bar {
+        display: inline-flex;
+        gap: 8px;
+        margin-top: 2px;
+        border-bottom: 1px solid var(--erp-border);
+        padding-bottom: 4px;
+      }
+      /* ERP-style tabs matching manage-plm-bom */
+      .tabs-nav {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 10px;
+        border-bottom: 1px solid var(--erp-border);
+      }
+      .tab-btn {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        border: 1px solid var(--erp-border);
+        border-bottom: none;
+        border-top-left-radius: 8px;
+        border-top-right-radius: 8px;
+        background: #f8fafc;
+        color: var(--erp-text);
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 13px;
+        transition: all 0.18s ease;
+      }
+      .tab-btn[aria-selected="true"] {
+        background: #ffffff;
+        font-weight: 700;
+        border-color: #cbd5e1;
+        box-shadow: 0 -1px 0 #ffffff inset;
+        color: var(--erp-accent);
+      }
+      .tab-btn:hover:not([aria-selected="true"]) {
+        background: #f1f5f9;
+        transform: translateY(-1px);
+      }
+      .tab-panel {
+        display: none;
+      }
+      .tab-panel.active {
+        display: block;
+      }
+      .content {
+        display: flex;
+        flex: 1 1 auto;
+        width: 100%;
+        gap: 12px;
+        align-items: stretch;
+      }
+      .table-card {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        /* Allow the card to expand horizontally to fill available space
+           while JS controls its height. `flex: 1 1 auto` lets it grow in the
+           main axis (row) so it fills the content area width. */
+        flex: 1 1 auto;
+        width: 100%;
+        min-height: 0;
+        box-sizing: border-box;
+      }
+      .table-card h3 {
+        margin: 0;
+        font-size: 15px;
+        color: var(--erp-text);
+        letter-spacing: 0.01em;
+      }
+      .table-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .paginator {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: var(--erp-text);
+      }
+      .paginator button {
+        padding: 6px 10px;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+        background: #fff;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      .paginator button:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      .paginator .page-info {
+        color: var(--erp-muted);
+        font-weight: 600;
+      }
+      .paginator .page-num {
+        padding: 6px 8px;
+        border-radius: 6px;
+        border: 1px solid transparent;
+        background: transparent;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      .paginator .page-num.current {
+        background: linear-gradient(135deg, var(--erp-accent) 0%, #1d4ed8 100%);
+        color: #fff;
+        border-color: rgba(29, 78, 216, 0.16);
+      }
+      .paginator .page-num.dots {
+        cursor: default;
+        opacity: 0.7;
+      }
+      .paginator select#pageSizeSel {
+        padding: 6px 8px;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+        background: #fff;
+        font-weight: 400;
+        font-family: inherit;
+        color: var(--erp-text);
+      }
+      .paginator .p-left,
+      .paginator .p-center,
+      .paginator .p-right {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      /* Toast container + toast styles (ERP-style stacked toasts) */
+      #statusToastContainer {
+        position: fixed;
+        right: 18px;
+        bottom: 18px;
+        z-index: 3000;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        pointer-events: none;
+      }
+      .toast {
+        pointer-events: auto;
+        background: #111827;
+        color: #fff;
+        padding: 10px 14px;
+        border-radius: 8px;
+        box-shadow: 0 8px 20px rgba(2, 6, 23, 0.3);
+        font-size: 13px;
+        min-width: 220px;
+        transform-origin: 100% 100%;
+      }
+      .toast.error {
+        background: #b91c1c;
+      }
+      .toast.info {
+        background: #111827;
+      }
+      .toast.success {
+        background: #0f766e;
+      }
+      #tableArea {
+        overflow: auto;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        background: #fff;
+        flex: 1 1 auto;
+        min-height: 0; /* allow internal scrolling when content exceeds area */
+      }
+      #tableArea table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      #tableArea th,
+      #tableArea td {
+        border: 1px solid #e2e8f0;
+        padding: 10px 12px;
+        font-size: 14px;
+      }
+      #tableArea thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #f1f5f9;
+        color: #1f2937;
+        font-weight: 600;
+        text-align: center;
+      }
+      /* Subtle smaller decimals for numeric values to de-emphasize fractional part */
+      .sp-decimal {
+        font-size: 0.82em;
+        color: var(--erp-muted);
+        margin-left: 0.12em;
+      }
+      #tableArea tbody tr:nth-child(even) {
+        background: #fafafa;
+      }
+      #tableArea tbody tr:hover {
+        background: #f1f5f9;
+        cursor: pointer;
+      }
+      #tableArea tbody tr.selected {
+        background: #e0e7ff;
+        box-shadow: inset 2px 0 0 #1d4ed8;
+      }
+      /* Side-panel no longer used; modal will show details in-page */
+      .side-panel {
+        display: none !important;
+      }
+      .side-panel h3 {
+        margin: 0 0 4px;
+        font-size: 15px;
+      }
+      .side-panel .meta {
+        color: var(--erp-muted);
+        font-size: 13px;
+      }
+      .side-panel .field {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(15, 23, 42, 0.05);
+        font-size: 13px;
+      }
+      .side-panel .field strong {
+        color: #111827;
+      }
+      .side-panel .action {
+        align-self: flex-start;
+        margin-top: 8px;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 12px;
+        background: #eef2ff;
+        color: #1d4ed8;
+        border: 1px solid rgba(37, 99, 235, 0.14);
+      }
+      .loading,
+      .error,
+      .no-data {
+        text-align: center;
+        color: var(--erp-muted);
+        margin: 20px 0;
+      }
+      .error {
+        color: #b91c1c;
+      }
+      @media (max-width: 1024px) {
+        .filters-grid {
+          grid-template-columns: repeat(2, minmax(200px, 1fr));
+        }
+        .content {
+          grid-template-columns: 1fr;
+        }
+        .side-panel {
+          min-height: 0;
+        }
+      }
+      /* ERP Button Styles */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #f8fafc 0%, #eef2f6 100%);
+        color: var(--erp-text);
+        font-weight: 600;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+      }
+      .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+      }
+      .btn.primary {
+        background: linear-gradient(135deg, var(--erp-accent) 0%, #1d4ed8 100%);
+        border-color: var(--erp-accent);
+        color: #fff;
+      }
+      .btn.ghost {
+        background: transparent;
+        border-color: #e2e8f0;
+        color: var(--erp-text);
+      }
+      .btn.ghost:hover {
+        background: #f8fafc;
+      }
+      .icon-btn {
+        padding: 8px;
+        width: 36px;
+        height: 36px;
+        justify-content: center;
+      }
+      .menu-panel {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.14);
+        padding: 6px;
+        min-width: 160px;
+        z-index: 1000;
+      }
+      .menu-item {
+        width: 100%;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        background: transparent;
+        border: none;
+        border-radius: 8px;
+        color: var(--erp-text);
+        font: inherit;
+        cursor: pointer;
+        text-align: left;
+      }
+      .menu-item:hover {
+        background: #f1f5f9;
+      }
+      /* Screen reader only utility */
+      .sr-only {
+        position: absolute !important;
+        width: 1px !important;
+        height: 1px !important;
+        padding: 0 !important;
+        margin: -1px !important;
+        overflow: hidden !important;
+        clip: rect(0 0 0 0) !important;
+        white-space: nowrap !important;
+        border: 0 !important;
+      }
+      /* Panel utilities */
+      .panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--erp-border);
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+      }
+      .panel-body {
+        padding: 16px;
+      }
+      /* Modal overlay for item details (in-page modal) */
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(2, 6, 23, 0.48);
+        z-index: 1400;
+        padding: 20px;
+        box-sizing: border-box;
+      }
+      .modal-overlay.open {
+        display: flex;
+      }
+      .modal-box {
+        background: #ffffff;
+        border-radius: 12px;
+        max-width: 980px;
+        width: 100%;
+        max-height: calc(100vh - 80px);
+        overflow: auto;
+        box-shadow: 0 20px 50px rgba(2, 6, 23, 0.4);
+        position: relative;
+      }
+      /* Modal table styles: ERP-like bordered table for purchase history */
+      .modal-box table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0;
+      }
+      .modal-box th,
+      .modal-box td {
+        border: 1px solid #e2e8f0;
+        padding: 10px 12px;
+        font-size: 14px;
+      }
+      .modal-box thead th {
+        background: #f1f5f9;
+        color: #1f2937;
+        font-weight: 700;
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        text-align: left;
+      }
+      .modal-box td.numeric {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .modal-box tbody tr:nth-child(even) {
+        background: #fafafb;
+      }
+      .modal-box tbody tr:hover {
+        background: #f1f5f9;
+      }
+      .modal-close {
+        position: absolute;
+        right: 10px;
+        top: 10px;
+        border: none;
+        background: transparent;
+        font-size: 20px;
+        line-height: 1;
+        padding: 6px 10px;
+        cursor: pointer;
+        color: #0f172a;
+      }
+      .modal-content {
+        padding: 18px;
+      }
+      /* Loading mask (ERP parity with BOM pages) */
+      .screen-mask {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(2, 6, 23, 0.48);
+        z-index: 1400;
+        padding: 20px;
+        box-sizing: border-box;
+      }
+      .screen-mask.open {
+        display: flex;
+      }
+      .screen-mask .mask-box {
+        display: inline-flex;
+        gap: 12px;
+        align-items: center;
+        padding: 12px 16px;
+        border-radius: 10px;
+        background: linear-gradient(180deg, #ffffff, #fbfdff);
+        color: var(--erp-text, #0f172a);
+        box-shadow: 0 20px 50px rgba(2, 6, 23, 0.4);
+        font-weight: 600;
+        font-size: 14px;
+      }
+      .screen-mask .spinner {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: 4px solid rgba(15, 23, 42, 0.06);
+        border-top-color: var(--erp-accent, #1d4ed8);
+        animation: spex-spin 1s linear infinite;
+        flex: 0 0 36px;
+      }
+      @keyframes spex-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @media (max-width: 1024px) {
+        .filters-grid {
+          grid-template-columns: repeat(2, minmax(200px, 1fr));
+        }
+        .content {
+          grid-template-columns: 1fr;
+        }
+        .side-panel {
+          margin-left: 0 !important;
+          margin-top: 12px;
+          flex: none !important;
+        }
+      }
+      @media (max-width: 640px) {
+        .filters-grid {
+          grid-template-columns: 1fr;
+        }
+        .tabs-nav {
+          flex-wrap: wrap;
+          gap: 4px;
+        }
+        .tab-btn {
+          padding: 8px 12px;
+          font-size: 12px;
+        }
+        .panel-header {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 8px;
+        }
+      }
+    </style>
+  </head>
+  <body data-theme="system">
+    <div class="page">
+      <header class="page-header">
+        <div>
+          <h1 style="margin: 0; text-align: left">Stock & Purchase Explorer</h1>
+          <p
+            class="hint"
+            style="margin: 4px 0 0 0; padding-left: 0; text-align: left"
+          >
+            Inventory & purchase analytics by stock item
+          </p>
+        </div>
+        <div class="header-actions">
+          <button id="homeBtn" type="button">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9,22 9,12 15,12 15,22" />
+            </svg>
+            HOME
+          </button>
+        </div>
+      </header>
+
+      <section class="card filters-card">
+        <!-- Primary filters always visible -->
+        <div class="filters-primary">
+          <div class="primary-item source">
+            <label>
+              <span class="label-text">Source Kind (Tally)</span>
+              <select id="classification">
+                <option value="all">All</option>
+                <option value="rm">RM</option>
+                <option value="plm">PLM</option>
+                <option value="consumable">Consumables</option>
+                <option value="fuel">Fuel</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="primary-item search">
+            <label>
+              <span class="label-text">Search</span>
+              <div class="input-with-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle
+                    cx="11"
+                    cy="11"
+                    r="7"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  ></circle>
+                  <line
+                    x1="21"
+                    y1="21"
+                    x2="16.65"
+                    y2="16.65"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                  ></line>
+                </svg>
+                <input
+                  id="search"
+                  type="text"
+                  placeholder="Item code or name"
+                />
+              </div>
+            </label>
+          </div>
+          <div class="primary-item date">
+            <label>
+              <span class="label-text">Date Range</span>
+              <input
+                id="dateRange"
+                type="text"
+                placeholder="dd-mm-yyyy — dd-mm-yyyy"
+              />
+            </label>
+          </div>
+          <div class="primary-item reset">
+            <div class="reset-wrap">
+              <span class="label-text">Reset</span>
+              <button
+                id="resetFiltersBtn"
+                class="btn ghost icon-btn"
+                type="button"
+                aria-label="Reset filters"
+                title="Reset filters"
+              >
+                <!-- refresh / reset SVG (Edit Lines icon reused from supply-overrides) -->
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"
+                  />
+                  <path d="M21 3v5h-5" />
+                  <path
+                    d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"
+                  />
+                  <path d="M3 21v-5h5" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="advanced-toggle-container">
+            <button
+              id="toggleAdvancedFilters"
+              class="link-btn advanced-toggle"
+              aria-expanded="false"
+              aria-controls="advancedDrawer"
+            >
+              <span class="advanced-label">Advanced</span>
+              <svg
+                class="adv-chevron"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <polyline
+                  points="6 9 12 15 18 9"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Advanced filters hidden in a drawer by default -->
+        <div id="advancedDrawer" class="advanced-drawer" aria-hidden="true">
+          <div class="filters-grid">
+            <!-- Source Kind moved to primary filters; kept advanced fields below -->
+            <!-- Canonical category (RM / PLM / IND etc) -->
+            <label>
+              <span class="label-text">Category</span>
+              <select id="categoryFilter">
+                <option value="all">(All)</option>
+                <!-- Options will be populated from inv_class_category via JS -->
+              </select>
+            </label>
+
+            <!-- Canonical subcategory -->
+            <label>
+              <span class="label-text">Subcategory</span>
+              <select id="subcategoryFilter">
+                <option value="all">(All)</option>
+                <!-- Options will be populated via JS -->
+              </select>
+            </label>
+
+            <!-- Canonical group -->
+            <label>
+              <span class="label-text">Group</span>
+              <select id="groupFilter">
+                <option value="all">(All)</option>
+                <!-- Options will be populated via JS -->
+              </select>
+            </label>
+
+            <!-- Canonical subgroup -->
+            <label>
+              <span class="label-text">Subgroup</span>
+              <select id="subgroupFilter">
+                <option value="all">(All)</option>
+                <!-- Options will be populated via JS -->
+              </select>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section class="content">
+        <div class="card table-card">
+          <div class="tab-bar">
+            <button class="tab-btn active" data-tab="overview">Overview</button>
+            <button class="tab-btn" data-tab="stock">Stock Snapshot</button>
+            <button class="tab-btn" data-tab="purchase">
+              Purchase History
+            </button>
+          </div>
+          <div class="table-header">
+            <h3>Records</h3>
+            <div id="paginator" class="paginator" aria-live="polite"></div>
+          </div>
+          <div id="tableArea">
+            <!-- Table will be rendered here -->
+          </div>
+        </div>
+        <aside class="card side-panel" id="sidePanel">
+          <!-- Item details will be rendered here -->
+        </aside>
+      </section>
+    </div>
+    <!-- In-page modal for details -->
+    <div
+      id="detailModal"
+      class="modal-overlay"
+      aria-hidden="true"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div class="modal-box" role="document">
+        <button class="modal-close" aria-label="Close details">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+        <div class="modal-content" id="modalContent"></div>
+      </div>
+    </div>
+    <!-- Toast container for transient status toasts (ERP-style) -->
+    <div id="statusToastContainer" aria-live="polite" aria-atomic="true"></div>
+    <script src="../vendor/flatpickr.min.js"></script>
+    <script src="../vendor/plugins/confirmDate/confirmDate.js"></script>
+    <script src="../vendor/tom-select/tom-select.complete.min.js"></script>
+    <script type="module" src="js/stock-purchase-explorer.js"></script>
+  </body>
+</html>

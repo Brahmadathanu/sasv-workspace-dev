@@ -54,3 +54,143 @@ button.ghost {
   padding: 8px 12px;
   border-radius: 8px;
 }
+
+/* Styles for selected cells */
+.selected {
+  background-color: #007bff; /* Highlight color */
+  color: #fff; /* Text color */
+  border: 1px solid #0056b3; /* Border color */
+}
+
+/* Selected cell highlight for view-mode selection (rectangular border edges)
+   Designed to match RM/SP BOM visual style */
+td.cell-selected {
+  background: transparent;
+}
+td.cell-selected.sel-t {
+  border-top: 2px solid #f97316;
+}
+td.cell-selected.sel-b {
+  border-bottom: 2px solid #f97316;
+}
+td.cell-selected.sel-l {
+  border-left: 2px solid #f97316;
+}
+td.cell-selected.sel-r {
+  border-right: 2px solid #f97316;
+}
+/* Active (last-selected) cell uses slightly stronger stroke */
+td.cell-active.sel-t {
+  border-top: 2px solid #ea580c;
+}
+td.cell-active.sel-b {
+  border-bottom: 2px solid #ea580c;
+}
+td.cell-active.sel-l {
+  border-left: 2px solid #ea580c;
+}
+td.cell-active.sel-r {
+  border-right: 2px solid #ea580c;
+}
+
+/* Selection pills styling (matching RM-BOM) */
+#selectionPills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  flex-wrap: wrap;
+}
+#selectionPills .erp-pill-chip {
+  margin-bottom: 0;
+}
+#selectionPills .erp-pill-chip.small {
+  font-size: 11px;
+}
+#selectionPills .erp-pill-chip .pill-seg.title {
+  padding: 4px 8px;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  color: #ffffff;
+  border-right: 1px solid rgba(255, 255, 255, 0.3);
+}
+#selectionPills .erp-pill-chip .pill-seg.title::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 4px;
+  background: currentColor;
+  border-radius: 2px;
+  opacity: 0.8;
+}
+#selectionPills .erp-pill-chip .pill-seg.value {
+  padding: 4px 10px;
+  background: #fff7ed;
+  color: #c2410c;
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 32px;
+  text-align: center;
+}
+#selectionPills .erp-pill-chip:hover {
+  transform: translateY(-0.5px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+  transition: all 0.15s ease;
+}
+#selectionPills .btn {
+  font-size: 11px;
+  padding: 4px 8px;
+  margin-left: 4px;
+}
+#selectionPills .btn.ghost {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+#selectionPills .btn.ghost:hover {
+  background: #f1f5f9;
+}
+#selectionPills .pill-icon {
+  width: 10px;
+  height: 10px;
+  margin-right: 3px;
+}
+@media (max-width: 768px) {
+  #selectionPills {
+    flex-wrap: wrap;
+  }
+  #selectionPills .erp-pill-chip {
+    margin-bottom: 4px;
+  }
+  #selectionPills .erp-pill-chip .pill-seg {
+    padding: 3px 6px;
+  }
+  #selectionPills .erp-pill-chip .pill-seg.value {
+    min-width: 24px;
+  }
+}
+@media (max-width: 480px) {
+  #selectionPills {
+    display: none;
+  }
+  #selectionPills .erp-pill-chip {
+    margin: 0 2px 2px 0;
+  }
+  #selectionPills .erp-pill-chip .pill-seg.title .title-text {
+    display: none;
+  }
+  #selectionPills .erp-pill-chip .pill-seg.title {
+    padding: 3px 5px;
+  }
+  #selectionPills .erp-pill-chip .pill-seg.value {
+    padding: 3px 6px;
+  }
+
+  #selectionPills .btn {
+    font-size: 10px;
+    padding: 3px 6px;
+  }
+}

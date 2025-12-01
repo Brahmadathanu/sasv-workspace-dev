@@ -526,6 +526,44 @@
         font-size: 13px;
         white-space: nowrap;
       }
+      /* Selected cell highlight for view-mode selection (copied from RM BOM for parity) */
+      td.cell-selected {
+        background: transparent;
+        /* base: no visual until we set edge classes */
+      }
+      /* Edge classes draw the single rectangular border without doubling */
+      td.cell-selected.sel-t {
+        border-top: 2px solid #f97316;
+      }
+      td.cell-selected.sel-b {
+        border-bottom: 2px solid #f97316;
+      }
+      td.cell-selected.sel-l {
+        border-left: 2px solid #f97316;
+      }
+      td.cell-selected.sel-r {
+        border-right: 2px solid #f97316;
+      }
+      /* Active (last-selected) cell uses same stroke but a subtle highlight */
+      td.cell-active.sel-t {
+        border-top: 2px solid #ea580c;
+      }
+      td.cell-active.sel-b {
+        border-bottom: 2px solid #ea580c;
+      }
+      td.cell-active.sel-l {
+        border-left: 2px solid #ea580c;
+      }
+      td.cell-active.sel-r {
+        border-right: 2px solid #ea580c;
+      }
+      td.cell-active {
+        box-shadow: none;
+      }
+      td.cell-active {
+        position: relative;
+      }
+      /* selection pills use the shared .erp-pill-chip styles above; no selection-specific overrides */
       .erp-pill-chip .pill-seg.title {
         text-transform: uppercase;
         font-size: 10px;
@@ -1155,6 +1193,18 @@
     <section id="linesPanel" class="panel view-mode">
       <div class="panel-header">
         <h3>Lines</h3>
+        <div
+          id="selectionPills"
+          class="erp-pills-bar"
+          style="
+            flex: 1;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            justify-content: flex-start;
+            margin-left: 12px;
+          "
+        ></div>
         <div style="display: flex; gap: 8px; align-items: center">
           <div class="seg-toggle" role="group" aria-label="Lines mode">
             <button id="linesViewBtn" class="seg active" type="button">
