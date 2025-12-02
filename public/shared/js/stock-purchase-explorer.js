@@ -24,6 +24,8 @@ const state = {
   pageOverview: 1,
   pageStock: 1,
   pagePurchase: 1,
+  // NEW: consumption tab paging
+  pageConsumption: 1,
   pageSize: 30,
 };
 
@@ -35,6 +37,8 @@ const categoryFilter = document.getElementById("categoryFilter");
 const subcategoryFilter = document.getElementById("subcategoryFilter");
 const groupFilter = document.getElementById("groupFilter");
 const subgroupFilter = document.getElementById("subgroupFilter");
+const filtersCard = document.querySelector(".filters-card");
+const filtersCloseBtn = document.getElementById("filtersCloseBtn");
 
 const searchInput = document.getElementById("search");
 const dateRangeInput = document.getElementById("dateRange");
@@ -62,6 +66,7 @@ function resetPages() {
   state.pageOverview = 1;
   state.pageStock = 1;
   state.pagePurchase = 1;
+  state.pageConsumption = 1;
 }
 
 // Track if user manually changed page-size (don't override their choice)
@@ -316,6 +321,22 @@ if (advToggleBtn && advancedDrawer) {
       advancedDrawer.setAttribute("aria-hidden", "true");
       advToggleBtn.setAttribute("aria-expanded", "false");
       advToggleBtn.classList.remove("open");
+    }
+    // On wider screens (not the mobile slide-down mode) expand/collapse the
+    // whole filters card. For mobile (<=520px) we use an absolutely
+    // positioned slide-down drawer instead, so avoid toggling the card's
+    // expanded class there to prevent layout conflicts.
+    try {
+      if (
+        window &&
+        window.innerWidth &&
+        window.innerWidth > 520 &&
+        filtersCard
+      ) {
+        filtersCard.classList.toggle("expanded", open);
+      }
+    } catch {
+      /* ignore */
     }
     // Recalculate table card height when advanced drawer changes visibility
     try {
@@ -690,6 +711,233 @@ document.addEventListener("keydown", (ev) => {
     closeDetailModal();
   }
 });
+
+// Mobile filters drawer elements
+const mobileFiltersBtn = document.getElementById("mobileFiltersBtn");
+const filtersBackdrop = document.getElementById("filtersBackdrop");
+const mobileSearch = document.getElementById("mobileSearch");
+let _drawerFocusable = [];
+let _drawerKeyHandler = null;
+let _drawerFocusMaintainer = null;
+
+function openFiltersDrawer() {
+  _lastActiveElement = document.activeElement;
+  const isMobile = typeof window !== "undefined" && window.innerWidth <= 520;
+  const targetEl = isMobile ? filtersCard : advancedDrawer;
+  if (!targetEl) return;
+
+  if (isMobile) {
+    // open left off-canvas filters card
+    // compute header height so drawer sits below it and uses remaining viewport
+    try {
+      const header = document.querySelector(".page-header");
+      const headerBottom = header
+        ? Math.round(header.getBoundingClientRect().bottom)
+        : 56;
+      // make the drawer occupy the full viewport but offset internal content
+      // below the header by setting paddingTop. This avoids the drawer being
+      // visually clipped while keeping the header visible.
+      filtersCard.style.top = "0px";
+      filtersCard.style.height = window.innerHeight + "px";
+      filtersCard.style.paddingTop = headerBottom + "px";
+    } catch {
+      /* ignore */
+    }
+    filtersCard.classList.add("open");
+    // show close button inside drawer on mobile
+    if (filtersCloseBtn) filtersCloseBtn.style.display = "inline-flex";
+    // ensure the advanced drawer inside the card is visible on mobile
+    try {
+      if (advancedDrawer && !advancedDrawer.classList.contains("open")) {
+        advancedDrawer.classList.add("open");
+        advancedDrawer.setAttribute("aria-hidden", "false");
+      }
+    } catch {
+      /* ignore */
+    }
+    if (filtersBackdrop) filtersBackdrop.classList.add("show");
+  } else {
+    // open slide-down advanced drawer via the toggle so shared logic runs
+    if (
+      advToggleBtn &&
+      advancedDrawer &&
+      !advancedDrawer.classList.contains("open")
+    ) {
+      try {
+        advToggleBtn.click();
+      } catch {
+        advancedDrawer.classList.add("open");
+        advancedDrawer.setAttribute("aria-hidden", "false");
+        if (advToggleBtn) advToggleBtn.setAttribute("aria-expanded", "true");
+      }
+    }
+    if (filtersBackdrop) filtersBackdrop.classList.add("show");
+  }
+
+  // make background inert for accessibility
+  try {
+    setBackgroundInert(true);
+  } catch {
+    /* ignore */
+  }
+
+  // focus first focusable element inside the target drawer
+  _drawerFocusable = _getFocusable(targetEl);
+  if (_drawerFocusable && _drawerFocusable.length) {
+    try {
+      _drawerFocusable[0].focus();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  // trap TAB inside the opened drawer
+  _drawerKeyHandler = function (e) {
+    if (e.key !== "Tab") return;
+    if (!_drawerFocusable || !_drawerFocusable.length) return;
+    const first = _drawerFocusable[0];
+    const last = _drawerFocusable[_drawerFocusable.length - 1];
+    const active = document.activeElement;
+    if (e.shiftKey) {
+      if (active === first || active === targetEl) {
+        e.preventDefault();
+        last.focus();
+      }
+    } else {
+      if (active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+  };
+  document.addEventListener("keydown", _drawerKeyHandler);
+
+  // maintain focus: if focus moves outside the drawer, bring it back to the opener
+  _drawerFocusMaintainer = function (ev) {
+    if (!targetEl || targetEl.contains(ev.target)) return;
+    ev.stopPropagation();
+    if (mobileFiltersBtn) mobileFiltersBtn.focus();
+  };
+  document.addEventListener("focus", _drawerFocusMaintainer, true);
+}
+
+function closeFiltersDrawer() {
+  const isMobile = typeof window !== "undefined" && window.innerWidth <= 520;
+  const targetEl = isMobile ? filtersCard : advancedDrawer;
+  if (!targetEl) return;
+
+  if (isMobile) {
+    // close left off-canvas filters card
+    filtersCard.classList.remove("open");
+    // hide close button
+    if (filtersCloseBtn) filtersCloseBtn.style.display = "none";
+    // collapse internal advanced drawer when closing mobile card
+    try {
+      if (advancedDrawer && advancedDrawer.classList.contains("open")) {
+        advancedDrawer.classList.remove("open");
+        advancedDrawer.setAttribute("aria-hidden", "true");
+      }
+    } catch {
+      /* ignore */
+    }
+    if (filtersBackdrop) filtersBackdrop.classList.remove("show");
+    // remove any inline sizing to restore default
+    if (filtersCard) {
+      filtersCard.style.top = "";
+      filtersCard.style.height = "";
+      filtersCard.style.paddingTop = "";
+    }
+  } else {
+    // close the advanced drawer via the toggle
+    if (advToggleBtn && advancedDrawer.classList.contains("open")) {
+      try {
+        advToggleBtn.click();
+      } catch {
+        advancedDrawer.classList.remove("open");
+        advancedDrawer.setAttribute("aria-hidden", "true");
+        if (advToggleBtn) advToggleBtn.setAttribute("aria-expanded", "false");
+      }
+    }
+    if (filtersBackdrop) filtersBackdrop.classList.remove("show");
+  }
+
+  try {
+    setBackgroundInert(false);
+  } catch {
+    /* ignore */
+  }
+
+  if (_drawerKeyHandler) {
+    document.removeEventListener("keydown", _drawerKeyHandler);
+    _drawerKeyHandler = null;
+  }
+  if (_drawerFocusMaintainer) {
+    document.removeEventListener("focus", _drawerFocusMaintainer, true);
+    _drawerFocusMaintainer = null;
+  }
+  // restore focus
+  try {
+    if (_lastActiveElement && typeof _lastActiveElement.focus === "function")
+      _lastActiveElement.focus();
+  } catch {
+    /* ignore */
+  }
+}
+
+if (mobileFiltersBtn) {
+  mobileFiltersBtn.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    const isMobile = typeof window !== "undefined" && window.innerWidth <= 520;
+    if (isMobile) {
+      if (filtersCard && filtersCard.classList.contains("open"))
+        closeFiltersDrawer();
+      else openFiltersDrawer();
+    } else {
+      if (advancedDrawer && advancedDrawer.classList.contains("open"))
+        closeFiltersDrawer();
+      else openFiltersDrawer();
+    }
+  });
+}
+if (filtersCloseBtn) {
+  filtersCloseBtn.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    closeFiltersDrawer();
+  });
+}
+
+// Sync mobile search with main search input (two-way)
+if (mobileSearch && searchInput) {
+  // initialize
+  mobileSearch.value = searchInput.value || "";
+  mobileSearch.addEventListener("input", (ev) => {
+    searchInput.value = ev.target.value;
+    // trigger existing handler
+    searchInput.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  // keep mobileSearch updated when main search changes (e.g., reset)
+  searchInput.addEventListener("input", (ev) => {
+    if (mobileSearch.value !== ev.target.value)
+      mobileSearch.value = ev.target.value;
+  });
+}
+
+// Prevent clicks on filter elements from closing the drawer
+if (filtersCard) {
+  filtersCard.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+  });
+}
+
+// Only close drawer when backdrop itself is clicked (not filter elements)
+if (filtersBackdrop) {
+  filtersBackdrop.addEventListener("click", (ev) => {
+    if (ev.target === filtersBackdrop) {
+      closeFiltersDrawer();
+    }
+  });
+}
 // Data loading functions
 // JS SNIPPET 4: helper to apply canonical classification filters
 function applyClassificationFilters(query) {
@@ -819,6 +1067,19 @@ async function loadPurchaseDetails({ invStockItemId, fromDate, toDate }) {
   return { data };
 }
 
+// NEW: load monthly consumption rows for an item
+async function loadConsumptionMonthly({ invStockItemId }) {
+  let query = supabase
+    .from("v_item_consumption_monthly_by_item")
+    .select()
+    .eq("inv_stock_item_id", invStockItemId)
+    .order("month_start_date", { ascending: true });
+
+  const { data, error } = await query;
+  if (error) return { error: handleSupabaseError(error) };
+  return { data };
+}
+
 // Utility: convert dd-mm-yyyy to ISO yyyy-mm-dd
 function toIso(dstr) {
   if (!dstr) return "";
@@ -939,7 +1200,9 @@ function renderOverviewTable(rows) {
     <th style="vertical-align:middle; text-align:center">Current Stock Rate</th>
     <th style="vertical-align:middle; text-align:center">Total Purchased Qty</th>
     <th style="vertical-align:middle; text-align:center">Avg Purchase Rate</th>
-    <th style="vertical-align:middle; text-align:center">Last Purchase Date</th>
+      <th style="vertical-align:middle; text-align:center">Total Consumed Qty</th>
+      <th style="vertical-align:middle; text-align:center">Usage Months</th>
+      <th style="vertical-align:middle; text-align:center">Last Purchase Date</th>
   </tr></thead><tbody>`;
   rows.forEach((row) => {
     html += `<tr data-id="${row.inv_stock_item_id}"${
@@ -962,6 +1225,12 @@ function renderOverviewTable(rows) {
       <td style="vertical-align:middle; text-align:right">${formatCurrencyINR(
         row.avg_purchase_rate
       )}</td>
+      <td style="vertical-align:middle; text-align:right">${formatIndianNumber(
+        row.total_consumed_qty
+      )}</td>
+      <td style="vertical-align:middle; text-align:center">${
+        row.months_with_usage ?? "–"
+      }</td>
       <td style="vertical-align:middle; text-align:center">${
         row.last_purchase_date ?? "–"
       }</td>
@@ -1066,6 +1335,113 @@ function renderPurchaseSummaryTable(rows) {
   // If an item is selected, show its detail
   if (state.selectedItemId) loadAndRenderPurchaseDetail(state.selectedItemId);
   else sidePanel.classList.remove("active");
+}
+
+// NEW: render consumption summary table
+function renderConsumptionTable(rows, totalCount) {
+  if (!rows || !rows.length) return renderNoData();
+
+  let html = `<table><thead><tr>
+    <th style="vertical-align:middle; text-align:center">Code</th>
+    <th style="vertical-align:middle; text-align:center">Name</th>
+    <th style="vertical-align:middle; text-align:center">Classification</th>
+    <th style="vertical-align:middle; text-align:center">Total Consumed Qty</th>
+    <th style="vertical-align:middle; text-align:center">RM/PLM Issues</th>
+    <th style="vertical-align:middle; text-align:center">Consumables Out</th>
+    <th style="vertical-align:middle; text-align:center">Usage Months</th>
+    <th style="vertical-align:middle; text-align:center">First Month</th>
+    <th style="vertical-align:middle; text-align:center">Last Month</th>
+  </tr></thead><tbody>`;
+
+  rows.forEach((row) => {
+    html += `<tr data-id="${row.inv_stock_item_id}"${
+      row.inv_stock_item_id === state.selectedItemId ? " class='selected'" : ""
+    }>
+      <td style="vertical-align:middle; text-align:center">${row.code}</td>
+      <td style="vertical-align:middle; text-align:left">${row.name}</td>
+      <td style="vertical-align:middle; text-align:center">${formatClassification(
+        row
+      )}</td>
+      <td style="vertical-align:middle; text-align:right">${formatIndianNumber(
+        row.total_consumed_qty
+      )}</td>
+      <td style="vertical-align:middle; text-align:right">${formatIndianNumber(
+        row.rm_pm_issue_qty
+      )}</td>
+      <td style="vertical-align:middle; text-align:right">${formatIndianNumber(
+        row.consumable_out_qty
+      )}</td>
+      <td style="vertical-align:middle; text-align:center">${
+        row.months_with_usage ?? "–"
+      }</td>
+      <td style="vertical-align:middle; text-align:center">${
+        row.first_month ?? "–"
+      }</td>
+      <td style="vertical-align:middle; text-align:center">${
+        row.last_month ?? "–"
+      }</td>
+    </tr>`;
+  });
+
+  html += "</tbody></table>";
+  tableArea.innerHTML = html;
+  hideLoadingMask();
+
+  renderPaginator(
+    totalCount,
+    state.pageConsumption,
+    state.pageSize,
+    "consumption"
+  );
+
+  // Row click: open monthly history modal
+  tableArea.querySelectorAll("tr[data-id]").forEach((tr) => {
+    tr.addEventListener("click", () => {
+      state.selectedItemId = tr.getAttribute("data-id");
+      renderConsumptionTable(rows, totalCount); // re-render highlight
+      loadAndRenderConsumptionMonthly(state.selectedItemId);
+    });
+  });
+}
+
+// NEW: open modal and render monthly consumption for an item
+async function loadAndRenderConsumptionMonthly(invStockItemId) {
+  openDetailModal('<div class="loading">Loading…</div>');
+  const { data, error } = await loadConsumptionMonthly({ invStockItemId });
+  if (error) {
+    modalContent.innerHTML = `<div class="error">${
+      error.userMessage || error.message
+    }</div>`;
+    return;
+  }
+  if (!data || !data.length) {
+    modalContent.innerHTML =
+      '<div class="no-data">No consumption history found.</div>';
+    return;
+  }
+
+  let html = `<h3 style="margin-top:0">Monthly Consumption</h3>
+    <div class="modal-table-wrap">
+      <table class="erp-table">
+        <thead><tr>
+          <th style="width:120px">Month</th>
+          <th style="width:120px; text-align:right">RM/PLM Issues</th>
+          <th style="width:140px; text-align:right">Consumables Out</th>
+          <th style="width:140px; text-align:right">Total Consumed</th>
+        </tr></thead>
+        <tbody>`;
+
+  data.forEach((row) => {
+    html += `<tr>
+      <td>${row.month_label ?? row.month_start_date ?? "–"}</td>
+      <td class="numeric">${formatIndianNumber(row.rm_pm_issue_qty)}</td>
+      <td class="numeric">${formatIndianNumber(row.consumable_out_qty)}</td>
+      <td class="numeric">${formatIndianNumber(row.total_consumed_qty)}</td>
+    </tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+  modalContent.innerHTML = html;
 }
 
 // Paginator renderer and navigation
@@ -1239,6 +1615,7 @@ function goToPage(tab, newPage) {
   if (tab === "overview") state.pageOverview = newPage;
   else if (tab === "stock") state.pageStock = newPage;
   else if (tab === "purchase") state.pagePurchase = newPage;
+  else if (tab === "consumption") state.pageConsumption = newPage;
   else return;
   reloadActiveTab();
 }
@@ -1327,6 +1704,16 @@ async function reloadActiveTab(preselectId) {
     if (res.error)
       return renderError(res.error.userMessage || res.error.message);
     renderPurchaseSummaryTable(res.data, res.count || 0);
+  } else if (state.currentTab === "consumption") {
+    const res = await loadOverviewItems({
+      sourceKind: state.currentSourceKind,
+      searchText: state.currentSearchText,
+      page: state.pageConsumption,
+      pageSize: state.pageSize,
+    });
+    if (res.error)
+      return renderError(res.error.userMessage || res.error.message);
+    renderConsumptionTable(res.data, res.count || 0);
   }
   // table area uses CSS flex + internal scrolling; pagination controlled by page-size selector
   try {

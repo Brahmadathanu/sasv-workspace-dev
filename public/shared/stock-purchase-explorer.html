@@ -87,26 +87,32 @@
         flex-wrap: nowrap;
       }
       .filters-primary .primary-item {
-        min-width: 160px;
-        flex: 0 1 auto;
+        /* Use flexible widths so controls can grow/shrink based on available space.
+           `min-width:0` is important to allow flex items to shrink below their
+           content width when necessary. Individual controls will use `clamp`
+           and sensible flex-basis values to remain usable. */
+        flex: 1 1 auto;
+        min-width: 0;
       }
       /* ordering: source kind (promoted) -> search -> date -> reset -> advanced toggle */
       .filters-primary .primary-item.source {
         order: 0;
-        flex: 0 0 160px;
-        min-width: 120px;
+        /* Prefer a moderate fixed basis but allow shrink/grow. Use clamp to
+           provide an intelligent width range that adapts to viewport size. */
+        flex: 0 1 140px;
+        width: clamp(96px, 14%, 160px);
       }
       .filters-primary .primary-item.search {
         order: 1;
       }
       .filters-primary .primary-item.reset {
         order: 3;
-        margin-left: auto; /* push reset to the right, advanced will follow */
+        margin-left: 8px; /* reduced gap: keep reset near other controls */
         flex: 0 0 auto;
       }
       .advanced-toggle-container {
         order: 4;
-        margin-left: 8px; /* small gap between reset and Advanced */
+        margin-left: auto; /* align Advanced toggle to the right */
         display: flex;
         align-items: center;
         align-self: flex-end; /* align toggle to lower border of filter fields */
@@ -114,8 +120,11 @@
       }
       /* Make search larger and date inputs compact */
       .filters-primary .primary-item.search {
-        flex: 0 0 420px; /* fixed preferred width to avoid large gaps */
-        min-width: 240px;
+        /* Search should be the most flexible control: take remaining space
+           but allow shrink to small widths on narrow screens. Keep a useful
+           maximum so it doesn't become excessively wide on large screens. */
+        flex: 1 1 40%;
+        min-width: 0;
         max-width: 560px;
       }
       .input-with-icon {
@@ -127,8 +136,9 @@
         box-sizing: border-box;
       }
       .filters-primary .primary-item.date {
-        flex: 0 0 220px;
-        min-width: 160px;
+        /* Date range needs moderate space but should shrink gracefully. */
+        flex: 0 1 180px;
+        width: clamp(120px, 20%, 260px);
       }
 
       /* Responsive: stack primary filters on narrow screens */
@@ -149,6 +159,183 @@
           margin-left: 0;
           width: 100%;
           justify-content: flex-end;
+        }
+      }
+      /* Ensure Advanced toggle remains visually inside the filters card for
+         intermediate widths (between small mobile and desktop). This adds a
+         right padding so the toggle doesn't overflow when other primary
+         controls have fixed min-widths. It applies only when viewport is
+         wider than mobile collapse but narrower than larger desktops. */
+      @media (max-width: 900px) and (min-width: 521px) {
+        .filters-card {
+          padding-right: 72px; /* reserve space for Advanced toggle */
+          box-sizing: border-box;
+        }
+        .advanced-toggle-container {
+          margin-left: 0;
+          justify-content: flex-end;
+          align-self: center;
+        }
+      }
+      /* Global backdrop for mobile drawer */
+      .drawer-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(2, 6, 23, 0.6);
+        z-index: 1400; /* sits below the filters card but above page content */
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.22s ease, visibility 0s linear 0.22s;
+        pointer-events: none;
+      }
+      .drawer-backdrop.show {
+        opacity: 1;
+        visibility: visible;
+        transition: opacity 0.22s ease;
+        pointer-events: auto;
+      }
+
+      /* Mobile: collapse filters-card to a compact header; expanded when .expanded present */
+      @media (max-width: 520px) {
+        .filters-card {
+          max-height: 76px;
+          overflow: hidden;
+          padding: 10px;
+          transition: max-height 0.28s ease, padding 0.18s ease;
+        }
+        .filters-card.expanded {
+          max-height: 640px; /* allow full expansion when user opens */
+        }
+        .filters-primary {
+          gap: 8px;
+          align-items: center;
+        }
+        .filters-primary .primary-item.search {
+          flex: 1 1 100%;
+          min-width: 0;
+        }
+        .filters-primary .primary-item.date {
+          flex: 0 0 140px;
+        }
+        .filters-grid {
+          grid-template-columns: 1fr;
+        }
+        .advanced-toggle-container {
+          width: 100%;
+          justify-content: flex-end;
+        }
+        /* Hide the in-flow primary filter bar in the page flow (we show a compact
+             search above the table). When the off-canvas drawer is opened, reveal
+             the full primary filters inside the drawer in a vertical layout so
+             all controls (including Source Kind) are accessible. */
+        .filters-primary {
+          display: none;
+        }
+        .filters-card.open .filters-primary {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .filters-card.open .filters-primary .primary-item {
+          width: 100%;
+          flex: 1 1 auto;
+          min-width: 0;
+        }
+      }
+      /* Mobile: show only the search above the table and move other filters
+         into a left off-canvas drawer. The mobile Filters button opens the
+         drawer. */
+      @media (max-width: 520px) {
+        /* Position filters-card off-canvas by default */
+        .filters-card {
+          position: fixed;
+          left: -100%;
+          /* occupy the full viewport so the drawer can show all filters */
+          top: 0;
+          height: 100vh;
+          width: 86%;
+          max-width: 420px;
+          z-index: 1500; /* sit above the backdrop */
+          background: var(--erp-card);
+          border-radius: 0 12px 12px 0;
+          box-shadow: 2px 0 22px rgba(2, 6, 23, 0.18);
+          overflow: auto;
+          /* ensure content isn't obscured by the close button; JS will set
+             an appropriate padding-top equal to the header height when opened */
+          padding-top: 48px;
+          transition: left 0.28s ease;
+          padding: 12px;
+        }
+        .filters-card.open {
+          left: 0;
+        }
+
+        /* Close button inside drawer (mobile) */
+        .filters-card .drawer-close {
+          position: absolute;
+          top: 8px;
+          right: 12px;
+          z-index: 1260;
+          background: transparent;
+          border: none;
+          padding: 6px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 8px;
+          cursor: pointer;
+          color: var(--erp-text);
+        }
+        .filters-card .drawer-close:focus {
+          outline: 2px solid rgba(37, 99, 235, 0.16);
+        }
+        /* ensure the close button is visible on mobile */
+        .filters-card .drawer-close {
+          display: inline-flex;
+        }
+
+        /* Allow the advanced drawer inside the mobile off-canvas to expand fully
+           and be scrollable instead of being constrained by the default
+           `max-height: 420px` used on larger screens. */
+        .filters-card .advanced-drawer {
+          max-height: none;
+          overflow: auto;
+          padding-top: 8px;
+        }
+
+        /* Hide the in-flow primary filter bar (we show a compact search above the table) */
+        .filters-primary {
+          display: none;
+        }
+
+        /* Show mobile search bar and filters button */
+        #mobileSearchWrap {
+          display: block;
+        }
+        #mobileFiltersBtn {
+          display: inline-flex;
+        }
+
+        /* reduce title and hide subtitle on very small screens */
+        .page-header h1 {
+          font-size: 16px;
+          line-height: 1.1;
+          white-space: normal;
+          overflow: visible;
+          text-overflow: initial;
+          max-width: none;
+          flex: 1 1 auto;
+          margin: 0;
+        }
+        .page-header .hint {
+          display: none;
+        }
+        /* reduce page padding on small screens */
+        .page {
+          padding: 10px;
         }
       }
       .input-with-icon {
@@ -213,6 +400,16 @@
       .advanced-drawer.open {
         max-height: 420px; /* enough for the grid */
         padding-top: 12px;
+      }
+      /* Ensure drawer stays within the filters card at intermediate widths */
+      .filters-card {
+        overflow: visible; /* allow the advanced drawer to expand without clipping */
+      }
+      .advanced-drawer {
+        position: relative;
+        z-index: 2;
+        box-sizing: border-box;
+        width: 100%;
       }
       /* Filters: modern ERP style */
       .filters-grid label {
@@ -376,6 +573,13 @@
         border-bottom: 1px solid var(--erp-border);
         padding-bottom: 4px;
       }
+      /* Hide mobile-only controls on wider screens; shown in small-screen media query */
+      @media (min-width: 521px) {
+        #mobileFiltersBtn,
+        #mobileSearchWrap {
+          display: none;
+        }
+      }
       /* ERP-style tabs matching manage-plm-bom */
       .tabs-nav {
         display: flex;
@@ -400,6 +604,14 @@
         font-weight: 600;
         font-size: 13px;
         transition: all 0.18s ease;
+      }
+      /* Header left: default stack title + subtitle (large screens)
+         but switch to row on small screens where we show mobile filters button */
+      .header-left {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        align-items: flex-start;
       }
       .tab-btn[aria-selected="true"] {
         background: #ffffff;
@@ -865,6 +1077,12 @@
           flex-wrap: wrap;
           gap: 4px;
         }
+        /* On small screens use header-left as a row so icon + title fit */
+        .header-left {
+          flex-direction: row;
+          align-items: center;
+          gap: 8px;
+        }
         .tab-btn {
           padding: 8px 12px;
           font-size: 12px;
@@ -880,7 +1098,27 @@
   <body data-theme="system">
     <div class="page">
       <header class="page-header">
-        <div>
+        <div class="header-left">
+          <button
+            id="mobileFiltersBtn"
+            class="link-btn"
+            type="button"
+            aria-label="Open filters"
+            title="Filters"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <path d="M3 5h18M6 12h12M10 19h4" />
+            </svg>
+          </button>
+
           <h1 style="margin: 0; text-align: left">Stock & Purchase Explorer</h1>
           <p
             class="hint"
@@ -907,7 +1145,59 @@
         </div>
       </header>
 
+      <!-- Mobile search: visible only on small screens, synced with #search -->
+      <div id="mobileSearchWrap" style="padding: 6px 0">
+        <div class="card" style="padding: 8px">
+          <div class="input-with-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle
+                cx="11"
+                cy="11"
+                r="7"
+                stroke="currentColor"
+                stroke-width="2"
+              ></circle>
+              <line
+                x1="21"
+                y1="21"
+                x2="16.65"
+                y2="16.65"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+              ></line>
+            </svg>
+            <input
+              id="mobileSearch"
+              type="text"
+              placeholder="Item code or name"
+            />
+          </div>
+        </div>
+      </div>
+
       <section class="card filters-card">
+        <button
+          id="filtersCloseBtn"
+          class="drawer-close"
+          type="button"
+          aria-label="Close filters"
+          title="Close filters"
+          style="display: none"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
         <!-- Primary filters always visible -->
         <div class="filters-primary">
           <div class="primary-item source">
@@ -1075,6 +1365,7 @@
             <button class="tab-btn" data-tab="purchase">
               Purchase History
             </button>
+            <button class="tab-btn" data-tab="consumption">Consumption</button>
           </div>
           <div class="table-header">
             <h3>Records</h3>
@@ -1117,6 +1408,7 @@
     </div>
     <!-- Toast container for transient status toasts (ERP-style) -->
     <div id="statusToastContainer" aria-live="polite" aria-atomic="true"></div>
+    <div id="filtersBackdrop" class="drawer-backdrop" tabindex="-1"></div>
     <script src="../vendor/flatpickr.min.js"></script>
     <script src="../vendor/plugins/confirmDate/confirmDate.js"></script>
     <script src="../vendor/tom-select/tom-select.complete.min.js"></script>
