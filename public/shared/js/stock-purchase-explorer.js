@@ -38,7 +38,6 @@ const subcategoryFilter = document.getElementById("subcategoryFilter");
 const groupFilter = document.getElementById("groupFilter");
 const subgroupFilter = document.getElementById("subgroupFilter");
 const filtersCard = document.querySelector(".filters-card");
-const filtersCloseBtn = document.getElementById("filtersCloseBtn");
 
 const searchInput = document.getElementById("search");
 const dateRangeInput = document.getElementById("dateRange");
@@ -47,6 +46,7 @@ const advancedDrawer = document.getElementById("advancedDrawer");
 const resetFiltersBtn = document.getElementById("resetFiltersBtn");
 
 const tabButtons = document.querySelectorAll(".tab-btn");
+const tabSelect = document.getElementById("tabSelect");
 const tableArea = document.getElementById("tableArea");
 const tableCard = document.querySelector(".table-card");
 const sidePanel = document.getElementById("sidePanel"); // preserved but hidden; modal used instead
@@ -235,14 +235,30 @@ if (subgroupFilter) {
   });
 }
 
+// Debounce search input to prevent focus loss during rapid typing
+let _searchDebounceTimer = null;
 searchInput.addEventListener("input", () => {
   resetPages();
   state.currentSearchText = searchInput.value.trim();
-  reloadActiveTab();
+  // Clear any pending search to avoid overlapping requests
+  if (_searchDebounceTimer) {
+    clearTimeout(_searchDebounceTimer);
+  }
+  // Debounce reload to prevent focus loss during rapid typing
+  _searchDebounceTimer = setTimeout(() => {
+    _searchDebounceTimer = null;
+    reloadActiveTab();
+  }, 500);
 });
 
 // Reset all filters to their default state and reload
 function resetAllFilters() {
+  // Clear any pending search operations
+  if (_searchDebounceTimer) {
+    clearTimeout(_searchDebounceTimer);
+    _searchDebounceTimer = null;
+  }
+
   // reset state
   state.currentSearchText = "";
   state.currentFromDate = "";
@@ -257,6 +273,9 @@ function resetAllFilters() {
   if (searchInput) {
     searchInput.value = "";
     searchInput.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+  if (mobileSearch) {
+    mobileSearch.value = "";
   }
   if (dateRangeInput && dateRangeInput._flatpickr) {
     try {
@@ -273,6 +292,14 @@ function resetAllFilters() {
   fillEmptySelect(subcategoryFilter, "(All sub-categories)");
   fillEmptySelect(groupFilter, "(All groups)");
   fillEmptySelect(subgroupFilter, "(All sub-groups)");
+
+  // Update clear button visibility after reset
+  if (typeof toggleMobileClearButton === "function") {
+    toggleMobileClearButton();
+  }
+  if (typeof toggleMainClearButton === "function") {
+    toggleMainClearButton();
+  }
 
   // reset pagination and reload
   resetPages();
@@ -305,27 +332,47 @@ tabButtons.forEach((btn) => {
   });
 });
 
+// Wire compact tab selector (mobile) to same behavior
+if (tabSelect) {
+  tabSelect.addEventListener("change", (ev) => {
+    const v = ev.target.value;
+    if (!v) return;
+    state.currentTab = v;
+    setActiveTab(state.currentTab);
+    reloadActiveTab();
+  });
+}
+
 // Advanced drawer toggle
 if (advToggleBtn && advancedDrawer) {
   function setAdvancedOpen(open) {
     if (!advancedDrawer) return;
+    const isMobile = typeof window !== "undefined" && window.innerWidth <= 520;
+
     if (open) {
       advancedDrawer.classList.add("open");
       advancedDrawer.setAttribute("aria-hidden", "false");
-      advToggleBtn.setAttribute("aria-expanded", "true");
-      advToggleBtn.classList.add("open");
+      if (advToggleBtn) {
+        advToggleBtn.setAttribute("aria-expanded", "true");
+        advToggleBtn.classList.add("open");
+      }
+      // Force a reflow on mobile to ensure proper rendering
+      if (isMobile) {
+        void advancedDrawer.offsetHeight;
+      }
       const first = advancedDrawer.querySelector("select, input, button");
       if (first && typeof first.focus === "function") first.focus();
     } else {
       advancedDrawer.classList.remove("open");
       advancedDrawer.setAttribute("aria-hidden", "true");
-      advToggleBtn.setAttribute("aria-expanded", "false");
-      advToggleBtn.classList.remove("open");
+      if (advToggleBtn) {
+        advToggleBtn.setAttribute("aria-expanded", "false");
+        advToggleBtn.classList.remove("open");
+      }
     }
     // On wider screens (not the mobile slide-down mode) expand/collapse the
-    // whole filters card. For mobile (<=520px) we use an absolutely
-    // positioned slide-down drawer instead, so avoid toggling the card's
-    // expanded class there to prevent layout conflicts.
+    // whole filters card. For mobile (<=520px) the advanced drawer should
+    // always be accessible when the main drawer is open.
     try {
       if (
         window &&
@@ -360,6 +407,14 @@ function setActiveTab(name) {
     b.classList.toggle("active", on);
     b.setAttribute("aria-selected", on ? "true" : "false");
   });
+  // Keep compact select in sync on small screens
+  if (tabSelect) {
+    try {
+      tabSelect.value = name;
+    } catch {
+      /* ignore */
+    }
+  }
 }
 // ---------- Classification / taxonomy population (cascading selects)
 async function loadClassificationOptions(attempt = 1) {
@@ -597,7 +652,7 @@ function _maintainFocus(e) {
   if (modalClose) modalClose.focus();
 }
 
-function setBackgroundInert(enable) {
+function setBackgroundInert(enable, exceptions = []) {
   const page = document.querySelector(".page");
   if (!page) return;
   // Use native inert if available
@@ -615,8 +670,12 @@ function setBackgroundInert(enable) {
     "[tabindex]",
   ].join(",");
   if (enable) {
+    // Build a list of exception elements (keep them interactive)
+    const exceptionEls = [modalOverlay]
+      .concat(exceptions || [])
+      .filter(Boolean);
     _backgroundDisabled = Array.from(page.querySelectorAll(selectors)).filter(
-      (el) => !modalOverlay.contains(el)
+      (el) => !exceptionEls.some((ex) => ex && ex.contains && ex.contains(el))
     );
     _backgroundDisabled.forEach((el) => {
       const prev = el.getAttribute("tabindex");
@@ -644,7 +703,7 @@ function openDetailModal(html) {
   const page = document.querySelector(".page");
   if (page) page.setAttribute("aria-hidden", "true");
   // make background inert (or fallback)
-  setBackgroundInert(true);
+  setBackgroundInert(true, [modalOverlay]);
   // compute focusable elements inside modal
   _modalFocusable = _getFocusable(modalOverlay);
   // ensure close button is focusable and focus it
@@ -712,176 +771,288 @@ document.addEventListener("keydown", (ev) => {
   }
 });
 
-// Mobile filters drawer elements
+// Mobile filters modal elements
 const mobileFiltersBtn = document.getElementById("mobileFiltersBtn");
-const filtersBackdrop = document.getElementById("filtersBackdrop");
+const mobileFiltersModal = document.getElementById("mobileFiltersModal");
+const mobileFiltersClose = document.getElementById("mobileFiltersClose");
+const mobileFiltersContent = document.getElementById("mobileFiltersContent");
+const mobileFiltersApply = document.getElementById("mobileFiltersApply");
+const mobileFiltersReset = document.getElementById("mobileFiltersReset");
 const mobileSearch = document.getElementById("mobileSearch");
-let _drawerFocusable = [];
-let _drawerKeyHandler = null;
-let _drawerFocusMaintainer = null;
 
-function openFiltersDrawer() {
+// Debug: Check if close button is found
+console.log("mobileFiltersClose element:", mobileFiltersClose);
+
+// Store original filter values for comparison
+let _mobileFilterValues = {
+  sourceKind: "all",
+  search: "",
+  dateRange: "",
+  categoryCode: "all",
+  subcategoryCode: "all",
+  groupCode: "all",
+  subgroupCode: "all",
+};
+
+function openMobileFiltersModal() {
+  if (!mobileFiltersModal) {
+    console.error("mobileFiltersModal not found!");
+    return;
+  }
+
+  console.log("Opening mobile filters modal...");
+
+  // Store current filter values
+  _mobileFilterValues = {
+    sourceKind: state.currentSourceKind,
+    search: state.currentSearchText,
+    dateRange: dateRangeInput ? dateRangeInput.value : "",
+    categoryCode: state.currentCategoryCode,
+    subcategoryCode: state.currentSubcategoryCode,
+    groupCode: state.currentGroupCode,
+    subgroupCode: state.currentSubgroupCode,
+  };
+
+  // Populate modal content with current filters
+  populateMobileFiltersModal();
+
+  // Show modal
   _lastActiveElement = document.activeElement;
-  const isMobile = typeof window !== "undefined" && window.innerWidth <= 520;
-  const targetEl = isMobile ? filtersCard : advancedDrawer;
-  if (!targetEl) return;
+  mobileFiltersModal.classList.add("open");
+  mobileFiltersModal.setAttribute("aria-hidden", "false");
 
-  if (isMobile) {
-    // open left off-canvas filters card
-    // compute header height so drawer sits below it and uses remaining viewport
-    try {
-      const header = document.querySelector(".page-header");
-      const headerBottom = header
-        ? Math.round(header.getBoundingClientRect().bottom)
-        : 56;
-      // make the drawer occupy the full viewport but offset internal content
-      // below the header by setting paddingTop. This avoids the drawer being
-      // visually clipped while keeping the header visible.
-      filtersCard.style.top = "0px";
-      filtersCard.style.height = window.innerHeight + "px";
-      filtersCard.style.paddingTop = headerBottom + "px";
-    } catch {
-      /* ignore */
-    }
-    filtersCard.classList.add("open");
-    // show close button inside drawer on mobile
-    if (filtersCloseBtn) filtersCloseBtn.style.display = "inline-flex";
-    // ensure the advanced drawer inside the card is visible on mobile
-    try {
-      if (advancedDrawer && !advancedDrawer.classList.contains("open")) {
-        advancedDrawer.classList.add("open");
-        advancedDrawer.setAttribute("aria-hidden", "false");
-      }
-    } catch {
-      /* ignore */
-    }
-    if (filtersBackdrop) filtersBackdrop.classList.add("show");
-  } else {
-    // open slide-down advanced drawer via the toggle so shared logic runs
-    if (
-      advToggleBtn &&
-      advancedDrawer &&
-      !advancedDrawer.classList.contains("open")
-    ) {
-      try {
-        advToggleBtn.click();
-      } catch {
-        advancedDrawer.classList.add("open");
-        advancedDrawer.setAttribute("aria-hidden", "false");
-        if (advToggleBtn) advToggleBtn.setAttribute("aria-expanded", "true");
-      }
-    }
-    if (filtersBackdrop) filtersBackdrop.classList.add("show");
+  // Debug: Check if modal is visible and close button exists
+  console.log("Modal classes:", mobileFiltersModal.className);
+  console.log("Modal display:", getComputedStyle(mobileFiltersModal).display);
+
+  const closeBtn = document.getElementById("mobileFiltersClose");
+  console.log("Close button:", closeBtn);
+  if (closeBtn) {
+    console.log("Close button display:", getComputedStyle(closeBtn).display);
+    console.log(
+      "Close button visibility:",
+      getComputedStyle(closeBtn).visibility
+    );
   }
 
-  // make background inert for accessibility
-  try {
-    setBackgroundInert(true);
-  } catch {
-    /* ignore */
-  }
+  // Set up focus trap and background inert
+  setBackgroundInert(true, [mobileFiltersModal]);
 
-  // focus first focusable element inside the target drawer
-  _drawerFocusable = _getFocusable(targetEl);
-  if (_drawerFocusable && _drawerFocusable.length) {
-    try {
-      _drawerFocusable[0].focus();
-    } catch {
-      /* ignore */
-    }
-  }
-
-  // trap TAB inside the opened drawer
-  _drawerKeyHandler = function (e) {
-    if (e.key !== "Tab") return;
-    if (!_drawerFocusable || !_drawerFocusable.length) return;
-    const first = _drawerFocusable[0];
-    const last = _drawerFocusable[_drawerFocusable.length - 1];
-    const active = document.activeElement;
-    if (e.shiftKey) {
-      if (active === first || active === targetEl) {
-        e.preventDefault();
-        last.focus();
-      }
-    } else {
-      if (active === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    }
-  };
-  document.addEventListener("keydown", _drawerKeyHandler);
-
-  // maintain focus: if focus moves outside the drawer, bring it back to the opener
-  _drawerFocusMaintainer = function (ev) {
-    if (!targetEl || targetEl.contains(ev.target)) return;
-    ev.stopPropagation();
-    if (mobileFiltersBtn) mobileFiltersBtn.focus();
-  };
-  document.addEventListener("focus", _drawerFocusMaintainer, true);
+  // Focus first element in modal
+  const firstInput = mobileFiltersModal.querySelector("input, select, button");
+  if (firstInput) firstInput.focus();
 }
 
-function closeFiltersDrawer() {
-  const isMobile = typeof window !== "undefined" && window.innerWidth <= 520;
-  const targetEl = isMobile ? filtersCard : advancedDrawer;
-  if (!targetEl) return;
+function closeMobileFiltersModal() {
+  if (!mobileFiltersModal) return;
 
-  if (isMobile) {
-    // close left off-canvas filters card
-    filtersCard.classList.remove("open");
-    // hide close button
-    if (filtersCloseBtn) filtersCloseBtn.style.display = "none";
-    // collapse internal advanced drawer when closing mobile card
-    try {
-      if (advancedDrawer && advancedDrawer.classList.contains("open")) {
-        advancedDrawer.classList.remove("open");
-        advancedDrawer.setAttribute("aria-hidden", "true");
-      }
-    } catch {
-      /* ignore */
-    }
-    if (filtersBackdrop) filtersBackdrop.classList.remove("show");
-    // remove any inline sizing to restore default
-    if (filtersCard) {
-      filtersCard.style.top = "";
-      filtersCard.style.height = "";
-      filtersCard.style.paddingTop = "";
-    }
-  } else {
-    // close the advanced drawer via the toggle
-    if (advToggleBtn && advancedDrawer.classList.contains("open")) {
-      try {
-        advToggleBtn.click();
-      } catch {
-        advancedDrawer.classList.remove("open");
-        advancedDrawer.setAttribute("aria-hidden", "true");
-        if (advToggleBtn) advToggleBtn.setAttribute("aria-expanded", "false");
-      }
-    }
-    if (filtersBackdrop) filtersBackdrop.classList.remove("show");
+  // Hide modal
+  mobileFiltersModal.classList.remove("open");
+  mobileFiltersModal.setAttribute("aria-hidden", "true");
+
+  // Remove background inert
+  setBackgroundInert(false);
+
+  // Restore focus
+  if (_lastActiveElement && typeof _lastActiveElement.focus === "function") {
+    _lastActiveElement.focus();
+  }
+}
+
+function populateMobileFiltersModal() {
+  if (!mobileFiltersContent) return;
+
+  const html = `
+    <div class="filters-section">
+      <h4>Basic Filters</h4>
+      
+      <div class="filter-row">
+        <label for="mobileSourceKind">Source Kind</label>
+        <select id="mobileSourceKind">
+          <option value="all">All</option>
+          <option value="RM">Raw Materials</option>
+          <option value="PLM">PLM Items</option>
+          <option value="consumable">Consumables</option>
+          <option value="fuel">Fuel</option>
+        </select>
+      </div>
+      
+      <div class="filter-row">
+        <label for="mobileSearchInput">Search</label>
+        <input type="text" id="mobileSearchInput" placeholder="Search items..." value="${_mobileFilterValues.search}">
+      </div>
+      
+      <div class="filter-row">
+        <label for="mobileDateRange">Date Range (Purchases only)</label>
+        <input type="text" id="mobileDateRange" placeholder="Select date range" value="${_mobileFilterValues.dateRange}">
+      </div>
+    </div>
+    
+    <div class="filters-section">
+      <h4>Classification Filters</h4>
+      
+      <div class="filter-row">
+        <label for="mobileCategoryFilter">Category</label>
+        <select id="mobileCategoryFilter">
+          <option value="all">(All categories)</option>
+        </select>
+      </div>
+      
+      <div class="filter-row">
+        <label for="mobileSubcategoryFilter">Sub-category</label>
+        <select id="mobileSubcategoryFilter">
+          <option value="all">(All sub-categories)</option>
+        </select>
+      </div>
+      
+      <div class="filter-row">
+        <label for="mobileGroupFilter">Group</label>
+        <select id="mobileGroupFilter">
+          <option value="all">(All groups)</option>
+        </select>
+      </div>
+      
+      <div class="filter-row">
+        <label for="mobileSubgroupFilter">Sub-group</label>
+        <select id="mobileSubgroupFilter">
+          <option value="all">(All sub-groups)</option>
+        </select>
+      </div>
+    </div>
+  `;
+
+  mobileFiltersContent.innerHTML = html;
+
+  // Set current values
+  const mobileSourceKind = document.getElementById("mobileSourceKind");
+  const mobileDateRange = document.getElementById("mobileDateRange");
+  const mobileCategoryFilter = document.getElementById("mobileCategoryFilter");
+
+  if (mobileSourceKind) mobileSourceKind.value = _mobileFilterValues.sourceKind;
+
+  // Populate category options if available
+  if (mobileCategoryFilter && cacheCat && cacheCat.length) {
+    mobileCategoryFilter.innerHTML =
+      `<option value="all">(All categories)</option>` +
+      cacheCat
+        .map(
+          (c) =>
+            `<option value="${c.code}">${c.code} — ${
+              c.label || c.code
+            }</option>`
+        )
+        .join("");
+    mobileCategoryFilter.value = _mobileFilterValues.categoryCode;
   }
 
-  try {
-    setBackgroundInert(false);
-  } catch {
-    /* ignore */
+  // Set up date picker for mobile date range if flatpickr is available
+  if (mobileDateRange && window.flatpickr) {
+    window.flatpickr(mobileDateRange, {
+      mode: "range",
+      dateFormat: "d-m-Y",
+      allowInput: true,
+    });
+  }
+}
+
+function applyMobileFilters() {
+  // Get values from modal inputs
+  const mobileSourceKind = document.getElementById("mobileSourceKind");
+  const mobileSearchInput = document.getElementById("mobileSearchInput");
+  const mobileDateRange = document.getElementById("mobileDateRange");
+  const mobileCategoryFilter = document.getElementById("mobileCategoryFilter");
+  const mobileSubcategoryFilter = document.getElementById(
+    "mobileSubcategoryFilter"
+  );
+  const mobileGroupFilter = document.getElementById("mobileGroupFilter");
+  const mobileSubgroupFilter = document.getElementById("mobileSubgroupFilter");
+
+  // Update main filter state
+  if (mobileSourceKind) {
+    state.currentSourceKind = mobileSourceKind.value;
+    if (classificationSelect)
+      classificationSelect.value = mobileSourceKind.value;
   }
 
-  if (_drawerKeyHandler) {
-    document.removeEventListener("keydown", _drawerKeyHandler);
-    _drawerKeyHandler = null;
+  if (mobileSearchInput) {
+    state.currentSearchText = mobileSearchInput.value.trim();
+    if (searchInput) searchInput.value = mobileSearchInput.value;
+    if (mobileSearch) mobileSearch.value = mobileSearchInput.value;
   }
-  if (_drawerFocusMaintainer) {
-    document.removeEventListener("focus", _drawerFocusMaintainer, true);
-    _drawerFocusMaintainer = null;
+
+  if (mobileDateRange && dateRangeInput) {
+    dateRangeInput.value = mobileDateRange.value;
+    // Parse date range for state
+    const dateStr = mobileDateRange.value;
+    if (dateStr && dateStr.includes(" to ")) {
+      const [fromDate, toDate] = dateStr.split(" to ");
+      state.currentFromDate = fromDate.trim();
+      state.currentToDate = toDate.trim();
+    } else {
+      state.currentFromDate = "";
+      state.currentToDate = "";
+    }
   }
-  // restore focus
-  try {
-    if (_lastActiveElement && typeof _lastActiveElement.focus === "function")
-      _lastActiveElement.focus();
-  } catch {
-    /* ignore */
+
+  if (mobileCategoryFilter) {
+    state.currentCategoryCode = mobileCategoryFilter.value;
+    if (categoryFilter) categoryFilter.value = mobileCategoryFilter.value;
   }
+
+  if (mobileSubcategoryFilter) {
+    state.currentSubcategoryCode = mobileSubcategoryFilter.value;
+    if (subcategoryFilter)
+      subcategoryFilter.value = mobileSubcategoryFilter.value;
+  }
+
+  if (mobileGroupFilter) {
+    state.currentGroupCode = mobileGroupFilter.value;
+    if (groupFilter) groupFilter.value = mobileGroupFilter.value;
+  }
+
+  if (mobileSubgroupFilter) {
+    state.currentSubgroupCode = mobileSubgroupFilter.value;
+    if (subgroupFilter) subgroupFilter.value = mobileSubgroupFilter.value;
+  }
+
+  // Reset pagination and reload data
+  resetPages();
+  reloadActiveTab();
+
+  // Update clear button visibility after applying values
+  if (typeof toggleMobileClearButton === "function") {
+    toggleMobileClearButton();
+  }
+  if (typeof toggleMainClearButton === "function") {
+    toggleMainClearButton();
+  }
+
+  // Close modal
+  closeMobileFiltersModal();
+
+  // Show confirmation
+  showStatusToast("Filters applied", "success", 2000);
+}
+
+function resetMobileFilters() {
+  // Reset all filter inputs in modal to defaults
+  const mobileSourceKind = document.getElementById("mobileSourceKind");
+  const mobileSearchInput = document.getElementById("mobileSearchInput");
+  const mobileDateRange = document.getElementById("mobileDateRange");
+  const mobileCategoryFilter = document.getElementById("mobileCategoryFilter");
+  const mobileSubcategoryFilter = document.getElementById(
+    "mobileSubcategoryFilter"
+  );
+  const mobileGroupFilter = document.getElementById("mobileGroupFilter");
+  const mobileSubgroupFilter = document.getElementById("mobileSubgroupFilter");
+
+  if (mobileSourceKind) mobileSourceKind.value = "all";
+  if (mobileSearchInput) mobileSearchInput.value = "";
+  if (mobileDateRange) mobileDateRange.value = "";
+  if (mobileCategoryFilter) mobileCategoryFilter.value = "all";
+  if (mobileSubcategoryFilter) mobileSubcategoryFilter.value = "all";
+  if (mobileGroupFilter) mobileGroupFilter.value = "all";
+  if (mobileSubgroupFilter) mobileSubgroupFilter.value = "all";
 }
 
 if (mobileFiltersBtn) {
@@ -890,22 +1061,57 @@ if (mobileFiltersBtn) {
     ev.stopPropagation();
     const isMobile = typeof window !== "undefined" && window.innerWidth <= 520;
     if (isMobile) {
-      if (filtersCard && filtersCard.classList.contains("open"))
-        closeFiltersDrawer();
-      else openFiltersDrawer();
+      openMobileFiltersModal();
     } else {
-      if (advancedDrawer && advancedDrawer.classList.contains("open"))
-        closeFiltersDrawer();
-      else openFiltersDrawer();
+      // On larger screens, toggle the advanced drawer using the existing toggle button
+      if (advToggleBtn) {
+        advToggleBtn.click();
+      }
     }
   });
 }
-if (filtersCloseBtn) {
-  filtersCloseBtn.addEventListener("click", (ev) => {
+
+// Mobile filters modal event handlers
+if (mobileFiltersClose) {
+  mobileFiltersClose.addEventListener("click", (ev) => {
     ev.preventDefault();
-    closeFiltersDrawer();
+    closeMobileFiltersModal();
   });
 }
+
+if (mobileFiltersApply) {
+  mobileFiltersApply.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    applyMobileFilters();
+  });
+}
+
+if (mobileFiltersReset) {
+  mobileFiltersReset.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    resetMobileFilters();
+  });
+}
+
+// Close modal when clicking backdrop
+if (mobileFiltersModal) {
+  mobileFiltersModal.addEventListener("click", (ev) => {
+    if (ev.target === mobileFiltersModal) {
+      closeMobileFiltersModal();
+    }
+  });
+}
+
+// Close modal on escape key
+document.addEventListener("keydown", (ev) => {
+  if (
+    ev.key === "Escape" &&
+    mobileFiltersModal &&
+    mobileFiltersModal.classList.contains("open")
+  ) {
+    closeMobileFiltersModal();
+  }
+});
 
 // Sync mobile search with main search input (two-way)
 if (mobileSearch && searchInput) {
@@ -913,8 +1119,17 @@ if (mobileSearch && searchInput) {
   mobileSearch.value = searchInput.value || "";
   mobileSearch.addEventListener("input", (ev) => {
     searchInput.value = ev.target.value;
-    // trigger existing handler
-    searchInput.dispatchEvent(new Event("input", { bubbles: true }));
+    // Update state immediately to keep UI in sync
+    resetPages();
+    state.currentSearchText = searchInput.value.trim();
+    // Use the same debounce timer as main search to coordinate loading
+    if (_searchDebounceTimer) {
+      clearTimeout(_searchDebounceTimer);
+    }
+    _searchDebounceTimer = setTimeout(() => {
+      _searchDebounceTimer = null;
+      reloadActiveTab();
+    }, 500);
   });
   // keep mobileSearch updated when main search changes (e.g., reset)
   searchInput.addEventListener("input", (ev) => {
@@ -923,19 +1138,81 @@ if (mobileSearch && searchInput) {
   });
 }
 
-// Prevent clicks on filter elements from closing the drawer
-if (filtersCard) {
-  filtersCard.addEventListener("click", (ev) => {
-    ev.stopPropagation();
+// Main search clear button functionality
+const searchClear = document.getElementById("searchClear");
+let toggleMainClearButton; // Declare function in outer scope
+if (searchInput && searchClear) {
+  // Show/hide clear button based on input content
+  toggleMainClearButton = function () {
+    if (searchInput.value.trim()) {
+      searchClear.style.display = "flex";
+    } else {
+      searchClear.style.display = "none";
+    }
+  };
+
+  // Initialize clear button visibility
+  toggleMainClearButton();
+
+  // Listen for input changes to show/hide clear button
+  searchInput.addEventListener("input", toggleMainClearButton);
+
+  // Clear button click handler
+  searchClear.addEventListener("click", () => {
+    searchInput.value = "";
+    searchInput.focus();
+    // Sync with mobile search
+    if (mobileSearch) {
+      mobileSearch.value = "";
+    }
+    // Update state and reload
+    resetPages();
+    state.currentSearchText = "";
+    toggleMainClearButton();
+    // Also update mobile clear button visibility if it exists
+    if (mobileSearchClear && typeof toggleMobileClearButton === "function") {
+      toggleMobileClearButton();
+    }
+    reloadActiveTab();
   });
 }
 
-// Only close drawer when backdrop itself is clicked (not filter elements)
-if (filtersBackdrop) {
-  filtersBackdrop.addEventListener("click", (ev) => {
-    if (ev.target === filtersBackdrop) {
-      closeFiltersDrawer();
+// Mobile search clear button functionality
+const mobileSearchClear = document.getElementById("mobileSearchClear");
+let toggleMobileClearButton; // Declare function in outer scope
+if (mobileSearch && mobileSearchClear) {
+  // Show/hide clear button based on input content
+  toggleMobileClearButton = function () {
+    if (mobileSearch.value.trim()) {
+      mobileSearchClear.style.display = "flex";
+    } else {
+      mobileSearchClear.style.display = "none";
     }
+  };
+
+  // Initialize clear button visibility
+  toggleMobileClearButton();
+
+  // Listen for input changes to show/hide clear button
+  mobileSearch.addEventListener("input", toggleMobileClearButton);
+
+  // Clear button click handler
+  mobileSearchClear.addEventListener("click", () => {
+    mobileSearch.value = "";
+    mobileSearch.focus();
+    // Sync with main search
+    if (searchInput) {
+      searchInput.value = "";
+    }
+    // Update state and reload
+    resetPages();
+    state.currentSearchText = "";
+    toggleMobileClearButton();
+    // Also update main clear button visibility if it exists
+    if (searchClear && typeof toggleMainClearButton === "function") {
+      toggleMainClearButton();
+    }
+    reloadActiveTab();
   });
 }
 // Data loading functions
@@ -1160,9 +1437,21 @@ function showLoadingMask() {
   maskBox.appendChild(txt);
   _loadingMaskEl.appendChild(maskBox);
   document.body.appendChild(_loadingMaskEl);
-  // make background inert unless modal is open (modal manages inert itself)
-  if (!(modalOverlay && modalOverlay.classList.contains("open"))) {
-    setBackgroundInert(true);
+  // make background inert unless modal or drawer is open
+  try {
+    const activeModal = modalOverlay && modalOverlay.classList.contains("open");
+    const activeDrawer = filtersCard && filtersCard.classList.contains("open");
+
+    if (activeModal) {
+      setBackgroundInert(true, [modalOverlay]);
+    } else if (activeDrawer) {
+      // Keep entire filters card and its children interactive during loading
+      setBackgroundInert(true, [filtersCard]);
+    } else {
+      setBackgroundInert(true);
+    }
+  } catch (err) {
+    void err;
   }
 }
 

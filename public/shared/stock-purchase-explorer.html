@@ -184,8 +184,10 @@
         left: 0;
         right: 0;
         bottom: 0;
+        width: 100vw;
+        height: 100vh;
         background: rgba(2, 6, 23, 0.6);
-        z-index: 1400; /* sits below the filters card but above page content */
+        z-index: 1500; /* ensure backdrop covers entire viewport above page content */
         opacity: 0;
         visibility: hidden;
         transition: opacity 0.22s ease, visibility 0s linear 0.22s;
@@ -198,7 +200,174 @@
         pointer-events: auto;
       }
 
-      /* Mobile: collapse filters-card to a compact header; expanded when .expanded present */
+      /* Mobile Filters Modal */
+      #mobileFiltersModal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(2, 6, 23, 0.6);
+        z-index: 2000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        box-sizing: border-box;
+      }
+      #mobileFiltersModal.open {
+        display: flex;
+      }
+      #mobileFiltersModal .modal-container {
+        background: white;
+        border-radius: 12px;
+        max-width: 500px;
+        width: 100%;
+        max-height: 90vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 20px 40px rgba(2, 6, 23, 0.3);
+      }
+      #mobileFiltersModal .modal-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--erp-border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      #mobileFiltersModal .modal-header h3 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--erp-text);
+      }
+      #mobileFiltersModal .modal-close {
+        background: none;
+        border: none;
+        padding: 8px;
+        border-radius: 6px;
+        cursor: pointer;
+        color: #64748b; /* Subtle gray that fits the app environment */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.18s ease;
+        flex-shrink: 0;
+        min-width: 34px;
+        min-height: 34px;
+        position: relative;
+      }
+      #mobileFiltersModal .modal-close:hover {
+        background: #f1f5f9; /* Light background on hover */
+        color: #374151; /* Darker gray on hover */
+        border-radius: 6px;
+      }
+      #mobileFiltersModal .modal-close:focus {
+        outline: 2px solid rgba(37, 99, 235, 0.16);
+        outline-offset: 2px;
+        background: #f8fafc;
+      }
+      #mobileFiltersModal .modal-close:active {
+        background: #e2e8f0;
+        transform: scale(0.98);
+      }
+      #mobileFiltersModal .modal-close:hover {
+        background: #f1f5f9;
+        color: #1f2937; /* Darker gray on hover */
+      }
+      #mobileFiltersModal .modal-close:focus {
+        outline: 2px solid rgba(37, 99, 235, 0.16);
+        outline-offset: 2px;
+      }
+      #mobileFiltersModal .modal-close svg {
+        width: 18px;
+        height: 18px;
+        stroke-width: 2;
+      }
+      #mobileFiltersModal .modal-content {
+        padding: 20px;
+        overflow-y: auto;
+        flex: 1;
+      }
+      #mobileFiltersModal .modal-footer {
+        padding: 16px 20px;
+        border-top: 1px solid var(--erp-border);
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+      }
+      #mobileFiltersModal .btn {
+        padding: 10px 20px;
+        border-radius: 8px;
+        border: none;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.18s ease;
+      }
+      #mobileFiltersModal .btn-secondary {
+        background: #f8fafc;
+        color: var(--erp-text);
+        border: 1px solid var(--erp-border);
+      }
+      #mobileFiltersModal .btn-secondary:hover {
+        background: #f1f5f9;
+      }
+      #mobileFiltersModal .btn-primary {
+        background: var(--erp-accent);
+        color: white;
+      }
+      #mobileFiltersModal .btn-primary:hover {
+        background: #1d4ed8;
+      }
+      #mobileFiltersModal .filters-section {
+        margin-bottom: 20px;
+      }
+      #mobileFiltersModal .filters-section h4 {
+        margin: 0 0 12px;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--erp-text);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      #mobileFiltersModal .filter-row {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+      #mobileFiltersModal label {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--erp-text);
+      }
+      #mobileFiltersModal select,
+      #mobileFiltersModal input[type="text"] {
+        padding: 10px 12px;
+        border: 1px solid #e6eef8;
+        border-radius: 8px;
+        background: #f4fbff;
+        font-size: 14px;
+        color: var(--erp-text);
+        width: 100%;
+        box-sizing: border-box;
+      }
+      #mobileFiltersModal select:focus,
+      #mobileFiltersModal input[type="text"]:focus {
+        outline: none;
+        border-color: var(--erp-accent);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.06);
+      }
+
+      /* Hide mobile filters modal on larger screens */
+      @media (min-width: 521px) {
+        #mobileFiltersModal {
+          display: none !important;
+        }
+      }
+      /* Mobile: hide off-canvas drawer styles since we're using modal */
       @media (max-width: 520px) {
         .filters-card {
           max-height: 76px;
@@ -258,7 +427,7 @@
           height: 100vh;
           width: 86%;
           max-width: 420px;
-          z-index: 1500; /* sit above the backdrop */
+          z-index: 1600; /* sit above the backdrop (1500) */
           background: var(--erp-card);
           border-radius: 0 12px 12px 0;
           box-shadow: 2px 0 22px rgba(2, 6, 23, 0.18);
@@ -302,8 +471,13 @@
            `max-height: 420px` used on larger screens. */
         .filters-card .advanced-drawer {
           max-height: none;
-          overflow: auto;
+          overflow: visible;
           padding-top: 8px;
+        }
+        .filters-card .advanced-drawer.open {
+          max-height: none;
+          overflow: visible;
+          padding-top: 12px;
         }
 
         /* Hide the in-flow primary filter bar (we show a compact search above the table) */
@@ -368,7 +542,48 @@
       }
       .input-with-icon input[type="text"] {
         padding-left: 52px; /* leave space for icon + gap */
-        padding-right: 16px;
+        padding-right: 52px; /* leave space for clear button + gap */
+      }
+
+      /* Clear button styling for input fields */
+      .input-clear-btn {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 24px;
+        height: 24px;
+        border: none;
+        background: none;
+        color: var(--erp-muted);
+        cursor: pointer;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        transition: all 0.2s ease;
+      }
+
+      .input-clear-btn svg {
+        width: 16px;
+        height: 16px;
+        fill: none;
+      }
+
+      .input-clear-btn:hover {
+        background-color: var(--erp-hover-bg);
+        color: var(--erp-text);
+      }
+
+      .input-clear-btn:focus {
+        outline: 2px solid var(--erp-primary);
+        outline-offset: 2px;
+      }
+
+      .input-clear-btn:active {
+        transform: translateY(-50%) scale(0.95);
+        background-color: var(--erp-active-bg);
       }
       .advanced-toggle {
         display: inline-flex;
@@ -605,6 +820,42 @@
         font-size: 13px;
         transition: all 0.18s ease;
       }
+      /* Compact select visible on small screens (wrapped with inline SVG icon) */
+      .tab-select-wrap {
+        position: relative;
+        display: inline-block;
+        width: 100%;
+      }
+      .tab-select {
+        display: none;
+        padding: 8px 10px 8px 10px;
+        padding-right: 42px; /* room for inline arrow */
+        border-radius: 8px;
+        border: 1px solid var(--erp-accent);
+        background: linear-gradient(
+          135deg,
+          rgba(37, 99, 235, 0.12) 0%,
+          rgba(37, 99, 235, 0.06) 100%
+        );
+        color: #0f172a; /* keep text readable on light accent */
+        font-weight: 600;
+        font-size: 14px;
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        cursor: pointer;
+      }
+      .tab-select-icon {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 16px;
+        height: 16px;
+        pointer-events: none;
+        display: none;
+        color: var(--erp-accent); /* arrow uses currentColor */
+      }
       /* Header left: default stack title + subtitle (large screens)
          but switch to row on small screens where we show mobile filters button */
       .header-left {
@@ -648,6 +899,20 @@
         width: 100%;
         min-height: 0;
         box-sizing: border-box;
+      }
+      /* Responsive: show compact select on small screens, hide tab buttons */
+      @media (max-width: 520px) {
+        .tab-buttons {
+          display: none;
+        }
+        .tab-select {
+          display: inline-block;
+          width: 100%;
+          margin-bottom: 6px;
+        }
+        .tab-select-icon {
+          display: block;
+        }
       }
       .table-card h3 {
         margin: 0;
@@ -755,16 +1020,21 @@
         background: #fff;
         flex: 1 1 auto;
         min-height: 0; /* allow internal scrolling when content exceeds area */
+        /* Mobile table scrolling improvements */
+        -webkit-overflow-scrolling: touch;
+        scrollbar-gutter: stable both-edges;
       }
       #tableArea table {
         width: 100%;
         border-collapse: collapse;
+        min-width: 800px; /* Ensure table has minimum width for horizontal scroll */
       }
       #tableArea th,
       #tableArea td {
         border: 1px solid #e2e8f0;
         padding: 10px 12px;
         font-size: 14px;
+        white-space: nowrap; /* Prevent text wrapping that causes layout issues */
       }
       #tableArea thead th {
         position: sticky;
@@ -775,7 +1045,64 @@
         font-weight: 600;
         text-align: center;
       }
-      /* Subtle smaller decimals for numeric values to de-emphasize fractional part */
+
+      /* Mobile table enhancements: sticky first column for item identification */
+      @media (max-width: 520px) {
+        #tableArea {
+          /* Enhanced scrolling on mobile */
+          scrollbar-width: thin;
+          scrollbar-color: #cbd5e1 transparent;
+        }
+        #tableArea::-webkit-scrollbar {
+          height: 8px;
+        }
+        #tableArea::-webkit-scrollbar-track {
+          background: #f1f5f9;
+          border-radius: 4px;
+        }
+        #tableArea::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 4px;
+        }
+        #tableArea::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8;
+        }
+
+        /* Do not freeze Code/Name columns on very small screens; let them scroll like others */
+        #tableArea th:nth-child(1),
+        #tableArea td:nth-child(1),
+        #tableArea th:nth-child(2),
+        #tableArea td:nth-child(2) {
+          position: static;
+          background: inherit;
+          z-index: auto;
+          border-right: none;
+          min-width: auto;
+          max-width: none;
+          overflow: visible;
+          text-overflow: clip;
+        }
+        /* Ensure table headers stay visible when vertically scrolling on mobile */
+        #tableArea thead th,
+        #tableArea thead th:nth-child(1),
+        #tableArea thead th:nth-child(2) {
+          position: sticky;
+          top: 0;
+          z-index: 6; /* higher than cells to avoid overlap */
+          background: #f1f5f9;
+        }
+
+        /* Reduce padding on mobile for better space utilization */
+        #tableArea th,
+        #tableArea td {
+          padding: 8px 10px;
+          font-size: 13px;
+        }
+      }
+      /* Mobile scroll container enhancements */
+      .mobile-scroll-container {
+        position: relative;
+      }
       .sp-decimal {
         font-size: 0.82em;
         color: var(--erp-muted);
@@ -1172,6 +1499,35 @@
               type="text"
               placeholder="Item code or name"
             />
+            <button
+              id="mobileSearchClear"
+              class="input-clear-btn"
+              type="button"
+              aria-label="Clear search"
+              title="Clear search"
+              style="display: none"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <line
+                  x1="18"
+                  y1="6"
+                  x2="6"
+                  y2="18"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                ></line>
+                <line
+                  x1="6"
+                  y1="6"
+                  x2="18"
+                  y2="18"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                ></line>
+              </svg>
+            </button>
           </div>
         </div>
       </div>
@@ -1240,6 +1596,35 @@
                   type="text"
                   placeholder="Item code or name"
                 />
+                <button
+                  id="searchClear"
+                  class="input-clear-btn"
+                  type="button"
+                  aria-label="Clear search"
+                  title="Clear search"
+                  style="display: none"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <line
+                      x1="18"
+                      y1="6"
+                      x2="6"
+                      y2="18"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                    ></line>
+                    <line
+                      x1="6"
+                      y1="6"
+                      x2="18"
+                      y2="18"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                    ></line>
+                  </svg>
+                </button>
               </div>
             </label>
           </div>
@@ -1360,18 +1745,50 @@
       <section class="content">
         <div class="card table-card">
           <div class="tab-bar">
-            <button class="tab-btn active" data-tab="overview">Overview</button>
-            <button class="tab-btn" data-tab="stock">Stock Snapshot</button>
-            <button class="tab-btn" data-tab="purchase">
-              Purchase History
-            </button>
-            <button class="tab-btn" data-tab="consumption">Consumption</button>
+            <div class="tab-buttons">
+              <button class="tab-btn active" data-tab="overview">
+                Overview
+              </button>
+              <button class="tab-btn" data-tab="stock">Stock Snapshot</button>
+              <button class="tab-btn" data-tab="purchase">
+                Purchase History
+              </button>
+              <button class="tab-btn" data-tab="consumption">
+                Consumption
+              </button>
+            </div>
+            <!-- Compact tab selector for small screens (wrapped so we can place an inline SVG arrow) -->
+            <div class="tab-select-wrap">
+              <select id="tabSelect" class="tab-select" aria-label="Select tab">
+                <option value="overview">Overview</option>
+                <option value="stock">Stock Snapshot</option>
+                <option value="purchase">Purchase History</option>
+                <option value="consumption">Consumption</option>
+              </select>
+              <svg
+                class="tab-select-icon"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <polyline
+                  points="6 9 12 15 18 9"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
           </div>
           <div class="table-header">
             <h3>Records</h3>
             <div id="paginator" class="paginator" aria-live="polite"></div>
           </div>
-          <div id="tableArea">
+          <div id="tableArea" class="mobile-scroll-container">
             <!-- Table will be rendered here -->
           </div>
         </div>
@@ -1404,6 +1821,53 @@
           </svg>
         </button>
         <div class="modal-content" id="modalContent"></div>
+      </div>
+    </div>
+    <!-- Mobile Filters Modal -->
+    <div
+      id="mobileFiltersModal"
+      class="modal-overlay"
+      aria-hidden="true"
+      role="dialog"
+      aria-labelledby="mobileFiltersTitle"
+    >
+      <div class="modal-container">
+        <div class="modal-header">
+          <h3 id="mobileFiltersTitle">Filters</h3>
+          <button
+            type="button"
+            class="modal-close"
+            id="mobileFiltersClose"
+            aria-label="Close filters"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal-content" id="mobileFiltersContent">
+          <!-- Filters will be dynamically populated here -->
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            id="mobileFiltersReset"
+            class="btn btn-secondary"
+          >
+            Reset
+          </button>
+          <button type="button" id="mobileFiltersApply" class="btn btn-primary">
+            Apply Filters
+          </button>
+        </div>
       </div>
     </div>
     <!-- Toast container for transient status toasts (ERP-style) -->
