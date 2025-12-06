@@ -155,6 +155,46 @@ ipcMain.handle("updater:restart", () => {
   }
 });
 
+// ---------------- Simple auth/session helpers ----------------
+// A very small session kept in the main process. Renderers should call
+// `auth:setSession` after a successful login with a user object that
+// contains at least `{ id, name, roles: [], permissions: [] }`.
+let currentUser = null;
+
+function userHasPermission(user, moduleName, action) {
+  if (!user) return false;
+  const roles = user.roles || [];
+  const perms = user.permissions || [];
+
+  // admin role or global wildcard grants everything
+  if (roles.includes("admin") || perms.includes("*")) return true;
+
+  // direct permission: "module:action" or wildcard on module "module:*"
+  const exact = `${moduleName}:${action}`;
+  if (perms.includes(exact)) return true;
+  if (perms.includes(`${moduleName}:*`)) return true;
+
+  return false;
+}
+
+ipcMain.handle("auth:whoami", () => {
+  return currentUser;
+});
+
+ipcMain.handle("auth:setSession", (_evt, user) => {
+  // allow clearing session by passing null
+  currentUser = user || null;
+  return { ok: true };
+});
+
+ipcMain.handle("auth:hasPermission", (_evt, moduleName, action) => {
+  try {
+    return !!userHasPermission(currentUser, moduleName, action);
+  } catch (e) {
+    return false;
+  }
+});
+
 // ---------------- App lifecycle ----------------
 app.whenReady().then(() => {
   createWindow();

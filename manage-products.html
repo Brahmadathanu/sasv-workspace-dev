@@ -1,205 +1,926 @@
 <!-- manage-products.html -->
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset="UTF-8"/>
-  <title>Manage Products</title>
-  <link rel="stylesheet" href="public/shared/css/style.css"/>
-  <style>
-    /* Module-specific layout (all theming vars are in style.css) */
-    .header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 10px;
-    }
-    .header h1 {
-      margin: 0;
-      color: var(--primary);
-    }
+  <head>
+    <meta charset="UTF-8" />
+    <title>Manage Products</title>
+    <link rel="stylesheet" href="public/shared/css/style.css" />
+    <style>
+      /* Module-specific layout (all theming vars are in style.css) */
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+      }
+      .header h1 {
+        margin: 0;
+        color: var(--primary);
+      }
 
-    .container {
-      display: flex;
-      height: calc(100vh - 80px);
-    }
+      /* make body/container fill viewport and avoid page-level scrollbar
+         by letting the header occupy its natural height and the container
+         flex to remaining space. Use min-height:0 so children with
+         overflow can shrink properly. */
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+      }
+      .container {
+        display: flex;
+        flex: 1 1 auto;
+        min-height: 0; /* allow internal scrolling regions to work */
+        overflow: hidden;
+      }
 
-    .sidebar {
-      position: relative;
-      width: 30%;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      padding: 10px;
-      box-sizing: border-box;
-      overflow-y: auto;
-    }
-    .sidebar input {
-      position: sticky;
-      top: 0;
-      background: var(--panel-bg);
-      z-index: 1;
-      width: 100%;
-      padding: 6px;
-      margin-bottom: 10px;
-      box-sizing: border-box;
-    }
-    .sidebar ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-    .sidebar li {
-      padding: 6px 4px;
-      cursor: pointer;
-      border-bottom: 1px solid #eee;
-    }
-    .sidebar li:hover,
-    .sidebar li.selected {
-      background: #f0f8ff;
-    }
+      .sidebar {
+        position: relative;
+        width: 30%;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        padding: 10px;
+        box-sizing: border-box;
+        overflow-y: auto;
+      }
+      .sidebar input {
+        /* search input lives inside .search-row which is sticky */
+        position: static;
+        background: var(--panel-bg);
+        z-index: 1;
+        width: 100%;
+        padding: 6px;
+        margin-bottom: 10px;
+        box-sizing: border-box;
+      }
 
-    .details {
-      flex: 1;
-      margin-left: 20px;
-      overflow-y: auto;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      padding: 10px;
-      box-sizing: border-box;
-    }
-    .details label {
-      display: block;
-      margin: 8px 0 4px;
-    }
-    .details input,
-    .details select {
-      width: 100%;
-      padding: 6px;
-      box-sizing: border-box;
-    }
+      /* keep the search input + pill visible while scrolling the sidebar */
+      .search-row {
+        position: sticky;
+        top: 0;
+        background: var(--panel-bg);
+        z-index: 5;
+        /* subtle separation while scrolling */
+        box-shadow: 0 6px 18px rgba(11, 41, 73, 0.06);
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        padding: 6px 0;
+        box-sizing: border-box;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+      }
+      .search-row input {
+        flex: 1 1 auto;
+        width: auto;
+        margin-bottom: 0;
+      }
+      /* search icon inside the input */
+      .search-input-wrap {
+        position: relative;
+        flex: 1 1 auto;
+        display: flex;
+        min-width: 0; /* allow the input to shrink properly inside flex */
+        align-items: center;
+      }
+      .search-input-wrap svg.search-icon {
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 16px;
+        height: 16px;
+        stroke: #6b7280;
+        pointer-events: none;
+        z-index: 2;
+      }
+      .search-input-wrap input {
+        padding-left: 36px;
+        padding-right: 36px; /* room for clear button */
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .clear-search {
+        position: absolute;
+        right: 6px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: transparent;
+        border: none;
+        padding: 4px;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        border-radius: 4px;
+        z-index: 2;
+      }
+      .clear-search svg {
+        stroke: #6b7280;
+      }
+      .clear-search:hover {
+        background: rgba(0, 0, 0, 0.05);
+      }
+      .clear-search.visible {
+        display: inline-flex;
+      }
+      .pill {
+        background: var(--primary);
+        color: #fff;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        min-width: 46px;
+        text-align: center;
+        box-shadow: 0 4px 10px rgba(11, 41, 73, 0.08);
+        font-weight: 600;
+        cursor: default;
+        transition: transform 140ms ease, box-shadow 140ms ease,
+          opacity 140ms ease;
+      }
+      .pill:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(11, 41, 73, 0.12);
+        opacity: 0.98;
+      }
+      .sidebar ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+      .sidebar li {
+        padding: 6px 4px;
+        cursor: pointer;
+        border-bottom: 1px solid #eee;
+      }
+      .sidebar li:hover,
+      .sidebar li.selected,
+      .sidebar li.focused {
+        background: #f0f8ff;
+      }
+      .sidebar ul:focus {
+        outline: 2px solid var(--primary);
+        outline-offset: 4px;
+        border-radius: 6px;
+      }
+      .sidebar li[aria-selected="true"] {
+        font-weight: 600;
+      }
+      .sidebar li.focused {
+        box-shadow: inset 0 0 0 2px rgba(43, 110, 163, 0.12);
+      }
 
-    .actions {
-      margin-top: 16px;
-    }
-    .actions button {
-      background: var(--btn-bg);
-      color: var(--btn-text);
-      border: none;
-      padding: 8px 12px;
-      border-radius: 4px;
-      cursor: pointer;
-      margin-right: 8px;
-    }
-    .actions button:hover {
-      background: var(--btn-hover-bg);
-    }
+      .details {
+        flex: 1;
+        margin-left: 20px;
+        overflow-y: auto;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        padding: 10px;
+        box-sizing: border-box;
+      }
+      /* Make the form inside details distribute spacing responsively
+         so it adapts to available vertical space without leaving large
+         empty gaps. The gap grows with viewport height but clamps to
+         sensible bounds. */
+      .details form {
+        display: flex;
+        flex-direction: column;
+        gap: clamp(8px, 1.6vh, 18px);
+        height: 100%;
+        min-height: 0;
+      }
+      /* Reduce default label margins so spacing is controlled by gap */
+      .details label {
+        display: block;
+        margin: 0;
+        padding-top: 6px;
+        font-weight: 400;
+      }
+      /* Slightly reduce vertical whitespace for inputs to pack them neatly */
+      .details input,
+      .details select {
+        padding: 8px 10px;
+      }
+      .details label {
+        display: block;
+        margin: 14px 0 8px;
+        font-weight: 400;
+      }
+      .details input,
+      .details select {
+        width: 100%;
+        padding: 8px;
+        box-sizing: border-box;
+        line-height: 1.4;
+      }
 
-    /* Modal */
-    #modalOverlay {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.5);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 2000;
-    }
-    #modalBox {
-      background: var(--panel-bg);
-      color: var(--text-color);
-      padding: 20px;
-      border-radius: 6px;
-      max-width: 400px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-      text-align: left;
-    }
-    #modalBox p {
-      margin: 0 0 20px;
-      white-space: pre-wrap;
-    }
-    .modal-actions {
-      text-align: right;
-    }
-    .modal-actions button {
-      margin-left: 8px;
-      padding: 6px 12px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      background: var(--btn-bg);
-      color: var(--btn-text);
-    }
-    .modal-actions button:hover {
-      background: var(--btn-hover-bg);
-    }
-  </style>
-</head>
-<body data-theme="system">
+      /* keep checkboxes compact (avoid global input:width rule stretching them) */
+      .details input[type="checkbox"],
+      .details input[type="radio"] {
+        width: auto;
+        display: inline-block;
+        padding: 0;
+        margin: 0;
+        vertical-align: middle;
+      }
 
-  <div class="header">
-    <button id="addNewBtn" type="button">+ New Product</button>
-    <h1>Manage Products</h1>
-    <button id="homeBtn" type="button">HOME</button>
-  </div>
+      .row {
+        gap: 14px;
+        margin-top: 12px;
+      }
+      /* Align checkbox/control column only for specific control rows */
+      .control-row {
+        display: flex; /* ensure control-row behaves as a flex container */
+        align-items: center;
+        gap: 12px;
+        margin-top: 12px;
+        flex-wrap: wrap; /* allow wrapping when viewport narrows */
+      }
+      .control-row > label {
+        flex: 0 0 320px; /* fixed label column so controls align vertically */
+        margin: 0;
+      }
 
-  <div class="container">
-    <div class="sidebar">
-      <input type="text" id="searchInput" placeholder="🔍 Search products…" />
-      <ul id="productList"></ul>
-    </div>
+      /* Make controls shrink properly and avoid overflow */
+      .control-row select,
+      .control-row input[type="number"],
+      .control-row input[type="text"],
+      .control-row input[type="checkbox"] {
+        min-width: 0;
+      }
 
-    <div class="details">
-      <form id="productForm">
-        <label>Item</label>
-        <input type="text" id="itemInput" required />
+      /* Responsive: on narrow viewports stack the label above controls to avoid horizontal scroll */
+      @media (max-width: 720px) {
+        .control-row {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+        .control-row > label {
+          flex: 0 0 auto;
+          margin-bottom: 6px;
+        }
+      }
 
-        <label>Malayalam Name</label>
-        <input type="text" id="malInput" required />
+      .actions {
+        margin-top: 20px;
+      }
+      .actions button {
+        background: var(--btn-bg);
+        color: var(--btn-text);
+        border: none;
+        padding: 8px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-right: 8px;
+      }
+      .actions button:hover {
+        background: var(--btn-hover-bg);
+      }
 
-        <label>Status</label>
-        <select id="statusSelect" required>
-          <option value="">-- Select --</option>
-          <option>Active</option>
-          <option>Inactive</option>
-        </select>
+      .icon-btn {
+        background: var(--panel-bg);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        padding: 6px 8px;
+        margin-left: 6px;
+        cursor: pointer;
+        color: var(--text-color);
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 120ms ease, box-shadow 120ms ease,
+          background-color 120ms ease;
+        box-shadow: 0 2px 6px rgba(11, 41, 73, 0.04);
+      }
+      .icon-btn svg {
+        width: 16px;
+        height: 16px;
+        display: block;
+      }
+      .icon-btn:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 18px rgba(11, 41, 73, 0.08);
+        background: rgba(0, 0, 0, 0.03);
+      }
+      .icon-btn:focus {
+        outline: 3px solid rgba(43, 110, 163, 0.12);
+        outline-offset: 2px;
+      }
+      .icon-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+      .icon-btn.active {
+        background: rgba(0, 0, 0, 0.08);
+        border-radius: 6px;
+      }
 
-        <label>Category</label>
-        <select id="categorySelect" required>
-          <option value="">-- Select --</option>
-        </select>
+      /* Toast */
+      .toast {
+        position: fixed;
+        right: 16px;
+        bottom: 20px;
+        background: rgba(0, 0, 0, 0.8);
+        color: #fff;
+        padding: 10px 14px;
+        border-radius: 6px;
+        opacity: 0;
+        transform: translateY(8px);
+        transition: opacity 180ms ease, transform 180ms ease;
+        pointer-events: none;
+        z-index: 3000;
+      }
+      .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+        pointer-events: auto;
+      }
+      /* Loading overlay */
+      #loadingOverlay {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.5);
+        backdrop-filter: blur(4px) saturate(120%);
+        z-index: 3000;
+        pointer-events: auto;
+      }
+      #loadingOverlay.show {
+        display: flex;
+      }
+      .loading-box {
+        background: rgba(0, 0, 0, 0.8);
+        color: #fff;
+        padding: 12px 16px;
+        border-radius: 8px;
+        display: inline-flex;
+        gap: 10px;
+        align-items: center;
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+      }
+      .loading-spinner {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        border: 3px solid rgba(255, 255, 255, 0.2);
+        border-top-color: #fff;
+        animation: spin 900ms linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
 
-        <label>Sub-category</label>
-        <select id="subcategorySelect" required>
-          <option value="">-- Select --</option>
-        </select>
-
-        <label>Product Group</label>
-        <select id="groupSelect" required>
-          <option value="">-- Select --</option>
-        </select>
-
-        <label>Sub-group</label>
-        <select id="subgroupSelect" required>
-          <option value="">-- Select --</option>
-        </select>
-
-        <div class="actions">
-          <button type="submit" id="saveBtn">Save</button>
-          <button type="button" id="deleteBtn">Delete</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <div id="modalOverlay">
-    <div id="modalBox">
-      <p id="modalMessage"></p>
-      <div class="modal-actions">
-        <button id="modalCancel">Cancel</button>
-        <button id="modalConfirm">OK</button>
+      /* Modal (ERP-styled) */
+      #modalOverlay {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(
+          rgba(12, 16, 23, 0.55),
+          rgba(12, 16, 23, 0.55)
+        );
+        backdrop-filter: blur(4px) saturate(120%);
+        z-index: 4000;
+      }
+      #modalOverlay.show {
+        display: flex;
+      }
+      #modalBox {
+        background: var(--panel-bg);
+        color: var(--text-color);
+        padding: 18px;
+        border-radius: 8px;
+        width: 100%;
+        max-width: 540px;
+        box-shadow: 0 10px 30px rgba(8, 12, 20, 0.45);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        text-align: left;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .modal-header {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      .modal-icon {
+        width: 42px;
+        height: 42px;
+        min-width: 42px;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.04);
+      }
+      .modal-title {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--primary);
+      }
+      .modal-body p {
+        margin: 0;
+        white-space: pre-wrap;
+        color: var(--text-color);
+        line-height: 1.4;
+      }
+      .modal-actions {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+        margin-top: 6px;
+      }
+      .modal-actions .btn {
+        padding: 8px 14px;
+        border-radius: 6px;
+        border: 1px solid transparent;
+        cursor: pointer;
+        min-width: 84px;
+      }
+      .modal-actions .btn.secondary {
+        background: transparent;
+        color: var(--text-color);
+        border-color: rgba(0, 0, 0, 0.06);
+      }
+      .modal-actions .btn.primary {
+        background: var(--btn-bg);
+        color: var(--btn-text);
+      }
+      .modal-actions .btn.danger {
+        background: #d9534f;
+        color: #fff;
+      }
+      /* type-specific styling */
+      #modalBox.type-delete .modal-icon {
+        background: rgba(217, 83, 79, 0.12);
+      }
+      #modalBox.type-delete .modal-title {
+        color: #d9534f;
+      }
+      #modalBox.type-save .modal-icon {
+        background: rgba(40, 167, 69, 0.08);
+      }
+      #modalBox.type-save .modal-title {
+        color: #2d8f46;
+      }
+      #modalBox.type-warning .modal-icon {
+        background: rgba(255, 159, 67, 0.08);
+      }
+      #modalBox.type-warning .modal-title {
+        color: #b36b00;
+      }
+    </style>
+  </head>
+  <body data-theme="system">
+    <div
+      class="header"
+      style="flex-direction: column; align-items: flex-start; gap: 6px"
+    >
+      <div
+        style="
+          display: flex;
+          width: 100%;
+          align-items: center;
+          justify-content: space-between;
+        "
+      >
+        <h1 style="margin: 0">Manage Products</h1>
+        <button id="homeBtn" type="button" title="Home">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9,22 9,12 15,12 15,22" />
+          </svg>
+          HOME
+        </button>
+      </div>
+      <div style="font-size: 13px; color: var(--muted)">
+        Create and manage product master data, classifications, and ERP
+        attributes.
       </div>
     </div>
-  </div>
 
-  <script type="module" src="js/products.js"></script>
-</body>
+    <div class="container">
+      <div class="sidebar">
+        <div
+          class="search-row"
+          style="display: flex; gap: 8px; align-items: center"
+        >
+          <div class="search-input-wrap">
+            <svg
+              class="search-icon"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              type="text"
+              id="searchInput"
+              placeholder="Search products…"
+              aria-controls="productList"
+              aria-label="Search products"
+            />
+            <button
+              id="clearSearchBtn"
+              class="clear-search"
+              type="button"
+              title="Clear search"
+              aria-hidden="true"
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path
+                  d="M18 6L6 18M6 6l12 12"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
+          <div
+            id="productCountPill"
+            class="pill"
+            aria-hidden="false"
+            title="0 products"
+          >
+            0
+          </div>
+        </div>
+        <ul
+          id="productList"
+          role="listbox"
+          aria-label="Products"
+          tabindex="0"
+        ></ul>
+      </div>
+
+      <div class="details">
+        <form id="productForm">
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              gap: 12px;
+            "
+          >
+            <label for="itemInput">Name</label>
+            <div style="display: flex; gap: 8px; align-items: center">
+              <button
+                id="saveIconBtn"
+                class="icon-btn"
+                type="button"
+                title="Save"
+                style="display: none"
+              >
+                <!-- save SVG -->
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
+                    fill="currentColor"
+                  />
+                  <path d="M17 3v4a1 1 0 0 0 1 1h4" fill="currentColor" />
+                  <path
+                    d="M7 11l3 3 7-7"
+                    stroke="#fff"
+                    stroke-width="1.5"
+                    fill="none"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+              <button
+                id="cancelIconBtn"
+                class="icon-btn"
+                type="button"
+                title="Cancel"
+                style="display: none"
+              >
+                <!-- cancel SVG (cross) -->
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M18 6L6 18M6 6l12 12"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+              <button
+                id="inlineDeleteBtn"
+                class="icon-btn"
+                type="button"
+                title="Delete product"
+                style="display: none"
+              >
+                <!-- dustbin-style SVG -->
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M3 6h18"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M8 6l1-2h6l1 2"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <rect
+                    x="7"
+                    y="6"
+                    width="10"
+                    height="13"
+                    rx="2"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    fill="none"
+                  />
+                  <path
+                    d="M10 10v6M14 10v6"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+
+              <button
+                id="editToggleBtn"
+                class="icon-btn"
+                type="button"
+                title="Enable edit"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z"
+                    fill="currentColor"
+                  />
+                  <path
+                    d="M20.71 7.04a1.003 1.003 0 000-1.42l-2.34-2.34a1.003 1.003 0 00-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"
+                    fill="currentColor"
+                  />
+                </svg>
+              </button>
+              <button
+                id="newInlineBtn"
+                class="icon-btn"
+                type="button"
+                title="New product"
+              >
+                <!-- new (plus) SVG -->
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M12 5v14M5 12h14"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <input type="text" id="itemInput" required />
+
+          <label for="malInput">Malayalam Name</label>
+          <input type="text" id="malInput" required />
+
+          <div style="display: flex; gap: 12px">
+            <div style="flex: 1">
+              <label for="categorySelect">Category</label>
+              <select id="categorySelect" required>
+                <option value="">-- Select --</option>
+              </select>
+            </div>
+            <div style="flex: 1">
+              <label for="subcategorySelect">Sub-category</label>
+              <select id="subcategorySelect" required>
+                <option value="">-- Select --</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 12px">
+            <div style="flex: 1">
+              <label for="groupSelect">Product Group</label>
+              <select id="groupSelect" required>
+                <option value="">-- Select --</option>
+              </select>
+            </div>
+            <div style="flex: 1">
+              <label for="subgroupSelect">Sub-group</label>
+              <select id="subgroupSelect" required>
+                <option value="">-- Select --</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 12px; align-items: end">
+            <div style="flex: 1">
+              <label for="statusSelect">Status</label>
+              <select id="statusSelect" required>
+                <option value="">-- Select --</option>
+                <option>Active</option>
+                <option>Inactive</option>
+              </select>
+            </div>
+            <div style="flex: 1">
+              <label for="uomBaseSelect">UOM Base</label>
+              <select id="uomBaseSelect">
+                <option value="">-- none --</option>
+                <option>Kg</option>
+                <option>L</option>
+                <option>Nos</option>
+              </select>
+            </div>
+            <div style="width: 180px">
+              <label for="conversionInput">Conversion To Base</label>
+              <input
+                type="number"
+                id="conversionInput"
+                step="0.000001"
+                min="0"
+                placeholder="e.g. 0.5"
+              />
+            </div>
+          </div>
+
+          <div
+            class="row control-row"
+            style="
+              display: flex;
+              align-items: center;
+              gap: 12px;
+              margin-top: 10px;
+            "
+          >
+            <label style="margin: 0">Is a seasonal product?</label>
+            <input
+              type="checkbox"
+              id="isSeasonalCheckbox"
+              aria-label="Is seasonal"
+            />
+            <select id="seasonProfileSelect" style="flex: 1; min-width: 180px">
+              <option value="">-- Select profile --</option>
+            </select>
+            <a href="manage-season-profiles.html" target="_blank"
+              >Manage profiles</a
+            >
+          </div>
+
+          <div
+            class="row control-row"
+            style="
+              display: flex;
+              align-items: center;
+              gap: 12px;
+              margin-top: 10px;
+            "
+          >
+            <label style="margin: 0">Is a Long Lead Time product?</label>
+            <input
+              type="checkbox"
+              id="isLltCheckbox"
+              aria-label="Is a long lead time product"
+            />
+            <input
+              type="number"
+              id="leadTimeMonths"
+              min="0"
+              step="1"
+              placeholder="Manufacturing lead time in months e.g. 2"
+              style="flex: 1; min-width: 120px"
+            />
+          </div>
+
+          <div
+            class="row control-row"
+            style="
+              display: flex;
+              align-items: center;
+              gap: 12px;
+              margin-top: 10px;
+            "
+          >
+            <label style="margin: 0"
+              >Is a Make-to-Stock (MTS) &amp; Pack-to-order (PTO)
+              product?</label
+            >
+            <input
+              type="checkbox"
+              id="isPtoCheckbox"
+              aria-label="Is Make-to-Stock & Pack-to-order product"
+            />
+          </div>
+
+          <!-- Save/Delete moved to inline controls; footer buttons removed -->
+        </form>
+      </div>
+    </div>
+
+    <div id="modalOverlay" aria-hidden="true">
+      <div id="modalBox" role="dialog" aria-modal="true">
+        <div class="modal-header">
+          <div class="modal-icon" id="modalIcon" aria-hidden="true">
+            <!-- icon injected dynamically -->
+          </div>
+          <h3 class="modal-title" id="modalTitle">Confirm</h3>
+        </div>
+        <div class="modal-body">
+          <p id="modalMessage"></p>
+        </div>
+        <div class="modal-actions">
+          <button id="modalCancel" class="btn secondary">Cancel</button>
+          <button id="modalConfirm" class="btn primary">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="js/products.js"></script>
+    <div id="toast" class="toast" aria-live="polite" role="status"></div>
+    <div id="loadingOverlay" aria-hidden="true">
+      <div class="loading-box" role="status" aria-live="polite">
+        <span class="loading-spinner" aria-hidden="true"></span>
+        <span>Loading…</span>
+      </div>
+    </div>
+  </body>
 </html>

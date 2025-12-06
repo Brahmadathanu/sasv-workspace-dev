@@ -24,4 +24,12 @@ contextBridge.exposeInMainWorld("sopAPI", {
     ipcRenderer.invoke("sop:exportDocxFromHtml", { title, html, options }),
 });
 
+// Authentication API: small, safe surface for renderer to query session
+contextBridge.exposeInMainWorld("auth", {
+  getUser: () => ipcRenderer.invoke("auth:whoami"),
+  hasPermission: (moduleName, action) =>
+    ipcRenderer.invoke("auth:hasPermission", moduleName, action),
+  setSession: (user) => ipcRenderer.invoke("auth:setSession", user),
+});
+
 console.log("preload ready: app, electronAPI, sopAPI exposed");

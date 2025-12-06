@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Manage Season Profiles</title>
+    <link rel="stylesheet" href="public/shared/css/style.css" />
+    <style>
+      body {
+        padding: 12px;
+      }
+      .list {
+        max-width: 720px;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      .row input,
+      .row select {
+        flex: 1;
+      }
+      .actions {
+        margin-top: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Season Profiles</h1>
+    <div class="list">
+      <div id="profilesList"></div>
+      <hr />
+      <form id="profileForm">
+        <div class="row">
+          <input
+            id="profileLabel"
+            placeholder="Label (e.g. Nellikka)"
+            required
+          />
+          <select id="profileKind">
+            <option value="product">product</option>
+            <option value="raw_material">raw_material</option>
+          </select>
+        </div>
+        <div>
+          <input id="profileNotes" placeholder="Notes (optional)" />
+        </div>
+        <div class="actions">
+          <button type="submit">Save</button>
+          <button type="button" id="cancelEdit">Cancel</button>
+        </div>
+      </form>
+    </div>
+
+    <script type="module" src="js/season_profiles.js"></script>
+  </body>
+</html>

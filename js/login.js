@@ -65,6 +65,61 @@ async function signIn() {
       errorMsg.textContent = error.message;
       return;
     }
+
+    // After successful sign-in, obtain the full user object and enrich
+    // it with profile/roles and permissions so the main process can use
+    // a compact session representation for permission checks.
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      // fetch profile (may contain 'role' and full_name)
+      let profile = null;
+      try {
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("id, full_name, role")
+          .eq("id", user.id)
+          .maybeSingle();
+        profile = prof || null;
+      } catch (pfErr) {
+        console.warn("Could not load profile:", pfErr);
+      }
+
+      // fetch user permissions (module-level)
+      let permissions = [];
+      try {
+        const { data: perms } = await supabase
+          .from("user_permissions")
+          .select("module_id,can_view,can_edit,can_delete")
+          .eq("user_id", user.id);
+        (perms || []).forEach((p) => {
+          if (p.can_view) permissions.push(`${p.module_id}:view`);
+          if (p.can_edit) permissions.push(`${p.module_id}:edit`);
+          if (p.can_delete) permissions.push(`${p.module_id}:delete`);
+        });
+      } catch (permErr) {
+        console.warn("Could not load permissions:", permErr);
+      }
+
+      const sessionUser = {
+        id: user.id,
+        email: user.email,
+        name: profile?.full_name || user.email,
+        roles: profile?.role ? [profile.role] : [],
+        permissions,
+      };
+
+      // inform main process of the session
+      try {
+        if (window?.auth?.setSession) await window.auth.setSession(sessionUser);
+      } catch (ipcErr) {
+        console.warn("Failed to set main session:", ipcErr);
+      }
+    } catch (uErr) {
+      console.warn("Post-login user enrichment failed:", uErr);
+    }
     if (rememberMe && rememberMe.checked) {
       localStorage.setItem("login_email", email);
     } else {
