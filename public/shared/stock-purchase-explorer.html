@@ -788,6 +788,15 @@
         border-bottom: 1px solid var(--erp-border);
         padding-bottom: 4px;
       }
+      /* Ensure tab buttons never wrap to next line and remain adjacent
+         to the compact selector. Use flex layout to keep consistent spacing. */
+      .tab-buttons {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: nowrap;
+        white-space: nowrap;
+      }
       /* Hide mobile-only controls on wider screens; shown in small-screen media query */
       @media (min-width: 521px) {
         #mobileFiltersBtn,
@@ -819,6 +828,10 @@
         font-weight: 600;
         font-size: 13px;
         transition: all 0.18s ease;
+      }
+      /* Prevent individual tab labels from wrapping so they remain on one line */
+      .tab-btn {
+        white-space: nowrap;
       }
       /* Compact select visible on small screens (wrapped with inline SVG icon) */
       .tab-select-wrap {

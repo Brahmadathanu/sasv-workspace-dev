@@ -43,7 +43,6 @@ const searchInput = document.getElementById("search");
 const dateRangeInput = document.getElementById("dateRange");
 const advToggleBtn = document.getElementById("toggleAdvancedFilters");
 const advancedDrawer = document.getElementById("advancedDrawer");
-const resetFiltersBtn = document.getElementById("resetFiltersBtn");
 
 const tabButtons = document.querySelectorAll(".tab-btn");
 const tabSelect = document.getElementById("tabSelect");
@@ -144,7 +143,8 @@ if (dateRangeInput) {
         state.currentToDate = instance.formatDate(selectedDates[1], "d-m-Y");
       }
       resetPages();
-      if (state.currentTab === "purchase") reloadActiveTab();
+      // Reload the active tab so all tab tables respect the selected date range
+      reloadActiveTab();
     },
   });
 }
@@ -237,90 +237,15 @@ if (subgroupFilter) {
 
 // Debounce search input to prevent focus loss during rapid typing
 let _searchDebounceTimer = null;
-searchInput.addEventListener("input", () => {
-  resetPages();
-  state.currentSearchText = searchInput.value.trim();
-  // Clear any pending search to avoid overlapping requests
-  if (_searchDebounceTimer) {
-    clearTimeout(_searchDebounceTimer);
-  }
-  // Debounce reload to prevent focus loss during rapid typing
-  _searchDebounceTimer = setTimeout(() => {
-    _searchDebounceTimer = null;
-    reloadActiveTab();
-  }, 500);
-});
-
-// Reset all filters to their default state and reload
-function resetAllFilters() {
-  // Clear any pending search operations
-  if (_searchDebounceTimer) {
-    clearTimeout(_searchDebounceTimer);
-    _searchDebounceTimer = null;
-  }
-
-  // reset state
-  state.currentSearchText = "";
-  state.currentFromDate = "";
-  state.currentToDate = "";
-  state.currentSourceKind = "all";
-  state.currentCategoryCode = "all";
-  state.currentSubcategoryCode = "all";
-  state.currentGroupCode = "all";
-  state.currentSubgroupCode = "all";
-
-  // reset UI elements
-  if (searchInput) {
-    searchInput.value = "";
-    searchInput.dispatchEvent(new Event("input", { bubbles: true }));
-  }
-  if (mobileSearch) {
-    mobileSearch.value = "";
-  }
-  if (dateRangeInput && dateRangeInput._flatpickr) {
-    try {
-      dateRangeInput._flatpickr.clear();
-    } catch {
-      dateRangeInput.value = "";
-    }
-  } else if (dateRangeInput) {
-    dateRangeInput.value = "";
-  }
-
-  if (classificationSelect) classificationSelect.value = "all";
-  if (categoryFilter) categoryFilter.value = "all";
-  fillEmptySelect(subcategoryFilter, "(All sub-categories)");
-  fillEmptySelect(groupFilter, "(All groups)");
-  fillEmptySelect(subgroupFilter, "(All sub-groups)");
-
-  // Update clear button visibility after reset
-  if (typeof toggleMobileClearButton === "function") {
-    toggleMobileClearButton();
-  }
-  if (typeof toggleMainClearButton === "function") {
-    toggleMainClearButton();
-  }
-
-  // reset pagination and reload
-  resetPages();
-  // close advanced drawer if open
-  if (advancedDrawer && advancedDrawer.classList.contains("open")) {
-    advancedDrawer.classList.remove("open");
-    advancedDrawer.setAttribute("aria-hidden", "true");
-    if (advToggleBtn) {
-      advToggleBtn.setAttribute("aria-expanded", "false");
-      advToggleBtn.classList.remove("open");
-    }
-  }
-  showStatusToast("Filters reset to defaults", "info", 1600);
-  reloadActiveTab();
-}
-
-// wire reset button if present
-if (resetFiltersBtn) {
-  resetFiltersBtn.addEventListener("click", (ev) => {
-    ev.preventDefault();
-    resetAllFilters();
+if (searchInput) {
+  searchInput.addEventListener("input", () => {
+    resetPages();
+    state.currentSearchText = searchInput.value.trim();
+    if (_searchDebounceTimer) clearTimeout(_searchDebounceTimer);
+    _searchDebounceTimer = setTimeout(() => {
+      reloadActiveTab();
+      _searchDebounceTimer = null;
+    }, 300);
   });
 }
 
@@ -652,6 +577,37 @@ function _maintainFocus(e) {
   if (modalClose) modalClose.focus();
 }
 
+// Mobile filters modal focus trap helpers
+let _mobileModalFocusable = [];
+function _trapTabHandlerMobile(e) {
+  if (!mobileFiltersModal || !mobileFiltersModal.classList.contains("open"))
+    return;
+  if (e.key !== "Tab") return;
+  if (!_mobileModalFocusable || !_mobileModalFocusable.length) return;
+  const first = _mobileModalFocusable[0];
+  const last = _mobileModalFocusable[_mobileModalFocusable.length - 1];
+  const active = document.activeElement;
+  if (e.shiftKey) {
+    if (active === first || active === mobileFiltersModal) {
+      e.preventDefault();
+      last.focus();
+    }
+  } else {
+    if (active === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
+}
+
+function _maintainFocusMobile(e) {
+  if (!mobileFiltersModal || !mobileFiltersModal.classList.contains("open"))
+    return;
+  if (mobileFiltersModal.contains(e.target)) return;
+  e.stopPropagation();
+  if (mobileFiltersClose) mobileFiltersClose.focus();
+}
+
 function setBackgroundInert(enable, exceptions = []) {
   const page = document.querySelector(".page");
   if (!page) return;
@@ -801,117 +757,68 @@ function openMobileFiltersModal() {
   }
 
   console.log("Opening mobile filters modal...");
-
-  // Store current filter values
+  // Build the mobile filters modal HTML
   _mobileFilterValues = {
-    sourceKind: state.currentSourceKind,
-    search: state.currentSearchText,
-    dateRange: dateRangeInput ? dateRangeInput.value : "",
-    categoryCode: state.currentCategoryCode,
-    subcategoryCode: state.currentSubcategoryCode,
-    groupCode: state.currentGroupCode,
-    subgroupCode: state.currentSubgroupCode,
+    sourceKind: state.currentSourceKind || "all",
+    search: state.currentSearchText || "",
+    dateRange:
+      (state.currentFromDate &&
+        state.currentToDate &&
+        `${state.currentFromDate} to ${state.currentToDate}`) ||
+      state.currentFromDate ||
+      state.currentToDate ||
+      "",
+    categoryCode: state.currentCategoryCode || "all",
+    subcategoryCode: state.currentSubcategoryCode || "all",
+    groupCode: state.currentGroupCode || "all",
+    subgroupCode: state.currentSubgroupCode || "all",
   };
-
-  // Populate modal content with current filters
-  populateMobileFiltersModal();
-
-  // Show modal
-  _lastActiveElement = document.activeElement;
-  mobileFiltersModal.classList.add("open");
-  mobileFiltersModal.setAttribute("aria-hidden", "false");
-
-  // Debug: Check if modal is visible and close button exists
-  console.log("Modal classes:", mobileFiltersModal.className);
-  console.log("Modal display:", getComputedStyle(mobileFiltersModal).display);
-
-  const closeBtn = document.getElementById("mobileFiltersClose");
-  console.log("Close button:", closeBtn);
-  if (closeBtn) {
-    console.log("Close button display:", getComputedStyle(closeBtn).display);
-    console.log(
-      "Close button visibility:",
-      getComputedStyle(closeBtn).visibility
-    );
-  }
-
-  // Set up focus trap and background inert
-  setBackgroundInert(true, [mobileFiltersModal]);
-
-  // Focus first element in modal
-  const firstInput = mobileFiltersModal.querySelector("input, select, button");
-  if (firstInput) firstInput.focus();
-}
-
-function closeMobileFiltersModal() {
-  if (!mobileFiltersModal) return;
-
-  // Hide modal
-  mobileFiltersModal.classList.remove("open");
-  mobileFiltersModal.setAttribute("aria-hidden", "true");
-
-  // Remove background inert
-  setBackgroundInert(false);
-
-  // Restore focus
-  if (_lastActiveElement && typeof _lastActiveElement.focus === "function") {
-    _lastActiveElement.focus();
-  }
-}
-
-function populateMobileFiltersModal() {
-  if (!mobileFiltersContent) return;
 
   const html = `
     <div class="filters-section">
-      <h4>Basic Filters</h4>
-      
+      <h4>Primary Filters</h4>
       <div class="filter-row">
         <label for="mobileSourceKind">Source Kind</label>
         <select id="mobileSourceKind">
-          <option value="all">All</option>
-          <option value="RM">Raw Materials</option>
-          <option value="PLM">PLM Items</option>
-          <option value="consumable">Consumables</option>
-          <option value="fuel">Fuel</option>
+          <option value="all">(All)</option>
+          <option value="rm">rm</option>
+          <option value="plm">plm</option>
+          <option value="consumable">consumable</option>
+          <option value="fuel">fuel</option>
         </select>
       </div>
-      
+
       <div class="filter-row">
         <label for="mobileSearchInput">Search</label>
-        <input type="text" id="mobileSearchInput" placeholder="Search items..." value="${_mobileFilterValues.search}">
+        <input id="mobileSearchInput" type="search" placeholder="Code or name" value="${_mobileFilterValues.search}">
       </div>
-      
+
       <div class="filter-row">
-        <label for="mobileDateRange">Date Range (Purchases only)</label>
+        <label for="mobileDateRange">Date Range</label>
         <input type="text" id="mobileDateRange" placeholder="Select date range" value="${_mobileFilterValues.dateRange}">
       </div>
     </div>
-    
+
     <div class="filters-section">
       <h4>Classification Filters</h4>
-      
       <div class="filter-row">
         <label for="mobileCategoryFilter">Category</label>
         <select id="mobileCategoryFilter">
           <option value="all">(All categories)</option>
         </select>
       </div>
-      
       <div class="filter-row">
         <label for="mobileSubcategoryFilter">Sub-category</label>
         <select id="mobileSubcategoryFilter">
           <option value="all">(All sub-categories)</option>
         </select>
       </div>
-      
       <div class="filter-row">
         <label for="mobileGroupFilter">Group</label>
         <select id="mobileGroupFilter">
           <option value="all">(All groups)</option>
         </select>
       </div>
-      
       <div class="filter-row">
         <label for="mobileSubgroupFilter">Sub-group</label>
         <select id="mobileSubgroupFilter">
@@ -920,7 +827,6 @@ function populateMobileFiltersModal() {
       </div>
     </div>
   `;
-
   mobileFiltersContent.innerHTML = html;
 
   // Set current values
@@ -952,6 +858,63 @@ function populateMobileFiltersModal() {
       dateFormat: "d-m-Y",
       allowInput: true,
     });
+  }
+
+  // Open the modal and make background inert for accessibility
+  try {
+    _lastActiveElement = document.activeElement;
+    mobileFiltersModal.classList.add("open");
+    mobileFiltersModal.setAttribute("aria-hidden", "false");
+    setBackgroundInert(true, [mobileFiltersModal]);
+
+    // compute and store focusable elements for the mobile modal
+    _mobileModalFocusable = _getFocusable(mobileFiltersModal);
+    if (
+      _mobileModalFocusable &&
+      _mobileModalFocusable.length &&
+      typeof _mobileModalFocusable[0].focus === "function"
+    ) {
+      _mobileModalFocusable[0].focus();
+    } else if (
+      mobileFiltersClose &&
+      typeof mobileFiltersClose.focus === "function"
+    ) {
+      mobileFiltersClose.focus();
+    }
+
+    // attach focus-trap handlers for the mobile modal
+    document.addEventListener("focus", _maintainFocusMobile, true);
+    document.addEventListener("keydown", _trapTabHandlerMobile);
+  } catch {
+    /* ignore errors opening modal */
+  }
+}
+
+function closeMobileFiltersModal() {
+  if (!mobileFiltersModal) return;
+  // remove focus-trap handlers first
+  try {
+    document.removeEventListener("focus", _maintainFocusMobile, true);
+    document.removeEventListener("keydown", _trapTabHandlerMobile);
+  } catch {
+    /* ignore */
+  }
+  _mobileModalFocusable = [];
+
+  mobileFiltersModal.classList.remove("open");
+  mobileFiltersModal.setAttribute("aria-hidden", "true");
+  // restore page accessibility
+  try {
+    setBackgroundInert(false);
+  } catch {
+    /* ignore */
+  }
+  // restore focus to open button
+  try {
+    if (mobileFiltersBtn && typeof mobileFiltersBtn.focus === "function")
+      mobileFiltersBtn.focus();
+  } catch {
+    /* ignore */
   }
 }
 
@@ -1055,6 +1018,83 @@ function resetMobileFilters() {
   if (mobileSubgroupFilter) mobileSubgroupFilter.value = "all";
 }
 
+// Reset main (desktop) filters to defaults
+function resetFilters() {
+  if (classificationSelect) classificationSelect.value = "all";
+  if (categoryFilter) categoryFilter.value = "all";
+  if (subcategoryFilter) subcategoryFilter.value = "all";
+  if (groupFilter) groupFilter.value = "all";
+  if (subgroupFilter) subgroupFilter.value = "all";
+  if (searchInput) searchInput.value = "";
+  if (dateRangeInput) dateRangeInput.value = "";
+
+  // Update canonical state
+  state.currentSourceKind = "all";
+  state.currentCategoryCode = "all";
+  state.currentSubcategoryCode = "all";
+  state.currentGroupCode = "all";
+  state.currentSubgroupCode = "all";
+  state.currentSearchText = "";
+  state.currentFromDate = "";
+  state.currentToDate = "";
+
+  // Ensure any mobile modal inputs reflect the reset as well
+  try {
+    const mobileSource = document.getElementById("mobileSourceKind");
+    const mobileSearchInput = document.getElementById("mobileSearchInput");
+    const mobileDateRange = document.getElementById("mobileDateRange");
+    const mobileCategory = document.getElementById("mobileCategoryFilter");
+    const mobileSubcategory = document.getElementById(
+      "mobileSubcategoryFilter"
+    );
+    const mobileGroup = document.getElementById("mobileGroupFilter");
+    const mobileSubgroup = document.getElementById("mobileSubgroupFilter");
+    if (mobileSource) mobileSource.value = "all";
+    if (mobileSearchInput) mobileSearchInput.value = "";
+    if (mobileDateRange) mobileDateRange.value = "";
+    if (mobileCategory) mobileCategory.value = "all";
+    if (mobileSubcategory) mobileSubcategory.value = "all";
+    if (mobileGroup) mobileGroup.value = "all";
+    if (mobileSubgroup) mobileSubgroup.value = "all";
+  } catch {
+    /* ignore */
+  }
+
+  // Close advanced drawer if open
+  try {
+    if (advancedDrawer && advancedDrawer.classList.contains("open")) {
+      advancedDrawer.classList.remove("open");
+      advancedDrawer.setAttribute("aria-hidden", "true");
+      if (advToggleBtn) {
+        advToggleBtn.setAttribute("aria-expanded", "false");
+        advToggleBtn.classList.remove("open");
+      }
+      if (filtersCard) filtersCard.classList.remove("expanded");
+    }
+  } catch {
+    /* ignore */
+  }
+
+  // Close mobile filters modal if it's open
+  try {
+    if (mobileFiltersModal && mobileFiltersModal.classList.contains("open")) {
+      closeMobileFiltersModal();
+    }
+  } catch {
+    /* ignore */
+  }
+
+  // Reset pagination and reload
+  resetPages();
+  reloadActiveTab();
+
+  // Update clear button visibility
+  if (typeof toggleMainClearButton === "function") toggleMainClearButton();
+  if (typeof toggleMobileClearButton === "function") toggleMobileClearButton();
+
+  showStatusToast("Filters reset", "info", 1200);
+}
+
 if (mobileFiltersBtn) {
   mobileFiltersBtn.addEventListener("click", (ev) => {
     ev.preventDefault();
@@ -1093,6 +1133,15 @@ if (mobileFiltersReset) {
   });
 }
 
+// Wire desktop Reset button
+const resetFiltersBtn = document.getElementById("resetFiltersBtn");
+if (resetFiltersBtn) {
+  resetFiltersBtn.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    resetFilters();
+  });
+}
+
 // Close modal when clicking backdrop
 if (mobileFiltersModal) {
   mobileFiltersModal.addEventListener("click", (ev) => {
@@ -1117,8 +1166,8 @@ document.addEventListener("keydown", (ev) => {
 if (mobileSearch && searchInput) {
   // initialize
   mobileSearch.value = searchInput.value || "";
-  mobileSearch.addEventListener("input", (ev) => {
-    searchInput.value = ev.target.value;
+  mobileSearch.addEventListener("input", () => {
+    searchInput.value = mobileSearch.value;
     // Update state immediately to keep UI in sync
     resetPages();
     state.currentSearchText = searchInput.value.trim();
@@ -1132,9 +1181,9 @@ if (mobileSearch && searchInput) {
     }, 500);
   });
   // keep mobileSearch updated when main search changes (e.g., reset)
-  searchInput.addEventListener("input", (ev) => {
-    if (mobileSearch.value !== ev.target.value)
-      mobileSearch.value = ev.target.value;
+  searchInput.addEventListener("input", () => {
+    if (mobileSearch.value !== searchInput.value)
+      mobileSearch.value = searchInput.value;
   });
 }
 
@@ -1307,54 +1356,358 @@ async function loadPurchaseSummary({
   page = 1,
   pageSize = 30,
 }) {
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
-  let query = supabase
-    .from("v_purchases_summary_by_item")
-    .select("*", { count: "exact" });
+  // Use the server-side RPC to fetch paged, filtered purchase summary rows.
+  const offset = (page - 1) * pageSize;
+  const limit = pageSize;
+  const rpcParams = {
+    p_from_date: fromDate ? toIso(fromDate) : null,
+    p_to_date: toDate ? toIso(toDate) : null,
+    p_source_kind: sourceKind && sourceKind !== "all" ? sourceKind : null,
+    p_search: searchText || null,
+    p_category_code:
+      state.currentCategoryCode && state.currentCategoryCode !== "all"
+        ? state.currentCategoryCode
+        : null,
+    p_limit: limit,
+    p_offset: offset,
+  };
 
-  if (sourceKind && sourceKind !== "all") {
-    query = query.eq("source_kind", sourceKind);
-  }
-  if (searchText) {
-    query = query.or(`name.ilike.%${searchText}%,code.ilike.%${searchText}%`);
-  }
-  if (fromDate) query = query.gte("last_purchase_date", toIso(fromDate));
-  if (toDate) query = query.lte("last_purchase_date", toIso(toDate));
-
-  query = applyClassificationFilters(query);
-
-  query = query.order("name");
-  query = query.range(from, to);
-  const { data, error, count } = await query;
+  const { data, error } = await supabase.rpc(
+    "fn_purchase_summary_filtered",
+    rpcParams
+  );
   if (error) return { error: handleSupabaseError(error) };
-  return { data, count };
+
+  // Obtain exact total count for pagination by querying the view head.
+  try {
+    let countQuery = supabase
+      .from("v_purchases_summary_by_item")
+      .select("inv_stock_item_id", { count: "exact", head: true });
+    if (sourceKind && sourceKind !== "all") {
+      countQuery = countQuery.eq("source_kind", sourceKind);
+    }
+    if (searchText) {
+      countQuery = countQuery.or(
+        `name.ilike.%${searchText}%,code.ilike.%${searchText}%`
+      );
+    }
+    if (fromDate)
+      countQuery = countQuery.gte("last_purchase_date", toIso(fromDate));
+    if (toDate)
+      countQuery = countQuery.lte("last_purchase_date", toIso(toDate));
+    countQuery = applyClassificationFilters(countQuery);
+    const { error: cntErr, count } = await countQuery;
+    if (cntErr) return { data, count: 0 };
+    return { data, count: count || 0 };
+  } catch {
+    return { data, count: 0 };
+  }
 }
 
 async function loadPurchaseDetails({ invStockItemId, fromDate, toDate }) {
-  let query = supabase
-    .from("v_purchases_by_item")
-    .select()
-    .eq("inv_stock_item_id", invStockItemId);
-  if (fromDate) query = query.gte("voucher_date", toIso(fromDate));
-  if (toDate) query = query.lte("voucher_date", toIso(toDate));
-  query = query.order("voucher_date", { ascending: false });
-  const { data, error } = await query;
+  // Use RPC to fetch purchase lines for the item limited by voucher date
+  const rpcParams = {
+    p_inv_stock_item_id: invStockItemId,
+    p_from_date: fromDate ? toIso(fromDate) : null,
+    p_to_date: toDate ? toIso(toDate) : null,
+  };
+  const { data, error } = await supabase.rpc(
+    "fn_purchase_details_filtered",
+    rpcParams
+  );
   if (error) return { error: handleSupabaseError(error) };
   return { data };
 }
 
 // NEW: load monthly consumption rows for an item
-async function loadConsumptionMonthly({ invStockItemId }) {
-  let query = supabase
-    .from("v_item_consumption_monthly_by_item")
-    .select()
-    .eq("inv_stock_item_id", invStockItemId)
-    .order("month_start_date", { ascending: true });
-
-  const { data, error } = await query;
+async function loadConsumptionMonthly({ invStockItemId, fromDate, toDate }) {
+  const rpcParams = {
+    p_inv_stock_item_id: invStockItemId,
+    p_from_date: fromDate ? toIso(fromDate) : null,
+    p_to_date: toDate ? toIso(toDate) : null,
+  };
+  const { data, error } = await supabase.rpc(
+    "fn_consumption_monthly_filtered",
+    rpcParams
+  );
   if (error) return { error: handleSupabaseError(error) };
   return { data };
+}
+async function loadConsumptionSummary({
+  sourceKind,
+  searchText,
+  fromDate,
+  toDate,
+  page = 1,
+  pageSize = 30,
+}) {
+  // Call server-side RPC that returns per-item consumption summary (paged)
+  const offset = (page - 1) * pageSize;
+  const limit = pageSize;
+  const rpcParams = {
+    p_from_date: fromDate ? toIso(fromDate) : null,
+    p_to_date: toDate ? toIso(toDate) : null,
+    p_source_kind: sourceKind || null,
+    p_search: searchText || null,
+    p_category_code: state.currentCategoryCode || null,
+    p_limit: limit,
+    p_offset: offset,
+  };
+
+  const { data, error } = await supabase.rpc(
+    "fn_consumption_summary_filtered",
+    rpcParams
+  );
+  if (error) {
+    console.warn(
+      "fn_consumption_summary_filtered RPC error, falling back to client aggregation:",
+      error
+    );
+    return await fallbackLoadConsumptionSummary({
+      sourceKind,
+      searchText,
+      fromDate,
+      toDate,
+      page,
+      pageSize,
+    });
+  }
+
+  // Try to obtain an exact total count via a companion RPC if available.
+  // If such RPC isn't deployed, fall back to a best-effort count.
+  let totalCount = 0;
+  try {
+    // Many deployments add a count RPC; try it but don't fail if absent.
+    const { data: cntData, error: cntErr } = await supabase.rpc(
+      "fn_consumption_summary_count_filtered",
+      {
+        p_from_date: rpcParams.p_from_date,
+        p_to_date: rpcParams.p_to_date,
+        p_source_kind: rpcParams.p_source_kind,
+        p_search: rpcParams.p_search,
+        p_category_code: rpcParams.p_category_code,
+      }
+    );
+    if (!cntErr && cntData) {
+      // Support common return shapes: [{ count: N }] or plain integer array
+      if (
+        Array.isArray(cntData) &&
+        cntData.length === 1 &&
+        cntData[0].count !== undefined
+      ) {
+        totalCount = Number(cntData[0].count) || 0;
+      } else if (
+        Array.isArray(cntData) &&
+        cntData.length === 1 &&
+        typeof cntData[0] === "number"
+      ) {
+        totalCount = Number(cntData[0]) || 0;
+      } else if (Array.isArray(cntData)) {
+        totalCount = cntData.length;
+      }
+    }
+  } catch {
+    // ignore errors from optional count RPC
+  }
+
+  // If count RPC wasn't available or didn't return a value, estimate safely
+  if (!totalCount) {
+    if (!data || !data.length) totalCount = 0;
+    else if (data.length < limit) totalCount = offset + data.length;
+    else totalCount = offset + data.length + 1; // unknown exact count, signal there may be more
+  }
+
+  return { data: data || [], count: totalCount };
+}
+
+// Fallback: client-side aggregation using the monthly view
+async function fallbackLoadConsumptionSummary({
+  sourceKind,
+  searchText,
+  fromDate,
+  toDate,
+  page = 1,
+  pageSize = 30,
+}) {
+  // Query the monthly view for rows in range with allowed filters (avoid name/code filters here)
+  // The monthly view does not expose classification code columns in some schemas.
+  // Request only the monthly metrics and source_kind here; classification will
+  // be resolved by fetching `inv_stock_item` metadata later.
+  let query = supabase
+    .from("v_item_consumption_monthly_by_item")
+    .select(
+      `inv_stock_item_id,month_start_date,total_consumed_qty,rm_pm_issue_qty,consumable_out_qty,source_kind`
+    );
+
+  if (sourceKind && sourceKind !== "all")
+    query = query.eq("source_kind", sourceKind);
+  if (fromDate) query = query.gte("month_start_date", toIso(fromDate));
+  if (toDate) query = query.lte("month_start_date", toIso(toDate));
+  // NOTE: do NOT apply `applyClassificationFilters` here because the
+  // monthly view `v_item_consumption_monthly_by_item` does not expose
+  // classification columns in some deployments. We'll resolve classification
+  // codes from `inv_stock_item_class_map` and apply filters client-side below.
+
+  const { data: rows, error: rowsErr } = await query;
+  if (rowsErr) return { error: handleSupabaseError(rowsErr) };
+  if (!rows || !rows.length) return { data: [], count: 0 };
+
+  // Aggregate by inv_stock_item_id
+  const map = new Map();
+  for (const r of rows) {
+    const id = r.inv_stock_item_id;
+    if (!map.has(id)) {
+      map.set(id, {
+        inv_stock_item_id: id,
+        total_consumed_qty: 0,
+        rm_pm_issue_qty: 0,
+        consumable_out_qty: 0,
+        months_set: new Set(),
+        first_month: null,
+        last_month: null,
+        category_code: r.category_code || null,
+        subcategory_code: r.subcategory_code || null,
+        group_code: r.group_code || null,
+        subgroup_code: r.subgroup_code || null,
+        source_kind: r.source_kind || null,
+      });
+    }
+    const cur = map.get(id);
+    cur.total_consumed_qty += Number(r.total_consumed_qty || 0);
+    cur.rm_pm_issue_qty += Number(r.rm_pm_issue_qty || 0);
+    cur.consumable_out_qty += Number(r.consumable_out_qty || 0);
+    const m = r.month_start_date;
+    if (m) {
+      cur.months_set.add(m);
+      if (!cur.first_month || m < cur.first_month) cur.first_month = m;
+      if (!cur.last_month || m > cur.last_month) cur.last_month = m;
+    }
+  }
+
+  // Fetch metadata (code/name) for the items we aggregated (basic fields only)
+  const ids = Array.from(map.keys());
+  const { data: items, error: itemsErr } = await supabase
+    .from("inv_stock_item")
+    .select("id,code,name,source_kind")
+    .in("id", ids);
+  if (itemsErr) return { error: handleSupabaseError(itemsErr) };
+
+  const itemMap = new Map((items || []).map((it) => [it.id, it]));
+
+  // Fetch class mapping entries for these items and then fetch class codes
+  const { data: maps, error: mapsErr } = await supabase
+    .from("inv_stock_item_class_map")
+    .select("stock_item_id,category_id,subcategory_id,group_id,subgroup_id")
+    .in("stock_item_id", ids);
+  if (mapsErr) return { error: handleSupabaseError(mapsErr) };
+
+  // Build id sets for each classification level
+  const catIds = new Set();
+  const subIds = new Set();
+  const grpIds = new Set();
+  const sgrpIds = new Set();
+  const mapByItem = new Map();
+  for (const m of maps || []) {
+    mapByItem.set(m.stock_item_id, m);
+    if (m.category_id) catIds.add(m.category_id);
+    if (m.subcategory_id) subIds.add(m.subcategory_id);
+    if (m.group_id) grpIds.add(m.group_id);
+    if (m.subgroup_id) sgrpIds.add(m.subgroup_id);
+  }
+
+  // Helper to fetch code lookup for a table of class ids
+  async function fetchCodes(tbl, idsSet) {
+    if (!idsSet || idsSet.size === 0) return new Map();
+    const idsArr = Array.from(idsSet);
+    const { data: rows, error: err } = await supabase
+      .from(tbl)
+      .select("id,code")
+      .in("id", idsArr);
+    if (err) return { err };
+    const m = new Map((rows || []).map((r) => [r.id, r.code]));
+    return { map: m };
+  }
+
+  const [
+    { map: catMap } = {},
+    { map: subMap } = {},
+    { map: grpMap } = {},
+    { map: sgrpMap } = {},
+  ] = await Promise.all([
+    fetchCodes("inv_class_category", catIds),
+    fetchCodes("inv_class_subcategory", subIds),
+    fetchCodes("inv_class_group", grpIds),
+    fetchCodes("inv_class_subgroup", sgrpIds),
+  ]);
+
+  // Build summaries array and apply searchText filter against code/name if provided
+  let summaries = Array.from(map.values()).map((s) => {
+    const it = itemMap.get(s.inv_stock_item_id) || {};
+    const cm = mapByItem.get(s.inv_stock_item_id) || {};
+    const category_code =
+      cm.category_id && catMap ? catMap.get(cm.category_id) : null;
+    const subcategory_code =
+      cm.subcategory_id && subMap ? subMap.get(cm.subcategory_id) : null;
+    const group_code = cm.group_id && grpMap ? grpMap.get(cm.group_id) : null;
+    const subgroup_code =
+      cm.subgroup_id && sgrpMap ? sgrpMap.get(cm.subgroup_id) : null;
+    return {
+      inv_stock_item_id: s.inv_stock_item_id,
+      code: it.code || "–",
+      name: it.name || "–",
+      category_code: category_code || null,
+      subcategory_code: subcategory_code || null,
+      group_code: group_code || null,
+      subgroup_code: subgroup_code || null,
+      source_kind: s.source_kind || it.source_kind || null,
+      total_consumed_qty: s.total_consumed_qty,
+      rm_pm_issue_qty: s.rm_pm_issue_qty,
+      consumable_out_qty: s.consumable_out_qty,
+      months_with_usage: s.months_set.size,
+      first_month: s.first_month,
+      last_month: s.last_month,
+    };
+  });
+
+  if (searchText) {
+    const st = searchText.trim();
+    const lower = st.toLowerCase();
+    summaries = summaries.filter(
+      (r) =>
+        (r.name || "").toLowerCase().includes(lower) ||
+        (r.code || "").toLowerCase().includes(lower)
+    );
+  }
+
+  // Apply classification filters client-side since the monthly view lacks
+  // classification columns in some deployments.
+  if (state.currentCategoryCode && state.currentCategoryCode !== "all") {
+    summaries = summaries.filter(
+      (r) => r.category_code === state.currentCategoryCode
+    );
+  }
+  if (state.currentSubcategoryCode && state.currentSubcategoryCode !== "all") {
+    summaries = summaries.filter(
+      (r) => r.subcategory_code === state.currentSubcategoryCode
+    );
+  }
+  if (state.currentGroupCode && state.currentGroupCode !== "all") {
+    summaries = summaries.filter(
+      (r) => r.group_code === state.currentGroupCode
+    );
+  }
+  if (state.currentSubgroupCode && state.currentSubgroupCode !== "all") {
+    summaries = summaries.filter(
+      (r) => r.subgroup_code === state.currentSubgroupCode
+    );
+  }
+
+  summaries.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+
+  const totalCount = summaries.length;
+  const start = (page - 1) * pageSize;
+  const pageRows = summaries.slice(start, start + pageSize);
+  return { data: pageRows, count: totalCount };
 }
 
 // Utility: convert dd-mm-yyyy to ISO yyyy-mm-dd
@@ -1696,7 +2049,11 @@ function renderConsumptionTable(rows, totalCount) {
 // NEW: open modal and render monthly consumption for an item
 async function loadAndRenderConsumptionMonthly(invStockItemId) {
   openDetailModal('<div class="loading">Loading…</div>');
-  const { data, error } = await loadConsumptionMonthly({ invStockItemId });
+  const { data, error } = await loadConsumptionMonthly({
+    invStockItemId,
+    fromDate: state.currentFromDate,
+    toDate: state.currentToDate,
+  });
   if (error) {
     modalContent.innerHTML = `<div class="error">${
       error.userMessage || error.message
@@ -1994,9 +2351,11 @@ async function reloadActiveTab(preselectId) {
       return renderError(res.error.userMessage || res.error.message);
     renderPurchaseSummaryTable(res.data, res.count || 0);
   } else if (state.currentTab === "consumption") {
-    const res = await loadOverviewItems({
+    const res = await loadConsumptionSummary({
       sourceKind: state.currentSourceKind,
       searchText: state.currentSearchText,
+      fromDate: state.currentFromDate,
+      toDate: state.currentToDate,
       page: state.pageConsumption,
       pageSize: state.pageSize,
     });
