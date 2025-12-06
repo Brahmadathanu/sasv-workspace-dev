@@ -212,6 +212,8 @@ function showModal(msg, okText = "OK", cancelText = "Cancel", type = null) {
   if (modalIcon) modalIcon.innerHTML = svgMap[t] || svgMap.confirm;
 
   return new Promise((res) => {
+    // preserve currently focused element so we can restore focus after closing
+    const previouslyFocused = document.activeElement;
     modalMessage.textContent = msg;
     // set button labels
     if (modalConfirm) {
@@ -227,13 +229,29 @@ function showModal(msg, okText = "OK", cancelText = "Cancel", type = null) {
       modalOverlay.classList.add("show");
       modalOverlay.setAttribute("aria-hidden", "false");
     }
+    // try to move focus into the modal for accessibility
+    try {
+      if (modalConfirm && typeof modalConfirm.focus === "function")
+        modalConfirm.focus();
+    } catch {
+      /* ignore */
+    }
     const cleanup = () => {
+      // remove event listeners first
+      if (modalConfirm) modalConfirm.removeEventListener("click", onOk);
+      if (modalCancel) modalCancel.removeEventListener("click", onCancel);
+      // restore focus to the element that had it before the modal opened
+      try {
+        if (previouslyFocused && typeof previouslyFocused.focus === "function")
+          previouslyFocused.focus();
+      } catch {
+        /* ignore */
+      }
+      // only after focus is moved away, hide the overlay to avoid aria-hidden on focused node
       if (modalOverlay) {
         modalOverlay.classList.remove("show");
         modalOverlay.setAttribute("aria-hidden", "true");
       }
-      if (modalConfirm) modalConfirm.removeEventListener("click", onOk);
-      if (modalCancel) modalCancel.removeEventListener("click", onCancel);
     };
     const onOk = () => {
       cleanup();
@@ -507,6 +525,13 @@ async function loadDetails(id) {
       inlineDeleteBtn.style.display = "inline-block";
       inlineDeleteBtn.disabled = !window.CAN_EDIT;
     }
+    // ensure the edit toggle is enabled when a product is loaded and the user can edit
+    if (editToggleBtn) {
+      editToggleBtn.disabled = !window.CAN_EDIT;
+      if (!window.CAN_EDIT)
+        editToggleBtn.title = "You do not have edit permission";
+      else editToggleBtn.title = editing ? "Disable edit" : "Enable edit";
+    }
   } finally {
     hideLoading();
   }
@@ -667,6 +692,9 @@ form.addEventListener("submit", async (e) => {
     if (error) return console.error(error);
     if (inserted && inserted.id) selectedId = inserted.id;
   }
+
+  // We've persisted changes successfully; clear unsaved so subsequent loads don't prompt
+  unsaved = false;
 
   // clear filter and reload everything; if we just inserted, open that item
   searchInput.value = "";
