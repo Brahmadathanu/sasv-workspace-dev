@@ -1,5 +1,9 @@
 // seasonal-banners.js — injects a small banner for Christmas / New Year
+// NOTE: temporary debug logs to help diagnose visibility issue on login page
 (function () {
+  try {
+    console.log("seasonal-banners: script loaded");
+  } catch (e) {}
   const now = new Date();
   const y = now.getFullYear();
   const mm = now.getMonth() + 1; // 1-12
@@ -74,7 +78,9 @@
           "page";
         const pageKey = `${page}`.replace(/[^a-z0-9._-]/gi, "_");
         const key = `seasonal-dismissed-${y}-${cls}-${pageKey}`;
-        localStorage.setItem(key, "1");
+        // Use sessionStorage so dismissal lasts only for this session/renderer
+        // and the badge will reappear on next app start within the season.
+        sessionStorage.setItem(key, "1");
       } catch (e) {}
       try {
         wrapper.remove();
@@ -186,7 +192,8 @@
         "page";
       const pageKey = `${page}`.replace(/[^a-z0-9._-]/gi, "_");
       const key = `seasonal-dismissed-${y}-${cls}-${pageKey}`;
-      return localStorage.getItem(key) === "1";
+      // Check sessionStorage to determine if user dismissed during this session
+      return sessionStorage.getItem(key) === "1";
     } catch (e) {
       return false;
     }
@@ -208,7 +215,25 @@
       document.head.appendChild(l);
     }
 
-    if (isDismissed()) return; // don't show if user dismissed this season
+    // allow a debug URL param to force-display the seasonal banner during testing
+    // e.g. open login.html?seasonalDebug=1
+    const debugForce =
+      location &&
+      location.search &&
+      location.search.indexOf("seasonalDebug=1") !== -1;
+    if (isDismissed()) {
+      try {
+        if (debugForce)
+          console.log(
+            "seasonal-banners: dismissed but debug forced, continuing"
+          );
+        else
+          console.log(
+            "seasonal-banners: dismissed for this page/season, not showing"
+          );
+      } catch (e) {}
+      if (!debugForce) return; // don't show if user dismissed this season
+    }
 
     // Preferred targets: header h1 (home) and login h2 (sign in)
     // placement: 'right-center' (to the right, vertically centered)
@@ -235,6 +260,9 @@
           if (cs.position === "static") card.style.position = "relative";
           // append wrapper into the card and absolutely position it above
           card.appendChild(wrapper);
+          try {
+            console.log("seasonal-banners: appended wrapper into login card");
+          } catch (e) {}
           wrapper.style.position = "absolute";
           wrapper.style.top = "-40px";
           wrapper.style.left = "50%";
@@ -259,6 +287,11 @@
             const header = document.querySelector("header");
             if (header) header.appendChild(wrapper);
             else document.body.appendChild(wrapper);
+            try {
+              console.log(
+                "seasonal-banners: appended wrapper for right-center placement"
+              );
+            } catch (e) {}
           }
           // Panel will be positioned on first hover/focus - no initial positioning
         } catch (e) {
@@ -272,7 +305,16 @@
     // fallback: if no targets found, insert at top but compact
     if (!placed) {
       const banner = makeBanner();
-      document.body.prepend(banner);
+      // `makeBanner()` returns an object containing the DOM `wrapper`.
+      // Prepend the wrapper element itself so the badge appears.
+      try {
+        document.body.prepend(banner.wrapper);
+      } catch (e) {
+        // fallback to appending if prepend not available
+        try {
+          document.body.appendChild(banner.wrapper);
+        } catch (err) {}
+      }
     }
   });
 })();
