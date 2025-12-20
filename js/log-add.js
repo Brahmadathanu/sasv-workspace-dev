@@ -1474,8 +1474,17 @@ async function handleSubmit(isNew) {
     const parts = [...transferTableBody.querySelectorAll("input")]
       .map((i) => {
         const cnt = +i.value;
-        const sku = currentItemSkus.find((s) => s.id == i.dataset.skuId);
-        return cnt > 0 ? `${sku.pack_size} ${sku.uom} x ${cnt}` : null;
+        if (cnt <= 0) return null;
+        const tr = i.closest("tr");
+        const pack_size =
+          tr && tr.children[0] && tr.children[0].textContent
+            ? tr.children[0].textContent.trim()
+            : "";
+        const uom =
+          tr && tr.children[1] && tr.children[1].textContent
+            ? tr.children[1].textContent.trim()
+            : "";
+        return `${pack_size} ${uom} x ${cnt}`;
       })
       .filter(Boolean);
     row.sku_breakdown = parts.join("; ");

@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>SASV WORKSPACE | Material Requirements Board</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="./css/style.css" />
+    <style>
+      body {
+        margin: 18px;
+        font-family: Arial, sans-serif;
+        background: var(--bg-color);
+        color: var(--text-color);
+      }
+      .header-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+      }
+      .header-bar h2 {
+        margin: 0;
+        color: var(--primary);
+      }
+      .section-hint {
+        margin-top: 6px;
+        color: var(--muted, #6b7280);
+      }
+
+      .filter-strip {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin: 12px 0;
+      }
+      .filter-pair {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      input[type="month"],
+      input[type="text"],
+      select {
+        padding: 6px 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        background: var(--input-bg);
+        color: var(--input-text);
+      }
+      .filter-actions {
+        margin-left: auto;
+        display: flex;
+        gap: 8px;
+      }
+
+      #rowCount {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 4px 10px;
+        background: #eef6ff;
+        color: #024a75;
+        border-radius: 999px;
+        font-weight: 600;
+      }
+
+      #mrpTableContainer {
+        border: 1px solid #ccc;
+        overflow: auto;
+        max-height: 56vh;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        padding: 6px 8px;
+        border-bottom: 1px solid #e6eef6;
+        font-size: 0.95rem;
+        text-align: left;
+      }
+      th {
+        position: sticky;
+        top: 0;
+        background: var(--panel-bg);
+        z-index: 2;
+        cursor: pointer;
+      }
+      tbody tr:hover {
+        background: #f3fbff;
+        cursor: pointer;
+      }
+      tbody tr.selected {
+        background: #dff1ff;
+      }
+
+      .flags {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .badge-warning {
+        background: #fff4e5;
+        color: #7a4900;
+        padding: 4px 6px;
+        border-radius: 999px;
+        font-size: 0.8rem;
+      }
+      .badge-info {
+        background: #e8f4ff;
+        color: #045a8d;
+        padding: 4px 6px;
+        border-radius: 999px;
+        font-size: 0.8rem;
+      }
+
+      .detail-panel {
+        border: 1px solid #ccc;
+        padding: 12px;
+        margin-top: 12px;
+        border-radius: 6px;
+        background: var(--panel-bg);
+      }
+      .bar-wrap {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .bar {
+        height: 14px;
+        background: #e6eef6;
+        border-radius: 6px;
+        flex: 1;
+        position: relative;
+      }
+      .bar-inner {
+        height: 100%;
+        border-radius: 6px;
+        background: linear-gradient(90deg, #69b3ff, #007bff);
+      }
+      .top-consumers {
+        margin-top: 8px;
+      }
+
+      @media (min-width: 900px) {
+        .main-grid {
+          display: grid;
+          grid-template-columns: 1fr 360px;
+          gap: 12px;
+        }
+      }
+      .tab {
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        background: var(--panel-bg);
+        color: var(--text-color);
+        padding: 6px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      .tab.active,
+      .tab[aria-pressed="true"] {
+        background: var(--primary);
+        color: white;
+      }
+      .subtab {
+        border-radius: 0;
+        padding: 6px 8px;
+        background: transparent;
+        border: none;
+      }
+      .subtab.active {
+        border-bottom: 3px solid var(--primary);
+        color: var(--primary);
+      }
+      /* Loading overlay */
+      #mrpLoadingOverlay {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 9998;
+        backdrop-filter: blur(4px) saturate(0.9);
+        background: rgba(0, 0, 0, 0.28);
+      }
+      #mrpLoadingOverlay .panel {
+        background: var(--panel-bg);
+        color: var(--text-color);
+        padding: 18px 22px;
+        border-radius: 8px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        min-width: 260px;
+      }
+      #mrpLoadingOverlay .spinner {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        border: 4px solid rgba(0, 0, 0, 0.08);
+        border-top-color: var(--primary);
+        animation: mrp-spin 1s linear infinite;
+      }
+      @keyframes mrp-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body data-theme="system">
+    <div id="mrpLoadingOverlay" aria-hidden="true">
+      <div class="panel" role="status" aria-live="polite">
+        <div class="spinner" aria-hidden="true"></div>
+        <div id="mrpLoadingMessage">Loading…</div>
+      </div>
+    </div>
+    <div class="header-bar">
+      <div>
+        <h2>MRP Material Board</h2>
+        <div class="section-hint">
+          Review RM & PM requirements vs issues for a selected month.
+        </div>
+        <div style="margin-top: 8px">
+          <nav
+            id="boardTabs"
+            aria-label="MRP modes"
+            style="display: flex; gap: 8px; flex-wrap: wrap"
+          >
+            <button class="tab" data-mode="all" aria-pressed="false">
+              All
+            </button>
+            <button class="tab" data-mode="unassigned" aria-pressed="false">
+              Unassigned
+            </button>
+            <button class="tab" data-mode="approx" aria-pressed="false">
+              Approximate
+            </button>
+            <button class="tab" data-mode="shortage" aria-pressed="false">
+              Shortage
+            </button>
+            <button class="tab" data-mode="no_plan" aria-pressed="false">
+              No plan
+            </button>
+            <button
+              class="tab"
+              data-mode="planned_not_issued"
+              aria-pressed="false"
+            >
+              Planned not issued
+            </button>
+            <button class="tab" data-mode="over_issued" aria-pressed="false">
+              Over issued
+            </button>
+          </nav>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="homeBtn">HOME</button>
+      </div>
+    </div>
+
+    <div id="filters" class="filter-strip">
+      <div class="filter-pair">
+        <label for="horizonMonth">Month</label>
+        <input id="horizonMonth" type="month" />
+      </div>
+
+      <div class="filter-pair">
+        <label for="kindFilter">Material Type</label>
+        <select id="kindFilter">
+          <option value="ALL">All</option>
+          <option value="RM">RM</option>
+          <option value="PM">PM</option>
+        </select>
+      </div>
+
+      <div class="filter-pair">
+        <label
+          ><input id="filterNetPositive" type="checkbox" /> Only net requirement
+          &gt; 0</label
+        >
+      </div>
+
+      <div class="filter-pair">
+        <label
+          ><input id="filterAllocationIssues" type="checkbox" /> Only items with
+          allocation issues</label
+        >
+      </div>
+
+      <div class="filter-pair">
+        <label
+          ><input id="filterNoPlanButIssued" type="checkbox" /> Issued without
+          plan</label
+        >
+      </div>
+
+      <div class="filter-pair">
+        <label
+          ><input id="filterPlannedButNotIssued" type="checkbox" /> Planned not
+          issued</label
+        >
+      </div>
+
+      <div class="filter-pair">
+        <label
+          ><input id="filterOverIssued" type="checkbox" /> Over-issued</label
+        >
+      </div>
+
+      <div class="filter-pair" style="flex: 1 1 240px">
+        <input
+          id="textSearch"
+          type="text"
+          placeholder="Filter by item name or code"
+        />
+      </div>
+
+      <div class="filter-actions">
+        <button id="clearFilters" class="link-btn" title="Clear filters">
+          Clear
+        </button>
+        <button id="loadDataBtn" class="link-btn" disabled title="Coming soon">
+          Load
+        </button>
+        <div id="rowCount">0</div>
+      </div>
+    </div>
+
+    <div class="main-grid">
+      <div>
+        <div style="margin-bottom: 8px">
+          <nav
+            id="viewTabs"
+            aria-label="View tabs"
+            style="display: flex; gap: 12px; align-items: center"
+          >
+            <button
+              class="subtab tab active"
+              data-view="summary"
+              aria-pressed="true"
+            >
+              Summary
+            </button>
+            <button
+              class="subtab tab"
+              data-view="exceptions"
+              aria-pressed="false"
+            >
+              Exceptions
+            </button>
+            <span
+              id="viewHint"
+              style="margin-left: 8px; color: var(--muted); font-size: 0.95rem"
+            ></span>
+          </nav>
+        </div>
+        <div id="mrpTableContainer">
+          <table id="mrpTable">
+            <thead>
+              <tr>
+                <th data-key="stock_item_name">Item</th>
+                <th data-key="material_kind">Type</th>
+                <th data-key="stock_uom">UOM</th>
+                <th data-key="planned_total_qty">Planned</th>
+                <th data-key="issued_total_qty">Issued</th>
+                <th data-key="net_requirement">Net</th>
+                <th>Flags</th>
+                <th>Top consumers</th>
+              </tr>
+            </thead>
+            <tbody id="mrpTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div>
+        <div id="detailPanel" class="detail-panel" aria-hidden="true">
+          <div id="detailTitle">
+            <strong>Select an item to see details</strong>
+          </div>
+          <div id="detailContent" style="display: none">
+            <div id="detailSummary" style="margin-top: 8px"></div>
+            <div class="bar-wrap" style="margin-top: 8px">
+              <div style="width: 80px; font-size: 0.9rem">Planned</div>
+              <div class="bar">
+                <div id="barInner" class="bar-inner" style="width: 0%"></div>
+              </div>
+              <div style="width: 60px; text-align: right" id="barLabel"></div>
+            </div>
+            <div class="top-consumers" id="topConsumers"></div>
+            <div style="margin-top: 10px; display: flex; gap: 8px">
+              <button
+                id="openIssueAllocationBtn"
+                class="link-btn"
+                disabled
+                title="Select an item"
+              >
+                Open Issue Allocation Console
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="js/supabaseClient.js"></script>
+    <script type="module" src="js/mrp-material-board.js"></script>
+  </body>
+</html>

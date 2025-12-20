@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>SASV WORKSPACE | PLM Issue Allocation</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="./css/style.css" />
+    <style>
+      body {
+        margin: 18px;
+        font-family: Arial, sans-serif;
+        background: var(--bg-color);
+        color: var(--text-color);
+      }
+      .header-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+      }
+      .header-bar h2 {
+        margin: 0;
+        color: var(--primary);
+      }
+      .section-hint {
+        margin-top: 6px;
+        color: var(--muted, #6b7280);
+      }
+
+      .filter-strip {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin: 12px 0;
+      }
+      .filter-pair {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      input[type="month"],
+      select,
+      input[type="text"] {
+        padding: 6px 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        background: var(--input-bg);
+        color: var(--input-text);
+      }
+      .filter-actions {
+        margin-left: auto;
+        display: flex;
+        gap: 8px;
+      }
+
+      #summaryContainer {
+        border: 1px solid #ccc;
+        max-height: 56vh;
+        overflow: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        padding: 6px 8px;
+        border-bottom: 1px solid #e6eef6;
+        font-size: 0.95rem;
+        text-align: left;
+      }
+      th {
+        position: sticky;
+        top: 0;
+        background: var(--panel-bg);
+        z-index: 2;
+        cursor: pointer;
+      }
+      tbody tr:hover {
+        background: #f3fbff;
+        cursor: pointer;
+      }
+      tbody tr.selected {
+        background: #dff1ff;
+      }
+
+      .badge-warning {
+        background: #fff4e5;
+        color: #7a4900;
+        padding: 4px 6px;
+        border-radius: 999px;
+        font-size: 0.8rem;
+      }
+      .badge-info {
+        background: #e8f4ff;
+        color: #045a8d;
+        padding: 4px 6px;
+        border-radius: 999px;
+        font-size: 0.8rem;
+      }
+
+      .detail-panel {
+        border: 1px solid #ccc;
+        padding: 12px;
+        border-radius: 6px;
+        background: var(--panel-bg);
+      }
+      .detail-controls {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      #issueLinesTable td input,
+      #issueLinesTable td select,
+      #issueLinesTable td textarea {
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      .muted {
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      .actions {
+        display: flex;
+        gap: 8px;
+      }
+
+      @media (min-width: 900px) {
+        /* using single-column tabbed layout now */
+      }
+
+      .tab-bar {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 8px;
+        border-bottom: 1px solid #e5e7eb;
+      }
+      .tab {
+        padding: 6px 12px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        font-size: 0.95rem;
+        border-bottom: 2px solid transparent;
+      }
+      .tab.active {
+        border-bottom-color: var(--primary);
+        font-weight: 600;
+      }
+      .tab[disabled] {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+    </style>
+  </head>
+  <body data-theme="system">
+    <div class="header-bar">
+      <div>
+        <h2>PLM Issue Allocation</h2>
+        <div class="section-hint">
+          Review and correct PLM issues by material, product, SKU, and region.
+        </div>
+      </div>
+      <div class="header-actions"><button id="homeBtn">HOME</button></div>
+    </div>
+
+    <div id="filters" class="filter-strip">
+      <div class="filter-pair">
+        <label for="horizonMonth">Month</label
+        ><input id="horizonMonth" type="month" />
+      </div>
+      <div class="filter-pair">
+        <label for="plmFilter">PLM</label
+        ><select id="plmFilter">
+          <option value="">-- All PLM items --</option>
+        </select>
+      </div>
+      <div class="filter-pair">
+        <label
+          ><input id="filterUnassigned" type="checkbox" /> Only rows with
+          unassigned issues</label
+        >
+      </div>
+      <div class="filter-pair">
+        <label
+          ><input id="filterApprox" type="checkbox" /> Only rows with
+          approximate allocations</label
+        >
+      </div>
+      <div class="filter-pair" style="flex: 1 1 240px">
+        <input
+          id="textSearch"
+          type="text"
+          placeholder="Filter by PLM, product, SKU or region"
+        />
+      </div>
+      <div class="filter-actions">
+        <button id="clearFilters" class="link-btn">Clear</button>
+        <div id="rowCount">0</div>
+      </div>
+    </div>
+
+    <div class="tab-bar">
+      <button id="tabSummary" class="tab active">Summary</button>
+      <button id="tabDetail" class="tab" disabled>Issue lines</button>
+    </div>
+
+    <div id="summarySection">
+      <div id="summaryContainer">
+        <table id="summaryTable">
+          <thead>
+            <tr>
+              <th data-key="plm_display">PLM Item</th>
+              <th data-key="combination">Product / SKU / Region</th>
+              <th data-key="issued_plm_qty">Issued</th>
+              <th>Flags</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="summaryBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="detailSection" style="display: none">
+      <div id="detailPanel" class="detail-panel" aria-hidden="true">
+        <div id="detailHeader" class="muted">
+          Select a summary row to view issue lines
+        </div>
+
+        <div class="detail-controls">
+          <label
+            ><input id="detailShowUnassignedOnly" type="checkbox" /> Only
+            unassigned</label
+          >
+          <label
+            ><input id="detailShowAllocatedOnly" type="checkbox" /> Only
+            allocated to this combination</label
+          >
+          <input
+            id="detailTextSearch"
+            type="text"
+            placeholder="Search voucher / batch"
+          />
+          <div style="margin-left: auto" class="actions">
+            <button id="saveChangesBtn" class="link-btn">Save changes</button>
+            <button id="reloadDetailBtn" class="link-btn">Reload</button>
+          </div>
+        </div>
+
+        <div id="detailMetrics" class="muted" style="margin-bottom: 8px"></div>
+
+        <div id="issueLinesContainer">
+          <table id="issueLinesTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Voucher</th>
+                <th>Qty</th>
+                <th>Raw batch</th>
+                <th>Batch</th>
+                <th>Product (editable)</th>
+                <th>SKU (editable)</th>
+                <th>Region (editable)</th>
+                <th>Allocation status</th>
+                <th>Note</th>
+              </tr>
+            </thead>
+            <tbody id="issueLinesBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="js/supabaseClient.js"></script>
+    <script type="module" src="js/plm-issue-allocation.js"></script>
+  </body>
+</html>

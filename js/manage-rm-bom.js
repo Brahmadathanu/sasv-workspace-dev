@@ -237,35 +237,65 @@ async function loadProducts() {
 }
 
 async function loadRmItems() {
-  // Preferred: dedicated RPC returning RM items
+  // Try RPC first for a fast path; if RPC fails or returns no data,
+  // fall back to a paginated select that fetches all `inv_stock_item`
+  // rows in batches and filters those having class code 'RM'.
   try {
     const { data, error } = await supabase.rpc("rpc_get_rm_items");
     if (!error && Array.isArray(data) && data.length) {
-      RM_ITEMS = (data || []).map((r) => ({
-        id: r.id,
-        name: r.name,
-        code: r.code || null,
-      }));
-      return;
+      // If the RPC returns a very large set (commonly 1000), it may be truncated
+      // by Supabase/Postgres limits. In that case prefer the paginated fallback
+      // to ensure we load everything.
+      console.debug("loadRmItems: RPC returned", data.length, "rows");
+      if (data.length < 1000) {
+        RM_ITEMS = (data || []).map((r) => ({
+          id: r.id,
+          name: r.name,
+          code: r.code || null,
+        }));
+        return;
+      }
+      console.warn(
+        "loadRmItems: RPC returned >=1000 rows; falling back to paginated fetch to ensure completeness"
+      );
     }
   } catch (e) {
-    console.warn("rpc_get_rm_items failed; falling back", e);
+    console.warn("rpc_get_rm_items failed; falling back to paginated query", e);
   }
-  // Fallback: filter by category code 'RM'
-  const { data: rows, error: err2 } = await supabase
-    .from("inv_stock_item")
-    .select(
-      "id,name,code,inv_stock_item_class_map(category_id, inv_class_category(code))"
-    )
-    .order("name", { ascending: true });
-  if (err2) throw err2;
-  RM_ITEMS = (rows || [])
+
+  // Paginated fallback: fetch in batches to avoid server-side row limits.
+  const batch = 500; // reasonable page size
+  let from = 0;
+  let fetched = [];
+  while (true) {
+    const to = from + batch - 1;
+    const { data: rows, error: err } = await supabase
+      .from("inv_stock_item")
+      .select(
+        "id,name,code,inv_stock_item_class_map(category_id, inv_class_category(code))"
+      )
+      .order("id", { ascending: true })
+      .range(from, to);
+    if (err) throw err;
+    if (!rows || !rows.length) break;
+    fetched = fetched.concat(rows);
+    if (rows.length < batch) break; // last page
+    from += batch;
+  }
+
+  RM_ITEMS = (fetched || [])
     .filter((r) => {
       const maps = r.inv_stock_item_class_map;
-      if (!Array.isArray(maps)) return false;
-      return maps.some((m) => m.inv_class_category?.code === "RM");
+      if (!maps) return false;
+      // Support both array and single-object shapes returned by different views/RPCs
+      if (Array.isArray(maps))
+        return maps.some((m) => m.inv_class_category?.code === "RM");
+      if (typeof maps === "object")
+        return maps.inv_class_category?.code === "RM";
+      return false;
     })
     .map((r) => ({ id: r.id, name: r.name, code: r.code || null }));
+  console.debug("loadRmItems: paginated fetched", RM_ITEMS.length, "RM items");
 }
 
 /* ---------------- Rendering ---------------- */
@@ -1568,6 +1598,40 @@ async function ensureRmItemCodes() {
     if (!r.code) r.code = map.get(r.id) || r.code || null;
   });
 }
+
+// Debug helper: fetch a specific stock item and its class mappings to diagnose
+// why it may not be included in `RM_ITEMS` (exposed to `window` for console use).
+async function debugCheckStockItem(id) {
+  try {
+    console.groupCollapsed(`debugCheckStockItem: id=${id}`);
+    const { data, error } = await supabase
+      .from("inv_stock_item")
+      .select(
+        "id,name,code,inv_stock_item_class_map(category_id, inv_class_category(code))"
+      )
+      .eq("id", id)
+      .maybeSingle();
+    if (error) {
+      console.error("debugCheckStockItem: query error", error);
+      console.groupEnd();
+      return { error };
+    }
+    console.log("row:", data);
+    const maps = data?.inv_stock_item_class_map;
+    console.log("class maps:", maps);
+    const isRM =
+      Array.isArray(maps) &&
+      maps.some((m) => m.inv_class_category?.code === "RM");
+    console.log("is classified RM?", isRM);
+    console.groupEnd();
+    return { data, isRM };
+  } catch (e) {
+    console.error("debugCheckStockItem: unexpected error", e);
+    return { error: e };
+  }
+}
+// expose to console for ad-hoc checks
+window.debugCheckStockItem = debugCheckStockItem;
 
 /* ---------------- Selection & Pills (View mode) ---------------- */
 // selection set stores keys like "row:col" (e.g. "3:qty")
@@ -2942,8 +3006,32 @@ if (linesViewBtn) {
   });
 }
 if (linesEditBtn) {
-  linesEditBtn.addEventListener("click", () => {
+  linesEditBtn.addEventListener("click", async () => {
     if (LINES_EDIT_MODE) return; // already in edit
+    // Reload RM items to include any recently added stock items
+    try {
+      showMask("Loading items…");
+      await loadRmItems();
+      await ensureRmItemCodes();
+      // If a known missing item (2613) is still absent, fetch and log it for diagnosis
+      try {
+        if (
+          !RM_ITEMS.some((x) => x.id === 2613) &&
+          typeof debugCheckStockItem === "function"
+        ) {
+          console.warn(
+            "Stock item 2613 not present in RM_ITEMS — running debugCheckStockItem(2613)"
+          );
+          debugCheckStockItem(2613);
+        }
+      } catch (e) {
+        console.warn("debug presence check failed", e);
+      }
+    } catch (err) {
+      console.warn("Failed to reload RM items before edit", err);
+    } finally {
+      hideMask();
+    }
     LINES_EDIT_MODE = true;
     linesEditBtn.classList.add("active");
     linesViewBtn?.classList.remove("active");

@@ -1,0 +1,233 @@
+/* Seasonal banners: Christmas and New Year */
+.seasonal-banner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  color: #07122b;
+  font-weight: 600;
+  box-shadow: 0 8px 20px rgba(2, 6, 23, 0.12);
+  max-width: 980px;
+  margin: 12px auto;
+}
+.seasonal-banner .sb-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.seasonal-banner .sb-emoji {
+  font-size: 22px;
+}
+.seasonal-banner button.sb-close {
+  background: transparent;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+.seasonal-banner.christmas {
+  background: linear-gradient(90deg, #fff7f0, #fffbf0);
+  border: 1px solid #ffd6c6;
+}
+.seasonal-banner.christmas .sb-emoji {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.08));
+}
+.seasonal-banner.christmas .sb-close {
+  background: rgba(255, 94, 77, 0.08);
+  color: #c2410c;
+}
+.seasonal-banner.newyear {
+  background: linear-gradient(90deg, #f7fbff, #eef7ff);
+  border: 1px solid #d3e6ff;
+}
+.seasonal-banner.newyear .sb-emoji {
+  font-weight: 700;
+}
+.seasonal-banner.newyear .sb-close {
+  background: rgba(34, 197, 94, 0.08);
+  color: #065f46;
+}
+
+/* small responsive tweak */
+@media (max-width: 640px) {
+  .seasonal-banner {
+    padding: 10px;
+    border-radius: 6px;
+    margin: 10px;
+  }
+  .seasonal-banner .sb-left {
+    gap: 8px;
+  }
+}
+
+/* Compact badge variant: sits unobtrusively near headers */
+.seasonal-badge {
+  position: absolute;
+  top: 4px;
+  right: -6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  box-shadow: 0 6px 14px rgba(2, 6, 23, 0.08);
+  white-space: nowrap;
+  z-index: 1000;
+}
+.seasonal-badge .sb-emoji {
+  font-size: 16px;
+}
+.seasonal-badge .sb-text {
+  display: none;
+}
+.seasonal-badge:hover .sb-text {
+  display: inline;
+}
+.seasonal-badge button.sb-close {
+  padding: 4px 6px;
+  font-size: 11px;
+  border-radius: 6px;
+}
+
+/* Wrapper and expanded panel */
+.seasonal-wrapper {
+  position: relative;
+  display: inline-block;
+  z-index: 999999 !important;
+}
+.seasonal-wrapper .seasonal-panel {
+  position: absolute;
+  min-width: 220px;
+  max-width: 360px;
+  background: #fff;
+  color: #07122b;
+  border-radius: 10px;
+  padding: 12px 14px;
+  box-shadow: 0 18px 40px rgba(2, 6, 23, 0.12);
+  transform-origin: top center;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px) scale(0.98);
+  transition: opacity 0.12s ease, transform 0.16s ease, visibility 0.12s;
+  z-index: 999999 !important;
+}
+.seasonal-wrapper.expanded .seasonal-panel {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(6px) scale(1);
+}
+/* When panel is rendered at body level we toggle expansion on the panel itself */
+.seasonal-panel {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none;
+}
+.seasonal-panel.expanded {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto;
+  transform: translateY(6px) scale(1);
+}
+.seasonal-panel .panel-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.seasonal-panel .panel-text {
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto",
+    "Helvetica Neue", Arial, sans-serif;
+  font-weight: 500;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #1f2937;
+}
+.seasonal-panel .panel-close {
+  margin-left: auto;
+  background: rgba(107, 114, 128, 0.1);
+  border: 0;
+  cursor: pointer;
+  font-size: 14px;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease;
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+}
+.seasonal-panel .panel-close:hover {
+  background: rgba(107, 114, 128, 0.2);
+}
+
+/* Placement helpers */
+.seasonal-wrapper.placement-above {
+  display: flex;
+  justify-content: center;
+}
+.seasonal-wrapper.placement-above .seasonal-panel {
+  bottom: 100%;
+  left: 50%;
+  transform: translate(-50%, -8px) scale(0.98);
+}
+.seasonal-wrapper.placement-above.expanded .seasonal-panel {
+  transform: translate(-50%, -6px) scale(1);
+}
+
+.seasonal-wrapper.placement-right {
+  position: relative;
+}
+.seasonal-wrapper.placement-right .seasonal-panel {
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%) translateY(-6px) scale(0.98);
+}
+.seasonal-wrapper.placement-right.expanded .seasonal-panel {
+  transform: translateX(-50%) translateY(0) scale(1);
+}
+
+/* ERP-styled themes for christmas/newyear panels */
+.seasonal-panel.christmas {
+  background: linear-gradient(180deg, #fef7f0, #fdf4ed);
+  border: 1px solid #fed7aa;
+  box-shadow: 0 10px 30px rgba(194, 65, 12, 0.08),
+    0 4px 12px rgba(194, 65, 12, 0.04);
+}
+.seasonal-panel.newyear {
+  background: linear-gradient(180deg, #eff6ff, #dbeafe);
+  border: 1px solid #93c5fd;
+  box-shadow: 0 10px 30px rgba(59, 130, 246, 0.08),
+    0 4px 12px rgba(59, 130, 246, 0.04);
+}
+@media (max-width: 480px) {
+  .seasonal-badge {
+    display: none;
+  }
+}
+
+/* Circular badge variant */
+.seasonal-badge.circle {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  justify-content: center;
+}
+.seasonal-badge.circle .sb-left {
+  gap: 0;
+}
+.seasonal-badge.circle .sb-emoji {
+  font-size: 18px;
+  line-height: 1;
+}
+.seasonal-badge.circle .sb-text {
+  display: none !important;
+}
+.seasonal-badge.circle button.sb-close {
+  display: none;
+}
