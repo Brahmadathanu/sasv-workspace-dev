@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>SASV WORKSPACE | PM Rebuild Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="./css/style.css" />
+    <style>
+      /* reuse same compact styles as other shared modules */
+      body {
+        margin: 18px;
+        font-family: Arial, sans-serif;
+        background: var(--bg-color);
+        color: var(--text-color);
+      }
+      .header-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+      }
+      .header-bar h2 {
+        margin: 0;
+        color: var(--primary);
+      }
+      .section-hint {
+        margin-top: 6px;
+        color: var(--muted, #6b7280);
+      }
+      .filter-strip {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin: 12px 0;
+      }
+      .filter-pair {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      input[type="month"],
+      select,
+      input[type="text"] {
+        padding: 6px 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        background: var(--input-bg);
+        color: var(--input-text);
+      }
+      .filter-actions {
+        margin-left: auto;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      #summaryContainer {
+        border: 1px solid #ccc;
+        max-height: 56vh;
+        overflow: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        padding: 6px 8px;
+        border-bottom: 1px solid #e6eef6;
+        font-size: 0.95rem;
+        text-align: left;
+      }
+      th {
+        position: sticky;
+        top: 0;
+        background: var(--panel-bg);
+        z-index: 2;
+      }
+      tbody tr:hover {
+        background: #f3fbff;
+        cursor: pointer;
+      }
+      .detail-panel {
+        border: 1px solid #ccc;
+        padding: 12px;
+        border-radius: 6px;
+        background: var(--panel-bg);
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      .actions {
+        display: flex;
+        gap: 8px;
+      }
+      .badge-warning {
+        background: #fff4e5;
+        color: #7a4900;
+        padding: 4px 6px;
+        border-radius: 999px;
+        font-size: 0.8rem;
+      }
+      .badge-info {
+        background: #e8f4ff;
+        color: #045a8d;
+        padding: 4px 6px;
+        border-radius: 999px;
+        font-size: 0.8rem;
+      }
+      .link-btn {
+        background: transparent;
+        border: 1px solid transparent;
+        cursor: pointer;
+        color: var(--primary);
+      }
+    </style>
+  </head>
+  <body data-theme="system">
+    <div class="header-bar">
+      <div>
+        <h2>PM Rebuild Dashboard</h2>
+        <div class="section-hint">
+          Review Packing Material planning vs issues and run rebuilds after
+          template changes.
+        </div>
+      </div>
+      <div class="header-actions"><button id="homeBtn">HOME</button></div>
+    </div>
+
+    <div id="filters" class="filter-strip">
+      <div class="filter-pair">
+        <label for="horizonMonth">Month</label>
+        <input id="horizonMonth" type="month" />
+      </div>
+
+      <div class="filter-pair">
+        <label for="plmFilter">PLM</label>
+        <select id="plmFilter">
+          <option value="">-- All PLM items --</option>
+        </select>
+      </div>
+
+      <div class="filter-pair">
+        <label
+          ><input id="filterUnassigned" type="checkbox" /> Only with unassigned
+          issues</label
+        >
+      </div>
+
+      <div class="filter-pair">
+        <label
+          ><input id="filterApprox" type="checkbox" /> Only with approximate
+          allocations</label
+        >
+      </div>
+
+      <div class="filter-pair">
+        <label
+          ><input id="filterNetNonZero" type="checkbox" /> Only with net ≠
+          0</label
+        >
+      </div>
+
+      <div class="filter-pair" style="flex: 1 1 240px">
+        <input
+          id="textSearch"
+          type="text"
+          placeholder="Search PLM or top consumer products"
+        />
+      </div>
+
+      <div class="filter-actions">
+        <button id="clearFilters" class="link-btn">Clear</button>
+        <div id="rowCount">0</div>
+      </div>
+    </div>
+
+    <div class="actions" style="margin-bottom: 8px">
+      <button id="dryRunAllBtn">Dry run (All)</button>
+      <button id="rebuildAllBtn">Rebuild All</button>
+      <button id="refreshBtn" class="link-btn">Refresh</button>
+    </div>
+
+    <div id="summaryContainer">
+      <table id="plmOverviewTable">
+        <thead>
+          <tr>
+            <th data-key="plm">PLM Item</th>
+            <th data-key="planned_total_qty">Planned</th>
+            <th data-key="issued_total_qty">Issued</th>
+            <th data-key="net_requirement">Net</th>
+            <th data-key="flags">Flags</th>
+            <th>Top consumers</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="plmOverviewBody"></tbody>
+      </table>
+    </div>
+
+    <div
+      id="dryRunPanel"
+      class="detail-panel"
+      style="margin-top: 12px; display: none"
+    >
+      <div class="muted" id="dryRunHeader">Dry run result</div>
+      <div id="dryRunBody" style="margin-top: 8px"></div>
+    </div>
+
+    <script type="module" src="js/supabaseClient.js"></script>
+    <script type="module" src="js/toast.js"></script>
+    <script type="module" src="js/pm-rebuild-dashboard.js"></script>
+  </body>
+</html>

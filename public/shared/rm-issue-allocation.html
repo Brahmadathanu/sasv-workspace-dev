@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>SASV WORKSPACE | RM Issue Allocation</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="./css/style.css" />
+    <style>
+      body {
+        margin: 18px;
+        font-family: Arial, sans-serif;
+        background: var(--bg-color);
+        color: var(--text-color);
+      }
+      .header-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+      }
+      .header-bar h2 {
+        margin: 0;
+        color: var(--primary);
+      }
+      .section-hint {
+        margin-top: 6px;
+        color: var(--muted, #6b7280);
+      }
+
+      .filter-strip {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin: 12px 0;
+      }
+      .filter-pair {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      input[type="month"],
+      select,
+      input[type="text"] {
+        padding: 6px 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        background: var(--input-bg);
+        color: var(--input-text);
+      }
+      .filter-actions {
+        margin-left: auto;
+        display: flex;
+        gap: 8px;
+      }
+
+      #summaryContainer {
+        border: 1px solid #ccc;
+        max-height: 56vh;
+        overflow: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        padding: 6px 8px;
+        border-bottom: 1px solid #e6eef6;
+        font-size: 0.95rem;
+        text-align: left;
+      }
+      th {
+        position: sticky;
+        top: 0;
+        background: var(--panel-bg);
+        z-index: 2;
+        cursor: pointer;
+      }
+      tbody tr:hover {
+        background: #f3fbff;
+        cursor: pointer;
+      }
+      tbody tr.selected {
+        background: #dff1ff;
+      }
+
+      .badge-warning {
+        background: #fff4e5;
+        color: #7a4900;
+        padding: 4px 6px;
+        border-radius: 999px;
+        font-size: 0.8rem;
+      }
+      .badge-info {
+        background: #e8f4ff;
+        color: #045a8d;
+        padding: 4px 6px;
+        border-radius: 999px;
+        font-size: 0.8rem;
+      }
+      .badge-success {
+        background: #e6ffea;
+        color: #10601a;
+        padding: 4px 6px;
+        border-radius: 999px;
+        font-size: 0.8rem;
+      }
+      .help-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        margin-left: 8px;
+        border-radius: 50%;
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        background: var(--panel-bg);
+        color: var(--text-color);
+        font-size: 16px;
+        line-height: 1;
+        cursor: pointer;
+      }
+      .help-popover {
+        position: fixed;
+        max-width: 340px;
+        padding: 10px;
+        border-radius: 6px;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+        background: var(--panel-bg);
+        color: var(--text-color);
+        z-index: 10000;
+      }
+      .help-popover .muted {
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      .help-popover .help-close {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        border: none;
+        background: transparent;
+        color: var(--muted);
+        font-size: 16px;
+        line-height: 1;
+        cursor: pointer;
+      }
+
+      .detail-panel {
+        border: 1px solid #ccc;
+        padding: 12px;
+        border-radius: 6px;
+        background: var(--panel-bg);
+      }
+      .detail-controls {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      #issueLinesTable td input,
+      #issueLinesTable td select,
+      #issueLinesTable td textarea {
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      .muted {
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      .actions {
+        display: flex;
+        gap: 8px;
+      }
+
+      @media (min-width: 900px) {
+        /* using single-column tabbed layout now */
+      }
+
+      .tab-bar {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 8px;
+        border-bottom: 1px solid #e5e7eb;
+      }
+      .tab {
+        padding: 6px 12px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        font-size: 0.95rem;
+        border-bottom: 2px solid transparent;
+      }
+      .tab.active {
+        border-bottom-color: var(--primary);
+      }
+    </style>
+  </head>
+  <body data-theme="system">
+    <div class="header-bar">
+      <div>
+        <h2>RM Issue Allocation</h2>
+        <div class="section-hint">
+          Review and correct Raw Material issues by material, product, SKU, and
+          region.
+        </div>
+      </div>
+      <div class="header-actions"><button id="homeBtn">HOME</button></div>
+    </div>
+
+    <div id="filters" class="filter-strip">
+      <div class="filter-pair">
+        <label for="horizonMonth">Month</label
+        ><input id="horizonMonth" type="month" />
+      </div>
+      <div class="filter-pair">
+        <label for="rmFilter">RM</label
+        ><select id="rmFilter">
+          <option value="">-- All RM items --</option>
+        </select>
+      </div>
+      <div class="filter-pair">
+        <label
+          ><input id="filterUnassigned" type="checkbox" /> Only rows with
+          unassigned issues</label
+        >
+      </div>
+      <div class="filter-pair">
+        <label
+          ><input id="filterApprox" type="checkbox" /> Only rows with
+          approximate allocations</label
+        >
+      </div>
+      <div class="filter-pair">
+        <label
+          ><input id="filterNeedsAttention" type="checkbox" /> Only needs
+          attention</label
+        >
+      </div>
+      <div class="filter-pair">
+        <label for="ageBucket">Age</label>
+        <select id="ageBucket">
+          <option value="">All ages</option>
+          <option value="0-7">0–7 days</option>
+          <option value="8-14">8–14 days</option>
+          <option value="15-30">15–30 days</option>
+          <option value="31+">31+ days</option>
+        </select>
+      </div>
+      <div class="filter-pair" style="flex: 1 1 240px">
+        <input
+          id="textSearch"
+          type="text"
+          placeholder="Filter by RM item, product, SKU or region"
+        />
+      </div>
+      <div class="filter-actions">
+        <button id="clearFilters" class="link-btn">Clear</button>
+        <div id="rowCount">0</div>
+      </div>
+    </div>
+
+    <div id="paginator" class="paginator" style="margin-bottom: 8px"></div>
+
+    <div class="tab-bar">
+      <button id="tabSummary" class="tab active">Summary</button>
+      <button id="tabDetail" class="tab" disabled>Issue lines</button>
+    </div>
+
+    <div id="summarySection">
+      <div id="summaryContainer">
+        <table id="summaryTable">
+          <thead>
+            <tr>
+              <th data-key="rm_display">RM Item</th>
+              <th data-key="combination">Product / SKU / Region</th>
+              <th data-key="issued_rm_qty">Issued</th>
+              <th data-key="max_age_days">Aging</th>
+              <th>Flags</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="summaryBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="detailSection" style="display: none">
+      <div id="detailPanel" class="detail-panel" aria-hidden="true">
+        <div id="detailHeader" class="muted">
+          Select a summary row to view issue lines
+        </div>
+
+        <div class="detail-controls">
+          <label
+            ><input id="detailShowUnassignedOnly" type="checkbox" /> Only
+            unassigned</label
+          >
+          <label
+            ><input id="detailShowAllocatedOnly" type="checkbox" /> Only
+            allocated to this combination</label
+          >
+          <input
+            id="detailTextSearch"
+            type="text"
+            placeholder="Search voucher / batch"
+          />
+          <div style="margin-left: auto" class="actions">
+            <button id="saveChangesBtn" class="link-btn">Save changes</button>
+            <button id="reloadDetailBtn" class="link-btn">Reload</button>
+          </div>
+        </div>
+
+        <div id="detailMetrics" class="muted" style="margin-bottom: 8px"></div>
+
+        <div id="issueLinesContainer">
+          <table id="issueLinesTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Voucher</th>
+                <th>Qty</th>
+                <th>Raw batch</th>
+                <th>Batch</th>
+                <th>Product (editable)</th>
+                <th>SKU (editable)</th>
+                <th>Region (editable)</th>
+                <th>
+                  Allocation status
+                  <button
+                    id="allocHelpBtn"
+                    class="help-icon"
+                    type="button"
+                    aria-label="Allocation status help"
+                    aria-haspopup="dialog"
+                    aria-expanded="false"
+                  >
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                      aria-hidden="true"
+                      focusable="false"
+                      role="img"
+                    >
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        stroke-width="1.6"
+                        fill="none"
+                      />
+                      <path
+                        d="M9.09 9a2.5 2.5 0 1 1 5 0c0 1.5-1 2-2 2-.5 0-1 .2-1.2.5"
+                        stroke="currentColor"
+                        stroke-width="1.6"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        fill="none"
+                      />
+                      <circle cx="12" cy="16.2" r="1.1" fill="currentColor" />
+                    </svg>
+                  </button>
+                </th>
+                <th>Note</th>
+              </tr>
+            </thead>
+            <tbody id="issueLinesBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="js/supabaseClient.js"></script>
+    <script type="module" src="js/rm-issue-allocation.js"></script>
+  </body>
+</html>

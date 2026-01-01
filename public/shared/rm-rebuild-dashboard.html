@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>SASV WORKSPACE | PLM Rebuild Dashboard</title>
+    <title>SASV WORKSPACE | RM Rebuild Dashboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="./css/style.css" />
     <style>
@@ -119,9 +119,10 @@
   <body data-theme="system">
     <div class="header-bar">
       <div>
-        <h2>PLM Rebuild Dashboard</h2>
+        <h2>RM Rebuild Dashboard</h2>
         <div class="section-hint">
-          Review PLM planning vs issues and run rebuilds after template changes.
+          Review Raw Material planning vs issues and run rebuilds after
+          template/BOM changes.
         </div>
       </div>
       <div class="header-actions"><button id="homeBtn">HOME</button></div>
@@ -132,11 +133,15 @@
         <label for="horizonMonth">Month</label>
         <input id="horizonMonth" type="month" />
       </div>
+      <div class="filter-pair">
+        <label for="planEndMonth">Plan End</label>
+        <input id="planEndMonth" type="month" />
+      </div>
 
       <div class="filter-pair">
-        <label for="plmFilter">PLM</label>
-        <select id="plmFilter">
-          <option value="">-- All PLM items --</option>
+        <label for="rmFilter">RM</label>
+        <select id="rmFilter">
+          <option value="">-- All RM items --</option>
         </select>
       </div>
 
@@ -165,8 +170,12 @@
         <input
           id="textSearch"
           type="text"
-          placeholder="Search PLM or top consumer products"
+          placeholder="Search RM or top consumer products"
         />
+      </div>
+
+      <div class="filter-pair" style="flex: 1 1 240px">
+        <input id="notes" type="text" placeholder="Notes (optional)" />
       </div>
 
       <div class="filter-actions">
@@ -180,12 +189,18 @@
       <button id="rebuildAllBtn">Rebuild All</button>
       <button id="refreshBtn" class="link-btn">Refresh</button>
     </div>
+    <div style="margin-bottom: 8px">
+      <div id="rebuildStatus" class="muted">&nbsp;</div>
+      <div class="muted" style="font-size: 0.82rem; margin-top: 4px">
+        Rebuild updates RM plan for future months (plan horizon).
+      </div>
+    </div>
 
     <div id="summaryContainer">
-      <table id="plmOverviewTable">
+      <table id="rmOverviewTable">
         <thead>
           <tr>
-            <th data-key="plm">PLM Item</th>
+            <th data-key="rm">RM Item</th>
             <th data-key="planned_total_qty">Planned</th>
             <th data-key="issued_total_qty">Issued</th>
             <th data-key="net_requirement">Net</th>
@@ -194,7 +209,7 @@
             <th>Actions</th>
           </tr>
         </thead>
-        <tbody id="plmOverviewBody"></tbody>
+        <tbody id="rmOverviewBody"></tbody>
       </table>
     </div>
 
@@ -209,6 +224,6 @@
 
     <script type="module" src="js/supabaseClient.js"></script>
     <script type="module" src="js/toast.js"></script>
-    <script type="module" src="js/plm-rebuild-dashboard.js"></script>
+    <script type="module" src="js/rm-rebuild-dashboard.js"></script>
   </body>
 </html>

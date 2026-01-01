@@ -31,7 +31,7 @@
     />
 
     <!-- Vendor + shared CSS -->
-    <link rel="stylesheet" href="../vendor/tom-select/tom-select.css" />
+    <!-- TomSelect removed: using native paginated autocomplete -->
     <link rel="stylesheet" href="../shared/css/style.css" />
 
     <!-- Component styles -->
@@ -75,13 +75,25 @@
         color: #fff;
         border-color: #0a62c3;
       }
+      /* Visual indicator when filters are active */
+      .sc-btn.filters-active {
+        background: #0a62c3;
+        color: #fff;
+        border-color: #074a8a;
+        box-shadow: 0 2px 6px rgba(10, 98, 195, 0.18);
+      }
 
       /* ───────────────────────────────── Filters row ───────────────────────────────── */
       .sc-filters {
         display: grid;
         gap: var(--gap);
-        /* Make Item take more space while pack-size stays compact */
-        grid-template-columns: 2fr minmax(140px, 1fr) 1fr 1fr;
+        /* Use fractional units so the first two columns (Item / Pack Size)
+           share available width proportionally and stretch to the full
+           line. minmax(0, ...) and min-width:0 on children allow them to
+           shrink without overflow on narrow containers. */
+        grid-template-columns: minmax(160px, 3fr) minmax(90px, 1fr) 1fr 1fr;
+        width: 100%;
+        justify-items: stretch;
         margin: 10px 0 6px;
         align-items: end;
       }
@@ -90,6 +102,12 @@
         flex-direction: column;
         gap: 6px;
         font-size: 0.9rem;
+        min-width: 0; /* allow the child to shrink inside grid */
+      }
+      /* Pack Size label should sit vertically centered within the filters row */
+      .sc-filters .uom-inline {
+        align-self: center;
+        min-width: 140px;
       }
       .sc-filters select,
       .sc-filters input {
@@ -106,6 +124,26 @@
         gap: 8px;
         width: 100%;
         white-space: nowrap;
+        position: relative;
+      }
+      /* reserve space on the right of the input for the clear button + UOM */
+      .pack-uom input {
+        flex: 1 1 auto;
+        min-width: 0;
+        padding-right: 72px; /* clear button (24px) + gap + uom width */
+      }
+      /* place clear button inside the input area, before the UOM text */
+      .pack-uom .input-clear-btn {
+        right: 50px; /* position inside input, to the left of UOM */
+        z-index: 2;
+      }
+      /* make UOM a fixed area to the right of the input */
+      .pack-uom .uom-text {
+        flex: 0 0 32px;
+        text-align: right;
+        pointer-events: none;
+        margin-left: 6px;
+        font-weight: 600;
       }
       .uom-text {
         padding: 0;
@@ -142,7 +180,10 @@
         background: #f3f4f6;
       }
       .sc-quick .chip[aria-pressed="true"],
-      .sc-quick .chip.is-active {
+      .sc-quick .chip.is-active,
+      /* quick filters when placed inside modal */
+      .sc-quick-modal .chip[aria-pressed="true"],
+      .sc-quick-modal .chip.is-active {
         background: var(--primary) !important;
         color: #fff !important;
         border-color: var(--primary) !important;
@@ -194,11 +235,141 @@
           grid-template-columns: 1fr;
         }
       }
+      /* Force advanced exclusions to two columns (two per row) in modal
+         with preferred column width not exceeding 520px */
+      #drawer-advanced .drawer-grid {
+        grid-template-columns: repeat(2, minmax(180px, 520px));
+        justify-content: center;
+        column-gap: 12px;
+      }
+      @media (max-width: 520px) {
+        /* Use single column layout on small viewports to avoid narrow columns
+           that force placeholder text to wrap. */
+        #drawer-advanced .drawer-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      /* Modal styles */
+      .sc-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+      .sc-modal-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        backdrop-filter: blur(2px);
+      }
+      .sc-modal-panel {
+        position: relative;
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 18px 48px rgba(6, 10, 15, 0.18);
+        /* responsive width: compact on small screens, wider on desktop */
+        width: min(760px, 92vw);
+        max-width: calc(100% - 40px);
+        z-index: 1010;
+        transform: translateY(0);
+        transition: transform 180ms ease, opacity 180ms ease;
+        /* Keep modal panel within viewport and allow body scrolling */
+        max-height: calc(100vh - 80px);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      .sc-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 16px;
+        border-bottom: 1px solid #f1f5f9;
+      }
+      .sc-modal-header h3 {
+        margin: 0;
+        font-size: 1.05rem;
+        color: #0f172a;
+      }
+      .sc-modal-body {
+        padding: 14px 16px 18px;
+        overflow: auto;
+        flex: 1 1 auto;
+        max-height: calc(100vh - 220px);
+      }
+      /* Modal action layout */
+      .modal-actions {
+        display: grid;
+        gap: 10px;
+      }
+      .sc-btn.block,
+      .sc-btn.sc-btn-block {
+        display: block;
+        width: 100%;
+        text-align: center;
+      }
+      .sc-btn.primary {
+        background: #0a62c3;
+        color: #fff;
+        border-color: #0a62c3;
+        padding: 10px 12px;
+        font-weight: 600;
+      }
+      .sc-btn.secondary {
+        background: #f3f4f6;
+        color: #0f172a;
+        border-color: #e6e9ee;
+      }
+      /* Visual distinction for disabled buttons */
+      .sc-btn[disabled] {
+        opacity: 0.56;
+        cursor: not-allowed;
+        color: #9ca3af;
+        background: #f9fafb;
+        border-color: #eef2f6;
+      }
+      /* Make secondary Reset button more visible when enabled */
+      .sc-btn.secondary:not([disabled]) {
+        background: #ffffff;
+        color: #0f172a;
+        border-color: #d1d5db;
+        box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03);
+      }
+      .sc-btn.icon {
+        padding: 8px;
+        min-width: 40px;
+      }
+      /* Hide HOME label on small screens to save space */
+      @media (max-width: 520px) {
+        #homeBtn .home-label {
+          display: none;
+        }
+        #homeBtn svg {
+          margin-right: 0;
+        }
+        #homeBtn {
+          padding-left: 8px;
+          padding-right: 8px;
+        }
+      }
+      .sc-export-drawer {
+        margin-top: 8px;
+        border: 1px solid #eef2f6;
+        padding: 10px;
+        border-radius: 8px;
+        background: #fbfdff;
+      }
+      .sc-export-drawer .sc-btn {
+        margin-bottom: 8px;
+      }
 
       /* MOS rows: Label | Op | V1 | V2 | Exclude-null (tight, aligned) */
       .mos-row {
         display: grid;
-        grid-template-columns: 120px 120px 120px 120px max-content;
+        grid-template-columns: 120px 88px 120px 120px max-content;
         gap: 10px;
         align-items: center;
       }
@@ -221,11 +392,25 @@
         text-align: right;
       }
       .mos-row select[id^="mos"][id$="-op"] {
-        min-width: 120px;
+        min-width: 72px;
+        max-width: 120px;
+        width: auto;
       }
       .mos-row input[id^="mos"][id$="-v1"],
       .mos-row input[id^="mos"][id$="-v2"] {
-        min-width: 120px;
+        min-width: 88px;
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      /* On narrower viewports, make MOS controls more compact */
+      @media (max-width: 560px) {
+        .mos-row {
+          grid-template-columns: 100px 72px 1fr 1fr max-content;
+        }
+        .mos-row select[id^="mos"][id$="-op"] {
+          min-width: 64px;
+        }
       }
       .mos-row .nullchk {
         display: inline-flex;
@@ -233,6 +418,85 @@
         gap: 8px;
         white-space: nowrap;
         color: #374151;
+      }
+      /* Ensure drawer content fits within modal/card */
+      .drawer-body {
+        overflow: auto;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+      .drawer-body .drawer-grid select,
+      .drawer-body .drawer-grid input {
+        width: 100%;
+        box-sizing: border-box;
+        max-width: 100%;
+      }
+      .multi-list {
+        left: 0;
+        right: auto;
+        min-width: 200px;
+        max-width: calc(100% - 8px);
+      }
+      /* Multi-checkbox dropdown for advanced exclusions */
+      .multi-checkbox {
+        position: relative;
+        width: 100%;
+      }
+      .multi-btn {
+        width: 100%;
+        text-align: left;
+        padding: 8px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        background: var(--bg);
+        cursor: pointer;
+        /* allow label to wrap across lines (no ellipsis) */
+        white-space: normal;
+        overflow-wrap: anywhere;
+        box-sizing: border-box;
+      }
+      .multi-list {
+        position: absolute;
+        z-index: 60;
+        left: 0;
+        right: auto;
+        width: auto;
+        min-width: 180px;
+        max-width: calc(100vw - 32px);
+        box-sizing: border-box;
+        .mc-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding-bottom: 6px;
+          border-bottom: 1px solid #f1f5f9;
+          margin-bottom: 6px;
+        }
+        .mc-close-btn {
+          border: none;
+          background: transparent;
+          cursor: pointer;
+          font-size: 14px;
+          padding: 4px 6px;
+        }
+        max-height: 220px;
+        overflow: auto;
+        margin-top: 6px;
+        padding: 8px;
+        background: #fff;
+        border: 1px solid #e6eef8;
+        border-radius: 6px;
+        box-shadow: 0 6px 18px rgba(16, 24, 40, 0.08);
+      }
+      .multi-list .mc-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 4px;
+      }
+      .multi-list .mc-item input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
       }
       .mos-row .nullchk input[type="checkbox"] {
         width: 16px;
@@ -285,18 +549,118 @@
         font-size: 12px;
       }
 
+      /* Make the row-count more prominent for ERP-style modules */
+      #sc-count {
+        font-size: 0.95rem;
+        font-weight: 600;
+        padding: 6px 12px;
+        background: #eef2ff;
+        color: #3730a3;
+        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.03) inset;
+      }
+
+      /* Constrain the table card to the viewport so page-level vertical
+         scroll only appears when the entire page truly overflows. The
+         offset accounts for header, filters, controls and paddings. */
+      :root {
+        --sc-table-offset: 360px; /* adjust if header/filters grow */
+      }
       .table-wrap {
         border: 1px solid var(--border);
         border-radius: var(--radius);
         overflow: auto;
-        max-height: 70vh;
+        position: relative;
+        max-height: calc(100vh - var(--sc-table-offset));
         background: var(--bg);
+      }
+      /* sc-msg placed inside the table card should overlay without
+           contributing to document flow */
+      .table-wrap .sc-msg-overlay {
+        position: absolute;
+        left: 12px;
+        right: 12px;
+        bottom: 8px;
+        padding: 10px;
+        color: #b45309;
+        background: transparent;
+        z-index: 30;
+        pointer-events: auto;
+      }
+      /* On small screens the top area consumes more vertical space (drawers
+         collapse), so reduce the offset to give the table more room. */
+      @media (max-width: 700px) {
+        :root {
+          --sc-table-offset: 300px;
+        }
       }
       table {
         width: 100%;
         border-collapse: collapse;
         font-size: 14px;
         background: var(--bg);
+      }
+      /* Collapsed: keep body cells on a single line (no wrapping) and show
+         an ellipsis when content overflows. Allow headers to wrap (thead
+         rules remain unchanged). When an explode class is active keep nowrap
+         behavior as well. */
+      /* Collapsed default: let cells stay on one line (no wrapping) and
+         allow the table to grow beyond the container so a horizontal
+         scrollbar appears only when necessary. Headers can still wrap. */
+      table.collapsed-default {
+        table-layout: auto;
+        min-width: 100%;
+      }
+
+      /* Body cells: do not wrap and do not ellipsize; let overflow create
+         horizontal scroll handled by .table-wrap */
+      table.collapsed-default tbody td,
+      table.explode-stock-active tbody td,
+      table.explode-demand-active tbody td,
+      table.explode-mos-active tbody td {
+        white-space: nowrap;
+        overflow: visible;
+        text-overflow: clip;
+      }
+
+      /* Give Item column more initial width so names are readable before
+         scroll appears. Allow body cells in the Item column to wrap to
+         multiple lines so long product names remain visible on narrow
+         viewports (headers still allowed to wrap by thead rules). */
+      table.collapsed-default th.col-item {
+        min-width: 220px;
+      }
+      table.collapsed-default tbody td.col-item,
+      table.explode-stock-active tbody td.col-item,
+      table.explode-demand-active tbody td.col-item,
+      table.explode-mos-active tbody td.col-item {
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+
+      /* Numeric/meta columns remain compact but will cause scroll when
+         necessary; allow explode modes to increase their min-width. */
+      table.collapsed-default th.col-meta,
+      table.collapsed-default td.col-meta {
+        min-width: 72px;
+      }
+      table.collapsed-default th.col-stock,
+      table.collapsed-default td.col-stock,
+      table.collapsed-default th.col-demand,
+      table.collapsed-default td.col-demand,
+      table.collapsed-default th.col-mos,
+      table.collapsed-default td.col-mos,
+      table.collapsed-default th.col-overall,
+      table.collapsed-default td.col-overall {
+        min-width: 64px;
+      }
+      table.explode-stock-active th.col-stock,
+      table.explode-stock-active td.col-stock,
+      table.explode-demand-active th.col-demand,
+      table.explode-demand-active td.col-demand,
+      table.explode-mos-active th.col-mos,
+      table.explode-mos-active td.col-mos {
+        min-width: 110px;
       }
       thead th {
         position: sticky;
@@ -332,17 +696,31 @@
       /* ───────────────────────────────── Breakpoint tweak for filters ───────────────────────────────── */
       @media (max-width: 960px) {
         .sc-filters {
-          /* collapse to two columns on tablet */
-          grid-template-columns: 1fr 1fr;
+          grid-template-columns: minmax(140px, 2.5fr) minmax(80px, 1fr) 1fr 1fr;
+        }
+        .sc-filters label {
+          min-width: 0;
         }
       }
       @media (max-width: 520px) {
         .sc-filters {
-          /* single column on small screens; Item then Pack Size */
+          /* Stack on narrow screens: Item then Pack Size then others */
           grid-template-columns: 1fr;
         }
         .sc-quick {
           justify-content: center;
+        }
+      }
+      /* Intermediate narrow breakpoint: keep Pack Size inline but narrow
+         the field; once viewport is smaller than 680px we'll allow the
+         Pack Size to stay beside Item if space allows, otherwise it will
+         naturally wrap to the next line. */
+      @media (max-width: 680px) {
+        /* Allow Item + Pack Size to keep proportion but shrink; when the
+           container is too narrow they will naturally wrap due to the
+           single-column rule below at 520px. */
+        .sc-filters {
+          grid-template-columns: minmax(120px, 2fr) minmax(80px, 1fr) 1fr;
         }
       }
 
@@ -401,338 +779,741 @@
       .selected-row td {
         background-color: #ffeeba !important; /* overlays .col-overall */
       }
+      /* Autocomplete dropdown for Item search */
+      .ac-list {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: calc(100% + 6px);
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        max-height: 260px;
+        overflow: auto;
+        box-shadow: 0 8px 22px rgba(2, 6, 23, 0.12);
+        z-index: 1200;
+      }
+      .ac-item {
+        padding: 8px 10px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      .ac-item[aria-selected="true"],
+      .ac-item:hover {
+        background: #eef2ff;
+      }
+      /* widen input and make it use full available width */
+      .autocomplete input#sc-item {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px 10px;
+        font-size: 14px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        background: var(--bg, #fff);
+      }
+      .ac-loading {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        color: var(--muted, #6b7280);
+      }
+      .ac-spinner {
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(15, 23, 42, 0.12);
+        border-top-color: var(--primary, #2563eb);
+        border-radius: 50%;
+        animation: ac-spin 0.9s linear infinite;
+        flex: 0 0 14px;
+      }
+      /* Input clear button styles (reused from explorer) */
+      .input-with-icon {
+        position: relative;
+      }
+      .input-with-icon input[type="text"]::-ms-clear,
+      .input-with-icon input[type="text"]::-ms-reveal {
+        display: none;
+        width: 0;
+        height: 0;
+      }
+      .input-with-icon input[type="text"]::-webkit-search-decoration,
+      .input-with-icon input[type="text"]::-webkit-search-cancel-button,
+      .input-with-icon input[type="text"]::-webkit-search-results-button,
+      .input-with-icon input[type="text"]::-webkit-search-results-decoration {
+        display: none;
+      }
+      .input-with-icon input[type="text"] {
+        padding-right: 44px;
+      }
+      .input-clear-btn {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 28px;
+        height: 28px;
+        border: none;
+        background: none;
+        color: var(--erp-muted, #6b7280);
+        cursor: pointer;
+        border-radius: 4px;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+      }
+      .input-clear-btn svg {
+        width: 14px;
+        height: 14px;
+      }
+      .input-clear-btn:focus {
+        outline: 2px solid var(--erp-primary, #2563eb);
+        outline-offset: 2px;
+      }
+      @keyframes ac-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      /* Force-hide native details/summary markers in Chromium/Electron */
+      details.drawer > summary::-webkit-details-marker {
+        display: none !important;
+      }
+      details.drawer > summary::marker {
+        content: none !important;
+        display: none !important;
+      }
+      details.drawer > summary::before {
+        content: none !important;
+      }
+      /* Inline chevron rotation for open state */
+      .drawer > summary .chev {
+        transition: transform 160ms ease;
+        transform-origin: center;
+      }
+      details.drawer[open] > summary .chev {
+        transform: rotate(90deg);
+      }
     </style>
   </head>
   <body data-theme="system" style="padding: 20px">
     <div class="sc-header">
       <h2 style="margin: 0; color: #005a8d">Stock Checker</h2>
       <div class="sc-actions">
-        <button id="sc-clear" class="sc-btn" type="button">CLEAR</button>
-        <button id="homeBtn" class="sc-btn" type="button">HOME</button>
-      </div>
-    </div>
-
-    <!-- Export buttons row (positioned after HOME and above filters) -->
-    <div class="sc-exports-row">
-      <button
-        id="sc-export"
-        class="sc-btn"
-        type="button"
-        title="Export current filter result to CSV"
-      >
-        Export CSV
-      </button>
-      <div style="display: inline-block; position: relative; margin-left: 8px">
-        <button
-          id="sc-export-pdf"
-          class="sc-btn"
-          type="button"
+        <div
+          id="sc-updated"
+          class="sc-snapshot"
+          tabindex="0"
+          role="button"
           aria-haspopup="true"
           aria-expanded="false"
         >
-          Stock Coverage Report ▾
+          <span class="sc-snapshot-dot" aria-hidden="true"></span>
+          <span class="sc-snapshot-label">Snapshot</span>
+          <div id="sc-status-detail" style="display: none">
+            Last stock snapshot: —
+          </div>
+        </div>
+
+        <button
+          id="sc-download"
+          class="sc-btn sc-btn-icon"
+          type="button"
+          aria-label="Export options"
+          title="Export options"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
         </button>
+
+        <button
+          id="sc-filters-btn"
+          class="sc-btn sc-btn-icon"
+          type="button"
+          aria-label="Filters"
+          title="Open filters"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <path d="M3 4h18l-7 9v6l-4-2v-5L3 4z" />
+          </svg>
+        </button>
+
+        <button id="homeBtn" class="sc-btn" type="button" aria-label="Home">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9,22 9,12 15,12 15,22" />
+          </svg>
+          <span class="home-label">HOME</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Placeholder for filters (we will move the filters into a centered modal on demand) -->
+    <div id="sc-filters-placeholder"></div>
+
+    <!-- Export modal (opened by download icon) -->
+    <div
+      id="sc-export-modal"
+      class="sc-modal"
+      role="dialog"
+      aria-hidden="true"
+      aria-modal="true"
+      style="display: none"
+    >
+      <div class="sc-modal-backdrop" data-close="true"></div>
+      <div
+        class="sc-modal-panel"
+        role="document"
+        aria-labelledby="sc-export-modal-title"
+      >
+        <div class="sc-modal-header">
+          <h3 id="sc-export-modal-title">Export Options</h3>
+          <button
+            id="sc-export-modal-close"
+            class="sc-btn sc-btn-icon"
+            aria-label="Close export options"
+          >
+            ✕
+          </button>
+        </div>
+        <div class="sc-modal-body">
+          <div class="modal-actions">
+            <button
+              id="sc-export"
+              class="sc-btn primary sc-btn-block"
+              type="button"
+              title="Export current filter result to CSV"
+            >
+              Export CSV
+            </button>
+
+            <div>
+              <button
+                id="sc-export-pdf"
+                class="sc-btn secondary sc-btn-block"
+                type="button"
+                aria-haspopup="true"
+                aria-expanded="false"
+              >
+                Stock Coverage Report ▾
+              </button>
+              <div
+                id="sc-export-drawer"
+                class="sc-export-drawer"
+                role="menu"
+                aria-hidden="true"
+                style="display: none"
+              >
+                <button
+                  id="sc-export-godowns"
+                  class="sc-btn sc-btn-block"
+                  type="button"
+                >
+                  Stock Coverage Report - Godowns
+                </button>
+                <button
+                  id="sc-export-region"
+                  class="sc-btn sc-btn-block"
+                  type="button"
+                >
+                  Stock Coverage Report - Region
+                </button>
+                <button
+                  id="sc-export-ho"
+                  class="sc-btn sc-btn-block"
+                  type="button"
+                >
+                  Stock Coverage Report - HO Depot
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters centered modal (will host the filters UI temporarily) -->
+    <div
+      id="sc-filters-modal"
+      class="sc-modal"
+      role="dialog"
+      aria-hidden="true"
+      aria-modal="true"
+      style="display: none"
+    >
+      <div class="sc-modal-backdrop" data-close="true"></div>
+      <div
+        class="sc-modal-panel"
+        role="document"
+        aria-labelledby="sc-filters-modal-title"
+      >
+        <div class="sc-modal-header">
+          <h3 id="sc-filters-modal-title">Filters</h3>
+          <button
+            id="sc-filters-modal-close"
+            class="sc-btn sc-btn-icon"
+            aria-label="Close filters"
+          >
+            ✕
+          </button>
+        </div>
+        <div class="sc-modal-body" id="sc-filters-modal-body">
+          <!-- Quick filters moved here (primary filters live on the page) -->
+          <div
+            class="sc-quick-modal"
+            style="margin-bottom: 8px; display: flex; gap: 8px"
+          >
+            <button
+              id="qf-moslt3"
+              class="chip"
+              type="button"
+              aria-pressed="false"
+            >
+              MOS &lt; 3
+            </button>
+            <button
+              id="qf-raso"
+              class="chip"
+              type="button"
+              aria-pressed="false"
+            >
+              Rasoushadhi
+            </button>
+          </div>
+          <!-- Classification and Advanced filters only (primary filters live on the page) -->
+          <details id="drawer-classification" class="drawer">
+            <summary class="drawer-summary drawer-summary-classif">
+              <svg
+                class="chev"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path
+                  d="M9 6l6 6-6 6"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              <span>Classification Filters</span>
+            </summary>
+
+            <div class="drawer-body drawer-grid">
+              <label>
+                Category
+                <select id="drawer-cat">
+                  <option value="">All</option>
+                </select>
+              </label>
+
+              <label>
+                Sub-category
+                <select id="drawer-subcat">
+                  <option value="">All</option>
+                </select>
+              </label>
+
+              <label>
+                Product Group
+                <select id="drawer-pgroup">
+                  <option value="">All</option>
+                </select>
+              </label>
+
+              <label>
+                Sub-group
+                <select id="drawer-sgroup">
+                  <option value="">All</option>
+                </select>
+              </label>
+            </div>
+          </details>
+
+          <details id="drawer-advanced" class="drawer">
+            <summary class="drawer-summary drawer-summary-adv">
+              <svg
+                class="chev"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path
+                  d="M9 6l6 6-6 6"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              <span>Advanced Filters</span>
+            </summary>
+
+            <div class="drawer-body">
+              <h4 class="drawer-heading">
+                Exclude (ANY selected will be excluded)
+              </h4>
+              <div class="drawer-grid">
+                <label>
+                  <div class="multi-checkbox">
+                    <button
+                      type="button"
+                      class="multi-btn"
+                      data-target="ex-cat-list"
+                    >
+                      Select categories to exclude
+                    </button>
+                    <div class="multi-list" id="ex-cat-list" hidden></div>
+                    <select id="ex-cat" multiple style="display: none"></select>
+                  </div>
+                </label>
+                <label>
+                  <div class="multi-checkbox">
+                    <button
+                      type="button"
+                      class="multi-btn"
+                      data-target="ex-subcat-list"
+                    >
+                      Select sub-categories to exclude
+                    </button>
+                    <div class="multi-list" id="ex-subcat-list" hidden></div>
+                    <select
+                      id="ex-subcat"
+                      multiple
+                      style="display: none"
+                    ></select>
+                  </div>
+                </label>
+                <label>
+                  <div class="multi-checkbox">
+                    <button
+                      type="button"
+                      class="multi-btn"
+                      data-target="ex-pgroup-list"
+                    >
+                      Select groups to exclude
+                    </button>
+                    <div class="multi-list" id="ex-pgroup-list" hidden></div>
+                    <select
+                      id="ex-pgroup"
+                      multiple
+                      style="display: none"
+                    ></select>
+                  </div>
+                </label>
+                <label>
+                  <div class="multi-checkbox">
+                    <button
+                      type="button"
+                      class="multi-btn"
+                      data-target="ex-sgroup-list"
+                    >
+                      Select sub-groups to exclude
+                    </button>
+                    <div class="multi-list" id="ex-sgroup-list" hidden></div>
+                    <select
+                      id="ex-sgroup"
+                      multiple
+                      style="display: none"
+                    ></select>
+                  </div>
+                </label>
+              </div>
+
+              <!-- MOS rows (kept short) -->
+              <h4 class="drawer-heading">MOS Filters</h4>
+              <div class="mos-row">
+                <label class="mos-label" for="mosik-v1">MOS IK</label>
+                <select id="mosik-op" aria-label="MOS IK operator">
+                  <option value="gt">&gt;</option>
+                  <option value="gte">&ge;</option>
+                  <option value="eq">=</option>
+                  <option value="lte">&le;</option>
+                  <option value="lt">&lt;</option>
+                  <option value="between">Between</option>
+                </select>
+                <input
+                  id="mosik-v1"
+                  type="number"
+                  step="0.01"
+                  inputmode="decimal"
+                  placeholder="value"
+                  aria-label="MOS IK value"
+                />
+                <input
+                  id="mosik-v2"
+                  type="number"
+                  step="0.01"
+                  inputmode="decimal"
+                  placeholder="max"
+                  aria-label="MOS IK max value"
+                />
+                <label class="nullchk"
+                  ><input id="mosik-nnull" type="checkbox" />Exclude
+                  nulls</label
+                >
+              </div>
+              <!-- MOS KKD -->
+              <div class="mos-row">
+                <label class="mos-label" for="moskkd-v1">MOS KKD</label>
+
+                <select id="moskkd-op" aria-label="MOS KKD operator">
+                  <option value="gt">&gt;</option>
+                  <option value="gte">&ge;</option>
+                  <option value="eq">=</option>
+                  <option value="lte">&le;</option>
+                  <option value="lt">&lt;</option>
+                  <option value="between">Between</option>
+                </select>
+
+                <input
+                  id="moskkd-v1"
+                  type="number"
+                  step="0.01"
+                  inputmode="decimal"
+                  placeholder="value"
+                  aria-label="MOS KKD value"
+                />
+
+                <input
+                  id="moskkd-v2"
+                  type="number"
+                  step="0.01"
+                  inputmode="decimal"
+                  placeholder="max"
+                  aria-label="MOS KKD max value"
+                />
+
+                <label class="nullchk">
+                  <input id="moskkd-nnull" type="checkbox" />Exclude nulls
+                </label>
+              </div>
+
+              <!-- MOS OK -->
+              <div class="mos-row">
+                <label class="mos-label" for="mosok-v1">MOS OK</label>
+
+                <select id="mosok-op" aria-label="MOS OK operator">
+                  <option value="gt">&gt;</option>
+                  <option value="gte">&ge;</option>
+                  <option value="eq">=</option>
+                  <option value="lte">&le;</option>
+                  <option value="lt">&lt;</option>
+                  <option value="between">Between</option>
+                </select>
+
+                <input
+                  id="mosok-v1"
+                  type="number"
+                  step="0.01"
+                  inputmode="decimal"
+                  placeholder="value"
+                  aria-label="MOS OK value"
+                />
+
+                <input
+                  id="mosok-v2"
+                  type="number"
+                  step="0.01"
+                  inputmode="decimal"
+                  placeholder="max"
+                  aria-label="MOS OK max value"
+                />
+
+                <label class="nullchk">
+                  <input id="mosok-nnull" type="checkbox" />Exclude nulls
+                </label>
+              </div>
+
+              <!-- MOS Overall -->
+              <div class="mos-row">
+                <label class="mos-label" for="mosov-v1">MOS Overall</label>
+
+                <select id="mosov-op" aria-label="MOS Overall operator">
+                  <option value="gt">&gt;</option>
+                  <option value="gte">&ge;</option>
+                  <option value="eq">=</option>
+                  <option value="lte">&le;</option>
+                  <option value="lt">&lt;</option>
+                  <option value="between">Between</option>
+                </select>
+
+                <input
+                  id="mosov-v1"
+                  type="number"
+                  step="0.01"
+                  inputmode="decimal"
+                  placeholder="value"
+                  aria-label="MOS Overall value"
+                />
+
+                <input
+                  id="mosov-v2"
+                  type="number"
+                  step="0.01"
+                  inputmode="decimal"
+                  placeholder="max"
+                  aria-label="MOS Overall max value"
+                />
+
+                <label class="nullchk">
+                  <input id="mosov-nnull" type="checkbox" />Exclude nulls
+                </label>
+              </div>
+              <div class="drawer-actions">
+                <span
+                  id="adv-count"
+                  class="sc-pill"
+                  style="margin-left: auto; display: none"
+                ></span>
+              </div>
+            </div>
+          </details>
+        </div>
         <div
-          id="sc-export-drawer"
-          role="menu"
-          aria-hidden="true"
+          class="sc-modal-footer"
           style="
-            display: none;
-            position: absolute;
-            right: 0;
-            margin-top: 6px;
-            background: #fff;
-            border: 1px solid #e5e7eb;
-            border-radius: 6px;
-            padding: 8px;
-            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
-            z-index: 40;
-            min-width: 220px;
+            padding: 12px 16px;
+            border-top: 1px solid #f1f5f9;
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
           "
         >
           <button
-            id="sc-export-godowns"
-            class="sc-btn"
+            id="sc-clear"
+            class="sc-btn secondary"
             type="button"
-            style="display: block; width: 100%; margin-bottom: 6px"
+            aria-label="Reset filters"
+            style="margin-right: auto"
           >
-            Stock Coverage Report - Godowns
+            Reset Filters
           </button>
-          <button
-            id="sc-export-region"
-            class="sc-btn"
-            type="button"
-            style="display: block; width: 100%"
-          >
-            Stock Coverage Report - Region
+          <button id="sc-filters-cancel" class="sc-btn" type="button">
+            Cancel
           </button>
-          <button
-            id="sc-export-ho"
-            class="sc-btn"
-            type="button"
-            style="display: block; width: 100%; margin-top: 6px"
-          >
-            Stock Coverage Report - HO Depot
+          <button id="sc-filters-apply" class="sc-btn primary" type="button">
+            Apply
           </button>
         </div>
       </div>
     </div>
 
-    <!-- Filters row -->
+    <!-- Primary filters (Item / Pack Size) and quick chips restored here -->
     <section class="sc-filters">
-      <label>
+      <label style="position: relative">
         Item
-        <select id="sc-item" placeholder="Type to search item…"></select>
+        <div class="autocomplete input-with-icon" style="position: relative">
+          <input
+            id="sc-item"
+            type="text"
+            placeholder="Type to search item…"
+            autocomplete="off"
+            aria-autocomplete="list"
+            aria-haspopup="listbox"
+          />
+          <button
+            id="sc-item-clear"
+            class="input-clear-btn"
+            type="button"
+            aria-label="Clear Item"
+            title="Clear Item"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+          <div
+            id="sc-item-list"
+            class="ac-list"
+            role="listbox"
+            aria-label="Item suggestions"
+            hidden
+          ></div>
+        </div>
       </label>
 
       <label class="uom-inline">
         <span>Pack Size</span>
-        <div class="pack-uom">
-          <input id="sc-packsize" type="text" placeholder="e.g. 450" />
+        <div class="pack-uom input-with-icon">
+          <input
+            id="sc-packsize"
+            type="text"
+            inputmode="numeric"
+            pattern="\d*"
+            placeholder="e.g. 450"
+          />
+          <button
+            id="sc-packsize-clear"
+            class="input-clear-btn"
+            type="button"
+            aria-label="Clear Pack Size"
+            title="Clear Pack Size"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
           <span id="sc-uom" class="uom-text" aria-live="polite"></span>
         </div>
       </label>
     </section>
 
-    <div class="sc-quick">
-      <button id="qf-moslt3" class="chip" type="button" aria-pressed="false">
-        MOS &lt; 3
-      </button>
-      <button id="qf-raso" class="chip" type="button" aria-pressed="false">
-        Rasoushadhi
-      </button>
-    </div>
-
-    <details id="drawer-classification" class="drawer">
-      <summary>Classification Filters</summary>
-
-      <div class="drawer-body drawer-grid">
-        <label>
-          Category
-          <select id="drawer-cat">
-            <option value="">All</option>
-          </select>
-        </label>
-
-        <label>
-          Sub-category
-          <select id="drawer-subcat" disabled>
-            <option value="">All</option>
-          </select>
-        </label>
-
-        <label>
-          Product Group
-          <select id="drawer-pgroup" disabled>
-            <option value="">All</option>
-          </select>
-        </label>
-
-        <label>
-          Sub-group
-          <select id="drawer-sgroup" disabled>
-            <option value="">All</option>
-          </select>
-        </label>
-      </div>
-    </details>
-
-    <details id="drawer-advanced" class="drawer">
-      <summary>Advanced Filters</summary>
-
-      <div class="drawer-body">
-        <!-- Exclusions -->
-        <h4 class="drawer-heading">Exclude (ANY selected will be excluded)</h4>
-        <div class="drawer-grid">
-          <label>
-            Exclude Categories
-            <select id="ex-cat" multiple></select>
-          </label>
-          <label>
-            Exclude Sub-categories
-            <select id="ex-subcat" multiple></select>
-          </label>
-          <label>
-            Exclude Groups
-            <select id="ex-pgroup" multiple></select>
-          </label>
-          <label>
-            Exclude Sub-groups
-            <select id="ex-sgroup" multiple></select>
-          </label>
-        </div>
-
-        <!-- MOS rows -->
-        <h4 class="drawer-heading">MOS Filters</h4>
-
-        <!-- MOS IK -->
-        <div class="mos-row">
-          <label class="mos-label" for="mosik-v1">MOS IK</label>
-
-          <select id="mosik-op" aria-label="MOS IK operator">
-            <option value="gt">&gt;</option>
-            <option value="gte">&ge;</option>
-            <option value="eq">=</option>
-            <option value="lte">&le;</option>
-            <option value="lt">&lt;</option>
-            <option value="between">Between</option>
-          </select>
-
-          <input
-            id="mosik-v1"
-            type="number"
-            step="0.01"
-            inputmode="decimal"
-            placeholder="value"
-            aria-label="MOS IK value"
-          />
-
-          <input
-            id="mosik-v2"
-            type="number"
-            step="0.01"
-            inputmode="decimal"
-            placeholder="max"
-            aria-label="MOS IK max value"
-          />
-
-          <label class="nullchk">
-            <input id="mosik-nnull" type="checkbox" />
-            Exclude nulls
-          </label>
-        </div>
-
-        <!-- MOS KKD -->
-        <div class="mos-row">
-          <label class="mos-label" for="moskkd-v1">MOS KKD</label>
-
-          <select id="moskkd-op" aria-label="MOS KKD operator">
-            <option value="gt">&gt;</option>
-            <option value="gte">&ge;</option>
-            <option value="eq">=</option>
-            <option value="lte">&le;</option>
-            <option value="lt">&lt;</option>
-            <option value="between">Between</option>
-          </select>
-
-          <input
-            id="moskkd-v1"
-            type="number"
-            step="0.01"
-            inputmode="decimal"
-            placeholder="value"
-            aria-label="MOS KKD value"
-          />
-
-          <input
-            id="moskkd-v2"
-            type="number"
-            step="0.01"
-            inputmode="decimal"
-            placeholder="max"
-            aria-label="MOS KKD max value"
-          />
-
-          <label class="nullchk">
-            <input id="moskkd-nnull" type="checkbox" />
-            Exclude nulls
-          </label>
-        </div>
-
-        <!-- MOS OK -->
-        <div class="mos-row">
-          <label class="mos-label" for="mosok-v1">MOS OK</label>
-
-          <select id="mosok-op" aria-label="MOS OK operator">
-            <option value="gt">&gt;</option>
-            <option value="gte">&ge;</option>
-            <option value="eq">=</option>
-            <option value="lte">&le;</option>
-            <option value="lt">&lt;</option>
-            <option value="between">Between</option>
-          </select>
-
-          <input
-            id="mosok-v1"
-            type="number"
-            step="0.01"
-            inputmode="decimal"
-            placeholder="value"
-            aria-label="MOS OK value"
-          />
-
-          <input
-            id="mosok-v2"
-            type="number"
-            step="0.01"
-            inputmode="decimal"
-            placeholder="max"
-            aria-label="MOS OK max value"
-          />
-
-          <label class="nullchk">
-            <input id="mosok-nnull" type="checkbox" />
-            Exclude nulls
-          </label>
-        </div>
-
-        <!-- MOS Overall -->
-        <div class="mos-row">
-          <label class="mos-label" for="mosov-v1">MOS Overall</label>
-
-          <select id="mosov-op" aria-label="MOS Overall operator">
-            <option value="gt">&gt;</option>
-            <option value="gte">&ge;</option>
-            <option value="eq">=</option>
-            <option value="lte">&le;</option>
-            <option value="lt">&lt;</option>
-            <option value="between">Between</option>
-          </select>
-
-          <input
-            id="mosov-v1"
-            type="number"
-            step="0.01"
-            inputmode="decimal"
-            placeholder="value"
-            aria-label="MOS Overall value"
-          />
-
-          <input
-            id="mosov-v2"
-            type="number"
-            step="0.01"
-            inputmode="decimal"
-            placeholder="max"
-            aria-label="MOS Overall max value"
-          />
-
-          <label class="nullchk">
-            <input id="mosov-nnull" type="checkbox" />
-            Exclude nulls
-          </label>
-        </div>
-
-        <div class="drawer-actions">
-          <button id="adv-apply" class="sc-btn primary" type="button">
-            Apply
-          </button>
-          <button id="adv-clear" class="sc-btn" type="button">
-            Clear Advanced
-          </button>
-          <span
-            id="adv-count"
-            class="sc-pill"
-            style="margin-left: auto; display: none"
-          ></span>
-        </div>
-      </div>
-    </details>
+    <!-- quick filters moved into modal -->
 
     <!-- Meta row: counts + last updated + pagination -->
     <div class="sc-meta">
       <span id="sc-count" class="sc-pill">0 rows</span>
-      <span id="sc-updated">Last stock snapshot: —</span>
+
       <div class="pagination">
         <button id="sc-prev" class="sc-btn" type="button" disabled>Prev</button>
         <span id="sc-page" style="align-self: center">Page 1</span>
@@ -807,8 +1588,7 @@
     <!-- Inline message area -->
     <div id="sc-msg" style="padding: 10px; color: #b45309"></div>
 
-    <!-- Tom Select JS -->
-    <script src="../vendor/tom-select/tom-select.complete.min.js"></script>
+    <!-- TomSelect removed: using custom paginated autocomplete -->
 
     <!-- jsPDF + AutoTable (for table PDF) -->
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>

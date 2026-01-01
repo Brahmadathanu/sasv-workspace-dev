@@ -8,6 +8,35 @@ function refreshApplyButtonsState() {
     .getElementById("btnUnifiedUndo")
     ?.toggleAttribute("disabled", !hasSelection);
 }
+// Refresh supply rollups by invoking DB trigger/function
+let __refreshRollupsInFlight = false;
+async function refreshSupplyRollups() {
+  if (__refreshRollupsInFlight) return showToast("Refresh already running...");
+  __refreshRollupsInFlight = true;
+  try {
+    showToast("Refreshing supply rollups...");
+    const { data, error } = await supabase.rpc("process_supply_rollup_refresh");
+    if (error) throw error;
+    showToast("Supply rollups refreshed.");
+    try {
+      await loadUnifiedData();
+    } catch {
+      /* ignore */
+    }
+    try {
+      await loadActiveOverrides();
+    } catch {
+      /* ignore */
+    }
+    return data;
+  } catch (e) {
+    console.error("process_supply_rollup_refresh failed:", e);
+    showToast(e?.message || "Refresh failed; see console.");
+    throw e;
+  } finally {
+    __refreshRollupsInFlight = false;
+  }
+}
 function confirmSeed({ setId, fromMonth, toMonth, setLabel }) {
   return new Promise((resolve) => {
     const dlg = document.getElementById("seedConfirmDialog");
@@ -569,6 +598,55 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   // Ensure filter inputs and toggles are initialized
   initializeLineFilters();
+  // Wire Zero-Seeded button (set proposed_qty=0 where note='Seeded from system')
+  const btnZeroSeeded = $("btnZeroSeeded");
+  if (btnZeroSeeded) {
+    btnZeroSeeded.addEventListener("click", async () => {
+      const selForLines = $("selSetForLines");
+      let setId = selForLines ? Number(selForLines.value) : 0;
+      if (!setId) {
+        const headerVal = $("selPlanHeader")?.value;
+        setId = headerVal ? Number(headerVal) : 0;
+        if (setId && selForLines) selForLines.value = setId;
+      }
+      if (!setId) return showToast("Pick a set");
+      const ok = await confirmZeroSeeded(setId);
+      if (!ok) return;
+      btnZeroSeeded.disabled = true;
+      const prevText = btnZeroSeeded.textContent;
+      btnZeroSeeded.textContent = "Working…";
+      try {
+        const { data, error } = await supabase
+          .from("manual_plan_lines")
+          .update({
+            proposed_qty: 0,
+            note: "Manual Production Plan",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("set_id", setId)
+          // match notes like 'Seeded from system' case-insensitively and
+          // tolerate missing/extra spaces or separators by allowing any
+          // characters between 'seeded' and 'system'
+          .ilike("note", "%seeded%system%");
+        if (error) {
+          console.error(error);
+          showToast("Zero seeded failed");
+        } else {
+          const affected = Array.isArray(data) ? data.length : data ? 1 : 0;
+          showToast(`Updated ${affected} row(s) ✔`);
+          await loadLines();
+          try {
+            await loadUnifiedData();
+          } catch (e) {
+            void e;
+          }
+        }
+      } finally {
+        btnZeroSeeded.disabled = false;
+        btnZeroSeeded.textContent = prevText;
+      }
+    });
+  }
   // Initialize unified reconciliation filters
   initializeUnifiedFilters();
   // Setup tabs so we load lines when switching to the Lines tab
@@ -1481,11 +1559,12 @@ async function loadLines() {
           // focus note cell and populate default
           const noteCell = tr.querySelector('[data-col="note"]');
           if (noteCell) {
+            // Always set default note (overwrite) to indicate manual plan.
             noteCell.textContent = "Manual Production Plan";
-            // focus and place caret
-            setCaretToEnd(noteCell);
             // store orig so Esc can revert from the new text
             noteCell.dataset._orig = noteCell.textContent;
+            // focus and place caret in any case
+            setCaretToEnd(noteCell);
           }
         }
       });
@@ -1837,6 +1916,51 @@ function confirmApply() {
 
     if (typeof dlg.showModal === "function") dlg.showModal();
     else dlg.setAttribute("open", "");
+  });
+}
+
+/**
+ * Show a confirmation dialog reusing the Delete Confirmation modal for the
+ * Zero Seeded action. Returns true if user confirms.
+ */
+function confirmZeroSeeded(setId) {
+  return new Promise((resolve) => {
+    const dlg = $("deleteConfirmModal");
+    if (!dlg) return resolve(false);
+    $("deleteConfirmTitle").textContent = "Zero Seeded Lines";
+    $(
+      "deleteConfirmMessage"
+    ).innerHTML = `<div style='color:#b45309;font-weight:500;margin-bottom:10px;'>Set Proposed Qty = 0 for seeded lines in <b>#${setId}</b>.</div><div>This will also set Note = 'Manual Production Plan'. Proceed?</div>`;
+
+    // show modal and temporarily change action button text to be appropriate
+    const cancelBtn = document.getElementById("deleteConfirmCancelBtn");
+    const deleteBtn = document.getElementById("deleteConfirmDeleteBtn");
+    const prevDeleteText = deleteBtn ? deleteBtn.textContent : null;
+    if (deleteBtn) deleteBtn.textContent = "Proceed";
+
+    if (typeof dlg.showModal === "function") dlg.showModal();
+    else dlg.setAttribute("open", "");
+
+    function cleanup(val) {
+      // restore button text
+      if (deleteBtn && prevDeleteText !== null)
+        deleteBtn.textContent = prevDeleteText;
+      if (typeof dlg.close === "function") dlg.close();
+      else dlg.removeAttribute("open");
+      resolve(val);
+    }
+
+    cancelBtn?.addEventListener("click", () => cleanup(false), { once: true });
+    deleteBtn?.addEventListener("click", () => cleanup(true), { once: true });
+    dlg.addEventListener(
+      "cancel",
+      (e) => {
+        e.preventDefault();
+        cleanup(false);
+      },
+      { once: true }
+    );
+    setTimeout(() => cancelBtn?.focus(), 100);
   });
 }
 // Unified Reconciliation & Apply Card Logic
@@ -2373,11 +2497,32 @@ function wireUnifiedCard() {
 
   // Reset unified filters button
   const btnResetUnified = document.getElementById("btnResetUnifiedFilters");
-  btnResetUnified?.addEventListener("click", () => {
-    resetUnifiedFiltersForNewSet();
-    unifiedPage = 1;
-    loadUnifiedData();
-  });
+  if (btnResetUnified) {
+    // Wire an existing Refresh button placed in the HTML (page-level screen params)
+    try {
+      const refreshBtn = document.getElementById("btnRefreshSupplyRollups");
+      if (refreshBtn) {
+        refreshBtn.addEventListener("click", async () => {
+          try {
+            refreshBtn.disabled = true;
+            await refreshSupplyRollups();
+          } catch {
+            /* ignore - error shown by helper */
+          } finally {
+            refreshBtn.disabled = false;
+          }
+        });
+      }
+    } catch (e) {
+      console.debug("Failed to wire Refresh Supply Rollups button:", e);
+    }
+
+    btnResetUnified.addEventListener("click", () => {
+      resetUnifiedFiltersForNewSet();
+      unifiedPage = 1;
+      loadUnifiedData();
+    });
+  }
 }
 
 /* ========== reconcile & apply ========== */

@@ -1316,6 +1316,22 @@ async function loadOverviewItems({
   query = query.range(from, to);
   const { data, error, count } = await query;
   if (error) return { error: handleSupabaseError(error) };
+  // Attach UOM codes when missing by resolving default_uom_id from inv_stock_item
+  try {
+    const missingIds = (data || [])
+      .filter((r) => !r.uom && !r.uom_code)
+      .map((r) => r.inv_stock_item_id)
+      .filter(Boolean);
+    if (missingIds && missingIds.length) {
+      const uomMap = await fetchUomsForItemIds(missingIds);
+      (data || []).forEach((r) => {
+        const v = uomMap.get(r.inv_stock_item_id);
+        if (v) r.uom = v;
+      });
+    }
+  } catch {
+    /* ignore uom augmentation failures */
+  }
   return { data, count };
 }
 
@@ -1344,6 +1360,22 @@ async function loadStockSnapshot({
   query = query.range(from, to);
   const { data, error, count } = await query;
   if (error) return { error: handleSupabaseError(error) };
+  // Attach UOM codes when missing
+  try {
+    const missingIds = (data || [])
+      .filter((r) => !r.uom && !r.uom_code)
+      .map((r) => r.inv_stock_item_id)
+      .filter(Boolean);
+    if (missingIds && missingIds.length) {
+      const uomMap = await fetchUomsForItemIds(missingIds);
+      (data || []).forEach((r) => {
+        const v = uomMap.get(r.inv_stock_item_id);
+        if (v) r.uom = v;
+      });
+    }
+  } catch {
+    /* ignore */
+  }
   return { data, count };
 }
 
@@ -1377,6 +1409,20 @@ async function loadPurchaseSummary({
     rpcParams
   );
   if (error) return { error: handleSupabaseError(error) };
+
+  // Augment purchase summary rows with UOM where missing
+  try {
+    const ids = (data || []).map((r) => r.inv_stock_item_id).filter(Boolean);
+    if (ids && ids.length) {
+      const uomMap = await fetchUomsForItemIds(ids);
+      (data || []).forEach((r) => {
+        const v = uomMap.get(r.inv_stock_item_id);
+        if (v) r.uom = v;
+      });
+    }
+  } catch {
+    /* ignore uom augmentation errors */
+  }
 
   // Obtain exact total count for pagination by querying the view head.
   try {
@@ -1471,6 +1517,20 @@ async function loadConsumptionSummary({
       page,
       pageSize,
     });
+  }
+
+  // Augment RPC consumption summary rows with UOM when missing
+  try {
+    const ids = (data || []).map((r) => r.inv_stock_item_id).filter(Boolean);
+    if (ids && ids.length) {
+      const uomMap = await fetchUomsForItemIds(ids);
+      (data || []).forEach((r) => {
+        const v = uomMap.get(r.inv_stock_item_id);
+        if (v) r.uom = v;
+      });
+    }
+  } catch {
+    /* ignore */
   }
 
   // Try to obtain an exact total count via a companion RPC if available.
@@ -1588,11 +1648,32 @@ async function fallbackLoadConsumptionSummary({
   const ids = Array.from(map.keys());
   const { data: items, error: itemsErr } = await supabase
     .from("inv_stock_item")
-    .select("id,code,name,source_kind")
+    .select("id,code,name,source_kind,default_uom_id")
     .in("id", ids);
   if (itemsErr) return { error: handleSupabaseError(itemsErr) };
 
+  // Build item map and fetch UOM codes for any default_uom_id present
   const itemMap = new Map((items || []).map((it) => [it.id, it]));
+  try {
+    const uomIds = Array.from(
+      new Set((items || []).map((it) => it.default_uom_id).filter(Boolean))
+    );
+    if (uomIds.length) {
+      const { data: uoms, error: uomErr } = await supabase
+        .from("inv_uom")
+        .select("id,code")
+        .in("id", uomIds);
+      if (!uomErr && uoms) {
+        const uomMap = new Map((uoms || []).map((u) => [u.id, u.code]));
+        (items || []).forEach((it) => {
+          if (it.default_uom_id) it.uom = uomMap.get(it.default_uom_id) || null;
+          itemMap.set(it.id, it);
+        });
+      }
+    }
+  } catch {
+    /* ignore uom fetch errors */
+  }
 
   // Fetch class mapping entries for these items and then fetch class codes
   const { data: maps, error: mapsErr } = await supabase
@@ -1655,6 +1736,7 @@ async function fallbackLoadConsumptionSummary({
       inv_stock_item_id: s.inv_stock_item_id,
       code: it.code || "–",
       name: it.name || "–",
+      uom: it.uom || null,
       category_code: category_code || null,
       subcategory_code: subcategory_code || null,
       group_code: group_code || null,
@@ -1830,6 +1912,55 @@ function formatClassification(row) {
   return row.source_kind || "–";
 }
 
+// Helper to obtain a UOM string from a row using common field names
+function getRowUOM(row) {
+  if (!row) return "–";
+  return (
+    row.uom ||
+    row.uom_code ||
+    row.default_uom ||
+    row.default_uom_code ||
+    row.stock_uom ||
+    row.inv_default_uom ||
+    row.stock_uom_code ||
+    "–"
+  );
+}
+
+// Fetch default UOM codes for a set of inv_stock_item ids and return map id->uomCode
+async function fetchUomsForItemIds(ids) {
+  if (!ids || !ids.length) return new Map();
+  // fetch default_uom_id from inv_stock_item
+  const { data: items, error: itemsErr } = await supabase
+    .from("inv_stock_item")
+    .select("id,default_uom_id")
+    .in("id", ids);
+  if (itemsErr || !items) return new Map();
+
+  const uomIds = Array.from(
+    new Set((items || []).map((it) => it.default_uom_id).filter(Boolean))
+  );
+  if (!uomIds.length) {
+    const m = new Map();
+    (items || []).forEach((it) => m.set(it.id, null));
+    return m;
+  }
+
+  const { data: uoms, error: uomErr } = await supabase
+    .from("inv_uom")
+    .select("id,code")
+    .in("id", uomIds);
+  if (uomErr || !uoms) return new Map();
+
+  const uomMap = new Map((uoms || []).map((u) => [u.id, u.code]));
+  const result = new Map();
+  (items || []).forEach((it) => {
+    const code = it.default_uom_id ? uomMap.get(it.default_uom_id) : null;
+    result.set(it.id, code || null);
+  });
+  return result;
+}
+
 function renderOverviewTable(rows) {
   // rows: array, totalCount passed via second arg when available
   const totalCount = arguments[1] || 0;
@@ -1837,6 +1968,7 @@ function renderOverviewTable(rows) {
   let html = `<table><thead><tr>
     <th style="vertical-align:middle; text-align:center">Code</th>
     <th style="vertical-align:middle; text-align:center">Name</th>
+    <th style="vertical-align:middle; text-align:center">UOM</th>
     <th style="vertical-align:middle; text-align:center">Classification</th>
     <th style="vertical-align:middle; text-align:center">Current Stock Qty</th>
     <th style="vertical-align:middle; text-align:center">Current Stock Rate</th>
@@ -1852,6 +1984,9 @@ function renderOverviewTable(rows) {
     }>
       <td style="vertical-align:middle; text-align:center">${row.code}</td>
       <td style="vertical-align:middle; text-align:left">${row.name}</td>
+      <td style="vertical-align:middle; text-align:center">${getRowUOM(
+        row
+      )}</td>
       <td style="vertical-align:middle; text-align:center">${formatClassification(
         row
       )}</td>
@@ -1902,6 +2037,7 @@ function renderStockTable(rows) {
   let html = `<table><thead><tr>
     <th style="vertical-align:middle; text-align:center">Code</th>
     <th style="vertical-align:middle; text-align:center">Name</th>
+    <th style="vertical-align:middle; text-align:center">UOM</th>
     <th style="vertical-align:middle; text-align:center">Classification</th>
     <th style="vertical-align:middle; text-align:center">Current Stock</th>
     <th style="vertical-align:middle; text-align:center">Valuation Rate</th>
@@ -1910,6 +2046,9 @@ function renderStockTable(rows) {
     html += `<tr>
       <td style="vertical-align:middle; text-align:center">${row.code}</td>
       <td style="vertical-align:middle; text-align:left">${row.name}</td>
+      <td style="vertical-align:middle; text-align:center">${getRowUOM(
+        row
+      )}</td>
       <td style="vertical-align:middle; text-align:center">${formatClassification(
         row
       )}</td>
@@ -1933,6 +2072,7 @@ function renderPurchaseSummaryTable(rows) {
   let html = `<table><thead><tr>
     <th style="vertical-align:middle; text-align:center">Code</th>
     <th style="vertical-align:middle; text-align:center">Name</th>
+    <th style="vertical-align:middle; text-align:center">UOM</th>
     <th style="vertical-align:middle; text-align:center">Classification</th>
     <th style="vertical-align:middle; text-align:center">Total Purchased Qty</th>
     <th style="vertical-align:middle; text-align:center">Avg Purchase Rate</th>
@@ -1945,6 +2085,9 @@ function renderPurchaseSummaryTable(rows) {
     }>
       <td style="vertical-align:middle; text-align:center">${row.code}</td>
       <td style="vertical-align:middle; text-align:left">${row.name}</td>
+      <td style="vertical-align:middle; text-align:center">${getRowUOM(
+        row
+      )}</td>
       <td style="vertical-align:middle; text-align:center">${formatClassification(
         row
       )}</td>
@@ -1986,6 +2129,7 @@ function renderConsumptionTable(rows, totalCount) {
   let html = `<table><thead><tr>
     <th style="vertical-align:middle; text-align:center">Code</th>
     <th style="vertical-align:middle; text-align:center">Name</th>
+    <th style="vertical-align:middle; text-align:center">UOM</th>
     <th style="vertical-align:middle; text-align:center">Classification</th>
     <th style="vertical-align:middle; text-align:center">Total Consumed Qty</th>
     <th style="vertical-align:middle; text-align:center">RM/PLM Issues</th>
@@ -2001,6 +2145,9 @@ function renderConsumptionTable(rows, totalCount) {
     }>
       <td style="vertical-align:middle; text-align:center">${row.code}</td>
       <td style="vertical-align:middle; text-align:left">${row.name}</td>
+      <td style="vertical-align:middle; text-align:center">${getRowUOM(
+        row
+      )}</td>
       <td style="vertical-align:middle; text-align:center">${formatClassification(
         row
       )}</td>

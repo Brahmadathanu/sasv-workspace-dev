@@ -1329,6 +1329,27 @@
               </p>
             </div>
             <div class="card-actions">
+              <button
+                id="btnZeroSeeded"
+                class="btn"
+                type="button"
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 6px;
+                  padding: 6px;
+                  border-radius: 8px;
+                  border: 1px solid #f59e0b;
+                  background: #fff7ed;
+                  color: #92400e;
+                  cursor: pointer;
+                  font: inherit;
+                  font-weight: 600;
+                  transition: all 0.2s ease;
+                "
+              >
+                Zero Seeded
+              </button>
               <button id="btnAddLine" class="btn primary">Add Line</button>
               <button id="btnDeleteSelected" class="btn outline">
                 Delete Selected
@@ -1467,6 +1488,7 @@
                 </div>
               </div>
             </div>
+
             <div
               style="
                 display: flex;
@@ -1723,6 +1745,32 @@
                     </button>
                   </div>
                 </label>
+                <!-- Refresh button: placed after NEEDED? and left of Reset -->
+                <div
+                  class="field"
+                  style="
+                    display: flex;
+                    align-items: flex-end;
+                    order: 10;
+                    align-self: flex-end;
+                  "
+                >
+                  <button
+                    id="btnRefreshSupplyRollups"
+                    class="btn"
+                    type="button"
+                    title="Refresh Supply Rollups"
+                    style="
+                      margin-right: 8px;
+                      background: #ffd54f;
+                      border-color: #e6b800;
+                      color: #000;
+                    "
+                  >
+                    Refresh Supply Rollups
+                  </button>
+                </div>
+
                 <div class="field reset-field">
                   <span
                     class="filter-label"

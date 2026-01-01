@@ -407,6 +407,181 @@ select.filter-input {
   -webkit-appearance: menulist; /* keep native dropdown arrow on Chromium */
 }
 
+/* Exclusion fields — ERP-style accent to indicate data-validation controls */
+.multi-checkbox.exclude-accent {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.multi-checkbox.exclude-accent .multi-btn {
+  background: linear-gradient(90deg, #fff7ed 0%, #fffefb 100%);
+  border: 1px solid #f3dcc8;
+  color: #7a3b12;
+  font-weight: 700;
+  padding: 8px 10px;
+  border-radius: 8px;
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.02);
+}
+.multi-checkbox.exclude-accent .multi-btn:hover {
+  background: #fff8ee;
+}
+.multi-checkbox.exclude-accent .multi-list {
+  border: 1px solid #f3dcc8;
+  background: #fffdfa;
+  box-shadow: 0 8px 22px rgba(122, 59, 18, 0.06);
+  padding: 8px;
+  border-radius: 8px;
+  max-width: 420px;
+}
+.multi-checkbox.exclude-accent .mc-title {
+  color: #7a3b12;
+  font-weight: 800;
+}
+.multi-checkbox.exclude-accent .mc-item label {
+  color: #523021;
+}
+
+/* Snapshot indicator in header (moved from shared-ui.css) */
+.sc-snapshot {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #e6eef8;
+  cursor: pointer;
+  position: relative;
+  font-weight: 600;
+  color: #0f172a;
+}
+.sc-snapshot:focus {
+  outline: 2px solid rgba(37, 99, 235, 0.16);
+  outline-offset: 2px;
+}
+.sc-snapshot-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #9ca3af; /* default grey */
+  flex: 0 0 10px;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06) inset;
+}
+.sc-snapshot.snapshot-fresh .sc-snapshot-dot {
+  background: #16a34a;
+} /* green */
+.sc-snapshot.snapshot-warning .sc-snapshot-dot {
+  background: #f59e0b;
+} /* amber */
+.sc-snapshot.snapshot-stale .sc-snapshot-dot {
+  background: #ef4444;
+} /* red */
+.sc-snapshot-label {
+  font-size: 0.85rem;
+  color: #374151;
+}
+
+/* Professional ERP-style status display */
+.sc-snapshot {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #e6eef8;
+  cursor: pointer;
+  position: relative;
+  font-weight: 600;
+  color: #0f172a;
+  transition: all 0.2s ease;
+}
+
+.sc-snapshot:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.sc-snapshot:focus {
+  outline: 2px solid rgba(37, 99, 235, 0.16);
+  outline-offset: 2px;
+}
+
+.sc-snapshot-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #9ca3af; /* default grey */
+  flex: 0 0 10px;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06) inset;
+}
+
+.sc-snapshot.snapshot-fresh .sc-snapshot-dot {
+  background: #16a34a;
+} /* green */
+.sc-snapshot.snapshot-warning .sc-snapshot-dot {
+  background: #f59e0b;
+} /* amber */
+.sc-snapshot.snapshot-stale .sc-snapshot-dot {
+  background: #ef4444;
+} /* red */
+
+.sc-snapshot-label {
+  font-size: 0.85rem;
+  color: #374151;
+}
+
+/* Professional status expansion */
+.sc-snapshot.sc-status-expanded {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.sc-snapshot.sc-status-expanded::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #e2e8f0;
+  margin-top: 8px;
+}
+
+/* Status detail panel */
+#sc-status-detail {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 9px;
+  padding: 8px 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  color: #475569;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  white-space: normal;
+  min-width: 0;
+  max-width: 420px;
+  width: auto;
+  line-height: 1.4;
+}
+.sc-snapshot.open .sc-snapshot-balloon {
+  display: block;
+}
+
+@media (max-width: 520px) {
+  .sc-snapshot-label {
+    display: none;
+  }
+  .sc-snapshot {
+    padding: 6px;
+  }
+}
+
 /* If the browser provides a focus outline, keep it visible and not clipped */
 select.filter-input:focus {
   outline-offset: 2px;

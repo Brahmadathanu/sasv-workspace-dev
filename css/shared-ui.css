@@ -194,3 +194,230 @@ td.cell-active.sel-r {
     padding: 3px 6px;
   }
 }
+
+/* Drawer summary accents (classification vs advanced) */
+.drawer-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.95rem;
+  border: 1px solid transparent;
+}
+.drawer-summary svg {
+  display: inline-block;
+  color: inherit;
+}
+
+/* Classification accent: warm primary */
+.drawer-summary-classif {
+  background: linear-gradient(90deg, #fff7ed 0%, #fffefb 100%);
+  color: #7a3b12;
+  border-color: #f3dcc8;
+}
+.drawer-summary-classif:hover {
+  background: #fff8ee;
+}
+
+/* Advanced accent: cool neutral */
+.drawer-summary-adv {
+  background: linear-gradient(90deg, #f0f9ff 0%, #ffffff 100%);
+  color: #0b6ea8;
+  border-color: #d6eefb;
+}
+.drawer-summary-adv:hover {
+  background: #eef9ff;
+}
+
+/* Ensure summary text doesn't show default marker in some UA */
+details.drawer summary::-webkit-details-marker {
+  display: none;
+}
+details.drawer summary {
+  list-style: none;
+}
+/* Hide native details/summary markers across browsers */
+details.drawer summary::-webkit-details-marker {
+  display: none;
+}
+details.drawer summary::marker {
+  content: none;
+}
+details.drawer summary::before {
+  content: none;
+}
+details.drawer summary {
+  list-style: none;
+}
+
+/* Extra fixes for Chromium/Electron: remove any native disclosure glyph */
+details.drawer {
+  -webkit-user-select: none;
+  user-select: none;
+}
+details.drawer > summary {
+  -webkit-appearance: none;
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+details.drawer::-webkit-details-marker {
+  display: none;
+}
+details.drawer::marker {
+  content: none;
+}
+
+/* Rotate the inline chevron when the drawer is open */
+details.drawer[open] > summary svg {
+  transform: rotate(90deg);
+}
+details.drawer > summary svg {
+  transition: transform 160ms ease;
+  transform-origin: center;
+}
+
+/* Snapshot indicator in header */
+.sc-snapshot {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #e6eef8;
+  cursor: pointer;
+  position: relative;
+  font-weight: 600;
+  color: #0f172a;
+}
+.sc-snapshot:focus {
+  outline: 2px solid rgba(37, 99, 235, 0.16);
+  outline-offset: 2px;
+}
+.sc-snapshot-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #9ca3af; /* default grey */
+  flex: 0 0 10px;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06) inset;
+}
+.sc-snapshot.snapshot-fresh .sc-snapshot-dot {
+  background: #16a34a;
+} /* green */
+.sc-snapshot.snapshot-warning .sc-snapshot-dot {
+  background: #f59e0b;
+} /* amber */
+.sc-snapshot.snapshot-stale .sc-snapshot-dot {
+  background: #ef4444;
+} /* red */
+.sc-snapshot-label {
+  font-size: 0.85rem;
+  color: #374151;
+}
+
+/* Professional ERP-style status display */
+.sc-snapshot {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #e6eef8;
+  cursor: pointer;
+  position: relative;
+  font-weight: 600;
+  color: #0f172a;
+  transition: all 0.2s ease;
+}
+
+.sc-snapshot:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.sc-snapshot:focus {
+  outline: 2px solid rgba(37, 99, 235, 0.16);
+  outline-offset: 2px;
+}
+
+.sc-snapshot-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #9ca3af; /* default grey */
+  flex: 0 0 10px;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06) inset;
+}
+
+.sc-snapshot.snapshot-fresh .sc-snapshot-dot {
+  background: #16a34a;
+} /* green */
+.sc-snapshot.snapshot-warning .sc-snapshot-dot {
+  background: #f59e0b;
+} /* amber */
+.sc-snapshot.snapshot-stale .sc-snapshot-dot {
+  background: #ef4444;
+} /* red */
+
+.sc-snapshot-label {
+  font-size: 0.85rem;
+  color: #374151;
+}
+
+/* Professional status expansion */
+.sc-snapshot.sc-status-expanded {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.sc-snapshot.sc-status-expanded::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #e2e8f0;
+  margin-top: 8px;
+}
+
+/* Status detail panel */
+#sc-status-detail {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 9px;
+  padding: 8px 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  color: #475569;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  white-space: normal;
+  min-width: 0;
+  max-width: 420px;
+  width: auto;
+  text-align: center;
+  display: inline-block;
+  line-height: 1.4;
+}
+
+/* Small screens: hide label, keep dot only */
+@media (max-width: 520px) {
+  .sc-snapshot-label {
+    display: none;
+  }
+  .sc-snapshot {
+    padding: 6px;
+  }
+}

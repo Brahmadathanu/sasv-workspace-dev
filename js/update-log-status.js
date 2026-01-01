@@ -1,4 +1,5 @@
 import { supabase } from "../public/shared/js/supabaseClient.js";
+/* global confirmDatePlugin, flatpickr */
 
 /**
  * Base Flatpickr configuration shared across date inputs.
@@ -480,7 +481,6 @@ async function promptDone(activity, item, batch, id) {
         document.querySelector("#doneLabRef")?.value.trim() || null;
       let rows = [];
       const actL = activity.toLowerCase().trim();
-      const isStockTransfer = /stock\s*transfer/i.test(actL);
 
       if (skuActSet.has(actL)) {
         rows = Array.from(doneSkuBody.querySelectorAll("input"))
@@ -1108,7 +1108,7 @@ async function init() {
     populate(sItem, uniqueItems, "item", "item", "Item");
   }
 
-  // Fetch all activities for Doing/On Hold
+  // Fetch all activities for Doing/On Hold
   const { data: allActs, error: actsErr } = await supabase
     .from("daily_work_log")
     .select("activity")

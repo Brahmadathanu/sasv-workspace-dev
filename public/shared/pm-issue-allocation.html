@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>SASV WORKSPACE | PLM Issue Allocation</title>
+    <title>SASV WORKSPACE | PM Issue Allocation</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="./css/style.css" />
     <style>
@@ -99,6 +99,54 @@
         border-radius: 999px;
         font-size: 0.8rem;
       }
+      .badge-success {
+        background: #e6ffea;
+        color: #10601a;
+        padding: 4px 6px;
+        border-radius: 999px;
+        font-size: 0.8rem;
+      }
+      .help-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        margin-left: 8px;
+        border-radius: 50%;
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        background: var(--panel-bg);
+        color: var(--text-color);
+        font-size: 16px;
+        line-height: 1;
+        cursor: pointer;
+      }
+      .help-popover {
+        position: fixed;
+        max-width: 340px;
+        padding: 10px;
+        border-radius: 6px;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+        background: var(--panel-bg);
+        color: var(--text-color);
+        z-index: 10000;
+      }
+      .help-popover .muted {
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      .help-popover .help-close {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        border: none;
+        background: transparent;
+        color: var(--muted);
+        font-size: 16px;
+        line-height: 1;
+        cursor: pointer;
+      }
 
       .detail-panel {
         border: 1px solid #ccc;
@@ -148,20 +196,16 @@
       }
       .tab.active {
         border-bottom-color: var(--primary);
-        font-weight: 600;
-      }
-      .tab[disabled] {
-        opacity: 0.5;
-        cursor: not-allowed;
       }
     </style>
   </head>
   <body data-theme="system">
     <div class="header-bar">
       <div>
-        <h2>PLM Issue Allocation</h2>
+        <h2>PM Issue Allocation</h2>
         <div class="section-hint">
-          Review and correct PLM issues by material, product, SKU, and region.
+          Review and correct Packing Material issues by material, product, SKU,
+          and region.
         </div>
       </div>
       <div class="header-actions"><button id="homeBtn">HOME</button></div>
@@ -173,9 +217,9 @@
         ><input id="horizonMonth" type="month" />
       </div>
       <div class="filter-pair">
-        <label for="plmFilter">PLM</label
-        ><select id="plmFilter">
-          <option value="">-- All PLM items --</option>
+        <label for="pmFilter">PM</label
+        ><select id="pmFilter">
+          <option value="">-- All PM items --</option>
         </select>
       </div>
       <div class="filter-pair">
@@ -190,11 +234,27 @@
           approximate allocations</label
         >
       </div>
+      <div class="filter-pair">
+        <label
+          ><input id="filterNeedsAttention" type="checkbox" /> Only needs
+          attention</label
+        >
+      </div>
+      <div class="filter-pair">
+        <label for="ageBucket">Age</label>
+        <select id="ageBucket">
+          <option value="">All ages</option>
+          <option value="0-7">0–7 days</option>
+          <option value="8-14">8–14 days</option>
+          <option value="15-30">15–30 days</option>
+          <option value="31+">31+ days</option>
+        </select>
+      </div>
       <div class="filter-pair" style="flex: 1 1 240px">
         <input
           id="textSearch"
           type="text"
-          placeholder="Filter by PLM, product, SKU or region"
+          placeholder="Filter by PM, product, SKU or region"
         />
       </div>
       <div class="filter-actions">
@@ -202,6 +262,8 @@
         <div id="rowCount">0</div>
       </div>
     </div>
+
+    <div id="paginator" class="paginator" style="margin-bottom: 8px"></div>
 
     <div class="tab-bar">
       <button id="tabSummary" class="tab active">Summary</button>
@@ -213,9 +275,10 @@
         <table id="summaryTable">
           <thead>
             <tr>
-              <th data-key="plm_display">PLM Item</th>
+              <th data-key="pm_display">PM Item</th>
               <th data-key="combination">Product / SKU / Region</th>
-              <th data-key="issued_plm_qty">Issued</th>
+              <th data-key="issued_pm_qty">Issued</th>
+              <th data-key="max_age_days">Aging</th>
               <th>Flags</th>
               <th>Action</th>
             </tr>
@@ -265,7 +328,46 @@
                 <th>Product (editable)</th>
                 <th>SKU (editable)</th>
                 <th>Region (editable)</th>
-                <th>Allocation status</th>
+                <th>
+                  Allocation status
+                  <button
+                    id="allocHelpBtn"
+                    class="help-icon"
+                    type="button"
+                    aria-label="Allocation status help"
+                    aria-haspopup="dialog"
+                    aria-expanded="false"
+                  >
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                      aria-hidden="true"
+                      focusable="false"
+                      role="img"
+                    >
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        stroke-width="1.6"
+                        fill="none"
+                      />
+                      <path
+                        d="M9.09 9a2.5 2.5 0 1 1 5 0c0 1.5-1 2-2 2-.5 0-1 .2-1.2.5"
+                        stroke="currentColor"
+                        stroke-width="1.6"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        fill="none"
+                      />
+                      <circle cx="12" cy="16.2" r="1.1" fill="currentColor" />
+                    </svg>
+                  </button>
+                </th>
                 <th>Note</th>
               </tr>
             </thead>
@@ -276,6 +378,6 @@
     </div>
 
     <script type="module" src="js/supabaseClient.js"></script>
-    <script type="module" src="js/plm-issue-allocation.js"></script>
+    <script type="module" src="js/pm-issue-allocation.js"></script>
   </body>
 </html>
