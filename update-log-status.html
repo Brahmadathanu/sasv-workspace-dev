@@ -28,16 +28,28 @@
     color: #005A8D;
   }
   #homeBtn {
-    background: var(--home-btn-bg);
-    color: var(--btn-text);
-    border: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
     padding: 8px 12px;
-    border-radius: 4px;
-    font-size: 1rem;
+    border: 1px solid #fdba74 !important;
+    border-radius: 6px;
+    background: #fed7aa !important;
+    color: #9a3412 !important;
     cursor: pointer;
+    font-size: 0.875rem;
+    font-family: inherit;
+    font-weight: 500;
+    transition: all 0.2s;
   }
   #homeBtn:hover {
-    background: var(--home-btn-hover-bg);
+    background: #fdba74 !important;
+    border-color: #fb923c !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  #homeBtn svg {
+    flex-shrink: 0;
   }
 
   /* PRIMARY FILTER STRIP */
@@ -203,7 +215,20 @@
   <!-- Header -->
   <div class="header-bar">
     <h2>Update Log Status</h2>
-    <button id="homeBtn">HOME</button>
+    <button id="homeBtn" aria-label="Home">
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        <polyline points="9,22 9,12 15,12 15,22" />
+      </svg>
+      HOME
+    </button>
   </div>
 
   <!-- Primary filters + actions -->

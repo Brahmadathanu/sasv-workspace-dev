@@ -1476,11 +1476,28 @@ async function loadBmrCandidates() {
     .eq("product_id", productId);
 
   // Apply month window filter if available
+  // Apply month window filter if available — include a one-day margin
   if (window._headerFrom) {
-    query = query.gte("created_at", window._headerFrom + " 00:00:00");
+    try {
+      const fromDt = new Date(window._headerFrom + "T00:00:00");
+      fromDt.setDate(fromDt.getDate() - 1); // one-day margin before
+      const fromStr = fromDt.toISOString().slice(0, 19).replace("T", " ");
+      query = query.gte("created_at", fromStr);
+    } catch {
+      // Fallback to original behavior if parsing fails
+      query = query.gte("created_at", window._headerFrom + " 00:00:00");
+    }
   }
   if (window._headerTo) {
-    query = query.lte("created_at", window._headerTo + " 23:59:59");
+    try {
+      const toDt = new Date(window._headerTo + "T23:59:59");
+      toDt.setDate(toDt.getDate() + 1); // one-day margin after
+      const toStr = toDt.toISOString().slice(0, 19).replace("T", " ");
+      query = query.lte("created_at", toStr);
+    } catch {
+      // Fallback to original behavior if parsing fails
+      query = query.lte("created_at", window._headerTo + " 23:59:59");
+    }
   }
 
   const { data, error } = await query;
@@ -1981,11 +1998,27 @@ async function getBnCandidates(productId, batchSize) {
     .order("bn");
 
   // Apply month window filter if available
+  // Include a one-day margin around the header window to avoid off-by-one
+  // exclusions for BNs created on boundary dates.
   if (window._headerFrom) {
-    query = query.gte("created_at", window._headerFrom + " 00:00:00");
+    try {
+      const fromDate = new Date(window._headerFrom + "T00:00:00");
+      fromDate.setDate(fromDate.getDate() - 1);
+      const fromStr = fromDate.toISOString().slice(0, 10) + " 00:00:00";
+      query = query.gte("created_at", fromStr);
+    } catch {
+      query = query.gte("created_at", window._headerFrom + " 00:00:00");
+    }
   }
   if (window._headerTo) {
-    query = query.lte("created_at", window._headerTo + " 23:59:59");
+    try {
+      const toDate = new Date(window._headerTo + "T00:00:00");
+      toDate.setDate(toDate.getDate() + 1);
+      const toStr = toDate.toISOString().slice(0, 10) + " 23:59:59";
+      query = query.lte("created_at", toStr);
+    } catch {
+      query = query.lte("created_at", window._headerTo + " 23:59:59");
+    }
   }
 
   const { data: rows, error } = await query;

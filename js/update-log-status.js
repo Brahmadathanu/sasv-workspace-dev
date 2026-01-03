@@ -54,6 +54,100 @@ const attachMask = (el) => {
   });
 };
 
+/**
+ * Fetch all rows for a Supabase query using ranged pagination.
+ * Accepts a query builder (e.g. supabase.from(...).select(...)) and
+ * returns combined results across multiple ranged requests.
+ * @param {object} q - Supabase query builder
+ * @param {number} batchSize - rows per request
+ * @returns {Promise<{data:Array, error:object|null}>}
+ */
+async function fetchAllQuery(q, batchSize = 200) {
+  let from = 0;
+  const all = [];
+  while (true) {
+    const { data, error } = await q.range(from, from + batchSize - 1);
+    if (error) return { data: all, error };
+    if (!data || data.length === 0) break;
+    all.push(...data);
+    if (data.length < batchSize) break;
+    from += batchSize;
+  }
+  return { data: all, error: null };
+}
+
+// Loading overlay (blur + spinner) -------------------------------------------------
+let loadingOverlay = null;
+let loadingText = null;
+let loadingCount = 0;
+
+function createLoadingOverlay() {
+  if (loadingOverlay) return;
+  // container
+  loadingOverlay = document.createElement("div");
+  loadingOverlay.id = "__dwla_loading_overlay";
+  loadingOverlay.style.position = "fixed";
+  loadingOverlay.style.inset = "0";
+  loadingOverlay.style.display = "none";
+  loadingOverlay.style.alignItems = "center";
+  loadingOverlay.style.justifyContent = "center";
+  loadingOverlay.style.zIndex = "9999";
+  loadingOverlay.style.backdropFilter = "blur(4px)";
+  loadingOverlay.style.background = "rgba(255,255,255,0.6)";
+
+  // inner box
+  const box = document.createElement("div");
+  box.style.display = "flex";
+  box.style.flexDirection = "column";
+  box.style.alignItems = "center";
+  box.style.padding = "20px";
+  box.style.borderRadius = "8px";
+  box.style.boxShadow = "0 6px 18px rgba(0,0,0,0.12)";
+  box.style.background = "rgba(255,255,255,0.9)";
+
+  // spinner
+  const spinner = document.createElement("div");
+  spinner.className = "__dwla_spinner";
+  spinner.style.width = "48px";
+  spinner.style.height = "48px";
+  spinner.style.border = "6px solid #e0e0e0";
+  spinner.style.borderTop = "6px solid #1976d2";
+  spinner.style.borderRadius = "50%";
+  spinner.style.animation = "__dwla_spin 1s linear infinite";
+
+  // text
+  loadingText = document.createElement("div");
+  loadingText.style.marginTop = "12px";
+  loadingText.style.fontSize = "14px";
+  loadingText.style.color = "#333";
+  loadingText.textContent = "Loading...";
+
+  box.appendChild(spinner);
+  box.appendChild(loadingText);
+  loadingOverlay.appendChild(box);
+  document.body.appendChild(loadingOverlay);
+
+  // append minimal keyframes style
+  const st = document.createElement("style");
+  st.textContent = `@keyframes __dwla_spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}`;
+  document.head.appendChild(st);
+}
+
+function showLoading(msg) {
+  createLoadingOverlay();
+  loadingCount = Math.max(0, loadingCount) + 1;
+  if (loadingText && msg) loadingText.textContent = msg;
+  if (loadingOverlay) loadingOverlay.style.display = "flex";
+}
+
+function hideLoading() {
+  loadingCount = Math.max(0, loadingCount - 1);
+  if (loadingCount <= 0 && loadingOverlay) {
+    loadingOverlay.style.display = "none";
+    loadingCount = 0;
+  }
+}
+
 const plantMap = {};
 
 const sectionMap = {};
@@ -61,11 +155,16 @@ const sectionMap = {};
 let skuActSet = new Set();
 
 async function loadSkuActivities() {
-  const { data, error } = await supabase
-    .from("event_type_lkp")
-    .select("label")
-    .eq("active", true)
-    .eq("affects_bottled_stock", 1); // adjust to true if boolean
+  showLoading("Loading activity types...");
+  const { data, error } = await fetchAllQuery(
+    supabase
+      .from("event_type_lkp")
+      .select("label")
+      .eq("active", true)
+      .eq("affects_bottled_stock", 1),
+    500
+  ); // adjust to true if boolean
+  hideLoading();
 
   if (error) {
     console.error("loadSkuActivities error:", error);
@@ -915,63 +1014,74 @@ async function saveStatus(id, sel) {
  */
 async function loadStatus() {
   bodyTbl.replaceChildren();
+  showLoading("Loading status...");
+  try {
+    // Base: only show in-progress statuses in this module.
+    let q = supabase
+      .from("daily_work_log")
+      .select(
+        "id,log_date,item,batch_number,batch_size,batch_uom,section_id,plant_id,activity,status,due_date"
+      )
+      .in("status", ["Doing", "On Hold", "In Storage"]);
 
-  // Base: only show in-progress statuses in this module.
-  let q = supabase
-    .from("daily_work_log")
-    .select(
-      "id,log_date,item,batch_number,batch_size,batch_uom,section_id,plant_id,activity,status,due_date"
-    )
-    .in("status", ["Doing", "On Hold", "In Storage"]);
+    // Apply the user-picked filter if it’s one of the allowed statuses.
+    const filter = (sStatusFilter.value || "").trim();
+    if (["Doing", "On Hold", "In Storage"].includes(filter)) {
+      q = q.eq("status", filter);
+    }
 
-  // Apply the user-picked filter if it’s one of the allowed statuses.
-  const filter = (sStatusFilter.value || "").trim();
-  if (["Doing", "On Hold", "In Storage"].includes(filter)) {
-    q = q.eq("status", filter);
-  }
+    if (sLogDate.value) {
+      const [dd, mm, yyyy] = sLogDate.value
+        .split("-")
+        .map((n) => n.padStart(2, "0"));
+      q = q.eq("log_date", `${yyyy}-${mm}-${dd}`);
+    }
+    if (sSection.value) q = q.eq("section_id", sSection.value);
+    if (sSub.value) q = q.eq("subsection_id", sSub.value);
+    if (sArea.value) q = q.eq("area_id", sArea.value);
+    if (sItem.value) q = q.eq("item", sItem.value);
+    if (sBN.value) q = q.eq("batch_number", sBN.value);
+    if (sActivity.value) q = q.eq("activity", sActivity.value);
+    if (sOverdue.checked) {
+      const today = new Date().toISOString().slice(0, 10);
+      q = q.lt("due_date", today);
+    }
 
-  if (sLogDate.value) {
-    const [dd, mm, yyyy] = sLogDate.value
-      .split("-")
-      .map((n) => n.padStart(2, "0"));
-    q = q.eq("log_date", `${yyyy}-${mm}-${dd}`);
-  }
-  if (sSection.value) q = q.eq("section_id", sSection.value);
-  if (sSub.value) q = q.eq("subsection_id", sSub.value);
-  if (sArea.value) q = q.eq("area_id", sArea.value);
-  if (sItem.value) q = q.eq("item", sItem.value);
-  if (sBN.value) q = q.eq("batch_number", sBN.value);
-  if (sActivity.value) q = q.eq("activity", sActivity.value);
-  if (sOverdue.checked) {
-    const today = new Date().toISOString().slice(0, 10);
-    q = q.lt("due_date", today);
-  }
+    const _res = await fetchAllQuery(q, 500);
+    const data = _res.data;
+    const error = _res.error;
+    if (error) return console.error("loadStatus error:", error);
 
-  const { data, error } = await q;
-  if (error) return console.error("loadStatus error:", error);
-
-  const coll = new Intl.Collator("en", { numeric: true, sensitivity: "base" });
-  data.sort((a, b) => {
-    const da = new Date(a.log_date) - new Date(b.log_date);
-    if (da) return da;
-    const it = a.item.localeCompare(b.item, undefined, { sensitivity: "base" });
-    if (it) return it;
-    const bn = a.batch_number.localeCompare(b.batch_number, undefined, {
+    const coll = new Intl.Collator("en", {
       numeric: true,
+      sensitivity: "base",
     });
-    if (bn) return bn;
-    return coll.compare(plantMap[a.plant_id] || "", plantMap[b.plant_id] || "");
-  });
+    data.sort((a, b) => {
+      const da = new Date(a.log_date) - new Date(b.log_date);
+      if (da) return da;
+      const it = a.item.localeCompare(b.item, undefined, {
+        sensitivity: "base",
+      });
+      if (it) return it;
+      const bn = a.batch_number.localeCompare(b.batch_number, undefined, {
+        numeric: true,
+      });
+      if (bn) return bn;
+      return coll.compare(
+        plantMap[a.plant_id] || "",
+        plantMap[b.plant_id] || ""
+      );
+    });
 
-  data.forEach((r) => {
-    const act = r.activity.toLowerCase().trim();
-    const allowStorage = ["intermediate storage", "fg bulk storage"].includes(
-      act
-    );
+    data.forEach((r) => {
+      const act = r.activity.toLowerCase().trim();
+      const allowStorage = ["intermediate storage", "fg bulk storage"].includes(
+        act
+      );
 
-    bodyTbl.insertAdjacentHTML(
-      "beforeend",
-      `
+      bodyTbl.insertAdjacentHTML(
+        "beforeend",
+        `
     <tr>
       <td>${new Date(r.log_date).toLocaleDateString("en-GB")}</td>
       <td>${r.item}</td>
@@ -989,14 +1099,14 @@ async function loadStatus() {
         data-bn="${r.batch_number}"
         data-prev-status="${r.status}">
   <option value="Doing"      ${r.status === "Doing" ? "selected" : ""} ${
-        allowStorage ? "disabled" : ""
-      }>Doing</option>
+          allowStorage ? "disabled" : ""
+        }>Doing</option>
   <option value="On Hold"    ${r.status === "On Hold" ? "selected" : ""} ${
-        allowStorage ? "disabled" : ""
-      }>On Hold</option>
+          allowStorage ? "disabled" : ""
+        }>On Hold</option>
   <option value="In Storage" ${r.status === "In Storage" ? "selected" : ""} ${
-        allowStorage ? "" : "disabled"
-      }>In Storage</option>
+          allowStorage ? "" : "disabled"
+        }>In Storage</option>
   <option value="Done"       ${
     r.status === "Done" ? "selected" : ""
   }>Done</option>
@@ -1006,16 +1116,19 @@ async function loadStatus() {
         <a href="#" class="save-link" data-id="${r.id}">Save</a>
       </td>
     </tr>`
-    );
-  });
+      );
+    });
 
-  document.querySelectorAll(".save-link").forEach((a) => {
-    const sel = document.querySelector(`.statSel[data-id="${a.dataset.id}"]`);
-    a.onclick = (e) => {
-      e.preventDefault();
-      saveStatus(a.dataset.id, sel);
-    };
-  });
+    document.querySelectorAll(".save-link").forEach((a) => {
+      const sel = document.querySelector(`.statSel[data-id="${a.dataset.id}"]`);
+      a.onclick = (e) => {
+        e.preventDefault();
+        saveStatus(a.dataset.id, sel);
+      };
+    });
+  } finally {
+    hideLoading();
+  }
 }
 
 /**
@@ -1083,24 +1196,31 @@ async function init() {
     hide(stockWarningModal);
   };
 
-  const { data: pl, error: plErr } = await supabase
-    .from("plant_machinery")
-    .select("id,plant_name");
+  const _pl = await fetchAllQuery(
+    supabase.from("plant_machinery").select("id,plant_name"),
+    500
+  );
+  const pl = _pl.data;
+  const plErr = _pl.error;
   if (!plErr) pl.forEach((p) => (plantMap[p.id] = p.plant_name));
 
-  const { data: secs, error: secsErr } = await supabase
-    .from("sections")
-    .select("id,section_name")
-    .order("section_name");
+  const _secs = await fetchAllQuery(
+    supabase.from("sections").select("id,section_name").order("section_name"),
+    500
+  );
+  const secs = _secs.data;
+  const secsErr = _secs.error;
   if (!secsErr) {
     secs.forEach((s) => (sectionMap[s.id] = s.section_name));
     populate(sSection, secs, "id", "section_name", "Section");
   }
 
-  const { data: itemsRaw, error: itemsErr } = await supabase
-    .from("bmr_details")
-    .select("item")
-    .order("item");
+  const _items = await fetchAllQuery(
+    supabase.from("bmr_details").select("item").order("item"),
+    500
+  );
+  const itemsRaw = _items.data;
+  const itemsErr = _items.error;
   if (!itemsErr) {
     const uniqueItems = Array.from(new Set(itemsRaw.map((r) => r.item))).map(
       (i) => ({ item: i })
@@ -1109,17 +1229,21 @@ async function init() {
   }
 
   // Fetch all activities for Doing/On Hold
-  const { data: allActs, error: actsErr } = await supabase
-    .from("daily_work_log")
-    .select("activity")
-    .in("status", ["Doing", "On Hold", "In Storage"])
-    .order("activity");
+  const _acts = await fetchAllQuery(
+    supabase
+      .from("daily_work_log")
+      .select("activity")
+      .in("status", ["Doing", "On Hold", "In Storage"])
+      .order("activity"),
+    500
+  );
+  const allActs = _acts.data;
+  const actsErr = _acts.error;
 
   if (!actsErr) {
-    // Deduplicate & sort in JS
-    const uniqueActs = Array.from(new Set(allActs.map((r) => r.activity))) // Set → unique strings
+    const uniqueActs = Array.from(new Set(allActs.map((r) => r.activity)))
       .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
-      .map((a) => ({ activity: a })); // back to [{activity}...]
+      .map((a) => ({ activity: a }));
 
     populate(sActivity, uniqueActs, "activity", "activity", "Activity");
   }
@@ -1133,41 +1257,49 @@ async function init() {
   );
 
   sSection.addEventListener("change", () => {
-    if (!sSection.value) {
-      populate(sSub, [], "", "", "Sub-section");
-      sSub.disabled = true;
-    } else {
-      supabase
-        .from("subsections")
-        .select("id,subsection_name")
-        .eq("section_id", sSection.value)
-        .order("subsection_name")
-        .then(({ data }) => {
-          populate(sSub, data, "id", "subsection_name", "Sub-section");
-          sSub.disabled = false;
-        });
-    }
-    resetAreaBN();
-    loadStatus();
+    (async () => {
+      if (!sSection.value) {
+        populate(sSub, [], "", "", "Sub-section");
+        sSub.disabled = true;
+      } else {
+        const _subs = await fetchAllQuery(
+          supabase
+            .from("subsections")
+            .select("id,subsection_name")
+            .eq("section_id", sSection.value)
+            .order("subsection_name"),
+          500
+        );
+        const subs = _subs.data;
+        populate(sSub, subs, "id", "subsection_name", "Sub-section");
+        sSub.disabled = false;
+      }
+      resetAreaBN();
+      loadStatus();
+    })();
   });
 
   sSub.addEventListener("change", () => {
-    if (!sSub.value) {
-      resetAreaBN();
-    } else {
-      supabase
-        .from("areas")
-        .select("id,area_name")
-        .eq("section_id", sSection.value)
-        .eq("subsection_id", sSub.value)
-        .order("area_name")
-        .then(({ data }) => {
-          populate(sArea, data, "id", "area_name", "Area");
-          sArea.disabled = false;
-          resetBN();
-        });
-    }
-    loadStatus();
+    (async () => {
+      if (!sSub.value) {
+        resetAreaBN();
+      } else {
+        const _areas = await fetchAllQuery(
+          supabase
+            .from("areas")
+            .select("id,area_name")
+            .eq("section_id", sSection.value)
+            .eq("subsection_id", sSub.value)
+            .order("area_name"),
+          500
+        );
+        const areas = _areas.data;
+        populate(sArea, areas, "id", "area_name", "Area");
+        sArea.disabled = false;
+        resetBN();
+      }
+      loadStatus();
+    })();
   });
 
   sArea.addEventListener("change", () => {
@@ -1176,26 +1308,30 @@ async function init() {
   });
 
   sItem.addEventListener("change", () => {
-    if (!sItem.value) {
-      resetBN();
-    } else {
-      supabase
-        .from("bmr_details")
-        .select("bn", { distinct: true })
-        .eq("item", sItem.value)
-        .order("bn")
-        .then(({ data }) => {
-          populate(
-            sBN,
-            data.map((r) => ({ bn: r.bn })),
-            "bn",
-            "bn",
-            "BN"
-          );
-          sBN.disabled = false;
-        });
-    }
-    loadStatus();
+    (async () => {
+      if (!sItem.value) {
+        resetBN();
+      } else {
+        const _bns = await fetchAllQuery(
+          supabase
+            .from("bmr_details")
+            .select("bn", { distinct: true })
+            .eq("item", sItem.value)
+            .order("bn"),
+          500
+        );
+        const bns = _bns.data;
+        populate(
+          sBN,
+          bns.map((r) => ({ bn: r.bn })),
+          "bn",
+          "bn",
+          "BN"
+        );
+        sBN.disabled = false;
+      }
+      loadStatus();
+    })();
   });
 
   sBN.addEventListener("change", loadStatus);
