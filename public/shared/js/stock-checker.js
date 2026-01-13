@@ -26,6 +26,8 @@ let elRowModal,
   elRowValue,
   elRowFooter;
 let __lastOpenTs = 0; // guard for double-open on touch
+let __sc_isDragging = false; // set while the user is dragging the table to avoid accidental opens
+let __sc_mouseDown = false;
 const PDF_ESM_PATHS = {
   jsPDF: "/libs/jspdf.es.min.js",
   autoTable: "/libs/jspdf-autotable.es.js",
@@ -505,6 +507,55 @@ async function init() {
 
     elTable = $("sc-table");
     elBody = $("sc-body");
+
+    // Add drag/scroll detection on the table body to avoid opening modals while scrolling
+    if (elBody) {
+      elBody.addEventListener(
+        "touchstart",
+        function () {
+          __sc_isDragging = false;
+        },
+        { passive: true }
+      );
+      elBody.addEventListener(
+        "touchmove",
+        function () {
+          __sc_isDragging = true;
+        },
+        { passive: true }
+      );
+      elBody.addEventListener(
+        "touchend",
+        function () {
+          setTimeout(() => (__sc_isDragging = false), 50);
+        },
+        { passive: true }
+      );
+
+      elBody.addEventListener(
+        "mousedown",
+        function () {
+          __sc_mouseDown = true;
+          __sc_isDragging = false;
+        },
+        { passive: true }
+      );
+      elBody.addEventListener(
+        "mousemove",
+        function () {
+          if (__sc_mouseDown) __sc_isDragging = true;
+        },
+        { passive: true }
+      );
+      elBody.addEventListener(
+        "mouseup",
+        function () {
+          __sc_mouseDown = false;
+          setTimeout(() => (__sc_isDragging = false), 50);
+        },
+        { passive: true }
+      );
+    }
 
     elQfMosLt3 = $("qf-moslt3");
     elQfRaso = $("qf-raso");
@@ -2971,6 +3022,16 @@ function renderRows(rows) {
   // iOS-friendly row selection
   Array.from(elBody.querySelectorAll("tr")).forEach((tr) => {
     function selectRowHandler(e) {
+      // ignore selection if the user is currently dragging/scrolling
+      try {
+        if (window.__sc_isDragging || __sc_isDragging) {
+          // reset flag and do not open modal
+          __sc_isDragging = false;
+          return;
+        }
+      } catch {
+        /* ignore */
+      }
       Array.from(elBody.querySelectorAll("tr.selected-row")).forEach((row) =>
         row.classList.remove("selected-row")
       );
@@ -2996,6 +3057,36 @@ function renderRows(rows) {
     tr.addEventListener("click", selectRowHandler, { passive: true });
     tr.addEventListener("touchstart", selectRowHandler, { passive: true });
     tr.addEventListener("touchend", selectRowHandler, { passive: true });
+    // track pointer movement to detect drag/scroll gestures
+    tr.addEventListener(
+      "touchmove",
+      function () {
+        __sc_isDragging = true;
+      },
+      { passive: true }
+    );
+    tr.addEventListener(
+      "mousemove",
+      function () {
+        __sc_isDragging = true;
+      },
+      { passive: true }
+    );
+    // reset drag flag shortly after end to allow subsequent clicks
+    tr.addEventListener(
+      "mouseup",
+      function () {
+        setTimeout(() => (__sc_isDragging = false), 50);
+      },
+      { passive: true }
+    );
+    tr.addEventListener(
+      "touchend",
+      function () {
+        setTimeout(() => (__sc_isDragging = false), 50);
+      },
+      { passive: true }
+    );
     Array.from(tr.children).forEach((td) => {
       if (td.tagName === "TD") {
         td.addEventListener("touchstart", selectRowHandler, { passive: true });

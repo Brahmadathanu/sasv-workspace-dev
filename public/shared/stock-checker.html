@@ -987,6 +987,17 @@
         box-shadow: 0 8px 22px rgba(2, 6, 23, 0.12);
         z-index: 1200;
       }
+      /* Make table rows appear clickable and prevent accidental text selection */
+      #sc-table tbody tr {
+        cursor: pointer;
+      }
+      #sc-table tbody td {
+        -webkit-user-select: none; /* Safari */
+        -moz-user-select: none; /* Firefox */
+        -ms-user-select: none; /* IE10+ */
+        user-select: none; /* Standard */
+        -webkit-touch-callout: none; /* iOS long press */
+      }
       .ac-item {
         padding: 8px 10px;
         font-size: 14px;
@@ -1125,6 +1136,34 @@
         }
         .pagination .sc-btn svg {
           margin: 0;
+        }
+      }
+
+      /* Keep pills on one line on narrow devices; reduce sizes to fit */
+      @media (max-width: 680px) {
+        .sc-meta {
+          gap: 6px;
+          align-items: center;
+          flex-wrap: nowrap;
+        }
+        .sc-pill {
+          padding: 4px 8px;
+          font-size: 11px;
+          max-width: 160px;
+          min-height: 30px;
+        }
+        #sc-count {
+          padding: 4px 8px;
+          min-width: 56px;
+          max-width: 140px;
+        }
+        #sc-total-value {
+          padding: 4px 8px;
+          max-width: 220px;
+          min-width: 84px;
+        }
+        .pagination .pbtn-label {
+          display: none;
         }
       }
       #sc-table thead th .sc-sort-indicator {
