@@ -4502,25 +4502,51 @@ rebuildTplPicker?.addEventListener("change", async () => {
     } = await supabase.auth.getSession();
     if (!session) return (window.location.href = "login.html");
     try {
-      const { data: permRows } = await supabase
-        .from("user_permissions")
-        .select("module_id, can_view, can_edit")
-        .eq("user_id", session.user.id)
-        .in("module_id", [MODULE_ID, MAP_MODULE_ID]);
-      if (Array.isArray(permRows) && permRows.length) {
-        const tPerm = permRows.find((r) => r.module_id === MODULE_ID);
+      const { data: perms, error: permsErr } = await supabase.rpc(
+        "get_user_permissions",
+        { p_user_id: session.user.id }
+      );
+      if (!permsErr && Array.isArray(perms)) {
+        const tPerm = perms.find(
+          (r) => r && r.target === `module:${MODULE_ID}`
+        );
         if (tPerm) {
           PERM_CAN_VIEW = !!tPerm.can_view;
           PERM_CAN_EDIT = !!tPerm.can_edit;
         }
-        const mPerm = permRows.find((r) => r.module_id === MAP_MODULE_ID);
+        const mPerm = perms.find(
+          (r) => r && r.target === `module:${MAP_MODULE_ID}`
+        );
         if (mPerm) {
           MAP_PERM_CAN_VIEW = !!mPerm.can_view;
           MAP_PERM_CAN_EDIT = !!mPerm.can_edit;
         }
+      } else {
+        // fallback to legacy
+        try {
+          const { data: permRows } = await supabase
+            .from("user_permissions")
+            .select("module_id, can_view, can_edit")
+            .eq("user_id", session.user.id)
+            .in("module_id", [MODULE_ID, MAP_MODULE_ID]);
+          if (Array.isArray(permRows) && permRows.length) {
+            const tPerm2 = permRows.find((r) => r.module_id === MODULE_ID);
+            if (tPerm2) {
+              PERM_CAN_VIEW = !!tPerm2.can_view;
+              PERM_CAN_EDIT = !!tPerm2.can_edit;
+            }
+            const mPerm2 = permRows.find((r) => r.module_id === MAP_MODULE_ID);
+            if (mPerm2) {
+              MAP_PERM_CAN_VIEW = !!mPerm2.can_view;
+              MAP_PERM_CAN_EDIT = !!mPerm2.can_edit;
+            }
+          }
+        } catch (pErr) {
+          console.warn("Permission load failed (legacy)", pErr);
+        }
       }
     } catch (pErr) {
-      console.warn("Permission load failed", pErr);
+      console.warn("Permission load failed (RPC)", pErr);
     }
     if (!PERM_CAN_VIEW) {
       setStatus("You do not have permission to view this module.", "error");

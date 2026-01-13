@@ -1,5 +1,9 @@
 import { supabase } from "./supabaseClient.js";
 import { showToast } from "./toast.js";
+import { canEditRM, isProcurementAdmin } from "./mrpAccess.js";
+import { openDetailModal } from "./detailModal.js";
+import { fetchRMTrace } from "./detailFetchers.js";
+import { downloadJSON } from "./mrpExports.js";
 
 const RM_OVERVIEW_VIEW = "v_mrp_rm_planned_vs_issued_overview";
 const RPC_DRY_RUN_ALL = "mrp_rm_rebuild_dry_run_all";
@@ -483,6 +487,83 @@ function renderOverviewTable() {
       if (e.key === "Enter") openAllocationForItem(row);
     });
 
+    // Row click opens a central detail modal (non-intrusive)
+    tr.addEventListener("click", async () => {
+      try {
+        const title = getRmLabel(row);
+        const subtitle = `Horizon: ${monthDisplayFromHorizon(
+          currentHorizonStart
+        )}`;
+        const summary = {
+          "Planned total": formatNumber(row.planned_total_qty),
+          "Issued total": formatNumber(row.issued_total_qty),
+          "Net requirement": formatNumber(row.net_requirement),
+          UOM: row.rm_uom_code || row.stock_uom || "",
+          Flags: summarizeFlags(row).replace(/<[^>]+>/g, " "),
+        };
+
+        // contributors: use top_consumers if available
+        let contributors = [];
+        try {
+          const tc = Array.isArray(row.top_consumers)
+            ? row.top_consumers
+            : row.consumers_json
+            ? JSON.parse(row.consumers_json)
+            : [];
+          if (Array.isArray(tc)) {
+            contributors = tc.map((c) => ({
+              product: c.product_name || c.product || "",
+              qty: c.qty_issued ?? c.qty ?? c.planned_rm_qty ?? 0,
+            }));
+          }
+        } catch {
+          contributors = [];
+        }
+
+        // load trace rows (may be empty)
+        const traceRows = await fetchRMTrace({
+          rm_stock_item_id: row.stock_item_id,
+        });
+
+        const actions = [];
+        actions.push({
+          label: "Open allocation",
+          onClick: () => openAllocationForItem(row),
+        });
+        actions.push({
+          label: "Export JSON",
+          onClick: () => downloadJSON(`rm_${row.stock_item_id}`, row),
+        });
+        const canRebuild = canEditRM() || isProcurementAdmin();
+        actions.push({
+          label: "Rebuild item",
+          enabled: canRebuild,
+          onClick: async () => {
+            try {
+              await rebuildForItem(row);
+            } catch (e) {
+              console.debug(e);
+            }
+          },
+        });
+
+        const sections = [
+          { id: "summary", title: "Summary", type: "kv", data: summary },
+          {
+            id: "contributors",
+            title: "Top consumers",
+            type: "table",
+            rows: contributors,
+          },
+          { id: "trace", title: "RM trace", type: "table", rows: traceRows },
+        ];
+
+        openDetailModal({ title, subtitle, sections, actions });
+      } catch (e) {
+        console.debug("open detail modal failed", e);
+      }
+    });
+
     tbody.appendChild(tr);
   });
 }
@@ -725,9 +806,10 @@ async function rebuildAll() {
     // update status to plan range
     if (row.plan_start || row.plan_end) {
       try {
-        els.rebuildStatus().textContent = `Rebuilding RM plan for ${monthDisplayFromHorizon(
-          row.plan_start
-        )} → ${monthDisplayFromHorizon(row.plan_end)}`;
+        els.rebuildStatus().textContent = `Rebuilding RM plan for ${planRangeLabel(
+          row.plan_start,
+          row.plan_end
+        )}`;
       } catch (err) {
         console.debug(err);
       }

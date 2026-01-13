@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>MRP Master Data Console</title>
+    <link rel="stylesheet" href="../../css/shared-ui.css" />
+    <style>
+      /* Mirror visual layout for header/home button like mrp-material-board */
+      :root {
+        --panel-bg: #fafafb;
+        --muted: #6b7280;
+        --primary: #005a8d; /* use dark-blue primary to match mrp-material-board */
+        --bg-color: #f5f7fb;
+        --text-color: #0f172a;
+        --input-bg: #fff;
+        --input-text: #0f172a;
+        --card-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+      }
+
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0; /* outer spacing moved into .console-wrapper to avoid page overflow */
+        font-family: Arial, sans-serif;
+        background: var(--bg-color);
+        color: var(--text-color);
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        overflow: hidden; /* keep page from showing a persistent scrollbar; inner containers scroll */
+      }
+
+      .header-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+        padding: 16px 24px; /* increased padding to match mrp-material-board spacing */
+      }
+      .header-title-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        width: 100%;
+      }
+      @media (max-width: 640px) {
+        .header-title-row {
+          flex-direction: row; /* keep on same line */
+          align-items: center;
+          gap: 8px;
+        }
+        .header-title-row h2 {
+          font-size: 1.1rem; /* reduce title size on small screens */
+        }
+      }
+
+      h2 {
+        margin: 0;
+        color: var(--primary);
+      }
+
+      .section-hint {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      /* Tabs - ERP alternate style applied via .erp-tabs-alt */
+      .tabs-container.erp-tabs-alt {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 6px 8px;
+        margin-bottom: 12px;
+        background: transparent;
+        border: none;
+      }
+      /* Tab dropdown for small screens */
+      .tab-dropdown {
+        display: none;
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        border-radius: 6px;
+        background: linear-gradient(
+          180deg,
+          rgba(59, 130, 246, 0.1),
+          rgba(59, 130, 246, 0.04)
+        ); /* light-blue */
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #0b3a9a; /* darker blue text for contrast */
+        cursor: pointer;
+      }
+      @media (max-width: 768px) {
+        .tabs {
+          display: none !important; /* hide button tabs on small screens */
+        }
+        .tab-dropdown {
+          display: block !important; /* show dropdown instead */
+        }
+      }
+      @media (min-width: 769px) {
+        .tabs {
+          display: flex !important; /* show button tabs on larger screens */
+        }
+        .tab-dropdown {
+          display: none !important; /* hide dropdown on larger screens */
+        }
+      }
+      .tabs {
+        display: flex;
+        gap: 12px;
+        padding: 6px 12px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        border-bottom: 1px solid rgba(15, 23, 42, 0.03);
+        background: transparent;
+        align-items: center;
+      }
+      /* default tab button (kept for compatibility) */
+      .tab-btn {
+        background: transparent;
+        border: 1px solid transparent;
+        padding: 12px 18px;
+        border-radius: 10px 10px 0 0;
+        cursor: pointer;
+        font-weight: 700;
+        color: #0f172a;
+        font-size: 1rem;
+        min-width: 160px;
+        display: inline-flex;
+        flex-direction: column;
+        gap: 4px;
+        align-items: center;
+        justify-content: center;
+      }
+      /* ERP alt tab button compact professional look */
+      .tab-btn.erp-alt {
+        background: transparent;
+        border: 1px solid transparent;
+        padding: 10px 14px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 700;
+        color: #334155;
+        font-size: 0.98rem;
+        min-width: 120px;
+        display: inline-flex;
+        flex-direction: column;
+        gap: 2px;
+        align-items: center;
+        justify-content: center;
+        transition: all 160ms ease;
+      }
+      .tab-btn .tab-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: inherit;
+      }
+      .tab-btn .tab-description {
+        font-size: 0.78rem;
+        font-weight: 400;
+        color: #94a3b8;
+      }
+      .tab-btn:hover {
+        background: #fff;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+        border-color: rgba(11, 92, 255, 0.08);
+        transform: translateY(-2px);
+      }
+      .tab-btn.active {
+        background: white;
+        border: 1px solid rgba(11, 92, 255, 0.12);
+        color: var(--primary);
+        box-shadow: var(--card-shadow);
+      }
+      /* ERP-alt active visual: subtle top surface and bottom accent bar */
+      .tab-btn.erp-alt:hover {
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+        transform: translateY(-2px);
+      }
+      .tab-btn.erp-alt.active,
+      .tab-btn.erp-alt[aria-selected="true"] {
+        background: linear-gradient(180deg, #ffffff, #f8fafc);
+        border: 1px solid rgba(13, 60, 160, 0.12);
+        color: var(--primary);
+        box-shadow: none;
+        position: relative;
+      }
+      .tab-btn.erp-alt.active::after,
+      .tab-btn.erp-alt[aria-selected="true"]::after {
+        content: "";
+        position: absolute;
+        bottom: -1px;
+        left: 12%;
+        right: 12%;
+        height: 3px;
+        background: linear-gradient(90deg, #60a5fa, #2563eb);
+        border-radius: 3px;
+      }
+
+      /* Section panels */
+      .panel {
+        background: var(--panel-bg);
+        border-radius: 10px;
+        padding: 18px;
+        box-shadow: none;
+        border: 1px solid rgba(15, 23, 42, 0.06);
+      }
+      .panel + .panel {
+        margin-top: 12px;
+      }
+      .panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .panel-title {
+        font-size: 0.98rem;
+        font-weight: 700;
+        color: #0f172a;
+      }
+
+      /* Table defaults for console panels */
+      .panel table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        border-radius: 8px;
+        overflow: visible;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+      }
+      .panel th,
+      .panel td {
+        padding: 10px 14px;
+        border-bottom: 1px solid #eef2f7;
+        font-size: 1rem;
+        vertical-align: middle;
+      }
+      .panel th {
+        background: #fbfdff;
+        color: var(--muted);
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.82rem;
+        letter-spacing: 0.02em;
+      }
+      /* Container that matches mrp-material-board for sticky header support */
+      #mrpTableContainer {
+        border: 1px solid #ccc;
+        overflow-x: auto;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        flex: 1 1 auto;
+        min-height: 0;
+        max-height: none;
+        position: relative; /* ensures sticky header positions correctly */
+      }
+      /* Table visuals borrowed from mrp-material-board for consistent ERP look */
+      #mrpTable_moq,
+      .panel table {
+        width: 100%;
+        min-width: 720px;
+        border-collapse: collapse;
+        background: white;
+      }
+      #mrpTable_moq th,
+      #mrpTable_moq td,
+      .panel th,
+      .panel td {
+        padding: 10px 14px;
+        border-bottom: 1px solid #e6eef6;
+        font-size: 1rem;
+        vertical-align: middle;
+        color: #0f172a;
+      }
+      #mrpTable_moq thead th,
+      .panel th {
+        background: var(--panel-bg);
+        color: var(--text-color);
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.88rem;
+        letter-spacing: 0.02em;
+        border-top: 1px solid rgba(2, 6, 23, 0.06);
+        border-bottom: 2px solid rgba(2, 6, 23, 0.08);
+        text-align: center;
+      }
+      /* Zebra striping and hover to match material-board */
+      #mrpTable_moq tbody tr:nth-child(even) {
+        background: rgba(2, 6, 23, 0.02);
+      }
+      #mrpTable_moq tbody tr:hover {
+        background: rgba(2, 6, 23, 0.04);
+      }
+      /* Sticky header behavior */
+      #mrpTable_moq thead {
+        display: table-header-group; /* ensure proper table header grouping for sticky behavior */
+      }
+      #mrpTable_moq thead th {
+        position: sticky;
+        top: 0;
+        z-index: 999; /* ensure headers sit above body cells when wrapping */
+        overflow: visible; /* allow wrapped lines to be visible */
+        box-shadow: 0 2px 6px rgba(2, 6, 23, 0.04);
+        padding-bottom: 8px; /* give some breathing room for wrapped text */
+        line-height: 1.15;
+      }
+      /* Enforce fixed table layout and truncate body cells with ellipsis to
+         prevent overlapping. Allow header cells to wrap above body cells. */
+      #mrpTable_moq,
+      .mrp-table {
+        table-layout: fixed;
+      }
+      #mrpTable_moq tbody td,
+      .mrp-table tbody td {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      /* Allow header cells to wrap and remain visible above the body */
+      #mrpTable_moq thead th,
+      .mrp-table thead th {
+        white-space: normal;
+      }
+
+      /* Add extra horizontal padding for narrow columns to avoid clipped letters */
+      #mrpTable_moq th:nth-child(1),
+      #mrpTable_moq td:nth-child(1) {
+        padding-left: 16px;
+        padding-right: 20px;
+      }
+      #mrpTable_moq th:nth-child(5),
+      #mrpTable_moq td:nth-child(5) {
+        padding-left: 16px;
+        padding-right: 20px;
+      }
+      /* Table-level vertical scroll inside panels */
+      .table-scroll {
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      /* Panels expand to fill available vertical space; tables inside
+         panels keep headers visible while tbody scrolls. */
+      .console-wrapper {
+        padding: 24px; /* increased padding to better match mrp-material-board */
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+      }
+      .panel {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto; /* allow panel to grow and give table container height */
+        min-height: 0;
+      }
+      /* Removed problematic table-row display overrides (they interfered with
+         native table layout and sticky positioning). Keep table as normal. */
+
+      /* Use MRP material-board table aesthetics for professional ERP look */
+      .mrp-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+        min-width: 720px;
+      }
+      .mrp-table th,
+      .mrp-table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #eef2f7;
+        font-size: 0.98rem;
+        vertical-align: middle;
+      }
+      .mrp-table thead th {
+        background: #fbfdff;
+        color: var(--muted);
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.82rem;
+        letter-spacing: 0.02em;
+      }
+      .mrp-table tbody tr:hover {
+        background: rgba(2, 6, 23, 0.02);
+      }
+      /* Use table-wrap as the scroll container; keep table as a normal table
+         so columns align correctly while thead remains sticky. */
+      .mrp-table {
+        table-layout: fixed;
+        width: 100%;
+        margin: 0;
+      }
+      .mrp-table thead {
+        display: table-header-group;
+      }
+      .mrp-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 999; /* keep headers on top */
+        overflow: visible;
+        box-shadow: 0 2px 6px rgba(2, 6, 23, 0.04);
+        background: var(--panel-bg);
+        padding-bottom: 8px;
+        line-height: 1.15;
+      }
+      /* Specific rules for conversion table: make the grouped header row
+         and the column header row both sticky with an offset so they don't
+         overlap. Also provide subtle background for consuming/purchase
+         body columns so the visual grouping extends through the rows. */
+      #mrpTable_conv thead tr:first-child th {
+        position: sticky;
+        top: 0;
+        z-index: 1100;
+        /* Allow the inline/group header background color (set in JS) to show and
+           be fully opaque. Ensure background paints beneath borders. */
+        background-clip: padding-box;
+        box-shadow: 0 2px 8px rgba(2, 6, 23, 0.06);
+        border-bottom: 1px solid rgba(2, 6, 23, 0.06);
+      }
+      /* second header row sits below the group header; tweak top to match
+         the group header height (approx 44px). Adjust if your font/padding
+         differs in-browser. */
+      #mrpTable_conv thead tr:nth-child(2) th {
+        position: sticky;
+        top: 44px; /* will be adjusted dynamically via JS for precision */
+        z-index: 1099;
+        background-clip: padding-box;
+        border-bottom: 1px solid rgba(2, 6, 23, 0.06);
+      }
+
+      /* Column body backgrounds for groups */
+      #mrpTable_conv tbody td.consuming-col {
+        background: rgba(59, 130, 246, 0.06);
+      }
+      #mrpTable_conv tbody td.purchase-col {
+        background: rgba(16, 185, 129, 0.06);
+      }
+      /* Keep hover and zebra striping subtle but visible on conversion table */
+      #mrpTable_conv tbody tr:nth-child(even) td.consuming-col {
+        background: rgba(59, 130, 246, 0.08);
+      }
+      #mrpTable_conv tbody tr:nth-child(even) td.purchase-col {
+        background: rgba(16, 185, 129, 0.08);
+      }
+      /* stronger visual demarcation between consuming and purchase groups */
+      #mrpTable_conv tbody td:nth-child(3) {
+        border-right: 3px solid rgba(59, 130, 246, 0.12);
+      }
+      #mrpTable_conv tbody td:nth-child(4) {
+        border-left: 3px solid rgba(16, 185, 129, 0.08);
+      }
+      /* External group header (placed above the table but inside the same
+         scroll container so it scrolls horizontally with the table). */
+      #mrpTableContainer .conv-group-row {
+        display: grid;
+        grid-template-columns: 8% 12% 24% 8% 12% 24% 6% 6%;
+        width: 100%;
+        box-sizing: border-box;
+        align-items: center;
+      }
+      #mrpTableContainer .conv-group-cell {
+        padding: 8px 10px;
+        font-weight: 700;
+        color: #0f172a;
+        text-align: center;
+        box-sizing: border-box;
+      }
+      #mrpTableContainer .conv-group-cell.consuming {
+        grid-column: 1 / 4; /* spans first 3 columns: 8%+12%+24% = 44% */
+        background: #bfdbfe; /* stronger blue */
+        border-right: 3px solid rgba(59, 130, 246, 0.18);
+        box-shadow: inset -6px 0 8px -6px rgba(59, 130, 246, 0.06);
+      }
+      #mrpTableContainer .conv-group-cell.purchase {
+        grid-column: 4 / 7; /* spans next 3 columns */
+        background: #bbf7d0; /* stronger green */
+        border-right: 3px solid rgba(16, 185, 129, 0.12);
+        box-shadow: inset -6px 0 8px -6px rgba(16, 185, 129, 0.04);
+      }
+      #mrpTableContainer .conv-group-cell.factor {
+        grid-column: 7 / 8;
+      }
+      #mrpTableContainer .conv-group-cell.active {
+        grid-column: 8 / 9;
+      }
+      @media (max-width: 1100px) {
+        .mrp-table {
+          min-width: 800px;
+        }
+      }
+      @media (max-width: 900px) {
+        .mrp-table {
+          min-width: 700px;
+        }
+        .mrp-table th,
+        .mrp-table td {
+          padding: 8px 10px;
+        }
+      }
+
+      /* On very small screens allow the table to size to content so the
+         container horizontal scrollbar can reveal full cell contents
+         instead of truncating them. Keep cells on a single line. */
+      @media (max-width: 520px) {
+        #mrpTable_moq,
+        .mrp-table {
+          width: 100%; /* fill container width */
+          table-layout: fixed; /* fixed layout prevents column overlap and enables ellipsis */
+          min-width: 800px; /* increased to ensure columns don't squeeze */
+          box-sizing: border-box;
+        }
+        #mrpTable_moq th,
+        #mrpTable_moq td,
+        .mrp-table th,
+        .mrp-table td {
+          white-space: nowrap; /* keep single-line cells */
+          padding: 8px 10px; /* reduce padding on small screens */
+          font-size: 0.875rem; /* slightly smaller font */
+          box-sizing: border-box; /* include padding in min-width calculations */
+        }
+        /* ensure the table container shows horizontal scroll */
+        #mrpTableContainer {
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+        /* Prevent column overlap by giving generous minimum widths per column */
+        #mrpTable_moq th:nth-child(1),
+        #mrpTable_moq td:nth-child(1) {
+          min-width: 70px;
+        }
+        #mrpTable_moq th:nth-child(2),
+        #mrpTable_moq td:nth-child(2) {
+          min-width: 80px;
+        }
+        #mrpTable_moq th:nth-child(3),
+        #mrpTable_moq td:nth-child(3) {
+          min-width: 120px;
+        }
+        #mrpTable_moq th:nth-child(4),
+        #mrpTable_moq td:nth-child(4) {
+          min-width: 240px;
+        }
+        #mrpTable_moq th:nth-child(5),
+        #mrpTable_moq td:nth-child(5) {
+          min-width: 130px;
+        }
+        #mrpTable_moq th:nth-child(6),
+        #mrpTable_moq td:nth-child(6) {
+          min-width: 80px;
+        }
+        #mrpTable_moq th:nth-child(7),
+        #mrpTable_moq td:nth-child(7) {
+          min-width: 80px;
+        }
+        #mrpTable_moq th:nth-child(8),
+        #mrpTable_moq td:nth-child(8) {
+          min-width: 80px;
+        }
+      }
+
+      /* Small helpers */
+      .muted {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      /* Home Button (match mrp-material-board visuals) */
+      #homeBtn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        border: 1px solid #fdba74 !important;
+        border-radius: 6px;
+        background: #fed7aa !important;
+        color: #9a3412 !important;
+        cursor: pointer;
+        font-size: 0.875rem;
+        font-family: inherit;
+        font-weight: 500;
+        transition: all 0.2s;
+      }
+      #homeBtn:hover {
+        background: #fdba74 !important;
+        border-color: #fb923c !important;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      #homeBtn svg {
+        flex-shrink: 0;
+      }
+
+      /* Tab active state similar to supply-overrides */
+      .tab-btn[aria-selected="true"],
+      .tab-btn.active {
+        background: linear-gradient(
+          180deg,
+          rgba(37, 99, 235, 0.12),
+          rgba(37, 99, 235, 0.05)
+        );
+        color: #0b3a9a;
+        border-color: rgba(13, 60, 160, 0.18);
+        border-bottom-color: transparent;
+        box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08);
+      }
+      /* Button styles for console modals/actions - ERP professional design */
+      .mrp-btn {
+        padding: 8px 16px;
+        border-radius: 6px;
+        border: 1px solid transparent;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.95rem;
+        transition: all 0.2s;
+        font-family: inherit;
+      }
+      .mrp-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .mrp-btn:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      }
+      .mrp-btn-primary {
+        background: var(--primary);
+        color: #fff;
+        border-color: var(--primary);
+      }
+      .mrp-btn-primary:hover:not(:disabled) {
+        background: #004a75;
+        border-color: #004a75;
+      }
+      .mrp-btn-secondary {
+        background: #f3f4f6;
+        color: var(--text-color);
+        border-color: #d1d5db;
+      }
+      .mrp-btn-secondary:hover:not(:disabled) {
+        background: #e5e7eb;
+        border-color: #9ca3af;
+      }
+      .mrp-btn-ghost {
+        background: transparent;
+        border-color: rgba(2, 6, 23, 0.08);
+        color: var(--primary);
+      }
+      .mrp-btn-ghost:hover:not(:disabled) {
+        background: rgba(0, 90, 141, 0.04);
+        border-color: rgba(0, 90, 141, 0.2);
+      }
+      .mrp-btn-danger {
+        background: #dc2626;
+        color: #fff;
+        border-color: #dc2626;
+      }
+      .mrp-btn-danger:hover:not(:disabled) {
+        background: #b91c1c;
+        border-color: #b91c1c;
+      }
+      /* Small button variant */
+      .mrp-btn-sm {
+        padding: 6px 12px;
+        font-size: 0.875rem;
+      }
+      /* Ensure modal action buttons have consistent spacing */
+      #copilot-modal-actions > button {
+        margin-left: 8px;
+      }
+      /* MRP Console loading overlay */
+      .console-wrapper {
+        position: relative;
+      }
+      #mrpLoadingOverlay {
+        position: absolute;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(2, 6, 23, 0.55);
+        color: #ffffff;
+        z-index: 1200;
+        font-size: 1rem;
+        pointer-events: none;
+      }
+      #mrpLoadingOverlay.active {
+        display: flex;
+        pointer-events: all;
+      }
+      #mrpLoadingOverlay .loader-card {
+        background: rgba(255, 255, 255, 0.06);
+        padding: 14px 18px;
+        border-radius: 8px;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        box-shadow: 0 6px 20px rgba(2, 6, 23, 0.36);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      #mrpLoadingOverlay .loader-spinner {
+        width: 18px;
+        height: 18px;
+        border: 3px solid rgba(255, 255, 255, 0.2);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: mrpSpin 1s linear infinite;
+      }
+      @keyframes mrpSpin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body data-theme="system">
+    <div class="header-bar">
+      <div style="flex: 1">
+        <div class="header-title-row">
+          <h2>MRP Master Data Console</h2>
+          <button id="homeBtn">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9,22 9,12 15,12 15,22" />
+            </svg>
+            HOME
+          </button>
+        </div>
+        <div class="section-hint">MRP master data console for admin tasks.</div>
+      </div>
+    </div>
+
+    <div class="console-wrapper">
+      <div id="mrpLoadingOverlay" aria-hidden="true" role="status">
+        <div class="loader-card">
+          <div class="loader-spinner" aria-hidden="true"></div>
+          <div class="loader-text">Loading…</div>
+        </div>
+      </div>
+      <div class="tabs-container erp-tabs-alt">
+        <select
+          class="tab-dropdown"
+          id="tabDropdown"
+          aria-label="Console sections"
+        >
+          <option value="moq">
+            MOQ Policy — Manage minimum order quantities
+          </option>
+          <option value="conv">
+            RM Form Conversion — Conversion rules for RM forms
+          </option>
+          <option value="season">
+            Season Profiles — Define seasonality for items
+          </option>
+          <option value="map">
+            RM Seasonal Mapping — Map season profiles to stock items
+          </option>
+        </select>
+        <div class="tabs erp-alt" role="tablist" aria-label="Console tabs">
+          <button
+            id="tabMoq"
+            class="tab-btn erp-alt active"
+            role="tab"
+            aria-controls="moqSection"
+            aria-selected="true"
+          >
+            <span class="tab-title">MOQ Policy</span>
+            <span class="tab-description">Manage minimum order quantities</span>
+          </button>
+          <button
+            id="tabConv"
+            class="tab-btn erp-alt"
+            role="tab"
+            aria-controls="convSection"
+            aria-selected="false"
+          >
+            <span class="tab-title">RM Form Conversion</span>
+            <span class="tab-description">Conversion rules for RM forms</span>
+          </button>
+          <button
+            id="tabSeason"
+            class="tab-btn erp-alt"
+            role="tab"
+            aria-controls="seasonSection"
+            aria-selected="false"
+          >
+            <span class="tab-title">Season Profiles</span>
+            <span class="tab-description">Define seasonality for items</span>
+          </button>
+          <button
+            id="tabMap"
+            class="tab-btn erp-alt"
+            role="tab"
+            aria-controls="mapSection"
+            aria-selected="false"
+          >
+            <span class="tab-title">RM Seasonal Mapping</span>
+            <span class="tab-description"
+              >Map season profiles to stock items</span
+            >
+          </button>
+        </div>
+      </div>
+
+      <div id="moqSection" class="panel" style="margin-top: 12px"></div>
+      <div
+        id="convSection"
+        class="panel"
+        style="margin-top: 12px; display: none"
+      ></div>
+      <div
+        id="seasonSection"
+        class="panel"
+        style="margin-top: 12px; display: none"
+      ></div>
+      <div
+        id="mapSection"
+        class="panel"
+        style="margin-top: 12px; display: none"
+      ></div>
+    </div>
+    <script>
+      // UI-only tab behavior: manage visual active state and keyboard navigation
+      (function () {
+        const tabs = Array.from(document.querySelectorAll(".tabs .tab-btn"));
+        const dropdown = document.getElementById("tabDropdown");
+
+        if (!tabs.length && !dropdown) return;
+
+        function activate(btn) {
+          tabs.forEach((t) => {
+            t.classList.toggle("active", t === btn);
+            t.setAttribute("aria-selected", t === btn ? "true" : "false");
+          });
+        }
+
+        tabs.forEach((b, i) => {
+          b.addEventListener("click", () => activate(b));
+          b.addEventListener("keydown", (ev) => {
+            if (ev.key === "ArrowRight") {
+              ev.preventDefault();
+              const nx = tabs[(i + 1) % tabs.length];
+              nx.focus();
+              activate(nx);
+            } else if (ev.key === "ArrowLeft") {
+              ev.preventDefault();
+              const px = tabs[(i - 1 + tabs.length) % tabs.length];
+              px.focus();
+              activate(px);
+            }
+          });
+        });
+
+        // Handle dropdown selection on small screens
+        if (dropdown) {
+          dropdown.addEventListener("change", (ev) => {
+            const section = ev.target.value;
+            // Trigger the corresponding tab button click to reuse existing logic
+            const tabMap = {
+              moq: "tabMoq",
+              conv: "tabConv",
+              season: "tabSeason",
+              map: "tabMap",
+            };
+            const btnId = tabMap[section];
+            if (btnId) {
+              document.getElementById(btnId)?.click();
+            }
+          });
+        }
+      })();
+    </script>
+    <script type="module" src="./js/mrp-master-data-console.js"></script>
+  </body>
+</html>

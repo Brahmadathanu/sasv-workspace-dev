@@ -235,6 +235,18 @@
         actions.
       </p>
       <div class="module-list">
+        
+
+        
+
+        <a
+          class="module-link"
+          data-module-id="mrp-master-data-console"
+          href="public/shared/mrp-master-data-console.html"
+        >
+          MRP Master Data Console
+        </a>
+
         <a
           class="module-link"
           data-module-id="mrp-material-board"
@@ -274,15 +286,22 @@
         >
           RM Rebuild Dashboard
         </a>
+        <!-- RM Seasonal Mapping removed: module deprecated and files will be deleted -->
 
         <a
           class="module-link"
-          data-module-id="purchase-planning-workbench"
-          href="#"
-          aria-disabled="true"
-          title="Coming soon"
+          data-module-id="rm-seasonal-overlay"
+          href="public/shared/rm-seasonal-overlay.html"
         >
-          Purchase Planning Workbench
+          RM Seasonal Overlay
+        </a>
+
+        <a
+          class="module-link"
+          data-module-id="procurement-planning-workbench"
+          href="procurement-planning-workbench.html"
+        >
+          Procurement Planning Workbench
         </a>
 
         <a
@@ -877,14 +896,34 @@
             window.location.href = "login.html";
           });
 
-          // permissions
-          const { data: perms } = await supabase
-            .from("user_permissions")
-            .select("module_id,can_view")
-            .eq("user_id", user.id);
-          const permMap = Object.fromEntries(
-            (perms || []).map((p) => [p.module_id, p.can_view])
-          );
+          // permissions (use canonical RPC, fallback to legacy table)
+          let permMap = {};
+          try {
+            const { data: perms, error: permsErr } = await supabase.rpc(
+              "get_user_permissions",
+              { p_user_id: user.id }
+            );
+            if (!permsErr && Array.isArray(perms)) {
+              for (const p of perms) {
+                if (!p || !p.target) continue;
+                const t = String(p.target || "");
+                if (t.startsWith("module:")) {
+                  permMap[t.slice(7)] = !!p.can_view;
+                }
+              }
+            } else {
+              const { data: perms2 } = await supabase
+                .from("user_permissions")
+                .select("module_id,can_view")
+                .eq("user_id", user.id);
+              permMap = Object.fromEntries(
+                (perms2 || []).map((p) => [p.module_id, p.can_view])
+              );
+            }
+          } catch (e) {
+            console.debug("permissions fetch failed", e);
+          }
+
           document.querySelectorAll("a.module-link").forEach((a) => {
             // hide only if explicitly denied; placeholders remain visible but disabled
             const canView = permMap[a.dataset.moduleId];

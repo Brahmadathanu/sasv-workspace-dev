@@ -111,6 +111,32 @@ async function mustBeAdmin() {
     return false;
   }
 
+  // Prefer canonical RPC to check admin role/module
+  try {
+    const { data: perms, error: permsErr } = await supabase.rpc(
+      "get_user_permissions",
+      { p_user_id: session.user.id }
+    );
+    if (!permsErr && Array.isArray(perms)) {
+      const has = perms.some(
+        (p) =>
+          p &&
+          p.target &&
+          (p.target === "role:hub_admin" || p.target === "module:hub_admin") &&
+          p.can_edit
+      );
+      if (!has) {
+        elGuard.style.display = "";
+        return false;
+      }
+      elGuard.style.display = "none";
+      return true;
+    }
+  } catch (e) {
+    console.debug("mustBeAdmin RPC check failed", e);
+  }
+
+  // Fallback to legacy check if RPC not available
   const adminId = adminRow.id;
   const { data: acc, error: aErr } = await supabase
     .from("hub_user_access")

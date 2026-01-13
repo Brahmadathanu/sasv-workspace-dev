@@ -11,6 +11,21 @@ const PDF_UMD_PATHS = {
   jsPDF: "/libs/jspdf.umd.min.js",
   autoTable: "/libs/jspdf.plugin.autotable.min.js",
 };
+
+// last query total rows (set in runQuery)
+// lastQueryTotal removed; totals now provided by RPC via __lastTotals
+
+// DOM refs for new UI pieces (filled in init)
+let elTotalValue, elToggleValue;
+let elValueModal, elValueModalClose, elValueBody, elValueSnapshot;
+let elRowModal,
+  elRowModalClose,
+  elRowHeader,
+  elRowClassif,
+  elRowQty,
+  elRowValue,
+  elRowFooter;
+let __lastOpenTs = 0; // guard for double-open on touch
 const PDF_ESM_PATHS = {
   jsPDF: "/libs/jspdf.es.min.js",
   autoTable: "/libs/jspdf-autotable.es.js",
@@ -22,6 +37,91 @@ function onReady(fn) {
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", fn, { once: true });
   } else fn();
+}
+
+function openRowModal(r) {
+  if (!elRowModal) return;
+  try {
+    // remember element focused before opening so we can restore focus on close
+    __lastFocusBeforeRowModal =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    // header: item / pack / uom
+    elRowHeader.innerHTML = `<strong>${escapeHtml(
+      r.item || ""
+    )}</strong> &nbsp; ${escapeHtml(String(r.pack_size ?? ""))} ${escapeHtml(
+      r.uom || ""
+    )}`;
+    // classification
+    const parts = [
+      r.category_name,
+      r.sub_category_name,
+      r.product_group_name,
+      r.sub_group_name,
+    ].filter(Boolean);
+    elRowClassif.textContent = parts.join(" → ");
+
+    // Qty & MOS column: show stocks/demand/mos by IK/KKD/OK/overall
+    const stIK = Number(r.stock_ik) || 0;
+    const stKKD = Number(r.stock_kkd) || 0;
+    const stOK = Number(r.stock_ok) || 0;
+    const stockOverall = stIK + stKKD + stOK;
+    const fIK = Number(r.forecast_ik) || 0;
+    const fKKD = Number(r.forecast_kkd) || 0;
+    const fOK = Number(r.forecast_ok) || 0;
+    const forecastOverall = fIK + fKKD + fOK;
+    elRowQty.innerHTML = `
+      <div><strong>Stock</strong></div>
+      <div>IK: ${fmtInt(stIK)}</div>
+      <div>KKD: ${fmtInt(stKKD)}</div>
+      <div>OK: ${fmtInt(stOK)}</div>
+      <div style="margin-top:8px"><strong>Overall: ${fmtInt(
+        stockOverall
+      )}</strong></div>
+      <hr/>
+      <div><strong>Demand</strong></div>
+      <div>IK: ${fmtInt(fIK)}</div>
+      <div>KKD: ${fmtInt(fKKD)}</div>
+      <div>OK: ${fmtInt(fOK)}</div>
+      <div style="margin-top:8px"><strong>Overall: ${fmtInt(
+        forecastOverall
+      )}</strong></div>
+    `;
+
+    // Values & Rates
+    elRowValue.innerHTML = `
+      <div><strong>Value</strong></div>
+      <div>IK: ${fmtINR(r.stock_value_ik)}</div>
+      <div>KKD: ${fmtINR(r.stock_value_kkd)}</div>
+      <div>OK: ${fmtINR(r.stock_value_ok)}</div>
+      <div style="margin-top:8px"><strong>Overall: ${fmtINR(
+        r.stock_value_overall
+      )}</strong></div>
+      <hr/>
+      <div><strong>Rate</strong></div>
+      <div>IK: ${fmtRate(r.rate_ik)}</div>
+      <div>KKD: ${fmtRate(r.rate_kkd)}</div>
+      <div>OK: ${fmtRate(r.rate_ok)}</div>
+      <div style="margin-top:8px"><strong>Overall: ${fmtRate(
+        r.rate_overall
+      )}</strong></div>
+    `;
+
+    elRowFooter.textContent = `MRP IK: ${fmtRate(r.mrp_ik)} / MRP OK: ${fmtRate(
+      r.mrp_ok
+    )} ${r.shade_flag ? " • Shade" : ""}`;
+
+    // open modal
+    elRowModal.style.display = "flex";
+    elRowModal.setAttribute("aria-hidden", "false");
+    // focus close button
+    setTimeout(() => {
+      elRowModalClose?.focus();
+    }, 20);
+  } catch (err) {
+    console.error("openRowModal", err);
+  }
 }
 function $(id) {
   return document.getElementById(id);
@@ -35,6 +135,26 @@ function fmtInt(n) {
 }
 function fmt3(n) {
   return n == null ? "" : Number(n).toFixed(3);
+}
+function fmtINR(n, decimals = 2) {
+  if (n == null || n === "" || isNaN(Number(n))) return "—";
+  return (
+    "₹ " +
+    Number(n).toLocaleString("en-IN", {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    })
+  );
+}
+function fmtRate(n) {
+  if (n == null || n === "" || isNaN(Number(n))) return "—";
+  return (
+    "₹ " +
+    Number(n).toLocaleString("en-IN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+  );
 }
 function clamp(v, min, max) {
   return Math.max(min, Math.min(max, v));
@@ -105,6 +225,65 @@ function csvEscape(v) {
   const s = String(v);
   if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
   return s;
+}
+
+// Build filters payload for RPC `stock_checker_query` from current UI state
+function buildStockCheckerFiltersPayload() {
+  const payload = {};
+  payload.product_id = selectedProductId || null;
+  payload.pack_size =
+    state.pack_size && state.pack_size !== "" ? state.pack_size : null;
+  payload.uom = state.uom && state.uom !== "" ? state.uom : null;
+  payload.quick = {
+    mosLt3: !!(state.quick && state.quick.mosLt3),
+    raso: !!(state.quick && state.quick.raso),
+  };
+
+  payload.category_id =
+    state.category_id && state.category_id !== "" ? state.category_id : null;
+  payload.sub_category_id = Array.isArray(state.sub_category_id)
+    ? state.sub_category_id
+    : state.sub_category_id && state.sub_category_id !== ""
+    ? state.sub_category_id
+    : null;
+  payload.product_group_id = Array.isArray(state.product_group_id)
+    ? state.product_group_id
+    : state.product_group_id && state.product_group_id !== ""
+    ? state.product_group_id
+    : null;
+  payload.sub_group_id = Array.isArray(state.sub_group_id)
+    ? state.sub_group_id
+    : state.sub_group_id && state.sub_group_id !== ""
+    ? state.sub_group_id
+    : null;
+
+  payload.ex = {
+    cats: Array.isArray(state.ex?.cats) ? state.ex.cats : [],
+    subcats: Array.isArray(state.ex?.subcats) ? state.ex.subcats : [],
+    pgroups: Array.isArray(state.ex?.pgroups) ? state.ex.pgroups : [],
+    sgroups: Array.isArray(state.ex?.sgroups) ? state.ex.sgroups : [],
+  };
+
+  // MOS rules: keep same shape as state (en/op/v1/v2/notNull)
+  payload.mos = { ik: null, kkd: null, ok: null, ov: null };
+  for (const k of ["ik", "kkd", "ok", "ov"]) {
+    const r = state.mos?.[k] || {
+      en: false,
+      op: "gt",
+      v1: "",
+      v2: "",
+      notNull: false,
+    };
+    payload.mos[k] = {
+      en: !!r.en,
+      op: r.op || "gt",
+      v1: r.v1 !== undefined && r.v1 !== "" ? r.v1 : null,
+      v2: r.v2 !== undefined && r.v2 !== "" ? r.v2 : null,
+      notNull: !!r.notNull,
+    };
+  }
+
+  return payload;
 }
 
 // ────────────── jsPDF / autoTable loader & guards ──────────────
@@ -234,8 +413,24 @@ let advApply, advCount;
 
 /* ─────────────────────────── State ─────────────────────────── */
 const PAGE_SIZE = 50;
-const VISIBLE_COLS = 15;
+const BASE_VISIBLE_COLS = 15;
+function visibleCols() {
+  try {
+    return BASE_VISIBLE_COLS + (state?.showValue ? 4 : 0);
+  } catch {
+    return BASE_VISIBLE_COLS;
+  }
+}
 let page = 1;
+
+// Client-side sort state and last fetched rows (kept for responsive sorting)
+let sortState = { keys: [], userOverride: false };
+let __lastRows = [];
+// Last totals object returned by RPC (value aggregates etc.)
+let __lastTotals = null;
+// remember element focused before opening modals so we can restore focus
+let __lastFocusBeforeRowModal = null;
+let __lastFocusBeforeValueModal = null;
 
 let selectedProductId = "";
 
@@ -291,6 +486,22 @@ async function init() {
     elPrev = $("sc-prev");
     elNext = $("sc-next");
     elPage = $("sc-page");
+
+    // New UI elements
+    elTotalValue = $("sc-total-value");
+    elToggleValue = $("toggle-value");
+    elValueModal = $("sc-value-modal");
+    elValueModalClose = $("sc-value-modal-close");
+    elValueBody = $("sc-value-body-content");
+    elValueSnapshot = $("sc-value-snapshot");
+
+    elRowModal = $("sc-row-modal");
+    elRowModalClose = $("sc-row-modal-close");
+    elRowHeader = $("sc-row-header");
+    elRowClassif = $("sc-row-classif");
+    elRowQty = $("sc-row-qty");
+    elRowValue = $("sc-row-value");
+    elRowFooter = $("sc-row-footer-info");
 
     elTable = $("sc-table");
     elBody = $("sc-body");
@@ -634,6 +845,208 @@ async function init() {
         ) {
           closeExportModal();
         }
+      });
+      // ------------- Value modal and Row modal wiring -------------
+      // Toggle value columns
+      if (elToggleValue) {
+        elToggleValue.addEventListener("click", () => {
+          state.showValue = !state.showValue;
+          elToggleValue.setAttribute("aria-pressed", String(!!state.showValue));
+          elToggleValue.classList.toggle("active", !!state.showValue);
+          elToggleValue.textContent = state.showValue
+            ? "Hide Value"
+            : "Show Value";
+          // show/hide header ths
+          Array.from(
+            document.querySelectorAll("#sc-table thead th.col-value")
+          ).forEach((th) => {
+            th.style.display = state.showValue ? "table-cell" : "none";
+          });
+          // re-render rows (they include value TDs when flag is ON)
+          renderRows(__lastRows || []);
+        });
+      }
+
+      // Total value pill click: open modal and compute totals when needed
+      if (elTotalValue) {
+        elTotalValue.addEventListener("click", async () => {
+          // remember prior focus so we can restore it on close
+          __lastFocusBeforeValueModal =
+            document.activeElement instanceof HTMLElement
+              ? document.activeElement
+              : null;
+          if (!elValueModal) return;
+          elValueModal.style.display = "flex";
+          elValueModal.setAttribute("aria-hidden", "false");
+          elValueBody.textContent = "Calculating…";
+          try {
+            let totals = __lastTotals;
+            if (!totals) {
+              const filters = buildStockCheckerFiltersPayload();
+              const { data, error } = await supabase.rpc(
+                "stock_checker_query",
+                {
+                  p_filters: filters,
+                  p_page: 1,
+                  p_page_size: 1,
+                }
+              );
+              if (error) throw error;
+              totals = (data && data.totals) || null;
+              __lastTotals = totals;
+            }
+
+            const t = totals || {
+              value_ik: 0,
+              value_kkd: 0,
+              value_ok: 0,
+              value_overall: 0,
+              snapshot_date: null,
+            };
+            elValueBody.innerHTML = `
+              <div>IK: <strong>${fmtINR(t.value_ik)}</strong></div>
+              <div>KKD: <strong>${fmtINR(t.value_kkd)}</strong></div>
+              <div>OK: <strong>${fmtINR(t.value_ok)}</strong></div>
+              <div style="margin-top:8px">Overall: <strong>${fmtINR(
+                t.value_overall
+              )}</strong></div>
+            `;
+            if (elValueSnapshot)
+              elValueSnapshot.textContent = t.snapshot_date
+                ? `Snapshot: ${new Date(t.snapshot_date).toLocaleString()}`
+                : "";
+          } catch (err) {
+            console.error(err);
+            elValueBody.textContent = "Failed to compute totals.";
+          }
+        });
+
+        // Close handlers: close button, backdrop click, escape
+        elValueModalClose?.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          closeValueModal();
+        });
+        elValueModal?.addEventListener("click", (ev) => {
+          if (
+            ev.target &&
+            ev.target.classList &&
+            ev.target.classList.contains("sc-modal-backdrop")
+          )
+            closeValueModal();
+        });
+        document.addEventListener("keydown", (ev) => {
+          if (
+            ev.key === "Escape" &&
+            elValueModal &&
+            elValueModal.style.display !== "none"
+          )
+            closeValueModal();
+        });
+      }
+
+      // Row modal close / backdrop / escape
+      function closeRowModal() {
+        if (!elRowModal) return;
+        try {
+          // if a descendant still has focus, blur it first to avoid aria-hidden on focused element
+          const active = document.activeElement;
+          if (
+            active &&
+            elRowModal.contains(active) &&
+            typeof active.blur === "function"
+          )
+            active.blur();
+        } catch {
+          void 0;
+        }
+        elRowModal.style.display = "none";
+        elRowModal.setAttribute("aria-hidden", "true");
+        try {
+          if (
+            __lastFocusBeforeRowModal &&
+            typeof __lastFocusBeforeRowModal.focus === "function"
+          ) {
+            __lastFocusBeforeRowModal.focus();
+          } else {
+            // fallback: focus table body or count pill
+            elBody?.focus?.();
+            elCount?.focus?.();
+          }
+        } catch {
+          void 0;
+        }
+        __lastFocusBeforeRowModal = null;
+      }
+      elRowModalClose?.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        closeRowModal();
+      });
+      elRowModal?.addEventListener("click", (ev) => {
+        if (
+          ev.target &&
+          ev.target.classList &&
+          ev.target.classList.contains("sc-modal-backdrop")
+        )
+          closeRowModal();
+      });
+      document.addEventListener("keydown", (ev) => {
+        if (
+          ev.key === "Escape" &&
+          elRowModal &&
+          elRowModal.style.display !== "none"
+        )
+          closeRowModal();
+      });
+
+      // Value modal close / backdrop / escape
+      function closeValueModal() {
+        if (!elValueModal) return;
+        try {
+          const active = document.activeElement;
+          if (
+            active &&
+            elValueModal.contains(active) &&
+            typeof active.blur === "function"
+          )
+            active.blur();
+        } catch {
+          void 0;
+        }
+        elValueModal.style.display = "none";
+        elValueModal.setAttribute("aria-hidden", "true");
+        try {
+          if (
+            __lastFocusBeforeValueModal &&
+            typeof __lastFocusBeforeValueModal.focus === "function"
+          ) {
+            __lastFocusBeforeValueModal.focus();
+          } else {
+            elTotalValue?.focus?.();
+          }
+        } catch {
+          void 0;
+        }
+        __lastFocusBeforeValueModal = null;
+      }
+      elValueModalClose?.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        closeValueModal();
+      });
+      elValueModal?.addEventListener("click", (ev) => {
+        if (
+          ev.target &&
+          ev.target.classList &&
+          ev.target.classList.contains("sc-modal-backdrop")
+        )
+          closeValueModal();
+      });
+      document.addEventListener("keydown", (ev) => {
+        if (
+          ev.key === "Escape" &&
+          elValueModal &&
+          elValueModal.style.display !== "none"
+        )
+          closeValueModal();
       });
       // Filters modal: move filters into a centered modal to save space on demand
       elFiltersBtn = $("sc-filters-btn");
@@ -1042,6 +1455,13 @@ async function init() {
     await populateAdvancedExclusions();
     initItemAutocomplete();
     wireAdvanced();
+
+    // Attach column header sorting handlers (client-side)
+    try {
+      attachHeaderSorting();
+    } catch {
+      void 0;
+    }
 
     updateStockSnapshotLabel();
     await runQuery();
@@ -2057,118 +2477,324 @@ async function autoFillUOM() {
   }
 }
 
+/* ───────────────────── Sorting helpers (client-side) ───────────────────── */
+function computeDerivedFields(rows) {
+  if (!Array.isArray(rows)) return;
+  for (const r of rows) {
+    // numeric-safe helpers
+    const stIK = Number(r.stock_ik) || 0;
+    const stKKD = Number(r.stock_kkd) || 0;
+    const stOK = Number(r.stock_ok) || 0;
+    r.stock_overall = stIK + stKKD + stOK;
+
+    const fIK = Number(r.forecast_ik) || 0;
+    const fKKD = Number(r.forecast_kkd) || 0;
+    const fOK = Number(r.forecast_ok) || 0;
+    r.demand_overall = fIK + fKKD + fOK;
+
+    const mosIK =
+      r.mos_ik == null || r.mos_ik === "" ? Infinity : Number(r.mos_ik);
+    const mosKKD =
+      r.mos_kkd == null || r.mos_kkd === "" ? Infinity : Number(r.mos_kkd);
+    const mosOK =
+      r.mos_ok == null || r.mos_ok === "" ? Infinity : Number(r.mos_ok);
+    const mosOV =
+      r.mos_overall == null || r.mos_overall === ""
+        ? Infinity
+        : Number(r.mos_overall);
+    r.minMOS = Math.min(mosIK, mosKKD, mosOK, mosOV);
+
+    // shortage: use reorder_level if present, else 0
+    const reorder = Number(r.reorder_level || r.reorder || 0) || 0;
+    r.shortage = Math.max(0, reorder - (r.stock_overall || 0));
+
+    // quick flag (RASO) - use sub_group_name membership if available
+    try {
+      r.isRaso =
+        (r.sub_group_name && RASO_NAMES.includes(String(r.sub_group_name))) ||
+        !!r.is_raso ||
+        false;
+    } catch {
+      r.isRaso = false;
+    }
+
+    // demand ratio (guard)
+    r.demandRatio =
+      r.demand_overall && r.stock_overall
+        ? r.demand_overall / Math.max(1, r.stock_overall)
+        : 0;
+
+    // riskScore: composite (higher = more urgent)
+    // weights: mos 0.45, shortage 0.30, demand 0.20, flag 0.05
+    const mosRisk = isFinite(r.minMOS)
+      ? (100 - clamp(r.minMOS, 0, 100)) / 100
+      : 1; // 0..1
+    const shortRisk = r.shortage
+      ? Math.min(1, r.shortage / (r.shortage + 10))
+      : 0; // 0..1
+    const demandRisk = Math.min(1, r.demandRatio); // 0..1
+    const flagRisk = r.isRaso ? 1 : 0;
+    r.riskScore =
+      mosRisk * 0.45 + shortRisk * 0.3 + demandRisk * 0.2 + flagRisk * 0.05;
+    // keep numeric-friendly copies
+    r._risk = Number(r.riskScore || 0);
+  }
+}
+
+function numericCmp(a, b, opts = { nullsLast: true }) {
+  const A =
+    a == null || a === "" ? (opts.nullsLast ? Infinity : -Infinity) : Number(a);
+  const B =
+    b == null || b === "" ? (opts.nullsLast ? Infinity : -Infinity) : Number(b);
+  if (A < B) return -1;
+  if (A > B) return 1;
+  return 0;
+}
+
+function textCmp(a, b) {
+  return String(a ?? "").localeCompare(String(b ?? ""), undefined, {
+    sensitivity: "base",
+  });
+}
+
+function compareRows(a, b, sortKeys) {
+  if (!Array.isArray(sortKeys) || !sortKeys.length) return 0;
+  for (const k of sortKeys) {
+    const dir = k.dir === "desc" ? -1 : 1;
+    let res = 0;
+    switch (k.col) {
+      case "risk":
+        res = numericCmp(a._risk, b._risk, { nullsLast: false });
+        res = -res; // higher risk first by default
+        break;
+      case "minMOS":
+        res = numericCmp(a.minMOS, b.minMOS);
+        break;
+      case "shortage":
+        // shortages first
+        res = (b.shortage > 0 ? 1 : 0) - (a.shortage > 0 ? 1 : 0);
+        break;
+      case "stock_overall":
+      case "stock_ik":
+      case "stock_kkd":
+      case "stock_ok":
+      case "demand_overall":
+      case "mos_overall":
+        res = numericCmp(a[k.col], b[k.col]);
+        break;
+      case "product_group_name":
+      case "sub_group_name":
+      case "category_name":
+      case "item":
+      case "pack_size":
+      case "uom":
+        res = textCmp(a[k.col], b[k.col]);
+        break;
+      default:
+        // fallback: try numeric then text
+        if (!isNaN(Number(a[k.col])) || !isNaN(Number(b[k.col])))
+          res = numericCmp(a[k.col], b[k.col]);
+        else res = textCmp(a[k.col], b[k.col]);
+    }
+    if (res !== 0) return dir * res;
+  }
+  // stable tiebreaker
+  return textCmp(a.product_id || a.id || "", b.product_id || b.id || "");
+}
+
+function attachHeaderSorting() {
+  if (!elTable) return;
+  const ths = Array.from(elTable.querySelectorAll("thead th"));
+  // Map header ordering to column keys (keeps in sync with HTML order)
+  const keys = [
+    "item",
+    "pack_size",
+    "uom",
+    "stock_ik",
+    "stock_kkd",
+    "stock_ok",
+    "stock_overall",
+    "demand_ik",
+    "demand_kkd",
+    "demand_ok",
+    "demand_overall",
+    "mos_ik",
+    "mos_kkd",
+    "mos_ok",
+    "mos_overall",
+  ];
+
+  ths.forEach((th, idx) => {
+    const col = keys[idx] || `col_${idx}`;
+    th.dataset.col = col;
+    th.setAttribute("role", "button");
+    th.tabIndex = 0;
+    // ensure a visible caret indicator inside the header for tri-state
+    let ind = th.querySelector(".sc-sort-indicator");
+    if (!ind) {
+      ind = document.createElement("span");
+      ind.className = "sc-sort-indicator";
+      ind.setAttribute("aria-hidden", "true");
+      th.appendChild(ind);
+    }
+    // visual styling is provided by shared CSS (`css/shared-ui.css`)
+    const caretSvg = (dir) => {
+      // dir: 'asc' | 'desc'
+      if (!dir) return "";
+      if (dir === "asc") {
+        return `<svg width="12" height="12" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill="currentColor" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>`;
+      }
+      return `<svg width="12" height="12" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill="currentColor" d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>`;
+    };
+
+    const updateVisual = () => {
+      // clear previous indicators
+      th.classList.remove("sort-asc", "sort-desc");
+      const top =
+        sortState.keys && sortState.keys[0] ? sortState.keys[0] : null;
+      if (top && top.col === col) {
+        th.classList.add(top.dir === "desc" ? "sort-desc" : "sort-asc");
+        ind.innerHTML = caretSvg(top.dir === "desc" ? "desc" : "asc");
+        th.setAttribute(
+          "aria-sort",
+          top.dir === "desc" ? "descending" : "ascending"
+        );
+      } else {
+        ind.innerHTML = "";
+        th.setAttribute("aria-sort", "none");
+      }
+    };
+
+    const cycle = (ev) => {
+      ev.preventDefault();
+      const multi = ev.shiftKey;
+      const existingIndex = (sortState.keys || []).findIndex(
+        (k) => k.col === col
+      );
+      if (!multi) {
+        // single-click: make this the only key, cycle asc->desc->none
+        if (existingIndex === -1) {
+          sortState.keys = [{ col, dir: "asc" }];
+          sortState.userOverride = true;
+        } else if (sortState.keys[existingIndex].dir === "asc") {
+          sortState.keys = [{ col, dir: "desc" }];
+          sortState.userOverride = true;
+        } else {
+          // remove -> revert to server-side default ordering
+          sortState.keys = [];
+          sortState.userOverride = false;
+        }
+      } else {
+        // shift-click: toggle this column in multi-sort
+        if (existingIndex === -1) {
+          sortState.keys.push({ col, dir: "asc" });
+          sortState.userOverride = true;
+        } else {
+          const cur = sortState.keys[existingIndex];
+          if (cur.dir === "asc") cur.dir = "desc";
+          else sortState.keys.splice(existingIndex, 1);
+        }
+      }
+      // apply to last rows and re-render — do not mutate the cached __lastRows
+      try {
+        if (__lastRows && __lastRows.length) {
+          const rowsToRender =
+            sortState.keys && sortState.keys.length
+              ? __lastRows
+                  .slice()
+                  .sort((a, b) => compareRows(a, b, sortState.keys))
+              : __lastRows.slice();
+          renderRows(rowsToRender);
+        }
+      } catch (e) {
+        console.error("Header sort apply failed", e);
+      }
+
+      // update all headers visuals (also update SVG indicator)
+      ths.forEach((t) => t.classList.remove("sort-asc", "sort-desc"));
+      ths.forEach((t) => {
+        const c = t.dataset.col;
+        const top =
+          sortState.keys && sortState.keys[0] ? sortState.keys[0] : null;
+        if (top && top.col === c)
+          t.classList.add(top.dir === "desc" ? "sort-desc" : "sort-asc");
+        t.setAttribute(
+          "aria-sort",
+          top && top.col === c
+            ? top.dir === "desc"
+              ? "descending"
+              : "ascending"
+            : "none"
+        );
+        const indEl = t.querySelector(".sc-sort-indicator");
+        if (indEl) {
+          if (top && top.col === c) {
+            indEl.innerHTML = caretSvg(top.dir === "desc" ? "desc" : "asc");
+          } else {
+            indEl.innerHTML = "";
+          }
+        }
+      });
+    };
+
+    th.addEventListener("click", cycle);
+    th.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" || ev.key === " ") cycle(ev);
+    });
+    updateVisual();
+  });
+}
+
 /* ───────────────────── Query ───────────────────── */
 async function runQuery() {
   try {
     setMsg("");
     if (elBody)
-      elBody.innerHTML = `<tr><td colspan="${VISIBLE_COLS}">Loading…</td></tr>`;
+      elBody.innerHTML = `<tr><td colspan="${visibleCols()}">Loading…</td></tr>`;
 
-    let q = supabase.from("v_stock_checker").select("*", { count: "exact" });
+    const filters = buildStockCheckerFiltersPayload();
 
-    // Primary
-    if (selectedProductId) q = q.eq("product_id", selectedProductId);
-    if (state.pack_size) q = q.eq("pack_size", state.pack_size);
-    if (state.uom) q = q.eq("uom", state.uom);
+    const { data, error } = await supabase.rpc("stock_checker_query", {
+      p_filters: filters,
+      p_page: page,
+      p_page_size: PAGE_SIZE,
+    });
 
-    // Quick filters
-    if (state.quick.mosLt3) q = q.lt("mos_overall", 3);
-    if (state.quick.raso) q = q.in("sub_group_name", RASO_NAMES);
-
-    // Classification
-    if (state.category_id) q = q.eq("category_id", state.category_id);
-    if (state.sub_category_id) {
-      if (Array.isArray(state.sub_category_id))
-        q = q.in("sub_category_id", state.sub_category_id);
-      else q = q.eq("sub_category_id", state.sub_category_id);
-    }
-    if (state.product_group_id) {
-      if (Array.isArray(state.product_group_id))
-        q = q.in("product_group_id", state.product_group_id);
-      else q = q.eq("product_group_id", state.product_group_id);
-    }
-    if (state.sub_group_id) {
-      if (Array.isArray(state.sub_group_id))
-        q = q.in("sub_group_id", state.sub_group_id);
-      else q = q.eq("sub_group_id", state.sub_group_id);
-    }
-
-    // Advanced: exclusions
-    function applyExclusion(col, ids) {
-      if (!ids || !ids.length) return;
-      if (ids.length === 1) {
-        q = q.neq(col, ids[0]);
-      } else {
-        q = q.not(
-          col,
-          "in",
-          `(${ids.map((x) => JSON.stringify(x)).join(",")})`
-        );
-      }
-    }
-    applyExclusion("category_id", state.ex.cats);
-    applyExclusion("sub_category_id", state.ex.subcats);
-    applyExclusion("product_group_id", state.ex.pgroups);
-    applyExclusion("sub_group_id", state.ex.sgroups);
-
-    // Advanced: MOS comparators
-    function applyMos(col, rule) {
-      if (!rule || !rule.en) return;
-      const v1 = rule.v1 !== "" ? Number(rule.v1) : null;
-      const v2 = rule.v2 !== "" ? Number(rule.v2) : null;
-      if (rule.notNull) q = q.not(col, "is", null);
-
-      switch (rule.op) {
-        case "eq":
-          if (v1 != null) q = q.eq(col, v1);
-          break;
-        case "gt":
-          if (v1 != null) q = q.gt(col, v1);
-          break;
-        case "gte":
-          if (v1 != null) q = q.gte(col, v1);
-          break;
-        case "lt":
-          if (v1 != null) q = q.lt(col, v1);
-          break;
-        case "lte":
-          if (v1 != null) q = q.lte(col, v1);
-          break;
-        case "between":
-          if (v1 != null) q = q.gte(col, v1);
-          if (v2 != null) q = q.lte(col, v2);
-          break;
-      }
-    }
-    applyMos("mos_ik", state.mos.ik);
-    applyMos("mos_kkd", state.mos.kkd);
-    applyMos("mos_ok", state.mos.ok);
-    applyMos("mos_overall", state.mos.ov);
-
-    // Sort
-    q = q
-      .order("category_name", { ascending: true })
-      .order("product_group_name", { ascending: true })
-      .order("sub_group_name", { ascending: true })
-      .order("sub_category_name", { ascending: true })
-      .order("item", { ascending: true })
-      .order("pack_size", { ascending: true });
-
-    // Pagination
-    const from = (page - 1) * PAGE_SIZE;
-    const to = from + PAGE_SIZE - 1;
-    q = q.range(from, to);
-
-    const { data, error, count } = await q;
     if (error) throw error;
 
-    renderRows(data || []);
+    const rows = (data && data.rows) || [];
+    const total = (data && (data.count ?? data.total ?? 0)) || 0;
+    const totals = (data && data.totals) || null;
+    const snapshot_date =
+      data && data.snapshot_date ? data.snapshot_date : null;
+
+    // cache rows/totals for UI actions
+    __lastRows = Array.isArray(rows) ? rows.slice() : [];
+    __lastTotals = totals;
+
+    // compute derived fields and apply client-side sort only when user has
+    // explicitly changed the sort (clicking headers). Default order comes
+    // from the RPC result.
+    try {
+      computeDerivedFields(__lastRows);
+      if (
+        sortState &&
+        sortState.userOverride &&
+        Array.isArray(sortState.keys) &&
+        sortState.keys.length
+      )
+        __lastRows.sort((a, b) => compareRows(a, b, sortState.keys));
+    } catch (e) {
+      console.error("Sorting error", e);
+    }
+
+    renderRows(__lastRows);
 
     if (elTable && elTable.parentElement) {
       elTable.parentElement.scrollTop = 0;
     }
 
-    const total = count ?? 0;
+    // total is available in RPC response (kept in __lastTotals)
     const maxPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
     page = clamp(page, 1, maxPage);
     if (elCount) elCount.textContent = `${fmtInt(total)} rows`;
@@ -2176,10 +2802,79 @@ async function runQuery() {
     if (elPrev) elPrev.disabled = page <= 1;
     if (elNext) elNext.disabled = page >= maxPage;
 
-    if (!data || data.length === 0) {
-      elBody.innerHTML = `<tr><td colspan="${VISIBLE_COLS}">No rows found for the selected filters.</td></tr>`;
+    // Update total value pill from totals returned by RPC
+    try {
+      if (elTotalValue) {
+        if (
+          totals &&
+          (totals.value_overall != null || totals.value_overall === 0)
+        ) {
+          elTotalValue.textContent = `Value: ${fmtINR(totals.value_overall)}`;
+        } else {
+          elTotalValue.textContent = `Value: —`;
+        }
+      }
+    } catch {
+      void 0;
     }
-    // update filters button state (reflect applied filters)
+
+    // Update snapshot label from RPC if present, otherwise fallback
+    if (snapshot_date) {
+      try {
+        const asOf = new Date(snapshot_date);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        asOf.setHours(0, 0, 0, 0);
+        const diffMs = today - asOf;
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        const labelEl =
+          elUpdated && elUpdated.querySelector(".sc-snapshot-label");
+        const statusDetail = document.getElementById("sc-status-detail");
+        let statusClass = "snapshot-fresh";
+        let statusText = "";
+        let detailText = "";
+        if (diffDays === 0) {
+          statusText = "Today";
+          detailText = `Stock snapshot: ${asOf.toLocaleDateString()} (today)`;
+          statusClass = "snapshot-fresh";
+        } else if (diffDays === 1) {
+          statusText = "Yesterday";
+          detailText = `Stock snapshot: ${asOf.toLocaleDateString()} (1 day ago)`;
+          statusClass = "snapshot-warning";
+        } else if (diffDays > 1 && diffDays <= 7) {
+          statusText = `${diffDays}d ago`;
+          detailText = `Stock snapshot: ${asOf.toLocaleDateString()} (${diffDays} days ago)`;
+          statusClass = "snapshot-warning";
+        } else {
+          statusText = `${diffDays}d ago`;
+          detailText = `Stock snapshot: ${asOf.toLocaleDateString()} (${diffDays} days ago) - Data may be outdated`;
+          statusClass = "snapshot-stale";
+        }
+        if (labelEl) labelEl.textContent = statusText;
+        if (statusDetail) statusDetail.textContent = detailText;
+        if (elUpdated) {
+          elUpdated.className =
+            elUpdated.className.replace(/snapshot-\w+/g, "") +
+            " " +
+            statusClass;
+          elUpdated.setAttribute("aria-label", detailText);
+        }
+      } catch (err) {
+        console.error("Failed to update snapshot from RPC", err);
+      }
+    } else {
+      try {
+        // fallback to existing DB-based label updater
+        updateStockSnapshotLabel();
+      } catch {
+        void 0;
+      }
+    }
+
+    if (!rows || rows.length === 0) {
+      elBody.innerHTML = `<tr><td colspan="${visibleCols()}">No rows found for the selected filters.</td></tr>`;
+    }
+
     try {
       updateFiltersButtonState();
     } catch {
@@ -2189,7 +2884,7 @@ async function runQuery() {
     console.error(err);
     setMsg(err.message || String(err));
     if (elBody)
-      elBody.innerHTML = `<tr><td colspan="${VISIBLE_COLS}">Error loading data.</td></tr>`;
+      elBody.innerHTML = `<tr><td colspan="${visibleCols()}">Error loading data.</td></tr>`;
     try {
       updateFiltersButtonState();
     } catch {
@@ -2233,6 +2928,24 @@ function renderRows(rows) {
       <td class="col-overall" style="text-align:center">${fmtInt(
         stockOverall
       )}</td>
+      ${
+        state.showValue
+          ? `
+      <td class="col-value" style="text-align:center">${fmtINR(
+        r.stock_value_ik
+      )}</td>
+      <td class="col-value" style="text-align:center">${fmtINR(
+        r.stock_value_kkd
+      )}</td>
+      <td class="col-value" style="text-align:center">${fmtINR(
+        r.stock_value_ok
+      )}</td>
+      <td class="col-value" style="text-align:center">${fmtINR(
+        r.stock_value_overall
+      )}</td>
+      `
+          : ""
+      }
       <td class="col-demand" style="text-align:center">${fmtInt(
         r.forecast_ik
       )}</td>
@@ -2266,6 +2979,19 @@ function renderRows(rows) {
         targetTr = e.target.parentElement;
       }
       targetTr.classList.add("selected-row");
+      // open row details modal (guard touch double events)
+      try {
+        const idx = Number(targetTr.getAttribute("data-row-idx"));
+        const r =
+          Array.isArray(__lastRows) && __lastRows[idx] ? __lastRows[idx] : null;
+        const now = Date.now();
+        if (r && now - (__lastOpenTs || 0) > 250) {
+          __lastOpenTs = now;
+          openRowModal(r);
+        }
+      } catch {
+        /* ignore */
+      }
     }
     tr.addEventListener("click", selectRowHandler, { passive: true });
     tr.addEventListener("touchstart", selectRowHandler, { passive: true });
@@ -2283,101 +3009,27 @@ function renderRows(rows) {
 async function exportCSV() {
   try {
     setMsg("");
-
-    let q = supabase.from("v_stock_checker").select("*");
-
-    // Primary
-    if (selectedProductId) q = q.eq("product_id", selectedProductId);
-    if (state.pack_size) q = q.eq("pack_size", state.pack_size);
-    if (state.uom) q = q.eq("uom", state.uom);
-
-    // Quick
-    if (state.quick.mosLt3) q = q.lt("mos_overall", 3);
-    if (state.quick.raso) q = q.in("sub_group_name", RASO_NAMES);
-
-    // Classification
-    if (state.category_id) q = q.eq("category_id", state.category_id);
-    if (state.sub_category_id) {
-      if (Array.isArray(state.sub_category_id))
-        q = q.in("sub_category_id", state.sub_category_id);
-      else q = q.eq("sub_category_id", state.sub_category_id);
-    }
-    if (state.product_group_id) {
-      if (Array.isArray(state.product_group_id))
-        q = q.in("product_group_id", state.product_group_id);
-      else q = q.eq("product_group_id", state.product_group_id);
-    }
-    if (state.sub_group_id) {
-      if (Array.isArray(state.sub_group_id))
-        q = q.in("sub_group_id", state.sub_group_id);
-      else q = q.eq("sub_group_id", state.sub_group_id);
+    // Use RPC to fetch pages so export matches the table exactly
+    const filters = buildStockCheckerFiltersPayload();
+    const PAGE = 500; // RPC page size
+    const CAP = 20000;
+    let out = [];
+    let p = 1;
+    while (out.length < CAP) {
+      const { data, error } = await supabase.rpc("stock_checker_query", {
+        p_filters: filters,
+        p_page: p,
+        p_page_size: PAGE,
+      });
+      if (error) throw error;
+      const rows = (data && data.rows) || [];
+      if (!rows || !rows.length) break;
+      out = out.concat(rows);
+      if (rows.length < PAGE) break;
+      p++;
     }
 
-    // Advanced: exclusions
-    function applyExclusion(col, ids) {
-      if (!ids || !ids.length) return;
-      if (ids.length === 1) {
-        q = q.neq(col, ids[0]);
-      } else {
-        q = q.not(
-          col,
-          "in",
-          `(${ids.map((x) => JSON.stringify(x)).join(",")})`
-        );
-      }
-    }
-    applyExclusion("category_id", state.ex.cats);
-    applyExclusion("sub_category_id", state.ex.subcats);
-    applyExclusion("product_group_id", state.ex.pgroups);
-    applyExclusion("sub_group_id", state.ex.sgroups);
-
-    // Advanced: MOS comparators
-    function applyMos(col, rule) {
-      if (!rule?.en) return;
-      const v1 = rule.v1 !== "" ? Number(rule.v1) : null;
-      const v2 = rule.v2 !== "" ? Number(rule.v2) : null;
-      if (rule.notNull) q = q.not(col, "is", null);
-      switch (rule.op) {
-        case "eq":
-          if (v1 != null) q = q.eq(col, v1);
-          break;
-        case "gt":
-          if (v1 != null) q = q.gt(col, v1);
-          break;
-        case "gte":
-          if (v1 != null) q = q.gte(col, v1);
-          break;
-        case "lt":
-          if (v1 != null) q = q.lt(col, v1);
-          break;
-        case "lte":
-          if (v1 != null) q = q.lte(col, v1);
-          break;
-        case "between":
-          if (v1 != null) q = q.gte(col, v1);
-          if (v2 != null) q = q.lte(col, v2);
-          break;
-      }
-    }
-    applyMos("mos_ik", state.mos.ik);
-    applyMos("mos_kkd", state.mos.kkd);
-    applyMos("mos_ok", state.mos.ok);
-    applyMos("mos_overall", state.mos.ov);
-
-    // Sort & size
-    q = q
-      .order("category_name", { ascending: true })
-      .order("product_group_name", { ascending: true })
-      .order("sub_group_name", { ascending: true })
-      .order("sub_category_name", { ascending: true })
-      .order("item", { ascending: true })
-      .order("pack_size", { ascending: true })
-      .limit(20000);
-
-    const { data, error } = await q;
-    if (error) throw error;
-
-    const rows = data || [];
+    const rows = out;
     if (!rows.length) {
       setMsg("No rows to export.");
       return;
@@ -2405,6 +3057,14 @@ async function exportCSV() {
       "MOS overall",
       "Product ID",
       "SKU ID",
+      "Value IK",
+      "Value KKD",
+      "Value OK",
+      "Value Overall",
+      "Rate IK",
+      "Rate KKD",
+      "Rate OK",
+      "Rate Overall",
     ];
     const csv = [
       headers.join(","),
@@ -2436,6 +3096,14 @@ async function exportCSV() {
           r.mos_overall,
           r.product_id,
           r.sku_id,
+          r.stock_value_ik,
+          r.stock_value_kkd,
+          r.stock_value_ok,
+          r.stock_value_overall,
+          r.rate_ik,
+          r.rate_kkd,
+          r.rate_ok,
+          r.rate_overall,
         ]
           .map(csvEscape)
           .join(",")

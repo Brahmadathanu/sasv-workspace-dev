@@ -3,7 +3,9 @@
 (function () {
   try {
     console.log("seasonal-banners: script loaded");
-  } catch (e) {}
+  } catch {
+    void 0;
+  }
   const now = new Date();
   const y = now.getFullYear();
   const mm = now.getMonth() + 1; // 1-12
@@ -65,8 +67,7 @@
       panel.classList.remove("expanded");
       // append to documentElement to avoid any body stacking/context issues
       (document.documentElement || document.body).appendChild(panel);
-    } catch (e) {
-      // fallback: append inside wrapper
+    } catch {
       wrapper.appendChild(panel);
     }
 
@@ -81,13 +82,19 @@
         // Use sessionStorage so dismissal lasts only for this session/renderer
         // and the badge will reappear on next app start within the season.
         sessionStorage.setItem(key, "1");
-      } catch (e) {}
+      } catch {
+        void 0;
+      }
       try {
         wrapper.remove();
-      } catch (e) {}
+      } catch {
+        void 0;
+      }
       try {
         panel.remove();
-      } catch (e) {}
+      } catch {
+        void 0;
+      }
     }
     btnClose.addEventListener("click", doDismiss);
 
@@ -100,7 +107,9 @@
         panel.style.left = left + "px";
         panel.style.top = top + "px";
         panel.style.transform = "translateX(-50%) translateY(0) scale(1)";
-      } catch (e) {}
+      } catch {
+        void 0;
+      }
     }
 
     function openPanel() {
@@ -194,7 +203,7 @@
       const key = `seasonal-dismissed-${y}-${cls}-${pageKey}`;
       // Check sessionStorage to determine if user dismissed during this session
       return sessionStorage.getItem(key) === "1";
-    } catch (e) {
+    } catch {
       return false;
     }
   }
@@ -231,7 +240,9 @@
           console.log(
             "seasonal-banners: dismissed for this page/season, not showing"
           );
-      } catch (e) {}
+      } catch {
+        void 0;
+      }
       if (!debugForce) return; // don't show if user dismissed this season
     }
 
@@ -262,7 +273,9 @@
           card.appendChild(wrapper);
           try {
             console.log("seasonal-banners: appended wrapper into login card");
-          } catch (e) {}
+          } catch {
+            void 0;
+          }
           wrapper.style.position = "absolute";
           wrapper.style.top = "-40px";
           wrapper.style.left = "50%";
@@ -291,10 +304,12 @@
               console.log(
                 "seasonal-banners: appended wrapper for right-center placement"
               );
-            } catch (e) {}
+            } catch {
+              void 0;
+            }
           }
           // Panel will be positioned on first hover/focus - no initial positioning
-        } catch (e) {
+        } catch {
           const header = document.querySelector("header");
           if (header) header.appendChild(wrapper);
         }
@@ -309,11 +324,12 @@
       // Prepend the wrapper element itself so the badge appears.
       try {
         document.body.prepend(banner.wrapper);
-      } catch (e) {
-        // fallback to appending if prepend not available
+      } catch {
         try {
           document.body.appendChild(banner.wrapper);
-        } catch (err) {}
+        } catch {
+          void 0;
+        }
       }
     }
   });

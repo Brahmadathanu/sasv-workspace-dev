@@ -1956,18 +1956,35 @@ if (insertPopover)
     } = await supabase.auth.getSession();
     if (!session) return (window.location.href = "login.html");
     try {
-      const { data: permRows } = await supabase
-        .from("user_permissions")
-        .select("module_id, can_view, can_edit")
-        .eq("user_id", session.user.id)
-        .eq("module_id", MODULE_ID)
-        .limit(1);
-      if (Array.isArray(permRows) && permRows.length) {
-        PERM_CAN_VIEW = !!permRows[0].can_view;
-        PERM_CAN_EDIT = !!permRows[0].can_edit;
+      const { data: perms, error: permsErr } = await supabase.rpc(
+        "get_user_permissions",
+        { p_user_id: session.user.id }
+      );
+      if (!permsErr && Array.isArray(perms)) {
+        const p = perms.find((r) => r && r.target === `module:${MODULE_ID}`);
+        if (p) {
+          PERM_CAN_VIEW = !!p.can_view;
+          PERM_CAN_EDIT = !!p.can_edit;
+        }
+      } else {
+        // fallback to legacy table
+        try {
+          const { data: permRows } = await supabase
+            .from("user_permissions")
+            .select("module_id, can_view, can_edit")
+            .eq("user_id", session.user.id)
+            .eq("module_id", MODULE_ID)
+            .limit(1);
+          if (Array.isArray(permRows) && permRows.length) {
+            PERM_CAN_VIEW = !!permRows[0].can_view;
+            PERM_CAN_EDIT = !!permRows[0].can_edit;
+          }
+        } catch (pErr) {
+          console.warn("Permission load failed (legacy)", pErr);
+        }
       }
     } catch (pErr) {
-      console.warn("Permission load failed", pErr);
+      console.warn("Permission load failed (RPC)", pErr);
     }
     if (!PERM_CAN_VIEW) {
       setStatus("You do not have permission to view this module.", "error");

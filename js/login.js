@@ -87,20 +87,45 @@ async function signIn() {
         console.warn("Could not load profile:", pfErr);
       }
 
-      // fetch user permissions (module-level)
+      // fetch canonical user permissions via RPC (module-level + roles)
       let permissions = [];
       try {
-        const { data: perms } = await supabase
-          .from("user_permissions")
-          .select("module_id,can_view,can_edit,can_delete")
-          .eq("user_id", user.id);
-        (perms || []).forEach((p) => {
-          if (p.can_view) permissions.push(`${p.module_id}:view`);
-          if (p.can_edit) permissions.push(`${p.module_id}:edit`);
-          if (p.can_delete) permissions.push(`${p.module_id}:delete`);
-        });
+        const { data: perms, error: permsErr } = await supabase.rpc(
+          "get_user_permissions",
+          { p_user_id: user.id }
+        );
+        if (!permsErr && Array.isArray(perms)) {
+          for (const p of perms) {
+            if (!p || !p.target) continue;
+            const t = String(p.target || "");
+            if (t.startsWith("module:") && p.can_view) {
+              permissions.push(`${t.slice(7)}:view`);
+            }
+            if (t.startsWith("module:") && p.can_edit) {
+              permissions.push(`${t.slice(7)}:edit`);
+            }
+            if (t.startsWith("role:") && p.can_edit) {
+              permissions.push(`${t.slice(5)}:role`);
+            }
+          }
+        } else {
+          // fallback to legacy table if RPC unavailable
+          try {
+            const { data: perms2 } = await supabase
+              .from("user_permissions")
+              .select("module_id,can_view,can_edit,can_delete")
+              .eq("user_id", user.id);
+            (perms2 || []).forEach((p) => {
+              if (p.can_view) permissions.push(`${p.module_id}:view`);
+              if (p.can_edit) permissions.push(`${p.module_id}:edit`);
+              if (p.can_delete) permissions.push(`${p.module_id}:delete`);
+            });
+          } catch (permErr) {
+            console.warn("Could not load permissions:", permErr);
+          }
+        }
       } catch (permErr) {
-        console.warn("Could not load permissions:", permErr);
+        console.warn("Could not load permissions (RPC):", permErr);
       }
 
       const sessionUser = {

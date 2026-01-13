@@ -282,6 +282,177 @@
         display: flex;
         flex-direction: column;
       }
+
+      /* Improved styling for Item Details modal (ERP-friendly) */
+      #sc-row-modal .sc-modal-panel {
+        width: min(820px, 96vw);
+        max-width: 920px;
+      }
+      #sc-row-modal .sc-modal-header h3 {
+        font-size: 1.15rem;
+        color: #073b5a;
+      }
+      #sc-row-modal .sc-modal-body {
+        display: grid;
+        gap: 14px;
+        padding: 18px 20px;
+        align-items: start;
+      }
+      #sc-row-header {
+        font-size: 1.02rem;
+        font-weight: 700;
+        color: #0b3b66;
+        margin-bottom: 2px;
+      }
+      #sc-row-classif {
+        color: var(--muted);
+        font-size: 0.95rem;
+        margin-bottom: 6px;
+      }
+      /* make qty/value cards look like ERP info cards */
+      #sc-row-modal .sc-modal-body > div.grid-2,
+      #sc-row-qty,
+      #sc-row-value {
+        box-sizing: border-box;
+      }
+      #sc-row-qty,
+      #sc-row-value {
+        background: #ffffff;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 12px 14px;
+        min-height: 86px;
+      }
+      #sc-row-qty strong,
+      #sc-row-value strong {
+        display: block;
+        font-size: 0.95rem;
+        margin-bottom: 8px;
+        color: #0f172a;
+      }
+      /* numeric alignment and monospace for easy scanning */
+      #sc-row-qty div,
+      #sc-row-value div {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        font-size: 0.95rem;
+        padding: 4px 0;
+      }
+      #sc-row-qty div span.num,
+      #sc-row-value div span.num {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+        color: #0b3b66;
+        font-weight: 600;
+      }
+      /* Two-column layout on desktop, stack on small screens */
+      #sc-row-modal .sc-modal-body > div[style] {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      @media (max-width: 680px) {
+        #sc-row-modal .sc-modal-body > div[style] {
+          grid-template-columns: 1fr;
+        }
+      }
+      /* === Value modal: ERP-friendly summary card === */
+      #sc-value-modal .sc-modal-panel {
+        width: min(620px, 94vw);
+        max-width: 760px;
+      }
+      #sc-value-modal .sc-modal-header h3 {
+        font-size: 1.05rem;
+        color: #073b5a;
+      }
+      #sc-value-modal .sc-modal-body {
+        padding: 16px 18px 18px;
+        display: block;
+      }
+      #sc-value-body-content {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px 14px;
+        align-items: start;
+      }
+      #sc-value-body-content > div {
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 12px;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      /* Distinct card backgrounds for each value box for quick scanning */
+      #sc-value-body-content > div:nth-child(1) {
+        background: #f0f9ff; /* pale blue */
+        border-color: rgba(3, 105, 161, 0.12);
+      }
+      #sc-value-body-content > div:nth-child(2) {
+        background: #ecfdf5; /* pale green */
+        border-color: rgba(6, 95, 70, 0.08);
+      }
+      #sc-value-body-content > div:nth-child(3) {
+        background: #fff7ed; /* pale amber */
+        border-color: rgba(168, 85, 18, 0.08);
+      }
+      #sc-value-body-content > div:nth-child(4) {
+        background: #f8fafc; /* pale slate */
+        border-color: rgba(15, 23, 42, 0.04);
+      }
+      #sc-value-body-content > div .label {
+        color: var(--muted);
+        font-size: 0.88rem;
+      }
+      #sc-value-body-content > div .value {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+        color: #0b3b66;
+        font-weight: 700;
+        font-size: 1.02rem;
+      }
+      #sc-value-modal .sc-modal-footer {
+        padding: 12px 16px;
+        border-top: 1px solid #f1f5f9;
+        background: linear-gradient(
+          180deg,
+          rgba(250, 250, 252, 0.4),
+          rgba(255, 255, 255, 0)
+        );
+      }
+      #sc-value-snapshot {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      @media (max-width: 560px) {
+        #sc-value-body-content {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* Make the Value pill more prominent and visually distinct */
+      #sc-total-value {
+        font-weight: 700;
+        font-size: 0.95rem;
+        padding: 6px 12px;
+        background: #ecfdf5; /* pale green to differentiate from sc-count */
+        color: #065f46;
+        border-color: rgba(6, 95, 70, 0.12);
+        box-shadow: 0 1px 0 rgba(6, 95, 70, 0.04) inset;
+        min-width: 100px;
+        max-width: 420px; /* allow more room for larger values */
+        overflow: visible; /* prefer visible content over ellipsis when space allows */
+        white-space: nowrap;
+        flex: 0 0 auto; /* don't shrink below content width */
+      }
+      @media (max-width: 520px) {
+        #sc-total-value {
+          font-size: 0.92rem;
+          padding: 6px 10px;
+          max-width: 260px;
+        }
+      }
       .sc-modal-header {
         display: flex;
         align-items: center;
@@ -540,23 +711,45 @@
         color: var(--muted);
         font-size: 0.9rem;
         margin: 6px 0;
+        flex-wrap: nowrap; /* keep pills on single line */
+        overflow: hidden;
       }
       .sc-pill {
-        padding: 2px 8px;
+        padding: 6px 10px;
         border-radius: 999px;
         background: #eef2ff;
         color: #3730a3;
         font-size: 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+        flex: 0 0 auto; /* prevent shrinking that causes wrap */
+        max-width: 240px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-height: 34px;
+        box-sizing: border-box;
+        line-height: 1;
       }
 
       /* Make the row-count more prominent for ERP-style modules */
       #sc-count {
         font-size: 0.95rem;
         font-weight: 600;
-        padding: 6px 12px;
+        padding: 6px 10px;
         background: #eef2ff;
         color: #3730a3;
         box-shadow: 0 1px 0 rgba(0, 0, 0, 0.03) inset;
+        min-width: 64px;
+        max-width: 220px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        min-height: 34px;
+        display: inline-flex;
+        align-items: center;
+        box-sizing: border-box;
       }
 
       /* Constrain the table card to the viewport so page-level vertical
@@ -675,8 +868,8 @@
         overflow-wrap: normal;
       }
       thead th:first-child {
-        text-align: left;
-      } /* “Item” header left */
+        text-align: center;
+      } /* “Item” header centered */
       tbody td {
         border-top: 1px solid #f3f4f6;
         padding: 8px;
@@ -691,6 +884,7 @@
         margin-left: auto;
         display: flex;
         gap: 6px;
+        align-items: center; /* vertically center paginator contents with pills */
       }
 
       /* ───────────────────────────────── Breakpoint tweak for filters ───────────────────────────────── */
@@ -895,6 +1089,82 @@
       }
       details.drawer[open] > summary .chev {
         transform: rotate(90deg);
+      }
+      /* Sorting caret visuals for sc-table (ensures carets visible on this page) */
+      #sc-table thead th {
+        cursor: pointer;
+        position: sticky;
+        top: 0;
+        user-select: none;
+        overflow: visible;
+        padding-right: 12px;
+        background: var(--bg);
+        z-index: 6;
+      }
+
+      /* Paginator: show icons-only on narrow screens */
+      .pagination .sc-btn svg {
+        width: 16px;
+        height: 16px;
+        vertical-align: middle;
+        margin-right: 8px;
+      }
+      .pagination .pbtn-label {
+        display: inline-block;
+      }
+      @media (max-width: 520px) {
+        .pagination .pbtn-label {
+          display: none;
+        }
+        .pagination .sc-btn {
+          padding: 8px;
+          width: 40px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .pagination .sc-btn svg {
+          margin: 0;
+        }
+      }
+      #sc-table thead th .sc-sort-indicator {
+        display: inline-block;
+        margin-left: 6px;
+        font-size: 1.05em;
+        font-weight: 700;
+        line-height: 1;
+        color: #3f3f46;
+        transition: color 0.12s ease, transform 0.12s ease, opacity 0.12s ease;
+        opacity: 1;
+        z-index: 2;
+      }
+      #sc-table thead th:hover .sc-sort-indicator {
+        color: #111827;
+      }
+      #sc-table thead th.sort-asc {
+        background: #e6f6ff; /* solid light blue */
+      }
+      #sc-table thead th.sort-asc .sc-sort-indicator {
+        color: #0369a1;
+        transform: translateY(-1px);
+      }
+      #sc-table thead th.sort-desc {
+        background: #fff0f2; /* solid light red/pink */
+      }
+      #sc-table thead th.sort-desc .sc-sort-indicator {
+        color: #9b111e;
+        transform: translateY(1px);
+      }
+      /* Light vertical inner borders for sc-table columns (page-local) */
+      #sc-table {
+        border-collapse: collapse;
+      }
+      #sc-table thead th:not(:first-child),
+      #sc-table tbody td:not(:first-child) {
+        border-left: 1px solid rgba(15, 23, 42, 0.12);
+      }
+      #sc-table thead th {
+        border-bottom: 1px solid rgba(15, 23, 42, 0.12);
       }
     </style>
   </head>
@@ -1513,11 +1783,48 @@
     <!-- Meta row: counts + last updated + pagination -->
     <div class="sc-meta">
       <span id="sc-count" class="sc-pill">0 rows</span>
+      <span
+        id="sc-total-value"
+        class="sc-pill"
+        tabindex="0"
+        role="button"
+        aria-haspopup="dialog"
+        style="margin-left: 8px; cursor: pointer"
+        >Value: ₹ —</span
+      >
 
       <div class="pagination">
-        <button id="sc-prev" class="sc-btn" type="button" disabled>Prev</button>
-        <span id="sc-page" style="align-self: center">Page 1</span>
-        <button id="sc-next" class="sc-btn" type="button" disabled>Next</button>
+        <button id="sc-prev" class="sc-btn" type="button" disabled>
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <path d="M15 6l-6 6 6 6" />
+          </svg>
+          <span class="pbtn-label">Prev</span>
+        </button>
+        <span id="sc-page" style="display: inline-flex; align-items: center"
+          >Page 1</span
+        >
+        <button id="sc-next" class="sc-btn" type="button" disabled>
+          <span class="pbtn-label">Next</span>
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <path d="M9 6l6 6-6 6" />
+          </svg>
+        </button>
       </div>
     </div>
 
@@ -1548,6 +1855,15 @@
         >
           Explode MOS
         </button>
+        <button
+          id="toggle-value"
+          class="sc-btn"
+          type="button"
+          aria-pressed="false"
+          style="margin-left: 8px"
+        >
+          Show Value
+        </button>
       </div>
     </div>
 
@@ -1556,7 +1872,7 @@
       <table id="sc-table" class="collapsed-default">
         <thead>
           <tr>
-            <th class="col-item" style="text-align: left">Item</th>
+            <th class="col-item" style="text-align: center">Item</th>
             <th class="col-meta" style="text-align: center">Pack Size</th>
             <th class="col-meta" style="text-align: center">UOM</th>
             <th class="col-stock" style="text-align: center">Stock IK</th>
@@ -1564,6 +1880,18 @@
             <th class="col-stock" style="text-align: center">Stock OK</th>
             <th class="col-overall" style="text-align: center">
               Stock (overall)
+            </th>
+            <th class="col-value" style="text-align: center; display: none">
+              Value IK
+            </th>
+            <th class="col-value" style="text-align: center; display: none">
+              Value KKD
+            </th>
+            <th class="col-value" style="text-align: center; display: none">
+              Value OK
+            </th>
+            <th class="col-value" style="text-align: center; display: none">
+              Value (overall)
             </th>
             <th class="col-demand" style="text-align: center">Demand IK</th>
             <th class="col-demand" style="text-align: center">Demand KKD</th>
@@ -1583,6 +1911,103 @@
           <!-- rows injected by JS (Step C) -->
         </tbody>
       </table>
+    </div>
+
+    <!-- Stock Value Summary Modal -->
+    <div
+      id="sc-value-modal"
+      class="sc-modal"
+      role="dialog"
+      aria-modal="true"
+      style="display: none"
+    >
+      <div class="sc-modal-backdrop" data-close="true"></div>
+      <div
+        class="sc-modal-panel"
+        role="document"
+        aria-labelledby="sc-value-modal-title"
+      >
+        <div class="sc-modal-header">
+          <h3 id="sc-value-modal-title">Stock Value Summary</h3>
+          <button
+            id="sc-value-modal-close"
+            class="sc-btn sc-btn-icon"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+        <div class="sc-modal-body" id="sc-value-modal-body">
+          <div id="sc-value-body-content">Calculating…</div>
+        </div>
+        <div
+          class="sc-modal-footer"
+          id="sc-value-modal-footer"
+          style="padding: 12px 16px; border-top: 1px solid #f1f5f9"
+        >
+          <small id="sc-value-snapshot">Snapshot: —</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row details modal -->
+    <div
+      id="sc-row-modal"
+      class="sc-modal"
+      role="dialog"
+      aria-modal="true"
+      style="display: none"
+    >
+      <div class="sc-modal-backdrop" data-close="true"></div>
+      <div
+        class="sc-modal-panel"
+        role="document"
+        aria-labelledby="sc-row-modal-title"
+      >
+        <div class="sc-modal-header">
+          <h3 id="sc-row-modal-title">Item Details</h3>
+          <button
+            id="sc-row-modal-close"
+            class="sc-btn sc-btn-icon"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+        <div class="sc-modal-body" id="sc-row-modal-body">
+          <div id="sc-row-header" style="margin-bottom: 12px"></div>
+          <div
+            id="sc-row-classif"
+            style="color: var(--muted); font-size: 0.95rem; margin-bottom: 8px"
+          ></div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px">
+            <div
+              id="sc-row-qty"
+              style="
+                background: #fff;
+                padding: 8px;
+                border-radius: 6px;
+                border: 1px solid var(--border);
+              "
+            ></div>
+            <div
+              id="sc-row-value"
+              style="
+                background: #fff;
+                padding: 8px;
+                border-radius: 6px;
+                border: 1px solid var(--border);
+              "
+            ></div>
+          </div>
+        </div>
+        <div
+          class="sc-modal-footer"
+          style="padding: 12px 16px; border-top: 1px solid #f1f5f9"
+        >
+          <small id="sc-row-footer-info"></small>
+        </div>
+      </div>
     </div>
 
     <!-- Inline message area -->

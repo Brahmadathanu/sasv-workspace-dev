@@ -1,5 +1,7 @@
 import { supabase } from "./supabaseClient.js";
 import { showToast } from "./toast.js";
+import { loadAccessContext, canEditRM } from "./mrpAccess.js";
+import { ensureDetailModal } from "./detailModal.js";
 
 // Toggle debug traces for this module
 const DEBUG = false;
@@ -1388,9 +1390,30 @@ window.addEventListener("DOMContentLoaded", async () => {
     void err;
   }
 
+  // initialize shared helpers
+  try {
+    await loadAccessContext();
+  } catch (e) {
+    console.debug("loadAccessContext failed", e);
+  }
+  try {
+    ensureDetailModal();
+  } catch (e) {
+    console.debug("ensureDetailModal failed", e);
+  }
+
   wireUp();
   await initFromUrl();
   showSummaryView();
+
+  // enforce simple client-side gating for edit actions
+  try {
+    const canEdit = canEditRM();
+    const saveBtn = document.getElementById("saveChangesBtn");
+    if (saveBtn) saveBtn.disabled = !canEdit;
+  } catch (e) {
+    void e;
+  }
 });
 
 function insertBackButtonFromUrl() {

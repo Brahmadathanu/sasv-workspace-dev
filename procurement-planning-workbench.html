@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Procurement Planning Workbench</title>
+    <link rel="stylesheet" href="public/shared/css/style.css" />
+    <style>
+      body {
+        font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif;
+        margin: 16px;
+      }
+      .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .muted {
+        color: #666;
+        font-size: 13px;
+      }
+      .tabs {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .tab {
+        padding: 8px 12px;
+        border-radius: 6px;
+        border: 1px solid #e5e7eb;
+        cursor: pointer;
+      }
+      .tab.active {
+        background: #eef2ff;
+        border-color: #c7d2fe;
+      }
+      .filter-bar {
+        margin: 12px 0;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .panel {
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 12px;
+        background: #fff;
+      }
+      .actions {
+        display: flex;
+        gap: 8px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 8px;
+        border-bottom: 1px solid #f3f4f6;
+      }
+      .table-wrap {
+        max-height: 520px;
+        overflow: auto;
+        border-radius: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-header">
+      <div>
+        <h1>Procurement Planning Workbench</h1>
+        <div class="muted">
+          Read-only procurement cockpit: plan → overlay → conversion →
+          traceability
+        </div>
+      </div>
+      <div id="accessBadge" class="muted">Loading access…</div>
+    </div>
+
+    <div style="margin-top: 8px">
+      <div class="tabs" id="tabs">
+        <div class="tab active" data-tab="final-plan">
+          Final Procurement Plan
+        </div>
+        <div class="tab" data-tab="rm-overlay">RM Seasonal Overlay Results</div>
+        <div class="tab" data-tab="rm-conversion">RM Form Conversion</div>
+        <div class="tab" data-tab="traceability">
+          Traceability / Drilldown Hub
+        </div>
+      </div>
+
+      <div id="tabContainer" style="margin-top: 12px">
+        <!-- filter + actions repeated per tab -->
+        <div id="final-plan" class="panel tab-pane">
+          <div class="filter-bar">
+            <label
+              >Range:
+              <select id="fp-preset">
+                <option value="next12">Next 12</option>
+                <option value="calendarYear">Calendar Year</option>
+                <option value="custom">Custom</option>
+              </select>
+            </label>
+            <input type="month" id="fp-start" />
+            <input type="month" id="fp-end" />
+            <input placeholder="Stock code or name" id="fp-search" />
+            <select id="fp-material-kind">
+              <option value="all">All</option>
+              <option value="raw_material">Raw Material</option>
+              <option value="packaging_material">Packaging</option>
+            </select>
+            <label
+              ><input type="checkbox" id="fp-only-net" /> Only net_need ≠
+              0</label
+            >
+            <div class="actions" style="margin-left: auto">
+              <button id="fp-export-csv" class="btn">Export CSV</button>
+              <button id="fp-export-json" class="btn">Export JSON</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table id="fp-table">
+              <thead id="fp-thead"></thead>
+              <tbody id="fp-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="rm-overlay" class="panel tab-pane" style="display: none">
+          <div class="filter-bar">
+            <div id="overlay-runs" style="min-width: 240px"></div>
+            <input type="month" id="ov-start" />
+            <input type="month" id="ov-end" />
+            <input placeholder="RM code or name" id="ov-search" />
+            <label
+              ><input type="checkbox" id="ov-only-nonzero" /> Only
+              overlay_procure_qty ≠ 0</label
+            >
+            <div class="actions" style="margin-left: auto">
+              <button id="ov-export-csv" class="btn">Export CSV</button>
+              <button id="ov-export-json" class="btn">Export JSON</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table id="ov-table">
+              <thead id="ov-thead"></thead>
+              <tbody id="ov-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="rm-conversion" class="panel tab-pane" style="display: none">
+          <div class="filter-bar">
+            <select id="conv-preset">
+              <option value="next12">Next 12</option>
+              <option value="calendarYear">Calendar Year</option>
+              <option value="custom">Custom</option>
+            </select>
+            <input type="month" id="conv-start" />
+            <input type="month" id="conv-end" />
+            <input placeholder="Purchase item name" id="conv-search" />
+            <div class="actions" style="margin-left: auto">
+              <button id="conv-export-csv" class="btn">Export CSV</button>
+              <button id="conv-export-json" class="btn">Export JSON</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table id="conv-table">
+              <thead id="conv-thead"></thead>
+              <tbody id="conv-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="traceability" class="panel tab-pane" style="display: none">
+          <div class="filter-bar">
+            <input placeholder="Stock code or name" id="tr-search" />
+            <input type="month" id="tr-start" />
+            <input type="month" id="tr-end" />
+            <select id="tr-material-kind">
+              <option value="all">All</option>
+              <option value="raw_material">Raw Material</option>
+              <option value="packaging_material">Packaging</option>
+            </select>
+            <div class="actions" style="margin-left: auto">
+              <button id="tr-export-json" class="btn">Export Trace JSON</button>
+            </div>
+          </div>
+          <div id="trace-panels">
+            <div class="card" id="trace-plan"></div>
+            <div class="card" id="trace-overlay" style="margin-top: 8px"></div>
+            <div
+              class="card"
+              id="trace-conversion"
+              style="margin-top: 8px"
+            ></div>
+            <div class="card" id="trace-rm-trace" style="margin-top: 8px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="js/procurement-planning-workbench.js"></script>
+  </body>
+</html>

@@ -1,5 +1,7 @@
 import { supabase } from "./supabaseClient.js";
 import { showToast } from "./toast.js";
+import { loadAccessContext, canEditPM } from "./mrpAccess.js";
+import { ensureDetailModal } from "./detailModal.js";
 
 // Preferred view name; if the view isn't present on the server we'll try
 // a short list of fallbacks to remain resilient during early deployments.
@@ -398,6 +400,14 @@ function renderOverviewTable() {
       rebuildForItem(row);
     });
 
+    // Disable rebuild button for users without PM edit rights
+    try {
+      const rb = tr.querySelector(".rebuild-one");
+      if (rb) rb.disabled = !canEditPM();
+    } catch {
+      void 0;
+    }
+
     tr.querySelector(".open-allocation").addEventListener("click", (e) => {
       e.stopPropagation();
       openAllocationForItem(row);
@@ -486,6 +496,12 @@ async function rebuildAll() {
     showToast("Select a month first", { type: "error" });
     return;
   }
+  if (!canEditPM()) {
+    showToast("You do not have permission to rebuild PLM allocations", {
+      type: "error",
+    });
+    return;
+  }
   if (
     !(await showConfirmModal(
       "This will rebuild PLM allocations for the selected month using the latest templates. Continue?"
@@ -510,6 +526,12 @@ async function rebuildAll() {
 
 async function rebuildForItem(row) {
   if (!currentHorizonStart) return;
+  if (!canEditPM()) {
+    showToast("You do not have permission to rebuild PLM allocations", {
+      type: "error",
+    });
+    return;
+  }
   if (
     !(await showConfirmModal(
       `Rebuild PLM allocations for ${getPlmLabel(row)} in this month?`
@@ -591,6 +613,14 @@ function getQueryParam(name) {
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
+  // load access context and initialize shared detail modal
+  await loadAccessContext();
+  try {
+    ensureDetailModal();
+  } catch {
+    void 0;
+  }
+
   wireUp();
   // initialise month input
   const qH = getQueryParam("horizon_start");
@@ -612,4 +642,11 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
 
   await loadAndRenderOverview();
+
+  // Apply client-side gating for rebuild actions
+  try {
+    els.rebuildAllBtn().disabled = !canEditPM();
+  } catch {
+    void 0;
+  }
 });

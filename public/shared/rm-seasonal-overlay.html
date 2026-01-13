@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>SASV WORKSPACE | RM Seasonal Overlay</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="./css/style.css" />
+    <style>
+      body {
+        margin: 18px;
+        font-family: Arial, sans-serif;
+        background: var(--bg-color);
+        color: var(--text-color);
+      }
+      .header-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+      }
+      .controls {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+      }
+      label {
+        display: flex;
+        flex-direction: column;
+        font-size: 0.95rem;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .actions {
+        display: flex;
+        gap: 8px;
+      }
+      .result {
+        border: 1px solid #ccc;
+        padding: 12px;
+        border-radius: 6px;
+        background: var(--panel-bg);
+      }
+      .link-btn {
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--primary);
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body data-theme="system">
+    <div class="header-bar">
+      <div>
+        <h2>RM Seasonal Overlay</h2>
+        <div class="muted">
+          Apply seasonal profile overlays to RM planning horizon.
+        </div>
+      </div>
+      <div class="header-actions"><button id="homeBtn">HOME</button></div>
+    </div>
+
+    <div class="controls">
+      <label>Plan start <input id="planStart" type="month" /></label>
+      <label>Plan end <input id="planEnd" type="month" /></label>
+      <label style="flex: 1"
+        ><span class="muted">Notes (optional)</span
+        ><input id="notes" type="text" style="width: 100%"
+      /></label>
+      <div class="actions">
+        <button id="dryRunBtn">Dry run</button>
+        <button id="runBtn">Run Overlay</button>
+        <button id="viewLastBtn" class="link-btn">View last run</button>
+      </div>
+    </div>
+
+    <!-- Tabs: Run | Results | Exports -->
+    <div style="margin-top: 12px; display: flex; gap: 8px; align-items: center">
+      <div style="display: flex; gap: 6px">
+        <button id="tabRun" class="tab-btn">Run Overlay</button>
+        <button id="tabResults" class="tab-btn">Results</button>
+        <button id="tabExports" class="tab-btn">Exports</button>
+      </div>
+    </div>
+
+    <div id="runSection" style="margin-top: 12px">
+      <div id="resultPanel" class="result" style="display: none">
+        <div id="resultHeader" class="muted"></div>
+        <div id="resultBody" style="margin-top: 8px"></div>
+      </div>
+    </div>
+
+    <div id="resultsSection" style="margin-top: 12px; display: none">
+      <div
+        style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center"
+      >
+        <label
+          >Run
+          <select id="selectRun">
+            <option value="active">Active (current)</option>
+          </select></label
+        >
+        <label>Start <input id="resultsStart" type="month" /></label>
+        <label>End <input id="resultsEnd" type="month" /></label>
+        <label
+          >Search
+          <input id="resultsSearch" type="search" placeholder="RM code or name"
+        /></label>
+        <label
+          ><input id="onlyNetNeed" type="checkbox" /> Only net_need ≠ 0</label
+        >
+        <div style="margin-left: auto; display: flex; gap: 8px">
+          <button id="resultsPrev">Prev</button>
+          <button id="resultsNext">Next</button>
+        </div>
+      </div>
+      <div id="resultsTable" style="margin-top: 8px"></div>
+    </div>
+
+    <div id="exportsSection" style="margin-top: 12px; display: none">
+      <div
+        style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap"
+      >
+        <button id="dlRunJson">Download run JSON</button>
+        <button id="dlMonthlyJson">Download monthly JSON</button>
+        <button id="dlResultsCsv">Download results CSV</button>
+      </div>
+    </div>
+
+    <script type="module" src="js/supabaseClient.js"></script>
+    <script type="module" src="js/toast.js"></script>
+    <script type="module" src="js/rm-seasonal-overlay.js"></script>
+  </body>
+</html>

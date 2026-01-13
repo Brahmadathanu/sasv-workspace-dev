@@ -1,5 +1,7 @@
 import { supabase } from "./supabaseClient.js";
 import { showToast } from "./toast.js";
+import { loadAccessContext, canEditPM } from "./mrpAccess.js";
+import { ensureDetailModal } from "./detailModal.js";
 
 // Simple PM Issue Allocation console
 // - Summary sourced from RPC `mrp_pm_allocation_console` (LIST mode)
@@ -1313,10 +1315,31 @@ window.addEventListener("DOMContentLoaded", async () => {
     void err;
   }
 
+  // initialize shared helpers (modal + access context)
+  try {
+    await loadAccessContext();
+  } catch (e) {
+    console.debug("loadAccessContext failed", e);
+  }
+  try {
+    ensureDetailModal();
+  } catch (e) {
+    console.debug("ensureDetailModal failed", e);
+  }
+
   wireUp();
   await initFromUrl();
   // start in Summary view
   showSummaryView();
+
+  // client-side gating: disable Save when user cannot edit PM
+  try {
+    const canEdit = canEditPM();
+    const saveBtn = document.getElementById("saveChangesBtn");
+    if (saveBtn) saveBtn.disabled = !canEdit;
+  } catch (e) {
+    void e;
+  }
 });
 
 // Insert a conditional Back button into the header when the URL contains

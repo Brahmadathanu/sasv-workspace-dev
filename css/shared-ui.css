@@ -321,6 +321,66 @@ details.drawer > summary svg {
   color: #374151;
 }
 
+/* Stock-checker sorting visuals: carets, hover and active states */
+#sc-table thead th {
+  cursor: pointer;
+  position: sticky;
+  top: 0;
+  user-select: none;
+  overflow: visible; /* ensure indicator is not clipped */
+  padding-right: 12px; /* room for indicator */
+  background: var(--panel-bg);
+  z-index: 6;
+}
+#sc-table thead th .sc-sort-indicator {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 1.05em;
+  font-weight: 700;
+  line-height: 1;
+  color: #3f3f46; /* stronger neutral */
+  transition: color 0.12s ease, transform 0.12s ease, opacity 0.12s ease;
+  opacity: 1;
+  z-index: 2;
+}
+#sc-table thead th:hover .sc-sort-indicator {
+  color: #374151;
+}
+#sc-table thead th.sort-asc {
+  background: #e6f6ff; /* solid light blue */
+}
+#sc-table thead th.sort-asc .sc-sort-indicator {
+  color: #0369a1; /* stronger blue for ascending */
+  transform: translateY(-1px);
+}
+#sc-table thead th.sort-desc {
+  background: #fff0f2; /* solid light red/pink */
+}
+#sc-table thead th.sort-desc .sc-sort-indicator {
+  color: #9b111e; /* stronger red for descending */
+  transform: translateY(1px);
+}
+
+/* Make header text and caret align nicely on narrow screens */
+@media (max-width: 720px) {
+  #sc-table thead th .sc-sort-indicator {
+    margin-left: 4px;
+    font-size: 0.72em;
+  }
+}
+
+/* Light vertical inner borders for sc-table columns */
+#sc-table {
+  border-collapse: collapse;
+}
+#sc-table thead th:not(:first-child),
+#sc-table tbody td:not(:first-child) {
+  border-left: 1px solid rgba(15, 23, 42, 0.12);
+}
+#sc-table thead th {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+
 /* Professional ERP-style status display */
 .sc-snapshot {
   display: inline-flex;
@@ -396,6 +456,138 @@ details.drawer > summary svg {
   left: 0;
   margin-top: 9px;
   padding: 8px 10px;
+  .mrp-table tbody tr[data-id] {
+    cursor: pointer;
+  }
+
+  /* RM Mapping filter toggle (three-way) */
+  #mapFilterToggle {
+    display: inline-flex;
+    align-items: center;
+    background: #fff;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #e6eef8;
+  }
+  #mapFilterToggle .link-btn {
+    background: transparent;
+    color: #374151;
+    padding: 6px 10px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    min-width: 64px;
+  }
+  #mapFilterToggle .link-btn:hover {
+    background: #f8fafc;
+  }
+  #mapFilterToggle .link-btn.active {
+    background: linear-gradient(90deg, #60a5fa 0%, #2563eb 100%);
+    color: #fff;
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.12);
+  }
+
+  /* extra specificity to override other button defaults */
+  #filterMapped.active,
+  #filterUnmapped.active,
+  #filterAll.active {
+    background: linear-gradient(90deg, #60a5fa 0%, #2563eb 100%) !important;
+    color: #fff !important;
+    border-color: transparent !important;
+  }
+  #mapFilterToggle .link-btn {
+    transition: all 150ms ease;
+  }
+
+  /* ERP-style toggle button group */
+  .erp-toggle-group {
+    display: inline-flex;
+    background: #ffffff;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+    margin-left: 12px;
+  }
+
+  .erp-toggle-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px;
+    min-width: 70px;
+    background: #ffffff;
+    border: none;
+    border-right: 1px solid #e5e7eb;
+    color: #6b7280;
+    font-weight: 500;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+  }
+
+  .erp-toggle-btn:last-child {
+    border-right: none;
+  }
+
+  .erp-toggle-btn:hover {
+    background: #f8fafc;
+    color: #374151;
+  }
+
+  .erp-toggle-btn.active {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    color: #ffffff;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+
+  .erp-toggle-btn.active::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #60a5fa, #3b82f6);
+  }
+
+  .toggle-icon {
+    font-size: 14px;
+    margin-bottom: 2px;
+    opacity: 0.8;
+  }
+
+  .erp-toggle-btn.active .toggle-icon {
+    opacity: 1;
+  }
+
+  .toggle-label {
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .mrp-table tbody tr[data-id]:hover {
+    background: #fbfdff;
+  }
+  /* RM/Mapping table visual parity: sticky header background and alternate row colour */
+  .mrp-table thead th {
+    background: #f3f4f6; /* light grey header */
+    color: #374151; /* slate-700 */
+    font-weight: 700;
+    border-bottom: 1px solid #e6eef8;
+  }
+  .mrp-table tbody tr:nth-child(even) {
+    background: #fbfbfb; /* subtle alternate-row */
+  }
+  .mrp-table th,
+  .mrp-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #eef2f7;
+    box-sizing: border-box;
+  }
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 6px;
@@ -420,4 +612,255 @@ details.drawer > summary svg {
   .sc-snapshot {
     padding: 6px;
   }
+}
+
+/* ========================================================================
+   UNIFIED MRP TABLE SYSTEM - Applied to ALL tables in MRP Console
+   ======================================================================== */
+
+/* Standard MRP table container */
+#mrpTableContainer {
+  border-radius: 8px !important;
+  border: 1px solid #e6eef6 !important;
+  background: #fff !important;
+  box-shadow: none !important;
+  overflow: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+/* All MRP tables use consistent styling */
+table[id^="mrpTable_"],
+.mrp-table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  table-layout: fixed !important;
+  background: #fff !important;
+  margin: 0 !important;
+  min-width: 720px !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Headers - consistent gray background and typography */
+table[id^="mrpTable_"] thead th,
+.mrp-table thead th {
+  background: #f3f4f6 !important;
+  color: #374151 !important;
+  font-weight: 700 !important;
+  font-size: 0.82rem !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.02em !important;
+  padding: 10px 12px !important;
+  border-bottom: 2px solid rgba(2, 6, 23, 0.08) !important;
+  text-align: center !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 1100 !important;
+  box-shadow: none !important;
+  background-clip: padding-box !important;
+}
+
+/* Body cells - consistent padding and borders */
+table[id^="mrpTable_"] tbody td,
+.mrp-table tbody td {
+  padding: 10px 12px !important;
+  border-bottom: 1px solid #eef2f7 !important;
+  font-size: 0.95rem !important;
+  vertical-align: middle !important;
+  color: #0f172a !important;
+  background: #fff !important;
+}
+
+/* Alternating rows - consistent zebra striping */
+table[id^="mrpTable_"] tbody tr:nth-child(even),
+.mrp-table tbody tr:nth-child(even) {
+  background: rgba(2, 6, 23, 0.01) !important;
+}
+
+table[id^="mrpTable_"] tbody tr:nth-child(even) td,
+.mrp-table tbody tr:nth-child(even) td {
+  background: rgba(2, 6, 23, 0.01) !important;
+}
+
+/* Hover effects */
+table[id^="mrpTable_"] tbody tr:hover,
+.mrp-table tbody tr:hover {
+  background: rgba(2, 6, 23, 0.04) !important;
+}
+
+table[id^="mrpTable_"] tbody tr:hover td,
+.mrp-table tbody tr:hover td {
+  background: rgba(2, 6, 23, 0.04) !important;
+}
+
+/* Clickable rows */
+table[id^="mrpTable_"] tbody tr[data-id],
+.mrp-table tbody tr[data-id] {
+  cursor: pointer !important;
+}
+
+/* Responsive behavior */
+@media (max-width: 1100px) {
+  table[id^="mrpTable_"],
+  .mrp-table {
+    min-width: 800px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  table[id^="mrpTable_"],
+  .mrp-table {
+    min-width: 700px !important;
+  }
+  table[id^="mrpTable_"] th,
+  table[id^="mrpTable_"] td,
+  .mrp-table th,
+  .mrp-table td {
+    padding: 8px 10px !important;
+    font-size: 0.875rem !important;
+  }
+}
+
+/* ------------------------------------------------------------------------
+   Table horizontal alignment overrides per tab
+   ------------------------------------------------------------------------ */
+/* MOQ Policy: centre most columns, left-align NAME (col 4) */
+#mrpTable_moq tbody td:nth-child(1),
+#mrpTable_moq tbody td:nth-child(2),
+#mrpTable_moq tbody td:nth-child(3),
+#mrpTable_moq tbody td:nth-child(5),
+#mrpTable_moq tbody td:nth-child(6),
+#mrpTable_moq tbody td:nth-child(7),
+#mrpTable_moq tbody td:nth-child(8) {
+  text-align: center !important;
+}
+#mrpTable_moq tbody td:nth-child(4) {
+  text-align: left !important;
+}
+
+/* RM Form Conversion: centre ID, CODE, FACTOR, ACTIVE; left-align NAME columns */
+
+#mrpTable_conv tbody td:nth-child(1),
+#mrpTable_conv tbody td:nth-child(2),
+#mrpTable_conv tbody td:nth-child(4),
+#mrpTable_conv tbody td:nth-child(5),
+#mrpTable_conv tbody td:nth-child(7),
+#mrpTable_conv tbody td:nth-child(8) {
+  text-align: center !important;
+}
+#mrpTable_conv tbody td:nth-child(3),
+#mrpTable_conv tbody td:nth-child(6) {
+  text-align: left !important;
+}
+
+/* Match headers to body alignment for Conversion */
+
+#mrpTable_conv thead th:nth-child(1),
+#mrpTable_conv thead th:nth-child(2),
+#mrpTable_conv thead th:nth-child(4),
+#mrpTable_conv thead th:nth-child(5),
+#mrpTable_conv thead th:nth-child(7),
+#mrpTable_conv thead th:nth-child(8) {
+  text-align: center !important;
+}
+#mrpTable_conv thead th:nth-child(3),
+#mrpTable_conv thead th:nth-child(6) {
+  text-align: left !important;
+}
+
+/* Season Profiles: centre PROFILE ID; left-align LABEL, MANUFACTURE MONTHS, MONTH SPLIT */
+#mrpTable_season tbody td:nth-child(1) {
+  text-align: center !important;
+}
+#mrpTable_season tbody td:nth-child(2),
+#mrpTable_season tbody td:nth-child(3),
+#mrpTable_season tbody td:nth-child(4) {
+  text-align: left !important;
+}
+
+/* Match headers to body alignment for Season Profiles */
+#mrpTable_season thead th:nth-child(1) {
+  text-align: center !important;
+}
+#mrpTable_season thead th:nth-child(2),
+#mrpTable_season thead th:nth-child(3),
+#mrpTable_season thead th:nth-child(4) {
+  text-align: left !important;
+}
+
+/* RM Seasonal Mapping: centre ID, CODE, ACTIVE; left-align NAME and SEASON PROFILE */
+#mrpTable_mapping tbody td:nth-child(1),
+#mrpTable_mapping tbody td:nth-child(2),
+#mrpTable_mapping tbody td:nth-child(5) {
+  text-align: center !important;
+}
+#mrpTable_mapping tbody td:nth-child(3),
+#mrpTable_mapping tbody td:nth-child(4) {
+  text-align: left !important;
+}
+
+/* Match headers to body alignment for Mapping */
+#mrpTable_mapping thead th:nth-child(1),
+#mrpTable_mapping thead th:nth-child(2),
+#mrpTable_mapping thead th:nth-child(5) {
+  text-align: center !important;
+}
+#mrpTable_mapping thead th:nth-child(3),
+#mrpTable_mapping thead th:nth-child(4) {
+  text-align: left !important;
+}
+
+/* ========================================================================
+   LEGACY STYLES - Keep for backward compatibility
+   ======================================================================== */
+
+/* RM Form Conversion — preserve group-level colour accents
+   The conversion table emits `td.consuming-col` and `td.purchase-col`.
+   These rules are specific to #mrpTable_conv so the unified table
+   system's zebra/row rules do not hide the intended group accents. */
+#mrpTable_conv thead tr.conv-group-header-row th:nth-child(1) {
+  background: linear-gradient(180deg, #e0f0ff 0%, #d4e9ff 100%) !important;
+  color: #0a3a7a !important;
+  border-right: 2px solid #93c5fd !important;
+}
+#mrpTable_conv thead tr.conv-group-header-row th:nth-child(2) {
+  background: linear-gradient(180deg, #e8f8ed 0%, #dcf4e4 100%) !important;
+  color: #0d5c2f !important;
+  border-right: 2px solid #86efac !important;
+}
+#mrpTable_conv thead tr.conv-group-header-row th:nth-child(3) {
+  background: #fafafa !important;
+}
+
+/* Subtle column-level tint for consuming vs purchase columns. Use
+   higher specificity and !important so these cell-level backgrounds
+   sit above any row-based zebra backgrounds from the unified table CSS. */
+#mrpTable_conv td.consuming-col {
+  background: linear-gradient(
+    180deg,
+    rgba(224, 240, 255, 0.06),
+    rgba(212, 233, 255, 0.04)
+  ) !important;
+}
+#mrpTable_conv td.purchase-col {
+  background: linear-gradient(
+    180deg,
+    rgba(232, 248, 237, 0.06),
+    rgba(220, 244, 228, 0.04)
+  ) !important;
+}
+
+/* Keep neutral columns visually separate */
+#mrpTable_conv td:not(.consuming-col):not(.purchase-col) {
+  background: transparent !important;
+}
+
+/* Ensure the vertical group separator lines extend through all body rows.
+   The table columns are fixed: consuming name is column 3, purchase name is
+   column 6 — add matching right borders on those td cells so the header's
+   coloured separators visually continue down the tbody. */
+#mrpTable_conv td:nth-child(3) {
+  border-right: 2px solid #93c5fd !important;
+}
+#mrpTable_conv td:nth-child(6) {
+  border-right: 2px solid #86efac !important;
 }

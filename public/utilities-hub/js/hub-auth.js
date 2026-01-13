@@ -18,6 +18,23 @@
 
 import { supabase } from "../../shared/js/supabaseClient.js";
 
+// Helper: fetch canonical permissions for a user via RPC (returns array)
+async function getUserPermissions(userId) {
+  if (!userId) return null;
+  try {
+    const { data, error } = await supabase.rpc("get_user_permissions", {
+      p_user_id: userId,
+    });
+    if (error) {
+      console.debug("getUserPermissions RPC error", error);
+      return null;
+    }
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    console.debug("getUserPermissions failed", e);
+    return null;
+  }
+}
 /* ──────────────────────────────────────────────────────────────
    DOM references
 ─────────────────────────────────────────────────────────────── */
@@ -72,6 +89,23 @@ function clearMsgSoon(ms = 3000) {
 async function isHubAdmin(userId) {
   if (!userId) return false;
   try {
+    const perms = await getUserPermissions(userId);
+    if (perms) {
+      // look for role:hub_admin or module:hub_admin
+      for (const p of perms) {
+        if (!p || !p.target) continue;
+        const t = String(p.target || "");
+        if (
+          (t === "role:hub_admin" || t === "module:hub_admin") &&
+          p.can_edit
+        ) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    // RPC not available; fallback to legacy check
     const { data, error } = await supabase
       .from("hub_user_access")
       .select("level, hub_utilities!inner(key)")
@@ -333,20 +367,63 @@ async function loadAccessMap(userId, utilities) {
   const map = {};
   utilities.forEach((u) => (map[u.id] = "none"));
   if (!userId) return map;
+  // Try canonical RPC first
+  try {
+    const perms = await getUserPermissions(userId);
+    if (perms) {
+      // build quick lookup for module: and role:
+      const modMap = {};
+      const roleSet = new Set();
+      for (const p of perms) {
+        if (!p || !p.target) continue;
+        const t = String(p.target || "");
+        if (t.startsWith("module:")) {
+          modMap[t.slice(7)] = p;
+        } else if (t.startsWith("role:")) {
+          roleSet.add(t.slice(5));
+        }
+      }
 
-  const { data, error } = await supabase
-    .from("hub_user_access")
-    .select("utility_id, level")
-    .eq("user_id", userId);
-
-  if (!error && Array.isArray(data)) {
-    for (const row of data) {
-      const id = String(row.utility_id);
-      if (!(id in map)) continue;
-      const level = String(row.level || "").toLowerCase();
-      if (level === "use" || level === "view") map[id] = level;
+      // resolve per-utility
+      for (const u of utilities) {
+        const key = String(u.key || "");
+        // prefer explicit module permission
+        const mod = modMap[key];
+        if (mod) {
+          if (mod.can_edit) map[u.id] = "use";
+          else if (mod.can_view) map[u.id] = "view";
+          continue;
+        }
+        // fallback: role entry matching utility key
+        if (roleSet.has(key)) {
+          map[u.id] = "use";
+          continue;
+        }
+      }
+      return map;
     }
-    return map;
+  } catch (e) {
+    console.debug("loadAccessMap RPC failed", e);
+  }
+
+  // RPC missing or errored: legacy query fallback
+  try {
+    const { data, error } = await supabase
+      .from("hub_user_access")
+      .select("utility_id, level")
+      .eq("user_id", userId);
+
+    if (!error && Array.isArray(data)) {
+      for (const row of data) {
+        const id = String(row.utility_id);
+        if (!(id in map)) continue;
+        const level = String(row.level || "").toLowerCase();
+        if (level === "use" || level === "view") map[id] = level;
+      }
+      return map;
+    }
+  } catch (e) {
+    console.debug("loadAccessMap legacy query failed", e);
   }
 
   // fallback: show as 'view' so users can request access
