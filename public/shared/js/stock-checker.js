@@ -473,6 +473,7 @@ const state = {
     ok: { en: false, op: "gt", v1: "", v2: "", notNull: false },
     ov: { en: false, op: "gt", v1: "", v2: "", notNull: false },
   },
+  sort: { col: "", dir: "" },
 };
 
 let __advExInitDone = false;
@@ -2832,28 +2833,8 @@ function compareRows(a, b, sortKeys) {
 function attachHeaderSorting() {
   if (!elTable) return;
   const ths = Array.from(elTable.querySelectorAll("thead th"));
-  // Map header ordering to column keys (keeps in sync with HTML order)
-  const keys = [
-    "item",
-    "pack_size",
-    "uom",
-    "stock_ik",
-    "stock_kkd",
-    "stock_ok",
-    "stock_overall",
-    "demand_ik",
-    "demand_kkd",
-    "demand_ok",
-    "demand_overall",
-    "mos_ik",
-    "mos_kkd",
-    "mos_ok",
-    "mos_overall",
-  ];
-
-  ths.forEach((th, idx) => {
-    const col = keys[idx] || `col_${idx}`;
-    th.dataset.col = col;
+  ths.forEach((th) => {
+    const col = th.dataset.sortCol || th.dataset.col || "";
     th.setAttribute("role", "button");
     th.tabIndex = 0;
     // ensure a visible caret indicator inside the header for tri-state
@@ -2875,17 +2856,16 @@ function attachHeaderSorting() {
     };
 
     const updateVisual = () => {
-      // clear previous indicators
       th.classList.remove("sort-asc", "sort-desc");
-      const top =
-        sortState.keys && sortState.keys[0] ? sortState.keys[0] : null;
-      if (top && top.col === col) {
-        th.classList.add(top.dir === "desc" ? "sort-desc" : "sort-asc");
-        ind.innerHTML = caretSvg(top.dir === "desc" ? "desc" : "asc");
-        th.setAttribute(
-          "aria-sort",
-          top.dir === "desc" ? "descending" : "ascending"
-        );
+      const cur = state.sort && state.sort.col === col ? state.sort.dir : "";
+      if (cur === "asc") {
+        th.classList.add("sort-asc");
+        ind.innerHTML = caretSvg("asc");
+        th.setAttribute("aria-sort", "ascending");
+      } else if (cur === "desc") {
+        th.classList.add("sort-desc");
+        ind.innerHTML = caretSvg("desc");
+        th.setAttribute("aria-sort", "descending");
       } else {
         ind.innerHTML = "";
         th.setAttribute("aria-sort", "none");
@@ -2893,72 +2873,39 @@ function attachHeaderSorting() {
     };
 
     const cycle = (ev) => {
-      ev.preventDefault();
-      const multi = ev.shiftKey;
-      const existingIndex = (sortState.keys || []).findIndex(
-        (k) => k.col === col
-      );
-      if (!multi) {
-        // single-click: make this the only key, cycle asc->desc->none
-        if (existingIndex === -1) {
-          sortState.keys = [{ col, dir: "asc" }];
-          sortState.userOverride = true;
-        } else if (sortState.keys[existingIndex].dir === "asc") {
-          sortState.keys = [{ col, dir: "desc" }];
-          sortState.userOverride = true;
-        } else {
-          // remove -> revert to server-side default ordering
-          sortState.keys = [];
-          sortState.userOverride = false;
-        }
+      ev && ev.preventDefault && ev.preventDefault();
+      if (!col) return;
+      // tri-state: asc -> desc -> none
+      if (state.sort.col === col) {
+        if (state.sort.dir === "asc") state.sort.dir = "desc";
+        else if (state.sort.dir === "desc") state.sort = { col: "", dir: "" };
+        else state.sort = { col: col, dir: "asc" };
       } else {
-        // shift-click: toggle this column in multi-sort
-        if (existingIndex === -1) {
-          sortState.keys.push({ col, dir: "asc" });
-          sortState.userOverride = true;
-        } else {
-          const cur = sortState.keys[existingIndex];
-          if (cur.dir === "asc") cur.dir = "desc";
-          else sortState.keys.splice(existingIndex, 1);
-        }
+        state.sort = { col: col, dir: "asc" };
       }
-      // apply to last rows and re-render — do not mutate the cached __lastRows
-      try {
-        if (__lastRows && __lastRows.length) {
-          const rowsToRender =
-            sortState.keys && sortState.keys.length
-              ? __lastRows
-                  .slice()
-                  .sort((a, b) => compareRows(a, b, sortState.keys))
-              : __lastRows.slice();
-          renderRows(rowsToRender);
-        }
-      } catch (e) {
-        console.error("Header sort apply failed", e);
-      }
-
-      // update all headers visuals (also update SVG indicator)
-      ths.forEach((t) => t.classList.remove("sort-asc", "sort-desc"));
+      // reset to first page and request server-side sorted results
+      page = 1;
+      runQuery();
+      // update visuals for all headers
       ths.forEach((t) => {
-        const c = t.dataset.col;
-        const top =
-          sortState.keys && sortState.keys[0] ? sortState.keys[0] : null;
-        if (top && top.col === c)
-          t.classList.add(top.dir === "desc" ? "sort-desc" : "sort-asc");
-        t.setAttribute(
-          "aria-sort",
-          top && top.col === c
-            ? top.dir === "desc"
-              ? "descending"
-              : "ascending"
-            : "none"
-        );
         const indEl = t.querySelector(".sc-sort-indicator");
         if (indEl) {
-          if (top && top.col === c) {
-            indEl.innerHTML = caretSvg(top.dir === "desc" ? "desc" : "asc");
+          const c = t.dataset.sortCol || t.dataset.col || "";
+          if (state.sort.col === c && state.sort.dir) {
+            indEl.innerHTML = caretSvg(
+              state.sort.dir === "desc" ? "desc" : "asc"
+            );
+            t.classList.add(
+              state.sort.dir === "desc" ? "sort-desc" : "sort-asc"
+            );
+            t.setAttribute(
+              "aria-sort",
+              state.sort.dir === "desc" ? "descending" : "ascending"
+            );
           } else {
             indEl.innerHTML = "";
+            t.classList.remove("sort-asc", "sort-desc");
+            t.setAttribute("aria-sort", "none");
           }
         }
       });
@@ -2985,6 +2932,8 @@ async function runQuery() {
       p_filters: filters,
       p_page: page,
       p_page_size: PAGE_SIZE,
+      p_sort_col: state.sort && state.sort.col ? state.sort.col : null,
+      p_sort_dir: state.sort && state.sort.dir ? state.sort.dir : null,
     });
 
     if (error) throw error;
@@ -2998,20 +2947,12 @@ async function runQuery() {
     // cache rows for UI actions
     __lastRows = Array.isArray(rows) ? rows.slice() : [];
 
-    // compute derived fields and apply client-side sort only when user has
-    // explicitly changed the sort (clicking headers). Default order comes
-    // from the RPC result.
+    // compute derived fields. Sorting is handled server-side; do not
+    // apply client-side sorting for server-backed columns.
     try {
       computeDerivedFields(__lastRows);
-      if (
-        sortState &&
-        sortState.userOverride &&
-        Array.isArray(sortState.keys) &&
-        sortState.keys.length
-      )
-        __lastRows.sort((a, b) => compareRows(a, b, sortState.keys));
     } catch (e) {
-      console.error("Sorting error", e);
+      console.error("Derived fields error", e);
     }
 
     renderRows(__lastRows);
