@@ -63,6 +63,30 @@
         display: flex;
         gap: 8px;
       }
+      /* Explode controls sizing to fit narrow screens */
+      .explode-row {
+        margin: 8px 0;
+      }
+      .explode-controls {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .explode-controls .sc-btn {
+        padding: 6px 10px;
+        font-size: 13px;
+      }
+      @media (max-width: 680px) {
+        .explode-controls .sc-btn {
+          padding: 5px 8px;
+          font-size: 12px;
+          margin: 0 !important;
+        }
+        .explode-controls {
+          gap: 6px;
+        }
+      }
       .sc-btn {
         padding: 8px 12px;
         border-radius: 6px;
@@ -435,16 +459,17 @@
       #sc-total-value {
         font-weight: 700;
         font-size: 0.95rem;
-        padding: 6px 12px;
-        background: #ecfdf5; /* pale green to differentiate from sc-count */
-        color: #065f46;
-        border-color: rgba(6, 95, 70, 0.12);
-        box-shadow: 0 1px 0 rgba(6, 95, 70, 0.04) inset;
+        padding: 6px 10px;
+        /* adopt the previous row-count pill colours */
+        background: #eef2ff;
+        color: #3730a3;
+        border-color: rgba(15, 23, 42, 0.06);
+        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.03) inset;
         min-width: 100px;
-        max-width: 420px; /* allow more room for larger values */
-        overflow: visible; /* prefer visible content over ellipsis when space allows */
+        max-width: 420px; /* allow room for values */
+        overflow: visible;
         white-space: nowrap;
-        flex: 0 0 auto; /* don't shrink below content width */
+        flex: 0 0 auto;
       }
       @media (max-width: 520px) {
         #sc-total-value {
@@ -464,6 +489,10 @@
         margin: 0;
         font-size: 1.05rem;
         color: #0f172a;
+      }
+      /* Toast for single-tap helper */
+      #sc-single-toast {
+        pointer-events: none;
       }
       .sc-modal-body {
         padding: 14px 16px 18px;
@@ -1113,30 +1142,23 @@
         z-index: 6;
       }
 
-      /* Paginator: show icons-only on narrow screens */
+      /* Paginator: always show icons-only (SVG) and hide text labels.
+         Tooltips are provided via the button `title` and `aria-label`. */
+      .pagination .sc-btn {
+        padding: 8px;
+        width: 40px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
       .pagination .sc-btn svg {
         width: 16px;
         height: 16px;
         vertical-align: middle;
-        margin-right: 8px;
+        margin: 0;
       }
       .pagination .pbtn-label {
-        display: inline-block;
-      }
-      @media (max-width: 520px) {
-        .pagination .pbtn-label {
-          display: none;
-        }
-        .pagination .sc-btn {
-          padding: 8px;
-          width: 40px;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .pagination .sc-btn svg {
-          margin: 0;
-        }
+        display: none !important;
       }
 
       /* Keep pills on one line on narrow devices; reduce sizes to fit */
@@ -1821,7 +1843,6 @@
 
     <!-- Meta row: counts + last updated + pagination -->
     <div class="sc-meta">
-      <span id="sc-count" class="sc-pill">0 rows</span>
       <span
         id="sc-total-value"
         class="sc-pill"
@@ -1833,7 +1854,14 @@
       >
 
       <div class="pagination">
-        <button id="sc-prev" class="sc-btn" type="button" disabled>
+        <button
+          id="sc-prev"
+          class="sc-btn"
+          type="button"
+          disabled
+          title="Previous page"
+          aria-label="Previous page"
+        >
           <svg
             width="16"
             height="16"
@@ -1850,7 +1878,14 @@
         <span id="sc-page" style="display: inline-flex; align-items: center"
           >Page 1</span
         >
-        <button id="sc-next" class="sc-btn" type="button" disabled>
+        <button
+          id="sc-next"
+          class="sc-btn"
+          type="button"
+          disabled
+          title="Next page"
+          aria-label="Next page"
+        >
           <span class="pbtn-label">Next</span>
           <svg
             width="16"
@@ -1977,6 +2012,12 @@
           </button>
         </div>
         <div class="sc-modal-body" id="sc-value-modal-body">
+          <div
+            id="sc-value-modal-count"
+            style="margin-bottom: 8px; color: var(--muted)"
+          >
+            Product SKUs: — nos
+          </div>
           <div id="sc-value-body-content">Calculating…</div>
         </div>
         <div

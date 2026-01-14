@@ -25,9 +25,13 @@ let elRowModal,
   elRowQty,
   elRowValue,
   elRowFooter;
-let __lastOpenTs = 0; // guard for double-open on touch
+// guard for double-open on touch (was __lastOpenTs, removed — unused)
 let __sc_isDragging = false; // set while the user is dragging the table to avoid accidental opens
 let __sc_mouseDown = false;
+let __lastTapAt = 0;
+let __lastTapRowIdx = null;
+let __sc_toastTimeout = null;
+let __sc_ignoreNextClick = false;
 const PDF_ESM_PATHS = {
   jsPDF: "/libs/jspdf.es.min.js",
   autoTable: "/libs/jspdf-autotable.es.js",
@@ -483,11 +487,11 @@ async function init() {
     elHome = $("homeBtn");
     elClear = $("sc-clear");
 
-    elCount = $("sc-count");
     elUpdated = $("sc-updated");
     elPrev = $("sc-prev");
     elNext = $("sc-next");
     elPage = $("sc-page");
+    // elCount removed; we display SKU count inside the Value modal instead
 
     // New UI elements
     elTotalValue = $("sc-total-value");
@@ -496,6 +500,8 @@ async function init() {
     elValueModalClose = $("sc-value-modal-close");
     elValueBody = $("sc-value-body-content");
     elValueSnapshot = $("sc-value-snapshot");
+
+    // Value pill wiring handled in the async totals handler below.
 
     elRowModal = $("sc-row-modal");
     elRowModalClose = $("sc-row-modal-close");
@@ -931,22 +937,17 @@ async function init() {
           elValueModal.setAttribute("aria-hidden", "false");
           elValueBody.textContent = "Calculating…";
           try {
-            let totals = __lastTotals;
-            if (!totals) {
-              const filters = buildStockCheckerFiltersPayload();
-              const { data, error } = await supabase.rpc(
-                "stock_checker_query",
-                {
-                  p_filters: filters,
-                  p_page: 1,
-                  p_page_size: 1,
-                }
-              );
-              if (error) throw error;
-              totals = (data && data.totals) || null;
-              __lastTotals = totals;
-            }
-
+            // Always fetch fresh totals & count from the server so SKU count
+            // reflects database state rather than client-side cached rows.
+            const filters = buildStockCheckerFiltersPayload();
+            const { data, error } = await supabase.rpc("stock_checker_query", {
+              p_filters: filters,
+              p_page: 1,
+              p_page_size: 1,
+            });
+            if (error) throw error;
+            const totals = (data && data.totals) || null;
+            __lastTotals = totals;
             const t = totals || {
               value_ik: 0,
               value_kkd: 0,
@@ -954,6 +955,16 @@ async function init() {
               value_overall: 0,
               snapshot_date: null,
             };
+            // Display authoritative SKU count returned by RPC (fall back to cached rows)
+            const cnt =
+              (data && (data.count ?? data.total ?? null)) ??
+              (Array.isArray(__lastRows) ? __lastRows.length : 0);
+            const top = document.getElementById("sc-value-modal-count");
+            if (top) {
+              top.textContent = `Product SKUs: ${fmtInt(cnt)} nos`;
+              top.style.color = "#0b79d0"; // accent colour for SKU count
+              top.style.fontWeight = "600";
+            }
             elValueBody.innerHTML = `
               <div>IK: <strong>${fmtINR(t.value_ik)}</strong></div>
               <div>KKD: <strong>${fmtINR(t.value_kkd)}</strong></div>
@@ -3019,13 +3030,44 @@ function renderRows(rows) {
     })
     .join("");
 
-  // iOS-friendly row selection
+  // iOS-friendly row selection — require double-tap/click to open modal
   Array.from(elBody.querySelectorAll("tr")).forEach((tr) => {
-    function selectRowHandler(e) {
-      // ignore selection if the user is currently dragging/scrolling
+    function showTapToast() {
+      try {
+        let el = document.getElementById("sc-single-toast");
+        if (!el) {
+          el = document.createElement("div");
+          el.id = "sc-single-toast";
+          el.setAttribute("role", "status");
+          el.setAttribute("aria-live", "polite");
+          el.style.position = "fixed";
+          el.style.right = "12px";
+          el.style.bottom = "12px";
+          el.style.background = "rgba(6, 95, 70, 0.95)";
+          el.style.color = "#fff";
+          el.style.padding = "8px 10px";
+          el.style.borderRadius = "8px";
+          el.style.fontSize = "13px";
+          el.style.boxShadow = "0 6px 18px rgba(2,6,23,0.16)";
+          el.style.zIndex = 12000;
+          el.style.opacity = "0";
+          el.style.transition = "opacity 180ms ease";
+          document.body.appendChild(el);
+        }
+        el.textContent = "Double tap/click to see more";
+        el.style.opacity = "1";
+        if (__sc_toastTimeout) clearTimeout(__sc_toastTimeout);
+        __sc_toastTimeout = setTimeout(() => {
+          el.style.opacity = "0";
+        }, 1200);
+      } catch {
+        /* ignore */
+      }
+    }
+
+    function handleSelect(e) {
       try {
         if (window.__sc_isDragging || __sc_isDragging) {
-          // reset flag and do not open modal
           __sc_isDragging = false;
           return;
         }
@@ -3040,23 +3082,68 @@ function renderRows(rows) {
         targetTr = e.target.parentElement;
       }
       targetTr.classList.add("selected-row");
-      // open row details modal (guard touch double events)
-      try {
-        const idx = Number(targetTr.getAttribute("data-row-idx"));
-        const r =
-          Array.isArray(__lastRows) && __lastRows[idx] ? __lastRows[idx] : null;
-        const now = Date.now();
-        if (r && now - (__lastOpenTs || 0) > 250) {
-          __lastOpenTs = now;
-          openRowModal(r);
+
+      const idx = Number(targetTr.getAttribute("data-row-idx"));
+      const now = Date.now();
+      // double-tap/click detection (within 350ms)
+      if (__lastTapRowIdx === idx && now - (__lastTapAt || 0) < 350) {
+        // open modal
+        __lastTapAt = 0;
+        __lastTapRowIdx = null;
+        try {
+          const r =
+            Array.isArray(__lastRows) && __lastRows[idx]
+              ? __lastRows[idx]
+              : null;
+          if (r) openRowModal(r);
+        } catch {
+          /* ignore */
         }
-      } catch {
-        /* ignore */
+      } else {
+        // first tap: show helper toast and await second tap
+        __lastTapAt = now;
+        __lastTapRowIdx = idx;
+        showTapToast();
+        // clear after a short window
+        setTimeout(() => {
+          __lastTapAt = 0;
+          __lastTapRowIdx = null;
+        }, 500);
       }
     }
-    tr.addEventListener("click", selectRowHandler, { passive: true });
-    tr.addEventListener("touchstart", selectRowHandler, { passive: true });
-    tr.addEventListener("touchend", selectRowHandler, { passive: true });
+
+    // click handler (desktop)
+    tr.addEventListener(
+      "click",
+      function (e) {
+        if (__sc_ignoreNextClick) {
+          __sc_ignoreNextClick = false;
+          return;
+        }
+        handleSelect(e);
+      },
+      { passive: true }
+    );
+
+    // touchend handler (mobile)
+    tr.addEventListener(
+      "touchend",
+      function (e) {
+        // if dragging, ignore
+        if (__sc_isDragging) {
+          __sc_isDragging = false;
+          __sc_ignoreNextClick = true;
+          setTimeout(() => (__sc_ignoreNextClick = false), 300);
+          return;
+        }
+        handleSelect(e);
+        // prevent the following synthetic click from firing action again
+        __sc_ignoreNextClick = true;
+        setTimeout(() => (__sc_ignoreNextClick = false), 400);
+      },
+      { passive: true }
+    );
+
     // track pointer movement to detect drag/scroll gestures
     tr.addEventListener(
       "touchmove",
@@ -3089,8 +3176,8 @@ function renderRows(rows) {
     );
     Array.from(tr.children).forEach((td) => {
       if (td.tagName === "TD") {
-        td.addEventListener("touchstart", selectRowHandler, { passive: true });
-        td.addEventListener("touchend", selectRowHandler, { passive: true });
+        td.addEventListener("touchstart", handleSelect, { passive: true });
+        td.addEventListener("touchend", handleSelect, { passive: true });
       }
     });
   });
