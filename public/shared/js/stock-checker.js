@@ -28,8 +28,7 @@ let elRowModal,
 // guard for double-open on touch (was __lastOpenTs, removed — unused)
 let __sc_isDragging = false; // set while the user is dragging the table to avoid accidental opens
 let __sc_mouseDown = false;
-let __lastTapAt = 0;
-let __lastTapRowIdx = null;
+/* tap-tracking removed: use explicit Details button instead */
 let __sc_toastTimeout = null;
 let __sc_ignoreNextClick = false;
 const PDF_ESM_PATHS = {
@@ -213,6 +212,25 @@ function updateFiltersButtonState() {
       if (reset) reset.disabled = !active;
     } catch {
       void 0;
+    }
+    // Also update the explode options button so it highlights when either
+    // filters are active or any explode option is enabled.
+    try {
+      const exBtn = document.getElementById("explode-details-btn");
+      if (exBtn) {
+        const es = [
+          document.getElementById("explode-stock"),
+          document.getElementById("explode-demand"),
+          document.getElementById("explode-mos"),
+          document.getElementById("toggle-value"),
+        ];
+        const anyExplode = es.some(
+          (e) => !!(e && e.type === "checkbox" && e.checked)
+        );
+        exBtn.classList.toggle("filters-active", active || anyExplode);
+      }
+    } catch {
+      /* ignore */
     }
   } catch {
     void 0;
@@ -433,7 +451,7 @@ let page = 1;
 let sortState = { keys: [], userOverride: false };
 let __lastRows = [];
 // Last totals object returned by RPC (value aggregates etc.)
-let __lastTotals = null;
+// totals cache removed — totals are read directly from RPC responses
 // remember element focused before opening modals so we can restore focus
 let __lastFocusBeforeRowModal = null;
 let __lastFocusBeforeValueModal = null;
@@ -904,24 +922,43 @@ async function init() {
         }
       });
       // ------------- Value modal and Row modal wiring -------------
-      // Toggle value columns
+      // Toggle value columns — support either a button or checkbox input
       if (elToggleValue) {
-        elToggleValue.addEventListener("click", () => {
-          state.showValue = !state.showValue;
+        const bindShowValue = () => {
+          // read state from input if it's a checkbox, otherwise toggle
+          const isInput =
+            elToggleValue.tagName === "INPUT" &&
+            elToggleValue.type === "checkbox";
+          if (isInput) state.showValue = !!elToggleValue.checked;
+          else state.showValue = !state.showValue;
           elToggleValue.setAttribute("aria-pressed", String(!!state.showValue));
           elToggleValue.classList.toggle("active", !!state.showValue);
-          elToggleValue.textContent = state.showValue
-            ? "Hide Value"
-            : "Show Value";
-          // show/hide header ths
-          Array.from(
-            document.querySelectorAll("#sc-table thead th.col-value")
-          ).forEach((th) => {
-            th.style.display = state.showValue ? "table-cell" : "none";
-          });
-          // re-render rows (they include value TDs when flag is ON)
+          // update label text when element is not a simple chip label
+          try {
+            if (!isInput)
+              elToggleValue.textContent = state.showValue
+                ? "Hide Value"
+                : "Show Value";
+          } catch {
+            /* ignore */
+          }
+          // Toggle CSS class on table for better layout control
+          if (elTable)
+            elTable.classList.toggle("show-value", !!state.showValue);
+          const tableWrap = document.querySelector(".table-wrap");
+          if (tableWrap)
+            tableWrap.classList.toggle("show-value", !!state.showValue);
           renderRows(__lastRows || []);
-        });
+          // reflect state back to checkbox if needed
+          if (isInput)
+            elToggleValue.setAttribute(
+              "aria-pressed",
+              String(!!state.showValue)
+            );
+        };
+        if (elToggleValue.tagName === "INPUT")
+          elToggleValue.addEventListener("change", bindShowValue);
+        else elToggleValue.addEventListener("click", bindShowValue);
       }
 
       // Total value pill click: open modal and compute totals when needed
@@ -947,7 +984,6 @@ async function init() {
             });
             if (error) throw error;
             const totals = (data && data.totals) || null;
-            __lastTotals = totals;
             const t = totals || {
               value_ik: 0,
               value_kkd: 0,
@@ -1371,13 +1407,87 @@ async function init() {
     const btnExplodeDemand = $("explode-demand");
     const btnExplodeMos = $("explode-mos");
     const tbl = $("sc-table");
+    // Drawer toggle button: keep details accessible via button
+    const btnExplodeDetails = $("explode-details-btn");
+    const explodeModal = $("sc-explode-modal");
+    const explodeModalClose = $("sc-explode-modal-close");
+    let __lastFocusBeforeExplodeModal = null;
+    if (btnExplodeDetails && explodeModal) {
+      btnExplodeDetails.addEventListener("click", () => {
+        __lastFocusBeforeExplodeModal =
+          document.activeElement instanceof HTMLElement
+            ? document.activeElement
+            : null;
+        explodeModal.style.display = "flex";
+        explodeModal.setAttribute("aria-hidden", "false");
+        // focus first checkbox inside modal for keyboard users
+        explodeModal
+          .querySelector(".explode-controls input[type=checkbox]")
+          ?.focus();
+      });
+    }
+
+    function closeExplodeModal() {
+      try {
+        const active = document.activeElement;
+        if (active && typeof active.blur === "function") active.blur();
+      } catch {
+        void 0;
+      }
+      if (explodeModal) {
+        explodeModal.style.display = "none";
+        explodeModal.setAttribute("aria-hidden", "true");
+      }
+      try {
+        if (
+          __lastFocusBeforeExplodeModal &&
+          typeof __lastFocusBeforeExplodeModal.focus === "function"
+        ) {
+          __lastFocusBeforeExplodeModal.focus();
+        } else {
+          btnExplodeDetails?.focus?.();
+        }
+      } catch {
+        void 0;
+      }
+      __lastFocusBeforeExplodeModal = null;
+    }
+    explodeModalClose?.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      closeExplodeModal();
+    });
+    explodeModal?.addEventListener("click", (ev) => {
+      if (
+        ev.target &&
+        ev.target.classList &&
+        ev.target.classList.contains("sc-modal-backdrop")
+      )
+        closeExplodeModal();
+    });
+    document.addEventListener("keydown", (ev) => {
+      if (
+        ev.key === "Escape" &&
+        explodeModal &&
+        explodeModal.style.display !== "none"
+      )
+        closeExplodeModal();
+    });
 
     function toggleExplode(btn, cls) {
       if (!btn || !tbl) return;
-      const now = btn.getAttribute("aria-pressed") === "true";
-      const next = !now;
-      btn.setAttribute("aria-pressed", String(next));
-      btn.classList.toggle("is-active", next);
+      const isInput = btn.tagName === "INPUT" && btn.type === "checkbox";
+      let next;
+      if (isInput) {
+        // for checkbox inputs the checked property reflects the new state
+        next = !!btn.checked;
+        btn.setAttribute("aria-pressed", String(next));
+        btn.classList.toggle("is-active", next);
+      } else {
+        const now = btn.getAttribute("aria-pressed") === "true";
+        next = !now;
+        btn.setAttribute("aria-pressed", String(next));
+        btn.classList.toggle("is-active", next);
+      }
       if (next) tbl.classList.add(cls);
       else tbl.classList.remove(cls);
       // Adjust table offset after layout changes so the table height stays
@@ -1393,20 +1503,75 @@ async function init() {
           /* ignore */
         }
       }, 60);
+      // Update drawer button appearance when any explode option is active
+      try {
+        updateExplodeButtonState();
+      } catch {
+        /* ignore */
+      }
+    }
+
+    function updateExplodeButtonState() {
+      try {
+        const els = [
+          btnExplodeStock,
+          btnExplodeDemand,
+          btnExplodeMos,
+          $("toggle-value"),
+        ];
+        const any = els.some((el) => {
+          if (!el) return false;
+          if (el.tagName === "INPUT" && el.type === "checkbox")
+            return !!el.checked;
+          return el.getAttribute("aria-pressed") === "true";
+        });
+        if (btnExplodeDetails)
+          btnExplodeDetails.classList.toggle("filters-active", any);
+      } catch {
+        /* ignore */
+      }
     }
 
     btnExplodeStock &&
-      btnExplodeStock.addEventListener("click", () =>
-        toggleExplode(btnExplodeStock, "explode-stock-active")
-      );
+      (function () {
+        if (btnExplodeStock.tagName === "INPUT")
+          btnExplodeStock.addEventListener("change", () =>
+            toggleExplode(btnExplodeStock, "explode-stock-active")
+          );
+        else
+          btnExplodeStock.addEventListener("click", () =>
+            toggleExplode(btnExplodeStock, "explode-stock-active")
+          );
+      })();
     btnExplodeDemand &&
-      btnExplodeDemand.addEventListener("click", () =>
-        toggleExplode(btnExplodeDemand, "explode-demand-active")
-      );
+      (function () {
+        if (btnExplodeDemand.tagName === "INPUT")
+          btnExplodeDemand.addEventListener("change", () =>
+            toggleExplode(btnExplodeDemand, "explode-demand-active")
+          );
+        else
+          btnExplodeDemand.addEventListener("click", () =>
+            toggleExplode(btnExplodeDemand, "explode-demand-active")
+          );
+      })();
     btnExplodeMos &&
-      btnExplodeMos.addEventListener("click", () =>
-        toggleExplode(btnExplodeMos, "explode-mos-active")
-      );
+      (function () {
+        if (btnExplodeMos.tagName === "INPUT")
+          btnExplodeMos.addEventListener("change", () =>
+            toggleExplode(btnExplodeMos, "explode-mos-active")
+          );
+        else
+          btnExplodeMos.addEventListener("click", () =>
+            toggleExplode(btnExplodeMos, "explode-mos-active")
+          );
+      })();
+
+    // Ensure drawer button reflects any initial state
+    try {
+      updateExplodeButtonState();
+    } catch {
+      /* ignore */
+    }
 
     // Pagination
     elPrev &&
@@ -2830,9 +2995,8 @@ async function runQuery() {
     const snapshot_date =
       data && data.snapshot_date ? data.snapshot_date : null;
 
-    // cache rows/totals for UI actions
+    // cache rows for UI actions
     __lastRows = Array.isArray(rows) ? rows.slice() : [];
-    __lastTotals = totals;
 
     // compute derived fields and apply client-side sort only when user has
     // explicitly changed the sort (clicking headers). Default order comes
@@ -2867,13 +3031,18 @@ async function runQuery() {
     // Update total value pill from totals returned by RPC
     try {
       if (elTotalValue) {
+        const textSpan = elTotalValue.querySelector?.(".sc-pill-text");
         if (
           totals &&
           (totals.value_overall != null || totals.value_overall === 0)
         ) {
-          elTotalValue.textContent = `Value: ${fmtINR(totals.value_overall)}`;
+          const txt = `Value: ${fmtINR(totals.value_overall)}`;
+          if (textSpan) textSpan.textContent = txt;
+          else elTotalValue.textContent = txt;
         } else {
-          elTotalValue.textContent = `Value: —`;
+          const txt = `Value: —`;
+          if (textSpan) textSpan.textContent = txt;
+          else elTotalValue.textContent = txt;
         }
       }
     } catch {
@@ -2973,9 +3142,14 @@ function renderRows(rows) {
 
       return `
     <tr data-row-idx="${i}">
-      <td class="col-item" style="text-align:left">${escapeHtml(
-        r.item || ""
-      )}</td>
+      <td class="col-item" style="text-align:left">
+        <div class="sc-item-inner">
+        <button type="button" class="sc-btn sc-row-details" title="Details" aria-label="Details" data-row-idx="${i}">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.2"/><path d="M12 8h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M11.5 11h1v5h-1z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <span class="sc-item-name">${escapeHtml(r.item || "")}</span>
+        </div>
+      </td>
       <td class="col-meta" style="text-align:center">${escapeHtml(
         String(r.pack_size ?? "")
       )}</td>
@@ -3054,7 +3228,7 @@ function renderRows(rows) {
           el.style.transition = "opacity 180ms ease";
           document.body.appendChild(el);
         }
-        el.textContent = "Double tap/click to see more";
+        el.textContent = "Tap 'Details' to see more";
         el.style.opacity = "1";
         if (__sc_toastTimeout) clearTimeout(__sc_toastTimeout);
         __sc_toastTimeout = setTimeout(() => {
@@ -3082,34 +3256,9 @@ function renderRows(rows) {
         targetTr = e.target.parentElement;
       }
       targetTr.classList.add("selected-row");
-
-      const idx = Number(targetTr.getAttribute("data-row-idx"));
-      const now = Date.now();
-      // double-tap/click detection (within 350ms)
-      if (__lastTapRowIdx === idx && now - (__lastTapAt || 0) < 350) {
-        // open modal
-        __lastTapAt = 0;
-        __lastTapRowIdx = null;
-        try {
-          const r =
-            Array.isArray(__lastRows) && __lastRows[idx]
-              ? __lastRows[idx]
-              : null;
-          if (r) openRowModal(r);
-        } catch {
-          /* ignore */
-        }
-      } else {
-        // first tap: show helper toast and await second tap
-        __lastTapAt = now;
-        __lastTapRowIdx = idx;
-        showTapToast();
-        // clear after a short window
-        setTimeout(() => {
-          __lastTapAt = 0;
-          __lastTapRowIdx = null;
-        }, 500);
-      }
+      // For safety, do not open the details modal on row tap.
+      // Show a helper toast directing the user to the explicit Details button.
+      showTapToast();
     }
 
     // click handler (desktop)
@@ -3180,6 +3329,24 @@ function renderRows(rows) {
         td.addEventListener("touchend", handleSelect, { passive: true });
       }
     });
+    // Attach explicit Details button handler (single-tap opens modal)
+    const btn = tr.querySelector(".sc-row-details");
+    if (btn) {
+      const openForRow = (ev) => {
+        try {
+          ev.preventDefault();
+          ev.stopPropagation();
+        } catch (err) {
+          void err; // acknowledge variable to satisfy linter
+        }
+        const idx = Number(tr.getAttribute("data-row-idx"));
+        const r =
+          Array.isArray(__lastRows) && __lastRows[idx] ? __lastRows[idx] : null;
+        if (r) openRowModal(r);
+      };
+      btn.addEventListener("click", openForRow, { passive: false });
+      btn.addEventListener("touchend", openForRow, { passive: false });
+    }
   });
 }
 

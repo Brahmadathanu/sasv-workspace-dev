@@ -107,6 +107,33 @@
         box-shadow: 0 2px 6px rgba(10, 98, 195, 0.18);
       }
 
+      /* Icon-only buttons (compact controls) should show the icon in the
+         primary blue when active rather than inverting to a white icon.
+         This keeps the full-width Filters button behaviour, but makes
+         compact icon buttons (explode) visually consistent. */
+      .sc-btn.sc-btn-icon.filters-active {
+        background: #0a62c3;
+        color: #fff;
+        border-color: #074a8a;
+        box-shadow: 0 2px 6px rgba(10, 98, 195, 0.18);
+      }
+
+      /* Ensure the specific explode button visually matches the Filters
+         button when active by targeting it with high specificity. */
+      button#explode-details-btn.filters-active {
+        background: #0a62c3 !important;
+        color: #fff !important;
+        border-color: #074a8a !important;
+        box-shadow: 0 2px 6px rgba(10, 98, 195, 0.18) !important;
+      }
+      /* Make sure SVG icon strokes/fills follow the text color when a
+         button is active. */
+      .sc-btn.filters-active svg,
+      button#explode-details-btn.filters-active svg {
+        stroke: #fff !important;
+        fill: #fff !important;
+      }
+
       /* ───────────────────────────────── Filters row ───────────────────────────────── */
       .sc-filters {
         display: grid;
@@ -118,7 +145,7 @@
         grid-template-columns: minmax(160px, 3fr) minmax(90px, 1fr) 1fr 1fr;
         width: 100%;
         justify-items: stretch;
-        margin: 10px 0 6px;
+        margin: 6px 0 4px; /* tightened vertical spacing */
         align-items: end;
       }
       .sc-filters label {
@@ -455,27 +482,110 @@
         }
       }
 
-      /* Make the Value pill more prominent and visually distinct */
+      /* Make the Value pill slightly more compact so the paginator fits on small screens
+         and allow it to shrink further on narrow viewports. */
       #sc-total-value {
         font-weight: 700;
-        font-size: 0.95rem;
-        padding: 6px 10px;
+        font-size: 0.88rem;
+        padding: 3px 6px;
         /* adopt the previous row-count pill colours */
         background: #eef2ff;
         color: #3730a3;
         border-color: rgba(15, 23, 42, 0.06);
         box-shadow: 0 1px 0 rgba(0, 0, 0, 0.03) inset;
-        min-width: 100px;
-        max-width: 420px; /* allow room for values */
-        overflow: visible;
+        min-width: 56px;
+        max-width: 320px; /* general cap */
+        overflow: hidden;
+        text-overflow: ellipsis;
         white-space: nowrap;
-        flex: 0 0 auto;
+        flex: 0 1 auto; /* allow shrinking */
       }
-      @media (max-width: 520px) {
+
+      /* Icon-only presentation helpers: keep the textual span for larger
+         viewports but hide it and show only the rupee SVG on very narrow
+         screens. The `sc-pill-icon` class is applied by default so JS can
+         still find the element by id without changes. */
+      .sc-pill .sc-pill-text {
+        display: inline-block;
+      }
+      /* Hide inline SVG by default (wide screens). It will be shown only
+         for very narrow viewports where the pill switches to icon-only mode. */
+      .sc-pill svg {
+        display: none;
+      }
+      .sc-pill.sc-pill-icon svg {
+        width: 16px;
+        height: 16px;
+        vertical-align: middle;
+        fill: currentColor;
+      }
+
+      /* Tighter constraints for very narrow viewports (phones) */
+      @media (max-width: 420px) {
         #sc-total-value {
-          font-size: 0.92rem;
-          padding: 6px 10px;
-          max-width: 260px;
+          font-size: 0.82rem;
+          padding: 2px 6px;
+          max-width: 140px;
+          min-width: 48px;
+        }
+        /* reduce spacing between meta items so paginator fits */
+        .sc-meta {
+          gap: 6px;
+        }
+      }
+
+      /* Extra-tight layout for very narrow phones (e.g. iPhone 12 width 390px) */
+      @media (max-width: 400px) {
+        .sc-meta {
+          gap: 4px;
+          align-items: center;
+        }
+        #sc-total-value {
+          font-size: 0.78rem;
+          padding: 2px 6px;
+          max-width: 110px;
+          min-width: 44px;
+        }
+        /* Make the value pill an icon-only small square on very narrow
+           viewports. Preserve the pill background and color so it reads as
+           the same control in compact form. */
+        #sc-total-value.sc-pill-icon {
+          padding: 5px;
+          background: #eef2ff; /* match .sc-pill */
+          border: 1px solid rgba(15, 23, 42, 0.06);
+          color: #3730a3; /* match .sc-pill text color */
+          min-width: 36px;
+          max-width: 36px;
+          border-radius: 8px;
+          gap: 0;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        #sc-total-value.sc-pill-icon .sc-pill-text {
+          display: none;
+        }
+        #sc-total-value.sc-pill-icon svg {
+          display: inline-block;
+          width: 20px;
+          height: 20px;
+        }
+        /* Keep the paginator compact and prevent its buttons from wrapping
+           by forcing it to the right and hiding the textual page label. */
+        .pagination {
+          margin-left: auto;
+          display: inline-flex;
+          gap: 6px;
+          align-items: center;
+          flex: 0 0 auto;
+        }
+        .pagination .sc-btn {
+          width: 34px;
+          padding: 6px;
+        }
+        /* Hide textual page indicator to save space; icons remain available */
+        #sc-page {
+          display: none;
         }
       }
       .sc-modal-header {
@@ -739,9 +849,21 @@
         align-items: center;
         color: var(--muted);
         font-size: 0.9rem;
-        margin: 6px 0;
+        margin: 4px 0; /* tightened */
         flex-wrap: nowrap; /* keep pills on single line */
         overflow: hidden;
+      }
+      /* Ensure pills and pagination buttons are vertically centered
+         even if their internal padding/line-height differs. */
+      .sc-meta > * {
+        display: inline-flex;
+        align-items: center;
+      }
+      .sc-meta .sc-pill {
+        align-self: center;
+      }
+      .sc-meta .pagination {
+        align-self: center;
       }
       .sc-pill {
         padding: 6px 10px;
@@ -753,7 +875,7 @@
         align-items: center;
         gap: 8px;
         white-space: nowrap;
-        flex: 0 0 auto; /* prevent shrinking that causes wrap */
+        flex: 0 1 auto; /* allow pills to shrink on narrow viewports */
         max-width: 240px;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -844,20 +966,24 @@
         text-overflow: clip;
       }
 
-      /* Give Item column more initial width so names are readable before
-         scroll appears. Allow body cells in the Item column to wrap to
-         multiple lines so long product names remain visible on narrow
-         viewports (headers still allowed to wrap by thead rules). */
+      /* Give Item column priority but don't force a large min-width so
+         the table may size naturally. Set to 0 so small viewports can
+         reflow without leaving gaps. */
       table.collapsed-default th.col-item {
-        min-width: 220px;
+        min-width: 0;
+        /* prefer a larger share of available table width so item names
+           remain readable; percentage avoids hard reserved gaps */
+        width: 34%;
       }
       table.collapsed-default tbody td.col-item,
       table.explode-stock-active tbody td.col-item,
       table.explode-demand-active tbody td.col-item,
       table.explode-mos-active tbody td.col-item {
         white-space: normal;
-        overflow-wrap: anywhere;
-        word-break: break-word;
+        /* prefer breaking at word boundaries rather than between letters */
+        overflow-wrap: break-word;
+        word-break: normal;
+        width: 34%;
       }
 
       /* Numeric/meta columns remain compact but will cause scroll when
@@ -900,7 +1026,7 @@
         text-align: center;
       } /* “Item” header centered */
       tbody td {
-        border-top: 1px solid #f3f4f6;
+        border-top: 1px solid rgba(15, 23, 42, 0.06);
         padding: 8px;
         text-align: center; /* center cells by default */
         vertical-align: middle;
@@ -1143,22 +1269,213 @@
       }
 
       /* Paginator: always show icons-only (SVG) and hide text labels.
-         Tooltips are provided via the button `title` and `aria-label`. */
+         Style Prev/Next as icon-only controls with a distinct color, no
+         visible bounding box (transparent background), but keep focus
+         outlines for accessibility. Tooltips provided via `title`. */
       .pagination .sc-btn {
-        padding: 8px;
-        width: 40px;
+        padding: 6px;
+        width: 32px;
+        min-width: 32px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        background: transparent;
+        border: none;
+        box-shadow: none;
+        color: #0a62c3; /* navigator color */
+        border-radius: 6px;
       }
       .pagination .sc-btn svg {
-        width: 16px;
-        height: 16px;
+        width: 14px;
+        height: 14px;
         vertical-align: middle;
         margin: 0;
       }
+      .pagination .sc-btn:hover:not([disabled]) {
+        background: rgba(10, 98, 195, 0.06);
+      }
+      .pagination .sc-btn:focus-visible {
+        outline: 2px solid rgba(10, 98, 195, 0.18);
+        outline-offset: 2px;
+        border-radius: 6px;
+      }
+      .pagination .sc-btn[disabled] {
+        opacity: 0.44;
+        color: #9ca3af;
+        cursor: not-allowed;
+      }
       .pagination .pbtn-label {
         display: none !important;
+      }
+
+      /* Inline Details button placed before the Item text */
+      .sc-row-details {
+        margin: 0;
+        /* show only the SVG with a small tappable area */
+        padding: 6px;
+        min-width: 0;
+        width: auto;
+        height: auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        color: #0d9488; /* teal icon color */
+        border: none;
+        box-shadow: none;
+        vertical-align: middle;
+        flex-shrink: 0;
+      }
+      .sc-row-details:focus-visible {
+        outline: 2px solid rgba(3, 105, 161, 0.18);
+        outline-offset: 2px;
+        border-radius: 6px;
+      }
+      .sc-row-details svg {
+        width: 12px;
+        height: 12px;
+        display: block;
+      }
+
+      /* Explode controls: compact checkbox chips (ERP style) */
+      #drawer-explode {
+        border: none; /* remove card border for this drawer */
+        background: transparent;
+      }
+      #drawer-explode > summary {
+        padding: 0;
+      }
+      /* Compact drawer trigger button to save horizontal space */
+      #explode-details-btn {
+        padding: 6px 8px;
+        font-size: 13px;
+        height: 34px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 6px;
+        border: 1px solid rgba(15, 23, 42, 0.06);
+        background: #fff;
+        box-shadow: none;
+      }
+      #explode-details-btn .chev {
+        width: 12px;
+        height: 12px;
+      }
+      /* Equalize vertical spacing between filters, meta and drawer rows */
+      .sc-filters,
+      .sc-meta,
+      .drawer-row {
+        margin-top: 6px;
+        margin-bottom: 6px;
+      }
+      /* Ensure inline styles do not override spacing for the drawer */
+      .drawer-row > details {
+        margin: 0 !important;
+      }
+      .explode-checkbox {
+        display: none; /* hide native checkbox */
+      }
+      .explode-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 8px;
+        border: 1px solid rgba(15, 23, 42, 0.06);
+        border-radius: 6px;
+        background: #ffffff;
+        color: #0f172a;
+        font-weight: 600;
+        font-size: 13px;
+        line-height: 1;
+        cursor: pointer;
+        user-select: none;
+        margin: 4px 6px 4px 0;
+      }
+      /* When explode options are shown inside the central modal, stack
+         them vertically and make each chip expand to full modal width for
+         easier tapping on touch devices. */
+      #sc-explode-modal .explode-controls {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: stretch;
+      }
+      #sc-explode-modal .explode-chip {
+        display: inline-flex;
+        width: 100%;
+        justify-content: flex-start;
+        padding: 8px 12px;
+        margin: 0;
+      }
+      /* Compact checkbox square to the left of the label */
+      .explode-chip::before {
+        content: "";
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        border-radius: 3px;
+        background: transparent;
+        box-sizing: border-box;
+        margin-left: -2px;
+      }
+      /* Checked state: show a filled box with white tick */
+      .explode-checkbox:checked + .explode-chip::before {
+        content: "\2713";
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #ffffff;
+        background: #0a62c3;
+        border-color: #0a62c3;
+        font-size: 11px;
+        line-height: 1;
+      }
+      /* Focus ring for keyboard users */
+      .explode-checkbox:focus + .explode-chip {
+        box-shadow: 0 0 0 4px rgba(10, 98, 195, 0.08);
+        outline: none;
+      }
+
+      /* Keep Item column as a normal table cell so borders and sticky
+         headers align with the rest of the table. Use inline children to
+         layout the details button and item name without changing the
+         table-cell behaviour. */
+      th.col-item {
+        min-width: 0;
+      }
+      td.col-item {
+        display: table-cell; /* preserve table layout & borders */
+        vertical-align: middle;
+        padding: 8px;
+        text-align: left;
+      }
+      /* Inline layout for the button + name inside the table-cell. Keep the
+         details button fixed-size and allow the item name to flex to the
+         available space so it doesn't create empty gaps. */
+      .sc-item-inner {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+      }
+      td.col-item > .sc-item-inner {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .sc-item-inner > .sc-row-details {
+        flex: 0 0 auto;
+      }
+      .sc-item-inner > .sc-item-name,
+      td.col-item .sc-item-name {
+        display: block;
+        flex: 1 1 auto;
+        min-width: 0; /* allow flex child to shrink */
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap; /* default: ellipsize long names */
       }
 
       /* Keep pills on one line on narrow devices; reduce sizes to fit */
@@ -1173,6 +1490,27 @@
           font-size: 11px;
           max-width: 160px;
           min-height: 30px;
+        }
+        th.col-item {
+          min-width: 0;
+        }
+        td.col-item {
+          min-width: 0;
+        }
+        /* Allow item name to wrap on small screens at word boundaries so
+           it uses available space without breaking letters. */
+        td.col-item > .sc-item-name,
+        td.col-item .sc-item-name {
+          white-space: normal;
+          overflow-wrap: break-word;
+          word-break: normal;
+          text-overflow: clip;
+          display: block;
+        }
+        td.col-item > .sc-row-details {
+          flex: 0 0 28px;
+          width: 28px;
+          height: 28px;
         }
         #sc-count {
           padding: 4px 8px;
@@ -1216,6 +1554,14 @@
         color: #9b111e;
         transform: translateY(1px);
       }
+      /* Hide value columns by default, show when table has show-value class */
+      .col-value {
+        display: none;
+      }
+
+      .show-value .col-value {
+        display: table-cell;
+      }
       /* Light vertical inner borders for sc-table columns (page-local) */
       #sc-table {
         border-collapse: collapse;
@@ -1227,12 +1573,105 @@
       #sc-table thead th {
         border-bottom: 1px solid rgba(15, 23, 42, 0.12);
       }
+      /* Extra-tight paginator tweaks for very small screens */
+      @media (max-width: 420px) {
+        .pagination {
+          gap: 4px;
+          flex-wrap: nowrap;
+        }
+        .pagination .sc-btn {
+          width: 32px;
+          min-width: 32px;
+          padding: 6px;
+          border-radius: 6px;
+        }
+        .pagination .sc-btn svg {
+          width: 14px;
+          height: 14px;
+        }
+        .pagination .pbtn-label {
+          display: none !important;
+        }
+        /* Tighten table padding on narrow screens to avoid wrapping */
+        #sc-table thead th,
+        #sc-table tbody td {
+          padding: 6px;
+        }
+        /* Reduce min-widths on small screens to fit more columns */
+        /* Allow columns to shrink on very small screens so layout doesn't gap */
+        th.col-item {
+          min-width: 0;
+        }
+        td.col-item {
+          min-width: 0;
+        }
+        th.col-meta,
+        td.col-meta,
+        th.col-stock,
+        td.col-stock,
+        th.col-demand,
+        td.col-demand,
+        th.col-mos,
+        td.col-mos,
+        th.col-overall,
+        td.col-overall {
+          min-width: 0;
+        }
+      }
+      @media (max-width: 380px) {
+        .pagination {
+          gap: 4px;
+          flex-wrap: nowrap;
+        }
+        .pagination .sc-btn {
+          width: 30px;
+          min-width: 30px;
+          padding: 5px;
+        }
+        .pagination .sc-btn svg {
+          width: 12px;
+          height: 12px;
+        }
+        /* Reduce meta gap slightly to help fit pill + paginator */
+        .sc-meta {
+          gap: 4px;
+        }
+      }
     </style>
   </head>
   <body data-theme="system" style="padding: 20px">
     <div class="sc-header">
       <h2 style="margin: 0; color: #005a8d">Stock Checker</h2>
       <div class="sc-actions">
+        <button
+          id="sc-total-value"
+          class="sc-pill sc-pill-icon"
+          aria-haspopup="dialog"
+          aria-label="Open value summary"
+          title="Open value summary"
+          style="margin-right: 4px; cursor: pointer"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            focusable="false"
+            xmlns="http://www.w3.org/2000/svg"
+            preserveAspectRatio="xMidYMid meet"
+          >
+            <text
+              x="50%"
+              y="50%"
+              font-size="14"
+              font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans', sans-serif"
+              fill="currentColor"
+              text-anchor="middle"
+              dominant-baseline="central"
+            >
+              ₹
+            </text>
+          </svg>
+          <span class="sc-pill-text">Value: ₹ —</span>
+        </button>
         <div
           id="sc-updated"
           class="sc-snapshot"
@@ -1765,6 +2204,76 @@
       </div>
     </div>
 
+    <!-- Explode Options modal (opened by explode-details button) -->
+    <div
+      id="sc-explode-modal"
+      class="sc-modal"
+      role="dialog"
+      aria-hidden="true"
+      aria-modal="true"
+      style="display: none"
+    >
+      <div class="sc-modal-backdrop" data-close="true"></div>
+      <div
+        class="sc-modal-panel"
+        role="document"
+        aria-labelledby="sc-explode-modal-title"
+      >
+        <div class="sc-modal-header">
+          <h3 id="sc-explode-modal-title">Explode Options</h3>
+          <button
+            id="sc-explode-modal-close"
+            class="sc-btn sc-btn-icon"
+            aria-label="Close explode options"
+          >
+            ✕
+          </button>
+        </div>
+        <div class="sc-modal-body" style="padding: 12px 16px">
+          <div
+            class="explode-controls"
+            style="display: flex; flex-wrap: wrap; gap: 8px; padding: 8px"
+          >
+            <input
+              id="explode-stock"
+              class="explode-checkbox"
+              type="checkbox"
+              aria-label="Explode Stock"
+            />
+            <label for="explode-stock" class="explode-chip"
+              >Explode Stock</label
+            >
+
+            <input
+              id="explode-demand"
+              class="explode-checkbox"
+              type="checkbox"
+              aria-label="Explode Demand"
+            />
+            <label for="explode-demand" class="explode-chip"
+              >Explode Demand</label
+            >
+
+            <input
+              id="explode-mos"
+              class="explode-checkbox"
+              type="checkbox"
+              aria-label="Explode MOS"
+            />
+            <label for="explode-mos" class="explode-chip">Explode MOS</label>
+
+            <input
+              id="toggle-value"
+              class="explode-checkbox"
+              type="checkbox"
+              aria-label="Show Value"
+            />
+            <label for="toggle-value" class="explode-chip">Show Value</label>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Primary filters (Item / Pack Size) and quick chips restored here -->
     <section class="sc-filters">
       <label style="position: relative">
@@ -1843,17 +2352,43 @@
 
     <!-- Meta row: counts + last updated + pagination -->
     <div class="sc-meta">
-      <span
-        id="sc-total-value"
-        class="sc-pill"
-        tabindex="0"
-        role="button"
-        aria-haspopup="dialog"
-        style="margin-left: 8px; cursor: pointer"
-        >Value: ₹ —</span
-      >
+      <!-- paginator moved below next to Explode Details -->
+    </div>
 
-      <div class="pagination">
+    <div
+      class="drawer-row"
+      style="display: flex; align-items: center; gap: 8px"
+    >
+      <!-- Explode details: icon-only button opens central modal (inputs moved to modal) -->
+      <div style="display: flex; align-items: center; gap: 8px; margin: 12px 0">
+        <button
+          id="explode-details-btn"
+          class="sc-btn sc-btn-icon"
+          type="button"
+          aria-label="Explode options"
+          title="Explode options"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <path d="M12 2v6" stroke-linecap="round" stroke-linejoin="round" />
+            <path
+              d="M12 22v-6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path d="M4 12h6" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M14 12h6" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+      </div>
+      <div class="pagination" style="margin-left: auto">
         <button
           id="sc-prev"
           class="sc-btn"
@@ -1902,45 +2437,6 @@
       </div>
     </div>
 
-    <div class="explode-row">
-      <div class="explode-controls">
-        <button
-          id="explode-stock"
-          class="sc-btn"
-          type="button"
-          aria-pressed="false"
-        >
-          Explode Stock
-        </button>
-        <button
-          id="explode-demand"
-          class="sc-btn"
-          type="button"
-          aria-pressed="false"
-          style="margin: 0 8px"
-        >
-          Explode Demand
-        </button>
-        <button
-          id="explode-mos"
-          class="sc-btn"
-          type="button"
-          aria-pressed="false"
-        >
-          Explode MOS
-        </button>
-        <button
-          id="toggle-value"
-          class="sc-btn"
-          type="button"
-          aria-pressed="false"
-          style="margin-left: 8px"
-        >
-          Show Value
-        </button>
-      </div>
-    </div>
-
     <!-- Results table -->
     <div class="table-wrap">
       <table id="sc-table" class="collapsed-default">
@@ -1955,16 +2451,10 @@
             <th class="col-overall" style="text-align: center">
               Stock (overall)
             </th>
-            <th class="col-value" style="text-align: center; display: none">
-              Value IK
-            </th>
-            <th class="col-value" style="text-align: center; display: none">
-              Value KKD
-            </th>
-            <th class="col-value" style="text-align: center; display: none">
-              Value OK
-            </th>
-            <th class="col-value" style="text-align: center; display: none">
+            <th class="col-value" style="text-align: center">Value IK</th>
+            <th class="col-value" style="text-align: center">Value KKD</th>
+            <th class="col-value" style="text-align: center">Value OK</th>
+            <th class="col-value" style="text-align: center">
               Value (overall)
             </th>
             <th class="col-demand" style="text-align: center">Demand IK</th>
