@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "sasv-utils-v133"; // bumped to force asset refresh
+const CACHE_NAME = "sasv-utils-v134"; // bumped to force asset refresh
 
 const PRECACHE = [
   // Hub shell

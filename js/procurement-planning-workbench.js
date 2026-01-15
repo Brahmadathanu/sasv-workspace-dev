@@ -1,6 +1,7 @@
 /* eslint-env browser */
 import { supabase } from "../public/shared/js/supabaseClient.js";
 import { loadAccessContext } from "../public/shared/js/mrpAccess.js";
+import { Platform } from "../public/shared/js/platform.js";
 import {
   ensureDetailModal,
   openDetailModal,
@@ -692,6 +693,8 @@ async function fetchCurrentFpRows() {
 // bootstrap
 window.addEventListener("DOMContentLoaded", async () => {
   initUi();
+  const hb = document.getElementById("homeBtn");
+  if (hb) hb.addEventListener("click", () => Platform.goHome());
   const ok = await showAccess();
   if (!ok) return;
   // initial loads

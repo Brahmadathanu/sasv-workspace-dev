@@ -447,8 +447,7 @@ function visibleCols() {
 }
 let page = 1;
 
-// Client-side sort state and last fetched rows (kept for responsive sorting)
-let sortState = { keys: [], userOverride: false };
+// Client-side last fetched rows (kept for responsive UI actions)
 let __lastRows = [];
 // Last totals object returned by RPC (value aggregates etc.)
 // totals cache removed — totals are read directly from RPC responses
@@ -2769,66 +2768,7 @@ function computeDerivedFields(rows) {
   }
 }
 
-function numericCmp(a, b, opts = { nullsLast: true }) {
-  const A =
-    a == null || a === "" ? (opts.nullsLast ? Infinity : -Infinity) : Number(a);
-  const B =
-    b == null || b === "" ? (opts.nullsLast ? Infinity : -Infinity) : Number(b);
-  if (A < B) return -1;
-  if (A > B) return 1;
-  return 0;
-}
-
-function textCmp(a, b) {
-  return String(a ?? "").localeCompare(String(b ?? ""), undefined, {
-    sensitivity: "base",
-  });
-}
-
-function compareRows(a, b, sortKeys) {
-  if (!Array.isArray(sortKeys) || !sortKeys.length) return 0;
-  for (const k of sortKeys) {
-    const dir = k.dir === "desc" ? -1 : 1;
-    let res = 0;
-    switch (k.col) {
-      case "risk":
-        res = numericCmp(a._risk, b._risk, { nullsLast: false });
-        res = -res; // higher risk first by default
-        break;
-      case "minMOS":
-        res = numericCmp(a.minMOS, b.minMOS);
-        break;
-      case "shortage":
-        // shortages first
-        res = (b.shortage > 0 ? 1 : 0) - (a.shortage > 0 ? 1 : 0);
-        break;
-      case "stock_overall":
-      case "stock_ik":
-      case "stock_kkd":
-      case "stock_ok":
-      case "demand_overall":
-      case "mos_overall":
-        res = numericCmp(a[k.col], b[k.col]);
-        break;
-      case "product_group_name":
-      case "sub_group_name":
-      case "category_name":
-      case "item":
-      case "pack_size":
-      case "uom":
-        res = textCmp(a[k.col], b[k.col]);
-        break;
-      default:
-        // fallback: try numeric then text
-        if (!isNaN(Number(a[k.col])) || !isNaN(Number(b[k.col])))
-          res = numericCmp(a[k.col], b[k.col]);
-        else res = textCmp(a[k.col], b[k.col]);
-    }
-    if (res !== 0) return dir * res;
-  }
-  // stable tiebreaker
-  return textCmp(a.product_id || a.id || "", b.product_id || b.id || "");
-}
+// legacy client-side compare helpers removed — server-side sorting is used
 
 function attachHeaderSorting() {
   if (!elTable) return;
