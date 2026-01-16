@@ -7374,18 +7374,24 @@ export type Database = {
           godown_id: number
           qty_units: number
           sku_id: number
+          stock_rate: number | null
+          stock_value: number | null
         }
         Insert: {
           as_of_date: string
           godown_id: number
           qty_units: number
           sku_id: number
+          stock_rate?: number | null
+          stock_value?: number | null
         }
         Update: {
           as_of_date?: string
           godown_id?: number
           qty_units?: number
           sku_id?: number
+          stock_rate?: number | null
+          stock_value?: number | null
         }
         Relationships: [
           {
@@ -9095,6 +9101,8 @@ export type Database = {
           inserted_at: string | null
           qty_units: number
           source_key: string | null
+          stock_rate: number | null
+          stock_value: number | null
           tally_item_name: string
         }
         Insert: {
@@ -9104,6 +9112,8 @@ export type Database = {
           inserted_at?: string | null
           qty_units: number
           source_key?: string | null
+          stock_rate?: number | null
+          stock_value?: number | null
           tally_item_name: string
         }
         Update: {
@@ -9113,6 +9123,8 @@ export type Database = {
           inserted_at?: string | null
           qty_units?: number
           source_key?: string | null
+          stock_rate?: number | null
+          stock_value?: number | null
           tally_item_name?: string
         }
         Relationships: []
@@ -12449,7 +12461,9 @@ export type Database = {
           product_id: number | null
           region_code: string | null
           sku_id: number | null
+          stock_rate: number | null
           stock_units: number | null
+          stock_value: number | null
         }
         Relationships: []
       }
@@ -17790,6 +17804,8 @@ export type Database = {
           godown_id: number | null
           qty_units: number | null
           sku_id: number | null
+          stock_rate: number | null
+          stock_value: number | null
         }
         Relationships: [
           {
@@ -18196,11 +18212,19 @@ export type Database = {
           product_group_id: number | null
           product_group_name: string | null
           product_id: number | null
+          rate_ik: number | null
+          rate_kkd: number | null
+          rate_ok: number | null
+          rate_overall: number | null
           shade_flag: boolean | null
           sku_id: number | null
           stock_ik: number | null
           stock_kkd: number | null
           stock_ok: number | null
+          stock_value_ik: number | null
+          stock_value_kkd: number | null
+          stock_value_ok: number | null
+          stock_value_overall: number | null
           sub_category_id: number | null
           sub_category_name: string | null
           sub_group_id: number | null
@@ -20057,6 +20081,19 @@ export type Database = {
         Returns: number
       }
       rpc_cancel_jobs: { Args: { p_job_ids: string[] }; Returns: number }
+      rpc_conversion_summary_search: {
+        Args: {
+          p_end?: string
+          p_page?: number
+          p_per_page?: number
+          p_search?: string
+          p_start?: string
+        }
+        Returns: {
+          row_data: Json
+          total_count: number
+        }[]
+      }
       rpc_enqueue_job: {
         Args: { p_job_type: string; p_params: Json; p_priority?: number }
         Returns: string
@@ -20090,6 +20127,21 @@ export type Database = {
           p_start: string
         }
         Returns: Json
+      }
+      rpc_overlay_monthly_search: {
+        Args: {
+          p_end?: string
+          p_only_nonzero?: boolean
+          p_page?: number
+          p_per_page?: number
+          p_run_id?: string
+          p_search?: string
+          p_start?: string
+        }
+        Returns: {
+          row_data: Json
+          total_count: number
+        }[]
       }
       rpc_plm_bom_get_header: {
         Args: { p_sku_id: number }
@@ -20239,6 +20291,21 @@ export type Database = {
         }
         Returns: number
       }
+      rpc_procurement_plan_search: {
+        Args: {
+          p_end?: string
+          p_material_kind?: string
+          p_only_net?: boolean
+          p_page?: number
+          p_per_page?: number
+          p_search?: string
+          p_start?: string
+        }
+        Returns: {
+          row_data: Json
+          total_count: number
+        }[]
+      }
       rpc_retry_failed: {
         Args: { p_from: string; p_job_type: string; p_to: string }
         Returns: number
@@ -20314,6 +20381,19 @@ export type Database = {
           p_wastage_pct?: number
         }
         Returns: undefined
+      }
+      rpc_trace_search: {
+        Args: {
+          p_end?: string
+          p_page?: number
+          p_per_page?: number
+          p_search?: string
+          p_start?: string
+        }
+        Returns: {
+          row_data: Json
+          total_count: number
+        }[]
       }
       sdv_zero_revenue_abs: {
         Args: {
@@ -20391,6 +20471,16 @@ export type Database = {
       sop_submit_for_review: {
         Args: { p_revision_id: string }
         Returns: undefined
+      }
+      stock_checker_query: {
+        Args: {
+          p_filters: Json
+          p_page?: number
+          p_page_size?: number
+          p_sort_col?: string
+          p_sort_dir?: string
+        }
+        Returns: Json
       }
       upsert_forecast_override: {
         Args: {

@@ -36,8 +36,8 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 12px;
-        padding: 16px 24px; /* increased padding to match mrp-material-board spacing */
+        margin-bottom: 0;
+        padding: 24px 24px 12px; /* more top space, slightly less bottom */
       }
       .header-title-row {
         display: flex;
@@ -52,12 +52,12 @@
           align-items: center;
           gap: 8px;
         }
-        .header-title-row h2 {
+        .header-title-row h1 {
           font-size: 1.1rem; /* reduce title size on small screens */
         }
       }
 
-      h2 {
+      h1 {
         margin: 0;
         color: var(--primary);
       }
@@ -72,9 +72,10 @@
       .tabs-container.erp-tabs-alt {
         display: flex;
         align-items: center;
+        justify-content: flex-start; /* left-align the tab navigator card */
         gap: 12px;
-        padding: 6px 8px;
-        margin-bottom: 12px;
+        padding: 0 8px 6px; /* add small bottom padding to prevent scrollbar */
+        margin-bottom: 0; /* remove spacing after tabs */
         background: transparent;
         border: none;
       }
@@ -113,8 +114,9 @@
       }
       .tabs {
         display: flex;
+        justify-content: flex-start; /* ensure tab buttons align left */
         gap: 12px;
-        padding: 6px 12px;
+        padding: 0 12px 6px; /* small bottom padding to match container and avoid scrollbar */
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
         border-bottom: 1px solid rgba(15, 23, 42, 0.03);
@@ -292,6 +294,25 @@
         border-bottom: 2px solid rgba(2, 6, 23, 0.08);
         text-align: center;
       }
+      /* Ensure table containers inside panels expand to fill vertical space
+         so table bodies can show more rows and scroll when needed. */
+      .panel #mrpTableContainer {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+      }
+      .panel #mrpTableContainer .mrp-table,
+      .panel #mrpTableContainer #mrpTable_moq {
+        flex: 1 1 auto;
+        min-height: 0;
+        height: 100%;
+      }
+      .panel .table-scroll {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: auto;
+      }
       /* Zebra striping and hover to match material-board */
       #mrpTable_moq tbody tr:nth-child(even) {
         background: rgba(2, 6, 23, 0.02);
@@ -350,7 +371,7 @@
       /* Panels expand to fill available vertical space; tables inside
          panels keep headers visible while tbody scrolls. */
       .console-wrapper {
-        padding: 24px; /* increased padding to better match mrp-material-board */
+        padding: 0 24px 24px; /* remove top padding to sit tabs directly under header */
         display: flex;
         flex-direction: column;
         flex: 1 1 auto;
@@ -688,8 +709,14 @@
         display: none;
         align-items: center;
         justify-content: center;
-        background: rgba(2, 6, 23, 0.55);
-        color: #ffffff;
+        background: rgba(
+          255,
+          255,
+          255,
+          0.7
+        ); /* frosted white mask like material-board */
+        backdrop-filter: blur(4px);
+        color: var(--text-color);
         z-index: 1200;
         font-size: 1rem;
         pointer-events: none;
@@ -699,20 +726,20 @@
         pointer-events: all;
       }
       #mrpLoadingOverlay .loader-card {
-        background: rgba(255, 255, 255, 0.06);
-        padding: 14px 18px;
-        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.92);
+        padding: 12px 16px;
+        border-radius: 10px;
         display: flex;
         gap: 12px;
         align-items: center;
-        box-shadow: 0 6px 20px rgba(2, 6, 23, 0.36);
-        border: 1px solid rgba(255, 255, 255, 0.06);
+        box-shadow: 0 8px 30px rgba(2, 6, 23, 0.1);
+        border: 1px solid rgba(2, 6, 23, 0.04);
       }
       #mrpLoadingOverlay .loader-spinner {
         width: 18px;
         height: 18px;
-        border: 3px solid rgba(255, 255, 255, 0.2);
-        border-top-color: #fff;
+        border: 3px solid rgba(2, 6, 23, 0.08);
+        border-top-color: var(--primary);
         border-radius: 50%;
         animation: mrpSpin 1s linear infinite;
       }
@@ -727,7 +754,7 @@
     <div class="header-bar">
       <div style="flex: 1">
         <div class="header-title-row">
-          <h2>MRP Master Data Console</h2>
+          <h1>MRP Master Data Console</h1>
           <button id="homeBtn">
             <svg
               width="16"
@@ -819,22 +846,10 @@
         </div>
       </div>
 
-      <div id="moqSection" class="panel" style="margin-top: 12px"></div>
-      <div
-        id="convSection"
-        class="panel"
-        style="margin-top: 12px; display: none"
-      ></div>
-      <div
-        id="seasonSection"
-        class="panel"
-        style="margin-top: 12px; display: none"
-      ></div>
-      <div
-        id="mapSection"
-        class="panel"
-        style="margin-top: 12px; display: none"
-      ></div>
+      <div id="moqSection" class="panel"></div>
+      <div id="convSection" class="panel" style="display: none"></div>
+      <div id="seasonSection" class="panel" style="display: none"></div>
+      <div id="mapSection" class="panel" style="display: none"></div>
     </div>
     <script>
       // UI-only tab behavior: manage visual active state and keyboard navigation

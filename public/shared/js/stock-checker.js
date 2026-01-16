@@ -133,7 +133,26 @@ function $(id) {
 }
 function setMsg(msg) {
   const el = $("sc-msg");
-  if (el) el.textContent = msg || "";
+  if (!el) return;
+  // If message is empty, hide the overlay so it doesn't block clicks
+  // on table rows (the overlay is absolutely positioned over the table).
+  if (!msg) {
+    el.textContent = "";
+    try {
+      el.style.display = "none";
+      el.style.pointerEvents = "none";
+    } catch {
+      /* ignore */
+    }
+  } else {
+    el.textContent = msg;
+    try {
+      el.style.display = "block";
+      el.style.pointerEvents = "auto";
+    } catch {
+      /* ignore */
+    }
+  }
 }
 function fmtInt(n) {
   return (n ?? 0).toLocaleString("en-IN");
@@ -205,16 +224,34 @@ function updateFiltersButtonState() {
     const btn = document.getElementById("sc-filters-btn");
     if (!btn) return;
     const active = filtersAreActive();
-    btn.classList.toggle("filters-active", active);
-    btn.setAttribute("aria-pressed", String(active));
+
+    // Do not mark the drawer toggles as active for simple text-entry
+    // filters: Item (`selectedProductId`) and Pack Size (`state.pack_size`).
+    // These are quick inline filters and shouldn't trigger the drawer
+    // UI to appear as "filters active".
+    const itemOrPackActive = !!(
+      (selectedProductId && String(selectedProductId).trim()) ||
+      (state.pack_size && String(state.pack_size).trim())
+    );
+
+    const activeForDrawerButtons = active && !itemOrPackActive;
+
+    // Primary filters button: reflect only non-item/pack filters so the
+    // drawer state isn't misleading when user types in Item/Pack Size.
+    btn.classList.toggle("filters-active", activeForDrawerButtons);
+    btn.setAttribute("aria-pressed", String(activeForDrawerButtons));
+
+    // But keep the Reset button enabled whenever any filter is active
+    // (including Item/Pack Size) so behaviour of Reset remains intuitive.
     try {
       const reset = document.getElementById("sc-clear");
       if (reset) reset.disabled = !active;
     } catch {
       void 0;
     }
+
     // Also update the explode options button so it highlights when either
-    // filters are active or any explode option is enabled.
+    // non-item/pack filters are active OR any explode option is enabled.
     try {
       const exBtn = document.getElementById("explode-details-btn");
       if (exBtn) {
@@ -227,7 +264,10 @@ function updateFiltersButtonState() {
         const anyExplode = es.some(
           (e) => !!(e && e.type === "checkbox" && e.checked)
         );
-        exBtn.classList.toggle("filters-active", active || anyExplode);
+        exBtn.classList.toggle(
+          "filters-active",
+          activeForDrawerButtons || anyExplode
+        );
       }
     } catch {
       /* ignore */
@@ -1801,6 +1841,31 @@ function initItemAutocomplete() {
   elItemSel.addEventListener("input", (ev) => {
     const v = ev.target.value;
     doSearch(v);
+    // If user cleared the field by typing (or via other means), ensure
+    // selectedProductId is cleared and the main table is restored.
+    if (!v || !String(v).trim()) {
+      if (selectedProductId) selectedProductId = "";
+      page = 1;
+      runQuery();
+    }
+  });
+
+  // Backspace acts as a full-clear shortcut: clear the field immediately
+  // and restore the unfiltered table (prevents letter-by-letter editing
+  // from leaving filters partially applied).
+  elItemSel.addEventListener("keydown", (ev) => {
+    try {
+      if (ev.key === "Backspace" && elItemSel.value && elItemSel.value.length) {
+        ev.preventDefault();
+        elItemSel.value = "";
+        selectedProductId = "";
+        clearList();
+        page = 1;
+        runQuery();
+      }
+    } catch {
+      /* ignore */
+    }
   });
 
   elItemSel.addEventListener("focus", () => {
@@ -3218,12 +3283,39 @@ function renderRows(rows) {
           ev.preventDefault();
           ev.stopPropagation();
         } catch (err) {
-          void err; // acknowledge variable to satisfy linter
+          void err;
         }
-        const idx = Number(tr.getAttribute("data-row-idx"));
-        const r =
-          Array.isArray(__lastRows) && __lastRows[idx] ? __lastRows[idx] : null;
-        if (r) openRowModal(r);
+        // Prefer the dataset on the event target (button) to avoid stale
+        // closure issues if DOM was re-rendered. Fall back to the row attr.
+        const src = (ev && (ev.currentTarget || ev.target)) || null;
+        let idx = NaN;
+        try {
+          if (src && src.dataset && src.dataset.rowIdx !== undefined)
+            idx = Number(src.dataset.rowIdx);
+        } catch {
+          /* ignore */
+        }
+        if (!Number.isFinite(idx)) {
+          idx = Number(tr.getAttribute("data-row-idx"));
+        }
+        if (!Number.isFinite(idx) || idx < 0) {
+          console.warn("openForRow: invalid row index", idx, tr);
+          return;
+        }
+        if (!Array.isArray(__lastRows) || idx >= __lastRows.length) {
+          console.warn(
+            "openForRow: row index out of range",
+            idx,
+            Array.isArray(__lastRows) ? __lastRows.length : 0
+          );
+          return;
+        }
+        const r = __lastRows[idx];
+        try {
+          openRowModal(r);
+        } catch (err) {
+          console.error("openForRow error", err, { idx, r });
+        }
       };
       btn.addEventListener("click", openForRow, { passive: false });
       btn.addEventListener("touchend", openForRow, { passive: false });

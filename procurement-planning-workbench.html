@@ -5,9 +5,23 @@
     <title>Procurement Planning Workbench</title>
     <link rel="stylesheet" href="public/shared/css/style.css" />
     <style>
+      :root {
+        --primary: #005a8d;
+      }
+      html,
       body {
-        font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif;
+        height: 100%;
+      }
+      body {
+        font-family: Arial, sans-serif;
         margin: 16px;
+        box-sizing: border-box;
+        /* prevent page-level scrolling; use internal scroll in .console-wrapper */
+        overflow: hidden;
+      }
+      h1 {
+        margin: 0;
+        color: var(--primary);
       }
       .page-header {
         display: flex;
@@ -17,21 +31,66 @@
       .muted {
         color: #666;
         font-size: 13px;
+        margin-top: 8px;
       }
+      /* Tabs styled to match mrp-master-data-console (ERP professional look) */
       .tabs {
         display: flex;
-        gap: 8px;
+        gap: 12px;
+        padding: 6px 12px;
         margin-top: 12px;
+        align-items: center;
       }
       .tab {
-        padding: 8px 12px;
-        border-radius: 6px;
-        border: 1px solid #e5e7eb;
+        background: transparent;
+        border: 1px solid transparent;
+        padding: 10px 14px;
+        border-radius: 8px;
         cursor: pointer;
+        font-weight: 700;
+        color: #334155;
+        font-size: 0.98rem;
+        min-width: 120px;
+        display: inline-flex;
+        flex-direction: column;
+        gap: 4px;
+        align-items: center;
+        justify-content: center;
+        transition: all 160ms ease;
+      }
+      .tab:hover {
+        background: #fff;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+        border-color: rgba(11, 92, 255, 0.08);
+        transform: translateY(-2px);
       }
       .tab.active {
-        background: #eef2ff;
-        border-color: #c7d2fe;
+        background: linear-gradient(180deg, #ffffff, #f8fafc);
+        border: 1px solid rgba(13, 60, 160, 0.12);
+        color: var(--primary);
+        box-shadow: none;
+        position: relative;
+      }
+      .tab.active::after {
+        content: "";
+        position: absolute;
+        bottom: -1px;
+        left: 12%;
+        right: 12%;
+        height: 3px;
+        background: linear-gradient(90deg, #60a5fa, #2563eb);
+        border-radius: 3px;
+      }
+      .tab .tab-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: inherit;
+      }
+      .tab .tab-description {
+        font-size: 0.78rem;
+        font-weight: 400;
+        color: #94a3b8;
+        line-height: 1.1;
       }
       .filter-bar {
         margin: 12px 0;
@@ -39,6 +98,42 @@
         gap: 8px;
         flex-wrap: wrap;
         align-items: center;
+      }
+      /* ERP-styled filter controls */
+      .filter-bar input[type="month"],
+      .filter-bar input[type="text"],
+      .filter-bar input:not([type="checkbox"]),
+      .filter-bar select,
+      .filter-bar .search-wrap input {
+        height: 38px;
+        padding: 6px 12px;
+        border: 1px solid #e6e9ee;
+        border-radius: 8px;
+        background: #fff;
+        font-size: 0.95rem;
+        color: #0f172a;
+        box-shadow: none;
+        transition: box-shadow 150ms ease, border-color 150ms ease;
+      }
+      .filter-bar label {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.95rem;
+      }
+      .filter-bar input:focus,
+      .filter-bar select:focus,
+      .filter-bar .search-wrap input:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 6px 20px rgba(37, 99, 235, 0.06);
+      }
+      .filter-bar .actions .btn {
+        height: 38px;
+        padding: 6px 12px;
+      }
+      .search-wrap input {
+        padding-right: 36px;
       }
       .panel {
         border: 1px solid #e5e7eb;
@@ -60,10 +155,117 @@
         padding: 8px;
         border-bottom: 1px solid #f3f4f6;
       }
+      /* Layout: constrain console area to viewport and make inner panes scroll internally
+         This keeps page-level scrollbars from appearing while allowing table containers
+         to size and scroll within available space. */
+      .console-wrapper {
+        display: flex;
+        flex-direction: column;
+        max-height: calc(100vh - 100px);
+        overflow: hidden;
+      }
+
+      #tabContainer {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        overflow: hidden;
+      }
+
+      .panel.tab-pane {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        overflow: hidden;
+      }
+
       .table-wrap {
-        max-height: 520px;
+        /* let the table area take remaining pane space and scroll internally */
+        flex: 1 1 auto;
+        min-height: 0;
         overflow: auto;
         border-radius: 6px;
+        /* Ensure sticky positioning context works */
+        position: relative;
+      }
+
+      @media (max-height: 700px) {
+        .console-wrapper {
+          max-height: calc(100vh - 90px);
+        }
+      }
+      /* Common professional table style for Procurement Planning Workbench */
+      .ppw-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        background: #fff;
+        color: #0f172a;
+        font-size: 0.95rem;
+      }
+      /* Add light border around ppw-table */
+      .ppw-table {
+        border: 1px solid #e6e9ee;
+      }
+      .ppw-table thead th {
+        position: sticky;
+        top: 0;
+        background: linear-gradient(180deg, #f8fafc, #ffffff);
+        color: #0f172a;
+        font-weight: 700;
+        text-align: center;
+        padding: 10px 12px;
+        border-bottom: 1px solid #e6e9ee;
+        z-index: 100;
+        /* Ensure sticky works properly */
+        position: -webkit-sticky;
+        position: sticky;
+      }
+      .ppw-table tbody td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #f3f4f6;
+      }
+      /* Zebra striping for rows */
+      .ppw-table tbody tr:nth-child(even) td {
+        background: #f9fafb;
+      }
+      .ppw-table tbody tr:hover td {
+        background: rgba(37, 99, 235, 0.06);
+      }
+      .table-wrap .ppw-table {
+        border-radius: 6px;
+        /* allow header to escape and remain visible when sticky */
+        overflow: visible;
+        box-shadow: 0 4px 18px rgba(2, 6, 23, 0.04);
+      }
+      .ppw-rowcount-pill {
+        display: inline-block;
+        background: #f1f5f9;
+        color: #0f172a;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 0.86rem;
+        border: 1px solid #e6e9ee;
+        min-width: 64px;
+        text-align: center;
+      }
+      /* Pager button appearance: remove bounding box for inline SVG arrows */
+      .ppw-pager .btn {
+        background: transparent;
+        border: 0;
+        box-shadow: none;
+        padding: 6px;
+        min-width: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .ppw-pager .btn:focus {
+        outline: none;
+        box-shadow: none;
+      }
+      .ppw-pager .btn svg {
+        display: block;
       }
     </style>
   </head>
@@ -76,21 +278,195 @@
           traceability
         </div>
       </div>
+      <style>
+        /* Home button visual parity with other MRP pages */
+        #homeBtn {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 12px;
+          border: 1px solid #fdba74 !important;
+          border-radius: 6px;
+          background: #fed7aa !important;
+          color: #9a3412 !important;
+          cursor: pointer;
+          font-size: 0.875rem;
+          font-family: inherit;
+          font-weight: 500;
+          transition: all 0.2s;
+        }
+        #homeBtn:hover {
+          background: #fdba74 !important;
+          border-color: #fb923c !important;
+          transform: translateY(-1px);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        #homeBtn svg {
+          flex-shrink: 0;
+        }
+        /* Master export icon buttons (ERP-styled) */
+        #fp-export,
+        #ov-export,
+        #conv-export,
+        #tr-export {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 38px;
+          height: 38px;
+          padding: 6px;
+          border: 1px solid #e6e9ee;
+          border-radius: 8px;
+          background: linear-gradient(180deg, #ffffff, #f8fafc);
+          color: #0f172a;
+          cursor: pointer;
+          transition: box-shadow 150ms ease, border-color 150ms ease,
+            transform 120ms ease;
+          box-shadow: 0 2px 6px rgba(2, 6, 23, 0.04);
+        }
+        #fp-export:hover,
+        #ov-export:hover,
+        #conv-export:hover,
+        #tr-export:hover {
+          border-color: #2563eb;
+          box-shadow: 0 8px 26px rgba(37, 99, 235, 0.08);
+          transform: translateY(-1px);
+        }
+        #fp-export svg,
+        #ov-export svg,
+        #conv-export svg,
+        #tr-export svg {
+          display: block;
+        }
+      </style>
       <div style="display: flex; gap: 8px; align-items: center">
-        <button id="homeBtn" class="btn" title="Home">Home</button>
-        <div id="accessBadge" class="muted">Loading access…</div>
+        <button id="homeBtn" aria-label="Home">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9,22 9,12 15,12 15,22" />
+          </svg>
+          HOME
+        </button>
+        <div id="accessBadge" class="muted" style="display: none"></div>
       </div>
     </div>
 
-    <div style="margin-top: 8px">
+    <style>
+      /* MRP Console loading overlay */
+      .console-wrapper {
+        position: relative;
+      }
+      #mrpLoadingOverlay {
+        position: absolute;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(4px);
+        z-index: 1200;
+        font-size: 1rem;
+        pointer-events: none;
+      }
+      /* Ensure table containers can host the overlay */
+      .table-wrap {
+        position: relative;
+      }
+      #mrpLoadingOverlay.active {
+        display: flex;
+        pointer-events: all;
+      }
+      #mrpLoadingOverlay .loader-card {
+        background: rgba(255, 255, 255, 0.92);
+        padding: 12px 16px;
+        border-radius: 10px;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        box-shadow: 0 8px 30px rgba(2, 6, 23, 0.1);
+        border: 1px solid rgba(2, 6, 23, 0.04);
+      }
+      #mrpLoadingOverlay .loader-spinner {
+        width: 18px;
+        height: 18px;
+        border: 3px solid rgba(2, 6, 23, 0.08);
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        animation: mrpSpin 1s linear infinite;
+      }
+      @keyframes mrpSpin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+
+    <div class="console-wrapper" style="margin-top: 8px">
+      <div id="mrpLoadingOverlay" aria-hidden="true" role="status">
+        <div class="loader-card">
+          <div class="loader-spinner" aria-hidden="true"></div>
+          <div class="loader-text">Loading…</div>
+        </div>
+      </div>
+      <!-- MASTER FILTER placed above tabs: global scope for all panels -->
+      <div
+        id="master-filter"
+        style="
+          background: #f1f5f9;
+          padding: 12px 16px;
+          border-radius: 8px;
+          border: 1px solid #e2e8f0;
+          margin-bottom: 12px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        "
+      >
+        <label>
+          <select
+            id="master-preset"
+            title="Preset range (Next 12, Calendar Year, Custom)"
+          >
+            <option value="next12">Next 12</option>
+            <option value="calendarYear">Calendar Year</option>
+            <option value="custom">Custom</option>
+          </select>
+        </label>
+        <input type="month" id="master-start" title="Start month (YYYY-MM)" />
+        <input type="month" id="master-end" title="End month (YYYY-MM)" />
+        <div style="margin-left: auto; color: #64748b; font-size: 13px">
+          Master filters apply to all tabs
+        </div>
+      </div>
+
       <div class="tabs" id="tabs">
         <div class="tab active" data-tab="final-plan">
-          Final Procurement Plan
+          <div class="tab-title">Final Procurement Plan</div>
+          <div class="tab-description">Final plan per item and month</div>
         </div>
-        <div class="tab" data-tab="rm-overlay">RM Seasonal Overlay Results</div>
-        <div class="tab" data-tab="rm-conversion">RM Form Conversion</div>
+        <div class="tab" data-tab="rm-overlay">
+          <div class="tab-title">RM Seasonal Overlay Results</div>
+          <div class="tab-description">Seasonal overlay results by run</div>
+        </div>
+        <div class="tab" data-tab="rm-conversion">
+          <div class="tab-title">RM Form Conversion</div>
+          <div class="tab-description">
+            Conversion contributors and summaries
+          </div>
+        </div>
         <div class="tab" data-tab="traceability">
-          Traceability / Drilldown Hub
+          <div class="tab-title">Traceability / Drilldown Hub</div>
+          <div class="tab-description">
+            Search plan, overlay, conversion, trace
+          </div>
         </div>
       </div>
 
@@ -98,33 +474,144 @@
         <!-- filter + actions repeated per tab -->
         <div id="final-plan" class="panel tab-pane">
           <div class="filter-bar">
-            <label
-              >Range:
-              <select id="fp-preset">
-                <option value="next12">Next 12</option>
-                <option value="calendarYear">Calendar Year</option>
-                <option value="custom">Custom</option>
-              </select>
-            </label>
-            <input type="month" id="fp-start" />
-            <input type="month" id="fp-end" />
-            <input placeholder="Stock code or name" id="fp-search" />
-            <select id="fp-material-kind">
+            <!-- Date range controlled by master filters: master-preset / master-start / master-end -->
+            <span
+              class="search-wrap"
+              style="position: relative; display: inline-block"
+            >
+              <input
+                placeholder="Type in to search..."
+                id="fp-search"
+                title="Search by stock code or name"
+                style="padding-right: 28px"
+              />
+              <button
+                id="fp-search-clear"
+                class="btn"
+                title="Clear search"
+                style="
+                  position: absolute;
+                  right: 4px;
+                  top: 50%;
+                  transform: translateY(-50%);
+                  padding: 4px 6px;
+                  display: none;
+                  background: transparent;
+                  border: 0;
+                  color: #6b7280;
+                "
+              >
+                ✕
+              </button>
+            </span>
+            <select id="fp-material-kind" title="Filter by material kind">
               <option value="all">All</option>
               <option value="raw_material">Raw Material</option>
-              <option value="packaging_material">Packaging</option>
+              <option value="packaging_material">Packaging Material</option>
             </select>
-            <label
-              ><input type="checkbox" id="fp-only-net" /> Only net_need ≠
-              0</label
+            <label title="Only rows where net_need_qty ≠ 0">
+              <input
+                type="checkbox"
+                id="fp-only-net"
+                title="Only rows where net_need_qty ≠ 0"
+              />
+              Only net_need ≠ 0
+            </label>
+            <div class="actions" style="margin-left: auto; position: relative">
+              <button id="fp-export" aria-label="Export" title="Export">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M7 10l5-5 5 5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M12 5v12"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+              <button id="fp-export-csv" class="btn" style="display: none">
+                Export CSV
+              </button>
+              <button id="fp-export-json" class="btn" style="display: none">
+                Export JSON
+              </button>
+            </div>
+          </div>
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin: 8px 0 12px 0;
+            "
+          >
+            <div id="fp-rowcount" class="ppw-rowcount-pill">—</div>
+            <div
+              id="fp-pager"
+              class="ppw-pager"
+              style="display: flex; align-items: center"
             >
-            <div class="actions" style="margin-left: auto">
-              <button id="fp-export-csv" class="btn">Export CSV</button>
-              <button id="fp-export-json" class="btn">Export JSON</button>
+              <button id="fp-pager-prev" class="btn ghost" title="Previous">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  aria-hidden="true"
+                >
+                  <polyline
+                    points="15 18 9 12 15 6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+              <div
+                id="fp-pager-info"
+                style="margin: 0 8px; font-size: 0.9rem; color: #475569"
+              >
+                Page 1
+              </div>
+              <button id="fp-pager-next" class="btn ghost" title="Next">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  aria-hidden="true"
+                >
+                  <polyline
+                    points="9 6 15 12 9 18"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+              <!-- per-page selector removed: fixed page size -->
             </div>
           </div>
           <div class="table-wrap">
-            <table id="fp-table">
+            <table id="fp-table" class="ppw-table">
               <thead id="fp-thead"></thead>
               <tbody id="fp-tbody"></tbody>
             </table>
@@ -134,20 +621,107 @@
         <div id="rm-overlay" class="panel tab-pane" style="display: none">
           <div class="filter-bar">
             <div id="overlay-runs" style="min-width: 240px"></div>
-            <input type="month" id="ov-start" />
-            <input type="month" id="ov-end" />
+            <!-- Date range controlled by master filters: master-start / master-end -->
             <input placeholder="RM code or name" id="ov-search" />
             <label
               ><input type="checkbox" id="ov-only-nonzero" /> Only
               overlay_procure_qty ≠ 0</label
             >
-            <div class="actions" style="margin-left: auto">
-              <button id="ov-export-csv" class="btn">Export CSV</button>
-              <button id="ov-export-json" class="btn">Export JSON</button>
+            <div class="actions" style="margin-left: auto; position: relative">
+              <button id="ov-export" aria-label="Export" title="Export">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M7 10l5-5 5 5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M12 5v12"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+              <button id="ov-export-csv" class="btn" style="display: none">
+                Export CSV
+              </button>
+              <button id="ov-export-json" class="btn" style="display: none">
+                Export JSON
+              </button>
+            </div>
+          </div>
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin: 8px 0 12px 0;
+            "
+          >
+            <div id="ov-rowcount" class="ppw-rowcount-pill">—</div>
+            <div
+              id="ov-pager"
+              class="ppw-pager"
+              style="display: flex; align-items: center"
+            >
+              <button id="ov-pager-prev" class="btn ghost" title="Previous">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  aria-hidden="true"
+                >
+                  <polyline
+                    points="15 18 9 12 15 6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+              <div
+                id="ov-pager-info"
+                style="margin: 0 8px; font-size: 0.9rem; color: #475569"
+              >
+                Page 1
+              </div>
+              <button id="ov-pager-next" class="btn ghost" title="Next">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  aria-hidden="true"
+                >
+                  <polyline
+                    points="9 6 15 12 9 18"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+              <!-- per-page selector removed: fixed page size -->
             </div>
           </div>
           <div class="table-wrap">
-            <table id="ov-table">
+            <table id="ov-table" class="ppw-table">
               <thead id="ov-thead"></thead>
               <tbody id="ov-tbody"></tbody>
             </table>
@@ -156,21 +730,103 @@
 
         <div id="rm-conversion" class="panel tab-pane" style="display: none">
           <div class="filter-bar">
-            <select id="conv-preset">
-              <option value="next12">Next 12</option>
-              <option value="calendarYear">Calendar Year</option>
-              <option value="custom">Custom</option>
-            </select>
-            <input type="month" id="conv-start" />
-            <input type="month" id="conv-end" />
+            <!-- Date range controlled by master filters -->
             <input placeholder="Purchase item name" id="conv-search" />
-            <div class="actions" style="margin-left: auto">
-              <button id="conv-export-csv" class="btn">Export CSV</button>
-              <button id="conv-export-json" class="btn">Export JSON</button>
+            <div class="actions" style="margin-left: auto; position: relative">
+              <button id="conv-export" aria-label="Export" title="Export">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M7 10l5-5 5 5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M12 5v12"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+              <button id="conv-export-csv" class="btn" style="display: none">
+                Export CSV
+              </button>
+              <button id="conv-export-json" class="btn" style="display: none">
+                Export JSON
+              </button>
+            </div>
+          </div>
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin: 8px 0 12px 0;
+            "
+          >
+            <div id="conv-rowcount" class="ppw-rowcount-pill">—</div>
+            <div
+              id="conv-pager"
+              class="ppw-pager"
+              style="display: flex; align-items: center"
+            >
+              <button id="conv-pager-prev" class="btn ghost" title="Previous">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  aria-hidden="true"
+                >
+                  <polyline
+                    points="15 18 9 12 15 6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+              <div
+                id="conv-pager-info"
+                style="margin: 0 8px; font-size: 0.9rem; color: #475569"
+              >
+                Page 1
+              </div>
+              <button id="conv-pager-next" class="btn ghost" title="Next">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  aria-hidden="true"
+                >
+                  <polyline
+                    points="9 6 15 12 9 18"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+              <!-- per-page selector removed: fixed page size -->
             </div>
           </div>
           <div class="table-wrap">
-            <table id="conv-table">
+            <table id="conv-table" class="ppw-table">
               <thead id="conv-thead"></thead>
               <tbody id="conv-tbody"></tbody>
             </table>
@@ -180,26 +836,107 @@
         <div id="traceability" class="panel tab-pane" style="display: none">
           <div class="filter-bar">
             <input placeholder="Stock code or name" id="tr-search" />
-            <input type="month" id="tr-start" />
-            <input type="month" id="tr-end" />
+            <!-- Date range controlled by master filters -->
             <select id="tr-material-kind">
               <option value="all">All</option>
               <option value="raw_material">Raw Material</option>
-              <option value="packaging_material">Packaging</option>
+              <option value="packaging_material">Packaging Material</option>
             </select>
-            <div class="actions" style="margin-left: auto">
-              <button id="tr-export-json" class="btn">Export Trace JSON</button>
+            <div class="actions" style="margin-left: auto; position: relative">
+              <button id="tr-export" aria-label="Export" title="Export">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M7 10l5-5 5 5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M12 5v12"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+              <button id="tr-export-json" class="btn" style="display: none">
+                Export Trace JSON
+              </button>
             </div>
           </div>
-          <div id="trace-panels">
-            <div class="card" id="trace-plan"></div>
-            <div class="card" id="trace-overlay" style="margin-top: 8px"></div>
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin: 8px 0 12px 0;
+            "
+          >
+            <div id="tr-rowcount" class="ppw-rowcount-pill">—</div>
             <div
-              class="card"
-              id="trace-conversion"
-              style="margin-top: 8px"
-            ></div>
-            <div class="card" id="trace-rm-trace" style="margin-top: 8px"></div>
+              id="tr-pager"
+              class="ppw-pager"
+              style="display: flex; align-items: center"
+            >
+              <button id="tr-pager-prev" class="btn ghost" title="Previous">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  aria-hidden="true"
+                >
+                  <polyline
+                    points="15 18 9 12 15 6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+              <div
+                id="tr-pager-info"
+                style="margin: 0 8px; font-size: 0.9rem; color: #475569"
+              >
+                Page 1
+              </div>
+              <button id="tr-pager-next" class="btn ghost" title="Next">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  aria-hidden="true"
+                >
+                  <polyline
+                    points="9 6 15 12 9 18"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+              <!-- per-page selector removed: fixed page size -->
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table id="tr-table" class="ppw-table">
+              <thead id="tr-thead"></thead>
+              <tbody id="tr-tbody"></tbody>
+            </table>
           </div>
         </div>
       </div>
