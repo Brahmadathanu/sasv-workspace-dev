@@ -222,7 +222,7 @@ function renderMessageCard(title, message) {
 function renderUtilitiesSectioned(utilities, accessMap) {
   // keep only utilities that are visible (use or view)
   const visible = utilities.filter(
-    (u) => (accessMap[u.id] || "none") !== "none"
+    (u) => (accessMap[u.id] || "none") !== "none",
   );
 
   // attach meta for grouping/sorting
@@ -244,7 +244,7 @@ function renderUtilitiesSectioned(utilities, accessMap) {
 
   // order sections
   const sections = Object.keys(bySection).sort(
-    (A, B) => (SECTION_ORDER[A] ?? 999) - (SECTION_ORDER[B] ?? 999)
+    (A, B) => (SECTION_ORDER[A] ?? 999) - (SECTION_ORDER[B] ?? 999),
   );
 
   let html = "";
@@ -426,8 +426,9 @@ async function loadAccessMap(userId, utilities) {
     console.debug("loadAccessMap legacy query failed", e);
   }
 
-  // fallback: show as 'view' so users can request access
-  utilities.forEach((u) => (map[u.id] = "view"));
+  // fallback: fail-safe — treat unknown permissions as 'none'
+  // (previous behavior hid modules unless user had explicit view/use)
+  utilities.forEach((u) => (map[u.id] = "none"));
   return map;
 }
 
@@ -521,7 +522,7 @@ async function signUpWithPassword(event) {
       options: {
         emailRedirectTo: new URL(
           "/utilities-hub/auth/callback.html",
-          location.origin
+          location.origin,
         ).href,
       },
     });
@@ -530,7 +531,7 @@ async function signUpWithPassword(event) {
       if ((error.message || "").toLowerCase().includes("exists")) {
         showMsg(
           "Account already exists. Use Sign in or Forgot password.",
-          true
+          true,
         );
       } else {
         showMsg(error.message || "Sign-up failed.", true);
@@ -626,7 +627,7 @@ async function render() {
   if (elRoot) {
     elRoot.innerHTML = renderUtilitiesSectioned(
       visibleUtilities,
-      prunedAccessMap
+      prunedAccessMap,
     );
     elRoot.classList.remove("hub-grid"); // root shouldn't be a grid anymore
     elRoot.classList.add("hub-root-sectioned"); // mark as sectioned layout
@@ -634,7 +635,7 @@ async function render() {
 
   // Empty state toggle
   const hasVisible = visibleUtilities.some(
-    (u) => (prunedAccessMap[u.id] || "none") !== "none"
+    (u) => (prunedAccessMap[u.id] || "none") !== "none",
   );
   if (elEmpty) elEmpty.style.display = hasVisible ? "none" : "";
 

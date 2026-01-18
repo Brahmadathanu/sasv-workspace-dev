@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
   <head>
     <meta charset="UTF-8" />
@@ -105,15 +105,17 @@
       .filter-bar input:not([type="checkbox"]),
       .filter-bar select,
       .filter-bar .search-wrap input {
-        height: 38px;
-        padding: 6px 12px;
+        height: 46px;
+        padding: 8px 14px;
         border: 1px solid #e6e9ee;
-        border-radius: 8px;
+        border-radius: 10px;
         background: #fff;
-        font-size: 0.95rem;
+        font-size: 1rem;
         color: #0f172a;
         box-shadow: none;
-        transition: box-shadow 150ms ease, border-color 150ms ease;
+        transition:
+          box-shadow 150ms ease,
+          border-color 150ms ease;
       }
       .filter-bar label {
         display: inline-flex;
@@ -129,8 +131,215 @@
         box-shadow: 0 6px 20px rgba(37, 99, 235, 0.06);
       }
       .filter-bar .actions .btn {
-        height: 38px;
-        padding: 6px 12px;
+        height: 46px;
+        padding: 8px 14px;
+        border-radius: 10px;
+      }
+
+      /* Enhanced Master Filter Section (responsive & compact) */
+      #master-filter {
+        background: #e6f0ff !important;
+        border: 1px solid #93c5fd !important;
+        border-radius: 10px !important;
+        padding: 10px 12px !important;
+        margin-bottom: 12px !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+        box-shadow: 0 8px 26px rgba(37, 99, 235, 0.06) !important;
+        flex-wrap: wrap !important;
+      }
+
+      /* Slightly reduce spacing on narrow tablets and phones */
+      @media (max-width: 768px) {
+        #master-filter {
+          gap: 8px !important;
+          padding: 8px 10px !important;
+        }
+      }
+
+      /* Match standard filter sizes but allow scaling */
+      #master-filter select,
+      #master-filter input[type="month"] {
+        height: 40px; /* slightly smaller than main filters */
+        padding: 6px 10px;
+        border: 1px solid #e6e9ee;
+        border-radius: 8px;
+        background: #ffffff;
+        font-size: 0.9rem; /* reduced base font */
+        line-height: 1.1;
+        font-weight: 400;
+        color: #0f172a;
+        box-shadow: none;
+        transition:
+          box-shadow 150ms ease,
+          border-color 150ms ease;
+        min-width: 0;
+        flex: 0 1 130px; /* prefer slightly smaller basis */
+      }
+
+      /* On wider screens allow slightly larger basis */
+      @media (min-width: 992px) {
+        #master-filter select,
+        #master-filter input[type="month"] {
+          flex: 0 1 160px;
+        }
+      }
+
+      /* On small viewports scale down further */
+      @media (max-width: 640px) {
+        #master-filter select,
+        #master-filter input[type="month"] {
+          height: 34px;
+          padding: 6px 8px;
+          font-size: 0.78rem; /* slightly smaller for small screens */
+          flex: 1 1 110px; /* allow fields to expand to available width */
+          min-width: 0;
+        }
+      }
+
+      /* Very narrow screens (phones) - further reduce font and height */
+      @media (max-width: 480px) {
+        #master-filter select,
+        #master-filter input[type="month"] {
+          height: 32px;
+          padding: 4px 6px;
+          font-size: 0.72rem; /* small but readable */
+          flex: 1 1 100px;
+        }
+
+        /* hide non-essential label text to save horizontal space */
+        .master-filter-label {
+          display: none;
+        }
+      }
+
+      /* Extra small phones - aggressive scaling */
+      @media (max-width: 360px) {
+        #master-filter select,
+        #master-filter input[type="month"] {
+          height: 30px;
+          padding: 4px 6px;
+          font-size: 0.68rem; /* minimal font to fit content */
+          flex: 1 1 90px;
+        }
+
+        /* hide hint to reclaim space */
+        .master-filter-hint {
+          display: none;
+        }
+      }
+
+      #master-filter select:focus,
+      #master-filter input[type="month"]:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 6px 20px rgba(37, 99, 235, 0.06);
+      }
+
+      #master-filter select:hover,
+      #master-filter input[type="month"]:hover {
+        border-color: #9ca3af;
+      }
+
+      .master-filter-label {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: #374151;
+        margin-right: 6px;
+        flex-shrink: 0;
+      }
+
+      @media (max-width: 480px) {
+        /* hide labels on very narrow screens to preserve space */
+        .master-filter-label {
+          display: none;
+        }
+      }
+
+      .master-filter-hint {
+        margin-left: auto;
+        color: #6b7280;
+        font-size: 12px;
+        font-weight: 400;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+      }
+
+      @media (max-width: 640px) {
+        .master-filter-hint {
+          font-size: 11px;
+          gap: 4px;
+        }
+        .master-filter-hint svg {
+          width: 14px;
+          height: 14px;
+        }
+      }
+
+      /* Enhanced Master Filter Section */
+      .master-filter-container {
+        background: #f1f9ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        box-shadow: 0 6px 18px rgba(37, 99, 235, 0.04);
+      }
+
+      .master-filter-container select,
+      .master-filter-container input[type="month"] {
+        min-width: 160px;
+        height: 48px;
+        padding: 10px 16px;
+        border: 1px solid #d1d5db;
+        border-radius: 12px;
+        background: #ffffff;
+        font-size: 1rem;
+        font-weight: 500;
+        color: #0f172a;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        transition: all 200ms ease;
+      }
+
+      .master-filter-container select:focus,
+      .master-filter-container input[type="month"]:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow:
+          0 0 0 3px rgba(59, 130, 246, 0.1),
+          0 1px 3px rgba(0, 0, 0, 0.1);
+        transform: translateY(-1px);
+      }
+
+      .master-filter-container select:hover,
+      .master-filter-container input[type="month"]:hover {
+        border-color: #9ca3af;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      .master-filter-label {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #374151;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-right: 8px;
+      }
+
+      .master-filter-hint {
+        margin-left: auto;
+        color: #6b7280;
+        font-size: 13px;
+        font-style: italic;
+        display: flex;
+        align-items: center;
+        gap: 6px;
       }
       .search-wrap input {
         padding-right: 36px;
@@ -320,7 +529,9 @@
           background: linear-gradient(180deg, #ffffff, #f8fafc);
           color: #0f172a;
           cursor: pointer;
-          transition: box-shadow 150ms ease, border-color 150ms ease,
+          transition:
+            box-shadow 150ms ease,
+            border-color 150ms ease,
             transform 120ms ease;
           box-shadow: 0 2px 6px rgba(2, 6, 23, 0.04);
         }
@@ -417,32 +628,29 @@
         </div>
       </div>
       <!-- MASTER FILTER placed above tabs: global scope for all panels -->
-      <div
-        id="master-filter"
-        style="
-          background: #f1f5f9;
-          padding: 12px 16px;
-          border-radius: 8px;
-          border: 1px solid #e2e8f0;
-          margin-bottom: 12px;
-          display: flex;
-          align-items: center;
-          gap: 10px;
-        "
-      >
-        <label>
-          <select
-            id="master-preset"
-            title="Preset range (Next 12, Calendar Year, Custom)"
-          >
-            <option value="next12">Next 12</option>
-            <option value="calendarYear">Calendar Year</option>
-            <option value="custom">Custom</option>
-          </select>
-        </label>
+      <div id="master-filter">
+        <span class="master-filter-label">Range:</span>
+        <select
+          id="master-preset"
+          title="Preset range (Next 12, Calendar Year, Custom)"
+        >
+          <option value="next12">Next 12 Months</option>
+          <option value="calendarYear">Calendar Year</option>
+          <option value="custom">Custom Range</option>
+        </select>
+
+        <span class="master-filter-label">From:</span>
         <input type="month" id="master-start" title="Start month (YYYY-MM)" />
+
+        <span class="master-filter-label">To:</span>
         <input type="month" id="master-end" title="End month (YYYY-MM)" />
-        <div style="margin-left: auto; color: #64748b; font-size: 13px">
+
+        <div class="master-filter-hint">
+          <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path
+              d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"
+            />
+          </svg>
           Master filters apply to all tabs
         </div>
       </div>
@@ -452,15 +660,15 @@
           <div class="tab-title">Final Procurement Plan</div>
           <div class="tab-description">Final plan per item and month</div>
         </div>
-        <div class="tab" data-tab="rm-overlay">
-          <div class="tab-title">RM Seasonal Overlay Results</div>
-          <div class="tab-description">Seasonal overlay results by run</div>
-        </div>
         <div class="tab" data-tab="rm-conversion">
           <div class="tab-title">RM Form Conversion</div>
           <div class="tab-description">
             Conversion contributors and summaries
           </div>
+        </div>
+        <div class="tab" data-tab="rm-overlay">
+          <div class="tab-title">RM Seasonal Overlay Results</div>
+          <div class="tab-description">Seasonal overlay results by run</div>
         </div>
         <div class="tab" data-tab="traceability">
           <div class="tab-title">Traceability / Drilldown Hub</div>
