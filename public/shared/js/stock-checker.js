@@ -37,28 +37,16 @@ const PDF_ESM_PATHS = {
 };
 let __pdfExporting = false; // reentrancy guard for exportCoveragePDF
 
-// ────────────── Utility functions ──────────────
-function onReady(fn) {
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", fn, { once: true });
-  } else fn();
-}
-
 function openRowModal(r) {
   if (!elRowModal) return;
   try {
-    // remember element focused before opening so we can restore focus on close
     __lastFocusBeforeRowModal =
       document.activeElement instanceof HTMLElement
         ? document.activeElement
         : null;
-    // header: item / pack / uom
-    elRowHeader.innerHTML = `<strong>${escapeHtml(
-      r.item || ""
-    )}</strong> &nbsp; ${escapeHtml(String(r.pack_size ?? ""))} ${escapeHtml(
-      r.uom || ""
-    )}`;
-    // classification
+    elRowHeader.innerHTML = `<strong>${escapeHtml(r.item || "")}</strong> &nbsp; ${escapeHtml(
+      String(r.pack_size ?? ""),
+    )} ${escapeHtml(r.uom || "")}`;
     const parts = [
       r.category_name,
       r.sub_category_name,
@@ -67,7 +55,6 @@ function openRowModal(r) {
     ].filter(Boolean);
     elRowClassif.textContent = parts.join(" → ");
 
-    // Qty & MOS column: show stocks/demand/mos by IK/KKD/OK/overall
     const stIK = Number(r.stock_ik) || 0;
     const stKKD = Number(r.stock_kkd) || 0;
     const stOK = Number(r.stock_ok) || 0;
@@ -82,7 +69,7 @@ function openRowModal(r) {
       <div>KKD: ${fmtInt(stKKD)}</div>
       <div>OK: ${fmtInt(stOK)}</div>
       <div style="margin-top:8px"><strong>Overall: ${fmtInt(
-        stockOverall
+        stockOverall,
       )}</strong></div>
       <hr/>
       <div><strong>Demand</strong></div>
@@ -90,18 +77,17 @@ function openRowModal(r) {
       <div>KKD: ${fmtInt(fKKD)}</div>
       <div>OK: ${fmtInt(fOK)}</div>
       <div style="margin-top:8px"><strong>Overall: ${fmtInt(
-        forecastOverall
+        forecastOverall,
       )}</strong></div>
     `;
 
-    // Values & Rates
     elRowValue.innerHTML = `
       <div><strong>Value</strong></div>
       <div>IK: ${fmtINR(r.stock_value_ik)}</div>
       <div>KKD: ${fmtINR(r.stock_value_kkd)}</div>
       <div>OK: ${fmtINR(r.stock_value_ok)}</div>
       <div style="margin-top:8px"><strong>Overall: ${fmtINR(
-        r.stock_value_overall
+        r.stock_value_overall,
       )}</strong></div>
       <hr/>
       <div><strong>Rate</strong></div>
@@ -109,18 +95,16 @@ function openRowModal(r) {
       <div>KKD: ${fmtRate(r.rate_kkd)}</div>
       <div>OK: ${fmtRate(r.rate_ok)}</div>
       <div style="margin-top:8px"><strong>Overall: ${fmtRate(
-        r.rate_overall
+        r.rate_overall,
       )}</strong></div>
     `;
 
     elRowFooter.textContent = `MRP IK: ${fmtRate(r.mrp_ik)} / MRP OK: ${fmtRate(
-      r.mrp_ok
+      r.mrp_ok,
     )} ${r.shade_flag ? " • Shade" : ""}`;
 
-    // open modal
     elRowModal.style.display = "flex";
     elRowModal.setAttribute("aria-hidden", "false");
-    // focus close button
     setTimeout(() => {
       elRowModalClose?.focus();
     }, 20);
@@ -262,11 +246,11 @@ function updateFiltersButtonState() {
           document.getElementById("toggle-value"),
         ];
         const anyExplode = es.some(
-          (e) => !!(e && e.type === "checkbox" && e.checked)
+          (e) => !!(e && e.type === "checkbox" && e.checked),
         );
         exBtn.classList.toggle(
           "filters-active",
-          activeForDrawerButtons || anyExplode
+          activeForDrawerButtons || anyExplode,
         );
       }
     } catch {
@@ -308,18 +292,18 @@ function buildStockCheckerFiltersPayload() {
   payload.sub_category_id = Array.isArray(state.sub_category_id)
     ? state.sub_category_id
     : state.sub_category_id && state.sub_category_id !== ""
-    ? state.sub_category_id
-    : null;
+      ? state.sub_category_id
+      : null;
   payload.product_group_id = Array.isArray(state.product_group_id)
     ? state.product_group_id
     : state.product_group_id && state.product_group_id !== ""
-    ? state.product_group_id
-    : null;
+      ? state.product_group_id
+      : null;
   payload.sub_group_id = Array.isArray(state.sub_group_id)
     ? state.sub_group_id
     : state.sub_group_id && state.sub_group_id !== ""
-    ? state.sub_group_id
-    : null;
+      ? state.sub_group_id
+      : null;
 
   payload.ex = {
     cats: Array.isArray(state.ex?.cats) ? state.ex.cats : [],
@@ -454,6 +438,9 @@ const RASO_NAMES = [
 let elItemSel, elPackSize, elUOM;
 let drawerCat, drawerSubcat, drawerPgroup, drawerSgroup;
 
+// Unmapped modal refs (declare here so linters know these exist)
+let elUnmappedModal, elUnmappedModalClose, elUnmappedBody, elUnmappedCount;
+
 // Filters modal refs (needed across init)
 let elFiltersBtn, elFiltersModal, elFiltersModalClose, elFiltersModalBody;
 let elFiltersApply, elFiltersCancel;
@@ -517,6 +504,15 @@ const state = {
 
 let __advExInitDone = false;
 
+/* Lightweight DOM-ready helper */
+function onReady(fn) {
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", fn);
+  } else {
+    setTimeout(fn, 0);
+  }
+}
+
 /* ─────────────────────────── Init ─────────────────────────── */
 onReady(init);
 
@@ -558,6 +554,11 @@ async function init() {
     elValueModalClose = $("sc-value-modal-close");
     elValueBody = $("sc-value-body-content");
     elValueSnapshot = $("sc-value-snapshot");
+    // Unmapped modal refs
+    elUnmappedModal = $("sc-unmapped-modal");
+    elUnmappedModalClose = $("sc-unmapped-modal-close");
+    elUnmappedBody = $("sc-unmapped-body-content");
+    elUnmappedCount = $("sc-unmapped-modal-count");
 
     // Value pill wiring handled in the async totals handler below.
 
@@ -579,21 +580,21 @@ async function init() {
         function () {
           __sc_isDragging = false;
         },
-        { passive: true }
+        { passive: true },
       );
       elBody.addEventListener(
         "touchmove",
         function () {
           __sc_isDragging = true;
         },
-        { passive: true }
+        { passive: true },
       );
       elBody.addEventListener(
         "touchend",
         function () {
           setTimeout(() => (__sc_isDragging = false), 50);
         },
-        { passive: true }
+        { passive: true },
       );
 
       elBody.addEventListener(
@@ -602,14 +603,14 @@ async function init() {
           __sc_mouseDown = true;
           __sc_isDragging = false;
         },
-        { passive: true }
+        { passive: true },
       );
       elBody.addEventListener(
         "mousemove",
         function () {
           if (__sc_mouseDown) __sc_isDragging = true;
         },
-        { passive: true }
+        { passive: true },
       );
       elBody.addEventListener(
         "mouseup",
@@ -617,7 +618,7 @@ async function init() {
           __sc_mouseDown = false;
           setTimeout(() => (__sc_isDragging = false), 50);
         },
-        { passive: true }
+        { passive: true },
       );
     }
 
@@ -688,7 +689,7 @@ async function init() {
           const rect = elUpdated.getBoundingClientRect();
           const vw = Math.max(
             document.documentElement.clientWidth || 0,
-            window.innerWidth || 0
+            window.innerWidth || 0,
           );
           const scrollX = window.scrollX || window.pageXOffset || 0;
           const scrollY = window.scrollY || window.pageYOffset || 0;
@@ -711,8 +712,8 @@ async function init() {
           const natural = Math.ceil(
             Math.max(
               statusDetail.scrollWidth || 0,
-              statusDetail.getBoundingClientRect().width || 0
-            )
+              statusDetail.getBoundingClientRect().width || 0,
+            ),
           );
           const cap = Math.min(MAX_WIDTH, vw - margin * 2);
           let width;
@@ -723,7 +724,7 @@ async function init() {
             // fallback to adaptive sizing based on available space
             width = Math.min(
               cap,
-              Math.max(PREFERRED_MIN, avail || PREFERRED_MIN)
+              Math.max(PREFERRED_MIN, avail || PREFERRED_MIN),
             );
             if (avail && avail < PREFERRED_MIN)
               width = Math.max(MIN_WIDTH, avail);
@@ -850,7 +851,7 @@ async function init() {
       // persistent page-level scrollbar.
       document.documentElement.style.setProperty(
         "--sc-table-offset",
-        offset + "px"
+        offset + "px",
       );
       try {
         const available = Math.max(160, window.innerHeight - offset - 8); // keep a small bottom gap
@@ -871,7 +872,7 @@ async function init() {
     document
       .querySelectorAll("details.drawer")
       .forEach((d) =>
-        d.addEventListener("toggle", () => setTimeout(computeTableOffset, 60))
+        d.addEventListener("toggle", () => setTimeout(computeTableOffset, 60)),
       );
 
     // Wire export buttons early
@@ -993,7 +994,7 @@ async function init() {
           if (isInput)
             elToggleValue.setAttribute(
               "aria-pressed",
-              String(!!state.showValue)
+              String(!!state.showValue),
             );
         };
         if (elToggleValue.tagName === "INPUT")
@@ -1046,9 +1047,238 @@ async function init() {
               <div>KKD: <strong>${fmtINR(t.value_kkd)}</strong></div>
               <div>OK: <strong>${fmtINR(t.value_ok)}</strong></div>
               <div style="margin-top:8px">Overall: <strong>${fmtINR(
-                t.value_overall
+                t.value_overall,
               )}</strong></div>
             `;
+            // Unmapped Stock card — matches other value cards; SVG-only details button opens modal
+            try {
+              const unmappedCard = document.createElement("div");
+              unmappedCard.id = "sc-value-unmapped";
+              unmappedCard.style.marginTop = "12px";
+              unmappedCard.style.gridColumn = "1 / -1";
+              unmappedCard.innerHTML =
+                '<div style="display:flex;align-items:center;justify-content:space-between">' +
+                '<div><strong style="font-weight:600">Unmapped Stock (not included above):</strong> <span id="sc-value-unmapped-amt">Calculating…</span></div>' +
+                '<button type="button" class="sc-btn sc-btn-icon" aria-label="Open unmapped details" id="sc-value-unmapped-detail"' +
+                ' style="background:#ecf8ef;border-radius:999px;color:#1b8a3b;padding:4px;border:1px solid rgba(27,138,59,0.12);width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;font-size:12px">' +
+                '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+                '<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.2" fill="none"/>' +
+                '<path d="M12 8h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>' +
+                '<path d="M11.5 11h1v5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>' +
+                "</svg></button></div>";
+              elValueBody.appendChild(unmappedCard);
+
+              // Update amount text asynchronously via server aggregate RPC
+              (async () => {
+                try {
+                  const { data: agg, error: aggErr } = await supabase.rpc(
+                    "unmapped_aggregate",
+                    { p_filters: filters },
+                  );
+                  if (aggErr) throw aggErr;
+                  const total = agg && (agg.total_value ?? agg.total ?? 0);
+                  const amt = document.getElementById("sc-value-unmapped-amt");
+                  if (amt) amt.textContent = fmtINR(total);
+                } catch (e) {
+                  const amt = document.getElementById("sc-value-unmapped-amt");
+                  if (amt) amt.textContent = "Failed to load";
+                  console.error("unmapped_aggregate RPC failed:", e);
+                }
+              })();
+
+              // Wire SVG-only detail button to open modal
+              const detailBtn = unmappedCard.querySelector(
+                "#sc-value-unmapped-detail",
+              );
+              if (detailBtn) {
+                detailBtn.addEventListener("click", async (ev) => {
+                  ev.stopPropagation();
+                  if (!elUnmappedModal) return;
+                  elUnmappedModal.style.display = "flex";
+                  elUnmappedModal.setAttribute("aria-hidden", "false");
+                  if (elUnmappedBody) elUnmappedBody.textContent = "Loading…";
+                  try {
+                    const { data: rpcData, error: rpcErr } = await supabase.rpc(
+                      "unmapped_rows",
+                      {
+                        p_filters: filters,
+                        p_page: 1,
+                        p_page_size: 1500,
+                        p_sort_col: "item",
+                        p_sort_dir: "asc",
+                      },
+                    );
+                    if (rpcErr) throw rpcErr;
+                    const rows = (rpcData && rpcData.rows) || [];
+                    const totalCount =
+                      (rpcData && (rpcData.count ?? 0)) || rows.length;
+                    if (!Array.isArray(rows) || rows.length === 0) {
+                      if (elUnmappedBody)
+                        elUnmappedBody.textContent = "No unmapped stock found.";
+                      if (elUnmappedCount)
+                        elUnmappedCount.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><div>0 rows</div><div id="sc-unmapped-modal-total" style="font-weight:700">${fmtINR(0)}</div></div>`;
+                      return;
+                    }
+
+                    // compute total unmapped value (prefer overall if present)
+                    let unmappedTotal = 0;
+                    try {
+                      for (const r of rows) {
+                        const v =
+                          r.stock_value_overall ??
+                          r.stock_value ??
+                          r.stock_value_ik ??
+                          0;
+                        unmappedTotal += Number(v || 0);
+                      }
+                    } catch {
+                      unmappedTotal = 0;
+                    }
+                    if (elUnmappedCount)
+                      elUnmappedCount.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><div>${fmtInt(totalCount)} rows</div><div id="sc-unmapped-modal-total" style="font-weight:700">${fmtINR(unmappedTotal)}</div></div>`;
+
+                    // Build ERP-styled toolbar (search removed by request)
+                    const toolbar = document.createElement("div");
+                    toolbar.className = "sc-unmapped-toolbar";
+                    toolbar.innerHTML = `<div class="left"><strong class="muted">Unmapped Stock</strong></div>
+                      <div class="actions">
+                        <button id="sc-unmapped-export" class="sc-btn">Export CSV</button>
+                      </div>`;
+
+                    // Prepare table wrapper
+                    const tableWrap = document.createElement("div");
+                    tableWrap.className = "sc-unmapped-table-wrap";
+
+                    // Determine column ordering: prefer common columns first
+                    const rawKeys = Object.keys(rows[0]);
+                    const preferred = [
+                      "item",
+                      "product_code",
+                      "pack_size",
+                      "uom",
+                      "location",
+                      "godown",
+                      "stock_ok",
+                      "stock_kkd",
+                      "stock_ik",
+                      "stock_overall",
+                      "stock_value",
+                      "stock_value_overall",
+                      "rate",
+                      "rate_overall",
+                    ];
+                    const keys = [];
+                    for (const p of preferred)
+                      if (rawKeys.includes(p)) keys.push(p);
+                    for (const k of rawKeys)
+                      if (!keys.includes(k)) keys.push(k);
+
+                    // Helper to format cell values by column name
+                    const formatCell = (k, v) => {
+                      if (v == null) return "";
+                      if (/value/i.test(k)) return fmtINR(v);
+                      if (/rate|mrp|price/i.test(k)) return fmtRate(v);
+                      if (/qty|stock|count|nos|quantity/i.test(k))
+                        return fmtInt(v);
+                      return String(v);
+                    };
+
+                    // Render function (can be reused for filtering)
+                    function renderTable(rowsToRender) {
+                      const table = document.createElement("table");
+                      table.className = "erp-table sc-table";
+                      // header
+                      const thead = document.createElement("thead");
+                      const trh = document.createElement("tr");
+                      for (const k of keys) {
+                        const th = document.createElement("th");
+                        th.textContent = k.replace(/_/g, " ");
+                        trh.appendChild(th);
+                      }
+                      thead.appendChild(trh);
+                      table.appendChild(thead);
+                      // body
+                      const tbody = document.createElement("tbody");
+                      for (const r of rowsToRender) {
+                        const tr = document.createElement("tr");
+                        for (const k of keys) {
+                          const td = document.createElement("td");
+                          const raw = r[k];
+                          const formatted = formatCell(k, raw);
+                          if (/value|rate|mrp/i.test(k)) {
+                            td.innerHTML = `<span class="num">${escapeHtml(formatted)}</span>`;
+                          } else if (
+                            /item|product|code|location|uom/i.test(k)
+                          ) {
+                            td.innerHTML = `<span>${escapeHtml(formatted)}</span>`;
+                          } else if (/stock|qty|count|nos|quantity/i.test(k)) {
+                            td.innerHTML = `<span class="num">${escapeHtml(formatted)}</span>`;
+                          } else {
+                            td.textContent = formatted;
+                          }
+                          tr.appendChild(td);
+                        }
+                        tbody.appendChild(tr);
+                      }
+                      table.appendChild(tbody);
+                      // clear and append
+                      tableWrap.innerHTML = "";
+                      tableWrap.appendChild(table);
+                    }
+
+                    // Initialize content
+                    if (elUnmappedBody) {
+                      elUnmappedBody.innerHTML = "";
+                      elUnmappedBody.appendChild(toolbar);
+                      elUnmappedBody.appendChild(tableWrap);
+                    }
+                    renderTable(rows);
+
+                    // Search input removed; client-side free-text filtering disabled.
+
+                    // Wire export CSV
+                    const exp = document.getElementById("sc-unmapped-export");
+                    if (exp) {
+                      exp.addEventListener("click", () => {
+                        try {
+                          const lines = [
+                            keys.map((k) => csvEscape(k)).join(","),
+                          ];
+                          for (const r of rows) {
+                            const row = keys.map((k) => csvEscape(r[k]));
+                            lines.push(row.join(","));
+                          }
+                          const csv = lines.join("\n");
+                          const blob = new Blob([csv], {
+                            type: "text/csv;charset=utf-8;",
+                          });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          a.href = url;
+                          a.download = `unmapped_stock_${new Date().toISOString().slice(0, 10)}.csv`;
+                          document.body.appendChild(a);
+                          a.click();
+                          a.remove();
+                          URL.revokeObjectURL(url);
+                        } catch (e) {
+                          console.error("Export failed", e);
+                        }
+                      });
+                    }
+                  } catch (err) {
+                    if (elUnmappedBody)
+                      elUnmappedBody.textContent =
+                        "Failed to load unmapped stock.";
+                    console.error(
+                      "Failed to fetch v_unmapped_stock_today rows:",
+                      err,
+                    );
+                  }
+                });
+              }
+            } catch {
+              /* ignore UI placement errors */
+            }
             if (elValueSnapshot)
               elValueSnapshot.textContent = t.snapshot_date
                 ? `Snapshot: ${new Date(t.snapshot_date).toLocaleString()}`
@@ -1079,6 +1309,53 @@ async function init() {
             elValueModal.style.display !== "none"
           )
             closeValueModal();
+        });
+
+        // Close function for unmapped modal
+        function closeUnmappedModal() {
+          if (!elUnmappedModal) return;
+          try {
+            const active = document.activeElement;
+            if (
+              active &&
+              elUnmappedModal.contains(active) &&
+              typeof active.blur === "function"
+            )
+              active.blur();
+          } catch {
+            void 0;
+          }
+          elUnmappedModal.style.display = "none";
+          elUnmappedModal.setAttribute("aria-hidden", "true");
+          try {
+            const trigger = document.getElementById("sc-value-unmapped-detail");
+            if (trigger && typeof trigger.focus === "function") trigger.focus();
+            else elTotalValue?.focus?.();
+          } catch {
+            void 0;
+          }
+        }
+
+        // Unmapped modal close handlers
+        elUnmappedModalClose?.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          closeUnmappedModal();
+        });
+        elUnmappedModal?.addEventListener("click", (ev) => {
+          if (
+            ev.target &&
+            ev.target.classList &&
+            ev.target.classList.contains("sc-modal-backdrop")
+          )
+            closeUnmappedModal();
+        });
+        document.addEventListener("keydown", (ev) => {
+          if (
+            ev.key === "Escape" &&
+            elUnmappedModal &&
+            elUnmappedModal.style.display !== "none"
+          )
+            closeUnmappedModal();
         });
       }
 
@@ -1576,33 +1853,33 @@ async function init() {
       (function () {
         if (btnExplodeStock.tagName === "INPUT")
           btnExplodeStock.addEventListener("change", () =>
-            toggleExplode(btnExplodeStock, "explode-stock-active")
+            toggleExplode(btnExplodeStock, "explode-stock-active"),
           );
         else
           btnExplodeStock.addEventListener("click", () =>
-            toggleExplode(btnExplodeStock, "explode-stock-active")
+            toggleExplode(btnExplodeStock, "explode-stock-active"),
           );
       })();
     btnExplodeDemand &&
       (function () {
         if (btnExplodeDemand.tagName === "INPUT")
           btnExplodeDemand.addEventListener("change", () =>
-            toggleExplode(btnExplodeDemand, "explode-demand-active")
+            toggleExplode(btnExplodeDemand, "explode-demand-active"),
           );
         else
           btnExplodeDemand.addEventListener("click", () =>
-            toggleExplode(btnExplodeDemand, "explode-demand-active")
+            toggleExplode(btnExplodeDemand, "explode-demand-active"),
           );
       })();
     btnExplodeMos &&
       (function () {
         if (btnExplodeMos.tagName === "INPUT")
           btnExplodeMos.addEventListener("change", () =>
-            toggleExplode(btnExplodeMos, "explode-mos-active")
+            toggleExplode(btnExplodeMos, "explode-mos-active"),
           );
         else
           btnExplodeMos.addEventListener("click", () =>
-            toggleExplode(btnExplodeMos, "explode-mos-active")
+            toggleExplode(btnExplodeMos, "explode-mos-active"),
           );
       })();
 
@@ -1789,17 +2066,17 @@ function initItemAutocomplete() {
         .map(
           (it, idx) =>
             `<div class="ac-item" role="option" data-id="${escapeHtml(
-              it.id
+              it.id,
             )}" data-idx="${idx}" aria-selected="${
               idx === activeIndex
-            }">${escapeHtml(it.item)}</div>`
+            }">${escapeHtml(it.item)}</div>`,
         )
         .join("");
     } else if (loading) {
       html = `<div class="ac-loading"><span class="ac-spinner" aria-hidden="true"></span><span>Loading…</span></div>`;
     } else if (q) {
       html = `<div class="ac-item" role="option" aria-selected="false">No results for "${escapeHtml(
-        q
+        q,
       )}"</div>`;
     }
     listEl.innerHTML = html;
@@ -1923,7 +2200,7 @@ function initItemAutocomplete() {
       if (nearBottom && hasMore && !loading) {
         loadMore();
       }
-    }, 120)
+    }, 120),
   );
 
   function selectItem(id, label) {
@@ -2022,7 +2299,7 @@ async function populateDrawerClassificationFilters() {
         // sync to underlying select
         const value = cb.dataset.value;
         const targetOpt = Array.from(sel.options).find(
-          (o) => String(o.value) === String(value)
+          (o) => String(o.value) === String(value),
         );
         if (targetOpt) targetOpt.selected = cb.checked;
         // update button summary
@@ -2215,7 +2492,7 @@ async function populateDrawerClassificationFilters() {
       buildMultiFromSelect(
         "ex-cat",
         "ex-cat-list",
-        "Select categories to exclude"
+        "Select categories to exclude",
       );
     }
     if (exSubcatEl && allSubcats) {
@@ -2223,7 +2500,7 @@ async function populateDrawerClassificationFilters() {
       buildMultiFromSelect(
         "ex-subcat",
         "ex-subcat-list",
-        "Select sub-categories to exclude"
+        "Select sub-categories to exclude",
       );
     }
     if (exPgroupEl && allPgroups) {
@@ -2231,7 +2508,7 @@ async function populateDrawerClassificationFilters() {
       buildMultiFromSelect(
         "ex-pgroup",
         "ex-pgroup-list",
-        "Select groups to exclude"
+        "Select groups to exclude",
       );
     }
     if (exSgroupEl && allSgroups) {
@@ -2239,7 +2516,7 @@ async function populateDrawerClassificationFilters() {
       buildMultiFromSelect(
         "ex-sgroup",
         "ex-sgroup-list",
-        "Select sub-groups to exclude"
+        "Select sub-groups to exclude",
       );
     }
   } catch {
@@ -2292,7 +2569,7 @@ async function populateDrawerClassificationFilters() {
     const filteredSubcatIds = (filtered || []).map((s) => String(s.id));
     const pgFiltered = filteredSubcatIds.length
       ? allPgroups.filter((p) =>
-          filteredSubcatIds.includes(String(p.sub_category_id))
+          filteredSubcatIds.includes(String(p.sub_category_id)),
         )
       : allPgroups;
     buildPgroupNameMap(pgFiltered);
@@ -2302,7 +2579,7 @@ async function populateDrawerClassificationFilters() {
     const pgFilteredIds = (pgFiltered || []).map((p) => String(p.id));
     const sgFiltered = pgFilteredIds.length
       ? allSgroups.filter((s) =>
-          pgFilteredIds.includes(String(s.product_group_id))
+          pgFilteredIds.includes(String(s.product_group_id)),
         )
       : allSgroups;
     buildSgroupNameMap(sgFiltered);
@@ -2330,14 +2607,14 @@ async function populateDrawerClassificationFilters() {
       subcatIdsForSel.length === 1
         ? subcatIdsForSel[0]
         : subcatIdsForSel.length
-        ? subcatIdsForSel
-        : "";
+          ? subcatIdsForSel
+          : "";
     state.product_group_id = "";
     state.sub_group_id = "";
 
     const filtered = subcatIdsForSel.length
       ? allPgroups.filter((p) =>
-          subcatIdsForSel.includes(String(p.sub_category_id))
+          subcatIdsForSel.includes(String(p.sub_category_id)),
         )
       : allPgroups;
     // populate product-group select with unique names from filtered list
@@ -2368,13 +2645,13 @@ async function populateDrawerClassificationFilters() {
       pgroupIdsForSel.length === 1
         ? pgroupIdsForSel[0]
         : pgroupIdsForSel.length
-        ? pgroupIdsForSel
-        : "";
+          ? pgroupIdsForSel
+          : "";
     state.sub_group_id = "";
 
     const filtered = pgroupIdsForSel.length
       ? allSgroups.filter((s) =>
-          pgroupIdsForSel.includes(String(s.product_group_id))
+          pgroupIdsForSel.includes(String(s.product_group_id)),
         )
       : allSgroups;
     buildSgroupNameMap(filtered);
@@ -2401,8 +2678,8 @@ async function populateDrawerClassificationFilters() {
       sgroupIdsForSel.length === 1
         ? sgroupIdsForSel[0]
         : sgroupIdsForSel.length
-        ? sgroupIdsForSel
-        : "";
+          ? sgroupIdsForSel
+          : "";
     page = 1;
     if (Object.keys(window.__origFilterPlacement || {}).length === 0) {
       runQuery();
@@ -2440,7 +2717,7 @@ async function populateAdvancedExclusions() {
   const fillMulti = (select, rows, valueKey, labelKey) => {
     if (!select) return;
     const prev = new Set(
-      Array.from(select.selectedOptions).map((o) => o.value)
+      Array.from(select.selectedOptions).map((o) => o.value),
     );
     select.innerHTML = "";
     dedupeById(rows).forEach((row) => {
@@ -2637,13 +2914,13 @@ function wireAdvanced() {
 function readAdvancedState() {
   state.ex.cats = Array.from(exCat?.selectedOptions || []).map((o) => o.value);
   state.ex.subcats = Array.from(exSubcat?.selectedOptions || []).map(
-    (o) => o.value
+    (o) => o.value,
   );
   state.ex.pgroups = Array.from(exPgroup?.selectedOptions || []).map(
-    (o) => o.value
+    (o) => o.value,
   );
   state.ex.sgroups = Array.from(exSgroup?.selectedOptions || []).map(
-    (o) => o.value
+    (o) => o.value,
   );
 
   const getMosRule = (opEl, v1El, v2El, nnEl) => {
@@ -2898,14 +3175,14 @@ function attachHeaderSorting() {
           const c = t.dataset.sortCol || t.dataset.col || "";
           if (state.sort.col === c && state.sort.dir) {
             indEl.innerHTML = caretSvg(
-              state.sort.dir === "desc" ? "desc" : "asc"
+              state.sort.dir === "desc" ? "desc" : "asc",
             );
             t.classList.add(
-              state.sort.dir === "desc" ? "sort-desc" : "sort-asc"
+              state.sort.dir === "desc" ? "sort-desc" : "sort-asc",
             );
             t.setAttribute(
               "aria-sort",
-              state.sort.dir === "desc" ? "descending" : "ascending"
+              state.sort.dir === "desc" ? "descending" : "ascending",
             );
           } else {
             indEl.innerHTML = "";
@@ -3097,54 +3374,54 @@ function renderRows(rows) {
         </div>
       </td>
       <td class="col-meta" style="text-align:center">${escapeHtml(
-        String(r.pack_size ?? "")
+        String(r.pack_size ?? ""),
       )}</td>
       <td class="col-meta" style="text-align:center">${escapeHtml(
-        r.uom || ""
+        r.uom || "",
       )}</td>
       <td class="col-stock" style="text-align:center">${fmtInt(r.stock_ik)}</td>
       <td class="col-stock" style="text-align:center">${fmtInt(
-        r.stock_kkd
+        r.stock_kkd,
       )}</td>
       <td class="col-stock" style="text-align:center">${fmtInt(r.stock_ok)}</td>
       <td class="col-overall" style="text-align:center">${fmtInt(
-        stockOverall
+        stockOverall,
       )}</td>
       ${
         state.showValue
           ? `
       <td class="col-value" style="text-align:center">${fmtINR(
-        r.stock_value_ik
+        r.stock_value_ik,
       )}</td>
       <td class="col-value" style="text-align:center">${fmtINR(
-        r.stock_value_kkd
+        r.stock_value_kkd,
       )}</td>
       <td class="col-value" style="text-align:center">${fmtINR(
-        r.stock_value_ok
+        r.stock_value_ok,
       )}</td>
       <td class="col-value" style="text-align:center">${fmtINR(
-        r.stock_value_overall
+        r.stock_value_overall,
       )}</td>
       `
           : ""
       }
       <td class="col-demand" style="text-align:center">${fmtInt(
-        r.forecast_ik
+        r.forecast_ik,
       )}</td>
       <td class="col-demand" style="text-align:center">${fmtInt(
-        r.forecast_kkd
+        r.forecast_kkd,
       )}</td>
       <td class="col-demand" style="text-align:center">${fmtInt(
-        r.forecast_ok
+        r.forecast_ok,
       )}</td>
       <td class="col-overall" style="text-align:center">${fmtInt(
-        forecastOverall
+        forecastOverall,
       )}</td>
       <td class="col-mos" style="text-align:center">${fmt3(r.mos_ik)}</td>
       <td class="col-mos" style="text-align:center">${fmt3(r.mos_kkd)}</td>
       <td class="col-mos" style="text-align:center">${fmt3(r.mos_ok)}</td>
       <td class="col-overall" style="text-align:center">${fmt3(
-        r.mos_overall
+        r.mos_overall,
       )}</td>
     </tr>`;
     })
@@ -3195,7 +3472,7 @@ function renderRows(rows) {
         /* ignore */
       }
       Array.from(elBody.querySelectorAll("tr.selected-row")).forEach((row) =>
-        row.classList.remove("selected-row")
+        row.classList.remove("selected-row"),
       );
       let targetTr = tr;
       if (e && e.target && e.target.tagName === "TD") {
@@ -3217,7 +3494,7 @@ function renderRows(rows) {
         }
         handleSelect(e);
       },
-      { passive: true }
+      { passive: true },
     );
 
     // touchend handler (mobile)
@@ -3236,7 +3513,7 @@ function renderRows(rows) {
         __sc_ignoreNextClick = true;
         setTimeout(() => (__sc_ignoreNextClick = false), 400);
       },
-      { passive: true }
+      { passive: true },
     );
 
     // track pointer movement to detect drag/scroll gestures
@@ -3245,14 +3522,14 @@ function renderRows(rows) {
       function () {
         __sc_isDragging = true;
       },
-      { passive: true }
+      { passive: true },
     );
     tr.addEventListener(
       "mousemove",
       function () {
         __sc_isDragging = true;
       },
-      { passive: true }
+      { passive: true },
     );
     // reset drag flag shortly after end to allow subsequent clicks
     tr.addEventListener(
@@ -3260,14 +3537,14 @@ function renderRows(rows) {
       function () {
         setTimeout(() => (__sc_isDragging = false), 50);
       },
-      { passive: true }
+      { passive: true },
     );
     tr.addEventListener(
       "touchend",
       function () {
         setTimeout(() => (__sc_isDragging = false), 50);
       },
-      { passive: true }
+      { passive: true },
     );
     Array.from(tr.children).forEach((td) => {
       if (td.tagName === "TD") {
@@ -3306,7 +3583,7 @@ function renderRows(rows) {
           console.warn(
             "openForRow: row index out of range",
             idx,
-            Array.isArray(__lastRows) ? __lastRows.length : 0
+            Array.isArray(__lastRows) ? __lastRows.length : 0,
           );
           return;
         }
@@ -3424,7 +3701,7 @@ async function exportCSV() {
           r.rate_overall,
         ]
           .map(csvEscape)
-          .join(",")
+          .join(","),
       ),
     ].join("\n");
 
@@ -3578,7 +3855,7 @@ async function exportCoveragePDF() {
         `Page ${doc.internal.getCurrentPageInfo().pageNumber}`,
         pageW - margin.r,
         y,
-        { align: "right", baseline: "bottom" }
+        { align: "right", baseline: "bottom" },
       );
     };
 
@@ -3662,7 +3939,7 @@ async function exportCoveragePDF() {
 
     // 5) SAVE
     doc.save(
-      `Stock_Coverage_Report_${new Date().toISOString().slice(0, 10)}.pdf`
+      `Stock_Coverage_Report_${new Date().toISOString().slice(0, 10)}.pdf`,
     );
   } catch (err) {
     console.error(err);
@@ -3803,7 +4080,7 @@ async function exportCoveragePDFRegion() {
         `Page ${doc.internal.getCurrentPageInfo().pageNumber}`,
         pageW - margin.r,
         y,
-        { align: "right", baseline: "bottom" }
+        { align: "right", baseline: "bottom" },
       );
     };
 
@@ -3884,7 +4161,7 @@ async function exportCoveragePDFRegion() {
     doc.save(
       `Stock_Coverage_Report_Region_${new Date()
         .toISOString()
-        .slice(0, 10)}.pdf`
+        .slice(0, 10)}.pdf`,
     );
   } catch (err) {
     console.error(err);
@@ -4023,7 +4300,7 @@ async function exportCoveragePDFHODepot() {
         `Page ${doc.internal.getCurrentPageInfo().pageNumber}`,
         pageW - margin.r,
         y,
-        { align: "right", baseline: "bottom" }
+        { align: "right", baseline: "bottom" },
       );
     };
 
@@ -4105,7 +4382,7 @@ async function exportCoveragePDFHODepot() {
     doc.save(
       `Stock_Coverage_Report_HO_Depot_${new Date()
         .toISOString()
-        .slice(0, 10)}.pdf`
+        .slice(0, 10)}.pdf`,
     );
   } catch (err) {
     console.error(err);
@@ -4179,7 +4456,7 @@ function clearAll() {
     void 0;
   }
   [mosIkEn, mosOkEn, mosOvEn, mosKkdEn].forEach(
-    (el) => el && (el.checked = false)
+    (el) => el && (el.checked = false),
   );
   [mosIkOp, mosOkOp, mosOvOp, mosKkdOp].forEach((el) => {
     if (!el) return;
@@ -4207,7 +4484,7 @@ function clearAll() {
     mosKkdV2,
   ].forEach((el) => el && (el.value = ""));
   [mosIkNN, mosOkNN, mosOvNN, mosKkdNN].forEach(
-    (el) => el && (el.checked = false)
+    (el) => el && (el.checked = false),
   );
   if (advCount) advCount.style.display = "none";
 
