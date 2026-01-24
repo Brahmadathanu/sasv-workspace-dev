@@ -1109,7 +1109,10 @@ async function init() {
                       },
                     );
                     if (rpcErr) throw rpcErr;
-                    const rows = (rpcData && rpcData.rows) || [];
+                    let rows = (rpcData && rpcData.rows) || [];
+                    // local sort state for the unmapped modal (keeps export in-sync)
+                    let unmappedSortCol = "item";
+                    let unmappedSortDir = "asc";
                     const totalCount =
                       (rpcData && (rpcData.count ?? 0)) || rows.length;
                     if (!Array.isArray(rows) || rows.length === 0) {
@@ -1193,6 +1196,149 @@ async function init() {
                       for (const k of keys) {
                         const th = document.createElement("th");
                         th.textContent = k.replace(/_/g, " ");
+                        // attach sort metadata and indicator
+                        th.dataset.sortCol = k;
+                        th.tabIndex = 0;
+                        let ind = th.querySelector(".sc-sort-indicator");
+                        if (!ind) {
+                          ind = document.createElement("span");
+                          ind.className = "sc-sort-indicator";
+                          ind.setAttribute("aria-hidden", "true");
+                          th.appendChild(ind);
+                        }
+
+                        const caretSvg = (dir) => {
+                          if (!dir) return "";
+                          if (dir === "asc") {
+                            return `<svg width="12" height="12" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill="currentColor" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>`;
+                          }
+                          return `<svg width="12" height="12" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill="currentColor" d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>`;
+                        };
+
+                        const updateVisual = () => {
+                          th.classList.remove("sort-asc", "sort-desc");
+                          const cur =
+                            unmappedSortCol === k ? unmappedSortDir : "";
+                          if (cur === "asc") {
+                            th.classList.add("sort-asc");
+                            ind.innerHTML = caretSvg("asc");
+                            th.setAttribute("aria-sort", "ascending");
+                          } else if (cur === "desc") {
+                            th.classList.add("sort-desc");
+                            ind.innerHTML = caretSvg("desc");
+                            th.setAttribute("aria-sort", "descending");
+                          } else {
+                            ind.innerHTML = "";
+                            th.setAttribute("aria-sort", "none");
+                          }
+                        };
+
+                        const cycle = async (ev) => {
+                          ev && ev.preventDefault && ev.preventDefault();
+                          const col = k;
+                          if (!col) return;
+                          if (unmappedSortCol === col) {
+                            if (unmappedSortDir === "asc")
+                              unmappedSortDir = "desc";
+                            else if (unmappedSortDir === "desc") {
+                              unmappedSortCol = "";
+                              unmappedSortDir = "";
+                            } else {
+                              unmappedSortCol = col;
+                              unmappedSortDir = "asc";
+                            }
+                          } else {
+                            unmappedSortCol = col;
+                            unmappedSortDir = "asc";
+                          }
+
+                          // fetch sorted rows from server and re-render
+                          try {
+                            const { data: rpcData2, error: rpcErr2 } =
+                              await supabase.rpc("unmapped_rows", {
+                                p_filters: filters,
+                                p_page: 1,
+                                p_page_size: 1500,
+                                p_sort_col: unmappedSortCol || null,
+                                p_sort_dir: unmappedSortDir || null,
+                              });
+                            if (rpcErr2) throw rpcErr2;
+                            rows = (rpcData2 && rpcData2.rows) || [];
+                            const totalCount2 =
+                              (rpcData2 && (rpcData2.count ?? 0)) ||
+                              rows.length;
+                            // recompute unmapped total
+                            let unmappedTotal2 = 0;
+                            try {
+                              for (const r of rows) {
+                                const v =
+                                  r.stock_value_overall ??
+                                  r.stock_value ??
+                                  r.stock_value_ik ??
+                                  0;
+                                unmappedTotal2 += Number(v || 0);
+                              }
+                            } catch {
+                              unmappedTotal2 = 0;
+                            }
+                            if (elUnmappedCount)
+                              elUnmappedCount.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><div>${fmtInt(totalCount2)} rows</div><div id="sc-unmapped-modal-total" style="font-weight:700">${fmtINR(unmappedTotal2)}</div></div>`;
+                            renderTable(rows);
+                          } catch (err) {
+                            console.error(
+                              "Failed to fetch sorted unmapped rows:",
+                              err,
+                            );
+                          }
+                          // update visuals for all header cells after state change
+                          Array.from(trh.querySelectorAll("th")).forEach(
+                            (tth) => {
+                              try {
+                                const indEl =
+                                  tth.querySelector(".sc-sort-indicator");
+                                const c = tth.dataset.sortCol || "";
+                                if (indEl) {
+                                  if (
+                                    unmappedSortCol === c &&
+                                    unmappedSortDir
+                                  ) {
+                                    indEl.innerHTML = caretSvg(
+                                      unmappedSortDir === "desc"
+                                        ? "desc"
+                                        : "asc",
+                                    );
+                                    tth.classList.add(
+                                      unmappedSortDir === "desc"
+                                        ? "sort-desc"
+                                        : "sort-asc",
+                                    );
+                                    tth.setAttribute(
+                                      "aria-sort",
+                                      unmappedSortDir === "desc"
+                                        ? "descending"
+                                        : "ascending",
+                                    );
+                                  } else {
+                                    indEl.innerHTML = "";
+                                    tth.classList.remove(
+                                      "sort-asc",
+                                      "sort-desc",
+                                    );
+                                    tth.setAttribute("aria-sort", "none");
+                                  }
+                                }
+                              } catch {
+                                void 0;
+                              }
+                            },
+                          );
+                        };
+
+                        th.addEventListener("click", cycle);
+                        th.addEventListener("keydown", (ev) => {
+                          if (ev.key === "Enter" || ev.key === " ") cycle(ev);
+                        });
+                        updateVisual();
                         trh.appendChild(th);
                       }
                       thead.appendChild(trh);
@@ -1236,7 +1382,7 @@ async function init() {
 
                     // Search input removed; client-side free-text filtering disabled.
 
-                    // Wire export CSV
+                    // Wire export CSV — uses current `rows` (keeps current sort)
                     const exp = document.getElementById("sc-unmapped-export");
                     if (exp) {
                       exp.addEventListener("click", () => {
@@ -3615,6 +3761,8 @@ async function exportCSV() {
         p_filters: filters,
         p_page: p,
         p_page_size: PAGE,
+        p_sort_col: state.sort && state.sort.col ? state.sort.col : null,
+        p_sort_dir: state.sort && state.sort.dir ? state.sort.dir : null,
       });
       if (error) throw error;
       const rows = (data && data.rows) || [];
