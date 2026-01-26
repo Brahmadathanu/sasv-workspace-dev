@@ -91,14 +91,11 @@ async function isHubAdmin(userId) {
   try {
     const perms = await getUserPermissions(userId);
     if (perms) {
-      // look for role:hub_admin or module:hub_admin
+      // look for canonical Admin Console module permission
       for (const p of perms) {
         if (!p || !p.target) continue;
         const t = String(p.target || "");
-        if (
-          (t === "role:hub_admin" || t === "module:hub_admin") &&
-          p.can_edit
-        ) {
+        if (t === "module:admin-console" && p.can_view) {
           return true;
         }
       }
@@ -220,9 +217,9 @@ function renderMessageCard(title, message) {
    Sectioned renderer (curated order + Request buttons)
 ─────────────────────────────────────────────────────────────── */
 function renderUtilitiesSectioned(utilities, accessMap) {
-  // keep only utilities that are visible (use or view)
+  // keep only utilities that are visible for use (only 'use' shown)
   const visible = utilities.filter(
-    (u) => (accessMap[u.id] || "none") !== "none",
+    (u) => (accessMap[u.id] || "none") === "use",
   );
 
   // attach meta for grouping/sorting
@@ -259,25 +256,10 @@ function renderUtilitiesSectioned(utilities, accessMap) {
     `;
 
     list.forEach((u) => {
-      const access = u.__access; // 'use' | 'view'
-      const href = access === "use" ? u.href : "#";
-      const locked = access === "use" ? "" : " 🔒";
-
       html += `
         <article class="hub-card" tabindex="-1">
-          <h3>${
-            access === "use"
-              ? `<a href="${href}">${safeText(u.label)}</a>`
-              : `<span aria-label="Locked">${safeText(u.label)}${locked}</span>`
-          }</h3>
+          <h3><a href="${u.href}">${safeText(u.label)}</a></h3>
           <p>${safeText(u.description || "")}</p>
-          ${
-            access === "use"
-              ? ""
-              : `<button class="button" data-request="${u.id}" data-key="${u.key}">
-                   Request access
-                 </button>`
-          }
         </article>
       `;
     });
@@ -287,7 +269,10 @@ function renderUtilitiesSectioned(utilities, accessMap) {
 
   return (
     html ||
-    renderMessageCard("No tools yet", "Please contact admin to add utilities.")
+    renderMessageCard(
+      "No tools available",
+      "You do not currently have access to any tools. Contact admin.",
+    )
   );
 }
 
@@ -371,16 +356,20 @@ async function loadAccessMap(userId, utilities) {
   try {
     const perms = await getUserPermissions(userId);
     if (perms) {
-      // build quick lookup for module: and role:
+      // build quick lookup for module: and role: with their flags
       const modMap = {};
-      const roleSet = new Set();
+      const roleMap = {}; // role -> { can_view, can_edit }
       for (const p of perms) {
         if (!p || !p.target) continue;
         const t = String(p.target || "");
         if (t.startsWith("module:")) {
           modMap[t.slice(7)] = p;
         } else if (t.startsWith("role:")) {
-          roleSet.add(t.slice(5));
+          roleMap[t.slice(5)] = {
+            can_view: !!p.can_view,
+            can_edit: !!p.can_edit,
+            meta: p.meta || null,
+          };
         }
       }
 
@@ -394,9 +383,11 @@ async function loadAccessMap(userId, utilities) {
           else if (mod.can_view) map[u.id] = "view";
           continue;
         }
-        // fallback: role entry matching utility key
-        if (roleSet.has(key)) {
-          map[u.id] = "use";
+        // fallback: role entry matching utility key — respect view/edit flags
+        const role = roleMap[key];
+        if (role) {
+          if (role.can_edit) map[u.id] = "use";
+          else if (role.can_view) map[u.id] = "view";
           continue;
         }
       }
@@ -635,7 +626,7 @@ async function render() {
 
   // Empty state toggle
   const hasVisible = visibleUtilities.some(
-    (u) => (prunedAccessMap[u.id] || "none") !== "none",
+    (u) => (prunedAccessMap[u.id] || "none") === "use",
   );
   if (elEmpty) elEmpty.style.display = hasVisible ? "none" : "";
 

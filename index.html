@@ -80,10 +80,21 @@
 
       /* Placeholder (coming-soon) links */
       .module-link[aria-disabled="true"] {
-        pointer-events: none;
-        opacity: 0.55;
+        pointer-events: auto;
+        opacity: 0.65;
         text-decoration: none;
         cursor: not-allowed;
+      }
+
+      .locked-module {
+        pointer-events: auto;
+        opacity: 0.65;
+        text-decoration: none;
+        cursor: not-allowed;
+        position: relative;
+      }
+      .locked-module::after {
+        content: " 🔒";
       }
 
       /* Module search — modern, compact pill */
@@ -125,6 +136,7 @@
     </style>
     <link rel="stylesheet" href="public/shared/css/seasonal-banners.css" />
     <script src="public/shared/js/seasonal-banners.js" defer></script>
+    <!-- head-mounted permission gating removed; gating now performed in initApp() -->
   </head>
   <body data-theme="system">
     <header>
@@ -666,6 +678,45 @@
       </div>
     </section>
 
+    <!-- Administration -->
+    <section class="panel">
+      <h2>Administration</h2>
+      <p class="section-hint">System administration and user access control.</p>
+      <div class="module-list">
+        <a
+          class="module-link"
+          data-module-id="admin-console"
+          href="public/utilities-hub/admin.html"
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+            style="vertical-align: middle; margin-right: 8px; flex-shrink: 0"
+          >
+            <!-- White shield background for contrast on blue buttons -->
+            <path
+              d="M12 2L3 5v6c0 5 3.7 9.7 9 11 5.3-1.3 9-6 9-11V5l-9-3z"
+              fill="#ffffff"
+              stroke="none"
+            />
+            <!-- Blue check mark inside the shield -->
+            <path
+              d="M9 12l2 2 4-4"
+              stroke="#0a62c3"
+              stroke-width="1.8"
+              fill="none"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          Canonical Admin
+        </a>
+      </div>
+    </section>
+
     <!-- Supabase & Init -->
     <script>
       // Module search helper
@@ -775,6 +826,9 @@
     <script type="module" src="public/shared/js/supabaseClient.js"></script>
     <script type="module">
       import { supabase } from "../public/shared/js/supabaseClient.js";
+
+      // Expose supabase client globally for admin module and other utilities
+      window.supabase = supabase;
 
       async function initApp() {
         try {
@@ -896,39 +950,96 @@
             window.location.href = "login.html";
           });
 
-          // permissions (use canonical RPC, fallback to legacy table)
-          let permMap = {};
+          // permissions (use canonical RPC)
           try {
             const { data: perms, error: permsErr } = await supabase.rpc(
               "get_user_permissions",
-              { p_user_id: user.id }
+              { p_user_id: user.id },
             );
-            if (!permsErr && Array.isArray(perms)) {
-              for (const p of perms) {
-                if (!p || !p.target) continue;
-                const t = String(p.target || "");
-                if (t.startsWith("module:")) {
-                  permMap[t.slice(7)] = !!p.can_view;
-                }
-              }
+
+            if (permsErr || !Array.isArray(perms)) {
+              console.warn("get_user_permissions failed or returned unexpected data", permsErr || perms);
+              // RPC unavailable: show only placeholders (coming-soon) and hide real modules
+              document.querySelectorAll("a.module-link").forEach((a) => {
+                if (a.getAttribute("aria-disabled") === "true") a.style.display = "inline-block";
+                else a.style.display = "none";
+              });
             } else {
-              const { data: perms2 } = await supabase
-                .from("user_permissions")
-                .select("module_id,can_view")
-                .eq("user_id", user.id);
-              permMap = Object.fromEntries(
-                (perms2 || []).map((p) => [p.module_id, p.can_view])
-              );
+              const permMap = {};
+              (perms || []).forEach((p) => {
+                if (!p || !p.target) return;
+                const t = String(p.target || "");
+                let slug = null;
+                if (t.startsWith("module:")) slug = t.slice(7);
+                else if (t.startsWith("role:")) slug = t.slice(5);
+                if (!slug) return;
+                if (!permMap[slug]) permMap[slug] = { view: false, edit: false };
+                permMap[slug].view = permMap[slug].view || !!p.can_view;
+                permMap[slug].edit = permMap[slug].edit || !!p.can_edit;
+              });
+
+              // Apply permissions to module tiles
+              document.querySelectorAll("a.module-link").forEach((a) => {
+                const isPlaceholder = a.getAttribute("aria-disabled") === "true";
+                const id = a.dataset.moduleId || "";
+                const perm = permMap[id];
+
+                if (!perm || (!perm.view && !perm.edit)) {
+                  // hide modules without permission; keep placeholders visible
+                  if (!isPlaceholder) a.style.display = "none";
+                  else a.style.display = "inline-block";
+                  return;
+                }
+
+                // user has some access — show tile
+                a.style.display = "inline-block";
+                if (isPlaceholder) return; // do not override coming-soon placeholders
+
+                if (perm.edit === true) {
+                  // full use
+                  a.classList.remove("locked-module");
+                  a.removeAttribute("aria-disabled");
+                  a.title = "";
+                  if (a.dataset.href) a.setAttribute("href", a.dataset.href);
+                } else {
+                  // view-only
+                  if (!a.dataset.href) a.dataset.href = a.getAttribute("href") || "";
+                  a.setAttribute("href", "#");
+                  a.setAttribute("aria-disabled", "true");
+                  a.classList.add("locked-module");
+                  a.title = "View-only access (not enabled for use)";
+                }
+              });
+
+              // Click guard: prevent navigation for locked tiles
+              if (!window.__moduleClickGuard) {
+                document.addEventListener(
+                  "click",
+                  (e) => {
+                    const link = e.target.closest && e.target.closest("a.module-link");
+                    if (!link) return;
+                    if (
+                      link.getAttribute("aria-disabled") === "true" &&
+                      link.classList.contains("locked-module")
+                    ) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      alert("This module is view-only for your account. Contact admin for full access.");
+                    }
+                  },
+                  true,
+                );
+                window.__moduleClickGuard = true;
+              }
             }
           } catch (e) {
-            console.debug("permissions fetch failed", e);
+            console.warn("Permission fetch error", e);
+            // On unexpected error: show placeholders only
+            document.querySelectorAll("a.module-link").forEach((a) => {
+              if (a.getAttribute("aria-disabled") === "true") a.style.display = "inline-block";
+              else a.style.display = "none";
+            });
           }
-
-          document.querySelectorAll("a.module-link").forEach((a) => {
-            // hide only if explicitly denied; placeholders remain visible but disabled
-            const canView = permMap[a.dataset.moduleId];
-            if (canView === false) a.style.display = "none";
-          });
         } catch (err) {
           console.error("initApp error", err);
           const userInfoEl = document.getElementById("userInfo");

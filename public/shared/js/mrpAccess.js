@@ -29,7 +29,7 @@ export async function loadAccessContext() {
       try {
         const { data: perms, error: permsErr } = await supabase.rpc(
           "get_user_permissions",
-          { p_user_id: actor.actor_id }
+          { p_user_id: actor.actor_id },
         );
 
         if (!permsErr && perms) {
@@ -51,6 +51,29 @@ export async function loadAccessContext() {
           }
           _ctx.roles = Array.from(roles);
           _ctx.module_permissions = modules;
+          // Normalize module permission shapes: accept legacy `true` flags
+          try {
+            for (const k of Object.keys(_ctx.module_permissions || {})) {
+              const v = _ctx.module_permissions[k];
+              if (v === true || v === false || typeof v !== "object") {
+                _ctx.module_permissions[k] = {
+                  can_view: !!v,
+                  can_edit: !!v,
+                  meta: null,
+                };
+              } else {
+                // ensure boolean fields exist
+                _ctx.module_permissions[k].can_view =
+                  !!_ctx.module_permissions[k].can_view;
+                _ctx.module_permissions[k].can_edit =
+                  !!_ctx.module_permissions[k].can_edit;
+                if (!("meta" in _ctx.module_permissions[k]))
+                  _ctx.module_permissions[k].meta = null;
+              }
+            }
+          } catch (e) {
+            /* ignore normalization errors */
+          }
           _ctx.hub_access = perms;
         } else {
           // RPC missing or errored; fall back to legacy queries
@@ -93,6 +116,30 @@ export async function loadAccessContext() {
                     };
                   }
                   _ctx.module_permissions = modules;
+                  // normalization (defensive — same as RPC branch)
+                  try {
+                    for (const k of Object.keys(
+                      _ctx.module_permissions || {},
+                    )) {
+                      const v = _ctx.module_permissions[k];
+                      if (v === true || v === false || typeof v !== "object") {
+                        _ctx.module_permissions[k] = {
+                          can_view: !!v,
+                          can_edit: !!v,
+                          meta: null,
+                        };
+                      } else {
+                        _ctx.module_permissions[k].can_view =
+                          !!_ctx.module_permissions[k].can_view;
+                        _ctx.module_permissions[k].can_edit =
+                          !!_ctx.module_permissions[k].can_edit;
+                        if (!("meta" in _ctx.module_permissions[k]))
+                          _ctx.module_permissions[k].meta = null;
+                      }
+                    }
+                  } catch (e) {
+                    /* ignore */
+                  }
                 }
               } catch (e) {
                 console.debug("mrpAccess: user_permissions query failed", e);

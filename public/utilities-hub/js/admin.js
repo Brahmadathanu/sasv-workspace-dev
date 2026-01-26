@@ -1,423 +1,1082 @@
-// public/utilities-hub/js/admin.js
-// Admin Dashboard for SASV Utilities Hub
-// Requires: ../../shared/js/supabaseClient.js (exporting `supabase`)
-/* eslint-env browser */
+/**
+ * Canonical Admin v2 - Unified Access Control & Monitoring
+ * Provides comprehensive user permission management with audit trail
+ */
 
-import { supabase } from "../../shared/js/supabaseClient.js";
+/* global supabase, Platform */
 
-/* ---------- DOM ---------- */
-const elEmail = document.getElementById("admin-email");
-const elGuard = document.getElementById("admin-guard");
+let supabaseClient = null;
+let adminUser = null;
+let monitorRows = [];
+let auditRows = [];
+let targetAccessRows = [];
+let targetAccessTargets = [];
 
-const tabs = document.querySelectorAll("nav.tabs button");
-const panels = {
-  pending: document.getElementById("panel-pending"),
-  grant: document.getElementById("panel-grant"),
-  access: document.getElementById("panel-access"),
+// Debug configuration
+const DEBUG = true; // set false to silence logs in production
+const DEBUG_DETAIL = false; // set true to dump raw objects
+
+// Init state for summary reporting
+const initState = {
+  startedAt: performance.now(),
+  supabaseSource: "",
+  userEmail: "",
+  hasSession: false,
+  isAdmin: false,
+  targetsCount: 0,
+  monitorLoaded: false,
+  auditLoaded: false,
+  errors: [],
 };
 
-/* Pending */
-const btnRefreshPending = document.getElementById("refreshPending");
-const tbodyPending = document.getElementById("pendingBody");
+// Logger helpers
+function logInfo(msg, obj) {
+  if (!DEBUG) return;
+  console.info(`[Admin] ${msg}`);
+  if (DEBUG_DETAIL && obj) console.info(obj);
+}
+function logWarn(msg, obj) {
+  if (!DEBUG) return;
+  console.warn(`[Admin] ${msg}`);
+  if (DEBUG_DETAIL && obj) console.warn(obj);
+}
+function logError(msg, obj) {
+  console.error(`[Admin] ${msg}`);
+  if (obj) console.error(obj);
+}
 
-/* Grant */
-const selGrantUtility = document.getElementById("grant-utility");
-const selGrantLevel = document.getElementById("grant-level");
-const inpGrantEmail = document.getElementById("grant-email");
-const btnGrant = document.getElementById("grantBtn");
-
-/* Access */
-const inpLookupEmail = document.getElementById("lookup-email");
-const btnLookup = document.getElementById("lookupBtn");
-const tbodyAccess = document.getElementById("accessBody");
-
-/* ---------- Utils ---------- */
-const $el = (tag, props = {}, children = []) => {
-  const node = document.createElement(tag);
-  Object.entries(props).forEach(([k, v]) => {
-    if (k === "class") node.className = v;
-    else if (k === "text") node.textContent = v;
-    else if (k.startsWith("data-")) node.setAttribute(k, v);
-    else if (k === "html") node.innerHTML = v; // only for trusted text
-    else node.setAttribute(k, v);
-  });
-  (Array.isArray(children) ? children : [children]).forEach((c) => {
-    if (c == null) return;
-    node.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
-  });
-  return node;
-};
-
-function fmtDate(iso) {
+// Fetch email suggestions via RPC
+async function fetchEmailSuggestions(q, limit = 20) {
   try {
-    return new Date(iso).toLocaleString();
-  } catch {
-    return iso || "";
-  }
-}
-function toast(msg) {
-  // replace with a nicer toast if you like
-  alert(msg);
-}
-
-function setActiveTab(name) {
-  tabs.forEach((b) => {
-    const on = b.dataset.tab === name;
-    b.classList.toggle("active", on);
-    b.setAttribute("aria-selected", on ? "true" : "false");
-  });
-  Object.entries(panels).forEach(([key, el]) => {
-    el.classList.toggle("active", key === name);
-  });
-}
-
-/* ---------- Auth guard: require hub_admin:use ---------- */
-async function mustBeAdmin() {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session?.user) {
-    window.location.href = "./index.html";
-    return false;
-  }
-  elEmail.textContent = session.user.email || "";
-
-  // Log what the page *actually* sees
-  const { data: allUtils, error: listErr } = await supabase
-    .from("hub_utilities")
-    .select("id, key, label")
-    .order("label", { ascending: true });
-
-  if (listErr) {
-    elGuard.style.display = "";
-    console.warn("[Admin] hub_utilities list error:", listErr);
-    alert("Cannot read hub_utilities (RLS/policy?).");
-    return false;
-  }
-  console.log(
-    "[Admin] keys seen:",
-    (allUtils || []).map((u) => u.key)
-  );
-
-  const adminRow = (allUtils || []).find((u) => u.key === "hub_admin");
-  if (!adminRow) {
-    elGuard.style.display = "";
-    alert(
-      `Admin utility entry missing. Expect key "hub_admin". Keys I see: ${
-        (allUtils || []).map((u) => u.key).join(", ") || "(none)"
-      }`
-    );
-    return false;
-  }
-
-  // Prefer canonical RPC to check admin role/module
-  try {
-    const { data: perms, error: permsErr } = await supabase.rpc(
-      "get_user_permissions",
-      { p_user_id: session.user.id }
-    );
-    if (!permsErr && Array.isArray(perms)) {
-      const has = perms.some(
-        (p) =>
-          p &&
-          p.target &&
-          (p.target === "role:hub_admin" || p.target === "module:hub_admin") &&
-          p.can_edit
+    const { data, error } = await supabaseClient.rpc("admin_user_suggest", {
+      p_query: q,
+      limit_count: limit,
+    });
+    if (error) {
+      logWarn(
+        "admin_user_suggest RPC failed",
+        error && error.message ? error.message : error,
       );
-      if (!has) {
-        elGuard.style.display = "";
-        return false;
-      }
-      elGuard.style.display = "none";
-      return true;
+      return null;
+    }
+    return data || null;
+  } catch (e) {
+    logWarn("admin_user_suggest exception", e && e.message ? e.message : e);
+    return null;
+  }
+}
+
+// Simple debounce helper
+function debounce(fn, wait) {
+  let t = null;
+  return (...args) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...args), wait);
+  };
+}
+
+// Initialize admin interface
+document.addEventListener("DOMContentLoaded", async () => {
+  await initializeAdmin();
+});
+
+async function initializeAdmin() {
+  try {
+    // Load Supabase client
+    await loadSupabaseClient();
+
+    // Verify admin access
+    const hasAccess = await verifyAdminAccess();
+    if (!hasAccess) {
+      showAccessDenied();
+      return;
+    }
+
+    // Load admin data
+    await loadAdminInterface();
+
+    // Setup event listeners
+    setupEventListeners();
+
+    // consolidated init summary
+    initState.endedAt = performance.now();
+    logInfo(
+      `Canonical Admin ready — ${initState.userEmail || "(unknown)"} — admin=${initState.isAdmin}`,
+    );
+    logInfo(`Supabase client: ${initState.supabaseSource}`);
+    logInfo(`Session: ${initState.hasSession ? "OK" : "NONE"}`);
+    logInfo(`Permissions targets: ${initState.targetsCount}`);
+    logInfo(`Monitor loaded: ${initState.monitorLoaded ? "OK" : "FAILED"}`);
+    logInfo(`Audit loaded: ${initState.auditLoaded ? "OK" : "FAILED"}`);
+    if (initState.errors && initState.errors.length > 0) {
+      logWarn("Errors during init", initState.errors);
+    }
+    logInfo("Canonical Admin v2 initialized successfully");
+  } catch (error) {
+    logError("Failed to initialize admin:", error);
+    showError("Failed to initialize admin interface");
+  }
+}
+
+async function loadSupabaseClient() {
+  // First, try to use the global supabase client from Electron app
+  if (typeof window.supabase !== "undefined") {
+    supabaseClient = window.supabase;
+    initState.supabaseSource = "electron:window.supabase";
+    logInfo("Using global supabase client from Electron app");
+    return;
+  }
+
+  // Try to import the shared client used by the PWA if available
+  try {
+    const m = await import(
+      new URL("../../shared/js/supabaseClient.js", import.meta.url)
+    );
+    if (m && m.supabase) {
+      supabaseClient = m.supabase;
+      // expose for other modules and for consistency
+      window.supabase = supabaseClient;
+      initState.supabaseSource =
+        "shared:import ../../shared/js/supabaseClient.js";
+      logInfo(
+        "Loaded shared supabase client via dynamic import (import.meta.url)",
+      );
+      return;
     }
   } catch (e) {
-    console.debug("mustBeAdmin RPC check failed", e);
+    // not available in this context; continue to other fallbacks
+    logWarn("Shared supabase client import failed:", e && e.message);
+  }
+  // PWA fallback - create our own client as last resort
+  initState.supabaseSource = "fallback:cdn createClient";
+  logInfo("Creating new supabase client (fallback)");
+  if (typeof supabase === "undefined") {
+    await loadScript("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2");
   }
 
-  // Fallback to legacy check if RPC not available
-  const adminId = adminRow.id;
-  const { data: acc, error: aErr } = await supabase
-    .from("hub_user_access")
-    .select("level")
-    .eq("user_id", session.user.id)
-    .eq("utility_id", adminId)
-    .limit(1);
+  // NOTE: fallback URL/key only used when shared config not available.
+  const supabaseUrl = "https://qhmoqtxpeasamtlxaoak.supabase.co";
+  const supabaseKey =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFobW9xdHhwZWFzYW10bHhhb2FrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMzc0MDMsImV4cCI6MjA3NDYxMzQwM30.jCGzy4y_-35wEBfvbRABy56mAjO6dr6Tti-aODiwDs4";
 
-  if (aErr) {
-    elGuard.style.display = "";
-    console.warn("[Admin] hub_user_access read error:", aErr);
-    alert("Cannot read hub_user_access (RLS/policy?).");
-    return false;
-  }
-  if (!acc?.length || acc[0].level !== "use") {
-    elGuard.style.display = "";
-    return false;
-  }
-
-  elGuard.style.display = "none";
-  return true;
+  supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 }
 
-/* ---------- Pending requests ---------- */
-let _pendingLoadToken = 0;
-let _pendingLoading = false;
+async function verifyAdminAccess() {
+  try {
+    logInfo("Verifying admin access with client");
 
-function renderPendingEmpty(text) {
-  tbodyPending.innerHTML = "";
-  const tr = $el("tr", {}, [
-    $el("td", { colspan: "5", class: "muted", text }, []),
-  ]);
-  tbodyPending.appendChild(tr);
-}
-
-async function loadPending() {
-  if (_pendingLoading) return; // prevent overlaps
-  _pendingLoading = true;
-  const myToken = ++_pendingLoadToken;
-
-  renderPendingEmpty("Loading…");
-
-  const { data, error } = await supabase
-    .from("v_hub_requests_pending")
-    .select(
-      "request_id, created_at, user_email, user_id, utility_key, utility_label, utility_id, note, status"
-    )
-    .order("created_at", { ascending: false });
-
-  // If another call started after us, drop this response
-  if (myToken !== _pendingLoadToken) {
-    _pendingLoading = false;
-    return;
-  }
-
-  if (error) {
-    renderPendingEmpty("Error loading requests.");
-    console.error(error);
-    _pendingLoading = false;
-    return;
-  }
-  if (!data?.length) {
-    renderPendingEmpty("No pending requests.");
-    _pendingLoading = false;
-    return;
-  }
-
-  tbodyPending.innerHTML = "";
-  data.forEach((r) => {
-    const tr = $el("tr", {
-      "data-id": String(r.request_id),
-      "data-email": r.user_email || r.email || "",
-      "data-utility-id": r.utility_id || "",
-      "data-utility-key": r.utility_key || "",
-    });
-
-    const tdWhen = $el("td", { text: fmtDate(r.created_at) });
-    const tdEmail = $el("td", { text: r.user_email || r.email || "" });
-    const tdUtil = $el("td", {
-      text: r.utility_label || r.utility_key || "",
-    });
-    const tdNote = $el("td", { text: r.note || "" });
-
-    const approveBtn = $el("button", {
-      class: "button primary",
-      text: "Approve",
-    });
-    const denyBtn = $el("button", { class: "button", text: "Deny" });
-
-    approveBtn.addEventListener("click", async () => {
-      approveBtn.disabled = true;
-      const { error: err } = await supabase.rpc("approve_hub_request", {
-        p_request_id: r.request_id,
-      });
-      if (err) {
-        toast("Approve failed. Check RPC/RLS.");
-        console.error(err);
-        approveBtn.disabled = false;
-        return;
-      }
-      toast("Approved.");
-      await loadPending();
-    });
-
-    denyBtn.addEventListener("click", async () => {
-      const reason = prompt("Optional reason?");
-      denyBtn.disabled = true;
-      const { error: err } = await supabase.rpc("deny_hub_request", {
-        p_request_id: r.request_id,
-        p_reason: reason || null,
-      });
-      if (err) {
-        toast("Deny failed. Check RPC/RLS.");
-        console.error(err);
-        denyBtn.disabled = false;
-        return;
-      }
-      toast("Denied.");
-      await loadPending();
-    });
-
-    const tdAction = $el("td", {}, [
-      $el("div", { class: "controls" }, [approveBtn, denyBtn]),
-    ]);
-
-    [tdWhen, tdEmail, tdUtil, tdNote, tdAction].forEach((td) =>
-      tr.appendChild(td)
-    );
-    tbodyPending.appendChild(tr);
-  });
-
-  _pendingLoading = false;
-}
-
-/* ---------- Manual grant ---------- */
-async function loadUtilitiesForGrant() {
-  selGrantUtility.innerHTML = "";
-  const optLoading = $el("option", { value: "", text: "Loading…" });
-  selGrantUtility.appendChild(optLoading);
-
-  const { data, error } = await supabase
-    .from("hub_utilities")
-    .select("key, label")
-    .order("label", { ascending: true });
-
-  selGrantUtility.innerHTML = "";
-  if (error) {
-    const opt = $el("option", { value: "", text: "(error loading utilities)" });
-    selGrantUtility.appendChild(opt);
-    console.error(error);
-    return;
-  }
-
-  data.forEach((u) => {
-    const opt = $el("option", {
-      value: u.key,
-      text: `${u.label} (${u.key})`,
-    });
-    selGrantUtility.appendChild(opt);
-  });
-}
-
-async function grantByEmail() {
-  const email = inpGrantEmail.value.trim();
-  const uKey = selGrantUtility.value;
-  const level = selGrantLevel.value;
-
-  if (!email || !uKey || !level) {
-    toast("Fill email, utility and level.");
-    return;
-  }
-  btnGrant.disabled = true;
-
-  const { error } = await supabase.rpc("set_user_access_by_email_key", {
-    p_email: email,
-    p_utility_key: uKey,
-    p_level: level,
-  });
-
-  btnGrant.disabled = false;
-
-  if (error) {
-    console.error(error);
-    if ((error.message || "").toLowerCase().includes("not found")) {
-      toast(
-        "User not found. Ask them to create an account (or sign in once) first, then try again."
-      );
+    const { data: session } = await supabaseClient.auth.getSession();
+    if (session && session.session && session.session.user) {
+      initState.hasSession = true;
     } else {
-      toast("Grant failed. Check RPC/RLS.");
+      initState.hasSession = false;
+    }
+
+    if (!session?.session?.user) {
+      logWarn("No authenticated session found");
+      return false;
+    }
+
+    adminUser = session.session.user;
+    initState.userEmail = adminUser.email || "";
+    logInfo(`Admin user: ${initState.userEmail}`);
+
+    // Get user permissions via canonical RPC
+    const { data: permissions, error } = await supabaseClient.rpc(
+      "get_user_permissions",
+      { p_user_id: adminUser.id },
+    );
+
+    if (error) {
+      logError("Error fetching permissions:", error);
+      initState.errors.push(
+        String(error && error.message ? error.message : error),
+      );
+      return false;
+    }
+
+    if (Array.isArray(permissions)) {
+      initState.targetsCount = permissions.length;
+      if (DEBUG_DETAIL) logInfo("Permissions RPC result:", permissions);
+    }
+
+    // Check for Admin Console module access
+    // NOTE: permission target key is `module:admin-console`
+    const hasAdminAccess = permissions.some(
+      (perm) =>
+        perm.target === "module:admin-console" && perm.can_view === true,
+    );
+
+    initState.isAdmin = !!hasAdminAccess;
+    logInfo(`Has admin access: ${hasAdminAccess}`);
+
+    if (hasAdminAccess) return true;
+    logWarn("User does not have Admin Console module access");
+    return false;
+  } catch (error) {
+    logError("Error verifying admin access:", error);
+    return false;
+  }
+}
+
+function showAccessDenied() {
+  const guard = document.getElementById("admin-guard");
+  const tabs = document.querySelector("nav.tabs");
+  const panels = document.querySelectorAll(".panel");
+
+  guard.style.display = "block";
+  tabs.style.display = "none";
+  panels.forEach((panel) => (panel.style.display = "none"));
+}
+
+async function loadAdminInterface() {
+  // Load available utilities/roles for dropdown
+  await loadUtilityOptions();
+
+  // Load initial data for each tab
+  await loadMonitorData();
+  await loadAuditData();
+}
+
+async function loadUtilityOptions() {
+  try {
+    // Load assignable items from permission_targets registry
+    const { data: rows, error } = await supabaseClient
+      .from("permission_targets")
+      .select("key,kind,label,sort_order,is_assignable")
+      .eq("is_assignable", true)
+      .order("kind", { ascending: true })
+      .order("sort_order", { ascending: true })
+      .order("key", { ascending: true });
+
+    if (error) throw error;
+
+    const grantUtilitySelect = document.getElementById("grant-utility");
+    grantUtilitySelect.innerHTML =
+      '<option value="">Select Module/Role...</option>';
+
+    // Exclude the Admin Console target itself from the grant dropdown.
+    if ((rows || []).some((r) => r.key === "module:admin-console")) {
+      logWarn("Permission target 'module:admin-console' present");
+    }
+    const modules = rows.filter(
+      (r) => r.kind === "module" && r.key !== "module:admin-console",
+    );
+    const roles = rows.filter((r) => r.kind === "role");
+
+    if (modules.length > 0) {
+      const group = document.createElement("optgroup");
+      group.label = "Modules";
+      modules.forEach((m) => {
+        const option = document.createElement("option");
+        option.value = m.key;
+        option.textContent = m.label || m.key;
+        group.appendChild(option);
+      });
+      grantUtilitySelect.appendChild(group);
+    }
+
+    if (roles.length > 0) {
+      const group = document.createElement("optgroup");
+      group.label = "Roles";
+      roles.forEach((r) => {
+        const option = document.createElement("option");
+        option.value = r.key;
+        option.textContent = r.label || r.key;
+        group.appendChild(option);
+      });
+      grantUtilitySelect.appendChild(group);
+    }
+    // Cache permission_targets for reverse lookup and populate target lookup select
+    try {
+      targetAccessTargets = rows || [];
+      const targetSelect = document.getElementById("target-lookup-select");
+      if (targetSelect) {
+        // reset
+        targetSelect.innerHTML =
+          '<option value="">Select Module/Role…</option>';
+        // Exclude the Admin Console target from the target lookup
+        const mods = targetAccessTargets.filter(
+          (r) => r.kind === "module" && r.key !== "module:admin-console",
+        );
+        const rls = targetAccessTargets.filter((r) => r.kind === "role");
+        if (mods.length > 0) {
+          const g = document.createElement("optgroup");
+          g.label = "Modules (Screens)";
+          mods.forEach((m) => {
+            const o = document.createElement("option");
+            o.value = m.key;
+            o.textContent = m.label || m.key;
+            g.appendChild(o);
+          });
+          targetSelect.appendChild(g);
+        }
+        if (rls.length > 0) {
+          const g = document.createElement("optgroup");
+          g.label = "Roles (Capability Grants)";
+          rls.forEach((r) => {
+            const o = document.createElement("option");
+            o.value = r.key;
+            o.textContent = r.label || r.key;
+            g.appendChild(o);
+          });
+          targetSelect.appendChild(g);
+        }
+      }
+    } catch (e) {
+      logWarn("Failed to populate target lookup select", e && e.message);
+    }
+  } catch (error) {
+    logError("Error loading utilities:", error);
+  }
+}
+
+async function loadMonitorData() {
+  const statsEl = document.getElementById("monitor-stats");
+  const resultsEl = document.getElementById("monitor-results");
+  try {
+    // Use lightweight RPC that returns recent permissions with email + label
+    const { data, error } = await supabaseClient.rpc(
+      "admin_recent_permissions",
+      { limit_count: 100 },
+    );
+    if (error) throw error;
+    monitorRows = data || [];
+    const uniqueUsers = monitorRows
+      ? new Set(monitorRows.map((r) => r.user_id)).size
+      : 0;
+    if (statsEl)
+      statsEl.textContent = `${monitorRows.length || 0} recent permissions across ${uniqueUsers} users`;
+    renderMonitorTable(monitorRows);
+    initState.monitorLoaded = true;
+    logInfo(`Loaded monitor rows: ${monitorRows.length || 0}`);
+  } catch (error) {
+    logError("Error loading monitor data:", error);
+    if (statsEl) statsEl.textContent = "Error loading stats";
+    if (resultsEl)
+      resultsEl.innerHTML =
+        '<div class="loading">Error loading monitor data</div>';
+  }
+}
+
+function renderMonitorTable(rows) {
+  const resultsEl = document.getElementById("monitor-results");
+  if (!rows || rows.length === 0)
+    return (resultsEl.innerHTML = "<p>No recent permissions.</p>");
+  let html = `
+    <table>
+      <thead>
+        <tr>
+          <th>User ID</th>
+          <th>Email</th>
+          <th>Target</th>
+          <th>Label</th>
+          <th>Access</th>
+          <th>Updated</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+  rows.forEach((r) => {
+    const access =
+      r.can_edit || r.level === "use"
+        ? "Full"
+        : r.can_view || r.level === "view"
+          ? "View"
+          : "None";
+    const cls =
+      access === "Full" ? "active" : access === "View" ? "pending" : "denied";
+    html += `
+      <tr>
+        <td title="${r.user_id || ""}">${r.user_id ? r.user_id.substring(0, 8) + "..." : "-"}</td>
+        <td>${r.email || "-"}</td>
+        <td>${r.target || r.utility_key || "-"}</td>
+        <td>${r.label || r.utility_label || "-"}</td>
+        <td><span class="status ${cls}">${access}</span></td>
+        <td>${formatDate(r.updated_at || r.granted_at)}</td>
+      </tr>
+    `;
+  });
+  html += `</tbody></table>`;
+  resultsEl.innerHTML = html;
+}
+
+async function loadAuditData() {
+  try {
+    const { data, error } = await supabaseClient.rpc("get_admin_audit_logs", {
+      limit_count: 100,
+    });
+    if (error) throw error;
+    auditRows = data || [];
+    renderAuditTable(auditRows);
+    initState.auditLoaded = true;
+    logInfo(`Loaded audit rows: ${auditRows.length || 0}`);
+  } catch (error) {
+    logError("Error loading audit data:", error);
+    document.getElementById("audit-log-container").innerHTML =
+      '<div class="loading">Error loading audit logs</div>';
+  }
+}
+
+function renderAuditTable(rows) {
+  const container = document.getElementById("audit-log-container");
+  if (!rows || rows.length === 0)
+    return (container.innerHTML =
+      '<div class="loading">No audit logs found.</div>');
+  let html = `
+    <table>
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Action</th>
+          <th>Admin Email</th>
+          <th>Target Email</th>
+          <th>Details</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+  rows.forEach((r) => {
+    html += `
+      <tr>
+        <td>${formatDateTime(r.created_at)}</td>
+        <td>${r.action_type}</td>
+        <td>${r.admin_email || (r.admin_user_id ? r.admin_user_id.substring(0, 8) + "..." : "-")}</td>
+        <td>${r.target_email || (r.target_user_id ? r.target_user_id.substring(0, 8) + "..." : "-")}</td>
+        <td><small>${r.details || ""}</small></td>
+      </tr>
+    `;
+  });
+  html += `</tbody></table>`;
+  container.innerHTML = html;
+}
+
+// -------------------------
+// Target-based access lookup
+// -------------------------
+
+async function handleTargetLookup() {
+  const select = document.getElementById("target-lookup-select");
+  const statsEl = document.getElementById("target-lookup-stats");
+  const btn = document.getElementById("targetLookupBtn");
+  if (!select) return;
+  const targetKey = select.value;
+  if (!targetKey) {
+    showError("Select a module/role");
+    return;
+  }
+  const original = btn ? btn.textContent : "Load Users";
+  try {
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Loading…";
+    }
+
+    const { data, error } = await supabaseClient.rpc("admin_users_for_target", {
+      p_target_key: targetKey,
+      limit_count: 500,
+    });
+    if (error) {
+      logWarn("admin_users_for_target RPC failed", error);
+      showError("Failed to load users for target");
+      return;
+    }
+    targetAccessRows = data || [];
+    if (statsEl) {
+      statsEl.textContent = `${targetAccessRows.length} users`;
+      statsEl.classList.toggle("hidden", !targetAccessRows.length);
+    }
+    renderTargetAccessTable(targetAccessRows, targetKey);
+  } catch (e) {
+    logError("Error loading target access", e);
+    showError("Failed to load users for target");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = original;
+    }
+  }
+}
+
+function renderTargetAccessTable(rows, targetKey) {
+  const container = document.getElementById("target-access-results");
+  if (!container) return;
+  if (!rows || rows.length === 0)
+    return (container.innerHTML =
+      "<p>No users have access to this target.</p>");
+
+  let html = `
+    <table>
+      <thead>
+        <tr>
+          <th>Email</th>
+          <th>User ID</th>
+          <th>Level</th>
+          <th>Updated</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  rows.forEach((r) => {
+    const level = r.level || (r.can_edit ? "use" : "view");
+    const updated = formatDate(r.updated_at || r.granted_at);
+    const shortId = r.user_id ? r.user_id.substring(0, 8) + "..." : "-";
+    const emailSafe = r.email || "";
+    const userId = r.user_id || "";
+    html += `
+      <tr>
+        <td>${escapeHtml(emailSafe)}</td>
+        <td title="${userId}">${shortId}</td>
+        <td>
+          <select class="level-select" data-user-id="${userId}" data-email="${escapeAttr(
+            emailSafe,
+          )}" data-target="${escapeAttr(targetKey)}">
+            <option value="view" ${level === "view" ? "selected" : ""}>View</option>
+            <option value="use" ${level === "use" ? "selected" : ""}>Full Use</option>
+          </select>
+        </td>
+        <td>${updated}</td>
+        <td>
+          <button class="button primary apply-level-btn" data-email="${escapeAttr(
+            emailSafe,
+          )}" data-target="${escapeAttr(targetKey)}">Apply</button>
+          <button class="button danger revoke-target-btn" data-user-id="${userId}" data-target="${escapeAttr(
+            targetKey,
+          )}">Revoke</button>
+        </td>
+      </tr>
+    `;
+  });
+
+  html += `</tbody></table>`;
+  container.innerHTML = html;
+}
+
+function applyTargetAccessFilter() {
+  const qEl = document.getElementById("target-user-search");
+  const statsEl = document.getElementById("target-lookup-stats");
+  if (!qEl) return;
+  const q = (qEl.value || "").toLowerCase().trim();
+  if (!q) {
+    renderTargetAccessTable(
+      targetAccessRows,
+      document.getElementById("target-lookup-select")?.value,
+    );
+    if (statsEl) {
+      statsEl.textContent = `${targetAccessRows.length} users`;
+      statsEl.classList.toggle("hidden", !targetAccessRows.length);
     }
     return;
   }
-  toast("Access granted.");
+  const filtered = (targetAccessRows || []).filter(
+    (r) =>
+      (r.email || "").toLowerCase().includes(q) ||
+      (r.user_id || "").toLowerCase().includes(q),
+  );
+  renderTargetAccessTable(
+    filtered,
+    document.getElementById("target-lookup-select")?.value,
+  );
+  if (statsEl) {
+    statsEl.textContent = `${filtered.length} / ${targetAccessRows.length} users`;
+    statsEl.classList.toggle("hidden", !targetAccessRows.length);
+  }
 }
 
-/* ---------- Current access ---------- */
-function renderAccessEmpty(text) {
-  tbodyAccess.innerHTML = "";
-  tbodyAccess.appendChild(
-    $el("tr", {}, [$el("td", { colspan: "4", class: "muted", text })])
+// small helpers to avoid XSS in inserted HTML
+function escapeHtml(s) {
+  if (!s) return "";
+  return String(s).replace(
+    /[&<>"]+/g,
+    (c) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+      })[c],
   );
 }
-
-async function loadAccessForEmail() {
-  const email = inpLookupEmail.value.trim();
-  if (!email) return toast("Enter email.");
-  renderAccessEmpty("Loading…");
-
-  const { data, error } = await supabase.rpc("list_hub_access_by_email", {
-    p_email: email,
-  });
-
-  if (error) {
-    renderAccessEmpty("Error or RPC missing.");
-    console.error(error);
-    return;
-  }
-  if (!data?.length) {
-    renderAccessEmpty("No access yet.");
-    return;
-  }
-
-  tbodyAccess.innerHTML = "";
-  data.forEach((row) => {
-    const tr = $el("tr", {
-      "data-user-id": row.user_id,
-      "data-utility-id": row.utility_id,
-    });
-
-    const tdEmail = $el("td", { text: email });
-    const tdUtil = $el("td", {
-      text: row.utility_label || row.utility_key || "",
-    });
-    const tdLevel = $el("td", {}, [
-      $el("span", { class: "pill", text: row.level }),
-    ]);
-
-    const revokeBtn = $el("button", { class: "button", text: "Revoke" });
-    revokeBtn.addEventListener("click", async () => {
-      revokeBtn.disabled = true;
-      const { error: err } = await supabase.rpc("revoke_user_access", {
-        p_user_id: row.user_id,
-        p_utility_key: row.utility_key,
-      });
-      revokeBtn.disabled = false;
-      if (err) {
-        toast("Revoke failed.");
-        console.error(err);
-        return;
-      }
-      toast("Revoked.");
-      await loadAccessForEmail();
-    });
-
-    const tdAction = $el("td", {}, [revokeBtn]);
-
-    [tdEmail, tdUtil, tdLevel, tdAction].forEach((td) => tr.appendChild(td));
-    tbodyAccess.appendChild(tr);
-  });
+function escapeAttr(s) {
+  return escapeHtml(s).replace(/'/g, "&#39;");
 }
 
-/* ---------- Tabs ---------- */
-tabs.forEach((b) => {
-  b.addEventListener("click", () => setActiveTab(b.dataset.tab));
+function setupEventListeners() {
+  // Tab switching
+  document.querySelectorAll("nav.tabs button").forEach((tab) => {
+    tab.addEventListener("click", () => switchTab(tab.dataset.tab));
+  });
+
+  // Grant access functionality
+  document
+    .getElementById("grantBtn")
+    .addEventListener("click", handleGrantAccess);
+
+  // Lookup functionality
+  document
+    .getElementById("lookupBtn")
+    .addEventListener("click", handleLookupUser);
+
+  // Refresh buttons
+  document
+    .getElementById("refreshMonitor")
+    .addEventListener("click", loadMonitorData);
+  document
+    .getElementById("refreshAudit")
+    .addEventListener("click", loadAuditData);
+
+  // Platform-aware HOME button
+  document.getElementById("homeBtn")?.addEventListener("click", () => {
+    try {
+      if (typeof window.Platform !== "undefined" && window.Platform.goHome) {
+        Platform.goHome();
+      } else if (typeof window.electronAPI !== "undefined") {
+        // Electron fallback
+        window.location.href = "../../index.html";
+      } else {
+        // PWA fallback - go to utilities hub
+        window.location.href = "/utilities-hub/";
+      }
+    } catch (e) {
+      logWarn("Home redirect failed", e);
+      window.location.href = "../../index.html";
+    }
+  });
+
+  // Enter key support on inputs
+  document.getElementById("grant-email").addEventListener("keypress", (e) => {
+    if (e.key === "Enter") handleGrantAccess();
+  });
+
+  document.getElementById("lookup-email").addEventListener("keypress", (e) => {
+    if (e.key === "Enter") handleLookupUser();
+  });
+
+  // Typeahead for user emails (shared datalist)
+  const userInputIds = ["grant-email", "lookup-email"];
+  const suggest = debounce(async (q) => {
+    try {
+      // allow empty query on focus to preload suggestions
+      // If q is empty, fetch recent users (RPC supports empty query)
+      const limit = q ? (q.length === 1 ? 10 : 20) : 20;
+      const data = await fetchEmailSuggestions(q, limit);
+      if (!data || !Array.isArray(data) || data.length === 0) return;
+      const dl = document.getElementById("userEmails");
+      if (!dl) return;
+      // Only replace list when we have results (don't wipe on empty)
+      dl.innerHTML = "";
+      (data || []).forEach((row) => {
+        const opt = document.createElement("option");
+        opt.value = row.email || row.user_email || "";
+        dl.appendChild(opt);
+      });
+    } catch (err) {
+      logWarn("User suggest failed:", err && err.message);
+    }
+  }, 250);
+
+  userInputIds.forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener("input", (e) => suggest(e.target.value.trim()));
+    // preload suggestions when the field receives focus so the datalist feels
+    // like an ERP-style dropdown
+    el.addEventListener("focus", () => suggest(""));
+    // add minimal UX hint under the first email input if not present
+    if (
+      !el.nextElementSibling ||
+      !el.nextElementSibling.classList ||
+      !el.nextElementSibling.classList.contains("admin-email-hint")
+    ) {
+      const hint = document.createElement("div");
+      hint.className = "admin-email-hint";
+      hint.style.cssText = "margin-top:6px;font-size:12px;color:#6b7280";
+      hint.textContent =
+        "Start typing to search users; click field to see recent users.";
+      el.parentNode.insertBefore(hint, el.nextSibling);
+    }
+  });
+
+  // Monitor search filtering
+  const monitorSearch = document.getElementById("monitor-search");
+  if (monitorSearch) {
+    monitorSearch.addEventListener(
+      "input",
+      debounce((e) => {
+        const q = (e.target.value || "").toLowerCase().trim();
+        if (!q) return renderMonitorTable(monitorRows);
+        const filtered = monitorRows.filter(
+          (r) =>
+            (r.email || "").toLowerCase().includes(q) ||
+            (r.user_id || "").toLowerCase().includes(q) ||
+            (r.target || r.utility_key || "").toLowerCase().includes(q),
+        );
+        renderMonitorTable(filtered);
+      }, 150),
+    );
+  }
+
+  // Audit search + action filter
+  const auditSearch = document.getElementById("audit-search");
+  const auditFilter = document.getElementById("audit-filter");
+  function applyAuditFilters() {
+    const q = ((auditSearch && auditSearch.value) || "").toLowerCase().trim();
+    const action = (auditFilter && auditFilter.value) || "";
+    let filtered = auditRows || [];
+    if (action)
+      filtered = filtered.filter(
+        (r) => (r.action_type || "").toLowerCase() === action,
+      );
+    if (q)
+      filtered = filtered.filter(
+        (r) =>
+          (r.admin_email || "").toLowerCase().includes(q) ||
+          (r.target_email || "").toLowerCase().includes(q) ||
+          (r.details || "").toLowerCase().includes(q) ||
+          (r.admin_user_id || "").toLowerCase().includes(q),
+      );
+    renderAuditTable(filtered);
+  }
+  if (auditSearch)
+    auditSearch.addEventListener("input", debounce(applyAuditFilters, 150));
+  if (auditFilter) auditFilter.addEventListener("change", applyAuditFilters);
+
+  // Target lookup controls
+  const targetLookupBtn = document.getElementById("targetLookupBtn");
+  const targetSearch = document.getElementById("target-user-search");
+  const targetSelect = document.getElementById("target-lookup-select");
+  if (targetLookupBtn)
+    targetLookupBtn.addEventListener("click", handleTargetLookup);
+  if (targetSearch)
+    targetSearch.addEventListener(
+      "input",
+      debounce(applyTargetAccessFilter, 150),
+    );
+  if (targetSelect) {
+    targetSelect.addEventListener("change", (e) => {
+      const sel = e.target;
+      const label =
+        sel.selectedOptions && sel.selectedOptions[0]
+          ? sel.selectedOptions[0].textContent
+          : "";
+      const hint = document.getElementById("target-user-search");
+      if (hint)
+        hint.placeholder = label
+          ? `Filter users for ${label}…`
+          : "Filter by email or user id…";
+    });
+  }
+
+  // Delegated click handler for apply/revoke buttons in target-access table
+  const targetResults = document.getElementById("target-access-results");
+  if (targetResults) {
+    targetResults.addEventListener("click", async (ev) => {
+      const applyBtn =
+        ev.target.closest && ev.target.closest("button.apply-level-btn");
+      const revokeBtn =
+        ev.target.closest && ev.target.closest("button.revoke-target-btn");
+      if (applyBtn) {
+        const tr = applyBtn.closest("tr");
+        const sel =
+          tr && tr.querySelector && tr.querySelector("select.level-select");
+        if (!sel) return;
+        const level = sel.value;
+        const email = applyBtn.dataset.email;
+        const target = applyBtn.dataset.target;
+        const orig = applyBtn.textContent;
+        try {
+          applyBtn.disabled = true;
+          const { error } = await supabaseClient.rpc(
+            "set_user_access_by_email_key",
+            {
+              p_email: email,
+              p_utility_key: target,
+              p_level: level,
+            },
+          );
+          if (error) throw error;
+          showSuccess(`Updated ${email} → ${level} for ${target}`);
+          const currentFilter =
+            document.getElementById("target-user-search")?.value || "";
+          await handleTargetLookup();
+          document.getElementById("target-user-search").value = currentFilter;
+          applyTargetAccessFilter();
+        } catch (e) {
+          logError("Apply level failed", e);
+          showError(e.message || "Failed to update access");
+        } finally {
+          applyBtn.disabled = false;
+          applyBtn.textContent = orig;
+        }
+      }
+      if (revokeBtn) {
+        if (!confirm("Revoke access for this user?")) return;
+        const userId = revokeBtn.dataset.userId;
+        const target = revokeBtn.dataset.target;
+        try {
+          revokeBtn.disabled = true;
+          const { error } = await supabaseClient.rpc("revoke_user_access", {
+            p_user_id: userId,
+            p_utility_key: target,
+          });
+          if (error) throw error;
+          showSuccess(`Revoked ${target} for ${userId}`);
+          const currentFilter =
+            document.getElementById("target-user-search")?.value || "";
+          await handleTargetLookup();
+          document.getElementById("target-user-search").value = currentFilter;
+          applyTargetAccessFilter();
+        } catch (e) {
+          logError("Revoke target failed", e);
+          showError(e.message || "Failed to revoke access");
+        } finally {
+          revokeBtn.disabled = false;
+        }
+      }
+    });
+  }
+}
+
+function switchTab(tabId) {
+  // Update tab buttons
+  document.querySelectorAll("nav.tabs button").forEach((btn) => {
+    btn.classList.remove("active");
+    btn.setAttribute("aria-selected", "false");
+  });
+  document.querySelector(`[data-tab="${tabId}"]`).classList.add("active");
+  document
+    .querySelector(`[data-tab="${tabId}"]`)
+    .setAttribute("aria-selected", "true");
+
+  // Update panels
+  document
+    .querySelectorAll(".panel")
+    .forEach((panel) => panel.classList.remove("active"));
+  document.getElementById(`panel-${tabId}`).classList.add("active");
+
+  // ERP-friendly: refresh data when monitor/audit tabs are activated
+  try {
+    if (tabId === "monitor") loadMonitorData();
+    if (tabId === "audit") loadAuditData();
+  } catch (err) {
+    logWarn("Tab refresh failed", err && err.message);
+  }
+}
+
+async function handleGrantAccess() {
+  const email = document.getElementById("grant-email").value.trim();
+  const utility = document.getElementById("grant-utility").value;
+  const level = document.getElementById("grant-level").value;
+
+  if (!email || !utility || !level) {
+    showError("Please fill all required fields");
+    return;
+  }
+
+  // Validate email format
+  if (!isValidEmail(email)) {
+    showError("Please enter a valid email address");
+    return;
+  }
+
+  const grantBtn = document.getElementById("grantBtn");
+  const originalLabel = grantBtn.textContent;
+  try {
+    grantBtn.disabled = true;
+    grantBtn.textContent = "Granting…";
+
+    // targetKey is the full canonical key (module:... or role:...)
+    const targetKey = utility;
+    const selectedLabel = document.getElementById("grant-utility")
+      .selectedOptions[0]
+      ? document.getElementById("grant-utility").selectedOptions[0].textContent
+      : targetKey;
+
+    const { error } = await supabaseClient.rpc("set_user_access_by_email_key", {
+      p_email: email,
+      p_utility_key: targetKey,
+      p_level: level,
+    });
+
+    if (error) throw error;
+
+    // Clear form
+    document.getElementById("grant-email").value = "";
+    document.getElementById("grant-utility").selectedIndex = 0;
+    document.getElementById("grant-level").selectedIndex = 0;
+    document.getElementById("grant-reason").value = "";
+
+    showSuccess(`Granted ${level} to ${email} for ${selectedLabel}`);
+
+    // Refresh monitor if on that tab
+    if (document.getElementById("panel-monitor").classList.contains("active")) {
+      await loadMonitorData();
+    }
+  } catch (error) {
+    logError("Error granting access", error);
+    showError(error.message || "Failed to grant access");
+  } finally {
+    grantBtn.disabled = false;
+    grantBtn.textContent = originalLabel;
+  }
+}
+
+async function handleLookupUser() {
+  const email = document.getElementById("lookup-email").value.trim();
+  const resultsEl = document.getElementById("user-access-results");
+
+  if (!email) {
+    showError("Please enter an email address");
+    return;
+  }
+
+  if (!isValidEmail(email)) {
+    showError("Please enter a valid email address");
+    return;
+  }
+
+  try {
+    resultsEl.innerHTML =
+      '<div class="loading">Looking up user permissions...</div>';
+
+    // Use RPC to list access by email (avoids direct auth.users REST access)
+    const { data: accessRows, error: listError } = await supabaseClient.rpc(
+      "list_hub_access_by_email",
+      { p_email: email },
+    );
+
+    if (listError) {
+      logWarn("Error listing access by email", listError);
+      resultsEl.innerHTML = '<p class="alert error">Error looking up user</p>';
+      return;
+    }
+
+    if (!accessRows || accessRows.length === 0) {
+      resultsEl.innerHTML = "<p>No permissions found for this user.</p>";
+      return;
+    }
+
+    // Store email on container for later reference
+    resultsEl.dataset.email = email;
+
+    // Build table rows with dataset attributes and revoke buttons (no inline onclick)
+    const rowsHtml = [];
+    rowsHtml.push(`<h4>Access for ${email}</h4>`);
+    rowsHtml.push(
+      "<table><thead><tr><th>Permission</th><th>Access Level</th><th>Updated</th><th>Action</th></tr></thead><tbody>",
+    );
+
+    accessRows.forEach((r) => {
+      const target = r.utility_key || r.utility_id || r.target || "";
+      const level =
+        r.level || (r.can_edit ? "use" : r.can_view ? "view" : "none");
+      const updated = r.updated_at || r.granted_at || "";
+      rowsHtml.push(`
+        <tr>
+          <td><strong>${target}</strong></td>
+          <td><span class="status ${level === "use" ? "active" : level === "view" ? "pending" : "denied"}">${level === "use" ? "Full Use" : level === "view" ? "View Only" : "None"}</span></td>
+          <td>${formatDate(updated)}</td>
+          <td><button class="button danger revoke-btn" data-user-id="${r.user_id}" data-target="${target}">Revoke</button></td>
+        </tr>
+      `);
+    });
+
+    rowsHtml.push("</tbody></table>");
+    resultsEl.innerHTML = rowsHtml.join("\n");
+  } catch (error) {
+    logError("Error looking up user", error);
+    resultsEl.innerHTML = '<p class="alert error">Error looking up user</p>';
+  }
+}
+
+// legacy UI generator removed — using RPC-backed lookup rendering instead
+
+// Revoke handler via event delegation on the results container
+document.addEventListener("click", async (ev) => {
+  const btn = ev.target.closest && ev.target.closest("button.revoke-btn");
+  if (!btn) return;
+  const userId = btn.dataset.userId;
+  const target = btn.dataset.target;
+  const container = document.getElementById("user-access-results");
+  const email = container ? container.dataset.email : "";
+
+  if (!confirm(`Revoke ${target} access for ${email || userId}?`)) return;
+
+  try {
+    btn.disabled = true;
+    const { error } = await supabaseClient.rpc("revoke_user_access", {
+      p_user_id: userId,
+      p_utility_key: target,
+    });
+    btn.disabled = false;
+    if (error) throw error;
+
+    // Refresh lookup
+    await handleLookupUser();
+    showSuccess(`Revoked ${target} access for ${email || userId}`);
+  } catch (err) {
+    logError("Revoke failed", err);
+    showError(err.message || "Failed to revoke access");
+    btn.disabled = false;
+  }
 });
 
-/* ---------- Buttons ---------- */
-let _lastRefreshAt = 0;
-btnRefreshPending?.addEventListener("click", () => {
-  const now = Date.now();
-  if (now - _lastRefreshAt < 600) return; // 600ms debounce
-  _lastRefreshAt = now;
-  loadPending();
-});
-btnGrant?.addEventListener("click", grantByEmail);
-btnLookup?.addEventListener("click", loadAccessForEmail);
+// server RPCs already handle audit logging; client-side log helper removed
 
-/* ---------- Boot ---------- */
-(async function boot() {
-  const ok = await mustBeAdmin();
-  if (!ok) return;
+// Utility functions
+// formatUtilityName removed — labels now come from `permission_targets` registry
 
-  await Promise.all([loadPending(), loadUtilitiesForGrant()]);
-})();
+function formatDate(dateString) {
+  if (!dateString) return "-";
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return "-";
+  return d.toLocaleDateString();
+}
+
+function formatDateTime(dateString) {
+  if (!dateString) return "-";
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return "-";
+  return d.toLocaleString();
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function showSuccess(message) {
+  const area = document.getElementById("toast-area");
+  if (!area) return;
+  // remove existing info toasts in area only
+  area.querySelectorAll(".alert.info").forEach((n) => n.remove());
+  const alert = document.createElement("div");
+  alert.className = "alert info";
+  alert.textContent = message;
+  area.appendChild(alert);
+  setTimeout(() => alert.remove(), 5000);
+}
+
+function showError(message) {
+  const area = document.getElementById("toast-area");
+  if (!area) return;
+  // remove existing error toasts in area only
+  area.querySelectorAll(".alert.error").forEach((n) => n.remove());
+  const alert = document.createElement("div");
+  alert.className = "alert error";
+  alert.textContent = message;
+  area.appendChild(alert);
+  setTimeout(() => alert.remove(), 8000);
+}
+
+async function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = src;
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}

@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "sasv-utils-v135"; // bumped to force asset refresh
+const CACHE_NAME = "hub-cache-v139"; // bumped to force asset refresh
 
 const PRECACHE = [
   // Hub shell
@@ -39,7 +39,7 @@ self.addEventListener("install", (event) => {
     (async () => {
       const cache = await caches.open(CACHE_NAME);
       const results = await Promise.allSettled(
-        PRECACHE.map((u) => fetch(u, { cache: "no-store" }))
+        PRECACHE.map((u) => fetch(u, { cache: "no-store" })),
       );
       await Promise.all(
         results.map((res, i) => {
@@ -48,9 +48,9 @@ self.addEventListener("install", (event) => {
           } else {
             console.warn("[SW] Skipping missing asset:", PRECACHE[i]);
           }
-        })
+        }),
       );
-    })()
+    })(),
   );
   self.skipWaiting();
 });
@@ -60,10 +60,10 @@ self.addEventListener("activate", (event) => {
     (async () => {
       const keys = await caches.keys();
       await Promise.all(
-        keys.map((k) => (k !== CACHE_NAME ? caches.delete(k) : undefined))
+        keys.map((k) => (k !== CACHE_NAME ? caches.delete(k) : undefined)),
       );
       await self.clients.claim();
-    })()
+    })(),
   );
 });
 
@@ -99,7 +99,7 @@ self.addEventListener("fetch", (event) => {
           const hit = await caches.match(req);
           return hit || fetch(req);
         }
-      })()
+      })(),
     );
     return;
   }
@@ -122,7 +122,7 @@ self.addEventListener("fetch", (event) => {
             (await caches.match("/utilities-hub/index.html"))
           );
         }
-      })()
+      })(),
     );
     return;
   }
@@ -141,7 +141,7 @@ self.addEventListener("fetch", (event) => {
         cache.put(req, res.clone());
       }
       return res;
-    })()
+    })(),
   );
 });
 /* ------------------------------------------------------------------ */
@@ -189,6 +189,6 @@ self.addEventListener("message", (event) => {
           console.warn("[SW] openWindow failed:", err);
         }
       }
-    })()
+    })(),
   );
 });

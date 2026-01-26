@@ -13,7 +13,7 @@ const errorMsg = document.getElementById("errorMsg");
 
 function setLoading(
   isLoading,
-  { button, loadingLabel, originalLabel, extraDisable = [] } = {}
+  { button, loadingLabel, originalLabel, extraDisable = [] } = {},
 ) {
   const controls = [
     emailInput,
@@ -89,23 +89,31 @@ async function signIn() {
 
       // fetch canonical user permissions via RPC (module-level + roles)
       let permissions = [];
+      const derivedRoles = profile?.role ? [profile.role] : [];
       try {
         const { data: perms, error: permsErr } = await supabase.rpc(
           "get_user_permissions",
-          { p_user_id: user.id }
+          { p_user_id: user.id },
         );
         if (!permsErr && Array.isArray(perms)) {
           for (const p of perms) {
             if (!p || !p.target) continue;
             const t = String(p.target || "");
-            if (t.startsWith("module:") && p.can_view) {
-              permissions.push(`${t.slice(7)}:view`);
+            if (t.startsWith("module:")) {
+              if (p.can_view) permissions.push(`${t.slice(7)}:view`);
+              if (p.can_edit) permissions.push(`${t.slice(7)}:edit`);
             }
-            if (t.startsWith("module:") && p.can_edit) {
-              permissions.push(`${t.slice(7)}:edit`);
-            }
-            if (t.startsWith("role:") && p.can_edit) {
-              permissions.push(`${t.slice(5)}:role`);
+            // role: entries may imply access to modules named after the role.
+            if (t.startsWith("role:")) {
+              const roleKey = t.slice(5);
+              if (p.can_view) permissions.push(`${roleKey}:view`);
+              if (p.can_edit) {
+                permissions.push(`${roleKey}:edit`);
+                // preserve previous marker for edit-capable roles
+                permissions.push(`${roleKey}:role`);
+                // grant runtime role to session so main process checks (e.g., 'admin') work
+                derivedRoles.push(roleKey);
+              }
             }
           }
         } else {
@@ -132,7 +140,7 @@ async function signIn() {
         id: user.id,
         email: user.email,
         name: profile?.full_name || user.email,
-        roles: profile?.role ? [profile.role] : [],
+        roles: Array.from(new Set(derivedRoles)),
         permissions,
       };
 
@@ -212,7 +220,7 @@ async function init() {
       togglePwdBtn.setAttribute("aria-pressed", String(!showing));
       togglePwdBtn.setAttribute(
         "aria-label",
-        showing ? "Show password" : "Hide password"
+        showing ? "Show password" : "Hide password",
       );
       setEyeIcon(!showing);
       // keep focus in the password input for better UX

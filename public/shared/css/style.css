@@ -57,7 +57,9 @@ body {
   font-family: Arial, sans-serif;
   background: var(--bg-color);
   color: var(--text-color);
-  transition: background 0.3s, color 0.3s;
+  transition:
+    background 0.3s,
+    color 0.3s;
 }
 
 /* Table font sizing: keep headers on a single line, body cells also nowrap */
@@ -237,7 +239,7 @@ h1 {
   gap: 12px;
 }
 .module-link {
-  display: inline-block;
+  display: none;
   padding: 8px 16px;
   background: var(--btn-bg);
   color: var(--btn-text);
@@ -781,8 +783,8 @@ button {
 
 /* If a genuine monospace is required in a specific area, use .mono-fixed */
 .mono-fixed {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
-    monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 }
 /* Force light form controls without changing your design tokens */
 :root,
@@ -954,7 +956,10 @@ button {
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease, transform 0.06s ease, box-shadow 0.12s;
+  transition:
+    background 0.15s ease,
+    transform 0.06s ease,
+    box-shadow 0.12s;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }
 /* Unify hover color with brand token; avoid unintended light‑blue shift */
@@ -1108,7 +1113,9 @@ button {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
   padding: 8px 12px;
   border-radius: 6px;
-  transition: transform 0.12s, background 0.12s;
+  transition:
+    transform 0.12s,
+    background 0.12s;
 }
 #rebuildMenuBtn:hover:not([disabled]) {
   background: var(--btn-hover-bg);
@@ -1896,7 +1903,9 @@ button {
   text-align: left;
   border-radius: 6px;
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
 }
 #tab-overrides .action-menu-panel .action-btn:hover {
   background: #f1f5f9;
