@@ -11,7 +11,6 @@
 // DB tables:
 //   hub_utilities(id, key, label, description)
 //   hub_user_access(user_id, utility_id, level enum: 'none'|'view'|'use')
-//   hub_access_requests(id, user_id, utility_id, note, status)
 // Admin check:
 //   User is "admin" if they have USE on the 'hub_admin' utility.
 // =============================================================================
@@ -61,6 +60,13 @@ function setBusy(on) {
 function safeText(s) {
   return String(s ?? "");
 }
+// normalize utility key (snake_case) into canonical slug (kebab-case)
+function keyToSlug(k) {
+  return String(k || "")
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, "-");
+}
 function guessNameFromEmail(email) {
   if (!email) return "";
   const namePart = email.split("@")[0] || "";
@@ -101,20 +107,8 @@ async function isHubAdmin(userId) {
       }
       return false;
     }
-
-    // RPC not available; fallback to legacy check
-    const { data, error } = await supabase
-      .from("hub_user_access")
-      .select("level, hub_utilities!inner(key)")
-      .eq("user_id", userId)
-      .eq("hub_utilities.key", "hub_admin")
-      .maybeSingle();
-
-    if (error) {
-      console.warn("Admin check error:", error);
-      return false;
-    }
-    return (data?.level || "").toLowerCase() === "use";
+    // No permissions or RPC unavailable — not an admin
+    return false;
   } catch (e) {
     console.warn("Admin check failed:", e);
     return false;
@@ -276,38 +270,7 @@ function renderUtilitiesSectioned(utilities, accessMap) {
   );
 }
 
-/* ──────────────────────────────────────────────────────────────
-   Request Access buttons
-─────────────────────────────────────────────────────────────── */
-function wireRequestButtons(session) {
-  if (!elRoot) return;
-  elRoot.querySelectorAll("[data-request]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const utilityId = btn.getAttribute("data-request");
-      const key = btn.getAttribute("data-key") || "";
-      if (!utilityId || !session?.user) return;
-
-      btn.disabled = true;
-      try {
-        const note = key
-          ? `Requested via Utilities Hub for: ${key.replace("_", "-")}`
-          : "Requested via Utilities Hub";
-        const { error } = await supabase.from("hub_access_requests").insert({
-          user_id: session.user.id,
-          utility_id: utilityId,
-          note,
-          status: "pending",
-        });
-        if (error) throw error;
-        btn.textContent = "Requested ✓";
-      } catch (e) {
-        console.error(e);
-        alert("Could not send request. Please try again.");
-        btn.disabled = false;
-      }
-    });
-  });
-}
+/* Request buttons removed: request flow handled elsewhere or deprecated. */
 
 /* ──────────────────────────────────────────────────────────────
    Data fetchers
@@ -363,8 +326,14 @@ async function loadAccessMap(userId, utilities) {
         if (!p || !p.target) continue;
         const t = String(p.target || "");
         if (t.startsWith("module:")) {
-          modMap[t.slice(7)] = p;
+          // store module permission keyed by canonical kebab slug
+          modMap[t.slice(7)] = {
+            can_view: !!p.can_view,
+            can_edit: !!p.can_edit,
+            meta: p.meta || null,
+          };
         } else if (t.startsWith("role:")) {
+          // store role permission keyed by canonical kebab slug
           roleMap[t.slice(5)] = {
             can_view: !!p.can_view,
             can_edit: !!p.can_edit,
@@ -375,16 +344,21 @@ async function loadAccessMap(userId, utilities) {
 
       // resolve per-utility
       for (const u of utilities) {
-        const key = String(u.key || "");
-        // prefer explicit module permission
-        const mod = modMap[key];
+        const utilKey = String(u.key || "");
+        // special-case mapping: legacy hub_admin utility maps to canonical admin-console
+        const slug =
+          utilKey === "hub_admin" ? "admin-console" : keyToSlug(utilKey);
+
+        // prefer explicit module permission (canonical kebab slug)
+        const mod = modMap[slug];
         if (mod) {
           if (mod.can_edit) map[u.id] = "use";
           else if (mod.can_view) map[u.id] = "view";
           continue;
         }
-        // fallback: role entry matching utility key — respect view/edit flags
-        const role = roleMap[key];
+
+        // fallback: role entry matching slug — respect view/edit flags
+        const role = roleMap[slug];
         if (role) {
           if (role.can_edit) map[u.id] = "use";
           else if (role.can_view) map[u.id] = "view";
@@ -396,30 +370,7 @@ async function loadAccessMap(userId, utilities) {
   } catch (e) {
     console.debug("loadAccessMap RPC failed", e);
   }
-
-  // RPC missing or errored: legacy query fallback
-  try {
-    const { data, error } = await supabase
-      .from("hub_user_access")
-      .select("utility_id, level")
-      .eq("user_id", userId);
-
-    if (!error && Array.isArray(data)) {
-      for (const row of data) {
-        const id = String(row.utility_id);
-        if (!(id in map)) continue;
-        const level = String(row.level || "").toLowerCase();
-        if (level === "use" || level === "view") map[id] = level;
-      }
-      return map;
-    }
-  } catch (e) {
-    console.debug("loadAccessMap legacy query failed", e);
-  }
-
-  // fallback: fail-safe — treat unknown permissions as 'none'
-  // (previous behavior hid modules unless user had explicit view/use)
-  utilities.forEach((u) => (map[u.id] = "none"));
+  // RPC missing or errored: return default 'none' map (do not reveal view-only)
   return map;
 }
 
@@ -630,11 +581,7 @@ async function render() {
   );
   if (elEmpty) elEmpty.style.display = hasVisible ? "none" : "";
 
-  // Wire any Request buttons we just rendered
-  const {
-    data: { session: freshSession },
-  } = await supabase.auth.getSession();
-  wireRequestButtons(freshSession);
+  // Request buttons removed — no runtime wiring needed
 
   setBusy(false);
 }
