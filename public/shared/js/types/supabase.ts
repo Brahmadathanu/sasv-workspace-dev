@@ -966,6 +966,13 @@ export type Database = {
             foreignKeyName: "event_skus_sku_id_fkey"
             columns: ["sku_id"]
             isOneToOne: false
+            referencedRelation: "v_dwl_fg_transfer_event_lines"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "event_skus_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
             referencedRelation: "v_mrp_plm_issue_monthly_enriched"
             referencedColumns: ["sku_id"]
           },
@@ -3712,6 +3719,13 @@ export type Database = {
             foreignKeyName: "packaging_events_work_log_id_fkey"
             columns: ["work_log_id"]
             isOneToOne: true
+            referencedRelation: "v_dwl_fg_transfer_event_lines"
+            referencedColumns: ["dwl_id"]
+          },
+          {
+            foreignKeyName: "packaging_events_work_log_id_fkey"
+            columns: ["work_log_id"]
+            isOneToOne: true
             referencedRelation: "v_fg_storage_residuals"
             referencedColumns: ["work_log_id"]
           },
@@ -3945,6 +3959,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "product_skus"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plm_bom_header_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: true
+            referencedRelation: "v_dwl_fg_transfer_event_lines"
+            referencedColumns: ["sku_id"]
           },
           {
             foreignKeyName: "plm_bom_header_sku_id_fkey"
@@ -4610,6 +4631,13 @@ export type Database = {
             foreignKeyName: "plm_sku_pack_map_sku_id_fkey"
             columns: ["sku_id"]
             isOneToOne: true
+            referencedRelation: "v_dwl_fg_transfer_event_lines"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "plm_sku_pack_map_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: true
             referencedRelation: "v_mrp_plm_issue_monthly_enriched"
             referencedColumns: ["sku_id"]
           },
@@ -4740,6 +4768,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "product_skus"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plm_sku_plm_override_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_dwl_fg_transfer_event_lines"
+            referencedColumns: ["sku_id"]
           },
           {
             foreignKeyName: "plm_sku_plm_override_sku_id_fkey"
@@ -7123,6 +7158,13 @@ export type Database = {
             foreignKeyName: "sku_aliases_sku_id_fkey"
             columns: ["sku_id"]
             isOneToOne: false
+            referencedRelation: "v_dwl_fg_transfer_event_lines"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "sku_aliases_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
             referencedRelation: "v_mrp_plm_issue_monthly_enriched"
             referencedColumns: ["sku_id"]
           },
@@ -7364,6 +7406,13 @@ export type Database = {
             foreignKeyName: "sku_prices_sku_id_fkey"
             columns: ["sku_id"]
             isOneToOne: true
+            referencedRelation: "v_dwl_fg_transfer_event_lines"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "sku_prices_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: true
             referencedRelation: "v_mrp_plm_issue_monthly_enriched"
             referencedColumns: ["sku_id"]
           },
@@ -7499,6 +7548,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "product_skus"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sku_stock_snapshot_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_dwl_fg_transfer_event_lines"
+            referencedColumns: ["sku_id"]
           },
           {
             foreignKeyName: "sku_stock_snapshot_sku_id_fkey"
@@ -8695,6 +8751,7 @@ export type Database = {
           qty_value: number
           raw_godown: string | null
           source_key: string | null
+          transfer_amount: number | null
           transfer_date: string
           transfer_store: string
         }
@@ -8709,6 +8766,7 @@ export type Database = {
           qty_value: number
           raw_godown?: string | null
           source_key?: string | null
+          transfer_amount?: number | null
           transfer_date: string
           transfer_store: string
         }
@@ -8723,6 +8781,7 @@ export type Database = {
           qty_value?: number
           raw_godown?: string | null
           source_key?: string | null
+          transfer_amount?: number | null
           transfer_date?: string
           transfer_store?: string
         }
@@ -9542,6 +9601,13 @@ export type Database = {
             foreignKeyName: "event_skus_sku_id_fkey"
             columns: ["sku_id"]
             isOneToOne: false
+            referencedRelation: "v_dwl_fg_transfer_event_lines"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "event_skus_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
             referencedRelation: "v_mrp_plm_issue_monthly_enriched"
             referencedColumns: ["sku_id"]
           },
@@ -9903,6 +9969,24 @@ export type Database = {
         }
         Relationships: []
       }
+      mv_tally_fg_transfer_snapshot_latest: {
+        Row: {
+          as_of_date: string | null
+          batch_code: string | null
+          godown_breakdown: Json | null
+          id: number | null
+          inserted_at: string | null
+          item_name: string | null
+          qty_unit_text: string | null
+          qty_value: number | null
+          raw_godown: string | null
+          source_key: string | null
+          transfer_amount: number | null
+          transfer_date: string | null
+          transfer_store: string | null
+        }
+        Relationships: []
+      }
       mv_wip_rollup: {
         Row: {
           batches_text: string | null
@@ -10098,6 +10182,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "product_skus"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sku_aliases_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_dwl_fg_transfer_event_lines"
+            referencedColumns: ["sku_id"]
           },
           {
             foreignKeyName: "sku_aliases_sku_id_fkey"
@@ -11804,6 +11895,268 @@ export type Database = {
           },
         ]
       }
+      v_dwl_fg_transfer_event_core: {
+        Row: {
+          all_lines_sku_mapped: boolean | null
+          batch_code: string | null
+          is_product_mapped: boolean | null
+          log_breakdown_sig: string | null
+          log_total_packs: number | null
+          product_id: number | null
+          product_name: string | null
+          transfer_date: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "fg_bulk_stock"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "mv_fg_bulk_rollup"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "mv_wip_rollup"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_bottled_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_bulk_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_storage_residuals"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_wip_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_picker_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_bulk_soh"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_sdv_dim_product_hierarchy"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_planning_attrs"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_checker"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_batches"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_expected_output_base"
+            referencedColumns: ["product_id"]
+          },
+        ]
+      }
+      v_dwl_fg_transfer_event_lines: {
+        Row: {
+          batch_code: string | null
+          completed_on: string | null
+          created_at: string | null
+          dwl_id: number | null
+          is_product_mapped: boolean | null
+          is_sku_mapped_line_all: boolean | null
+          log_date: string | null
+          pack_qty_sum: number | null
+          pack_size: number | null
+          pack_uom: string | null
+          product_id: number | null
+          product_name: string | null
+          product_name_raw: string | null
+          sku_breakdown: string | null
+          sku_id: number | null
+          sku_label: string | null
+          status: string | null
+          uploaded_by: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "fg_bulk_stock"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "mv_fg_bulk_rollup"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "mv_wip_rollup"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_bottled_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_bulk_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_storage_residuals"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_wip_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_picker_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_bulk_soh"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_sdv_dim_product_hierarchy"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_planning_attrs"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_checker"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_batches"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_expected_output_base"
+            referencedColumns: ["product_id"]
+          },
+        ]
+      }
       v_etl_job_types: {
         Row: {
           job_type: string | null
@@ -12489,6 +12842,13 @@ export type Database = {
             foreignKeyName: "sku_stock_snapshot_sku_id_fkey"
             columns: ["sku_id"]
             isOneToOne: false
+            referencedRelation: "v_dwl_fg_transfer_event_lines"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "sku_stock_snapshot_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
             referencedRelation: "v_mrp_plm_issue_monthly_enriched"
             referencedColumns: ["sku_id"]
           },
@@ -12744,8 +13104,12 @@ export type Database = {
           product_id: number | null
           product_name: string | null
           recon_status: string | null
+          tally_amount_per_pack_raw: number | null
+          tally_breakdown_by_godown: Json | null
           tally_breakdown_by_skuid: Json | null
+          tally_breakdown_by_store: Json | null
           tally_breakdown_lines: Json | null
+          tally_total_amount_raw: number | null
           tally_total_in_base: number | null
           tally_total_packs: number | null
           tally_uom_base_unit: string | null
@@ -12755,6 +13119,10 @@ export type Database = {
       }
       v_fg_transfer_reconciliation: {
         Row: {
+          display_product_label: string | null
+          raw_item_hint: string | null
+          raw_item_names: string[] | null
+          tally_item_hint: string | null
           all_godown_mapped: boolean | null
           all_lines_sku_mapped: boolean | null
           all_sku_mapped: boolean | null
@@ -12775,8 +13143,16 @@ export type Database = {
           product_id: number | null
           product_name: string | null
           recon_status: string | null
+          tally_amount_per_base_raw: number | null
+          tally_amount_per_pack_raw: number | null
+          tally_breakdown_by_godown: Json | null
+          tally_breakdown_by_godown_amount: Json | null
           tally_breakdown_by_skuid: Json | null
+          tally_breakdown_by_store: Json | null
+          tally_breakdown_by_store_amount: Json | null
           tally_breakdown_lines: Json | null
+          tally_total_amount: number | null
+          tally_total_amount_raw: number | null
           tally_total_in_base: number | null
           tally_total_packs: number | null
           tally_uom_base_unit: string | null
@@ -16020,6 +16396,13 @@ export type Database = {
             foreignKeyName: "sku_aliases_sku_id_fkey"
             columns: ["sku_id"]
             isOneToOne: false
+            referencedRelation: "v_dwl_fg_transfer_event_lines"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "sku_aliases_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
             referencedRelation: "v_mrp_plm_issue_monthly_enriched"
             referencedColumns: ["sku_id"]
           },
@@ -16279,6 +16662,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "product_skus"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sku_aliases_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_dwl_fg_transfer_event_lines"
+            referencedColumns: ["sku_id"]
           },
           {
             foreignKeyName: "sku_aliases_sku_id_fkey"
@@ -16546,6 +16936,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "product_skus"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sku_aliases_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_dwl_fg_transfer_event_lines"
+            referencedColumns: ["sku_id"]
           },
           {
             foreignKeyName: "sku_aliases_sku_id_fkey"
@@ -16940,6 +17337,13 @@ export type Database = {
             foreignKeyName: "sku_aliases_sku_id_fkey"
             columns: ["sku_id"]
             isOneToOne: false
+            referencedRelation: "v_dwl_fg_transfer_event_lines"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "sku_aliases_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
             referencedRelation: "v_mrp_plm_issue_monthly_enriched"
             referencedColumns: ["sku_id"]
           },
@@ -17235,6 +17639,13 @@ export type Database = {
             foreignKeyName: "sku_aliases_sku_id_fkey"
             columns: ["sku_id"]
             isOneToOne: false
+            referencedRelation: "v_dwl_fg_transfer_event_lines"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "sku_aliases_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
             referencedRelation: "v_mrp_plm_issue_monthly_enriched"
             referencedColumns: ["sku_id"]
           },
@@ -17495,6 +17906,13 @@ export type Database = {
             foreignKeyName: "sku_aliases_sku_id_fkey"
             columns: ["sku_id"]
             isOneToOne: false
+            referencedRelation: "v_dwl_fg_transfer_event_lines"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "sku_aliases_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
             referencedRelation: "v_mrp_plm_issue_monthly_enriched"
             referencedColumns: ["sku_id"]
           },
@@ -17749,6 +18167,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "product_skus"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plm_sku_pack_map_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: true
+            referencedRelation: "v_dwl_fg_transfer_event_lines"
+            referencedColumns: ["sku_id"]
           },
           {
             foreignKeyName: "plm_sku_pack_map_sku_id_fkey"
@@ -18321,6 +18746,13 @@ export type Database = {
             foreignKeyName: "sku_aliases_sku_id_fkey"
             columns: ["sku_id"]
             isOneToOne: false
+            referencedRelation: "v_dwl_fg_transfer_event_lines"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "sku_aliases_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
             referencedRelation: "v_mrp_plm_issue_monthly_enriched"
             referencedColumns: ["sku_id"]
           },
@@ -18448,6 +18880,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "product_skus"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sku_stock_snapshot_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_dwl_fg_transfer_event_lines"
+            referencedColumns: ["sku_id"]
           },
           {
             foreignKeyName: "sku_stock_snapshot_sku_id_fkey"
@@ -19046,6 +19485,13 @@ export type Database = {
             foreignKeyName: "sku_aliases_sku_id_fkey"
             columns: ["sku_id"]
             isOneToOne: false
+            referencedRelation: "v_dwl_fg_transfer_event_lines"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "sku_aliases_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
             referencedRelation: "v_mrp_plm_issue_monthly_enriched"
             referencedColumns: ["sku_id"]
           },
@@ -19300,6 +19746,9 @@ export type Database = {
         Row: {
           all_godown_mapped: boolean | null
           all_sku_mapped: boolean | null
+          amount_per_pack_raw: number | null
+          amount_sum: number | null
+          amount_sum_raw: number | null
           as_of_date: string | null
           batch_code: string | null
           first_inserted_at: string | null
@@ -19474,6 +19923,13 @@ export type Database = {
             foreignKeyName: "sku_aliases_sku_id_fkey"
             columns: ["sku_id"]
             isOneToOne: false
+            referencedRelation: "v_dwl_fg_transfer_event_lines"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "sku_aliases_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
             referencedRelation: "v_mrp_plm_issue_monthly_enriched"
             referencedColumns: ["sku_id"]
           },
@@ -19556,8 +20012,146 @@ export type Database = {
           batch_code: string | null
           product_id: number | null
           product_name: string | null
+          tally_amount_per_base_raw: number | null
+          tally_amount_per_pack_raw: number | null
+          tally_breakdown_by_godown: Json | null
+          tally_breakdown_by_godown_amount: Json | null
           tally_breakdown_by_skuid: Json | null
+          tally_breakdown_by_store: Json | null
+          tally_breakdown_by_store_amount: Json | null
           tally_breakdown_lines: Json | null
+          tally_total_amount: number | null
+          tally_total_amount_raw: number | null
+          tally_total_in_base: number | null
+          tally_total_packs: number | null
+          tally_uom_base_unit: string | null
+          transfer_date: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "fg_bulk_stock"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "mv_fg_bulk_rollup"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "mv_wip_rollup"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_bottled_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_bulk_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_storage_residuals"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_wip_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_picker_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_bulk_soh"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_sdv_dim_product_hierarchy"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_planning_attrs"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_checker"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_batches"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_expected_output_base"
+            referencedColumns: ["product_id"]
+          },
+        ]
+      }
+      v_tally_fg_transfer_event_core: {
+        Row: {
+          all_godown_mapped: boolean | null
+          all_sku_mapped: boolean | null
+          batch_code: string | null
+          product_id: number | null
+          product_name: string | null
+          tally_amount_per_pack_raw: number | null
+          tally_breakdown_sig: string | null
+          tally_total_amount_raw: number | null
           tally_total_in_base: number | null
           tally_total_packs: number | null
           tally_uom_base_unit: string | null
@@ -19682,6 +20276,7 @@ export type Database = {
         Row: {
           alias_created_at: string | null
           alias_note: string | null
+          amount_per_unit_raw: number | null
           as_of_date: string | null
           batch_code: string | null
           conversion_to_base: number | null
@@ -19710,6 +20305,8 @@ export type Database = {
           sku_pack_uom: string | null
           sku_status: string | null
           source_key: string | null
+          transfer_amount: number | null
+          transfer_amount_raw: number | null
           transfer_date: string | null
           transfer_godown_code: string | null
           transfer_godown_code_norm: string | null
@@ -19866,6 +20463,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "product_skus"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sku_aliases_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_dwl_fg_transfer_event_lines"
+            referencedColumns: ["sku_id"]
           },
           {
             foreignKeyName: "sku_aliases_sku_id_fkey"
@@ -20520,6 +21124,10 @@ export type Database = {
         Args: { p_company: string; p_date: string; p_days: number }
         Returns: undefined
       }
+      f_has_perm: {
+        Args: { p_need_edit?: boolean; p_targets: string[] }
+        Returns: boolean
+      }
       f_norm_key: { Args: { input_text: string }; Returns: string }
       f_parse_sku_breakdown: {
         Args: { breakdown_text: string }
@@ -20831,6 +21439,13 @@ export type Database = {
           p_slot: string
         }
         Returns: undefined
+      }
+      fy_month_chunks: {
+        Args: { p_date: string }
+        Returns: {
+          chunk_from: string
+          chunk_to: string
+        }[]
       }
       gen_item_code: { Args: never; Returns: string }
       get_admin_audit_logs: {
@@ -21357,12 +21972,10 @@ export type Database = {
           wastage_pct: number
         }[]
       }
-      preflight_and_enqueue_daily:
-        | { Args: { p_company: string; p_date: string }; Returns: string }
-        | {
-            Args: { p_company: string; p_date: string; p_mode: string }
-            Returns: string
-          }
+      preflight_and_enqueue_daily: {
+        Args: { p_company: string; p_date: string; p_mode: string }
+        Returns: string
+      }
       preflight_and_enqueue_daily_heavy: {
         Args: { p_date: string }
         Returns: string
@@ -21423,6 +22036,10 @@ export type Database = {
       refresh_sales_monthly: { Args: never; Returns: undefined }
       refresh_sales_monthly_both: { Args: never; Returns: undefined }
       refresh_supply_rollups: { Args: never; Returns: undefined }
+      require_permission: {
+        Args: { p_need_edit?: boolean; p_target: string }
+        Returns: undefined
+      }
       resolve_user_name: { Args: { p_uid: string }; Returns: string }
       retry_jobs_by_ids: { Args: { p_job_ids: string[] }; Returns: number }
       revoke_user_access: {
@@ -21450,6 +22067,743 @@ export type Database = {
       rpc_enqueue_job: {
         Args: { p_job_type: string; p_params: Json; p_priority?: number }
         Returns: string
+      }
+      rpc_fg_transfer_dwl_rows: {
+        Args: { p_batch_code: string; p_log_date: string }
+        Returns: {
+          activity: string
+          batch_number: string
+          completed_on: string
+          created_at: string
+          id: number
+          item: string
+          log_date: string
+          sku_breakdown: string
+          status: string
+          uploaded_by: string
+        }[]
+      }
+      rpc_fg_transfer_event_counts: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: {
+          all_godown_mapped: boolean
+          all_sku_mapped: boolean
+          rows: number
+        }[]
+      }
+      rpc_fg_transfer_event_get: {
+        Args: {
+          p_batch_code: string
+          p_product_id?: number
+          p_transfer_date: string
+        }
+        Returns: {
+          all_godown_mapped: boolean | null
+          all_sku_mapped: boolean | null
+          batch_code: string | null
+          product_id: number | null
+          product_name: string | null
+          tally_amount_per_base_raw: number | null
+          tally_amount_per_pack_raw: number | null
+          tally_breakdown_by_godown: Json | null
+          tally_breakdown_by_godown_amount: Json | null
+          tally_breakdown_by_skuid: Json | null
+          tally_breakdown_by_store: Json | null
+          tally_breakdown_by_store_amount: Json | null
+          tally_breakdown_lines: Json | null
+          tally_total_amount: number | null
+          tally_total_amount_raw: number | null
+          tally_total_in_base: number | null
+          tally_total_packs: number | null
+          tally_uom_base_unit: string | null
+          transfer_date: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "v_tally_fg_transfer_event"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      rpc_fg_transfer_event_list: {
+        Args: {
+          p_from?: string
+          p_limit?: number
+          p_offset?: number
+          p_only_unmapped?: boolean
+          p_search?: string
+          p_to?: string
+        }
+        Returns: {
+          all_godown_mapped: boolean | null
+          all_sku_mapped: boolean | null
+          batch_code: string | null
+          product_id: number | null
+          product_name: string | null
+          tally_amount_per_base_raw: number | null
+          tally_amount_per_pack_raw: number | null
+          tally_breakdown_by_godown: Json | null
+          tally_breakdown_by_godown_amount: Json | null
+          tally_breakdown_by_skuid: Json | null
+          tally_breakdown_by_store: Json | null
+          tally_breakdown_by_store_amount: Json | null
+          tally_breakdown_lines: Json | null
+          tally_total_amount: number | null
+          tally_total_amount_raw: number | null
+          tally_total_in_base: number | null
+          tally_total_packs: number | null
+          tally_uom_base_unit: string | null
+          transfer_date: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "v_tally_fg_transfer_event"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      rpc_fg_transfer_log_counts: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: {
+          all_lines_sku_mapped: boolean
+          is_product_mapped: boolean
+          rows: number
+        }[]
+      }
+      rpc_fg_transfer_log_event_list: {
+        Args: {
+          p_from?: string
+          p_limit?: number
+          p_offset?: number
+          p_only_unmapped?: boolean
+          p_search?: string
+          p_to?: string
+        }
+        Returns: {
+          all_lines_sku_mapped: boolean | null
+          any_dwl_id: number | null
+          batch_code: string | null
+          dwl_row_count: number | null
+          is_product_mapped: boolean | null
+          log_breakdown_by_skuid: Json | null
+          log_breakdown_lines: Json | null
+          log_completed_on: string | null
+          log_created_at: string | null
+          log_date: string | null
+          log_status: string | null
+          log_total_packs: number | null
+          log_uploaded_by: string | null
+          product_id: number | null
+          product_name: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "v_dwl_fg_transfer_event"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      rpc_fg_transfer_log_get: {
+        Args: {
+          p_batch_code: string
+          p_log_date: string
+          p_product_id?: number
+        }
+        Returns: {
+          all_lines_sku_mapped: boolean | null
+          any_dwl_id: number | null
+          batch_code: string | null
+          dwl_row_count: number | null
+          is_product_mapped: boolean | null
+          log_breakdown_by_skuid: Json | null
+          log_breakdown_lines: Json | null
+          log_completed_on: string | null
+          log_created_at: string | null
+          log_date: string | null
+          log_status: string | null
+          log_total_packs: number | null
+          log_uploaded_by: string | null
+          product_id: number | null
+          product_name: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "v_dwl_fg_transfer_event"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      rpc_fg_transfer_log_list: {
+        Args: {
+          p_from?: string
+          p_limit?: number
+          p_offset?: number
+          p_only_unmapped?: boolean
+          p_search?: string
+          p_status?: string
+          p_to?: string
+        }
+        Returns: {
+          all_lines_sku_mapped: boolean | null
+          any_dwl_id: number | null
+          batch_code: string | null
+          dwl_row_count: number | null
+          is_product_mapped: boolean | null
+          log_breakdown_by_skuid: Json | null
+          log_breakdown_lines: Json | null
+          log_completed_on: string | null
+          log_created_at: string | null
+          log_date: string | null
+          log_status: string | null
+          log_total_packs: number | null
+          log_uploaded_by: string | null
+          product_id: number | null
+          product_name: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "v_dwl_fg_transfer_event"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      rpc_fg_transfer_log_unmapped_lines: {
+        Args: {
+          p_batch_code?: string
+          p_from?: string
+          p_limit?: number
+          p_offset?: number
+          p_pack_size?: number
+          p_pack_uom?: string
+          p_product_name_raw?: string
+          p_to?: string
+          p_unmapped_kind?: string
+        }
+        Returns: {
+          batch_code: string
+          dwl_id: number
+          is_product_mapped: boolean
+          log_completed_on: string
+          log_created_at: string
+          log_date: string
+          log_status: string
+          log_uploaded_by: string
+          pack_qty_sum: number
+          pack_size: number
+          pack_uom: string
+          product_id: number
+          product_name: string
+          product_name_raw: string
+          sku_breakdown: string
+          sku_id: number
+          sku_label: string
+          unmapped_kind: string
+          unmapped_sku_key: string
+        }[]
+      }
+      rpc_fg_transfer_log_unmapped_summary: {
+        Args: {
+          p_from?: string
+          p_limit?: number
+          p_offset?: number
+          p_to?: string
+        }
+        Returns: {
+          distinct_batches: number
+          distinct_dwl: number
+          first_date: string
+          last_date: string
+          pack_size: number
+          pack_uom: string
+          product_id: number
+          product_name: string
+          product_name_raw: string
+          qty_sum: number
+          rows: number
+          sample_sku_breakdown: string
+          unmapped_kind: string
+          unmapped_sku_key: string
+        }[]
+      }
+      rpc_fg_transfer_missing_log_counts: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: {
+          rows: number
+        }[]
+      }
+      rpc_fg_transfer_missing_log_get: {
+        Args: {
+          p_batch_code: string
+          p_product_id?: number
+          p_transfer_date: string
+        }
+        Returns: {
+          all_godown_mapped: boolean | null
+          all_lines_sku_mapped: boolean | null
+          all_sku_mapped: boolean | null
+          any_dwl_id: number | null
+          batch_code: string | null
+          dwl_row_count: number | null
+          exists_in_log: boolean | null
+          exists_in_tally: boolean | null
+          is_exact_breakdown_match: boolean | null
+          is_product_mapped: boolean | null
+          log_breakdown_by_skuid: Json | null
+          log_breakdown_lines: Json | null
+          log_completed_on: string | null
+          log_created_at: string | null
+          log_status: string | null
+          log_total_packs: number | null
+          log_uploaded_by: string | null
+          product_id: number | null
+          product_name: string | null
+          recon_status: string | null
+          tally_amount_per_pack_raw: number | null
+          tally_breakdown_by_godown: Json | null
+          tally_breakdown_by_skuid: Json | null
+          tally_breakdown_by_store: Json | null
+          tally_breakdown_lines: Json | null
+          tally_total_amount_raw: number | null
+          tally_total_in_base: number | null
+          tally_total_packs: number | null
+          tally_uom_base_unit: string | null
+          transfer_date: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "v_fg_transfer_missing_log"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      rpc_fg_transfer_missing_log_list: {
+        Args: {
+          p_from?: string
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_to?: string
+        }
+        Returns: {
+          all_godown_mapped: boolean | null
+          all_lines_sku_mapped: boolean | null
+          all_sku_mapped: boolean | null
+          any_dwl_id: number | null
+          batch_code: string | null
+          dwl_row_count: number | null
+          exists_in_log: boolean | null
+          exists_in_tally: boolean | null
+          is_exact_breakdown_match: boolean | null
+          is_product_mapped: boolean | null
+          log_breakdown_by_skuid: Json | null
+          log_breakdown_lines: Json | null
+          log_completed_on: string | null
+          log_created_at: string | null
+          log_status: string | null
+          log_total_packs: number | null
+          log_uploaded_by: string | null
+          product_id: number | null
+          product_name: string | null
+          recon_status: string | null
+          tally_amount_per_pack_raw: number | null
+          tally_breakdown_by_godown: Json | null
+          tally_breakdown_by_skuid: Json | null
+          tally_breakdown_by_store: Json | null
+          tally_breakdown_lines: Json | null
+          tally_total_amount_raw: number | null
+          tally_total_in_base: number | null
+          tally_total_packs: number | null
+          tally_uom_base_unit: string | null
+          transfer_date: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "v_fg_transfer_missing_log"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      rpc_fg_transfer_recon_counts: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: {
+          recon_status: string
+          rows: number
+        }[]
+      }
+      rpc_fg_transfer_recon_counts_by_date: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: {
+          extra_log: number
+          legacy: number
+          matched: number
+          mismatch: number
+          missing_log: number
+          total: number
+          transfer_date: string
+        }[]
+      }
+      rpc_fg_transfer_recon_details: {
+        Args: { p_batch_code: string; p_transfer_date: string }
+        Returns: {
+          all_godown_mapped: boolean | null
+          all_lines_sku_mapped: boolean | null
+          all_sku_mapped: boolean | null
+          any_dwl_id: number | null
+          batch_code: string | null
+          dwl_row_count: number | null
+          exists_in_log: boolean | null
+          exists_in_tally: boolean | null
+          is_exact_breakdown_match: boolean | null
+          is_product_mapped: boolean | null
+          log_breakdown_by_skuid: Json | null
+          log_breakdown_lines: Json | null
+          log_completed_on: string | null
+          log_created_at: string | null
+          log_status: string | null
+          log_total_packs: number | null
+          log_uploaded_by: string | null
+          product_id: number | null
+          product_name: string | null
+          recon_status: string | null
+          tally_amount_per_base_raw: number | null
+          tally_amount_per_pack_raw: number | null
+          tally_breakdown_by_godown: Json | null
+          tally_breakdown_by_godown_amount: Json | null
+          tally_breakdown_by_skuid: Json | null
+          tally_breakdown_by_store: Json | null
+          tally_breakdown_by_store_amount: Json | null
+          tally_breakdown_lines: Json | null
+          tally_total_amount: number | null
+          tally_total_amount_raw: number | null
+          tally_total_in_base: number | null
+          tally_total_packs: number | null
+          tally_uom_base_unit: string | null
+          transfer_date: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "v_fg_transfer_reconciliation"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      rpc_fg_transfer_recon_fix_suggestions: {
+        Args: { p_from?: string; p_limit?: number; p_to?: string }
+        Returns: {
+          first_date: string
+          last_date: string
+          rows: number
+          sample_ref: string
+          suggestion_key: string
+          suggestion_kind: string
+        }[]
+      }
+      rpc_fg_transfer_recon_get_v2: {
+        Args: {
+          p_batch_code: string
+          p_product_id?: number
+          p_transfer_date: string
+        }
+        Returns: {
+          display_product_label: string | null
+          raw_item_hint: string | null
+          raw_item_names: string[] | null
+          tally_item_hint: string | null
+          all_godown_mapped: boolean | null
+          all_lines_sku_mapped: boolean | null
+          all_sku_mapped: boolean | null
+          any_dwl_id: number | null
+          batch_code: string | null
+          dwl_row_count: number | null
+          exists_in_log: boolean | null
+          exists_in_tally: boolean | null
+          is_exact_breakdown_match: boolean | null
+          is_product_mapped: boolean | null
+          log_breakdown_by_skuid: Json | null
+          log_breakdown_lines: Json | null
+          log_completed_on: string | null
+          log_created_at: string | null
+          log_status: string | null
+          log_total_packs: number | null
+          log_uploaded_by: string | null
+          product_id: number | null
+          product_name: string | null
+          recon_status: string | null
+          tally_amount_per_base_raw: number | null
+          tally_amount_per_pack_raw: number | null
+          tally_breakdown_by_godown: Json | null
+          tally_breakdown_by_godown_amount: Json | null
+          tally_breakdown_by_skuid: Json | null
+          tally_breakdown_by_store: Json | null
+          tally_breakdown_by_store_amount: Json | null
+          tally_breakdown_lines: Json | null
+          tally_total_amount: number | null
+          tally_total_amount_raw: number | null
+          tally_total_in_base: number | null
+          tally_total_packs: number | null
+          tally_uom_base_unit: string | null
+          transfer_date: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "v_fg_transfer_reconciliation"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      rpc_fg_transfer_recon_list: {
+        Args: {
+          p_from?: string
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_status?: string[]
+          p_to?: string
+        }
+        Returns: {
+          all_godown_mapped: boolean | null
+          all_lines_sku_mapped: boolean | null
+          all_sku_mapped: boolean | null
+          any_dwl_id: number | null
+          batch_code: string | null
+          dwl_row_count: number | null
+          exists_in_log: boolean | null
+          exists_in_tally: boolean | null
+          is_exact_breakdown_match: boolean | null
+          is_product_mapped: boolean | null
+          log_breakdown_by_skuid: Json | null
+          log_breakdown_lines: Json | null
+          log_completed_on: string | null
+          log_created_at: string | null
+          log_status: string | null
+          log_total_packs: number | null
+          log_uploaded_by: string | null
+          product_id: number | null
+          product_name: string | null
+          recon_status: string | null
+          tally_amount_per_base_raw: number | null
+          tally_amount_per_pack_raw: number | null
+          tally_breakdown_by_godown: Json | null
+          tally_breakdown_by_godown_amount: Json | null
+          tally_breakdown_by_skuid: Json | null
+          tally_breakdown_by_store: Json | null
+          tally_breakdown_by_store_amount: Json | null
+          tally_breakdown_lines: Json | null
+          tally_total_amount: number | null
+          tally_total_amount_raw: number | null
+          tally_total_in_base: number | null
+          tally_total_packs: number | null
+          tally_uom_base_unit: string | null
+          transfer_date: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "v_fg_transfer_reconciliation"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      rpc_fg_transfer_recon_list_enriched: {
+        Args: {
+          p_from?: string
+          p_limit?: number
+          p_offset?: number
+          p_problem?: string[]
+          p_search?: string
+          p_status?: string[]
+          p_to?: string
+        }
+        Returns: {
+          display_product_label: string | null
+          raw_item_hint: string | null
+          raw_item_names: string[] | null
+          tally_item_hint: string | null
+          all_godown_mapped: boolean
+          all_lines_sku_mapped: boolean
+          all_sku_mapped: boolean
+          any_dwl_id: number
+          batch_code: string
+          dwl_row_count: number
+          exists_in_log: boolean
+          exists_in_tally: boolean
+          is_exact_breakdown_match: boolean
+          is_product_mapped: boolean
+          log_completed_on: string
+          log_created_at: string
+          log_status: string
+          log_total_packs: number
+          log_uploaded_by: string
+          problem_kind: string
+          product_id: number
+          product_name: string
+          recon_status: string
+          tally_amount_per_base_raw: number
+          tally_amount_per_pack_raw: number
+          tally_total_amount: number
+          tally_total_amount_raw: number
+          tally_total_packs: number
+          transfer_date: string
+        }[]
+      }
+      rpc_fg_transfer_recon_problem_counts: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: {
+          problem_kind: string
+          recon_status: string
+          rows: number
+        }[]
+      }
+      rpc_fg_transfer_tally_event_counts: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: {
+          all_godown_mapped: boolean
+          all_sku_mapped: boolean
+          rows: number
+        }[]
+      }
+      rpc_fg_transfer_tally_event_list: {
+        Args: {
+          p_from?: string
+          p_limit?: number
+          p_offset?: number
+          p_only_unmapped?: boolean
+          p_search?: string
+          p_to?: string
+        }
+        Returns: {
+          raw_item_hint: string | null
+          raw_item_names: string[] | null
+          display_product_label: string | null
+          all_godown_mapped: boolean | null
+          all_sku_mapped: boolean | null
+          batch_code: string | null
+          product_id: number | null
+          product_name: string | null
+          tally_amount_per_base_raw: number | null
+          tally_amount_per_pack_raw: number | null
+          tally_breakdown_by_godown: Json | null
+          tally_breakdown_by_godown_amount: Json | null
+          tally_breakdown_by_skuid: Json | null
+          tally_breakdown_by_store: Json | null
+          tally_breakdown_by_store_amount: Json | null
+          tally_breakdown_lines: Json | null
+          tally_total_amount: number | null
+          tally_total_amount_raw: number | null
+          tally_total_in_base: number | null
+          tally_total_packs: number | null
+          tally_uom_base_unit: string | null
+          transfer_date: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "v_tally_fg_transfer_event"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      rpc_fg_transfer_tally_normalized_lines: {
+        Args: { p_batch_code: string; p_transfer_date: string }
+        Returns: {
+          alias_created_at: string | null
+          alias_note: string | null
+          amount_per_unit_raw: number | null
+          as_of_date: string | null
+          batch_code: string | null
+          conversion_to_base: number | null
+          id: number | null
+          inserted_at: string | null
+          is_godown_mapped: boolean | null
+          is_sku_mapped: boolean | null
+          item_alias_key_guess: string | null
+          item_name_raw: string | null
+          malayalam_name: string | null
+          matched_alias_key: string | null
+          matched_alias_text: string | null
+          pack_size: number | null
+          product_id: number | null
+          product_name: string | null
+          qty_in_uom_base: number | null
+          qty_in_uom_base_unit: string | null
+          qty_unit_key_guess: string | null
+          qty_unit_norm: string | null
+          qty_unit_text_raw: string | null
+          qty_value_raw: number | null
+          raw_godown_raw: string | null
+          sku_id: number | null
+          sku_is_active: boolean | null
+          sku_label: string | null
+          sku_pack_uom: string | null
+          sku_status: string | null
+          source_key: string | null
+          transfer_amount: number | null
+          transfer_amount_raw: number | null
+          transfer_date: string | null
+          transfer_godown_code: string | null
+          transfer_godown_code_norm: string | null
+          transfer_godown_id: number | null
+          transfer_godown_name: string | null
+          transfer_region_id: number | null
+          transfer_store_raw: string | null
+          uom_base: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "v_tally_fg_transfer_normalized"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      rpc_fg_transfer_tally_unmapped_lines: {
+        Args: {
+          p_alias_key?: string
+          p_batch_code?: string
+          p_from?: string
+          p_limit?: number
+          p_offset?: number
+          p_to?: string
+          p_unit_raw?: string
+          p_unmapped_kind?: string
+        }
+        Returns: {
+          batch_code: string
+          is_godown_mapped: boolean
+          is_sku_mapped: boolean
+          item_alias_key_guess: string
+          item_name_raw: string
+          product_id: number
+          product_name: string
+          qty_unit_text_raw: string
+          qty_value_raw: number
+          raw_godown_raw: string
+          sku_id: number
+          sku_label: string
+          transfer_amount_raw: number
+          transfer_date: string
+          transfer_godown_code_norm: string
+          transfer_store_raw: string
+        }[]
+      }
+      rpc_fg_transfer_tally_unmapped_summary: {
+        Args: {
+          p_from?: string
+          p_limit?: number
+          p_offset?: number
+          p_to?: string
+        }
+        Returns: {
+          amount_sum_raw: number
+          distinct_batches: number
+          first_date: string
+          item_alias_key_guess: string
+          last_date: string
+          qty_sum_raw: number
+          qty_unit_text_raw: string
+          raw_godown_raw: string
+          rows: number
+          sample_item_name_raw: string
+          transfer_godown_code_norm: string
+          unmapped_kind: string
+        }[]
       }
       rpc_forecast_exceptions: {
         Args: {

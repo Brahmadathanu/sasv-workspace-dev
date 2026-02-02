@@ -132,6 +132,7 @@ const UTIL_URLS = Object.freeze({
   bmr_card_not_initiated: "../shared/bmr-card-not-initiated.html",
   sales_viewer: "../shared/sales-viewer.html",
   stock_purchase_explorer: "../shared/stock-purchase-explorer.html",
+  fg_transfer_reconciliation: "../shared/fg-transfer-reconciliation.html",
 
   // Work Logs
   view_log: "../shared/view-logs.html", // DB key you showed

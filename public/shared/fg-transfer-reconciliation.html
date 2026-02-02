@@ -1,0 +1,2165 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>FG Transfer Reconciliation</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="./css/style.css" />
+    <link rel="stylesheet" href="../vendor/flatpickr.min.css" />
+    <link rel="stylesheet" href="../vendor/tom-select/tom-select.css" />
+    <style>
+      :root {
+        --erp-bg: #f7f8fb;
+        --erp-card: #ffffff;
+        --erp-border: rgba(15, 23, 42, 0.08);
+        --erp-text: #0f172a;
+        --erp-muted: #6b7280;
+        --erp-accent: #2563eb;
+        --erp-accent-2: #0ea5e9;
+        --erp-success: #10b981;
+        --erp-warning: #f59e0b;
+        --erp-danger: #ef4444;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+      }
+      body {
+        background: var(--erp-bg);
+        color: var(--erp-text);
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+        font-size: 14px;
+        line-height: 1.45;
+      }
+
+      /* Page layout */
+      .page {
+        height: calc(100vh - 44px); /* account for sticky status bar height */
+        padding: 16px 18px 0px; /* removed bottom padding since status bar is sticky */
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        overflow: hidden;
+      }
+
+      /* Header */
+      .page-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .page-header h2 {
+        margin: 0;
+        color: var(--primary, var(--erp-accent));
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+      }
+      .subtitle {
+        margin: 2px 0 0;
+        color: #0a62c3;
+        font-weight: 600;
+        font-size: 13px;
+      }
+      .eyebrow {
+        color: var(--erp-muted);
+        font-size: 13px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 4px;
+      }
+
+      /* Header actions */
+      .header-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .header-actions button {
+        padding: 8px 14px;
+        border: 1px solid var(--erp-border);
+        background: var(--erp-card);
+        color: var(--erp-text);
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.15s ease;
+      }
+      .header-actions button:hover {
+        background: var(--erp-bg);
+        border-color: var(--erp-accent);
+      }
+      .header-actions button.primary {
+        background: var(--erp-accent);
+        color: white;
+        border-color: var(--erp-accent);
+      }
+      .header-actions button.primary:hover {
+        background: #1d4ed8;
+      }
+      .header-actions button.active {
+        background: var(--erp-accent);
+        color: white;
+        border-color: var(--erp-accent);
+      }
+      .header-actions button.active:hover {
+        background: #1d4ed8;
+      }
+
+      /* Card */
+      .card {
+        background: var(--erp-card);
+        border: 1px solid var(--erp-border);
+        border-radius: 10px;
+        padding: 14px;
+        box-shadow: 0 10px 26px rgba(15, 23, 42, 0.05);
+      }
+
+      /* Filters */
+      .filters-card {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        flex: 0 0 auto; /* don't grow, don't shrink */
+      }
+      .filters-primary {
+        display: flex;
+        gap: 12px;
+        align-items: flex-end;
+        flex-wrap: wrap;
+      }
+      .filter-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 160px;
+      }
+      .filter-item.search {
+        flex: 1;
+        min-width: 240px;
+        max-width: 500px;
+      }
+      .filter-item.search {
+        position: relative;
+      }
+      .filter-item label {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--erp-muted);
+      }
+      .filter-item input,
+      .filter-item select {
+        padding: 8px 10px;
+        border: 1px solid var(--erp-border);
+        border-radius: 6px;
+        font-size: 14px;
+        background: var(--erp-card);
+        color: var(--erp-text);
+      }
+      .filter-item input:focus,
+      .filter-item select:focus {
+        outline: none;
+        border-color: var(--erp-accent);
+      }
+
+      /* Highlight Date Range and Search inputs with a light-blue fill to
+         differentiate from the page background */
+      #dateRange,
+      #search {
+        background: #e6f7ff; /* very light blue */
+        border-color: rgba(14, 165, 233, 0.35);
+      }
+      #dateRange:focus,
+      #search:focus {
+        outline: none;
+        border-color: var(--erp-accent-2);
+        box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.08);
+      }
+
+      /* Clear button inside text inputs */
+      .input-clear-btn {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border: none;
+        background: transparent;
+        color: var(--erp-muted);
+        cursor: pointer;
+        padding: 0;
+        border-radius: 6px;
+      }
+      .input-clear-btn:hover {
+        background: rgba(15, 23, 42, 0.03);
+        color: var(--erp-text);
+      }
+      .filter-item.search input {
+        padding-right: 38px; /* space for clear button */
+      }
+
+      /* Toggles */
+      .quick-toggles {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        padding: 8px 0;
+      }
+      .toggle-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+      }
+      .toggle-item input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+      }
+
+      /* Tabs - ERP segmented navigator */
+      .tabs-strip {
+        display: flex;
+        gap: 8px;
+        padding: 8px;
+        background: linear-gradient(180deg, var(--erp-card), var(--erp-card));
+        border: 1px solid var(--erp-border);
+        border-radius: 10px;
+        align-items: center;
+        overflow-x: auto;
+        flex: 0 0 auto; /* don't grow, don't shrink */
+      }
+
+      .tab-btn {
+        padding: 8px 14px;
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--erp-muted);
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        border-radius: 8px;
+        transition: all 0.16s ease;
+        white-space: nowrap;
+        box-shadow: none;
+      }
+
+      .tab-btn:hover {
+        color: var(--erp-text);
+        background: rgba(15, 23, 42, 0.03);
+        border-color: rgba(15, 23, 42, 0.04);
+      }
+
+      .tab-btn:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+      }
+
+      .tab-btn.active {
+        color: white;
+        background: var(--erp-accent);
+        border-color: var(--erp-accent);
+        box-shadow: 0 6px 18px rgba(37, 99, 235, 0.12);
+      }
+
+      @media (max-width: 640px) {
+        .tabs-strip {
+          padding: 6px;
+        }
+        .tab-btn {
+          padding: 6px 10px;
+          font-size: 13px;
+        }
+      }
+
+      /* Table card */
+      .table-card {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-height: 0;
+      }
+      #tableArea {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: visible; /* the inner .table-body-wrap will handle scrolling */
+        min-height: 0;
+        border: 1px solid var(--erp-border);
+        border-radius: 8px;
+        background: var(--erp-card);
+        -webkit-overflow-scrolling: touch;
+        scrollbar-gutter: stable both-edges;
+      }
+
+      /* Scroll only the table body so header and pagination stay visible */
+      .table-body-wrap {
+        flex: 1 1 auto;
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-gutter: stable both-edges;
+      }
+
+      /* Tables */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+        min-width: 900px; /* ensures table can overflow horizontally on narrow viewports */
+      }
+      thead th {
+        position: sticky;
+        top: 0; /* stick to top of the scrolling table body container */
+        background: var(--erp-card);
+        border-bottom: 1px solid var(--erp-border);
+        padding: 8px;
+        text-align: center;
+        white-space: nowrap;
+        font-weight: 600;
+        color: var(--erp-text);
+        z-index: 9;
+        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
+      }
+      #tableArea th,
+      #tableArea td {
+        white-space: nowrap; /* prevent wrapping so horizontal scroll appears */
+      }
+
+      tbody td {
+        border-top: 1px solid rgba(243, 244, 246, 1);
+        padding: 8px;
+        text-align: center;
+        vertical-align: middle;
+      }
+      thead th:first-child,
+      tbody td:first-child {
+        text-align: left;
+      }
+      tbody tr {
+        cursor: pointer;
+        transition: background 0.12s ease;
+      }
+      tbody tr:hover {
+        background: rgba(37, 99, 235, 0.03);
+      }
+
+      /* Status badges */
+      .badge {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .badge.matched {
+        background: #d1fae5;
+        color: #065f46;
+      }
+      .badge.mismatch {
+        background: #fee2e2;
+        color: #991b1b;
+      }
+      .badge.missing-log {
+        background: #fef3c7;
+        color: #92400e;
+      }
+      .badge.extra-log {
+        background: #ddd6fe;
+        color: #5b21b6;
+      }
+      .badge.legacy {
+        background: #e5e7eb;
+        color: #374151;
+      }
+      .badge.unmapped {
+        background: #fed7aa;
+        color: #9a3412;
+      }
+
+      /* Icons */
+      .icon {
+        font-size: 16px;
+      }
+      .icon.success {
+        color: var(--erp-success);
+      }
+      .icon.error {
+        color: var(--erp-danger);
+      }
+      .icon.warning {
+        color: var(--erp-warning);
+      }
+
+      /* Mapping dots for Mapping column: compact, mobile-friendly
+         Only show green dots for OK flags. Dots are non-interactive so
+         row click remains fully functional. */
+      .mapping-dots {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none; /* do not capture pointer events */
+      }
+      .map-dot {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #e5e7eb; /* neutral fallback */
+        color: #fff;
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1;
+      }
+      .map-dot.ok {
+        background: var(--erp-success);
+        color: white;
+      }
+
+      /* KPI cards */
+      .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      /* Compact pill/tooltip styles for Overview */
+      .pill-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: var(--erp-card);
+        border: 1px solid var(--erp-border);
+        font-weight: 700;
+        font-size: 13px;
+        color: var(--erp-text);
+        cursor: pointer;
+      }
+      .pill.small {
+        padding: 4px 8px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .pill.count {
+        background: rgba(15, 23, 42, 0.02);
+        font-weight: 700;
+      }
+
+      .info-tip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        border: 1px solid var(--erp-border);
+        background: var(--erp-card);
+        color: var(--erp-muted);
+        font-size: 12px;
+        cursor: help;
+        position: relative;
+        margin-left: 8px;
+      }
+
+      .info-tip .tooltip {
+        position: absolute;
+        bottom: calc(100% + 8px);
+        left: 50%;
+        transform: translateX(-50%) scale(0.96);
+        background: var(--erp-card);
+        border: 1px solid var(--erp-border);
+        padding: 8px 10px;
+        border-radius: 8px;
+        min-width: 220px;
+        max-width: 340px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        opacity: 0;
+        pointer-events: none;
+        transition:
+          opacity 0.12s ease,
+          transform 0.12s ease;
+        z-index: 2300;
+        font-size: 13px;
+        color: var(--erp-text);
+      }
+
+      .info-tip:hover .tooltip,
+      .info-tip.open .tooltip {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateX(-50%) scale(1);
+      }
+      /* Overview headers container for side-by-side layout */
+      .overview-headers-container {
+        display: flex;
+        gap: 24px;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+      }
+
+      /* Clickable headers */
+      .overview-header {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 8px;
+        min-width: 0; /* Allow flex shrinking when needed */
+      }
+
+      .clickable-header {
+        cursor: pointer;
+        padding: 12px 16px;
+        border-radius: 8px;
+        border: 1px solid var(--erp-border);
+        transition: all 0.15s ease;
+        flex: 1;
+        min-width: 200px;
+      }
+
+      /* Different backgrounds for outcome and diagnosis headers */
+      .clickable-header[data-drawer="outcome-chips"] {
+        background: rgba(34, 197, 94, 0.08);
+        border-color: rgba(34, 197, 94, 0.2);
+      }
+
+      .clickable-header[data-drawer="diagnosis-chips"] {
+        background: rgba(249, 115, 22, 0.08);
+        border-color: rgba(249, 115, 22, 0.2);
+      }
+
+      .clickable-header:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+
+      .clickable-header[data-drawer="outcome-chips"]:hover {
+        background: rgba(34, 197, 94, 0.12);
+        border-color: rgba(34, 197, 94, 0.3);
+      }
+
+      .clickable-header[data-drawer="diagnosis-chips"]:hover {
+        background: rgba(249, 115, 22, 0.12);
+        border-color: rgba(249, 115, 22, 0.3);
+      }
+
+      .clickable-header:active {
+        transform: translateY(0);
+      }
+      .overview-title {
+        font-weight: 600;
+        font-size: 13px;
+        color: #1a1a1a;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border-radius: 999px;
+        background: var(--erp-card);
+        border: 1px solid var(--erp-border);
+        cursor: pointer;
+        font-weight: 700;
+        font-size: 12px;
+      }
+      .chip .label {
+        font-weight: 700;
+        font-size: 12px;
+      }
+      .chip .count {
+        font-weight: 800;
+      }
+      .chip .info-icon {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        border: 1px solid var(--erp-border);
+        color: var(--erp-muted);
+        background: var(--erp-bg);
+        cursor: pointer;
+      }
+      .chip .info-icon:hover {
+        border-color: var(--erp-accent);
+        color: var(--erp-accent);
+      }
+      .section-info {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        border: 1px solid var(--erp-border);
+        color: var(--erp-muted);
+        background: var(--erp-bg);
+        cursor: pointer;
+        flex-shrink: 0; /* Prevent the info button from being squeezed */
+      }
+
+      /* Make overview headers more compact on narrow screens so both
+         Outcome and Diagnosis fit on a single line without wrapping. */
+      @media (max-width: 520px) {
+        .overview-headers-container {
+          flex-wrap: nowrap;
+          gap: 8px;
+        }
+        .clickable-header {
+          padding: 8px 10px;
+          border-radius: 8px;
+          min-width: 0; /* allow flex to shrink
+                         so two items fit side-by-side */
+          flex: 1 1 48%;
+          font-size: 12px;
+        }
+        .overview-title {
+          font-size: 12px;
+          flex: 1;
+          min-width: 0; /* Allow title to shrink */
+        }
+        .section-info {
+          width: 16px;
+          height: 16px;
+          font-size: 11px;
+          flex-shrink: 0; /* Critical: prevent distortion */
+          min-width: 16px; /* Ensure minimum width */
+          min-height: 16px; /* Ensure minimum height */
+        }
+      }
+
+      /* Reusable tooltip */
+      /* Make the reusable ERP tooltip use the same dark style as the
+         Master Filters tooltip so all tooltips feel consistent. */
+      .erp-tooltip {
+        position: fixed;
+        max-width: 320px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: #0f172a;
+        color: #fff;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+        font-size: 12px;
+        line-height: 1.35;
+        opacity: 0;
+        transform: translateY(6px);
+        pointer-events: none;
+        transition:
+          opacity 0.12s ease,
+          transform 0.12s ease;
+        z-index: 3000;
+      }
+      .erp-tooltip.open {
+        opacity: 1;
+        transform: translateY(0);
+        pointer-events: auto;
+      }
+      .erp-tooltip .tt-title {
+        font-weight: 900;
+        margin-bottom: 6px;
+        font-size: 12px;
+      }
+      .erp-tooltip .tt-body {
+        color: rgba(255, 255, 255, 0.92);
+      }
+
+      /* SVG pagination: tighter spacing and compact svg-only buttons */
+      .svg-pagination {
+        gap: 6px;
+      }
+      .svg-page-btn {
+        background: transparent;
+        border: none;
+        padding: 2px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--erp-text);
+        cursor: pointer;
+        border-radius: 6px;
+        outline: none;
+      }
+      .svg-page-btn:disabled {
+        opacity: 0.45;
+        cursor: default;
+      }
+      .svg-page-btn:focus {
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+        border-radius: 8px;
+      }
+      /* When SVG pagination is used in the table top row, reduce the
+         reserved right padding so there's no wide grey gap after Next */
+      .table-top-row .pagination.svg-pagination {
+        padding-right: 6px;
+      }
+      /* =========================================================
+         OVERVIEW CHIP LAYOUT
+         ========================================================= */
+      .row-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin: 6px 0 4px; /* tighter spacing above/below section headers */
+      }
+
+      .row-title {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 800;
+        font-size: 12px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--erp-muted);
+      }
+
+      .chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 4px; /* reduced to pull sections closer */
+      }
+
+      /* =========================================================
+         KPI CHIP (Alive, colored)
+         ========================================================= */
+      .kpi-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--erp-border);
+        background: #fff;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1;
+      }
+
+      .kpi-chip .chip-label {
+        font-weight: 600;
+      }
+
+      .kpi-chip .chip-count {
+        font-variant-numeric: tabular-nums;
+        padding-left: 8px;
+        border-left: 1px solid rgba(15, 23, 42, 0.1);
+        font-weight: 600;
+      }
+
+      /* Outcome variants */
+      .kpi-chip[data-variant="total"] {
+        background: #f8fafc;
+        border-left: 4px solid #94a3b8;
+      }
+      .kpi-chip[data-variant="matched"] {
+        background: #ecfdf5;
+        border-left: 4px solid var(--erp-success);
+      }
+      .kpi-chip[data-variant="mismatch"] {
+        background: #fef2f2;
+        border-left: 4px solid var(--erp-danger);
+      }
+      .kpi-chip[data-variant="missing_log"] {
+        background: #fffbeb;
+        border-left: 4px solid var(--erp-warning);
+      }
+      .kpi-chip[data-variant="extra_log"] {
+        background: #eef2ff;
+        border-left: 4px solid #6366f1;
+      }
+      .kpi-chip[data-variant="unmapped"] {
+        background: #fff7ed;
+        border-left: 4px solid #fb923c;
+      }
+      .kpi-chip[data-variant="legacy"] {
+        background: #f3f4f6;
+        border-left: 4px solid #9ca3af;
+      }
+
+      /* Diagnosis variants */
+      .kpi-chip[data-variant="matched_ok"] {
+        background: #ecfdf5;
+        border-left: 4px solid var(--erp-success);
+      }
+      .kpi-chip[data-variant="breakdown_mismatch"] {
+        background: #fef2f2;
+        border-left: 4px solid var(--erp-danger);
+      }
+      .kpi-chip[data-variant="log_missing"] {
+        background: #fffbeb;
+        border-left: 4px solid var(--erp-warning);
+      }
+      .kpi-chip[data-variant="tally_missing"] {
+        background: #eef2ff;
+        border-left: 4px solid #6366f1;
+      }
+      .kpi-chip[data-variant="tally_unmapped"] {
+        background: #fff7ed;
+        border-left: 4px solid #fb923c;
+      }
+      .kpi-chip[data-variant="log_unmapped"] {
+        background: #fff7ed;
+        border-left: 4px solid #fb923c;
+      }
+      .kpi-chip[data-variant="other"] {
+        background: #f8fafc;
+        border-left: 4px solid #94a3b8;
+      }
+
+      /* Chip text color per variant for good contrast */
+      .kpi-chip[data-variant="total"] {
+        color: #0f172a;
+      }
+      .kpi-chip[data-variant="matched"] {
+        color: #065f46;
+      }
+      .kpi-chip[data-variant="mismatch"] {
+        color: #991b1b;
+      }
+      .kpi-chip[data-variant="missing_log"] {
+        color: #92400e;
+      }
+      .kpi-chip[data-variant="extra_log"] {
+        color: #4f46e5;
+      }
+      .kpi-chip[data-variant="unmapped"] {
+        color: #9a3412;
+      }
+      .kpi-chip[data-variant="legacy"] {
+        color: #374151;
+      }
+
+      .kpi-chip[data-variant="matched_ok"] {
+        color: #065f46;
+      }
+      .kpi-chip[data-variant="breakdown_mismatch"] {
+        color: #991b1b;
+      }
+      .kpi-chip[data-variant="log_missing"] {
+        color: #92400e;
+      }
+      .kpi-chip[data-variant="tally_missing"] {
+        color: #4f46e5;
+      }
+
+      /* Non-clickable chip styling */
+      .kpi-chip.non-clickable {
+        cursor: default;
+        opacity: 0.8;
+      }
+      .kpi-chip.non-clickable:hover {
+        transform: none;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+      }
+      .kpi-chip[data-variant="tally_unmapped"] {
+        color: #9a3412;
+      }
+      .kpi-chip[data-variant="log_unmapped"] {
+        color: #9a3412;
+      }
+      .kpi-chip[data-variant="other"] {
+        color: #0f172a;
+      }
+
+      /* Ensure label/count inherit chip color */
+      .kpi-chip .chip-label,
+      .kpi-chip .chip-count {
+        color: inherit;
+      }
+
+      /* Standardized info icon for KPI chips: light green background with dark green i */
+      .kpi-chip .info-icon {
+        background: #ecfdf5 !important;
+        color: #065f46 !important;
+        border-color: rgba(6, 95, 70, 0.12) !important;
+        font-weight: 600; /* semi-bold instead of bold */
+      }
+
+      /* =========================================================
+         INFO ICON BUTTON (for chips + row headers)
+         ========================================================= */
+      .tip-btn {
+        width: 18px;
+        height: 18px;
+        border-radius: 999px;
+        border: 1px solid rgba(15, 23, 42, 0.18);
+        background: #fff;
+        color: rgba(15, 23, 42, 0.75);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        cursor: pointer;
+        flex: 0 0 auto;
+      }
+      .tip-btn:hover {
+        border-color: rgba(37, 99, 235, 0.55);
+        color: rgba(37, 99, 235, 1);
+      }
+      .tip-btn:focus {
+        outline: 2px solid rgba(37, 99, 235, 0.25);
+        outline-offset: 2px;
+      }
+
+      /* By Date summary table wrapper and styles */
+      .bydate-wrapper {
+        max-height: 320px;
+        overflow: auto;
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        border-radius: 6px;
+        background: #fff;
+        padding: 8px;
+      }
+
+      /* Make overview layout a column so the by-date table can grow
+         Use flex so the container fills available space and inner wrapper can scroll */
+      .overview-content {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        flex: 1 1 0%;
+        min-height: 0;
+      }
+
+      /* Allow bydate wrapper to take remaining space when inside .overview-content
+         and show a vertical scrollbar at the table level when rows exceed space */
+      .overview-content .bydate-wrapper {
+        flex: 1 1 0%;
+        max-height: none;
+        min-height: 0;
+        overflow: auto;
+      }
+      /* Ensure breakdown-section uses flex so header + table share space correctly */
+      .overview-content .breakdown-section {
+        display: flex;
+        flex-direction: column;
+        gap: 4px; /* reduced gap to tighten vertical spacing before By Date */
+        flex: 1 1 0%;
+        min-height: 0;
+      }
+      .overview-content .breakdown-section h4 {
+        margin: 0 0 4px 0; /* slightly smaller bottom margin */
+        flex: 0 0 auto;
+      }
+      .bydate-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px; /* compact */
+      }
+      .bydate-table thead th {
+        position: sticky;
+        top: 0;
+        background: var(--erp-card); /* fully opaque header background */
+        border-bottom: 1px solid var(--erp-border);
+        padding: 10px 8px;
+        text-align: center; /* center horizontally */
+        vertical-align: middle; /* center vertically */
+        z-index: 2;
+        font-weight: 700;
+        white-space: nowrap; /* keep headers compact */
+      }
+      .bydate-table tbody td {
+        padding: 10px 8px;
+        border-bottom: 1px solid rgba(15, 23, 42, 0.03);
+        text-align: center; /* center horizontally */
+        vertical-align: middle; /* center vertically */
+      }
+      .bydate-table tbody tr:nth-child(odd) {
+        background: rgba(15, 23, 42, 0.02);
+      }
+      .bydate-table tbody tr:nth-child(even) {
+        background: transparent;
+      }
+
+      .muted-caption {
+        color: var(--erp-muted);
+        font-size: 12px;
+        margin-bottom: 6px;
+      }
+
+      /* Chip row always hidden - chips shown in modal */
+      .chip-row {
+        display: none;
+      }
+
+      /* Chip Modal */
+      .chip-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        padding: 20px;
+      }
+      .chip-modal.open {
+        display: flex;
+      }
+      .chip-modal-content {
+        background: var(--erp-card);
+        border-radius: 8px;
+        padding: 24px;
+        max-width: 90vw;
+        max-height: 80vh;
+        overflow: auto;
+        box-shadow:
+          0 20px 25px -5px rgba(0, 0, 0, 0.1),
+          0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      }
+      .chip-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--erp-border);
+      }
+      .chip-modal-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--erp-text);
+      }
+      .chip-modal-close {
+        width: 24px;
+        height: 24px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        color: var(--erp-muted);
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .chip-modal-close:hover {
+        background: var(--erp-bg);
+        color: var(--erp-text);
+      }
+      .chip-modal-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      /* =========================================================
+         TOOLTIP (hover + focus + click)
+         ========================================================= */
+      .tooltip {
+        position: fixed;
+        z-index: 2500;
+        min-width: 220px;
+        max-width: 340px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: #0f172a;
+        color: #fff;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+        font-size: 12px;
+        line-height: 1.35;
+        opacity: 0;
+        transform: translateY(6px);
+        pointer-events: none;
+        transition:
+          opacity 0.12s ease,
+          transform 0.12s ease;
+      }
+      .tooltip.open {
+        opacity: 1;
+        transform: translateY(0);
+        pointer-events: auto;
+      }
+      .tooltip .tt-title {
+        font-weight: 900;
+        margin-bottom: 6px;
+        font-size: 12px;
+      }
+      .tooltip .tt-body {
+        color: rgba(255, 255, 255, 0.92);
+      }
+      /* Classic white/light tooltip variant used by Master Filters and Export
+         — can be triggered by setting `data-tooltip-style="white"` on the
+         anchor element (the JS openTooltip will toggle `.white` accordingly). */
+      .tooltip.white {
+        background: #ffffff;
+        color: var(--erp-text);
+        box-shadow: 0 8px 28px rgba(15, 23, 42, 0.08);
+        border: 1px solid var(--erp-border);
+      }
+      .tooltip.white .tt-title {
+        color: var(--erp-text);
+      }
+      .tooltip.white .tt-body {
+        color: var(--erp-muted);
+      }
+      .kpi-card {
+        background: var(--erp-card);
+        border: 1px solid var(--erp-border);
+        border-radius: 8px;
+        padding: 14px;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+      }
+      .kpi-label {
+        font-size: 12px;
+        color: var(--erp-muted);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .kpi-value {
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--erp-text);
+        margin-top: 4px;
+      }
+
+      /* Action buttons section */
+      .action-buttons {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin: 16px 0;
+      }
+      .action-btn {
+        padding: 10px 16px;
+        border: 1px solid var(--erp-border);
+        background: var(--erp-card);
+        color: var(--erp-text);
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.15s ease;
+      }
+      .action-btn:hover {
+        background: var(--erp-accent);
+        color: white;
+        border-color: var(--erp-accent);
+      }
+
+      /* Modal */
+      #detailModal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 2400;
+        align-items: center;
+        justify-content: center;
+      }
+      #detailModal.open {
+        display: flex;
+      }
+      .modal-dialog {
+        background: var(--erp-card);
+        border-radius: 12px;
+        width: 90%;
+        max-width: 1100px;
+        max-height: 90vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      }
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--erp-border);
+      }
+      .modal-header h3 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+      }
+      .modal-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: var(--erp-muted);
+        line-height: 1;
+        padding: 0;
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .modal-close:hover {
+        color: var(--erp-text);
+      }
+      .modal-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+      }
+
+      /* Inspector tabs */
+      .inspector-tabs {
+        display: flex;
+        gap: 4px;
+        border-bottom: 2px solid var(--erp-border);
+        margin-bottom: 16px;
+      }
+      .inspector-tab-btn {
+        padding: 8px 14px;
+        background: transparent;
+        border: none;
+        color: var(--erp-muted);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        transition: all 0.15s ease;
+      }
+      .inspector-tab-btn:hover {
+        color: var(--erp-text);
+      }
+      .inspector-tab-btn.active {
+        color: var(--erp-accent);
+        border-bottom-color: var(--erp-accent);
+      }
+
+      /* Summary section in inspector */
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      .summary-item {
+        padding: 10px;
+        background: var(--erp-bg);
+        border-radius: 6px;
+      }
+      .summary-item label {
+        font-size: 11px;
+        color: var(--erp-muted);
+        text-transform: uppercase;
+        font-weight: 600;
+        display: block;
+        margin-bottom: 4px;
+      }
+      .summary-item .value {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--erp-text);
+      }
+
+      /* Breakdown display */
+      .breakdown-section {
+        margin-bottom: 16px;
+      }
+      .breakdown-section h4 {
+        font-size: 14px;
+        font-weight: 600;
+        margin: 0 0 8px 0;
+        color: var(--erp-text);
+      }
+
+      /* Professional breakdown table styles */
+      .breakdown-table-wrap {
+        border: 1px solid var(--erp-border);
+        border-radius: 6px;
+        overflow: hidden;
+        background: var(--erp-card);
+        max-height: 400px;
+        overflow-y: auto;
+      }
+      .breakdown-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      .breakdown-table thead {
+        background: #f8f9fa;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+      }
+      .breakdown-table th,
+      .breakdown-table td {
+        padding: 8px 12px;
+        text-align: left;
+        border-bottom: 1px solid #e9ecef;
+      }
+      .breakdown-table th {
+        font-weight: 600;
+        color: var(--erp-text);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .breakdown-table td {
+        color: var(--erp-text);
+      }
+      .breakdown-table tr:hover {
+        background-color: #f8f9fa;
+      }
+
+      /* Responsive breakdown cards for key-value pairs */
+      .breakdown-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin-top: 8px;
+      }
+      .breakdown-card {
+        background: #f8f9fa;
+        border: 1px solid var(--erp-border);
+        border-radius: 6px;
+        padding: 12px;
+        text-align: center;
+        transition: background-color 0.15s ease;
+      }
+      .breakdown-card:hover {
+        background: #e9ecef;
+      }
+      .breakdown-card .card-label {
+        font-size: 12px;
+        color: var(--erp-muted);
+        margin-bottom: 4px;
+        font-weight: 500;
+      }
+      .breakdown-card .card-value {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--erp-text);
+      }
+
+      /* Mobile responsive adjustments for breakdown content */
+      @media (max-width: 768px) {
+        .breakdown-table-wrap {
+          overflow-x: auto;
+        }
+        .breakdown-table {
+          min-width: 600px;
+        }
+        .breakdown-cards {
+          grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        }
+      }
+
+      @media (max-width: 480px) {
+        .breakdown-cards {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+
+      /* Pagination */
+      .pagination {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        justify-content: center;
+        padding: 12px 0;
+      }
+
+      /* Top-row wrapper to place pagination above table, right-aligned */
+      .table-top-row {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 12px;
+        margin-bottom: 8px;
+        position: sticky; /* keep pagination visible when scrolling */
+        top: 0;
+        z-index: 12;
+        background: var(--erp-card);
+        padding: 6px 12px; /* give breathing room and avoid overlap with scrollbar */
+        border-bottom: 1px solid var(--erp-border);
+      }
+      .table-top-row .pagination {
+        justify-content: flex-end;
+        padding: 0; /* reduce vertical padding when at top */
+        padding-right: 20px; /* reserve space so scrollbar doesn't overlap the Next button */
+      }
+      .pagination button {
+        padding: 6px 12px;
+        border: 1px solid var(--erp-border);
+        background: var(--erp-card);
+        color: var(--erp-text);
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+      }
+      .pagination button:hover:not(:disabled) {
+        background: var(--erp-accent);
+        color: white;
+        border-color: var(--erp-accent);
+      }
+      .pagination button:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+      .pagination .page-info {
+        font-size: 13px;
+        color: var(--erp-muted);
+      }
+
+      /* Status bar - ERP-like, legible and sticky */
+      .status-bar {
+        position: sticky;
+        bottom: 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 14px;
+        background: rgba(15, 23, 42, 0.03); /* subtle darker band */
+        border-top: 1px solid rgba(15, 23, 42, 0.06);
+        box-shadow: 0 -6px 18px rgba(15, 23, 42, 0.04);
+        color: #374151; /* increased contrast */
+        font-size: 13px;
+        z-index: 1200;
+        min-height: 44px;
+      }
+
+      .status-bar > div {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      /* label / value emphasis: status label bolder, value normal */
+      #statusInfo {
+        font-weight: 600;
+        color: inherit;
+      }
+      #lastRefresh {
+        font-weight: 400;
+        color: rgba(55, 65, 81, 0.95);
+        font-size: 12px;
+      }
+
+      /* Responsive: stack on narrow screens and keep visible (use fixed fallback) */
+      @media (max-width: 640px) {
+        .status-bar {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 6px;
+        }
+        .status-bar > div {
+          width: 100%;
+          justify-content: space-between;
+        }
+      }
+
+      /* If sticky causes issues on very small screens, make it fixed and add safe padding */
+      @media (max-width: 420px) {
+        .status-bar {
+          position: fixed;
+          left: 0;
+          right: 0;
+        }
+        .page {
+          padding-bottom: 64px; /* reserve space for fixed status bar */
+        }
+      }
+
+      /* Empty state */
+      .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--erp-muted);
+      }
+      .empty-state h3 {
+        font-size: 18px;
+        font-weight: 600;
+        margin: 0 0 8px 0;
+      }
+      .empty-state p {
+        font-size: 14px;
+        margin: 0;
+      }
+
+      /* Loading spinner */
+      .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+      }
+      .spinner {
+        border: 3px solid var(--erp-border);
+        border-top: 3px solid var(--erp-accent);
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 0.8s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Toast notifications */
+      #statusToastContainer {
+        position: fixed;
+        right: 20px;
+        bottom: 20px;
+        z-index: 2000;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .toast {
+        background: var(--erp-card);
+        border: 1px solid var(--erp-border);
+        border-radius: 6px;
+        padding: 12px 16px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        font-size: 14px;
+        max-width: 360px;
+      }
+      .toast.success {
+        border-left: 4px solid var(--erp-success);
+      }
+      .toast.error {
+        border-left: 4px solid var(--erp-danger);
+      }
+      .toast.warning {
+        border-left: 4px solid var(--erp-warning);
+      }
+      .toast.info {
+        border-left: 4px solid var(--erp-accent);
+      }
+
+      /* Master Filters Modal - centered */
+      .mf-modal {
+        position: fixed;
+        inset: 0;
+        display: none;
+        z-index: 2200;
+        align-items: center;
+        justify-content: center;
+      }
+      .mf-modal.open {
+        display: flex;
+      }
+
+      .mf-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.55);
+      }
+
+      .mf-dialog {
+        position: relative;
+        width: min(980px, calc(100% - 24px));
+        max-height: calc(100vh - 48px);
+        margin: 0;
+        background: var(--erp-card);
+        border: 1px solid var(--erp-border);
+        border-radius: 12px;
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      .mf-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--erp-border);
+      }
+      .mf-subtitle {
+        color: var(--erp-muted);
+        font-size: 13px;
+        margin-top: 4px;
+      }
+
+      .mf-close {
+        border: 1px solid var(--erp-border);
+        background: var(--erp-bg);
+        border-radius: 8px;
+        width: 34px;
+        height: 34px;
+        font-size: 22px;
+        cursor: pointer;
+        color: var(--erp-text);
+      }
+      .mf-close:hover {
+        border-color: var(--erp-accent);
+      }
+
+      .mf-body {
+        padding: 14px 16px;
+        overflow: auto;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      @media (max-width: 860px) {
+        .mf-body {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .mf-section {
+        border: 1px solid var(--erp-border);
+        border-radius: 10px;
+        padding: 12px;
+        background: var(--erp-bg);
+      }
+      .mf-section-title {
+        font-weight: 700;
+        font-size: 13px;
+        color: var(--erp-text);
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .mf-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .mf-chip {
+        border: 1px solid var(--erp-border);
+        background: var(--erp-card);
+        color: var(--erp-text);
+        padding: 8px 10px;
+        border-radius: 999px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+        transition: all 0.14s ease;
+        user-select: none;
+      }
+      .mf-chip:hover {
+        border-color: var(--erp-accent);
+      }
+
+      .mf-chip.selected {
+        background: rgba(37, 99, 235, 0.12);
+        border-color: rgba(37, 99, 235, 0.55);
+        color: var(--erp-accent);
+      }
+
+      .mf-chip.disabled-chip,
+      .mf-chip[disabled] {
+        opacity: 0.48;
+        cursor: not-allowed;
+        filter: grayscale(20%);
+        border-color: var(--erp-border);
+        color: var(--erp-muted);
+        background: var(--erp-card);
+        pointer-events: none;
+      }
+      .mf-chip.disabled-chip:hover,
+      .mf-chip[disabled]:hover {
+        border-color: var(--erp-border);
+      }
+
+      .mf-footer {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 16px;
+        border-top: 1px solid var(--erp-border);
+        background: var(--erp-card);
+      }
+
+      .mf-btn {
+        padding: 10px 14px;
+        border: 1px solid var(--erp-border);
+        background: var(--erp-card);
+        color: var(--erp-text);
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .mf-btn:hover {
+        border-color: var(--erp-accent);
+      }
+      .mf-btn.primary {
+        background: var(--erp-accent);
+        border-color: var(--erp-accent);
+        color: #fff;
+      }
+      .mf-btn.primary:hover {
+        background: #1d4ed8;
+      }
+
+      /* Local tab filters */
+      .local-filters {
+        display: flex;
+        gap: 12px;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--erp-border);
+        margin-bottom: 12px;
+      }
+    </style>
+    <style>
+      /* Responsive adjustments for narrow viewports */
+      @media (max-width: 520px) {
+        .page-header h1 {
+          font-size: 16px;
+          line-height: 1.1;
+        }
+        .page-header .hint {
+          display: none; /* hide subtitle on narrow screens */
+        }
+        .tabs-strip {
+          display: none; /* hide tab buttons on narrow screens */
+        }
+        .tab-select-wrap {
+          position: relative;
+          display: inline-block;
+          width: 100%;
+          margin: 8px 0;
+        }
+        .tab-select {
+          display: inline-block;
+          width: 100%;
+          padding: 8px 10px 8px 10px;
+          padding-right: 42px; /* room for inline arrow */
+          border-radius: 8px;
+          border: 1px solid var(--erp-accent);
+          background: linear-gradient(
+            135deg,
+            rgba(37, 99, 235, 0.12) 0%,
+            rgba(37, 99, 235, 0.06) 100%
+          );
+          color: #0f172a;
+          font-weight: 600;
+          font-size: 14px;
+          appearance: none;
+          -webkit-appearance: none;
+          -moz-appearance: none;
+          cursor: pointer;
+        }
+        .tab-select-icon {
+          position: absolute;
+          right: 12px;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 16px;
+          height: 16px;
+          pointer-events: none;
+          display: block;
+          color: var(--erp-accent);
+        }
+        /* HOME button: svg-only on narrow screens */
+        #homeBtn {
+          padding: 8px;
+          width: 40px;
+          height: 40px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 8px;
+        }
+        #homeBtn .home-label {
+          display: none; /* hide textual label on small screens */
+        }
+        #homeBtn svg {
+          display: block;
+        }
+      }
+      /* hide select wrapper/icon on wide screens only */
+      @media (min-width: 521px) {
+        .tab-select,
+        .tab-select-wrap,
+        .tab-select-icon {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <!-- Header -->
+      <div class="page-header">
+        <div>
+          <h1 style="margin: 0; text-align: left">
+            FG Transfer Reconciliation
+          </h1>
+          <p
+            class="hint"
+            style="margin: 4px 0 0 0; padding-left: 0; text-align: left"
+          >
+            Tally FG Transfer vs Daily Work Log FG Transfer — comparison,
+            mismatch diagnosis, fix queue
+          </p>
+        </div>
+        <div class="header-actions">
+          <button
+            id="resetFiltersBtn"
+            type="button"
+            title="Reset Filters"
+            aria-label="Reset Filters"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <polyline points="1 20 1 14 7 14"></polyline>
+              <path d="M3.51 9a9 9 0 0114.13-3.36L23 10"></path>
+              <path d="M20.49 15a9 9 0 01-14.13 3.36L1 14"></path>
+            </svg>
+          </button>
+
+          <button
+            id="masterFiltersBtn"
+            type="button"
+            title="Master Filters"
+            aria-label="Master Filters"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M22 3H2l8 9v7l4 2v-9z"></path>
+            </svg>
+          </button>
+          <button
+            id="exportBtn"
+            title="Export CSV"
+            aria-label="Export CSV"
+            type="button"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 5 17 10"></polyline>
+              <line x1="12" y1="5" x2="12" y2="15"></line>
+            </svg>
+          </button>
+          <button id="homeBtn" type="button">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9,22 9,12 15,12 15,22" />
+            </svg>
+            <span class="home-label">HOME</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Global Filters -->
+      <div class="card filters-card">
+        <div class="filters-primary">
+          <div class="filter-item">
+            <input
+              type="text"
+              id="dateRange"
+              placeholder="Select range..."
+              title="Date range: choose start and end dates"
+              aria-label="Date range"
+            />
+          </div>
+          <div class="filter-item search">
+            <input
+              type="text"
+              id="search"
+              placeholder="Search batch code or product..."
+              title="Search by batch code or product name"
+              aria-label="Search batch code or product"
+            />
+            <button
+              id="searchClear"
+              type="button"
+              class="input-clear-btn"
+              title="Clear search"
+              aria-label="Clear search"
+              style="display: none"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="14"
+                height="14"
+                aria-hidden="true"
+              >
+                <line
+                  x1="18"
+                  y1="6"
+                  x2="6"
+                  y2="18"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                ></line>
+                <line
+                  x1="6"
+                  y1="6"
+                  x2="18"
+                  y2="18"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                ></line>
+              </svg>
+            </button>
+          </div>
+          <!-- Master filters are managed via Master Filters modal -->
+        </div>
+        <div class="quick-toggles">
+          <div class="toggle-item">
+            <input type="checkbox" id="hideMatched" checked />
+            <label for="hideMatched">Hide MATCHED_OK</label>
+          </div>
+          <div class="toggle-item">
+            <input type="checkbox" id="hideLegacy" checked />
+            <label for="hideLegacy">Hide LEGACY_PRE_LOGGING</label>
+          </div>
+        </div>
+      </div>
+      <!-- masterFilterSummary removed: compact current filters indicator disabled -->
+
+      <!-- Tabs -->
+      <div class="tabs-strip">
+        <button class="tab-btn active" data-tab="overview">Overview</button>
+        <button class="tab-btn" data-tab="reconciliation">
+          Reconciliation
+        </button>
+        <button class="tab-btn" data-tab="tally-events">Tally Events</button>
+        <button class="tab-btn" data-tab="dwl-events">DWL Events</button>
+        <button class="tab-btn" data-tab="normalized-lines">
+          Normalized Lines
+        </button>
+        <button class="tab-btn" data-tab="fix-queue">Fix Queue</button>
+      </div>
+
+      <!-- Compact tab selector for small screens (wrapped so we can place an inline SVG arrow) -->
+      <div class="tab-select-wrap">
+        <select id="tabSelect" class="tab-select" aria-label="Select tab">
+          <option value="overview">Overview</option>
+          <option value="reconciliation">Reconciliation</option>
+          <option value="tally-events">Tally Events</option>
+          <option value="dwl-events">DWL Events</option>
+          <option value="normalized-lines">Normalized Lines</option>
+          <option value="fix-queue">Fix Queue</option>
+        </select>
+        <svg
+          class="tab-select-icon"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <polyline
+            points="6 9 12 15 18 9"
+            stroke="currentColor"
+            stroke-width="2"
+            fill="none"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </div>
+
+      <!-- Table Area -->
+      <div class="card table-card">
+        <div id="tableArea"></div>
+      </div>
+
+      <!-- Status Bar -->
+      <div class="status-bar">
+        <div id="statusInfo">Ready</div>
+        <div id="lastRefresh"></div>
+      </div>
+    </div>
+
+    <!-- Detail Modal -->
+    <div id="detailModal">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h3 id="modalTitle">Details</h3>
+          <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body" id="modalContent"></div>
+      </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="statusToastContainer"></div>
+
+    <!-- Chip Modal -->
+    <div id="chipModal" class="chip-modal" aria-hidden="true">
+      <div class="chip-modal-content">
+        <div class="chip-modal-header">
+          <div class="chip-modal-title" id="chipModalTitle">Chips</div>
+          <button
+            class="chip-modal-close"
+            id="chipModalClose"
+            aria-label="Close"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div class="chip-modal-chips" id="chipModalChips">
+          <!-- Chips will be populated here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Reusable tooltip element for ERP UI -->
+    <div
+      id="erpTooltip"
+      class="tooltip erp-tooltip"
+      role="tooltip"
+      aria-hidden="true"
+    ></div>
+
+    <!-- Master Filters Modal -->
+    <div id="masterFiltersModal" class="mf-modal" aria-hidden="true">
+      <div class="mf-backdrop" data-mf-close="true"></div>
+
+      <div
+        class="mf-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mfTitle"
+      >
+        <div class="mf-header">
+          <div>
+            <div class="eyebrow" style="margin: 0">Filters</div>
+            <h3 id="mfTitle" style="margin: 2px 0 0">Master Filters</h3>
+            <div class="mf-subtitle">Recon Status and Problem Kind</div>
+          </div>
+          <button
+            class="mf-close"
+            type="button"
+            title="Close"
+            data-mf-close="true"
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="mf-body">
+          <div class="mf-section">
+            <div class="mf-section-title">Recon Status</div>
+            <div class="mf-chips" id="mfStatusChips"></div>
+          </div>
+
+          <div class="mf-section">
+            <div class="mf-section-title">Problem Kind</div>
+            <div class="mf-chips" id="mfProblemChips"></div>
+          </div>
+        </div>
+
+        <div class="mf-footer">
+          <div class="mf-left">
+            <button class="mf-btn" id="mfClearBtn" type="button">
+              Clear All
+            </button>
+          </div>
+          <div class="mf-right">
+            <button class="mf-btn" type="button" data-mf-close="true">
+              Cancel
+            </button>
+            <button class="mf-btn primary" id="mfApplyBtn" type="button">
+              Apply
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../vendor/flatpickr.min.js"></script>
+    <script src="../vendor/tom-select/tom-select.complete.min.js"></script>
+    <script type="module" src="./js/fg-transfer-reconciliation.js"></script>
+  </body>
+</html>

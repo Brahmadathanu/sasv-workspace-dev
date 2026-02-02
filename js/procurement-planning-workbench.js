@@ -67,34 +67,15 @@ const FP_VISIBLE_COLS = [
   "closing_qty",
 ];
 
-// Trace column sets for RM and PM
-const TR_RM_COLS = [
+// Traceability grid should show unified (horizon) columns only.
+// Batch-specific fields are shown inside the detail modal (RM Batch Execution).
+const TR_GRID_COLS = [
   "material_kind",
   "period_start",
   "stock_item_id",
   "stock_item_name",
   "product_id",
   "product_name",
-  "batch_id",
-  "batch_number",
-  "batch_uom",
-  "batch_size",
-  "batch_status",
-  "planned_qty",
-  "issued_qty",
-  "remaining_qty",
-  "issue_vouchers",
-  "first_issue_date",
-  "last_issue_date",
-  "rm_trace_path",
-];
-
-const TR_PM_COLS = [
-  "material_kind",
-  "period_start",
-  "stock_item_id",
-  "stock_item_name",
-  "product_id",
   "sku_id",
   "region_code",
   "planned_qty",
@@ -102,16 +83,12 @@ const TR_PM_COLS = [
   "remaining_qty",
   "allocation_approx",
   "has_unassigned_issues",
+  "first_issue_date",
+  "last_issue_date",
 ];
 
-function chooseTraceCols(rows, materialKindFilter) {
-  if (materialKindFilter === "raw_material") return TR_RM_COLS;
-  if (materialKindFilter === "packaging_material") return TR_PM_COLS;
-  const kinds = (rows || []).map((r) => r.material_kind).filter(Boolean);
-  const pmCount = kinds.filter((k) => k === "packaging_material").length;
-  const rmCount = kinds.filter((k) => k === "raw_material").length;
-  if (pmCount > rmCount) return TR_PM_COLS;
-  return TR_RM_COLS;
+function chooseTraceCols() {
+  return TR_GRID_COLS;
 }
 
 const COL_LABELS = {
@@ -279,25 +256,59 @@ async function loadConversionContributors(stockItemId, month) {
   }
 }
 
-async function loadRMTrace(stockItemId) {
-  const cached = getCachedData(stockItemId, "any", "rm_trace");
+async function loadRMTraceHorizon(stockItemId, month) {
+  const cacheKeyMonth = month || "any";
+  const cached = getCachedData(stockItemId, cacheKeyMonth, "rm_trace_horizon");
   if (cached) return cached;
 
   try {
-    const { data } = await supabase
-      .from("v_mrp_rm_trace")
+    let q = supabase
+      .from("v_mrp_rm_trace_horizon")
       .select("*")
       .eq("rm_stock_item_id", stockItemId)
       .order("period_start", { ascending: true })
       .limit(2000);
 
-    const result = { data: data || [], error: null };
-    setCachedData(stockItemId, "any", "rm_trace", result);
+    if (month) q = q.eq("period_start", month);
+
+    const { data, error } = await q;
+    const result = { data: data || [], error: error ? error.message : null };
+    setCachedData(stockItemId, cacheKeyMonth, "rm_trace_horizon", result);
     return result;
-  } catch (error) {
-    const result = { data: [], error: error.message };
-    return result;
+  } catch (e) {
+    return { data: [], error: e.message };
   }
+}
+
+async function loadRMTraceBatch(stockItemId) {
+  const cached = getCachedData(stockItemId, "any", "rm_trace_batch");
+  if (cached) return cached;
+
+  try {
+    const { data, error } = await supabase
+      .from("v_mrp_rm_trace_batch")
+      .select("*")
+      .eq("rm_stock_item_id", stockItemId)
+      .order("period_start", { ascending: true })
+      .limit(2000);
+
+    const result = { data: data || [], error: error ? error.message : null };
+    setCachedData(stockItemId, "any", "rm_trace_batch", result);
+    return result;
+  } catch (e) {
+    return { data: [], error: e.message };
+  }
+}
+
+// Helper: detect whether a month string (YYYY-MM-01 or Date) is strictly after current month
+function isFutureMonth(monthStr) {
+  if (!monthStr) return false;
+  const d = monthStr instanceof Date ? monthStr : new Date(String(monthStr));
+  if (Number.isNaN(d.getTime())) return false;
+  const now = new Date();
+  const cur = new Date(now.getFullYear(), now.getMonth(), 1);
+  const m = new Date(d.getFullYear(), d.getMonth(), 1);
+  return m > cur;
 }
 
 async function loadOverlayContributions(stockItemId, month) {
@@ -585,8 +596,22 @@ function renderTable(theadId, tbodyId, rows, visibleCols) {
       const v = resolveCellValue(r, k);
       // Format month-like columns
       if (k === "month_start" || k === "period_start") {
-        td.textContent =
-          v === null || v === undefined ? "" : formatMonthValue(v);
+        const mval = v === null || v === undefined ? "" : formatMonthValue(v);
+        td.textContent = mval;
+
+        // If this row is future and issued_qty is 0, add a subtle badge
+        try {
+          const issued = resolveCellValue(r, "issued_qty");
+          if (
+            k === "period_start" &&
+            isFutureMonth(v) &&
+            Number(issued || 0) === 0
+          ) {
+            td.innerHTML = `${mval}<div style="margin-top:4px;font-size:11px;color:#64748b">Planned (future)</div>`;
+          }
+        } catch {
+          /* ignore */
+        }
       } else if (
         v !== null &&
         v !== undefined &&
@@ -724,9 +749,17 @@ async function onRowClick(row) {
 
   // Enhanced metadata display with key metrics first
   function buildSummarySection(r) {
+    const materialKindMap = {
+      raw_material: "Raw Material",
+      packaging_material: "Packaging Material",
+    };
     const keyMetrics = {
       "Stock Item ID": r.stock_item_id,
-      "Material Kind": prettyKey(r.material_kind || ""),
+      "Material Kind":
+        materialKindMap[r.material_kind] ||
+        prettyKey(r.material_kind || "") ||
+        r.material_kind ||
+        "",
       Month: formatMonthValue(r.month_start || ""),
       UOM: r.uom_code || "",
       "Net Need Qty": formatNumberValue(r.net_need_qty || 0),
@@ -856,13 +889,14 @@ async function onRowClick(row) {
         });
       }
     } else {
-      // Load conversion contributors and RM trace in parallel
-      const [convResult, traceResult] = await Promise.all([
+      // Load conversion contributors and RM horizon + batch traces in parallel
+      const [convResult, rmHorizonResult, rmBatchResult] = await Promise.all([
         loadConversionContributors(id, month),
-        loadRMTrace(id),
+        loadRMTraceHorizon(id, month),
+        loadRMTraceBatch(id),
       ]);
 
-      // Conversion contributors
+      // Conversion contributors (unchanged behavior)
       if (convResult.error) {
         additionalSections.push({
           title:
@@ -882,20 +916,53 @@ async function onRowClick(row) {
         });
       }
 
-      // RM trace
-      if (traceResult.error) {
+      // RM Planning Trace (horizon)
+      if (rmHorizonResult.error) {
         additionalSections.push({
-          title:
-            '<svg width="16" height="16" fill="currentColor" style="display:inline;margin-right:6px;vertical-align:-2px"><path d="M11.742 10.344a6.5 6.5 0 10-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 001.415-1.414l-3.85-3.85a1.007 1.007 0 00-.115-.1zM12 6.5a5.5 5.5 0 11-11 0 5.5 5.5 0 0111 0z"/></svg>RM Trace',
+          title: "RM Planning Trace (Horizon)",
           type: "error-state",
-          data: `Unable to load RM trace data: ${traceResult.error}`,
+          data: `Unable to load RM planning trace: ${rmHorizonResult.error}`,
         });
-      } else if (traceResult.data.length > 0) {
+      } else if (!rmHorizonResult.data || rmHorizonResult.data.length === 0) {
         additionalSections.push({
-          title: `<svg width="16" height="16" fill="currentColor" style="display:inline;margin-right:6px;vertical-align:-2px"><path d="M11.742 10.344a6.5 6.5 0 10-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 001.415-1.414l-3.85-3.85a1.007 1.007 0 00-.115-.1zM12 6.5a5.5 5.5 0 11-11 0 5.5 5.5 0 0111 0z"/></svg>RM Trace (${traceResult.data.length} records)`,
+          title: "RM Planning Trace (Horizon)",
+          type: "empty-state",
+          data: "No RM planning trace rows for this item/month.",
+        });
+      } else {
+        additionalSections.push({
+          title: `RM Planning Trace (Horizon) (${rmHorizonResult.data.length})`,
           type: "enhanced-table",
-          rows: traceResult.data,
-          tableMeta: { type: "rm_trace", recordCount: traceResult.data.length },
+          rows: rmHorizonResult.data,
+          tableMeta: {
+            type: "rm_trace_horizon",
+            recordCount: rmHorizonResult.data.length,
+          },
+        });
+      }
+
+      // RM Batch Execution Trace
+      if (rmBatchResult.error) {
+        additionalSections.push({
+          title: "RM Batch Execution (BMR/Issues)",
+          type: "error-state",
+          data: `Unable to load RM batch execution trace: ${rmBatchResult.error}`,
+        });
+      } else if (!rmBatchResult.data || rmBatchResult.data.length === 0) {
+        additionalSections.push({
+          title: "RM Batch Execution (BMR/Issues)",
+          type: "empty-state",
+          data: "No RM batch execution rows found for this item.",
+        });
+      } else {
+        additionalSections.push({
+          title: `RM Batch Execution (BMR/Issues) (${rmBatchResult.data.length})`,
+          type: "enhanced-table",
+          rows: rmBatchResult.data,
+          tableMeta: {
+            type: "rm_trace_batch",
+            recordCount: rmBatchResult.data.length,
+          },
         });
       }
     }
@@ -937,6 +1004,11 @@ async function onRowClick(row) {
   const finalSections = [...sections, ...additionalSections];
 
   // Update export action with complete data
+  // preserve modal scroll position when updating content
+  const _modalRoot = document.getElementById("copilot-detail-modal");
+  const _prevScroll =
+    _modalRoot?.querySelector("#copilot-modal-body")?.scrollTop || 0;
+
   openDetailModal({
     title: itemName || `Stock Item ${id}`,
     subtitle: subtitle,
@@ -980,21 +1052,23 @@ async function onRowClick(row) {
       },
     ],
   });
+
+  // restore previous scroll position
+  try {
+    const _body = document.getElementById("copilot-modal-body");
+    if (_body) _body.scrollTop = _prevScroll;
+  } catch {
+    /* ignore */
+  }
 }
 
 // Tab loaders
 async function loadFinalPlan() {
   showLoading("Loading final procurement plan...");
-  const preset = $("master-preset").value;
-  const startVal = $("master-start").value;
-  const endVal = $("master-end").value;
+  const { start, end } = getMasterRange();
   const search = ($("fp-search").value || "").trim();
   const mk = $("fp-material-kind").value;
   const onlyNet = $("fp-only-net").checked;
-
-  const range = computePresetRange(preset, startVal, new Date().getFullYear());
-  const start = monthInputToDateString(range.start || startVal || null);
-  const end = monthInputToDateString(range.end || endVal || null);
   // pagination params from state
   const { page, perPage } = pagerState.fp;
   const rpcParams = {
@@ -1099,9 +1173,8 @@ async function loadOverlayForRun(runId) {
     return;
   }
 
-  const start = monthInputToDateString($("master-start").value || null);
-  const end = monthInputToDateString($("master-end").value || null);
-  const search = ($("ov-search").value || "").trim().toLowerCase();
+  const { start, end } = getMasterRange();
+  const search = ($("ov-search").value || "").trim();
   const onlyNonZero = $("ov-only-nonzero").checked;
 
   // pagination
@@ -1110,15 +1183,21 @@ async function loadOverlayForRun(runId) {
   let baseRows = [];
   let error = null;
   try {
+    // If search is present, fetch a larger page so client-side enrichment/filtering
+    // has enough data (Option B). Otherwise use normal server-side paging.
     const rpcParams = {
       p_start: start || null,
       p_end: end || null,
-      p_search: ($("ov-search").value || "").trim() || null,
+      p_search: search || null,
       p_run_id: runId || null,
       p_only_nonzero: Boolean(onlyNonZero),
       p_page: (pagerState.ov.page || 0) + 1,
       p_per_page: pagerState.ov.perPage || 100,
     };
+    if (rpcParams.p_search) {
+      rpcParams.p_page = 1;
+      rpcParams.p_per_page = 2000;
+    }
 
     const res = await supabase.rpc("rpc_overlay_monthly_search", rpcParams);
     if (res.error) {
@@ -1126,7 +1205,7 @@ async function loadOverlayForRun(runId) {
     } else {
       baseRows = (res.data || []).map((r) => r.row_data);
       pagerState.ov.total =
-        res.data && res.data.length ? Number(res.data[0].total_count) : null;
+        res.data && res.data.length ? Number(res.data[0].total_count) : 0;
     }
   } finally {
     // hide later after enrichment
@@ -1147,52 +1226,8 @@ async function loadOverlayForRun(runId) {
     return;
   }
 
-  // Enrich with inv_stock_item code + name
-  const ids = [...new Set(rows.map((r) => r.rm_stock_item_id).filter(Boolean))];
-  const nameMap = new Map();
-  if (ids.length) {
-    const { data: items, error: itemErr } = await supabase
-      .from("inv_stock_item")
-      .select("id,code,name")
-      .in("id", ids)
-      .limit(5000);
-
-    if (!itemErr && items) {
-      items.forEach((it) => nameMap.set(it.id, it));
-    } else {
-      console.debug(itemErr);
-    }
-  }
-
-  const enriched = rows.map((r) => {
-    const it = nameMap.get(r.rm_stock_item_id);
-    return {
-      ...r,
-      rm_code: it?.code ?? "",
-      rm_name: it?.name ?? "",
-    };
-  });
-
-  // Apply search (name or code) on enriched data
-  const filtered = search
-    ? enriched.filter(
-        (r) =>
-          (r.rm_name || "").toLowerCase().includes(search) ||
-          (r.rm_code || "").toLowerCase().includes(search),
-      )
-    : enriched;
-
-  // If searching we may have fetched a large set — apply client-side paging
-  if (search) {
-    pagerState.ov.total = filtered.length;
-    const p = pagerState.ov.page || 0;
-    const per = pagerState.ov.perPage;
-    const s = p * per;
-    const e = s + per;
-    overlayLastRows = filtered.slice(s, e);
-  } else {
-    overlayLastRows = filtered;
-  }
+  // Use RPC-returned rows directly (server-side search/paging applied)
+  overlayLastRows = rows;
 
   renderTable("ov-thead", "ov-tbody", overlayLastRows);
   updatePagerUI("ov");
@@ -1205,8 +1240,7 @@ async function loadConversionSummary() {
   const search = ($("conv-search").value || "").trim();
   const { page, perPage } = pagerState.conv;
 
-  const start = monthInputToDateString($("master-start").value || null);
-  const end = monthInputToDateString($("master-end").value || null);
+  const { start, end } = getMasterRange();
 
   try {
     const rpcParams = {
@@ -1430,6 +1464,63 @@ function initUi() {
 
     // master-end handler moved out of fp-search input scope; see below
   }
+  // OV search: debounced input + clear
+  const ovSearchEl = $("ov-search");
+  const ovSearchClear = $("ov-search-clear");
+  if (ovSearchEl) {
+    const debouncedOv = debounce(() => {
+      if (document.querySelector(".tab.active").dataset.tab !== "rm-overlay")
+        return;
+      pagerState.ov.page = 0;
+      if (selectedOverlayRunId) loadOverlayForRun(selectedOverlayRunId);
+    }, 350);
+
+    ovSearchEl.addEventListener("input", (ev) => {
+      const v = (ev.target.value || "").trim();
+      if (ovSearchClear) ovSearchClear.style.display = v ? "" : "none";
+      debouncedOv();
+    });
+
+    if (ovSearchClear) {
+      ovSearchClear.addEventListener("click", () => {
+        ovSearchEl.value = "";
+        ovSearchClear.style.display = "none";
+        pagerState.ov.page = 0;
+        if (selectedOverlayRunId) loadOverlayForRun(selectedOverlayRunId);
+        ovSearchEl.focus();
+      });
+    }
+  }
+
+  // CONV search: debounced
+  const convSearchEl = $("conv-search");
+  if (convSearchEl) {
+    const debConv = debounce(() => {
+      if (
+        document.querySelector(".tab.active").dataset.tab === "rm-conversion"
+      ) {
+        pagerState.conv.page = 0;
+        loadConversionSummary();
+      }
+    }, 350);
+    convSearchEl.addEventListener("input", () => {
+      debConv();
+    });
+  }
+
+  // TRACE search: debounced
+  const trSearchEl = $("tr-search");
+  if (trSearchEl) {
+    const debTr = debounce(() => {
+      if (
+        document.querySelector(".tab.active").dataset.tab === "traceability"
+      ) {
+        pagerState.tr.page = 0;
+        loadTraceability();
+      }
+    }, 350);
+    trSearchEl.addEventListener("input", () => debTr());
+  }
   ["ov-search", "ov-only-nonzero"].forEach((id) => {
     const el = $(id);
     if (!el) return;
@@ -1478,28 +1569,36 @@ function initUi() {
     });
   });
 
-  $("ov-export-csv").addEventListener("click", () => {
-    const runId = selectedOverlayRunId || "unknown";
-    downloadCSV(`rm_season_overlay_monthly_${runId}`, overlayLastRows || []);
-  });
-  $("ov-export-json").addEventListener("click", () => {
-    const runId = selectedOverlayRunId || "unknown";
-    downloadJSON(`rm_season_overlay_run_${runId}`, {
-      generated_at: new Date().toISOString(),
-      overlay_run_id: runId,
-      rows: overlayLastRows || [],
+  if ($("ov-export-csv")) {
+    $("ov-export-csv").addEventListener("click", () => {
+      const runId = selectedOverlayRunId || "unknown";
+      downloadCSV(`rm_season_overlay_monthly_${runId}`, overlayLastRows || []);
     });
-  });
+  }
+  if ($("ov-export-json")) {
+    $("ov-export-json").addEventListener("click", () => {
+      const runId = selectedOverlayRunId || "unknown";
+      downloadJSON(`rm_season_overlay_run_${runId}`, {
+        generated_at: new Date().toISOString(),
+        overlay_run_id: runId,
+        rows: overlayLastRows || [],
+      });
+    });
+  }
 
-  $("conv-export-csv").addEventListener("click", () => {
-    downloadCSV(`rm_conversion_summary_${Date.now()}`, convLastRows || []);
-  });
-  $("conv-export-json").addEventListener("click", () => {
-    downloadJSON(`rm_conversion_summary_${Date.now()}`, {
-      generated_at: new Date().toISOString(),
-      rows: convLastRows || [],
+  if ($("conv-export-csv")) {
+    $("conv-export-csv").addEventListener("click", () => {
+      downloadCSV(`rm_conversion_summary_${Date.now()}`, convLastRows || []);
     });
-  });
+  }
+  if ($("conv-export-json")) {
+    $("conv-export-json").addEventListener("click", () => {
+      downloadJSON(`rm_conversion_summary_${Date.now()}`, {
+        generated_at: new Date().toISOString(),
+        rows: convLastRows || [],
+      });
+    });
+  }
 
   $("tr-export-json").addEventListener("click", async () => {
     const search = ($("tr-search").value || "").trim();
@@ -1524,14 +1623,14 @@ function initUi() {
       ? []
       : (planRes.data || []).map((r) => r.row_data);
 
-    // overlay: fetch base rows via RPC then enrich with inv_stock_item names/codes and filter by search
+    // overlay: fetch base rows via RPC and use returned row_data directly
     let ov = [];
     try {
       const { start: mstart, end: mend } = getMasterRange();
       const rpcOvParams = {
         p_start: mstart || null,
         p_end: mend || null,
-        p_search: null,
+        p_search: search || null,
         p_run_id: null,
         p_only_nonzero: false,
         p_page: 1,
@@ -1541,33 +1640,7 @@ function initUi() {
         "rpc_overlay_monthly_search",
         rpcOvParams,
       );
-      const baseOv = ovRes.error
-        ? []
-        : (ovRes.data || []).map((r) => r.row_data);
-      if (baseOv && baseOv.length) {
-        const ids = [
-          ...new Set(baseOv.map((r) => r.rm_stock_item_id).filter(Boolean)),
-        ];
-        const nameMap = new Map();
-        if (ids.length) {
-          const { data: items, error: itemErr } = await supabase
-            .from("inv_stock_item")
-            .select("id,code,name")
-            .in("id", ids)
-            .limit(5000);
-          if (!itemErr && items) items.forEach((it) => nameMap.set(it.id, it));
-        }
-        ov = baseOv
-          .map((r) => {
-            const it = nameMap.get(r.rm_stock_item_id);
-            return { ...r, rm_code: it?.code ?? "", rm_name: it?.name ?? "" };
-          })
-          .filter(
-            (r) =>
-              (r.rm_name || "").toLowerCase().includes(search.toLowerCase()) ||
-              (r.rm_code || "").toLowerCase().includes(search.toLowerCase()),
-          );
-      }
+      ov = ovRes.error ? [] : (ovRes.data || []).map((r) => r.row_data);
     } catch (err) {
       console.debug(err);
       ov = [];
@@ -1633,7 +1706,14 @@ function initUi() {
     if (next)
       next.addEventListener("click", () => {
         const s = pagerState[prefix];
-        s.page += 1;
+        const total = pagerState[prefix].total;
+        const per = pagerState[prefix].perPage || 100;
+        if (typeof total === "number" && total >= 0) {
+          const maxPage = Math.max(0, Math.ceil(total / per) - 1);
+          if (s.page < maxPage) s.page += 1;
+        } else {
+          s.page += 1;
+        }
         loader();
       });
     // per-page selector removed — page size is fixed via `pagerState` defaults
@@ -1723,8 +1803,20 @@ function initUi() {
     fpMaster.addEventListener("click", (ev) => {
       ev.stopPropagation();
       showExportMenu(fpMaster, [
-        { label: "Export CSV", onClick: () => $("fp-export-csv").click() },
-        { label: "Export JSON", onClick: () => $("fp-export-json").click() },
+        {
+          label: "Export CSV",
+          onClick: () => {
+            const el = $("fp-export-csv");
+            if (el) el.click();
+          },
+        },
+        {
+          label: "Export JSON",
+          onClick: () => {
+            const el = $("fp-export-json");
+            if (el) el.click();
+          },
+        },
       ]);
     });
   }
@@ -1734,8 +1826,20 @@ function initUi() {
     ovMaster.addEventListener("click", (ev) => {
       ev.stopPropagation();
       showExportMenu(ovMaster, [
-        { label: "Export CSV", onClick: () => $("ov-export-csv").click() },
-        { label: "Export JSON", onClick: () => $("ov-export-json").click() },
+        {
+          label: "Export CSV",
+          onClick: () => {
+            const el = $("ov-export-csv");
+            if (el) el.click();
+          },
+        },
+        {
+          label: "Export JSON",
+          onClick: () => {
+            const el = $("ov-export-json");
+            if (el) el.click();
+          },
+        },
       ]);
     });
   }
@@ -1745,8 +1849,20 @@ function initUi() {
     convMaster.addEventListener("click", (ev) => {
       ev.stopPropagation();
       showExportMenu(convMaster, [
-        { label: "Export CSV", onClick: () => $("conv-export-csv").click() },
-        { label: "Export JSON", onClick: () => $("conv-export-json").click() },
+        {
+          label: "Export CSV",
+          onClick: () => {
+            const el = $("conv-export-csv");
+            if (el) el.click();
+          },
+        },
+        {
+          label: "Export JSON",
+          onClick: () => {
+            const el = $("conv-export-json");
+            if (el) el.click();
+          },
+        },
       ]);
     });
   }
@@ -1756,7 +1872,13 @@ function initUi() {
     trMaster.addEventListener("click", (ev) => {
       ev.stopPropagation();
       showExportMenu(trMaster, [
-        { label: "Export JSON", onClick: () => $("tr-export-json").click() },
+        {
+          label: "Export JSON",
+          onClick: () => {
+            const el = $("tr-export-json");
+            if (el) el.click();
+          },
+        },
       ]);
     });
   }
@@ -1811,8 +1933,7 @@ async function loadTraceability() {
     pagerState.tr.total = null;
   } finally {
     // Render into the dedicated trace table using trace-specific visible columns
-    const mkFilter = $("tr-material-kind")?.value || "all";
-    const cols = chooseTraceCols(traceLastRows, mkFilter);
+    const cols = chooseTraceCols();
     renderTable("tr-thead", "tr-tbody", traceLastRows, cols);
     updatePagerUI("tr");
     hideLoading();

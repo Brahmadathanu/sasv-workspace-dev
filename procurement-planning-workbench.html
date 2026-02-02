@@ -278,69 +278,9 @@
           height: 14px;
         }
       }
-
-      /* Enhanced Master Filter Section */
-      .master-filter-container {
-        background: #f1f9ff;
-        border: 1px solid #bfdbfe;
-        border-radius: 12px;
-        padding: 16px 20px;
-        margin-bottom: 16px;
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        box-shadow: 0 6px 18px rgba(37, 99, 235, 0.04);
-      }
-
-      .master-filter-container select,
-      .master-filter-container input[type="month"] {
-        min-width: 160px;
-        height: 48px;
-        padding: 10px 16px;
-        border: 1px solid #d1d5db;
-        border-radius: 12px;
-        background: #ffffff;
-        font-size: 1rem;
-        font-weight: 500;
-        color: #0f172a;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        transition: all 200ms ease;
-      }
-
-      .master-filter-container select:focus,
-      .master-filter-container input[type="month"]:focus {
-        outline: none;
-        border-color: #3b82f6;
-        box-shadow:
-          0 0 0 3px rgba(59, 130, 246, 0.1),
-          0 1px 3px rgba(0, 0, 0, 0.1);
-        transform: translateY(-1px);
-      }
-
-      .master-filter-container select:hover,
-      .master-filter-container input[type="month"]:hover {
-        border-color: #9ca3af;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-      }
-
-      .master-filter-label {
-        font-size: 0.9rem;
-        font-weight: 600;
-        color: #374151;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        margin-right: 8px;
-      }
-
-      .master-filter-hint {
-        margin-left: auto;
-        color: #6b7280;
-        font-size: 13px;
-        font-style: italic;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-      }
+      /* canonical master-filter styles are defined earlier (#master-filter)
+         duplicate .master-filter-container definitions removed to avoid
+         conflicting styles and keep responsive behavior consistent */
       .search-wrap input {
         padding-right: 36px;
       }
