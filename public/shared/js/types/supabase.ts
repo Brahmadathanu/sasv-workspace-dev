@@ -1816,6 +1816,48 @@ export type Database = {
             foreignKeyName: "inv_rm_form_conversion_consume_stock_item_id_fkey"
             columns: ["consume_stock_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_rm_form_conversion_consume_stock_item_id_fkey"
+            columns: ["consume_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_rm_form_conversion_consume_stock_item_id_fkey"
+            columns: ["consume_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_rm_form_conversion_consume_stock_item_id_fkey"
+            columns: ["consume_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_rm_form_conversion_consume_stock_item_id_fkey"
+            columns: ["consume_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_rm_form_conversion_consume_stock_item_id_fkey"
+            columns: ["consume_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_rm_form_conversion_consume_stock_item_id_fkey"
+            columns: ["consume_stock_item_id"]
+            isOneToOne: false
             referencedRelation: "v_purchases_by_item"
             referencedColumns: ["inv_stock_item_id"]
           },
@@ -1916,6 +1958,48 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_picker_sp_owners"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_rm_form_conversion_purchase_stock_item_id_fkey"
+            columns: ["purchase_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_rm_form_conversion_purchase_stock_item_id_fkey"
+            columns: ["purchase_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_rm_form_conversion_purchase_stock_item_id_fkey"
+            columns: ["purchase_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_rm_form_conversion_purchase_stock_item_id_fkey"
+            columns: ["purchase_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_rm_form_conversion_purchase_stock_item_id_fkey"
+            columns: ["purchase_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_rm_form_conversion_purchase_stock_item_id_fkey"
+            columns: ["purchase_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
           },
           {
             foreignKeyName: "inv_rm_form_conversion_purchase_stock_item_id_fkey"
@@ -2142,6 +2226,48 @@ export type Database = {
             foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
             columns: ["inv_stock_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
             referencedRelation: "v_purchases_by_item"
             referencedColumns: ["inv_stock_item_id"]
           },
@@ -2260,6 +2386,48 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "v_picker_sp_owners"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_class_map_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_class_map_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_class_map_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_class_map_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_class_map_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_class_map_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
           },
           {
             foreignKeyName: "inv_stock_item_class_map_stock_item_id_fkey"
@@ -2401,6 +2569,48 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_picker_sp_owners"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_moq_policy_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_moq_policy_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_moq_policy_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_moq_policy_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_moq_policy_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_moq_policy_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
           },
           {
             foreignKeyName: "inv_stock_item_moq_policy_stock_item_id_fkey"
@@ -2554,6 +2764,48 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "v_picker_sp_owners"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_season_profile_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_season_profile_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_season_profile_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_season_profile_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_season_profile_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_season_profile_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
           },
           {
             foreignKeyName: "inv_stock_item_season_profile_stock_item_id_fkey"
@@ -3446,6 +3698,48 @@ export type Database = {
             foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
             columns: ["rm_stock_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
             referencedRelation: "v_purchases_by_item"
             referencedColumns: ["inv_stock_item_id"]
           },
@@ -4127,6 +4421,48 @@ export type Database = {
             foreignKeyName: "plm_bom_line_stock_item_id_fkey"
             columns: ["stock_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
             referencedRelation: "v_purchases_by_item"
             referencedColumns: ["inv_stock_item_id"]
           },
@@ -4322,6 +4658,48 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_picker_sp_owners"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
           },
           {
             foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
@@ -4524,6 +4902,48 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_picker_sp_owners"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plm_pack_format_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_pack_format_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_pack_format_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_pack_format_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_pack_format_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_pack_format_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
           },
           {
             foreignKeyName: "plm_pack_format_line_stock_item_id_fkey"
@@ -4892,6 +5312,48 @@ export type Database = {
             foreignKeyName: "plm_sku_plm_override_stock_item_id_fkey"
             columns: ["stock_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_sku_plm_override_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_sku_plm_override_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_sku_plm_override_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_sku_plm_override_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_sku_plm_override_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_sku_plm_override_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
             referencedRelation: "v_purchases_by_item"
             referencedColumns: ["inv_stock_item_id"]
           },
@@ -5080,6 +5542,48 @@ export type Database = {
             foreignKeyName: "plm_tpl_line_stock_item_id_fkey"
             columns: ["stock_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_tpl_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_tpl_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_tpl_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_tpl_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_tpl_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_tpl_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
             referencedRelation: "v_purchases_by_item"
             referencedColumns: ["inv_stock_item_id"]
           },
@@ -5159,6 +5663,357 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_uom_picker"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      proc_indent_excess_acceptance: {
+        Row: {
+          acceptance_id: number
+          accepted_at: string
+          accepted_by: string | null
+          accepted_qty: number
+          meta: Json
+          purchase_fact_id: number
+          reason: string | null
+        }
+        Insert: {
+          acceptance_id?: number
+          accepted_at?: string
+          accepted_by?: string | null
+          accepted_qty: number
+          meta?: Json
+          purchase_fact_id: number
+          reason?: string | null
+        }
+        Update: {
+          acceptance_id?: number
+          accepted_at?: string
+          accepted_by?: string | null
+          accepted_qty?: number
+          meta?: Json
+          purchase_fact_id?: number
+          reason?: string | null
+        }
+        Relationships: []
+      }
+      proc_indent_header: {
+        Row: {
+          approved_at: string | null
+          approved_date: string | null
+          created_at: string
+          created_by: string | null
+          generation_filters: Json
+          indent_date: string
+          indent_id: number
+          indent_number: string
+          issued_date: string | null
+          material_class_id: number | null
+          notes: string | null
+          status: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          generation_filters?: Json
+          indent_date?: string
+          indent_id?: number
+          indent_number: string
+          issued_date?: string | null
+          material_class_id?: number | null
+          notes?: string | null
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          generation_filters?: Json
+          indent_date?: string
+          indent_id?: number
+          indent_number?: string
+          issued_date?: string | null
+          material_class_id?: number | null
+          notes?: string | null
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proc_indent_header_material_class_fk"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proc_indent_line: {
+        Row: {
+          created_at: string
+          indent_id: number
+          indent_line_id: number
+          manual_reason: string | null
+          material_class_id: number
+          requested_qty: number
+          stock_item_id: number
+          uom_id: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          indent_id: number
+          indent_line_id?: number
+          manual_reason?: string | null
+          material_class_id: number
+          requested_qty?: number
+          stock_item_id: number
+          uom_id: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          indent_id?: number
+          indent_line_id?: number
+          manual_reason?: string | null
+          material_class_id?: number
+          requested_qty?: number
+          stock_item_id?: number
+          uom_id?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proc_indent_line_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "proc_indent_header"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_console"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_header_balance"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_material_class_fk"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proc_pr_header: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          effective_from_date: string
+          generation_filters: Json
+          horizon_end_month: string
+          horizon_start_month: string
+          material_class_id: number | null
+          material_kind_scope: string | null
+          notes: string | null
+          pr_id: number
+          pr_number: string
+          status: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          effective_from_date: string
+          generation_filters?: Json
+          horizon_end_month: string
+          horizon_start_month: string
+          material_class_id?: number | null
+          material_kind_scope?: string | null
+          notes?: string | null
+          pr_id?: number
+          pr_number: string
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          effective_from_date?: string
+          generation_filters?: Json
+          horizon_end_month?: string
+          horizon_start_month?: string
+          material_class_id?: number | null
+          material_kind_scope?: string | null
+          notes?: string | null
+          pr_id?: number
+          pr_number?: string
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proc_pr_header_material_class_fk"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_pr_header_material_class_id_fkey"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proc_pr_line: {
+        Row: {
+          created_at: string
+          manual_delta_qty: number
+          manual_reason: string | null
+          material_class_id: number
+          material_kind: string | null
+          pr_id: number
+          pr_line_id: number
+          requested_qty: number
+          stock_item_id: number
+          system_suggested_qty: number
+          uom_id: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          manual_delta_qty?: number
+          manual_reason?: string | null
+          material_class_id: number
+          material_kind?: string | null
+          pr_id: number
+          pr_line_id?: number
+          requested_qty?: number
+          stock_item_id: number
+          system_suggested_qty?: number
+          uom_id: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          manual_delta_qty?: number
+          manual_reason?: string | null
+          material_class_id?: number
+          material_kind?: string | null
+          pr_id?: number
+          pr_line_id?: number
+          requested_qty?: number
+          stock_item_id?: number
+          system_suggested_qty?: number
+          uom_id?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proc_pr_line_material_class_fk"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_pr_line_material_class_id_fkey"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_pr_line_pr_id_fkey"
+            columns: ["pr_id"]
+            isOneToOne: false
+            referencedRelation: "proc_pr_header"
+            referencedColumns: ["pr_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_line_pr_id_fkey"
+            columns: ["pr_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_pr_header"
+            referencedColumns: ["pr_id"]
+          },
+        ]
+      }
+      proc_pr_to_indent_map: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          indent_id: number
+          pr_id: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          indent_id: number
+          pr_id: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          indent_id?: number
+          pr_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proc_pr_to_indent_map_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: true
+            referencedRelation: "proc_indent_header"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_to_indent_map_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_indent_console"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_to_indent_map_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_indent_header_balance"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_to_indent_map_pr_fk"
+            columns: ["pr_id"]
+            isOneToOne: true
+            referencedRelation: "proc_pr_header"
+            referencedColumns: ["pr_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_to_indent_map_pr_fk"
+            columns: ["pr_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_pr_header"
+            referencedColumns: ["pr_id"]
           },
         ]
       }
@@ -6954,6 +7809,48 @@ export type Database = {
             foreignKeyName: "rm_bom_line_stock_item_id_fkey"
             columns: ["stock_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "rm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "rm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "rm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "rm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "rm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "rm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
             referencedRelation: "v_purchases_by_item"
             referencedColumns: ["inv_stock_item_id"]
           },
@@ -8238,6 +9135,48 @@ export type Database = {
             foreignKeyName: "sp_bom_header_owner_item_id_fkey"
             columns: ["owner_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "sp_bom_header_owner_item_id_fkey"
+            columns: ["owner_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "sp_bom_header_owner_item_id_fkey"
+            columns: ["owner_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "sp_bom_header_owner_item_id_fkey"
+            columns: ["owner_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "sp_bom_header_owner_item_id_fkey"
+            columns: ["owner_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "sp_bom_header_owner_item_id_fkey"
+            columns: ["owner_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "sp_bom_header_owner_item_id_fkey"
+            columns: ["owner_item_id"]
+            isOneToOne: false
             referencedRelation: "v_purchases_by_item"
             referencedColumns: ["inv_stock_item_id"]
           },
@@ -8382,6 +9321,48 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_picker_sp_owners"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sp_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "sp_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "sp_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "sp_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "sp_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "sp_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
           },
           {
             foreignKeyName: "sp_bom_line_stock_item_id_fkey"
@@ -8973,6 +9954,7 @@ export type Database = {
           line_count: number
           parser_settings: Json
           parser_version: string
+          purchase_fact_id: number
           source_desc: string
           source_key: string
           supplier_name: string
@@ -8993,6 +9975,7 @@ export type Database = {
           line_count: number
           parser_settings: Json
           parser_version: string
+          purchase_fact_id?: never
           source_desc: string
           source_key: string
           supplier_name: string
@@ -9013,6 +9996,7 @@ export type Database = {
           line_count?: number
           parser_settings?: Json
           parser_version?: string
+          purchase_fact_id?: never
           source_desc?: string
           source_key?: string
           supplier_name?: string
@@ -11118,6 +12102,48 @@ export type Database = {
             foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
             columns: ["stock_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
             referencedRelation: "v_purchases_by_item"
             referencedColumns: ["inv_stock_item_id"]
           },
@@ -11256,6 +12282,48 @@ export type Database = {
             foreignKeyName: "rm_bom_line_stock_item_id_fkey"
             columns: ["stock_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "rm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "rm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "rm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "rm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "rm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "rm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
             referencedRelation: "v_purchases_by_item"
             referencedColumns: ["inv_stock_item_id"]
           },
@@ -11380,6 +12448,48 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_picker_sp_owners"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
           },
           {
             foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
@@ -13119,10 +14229,6 @@ export type Database = {
       }
       v_fg_transfer_reconciliation: {
         Row: {
-          display_product_label: string | null
-          raw_item_hint: string | null
-          raw_item_names: string[] | null
-          tally_item_hint: string | null
           all_godown_mapped: boolean | null
           all_lines_sku_mapped: boolean | null
           all_sku_mapped: boolean | null
@@ -13142,6 +14248,8 @@ export type Database = {
           log_uploaded_by: string | null
           product_id: number | null
           product_name: string | null
+          raw_item_hint: string | null
+          raw_item_names: string[] | null
           recon_status: string | null
           tally_amount_per_base_raw: number | null
           tally_amount_per_pack_raw: number | null
@@ -13749,6 +14857,48 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_picker_sp_owners"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
           },
           {
             foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
@@ -14699,6 +15849,7 @@ export type Database = {
           gross_required_qty: number | null
           gross_required_qty_post_ceiling: number | null
           gross_required_qty_pre_ceiling: number | null
+          material_class_id: number | null
           material_kind: string | null
           month_start: string | null
           moq_qty: number | null
@@ -14989,6 +16140,48 @@ export type Database = {
             foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
             columns: ["rm_stock_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
             referencedRelation: "v_purchases_by_item"
             referencedColumns: ["inv_stock_item_id"]
           },
@@ -15092,6 +16285,48 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_picker_sp_owners"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
           },
           {
             foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
@@ -15423,6 +16658,664 @@ export type Database = {
           subcategory_code: string | null
         }
         Relationships: []
+      }
+      v_proc_excess_acceptance_audit_console: {
+        Row: {
+          acceptance_id: number | null
+          accepted_at: string | null
+          accepted_by: string | null
+          accepted_qty: number | null
+          material_class_code: string | null
+          material_class_id: number | null
+          material_class_label: string | null
+          meta: Json | null
+          purchase_fact_id: number | null
+          reason: string | null
+          stock_item_id: number | null
+          stock_item_name: string | null
+          uom_code: string | null
+          uom_id: number | null
+          voucher_date: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inv_stock_item_class_map_category_id_fkey"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "inv_uom"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_picker"
+            referencedColumns: ["uom_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_uom_picker"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_proc_indent_console: {
+        Row: {
+          approved_date: string | null
+          has_remaining: boolean | null
+          indent_id: number | null
+          indent_number: string | null
+          is_actionable: boolean | null
+          line_count: number | null
+          material_class_code: string | null
+          material_class_id: number | null
+          material_class_label: string | null
+          status: string | null
+          total_allocated_qty: number | null
+          total_remaining_qty: number | null
+          total_requested_qty: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proc_indent_header_material_class_fk"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_proc_indent_excess_supply_net: {
+        Row: {
+          excess_qty: number | null
+          material_class_id: number | null
+          stock_item_id: number | null
+          uom_id: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inv_stock_item_class_map_category_id_fkey"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "inv_uom"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_picker"
+            referencedColumns: ["uom_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_uom_picker"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_proc_indent_fifo_allocation: {
+        Row: {
+          allocated_qty: number | null
+          approved_date: string | null
+          indent_id: number | null
+          indent_line_id: number | null
+          indent_number: string | null
+          material_class_id: number | null
+          purchase_fact_id: number | null
+          stock_item_id: number | null
+          uom_id: number | null
+          voucher_date: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proc_indent_line_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "proc_indent_header"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_console"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_header_balance"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_material_class_fk"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_proc_indent_from_pr_audit: {
+        Row: {
+          approved_date: string | null
+          horizon_end_month: string | null
+          horizon_start_month: string | null
+          indent_date: string | null
+          indent_id: number | null
+          indent_material_class_id: number | null
+          indent_number: string | null
+          indent_status: string | null
+          issued_date: string | null
+          linked_at: string | null
+          linked_by: string | null
+          pr_effective_from_date: string | null
+          pr_id: number | null
+          pr_material_class_id: number | null
+          pr_number: string | null
+          pr_status: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proc_indent_header_material_class_fk"
+            columns: ["indent_material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_pr_header_material_class_fk"
+            columns: ["pr_material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_pr_header_material_class_id_fkey"
+            columns: ["pr_material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_pr_to_indent_map_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: true
+            referencedRelation: "proc_indent_header"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_to_indent_map_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_indent_console"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_to_indent_map_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_indent_header_balance"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_to_indent_map_pr_fk"
+            columns: ["pr_id"]
+            isOneToOne: true
+            referencedRelation: "proc_pr_header"
+            referencedColumns: ["pr_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_to_indent_map_pr_fk"
+            columns: ["pr_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_pr_header"
+            referencedColumns: ["pr_id"]
+          },
+        ]
+      }
+      v_proc_indent_header_balance: {
+        Row: {
+          approved_date: string | null
+          indent_id: number | null
+          indent_number: string | null
+          line_count: number | null
+          material_class_code: string | null
+          material_class_id: number | null
+          material_class_label: string | null
+          status: string | null
+          total_allocated_qty: number | null
+          total_remaining_qty: number | null
+          total_requested_qty: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proc_indent_header_material_class_fk"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_proc_indent_line_balance: {
+        Row: {
+          allocated_qty: number | null
+          approved_date: string | null
+          indent_id: number | null
+          indent_line_id: number | null
+          indent_number: string | null
+          material_class_code: string | null
+          material_class_id: number | null
+          material_class_label: string | null
+          remaining_qty: number | null
+          requested_qty: number | null
+          stock_item_id: number | null
+          stock_item_name: string | null
+          uom_code: string | null
+          uom_id: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proc_indent_line_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "proc_indent_header"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_console"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_header_balance"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_material_class_fk"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_proc_indent_lines_console: {
+        Row: {
+          allocated_qty: number | null
+          approved_date: string | null
+          has_remaining: boolean | null
+          indent_id: number | null
+          indent_line_id: number | null
+          indent_number: string | null
+          material_class_code: string | null
+          material_class_id: number | null
+          material_class_label: string | null
+          remaining_qty: number | null
+          requested_qty: number | null
+          stock_item_id: number | null
+          stock_item_name: string | null
+          uom_code: string | null
+          uom_id: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proc_indent_line_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "proc_indent_header"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_console"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_header_balance"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_material_class_fk"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_proc_indent_open_lines: {
+        Row: {
+          approved_date: string | null
+          indent_id: number | null
+          indent_line_id: number | null
+          indent_number: string | null
+          material_class_id: number | null
+          requested_qty: number | null
+          status: string | null
+          stock_item_id: number | null
+          uom_id: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proc_indent_line_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "proc_indent_header"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_console"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_header_balance"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_material_class_fk"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_proc_pr_header: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          effective_from_date: string | null
+          generation_filters: Json | null
+          horizon_end_month: string | null
+          horizon_start_month: string | null
+          material_class_code: string | null
+          material_class_id: number | null
+          material_class_label: string | null
+          notes: string | null
+          pr_id: number | null
+          pr_number: string | null
+          status: string | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proc_pr_header_material_class_fk"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_pr_header_material_class_id_fkey"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_proc_pr_lines: {
+        Row: {
+          created_at: string | null
+          final_requested_qty: number | null
+          manual_delta_qty: number | null
+          manual_reason: string | null
+          material_class_code: string | null
+          material_class_id: number | null
+          material_class_label: string | null
+          pr_id: number | null
+          pr_line_id: number | null
+          requested_qty: number | null
+          stock_item_id: number | null
+          stock_item_name: string | null
+          system_suggested_qty: number | null
+          uom_code: string | null
+          uom_id: number | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proc_pr_line_material_class_fk"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_pr_line_material_class_id_fkey"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_pr_line_pr_id_fkey"
+            columns: ["pr_id"]
+            isOneToOne: false
+            referencedRelation: "proc_pr_header"
+            referencedColumns: ["pr_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_line_pr_id_fkey"
+            columns: ["pr_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_pr_header"
+            referencedColumns: ["pr_id"]
+          },
+        ]
+      }
+      v_proc_purchase_excess_console: {
+        Row: {
+          accepted_qty: number | null
+          allocated_qty: number | null
+          material_class_code: string | null
+          material_class_id: number | null
+          material_class_label: string | null
+          net_unallocated_qty: number | null
+          purchase_fact_id: number | null
+          purchase_qty: number | null
+          stock_item_id: number | null
+          stock_item_name: string | null
+          unallocated_qty: number | null
+          uom_code: string | null
+          uom_id: number | null
+          voucher_date: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inv_stock_item_class_map_category_id_fkey"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "inv_uom"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_picker"
+            referencedColumns: ["uom_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_uom_picker"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_proc_purchase_unallocated: {
+        Row: {
+          allocated_qty: number | null
+          material_class_id: number | null
+          purchase_fact_id: number | null
+          purchase_qty: number | null
+          stock_item_id: number | null
+          unallocated_qty: number | null
+          uom_id: number | null
+          voucher_date: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inv_stock_item_class_map_category_id_fkey"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "inv_uom"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_picker"
+            referencedColumns: ["uom_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_uom_picker"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_proc_purchase_unallocated_net: {
+        Row: {
+          accepted_qty: number | null
+          allocated_qty: number | null
+          material_class_id: number | null
+          net_unallocated_qty: number | null
+          purchase_fact_id: number | null
+          purchase_qty: number | null
+          stock_item_id: number | null
+          unallocated_qty: number | null
+          uom_id: number | null
+          voucher_date: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inv_stock_item_class_map_category_id_fkey"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "inv_uom"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_picker"
+            referencedColumns: ["uom_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_uom_picker"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_proc_purchases_for_indent: {
+        Row: {
+          material_class_id: number | null
+          purchase_fact_id: number | null
+          purchase_qty: number | null
+          stock_item_id: number | null
+          uom_id: number | null
+          voucher_date: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inv_stock_item_class_map_category_id_fkey"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "inv_uom"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_picker"
+            referencedColumns: ["uom_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_uom_picker"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       v_product_batches_plan: {
         Row: {
@@ -15813,6 +17706,7 @@ export type Database = {
           group_label: string | null
           inv_stock_item_id: number | null
           name: string | null
+          purchase_fact_id: number | null
           source_kind: string | null
           subcategory_code: string | null
           subcategory_id: number | null
@@ -15986,6 +17880,48 @@ export type Database = {
             foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
             columns: ["stock_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
             referencedRelation: "v_purchases_by_item"
             referencedColumns: ["inv_stock_item_id"]
           },
@@ -16085,6 +18021,48 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_picker_sp_owners"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
           },
           {
             foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
@@ -20012,6 +21990,8 @@ export type Database = {
           batch_code: string | null
           product_id: number | null
           product_name: string | null
+          raw_item_hint: string | null
+          raw_item_names: string[] | null
           tally_amount_per_base_raw: number | null
           tally_amount_per_pack_raw: number | null
           tally_breakdown_by_godown: Json | null
@@ -20902,6 +22882,18 @@ export type Database = {
         Args: { p_from: string; p_title: string; p_to: string }
         Returns: number
       }
+      create_pr_from_mrp_plan: {
+        Args: {
+          p_effective_from_date: string
+          p_generation_filters: Json
+          p_horizon_end_month: string
+          p_horizon_start_month: string
+          p_material_class_id: number
+          p_notes: string
+          p_pr_number: string
+        }
+        Returns: number
+      }
       current_run_key_ist: { Args: never; Returns: string }
       deactivate_forecast_override: {
         Args: {
@@ -21330,6 +23322,7 @@ export type Database = {
           group_label: string | null
           inv_stock_item_id: number | null
           name: string | null
+          purchase_fact_id: number | null
           source_kind: string | null
           subcategory_code: string | null
           subcategory_id: number | null
@@ -21984,6 +23977,115 @@ export type Database = {
         Args: { p_date: string }
         Returns: string
       }
+      proc_indent_accept_excess: {
+        Args: {
+          p_accept_qty: number
+          p_purchase_fact_id: number
+          p_reason?: string
+        }
+        Returns: {
+          accepted_now: number
+          accepted_total: number
+          purchase_fact_id: number
+          remaining_unallocated: number
+          unallocated_qty: number
+        }[]
+      }
+      proc_indent_add_line: {
+        Args: {
+          p_indent_id: number
+          p_material_class_id: number
+          p_reason?: string
+          p_requested_qty?: number
+          p_stock_item_id: number
+          p_uom_id: number
+        }
+        Returns: number
+      }
+      proc_indent_autoclose_if_fully_allocated: {
+        Args: { p_indent_id: number }
+        Returns: boolean
+      }
+      proc_indent_close_strict: {
+        Args: { p_indent_id: number }
+        Returns: undefined
+      }
+      proc_indent_close_with_override: {
+        Args: { p_indent_id: number; p_reason: string }
+        Returns: undefined
+      }
+      proc_indent_create: {
+        Args: {
+          p_generation_filters?: Json
+          p_indent_date?: string
+          p_indent_number: string
+          p_material_class_id?: number
+          p_notes?: string
+        }
+        Returns: number
+      }
+      proc_indent_create_from_pr: {
+        Args: {
+          p_allow_duplicate?: boolean
+          p_indent_date?: string
+          p_indent_number?: string
+          p_notes?: string
+          p_pr_id: number
+        }
+        Returns: number
+      }
+      proc_indent_get_status: { Args: { p_indent_id: number }; Returns: string }
+      proc_indent_issue: {
+        Args: { p_indent_id: number; p_issued_date?: string }
+        Returns: undefined
+      }
+      proc_indent_next_number: {
+        Args: { p_indent_date?: string; p_material_class_id: number }
+        Returns: string
+      }
+      proc_indent_set_status: {
+        Args: {
+          p_approved_date?: string
+          p_indent_id: number
+          p_status: string
+        }
+        Returns: undefined
+      }
+      proc_material_kind_for_class: {
+        Args: { p_material_class_id: number }
+        Returns: string
+      }
+      proc_pr_add_line: {
+        Args: {
+          p_material_class_id: number
+          p_pr_id: number
+          p_reason?: string
+          p_requested_qty?: number
+          p_stock_item_id: number
+          p_uom_id: number
+        }
+        Returns: number
+      }
+      proc_pr_set_manual_delta: {
+        Args: {
+          p_manual_delta_qty: number
+          p_manual_reason?: string
+          p_pr_line_id: number
+        }
+        Returns: undefined
+      }
+      proc_pr_set_requested_qty: {
+        Args: {
+          p_pr_line_id: number
+          p_reason?: string
+          p_requested_qty: number
+        }
+        Returns: undefined
+      }
+      proc_pr_set_status: {
+        Args: { p_note?: string; p_pr_id: number; p_status: string }
+        Returns: undefined
+      }
       process_supply_rollup_refresh: { Args: never; Returns: undefined }
       promote_all_staging: {
         Args: { p_from: string; p_to: string }
@@ -22084,7 +24186,12 @@ export type Database = {
         }[]
       }
       rpc_fg_transfer_event_counts: {
-        Args: { p_from?: string; p_to?: string }
+        Args: {
+          p_from?: string
+          p_only_unmapped?: boolean
+          p_search?: string
+          p_to?: string
+        }
         Returns: {
           all_godown_mapped: boolean
           all_sku_mapped: boolean
@@ -22103,6 +24210,8 @@ export type Database = {
           batch_code: string | null
           product_id: number | null
           product_name: string | null
+          raw_item_hint: string | null
+          raw_item_names: string[] | null
           tally_amount_per_base_raw: number | null
           tally_amount_per_pack_raw: number | null
           tally_breakdown_by_godown: Json | null
@@ -22140,6 +24249,8 @@ export type Database = {
           batch_code: string | null
           product_id: number | null
           product_name: string | null
+          raw_item_hint: string | null
+          raw_item_names: string[] | null
           tally_amount_per_base_raw: number | null
           tally_amount_per_pack_raw: number | null
           tally_breakdown_by_godown: Json | null
@@ -22464,6 +24575,8 @@ export type Database = {
           log_uploaded_by: string | null
           product_id: number | null
           product_name: string | null
+          raw_item_hint: string | null
+          raw_item_names: string[] | null
           recon_status: string | null
           tally_amount_per_base_raw: number | null
           tally_amount_per_pack_raw: number | null
@@ -22488,15 +24601,13 @@ export type Database = {
         }
       }
       rpc_fg_transfer_recon_fix_suggestions: {
-        Args: { p_from?: string; p_limit?: number; p_to?: string }
-        Returns: {
-          first_date: string
-          last_date: string
-          rows: number
-          sample_ref: string
-          suggestion_key: string
-          suggestion_kind: string
-        }[]
+        Args: {
+          p_from?: string
+          p_limit?: number
+          p_offset?: number
+          p_to?: string
+        }
+        Returns: Json
       }
       rpc_fg_transfer_recon_get_v2: {
         Args: {
@@ -22505,10 +24616,6 @@ export type Database = {
           p_transfer_date: string
         }
         Returns: {
-          display_product_label: string | null
-          raw_item_hint: string | null
-          raw_item_names: string[] | null
-          tally_item_hint: string | null
           all_godown_mapped: boolean | null
           all_lines_sku_mapped: boolean | null
           all_sku_mapped: boolean | null
@@ -22528,6 +24635,8 @@ export type Database = {
           log_uploaded_by: string | null
           product_id: number | null
           product_name: string | null
+          raw_item_hint: string | null
+          raw_item_names: string[] | null
           recon_status: string | null
           tally_amount_per_base_raw: number | null
           tally_amount_per_pack_raw: number | null
@@ -22580,6 +24689,8 @@ export type Database = {
           log_uploaded_by: string | null
           product_id: number | null
           product_name: string | null
+          raw_item_hint: string | null
+          raw_item_names: string[] | null
           recon_status: string | null
           tally_amount_per_base_raw: number | null
           tally_amount_per_pack_raw: number | null
@@ -22605,45 +24716,15 @@ export type Database = {
       }
       rpc_fg_transfer_recon_list_enriched: {
         Args: {
-          p_from?: string
-          p_limit?: number
-          p_offset?: number
-          p_problem?: string[]
-          p_search?: string
-          p_status?: string[]
-          p_to?: string
+          p_from: string
+          p_limit: number
+          p_offset: number
+          p_problem: string[]
+          p_search: string
+          p_status: string[]
+          p_to: string
         }
-        Returns: {
-          display_product_label: string | null
-          raw_item_hint: string | null
-          raw_item_names: string[] | null
-          tally_item_hint: string | null
-          all_godown_mapped: boolean
-          all_lines_sku_mapped: boolean
-          all_sku_mapped: boolean
-          any_dwl_id: number
-          batch_code: string
-          dwl_row_count: number
-          exists_in_log: boolean
-          exists_in_tally: boolean
-          is_exact_breakdown_match: boolean
-          is_product_mapped: boolean
-          log_completed_on: string
-          log_created_at: string
-          log_status: string
-          log_total_packs: number
-          log_uploaded_by: string
-          problem_kind: string
-          product_id: number
-          product_name: string
-          recon_status: string
-          tally_amount_per_base_raw: number
-          tally_amount_per_pack_raw: number
-          tally_total_amount: number
-          tally_total_amount_raw: number
-          tally_total_packs: number
-          transfer_date: string
-        }[]
+        Returns: Json
       }
       rpc_fg_transfer_recon_problem_counts: {
         Args: { p_from?: string; p_to?: string }
@@ -22663,43 +24744,14 @@ export type Database = {
       }
       rpc_fg_transfer_tally_event_list: {
         Args: {
-          p_from?: string
-          p_limit?: number
-          p_offset?: number
-          p_only_unmapped?: boolean
-          p_search?: string
-          p_to?: string
+          p_from: string
+          p_limit: number
+          p_offset: number
+          p_only_unmapped: boolean
+          p_search: string
+          p_to: string
         }
-        Returns: {
-          raw_item_hint: string | null
-          raw_item_names: string[] | null
-          display_product_label: string | null
-          all_godown_mapped: boolean | null
-          all_sku_mapped: boolean | null
-          batch_code: string | null
-          product_id: number | null
-          product_name: string | null
-          tally_amount_per_base_raw: number | null
-          tally_amount_per_pack_raw: number | null
-          tally_breakdown_by_godown: Json | null
-          tally_breakdown_by_godown_amount: Json | null
-          tally_breakdown_by_skuid: Json | null
-          tally_breakdown_by_store: Json | null
-          tally_breakdown_by_store_amount: Json | null
-          tally_breakdown_lines: Json | null
-          tally_total_amount: number | null
-          tally_total_amount_raw: number | null
-          tally_total_in_base: number | null
-          tally_total_packs: number | null
-          tally_uom_base_unit: string | null
-          transfer_date: string | null
-        }[]
-        SetofOptions: {
-          from: "*"
-          to: "v_tally_fg_transfer_event"
-          isOneToOne: false
-          isSetofReturn: true
-        }
+        Returns: Json
       }
       rpc_fg_transfer_tally_normalized_lines: {
         Args: { p_batch_code: string; p_transfer_date: string }

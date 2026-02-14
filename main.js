@@ -84,7 +84,7 @@ webApp.use((req, res, next) => {
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
   res.header(
     "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept, Authorization, apikey"
+    "Origin, X-Requested-With, Content-Type, Accept, Authorization, apikey",
   );
   if (req.method === "OPTIONS") {
     res.sendStatus(200);
@@ -95,8 +95,34 @@ webApp.use((req, res, next) => {
 
 webApp.use(express.static(path.join(__dirname)));
 webApp.listen(3000, () =>
-  console.log("Static server at http://localhost:3000")
+  console.log("Static server at http://localhost:3000"),
 );
+
+// ---------------- Single Instance Lock ----------------
+// Prevent multiple instances from running simultaneously
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  // Another instance is already running, quit this one
+  console.log("Another instance is already running. Exiting...");
+  app.quit();
+} else {
+  // This is the first instance
+  app.on("second-instance", (event, commandLine, workingDirectory) => {
+    // Someone tried to run a second instance. Create a new window so the
+    // user gets a duplicated/parallel view (like duplicating a tab in a
+    // browser) while keeping a single app process to avoid cache conflicts.
+    try {
+      createWindow();
+    } catch (e) {
+      // Fallback to focusing the existing window if creation fails
+      if (mainWindow) {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.focus();
+      }
+    }
+  });
+}
 
 // ---------------- Main window ----------------
 let mainWindow;
@@ -272,7 +298,7 @@ async function pdfFromHtml({ title, html, options = {} }) {
             options.meta.sop_no ||
             options.meta.sop_code)) ||
         title ||
-        "SOP"
+        "SOP",
     );
 
     return {
@@ -289,10 +315,10 @@ async function pdfFromHtml({ title, html, options = {} }) {
 
 // Primary (camelCase) + legacy (kebab) channels
 ipcMain.handle("sop:exportPdfFromHtml", (_evt, payload) =>
-  pdfFromHtml(payload)
+  pdfFromHtml(payload),
 );
 ipcMain.handle("sop:export-pdf-from-html", (_evt, payload) =>
-  pdfFromHtml(payload)
+  pdfFromHtml(payload),
 );
 
 // ---- 3) DOCX from provided HTML (preferred) ---------------------------
@@ -312,7 +338,7 @@ async function docxFromHtml(payload) {
         payload?.meta?.sop_no ||
         payload?.meta?.sop_code ||
         title ||
-        "SOP"
+        "SOP",
     );
 
     return {
@@ -327,7 +353,7 @@ async function docxFromHtml(payload) {
 
 // Primary channel used by the new viewer code
 ipcMain.handle("sop:exportDocxFromHtml", (_evt, payload) =>
-  docxFromHtml(payload)
+  docxFromHtml(payload),
 );
 
 // Legacy alias (same signature: { title, html })
@@ -496,7 +522,7 @@ ipcMain.handle(
                 makeCell(cells[2], { isLabel: true, widthDxa: wL }),
                 makeCell(cells[3], { widthDxa: wV }),
               ],
-            })
+            }),
         ),
       });
 
@@ -541,15 +567,15 @@ ipcMain.handle(
                 text: p.text,
                 bold: !!p.bold,
                 italics: !!p.italics,
-              })
-            )
+              }),
+            ),
           );
         };
 
         while ((m = CODE.exec(s))) {
           pushText(s.slice(last, m.index));
           runs.push(
-            new TextRun({ text: m[1], font: "Courier New" }) // inline code
+            new TextRun({ text: m[1], font: "Courier New" }), // inline code
           );
           last = m.index + m[0].length;
         }
@@ -589,7 +615,7 @@ ipcMain.handle(
                       font: "Courier New",
                     }),
                   ],
-                })
+                }),
               );
               inCode = false;
             }
@@ -609,8 +635,8 @@ ipcMain.handle(
               lvl === 1
                 ? HeadingLevel.HEADING_1
                 : lvl === 2
-                ? HeadingLevel.HEADING_2
-                : HeadingLevel.HEADING_3;
+                  ? HeadingLevel.HEADING_2
+                  : HeadingLevel.HEADING_3;
 
             out.push(
               new Paragraph({
@@ -618,7 +644,7 @@ ipcMain.handle(
                 heading, // ← actually use the computed heading
                 spacing: { before: 200, after: 100 },
                 keepNext: true, // keep heading with the next paragraph
-              })
+              }),
             );
             continue;
           }
@@ -632,7 +658,7 @@ ipcMain.handle(
                 numbering: { reference: "ol", level: 0 },
                 spacing: { before: 40, after: 40 },
                 alignment: AlignmentType.JUSTIFIED,
-              })
+              }),
             );
             continue;
           }
@@ -646,7 +672,7 @@ ipcMain.handle(
                 bullet: { level: 0 }, // simpler than a numbering ref for bullets
                 spacing: { before: 40, after: 40 },
                 alignment: AlignmentType.JUSTIFIED,
-              })
+              }),
             );
             continue;
           }
@@ -669,7 +695,7 @@ ipcMain.handle(
               children: [
                 new TextRun({ text: codeBuf.join("\n"), font: "Courier New" }),
               ],
-            })
+            }),
           );
         }
         return out;
@@ -719,5 +745,5 @@ ipcMain.handle(
     } catch (e) {
       return { ok: false, error: e?.message || "DOCX build failed" };
     }
-  }
+  },
 );

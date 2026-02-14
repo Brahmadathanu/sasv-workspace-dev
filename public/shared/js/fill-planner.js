@@ -277,7 +277,7 @@ async function onProductSelect() {
       "Product",
       `${rec.name || "(unknown)"}`,
       null,
-      `id = ${prodId}, UOM = ${rec.uom || "(base)"}`
+      `id = ${prodId}, UOM = ${rec.uom || "(base)"}`,
     );
   }
   if (!rec) {
@@ -326,7 +326,7 @@ async function loadForProduct(productId) {
       <td>${s.pack_size} ${s.uom}</td>
       <td><input class="emg-qty" data-sku-id="${s.id}" type="number" min="0"></td>
     </tr>
-  `
+  `,
     )
     .join("");
 
@@ -358,7 +358,7 @@ async function fetchSkuInfo(skuIds) {
       uom,
       product:product_id ( conversion_to_base ),
       sku_prices ( mrp_ik, mrp_ok )
-    `
+    `,
     )
     .in("id", skuIds);
 
@@ -510,7 +510,7 @@ async function loadMetrics(skus, productId) {
       `${label}`,
       `  Stock_IK = ${stIK}, Stock_KKD = ${stK}, Stock_OK = ${stOK}`,
       `  Forecast_IK ≈ ${nfmt(fIK)}, Forecast_KKD ≈ ${nfmt(
-        fKKD
+        fKKD,
       )}, Forecast_OK ≈ ${nfmt(fOK)}`,
     ]);
   });
@@ -581,7 +581,7 @@ async function loadMetrics(skus, productId) {
         day: "numeric",
         month: "short",
         year: "numeric",
-      }
+      },
     )}`;
     // make sure it’s visible
     stockUpdated.style.display = "";
@@ -656,13 +656,13 @@ elRunBtn.addEventListener("click", async () => {
     wH("Emergency Deduction");
     wDerive([
       `base_per_pack = pack_size × conv_to_base = ${nfmt(
-        meta.pack_size
+        meta.pack_size,
       )} × ${nfmt(meta.product.conversion_to_base)} = ${nfmt(unitMass)}`,
       `bulk_needed   = qty_packs × base_per_pack = ${nfmt(qty)} × ${nfmt(
-        unitMass
+        unitMass,
       )} = ${nfmt(needBulk)}`,
       `bulk_after    = bulk_before − bulk_needed = ${nfmt(bulk)} − ${nfmt(
-        needBulk
+        needBulk,
       )} = ${nfmt(bulk - needBulk)}`,
     ]);
 
@@ -713,44 +713,62 @@ elRunBtn.addEventListener("click", async () => {
 
     /* ── MOS target: use what the function computed (dynamic) ── */
     const mosTarget = plan && plan.length ? Number(plan[0].mos) : null;
-    if (isFinite(mosTarget)) {
-      wH("Allocation Rules (reference)");
-      wDerive([
-        "MOS_before(region,sku) = stock ÷ forecast",
-        "MOS_target = (bulk + Σ stock×base_per_pack) ÷ Σ forecast×base_per_pack",
-        `  = ${nfmt(mosTarget)} (global target)`,
-        "Region totals used: prefer region roll-up rows (godown_code IS NULL); else sum depots (no double counting)",
-        "Per-SKU MOS gain per pack ≈ min(MOS_gap, pack_base/forecast) / pack_base",
-        "Soft region cap: gain scaled by (Target MOS − Region MOS, floored at 0)",
-        "  Note: region MOS for the cap uses unit-based sums; the table's Achieved MOS is base-weighted, so they can differ slightly",
-        "Greedy loop: choose candidate with highest scaled gain per base (tie: higher forecast, smaller pack)",
-        "Trim (if overshoot=FALSE): remove packs with smallest MOS loss per base (≈1/forecast)",
-        "Discrete packs cause achieved MOS to vary around target.",
-      ]);
-      wDerive([
-        "(Layman) We aim for one common months-of-stock number.",
-        "We prefer SKUs in regions still below target; regions already above target get deprioritized.",
-        "We keep adding whole packs while bulk remains, then (if needed) remove the least harmful ones to fit.",
-      ]);
-    } else {
-      // fallback (unlikely) — keep rules without a numeric target
-      wH("Allocation Rules (reference)");
-      wDerive([
-        "MOS_before(region,sku) = stock ÷ forecast",
-        "MOS_target = (bulk + Σ stock×base_per_pack) ÷ Σ forecast×base_per_pack",
-        "Region totals used: prefer region roll-up rows (godown_code IS NULL); else sum depots (no double counting)",
-        "Per-SKU MOS gain per pack ≈ min(MOS_gap, pack_base/forecast) / pack_base",
-        "Soft region cap: gain scaled by (Target MOS − Region MOS, floored at 0)",
-        "  Note: region MOS for the cap uses unit-based sums; the table's Achieved MOS is base-weighted, so they can differ slightly",
-        "Greedy loop: choose candidate with highest scaled gain per base (tie: higher forecast, smaller pack)",
-        "Trim (if overshoot=FALSE): remove packs with smallest MOS loss per base (≈1/forecast)",
-        "Discrete packs cause achieved MOS to vary around target.",
-      ]);
-    }
+    wH("Allocation Rules (how the server plans)");
+    wDerive([
+      "Goal: distribute remaining bulk so regions approach a common Target MOS (months of stock).",
+      "",
+      "Definitions:",
+      "  MOS = Stock ÷ Forecast",
+      "  Target MOS = (Bulk_base + Σ(stock_units × base_per_pack)) ÷ Σ(forecast_units × base_per_pack)",
+      `  Target MOS (this run) = ${nfmt(mosTarget)}`,
+      "",
+      "Pack sizes:",
+      "  base_per_pack = pack_size × conversion_to_base",
+      "",
+      "How the server chooses which pack to add next (greedy scoring):",
+      "  1) Only whole packs can be added.",
+      "  2) First preference: for each SKU, fill the region with higher forecast (preferred lane).",
+      "     Other region is blocked while the preferred lane is still below target and a pack can fit.",
+      "  3) Benefit score is 'MOS gain per base unit', reduced for very slow movers:",
+      "     - Forecast floor: treat forecast as at least 5 units/month for scoring (prevents fu=1 dominating).",
+      "     - Slow mover dampener: fu/(fu+30) reduces priority when forecast is tiny.",
+      "  4) Region soft-cap: regions already at/above Target MOS are deprioritised.",
+      "",
+      "Stop conditions:",
+      "  - No positive-benefit pack fits in remaining bulk, or bulk is smaller than smallest pack.",
+      "If overshoot is not allowed and total used bulk exceeds bulk, the server trims the least harmful packs.",
+    ]);
 
     /* 2) meta / price for SKUs present in the plan */
     const skuIds = [...new Set(plan.map((r) => r.sku_id))];
     const skuMap = await fetchSkuInfo(skuIds);
+
+    // Optional: fetch debug diagnostics from server for the workings drawer
+    let planDbg = null;
+    try {
+      const dbgRes = await supabase.rpc("calc_fill_plan", {
+        p_product_id: +prodId,
+        p_bulk_base_qty: +bulk,
+        p_allow_overshoot: !!over,
+        p_debug: true,
+      });
+      planDbg = dbgRes.data || null;
+    } catch {
+      // non-fatal — we only attempted to fetch diagnostics
+      planDbg = null;
+    }
+    // If debug diagnostics are available, surface a concise server-side score log
+    if (planDbg && planDbg.length) {
+      wH("Server Debug (final scores)");
+      (planDbg || []).forEach((r) => {
+        if (r.benefit_per_base == null) return;
+        const lbl = skuMap[r.sku_id]?.label || r.sku_id;
+        const b = Number(r.benefit_per_base);
+        const flag =
+          b <= -1e8 ? "BLOCKED/NO-FIT" : b === 0 ? "NO-GAP" : "ELIGIBLE";
+        wDerive([`${r.region_code}  ${lbl}: score = ${nfmt(b)}  → ${flag}`]);
+      });
+    }
 
     /* Pull cached metrics for this product */
     const m = metricsCache[prodId] || {
@@ -802,16 +820,23 @@ elRunBtn.addEventListener("click", async () => {
         const f = forecastFor(region, x.skuId);
         const st = stockFor(region, x.skuId);
         const mosBefore = safeDiv(st, f);
-        const fill = x.units || 0;
-        const mosAfterCalc = f ? safeDiv(st + fill, f) : 0;
+        // x.units is packs — convert packs → base units using basePerPack
+        const fillPacks = x.units || 0;
+        const packSizeUnits =
+          basePerPack[x.skuId] || skuMap[x.skuId]?.packSize || 1;
+        const fillUnits = fillPacks * packSizeUnits;
+        const mosAfterCalc = f ? safeDiv(st + fillUnits, f) : 0;
 
         wDerive([
           `MOS_before(${x.label}) = stock ÷ forecast = ${nfmt(st)} ÷ ${nfmt(
-            f
+            f,
           )} = ${nfmt(mosBefore)}`,
-          `units_to_fill(${x.label}) = ${nfmt(fill)}  → Target MOS = ${nfmt(
-            x.mos_after
-          )}  |  Achieved MOS (this SKU) = ${nfmt(mosAfterCalc)}`,
+          `fill = ${nfmt(fillPacks)} packs × ${nfmt(packSizeUnits)} units/pack = ${nfmt(
+            fillUnits,
+          )} units  → Target MOS = ${nfmt(x.mos_after)}`,
+          `MOS_after(${x.label}) = (stock + fill_units) ÷ forecast = (${nfmt(
+            st,
+          )} + ${nfmt(fillUnits)}) ÷ ${nfmt(f)} = ${nfmt(mosAfterCalc)}`,
         ]);
       });
     });
@@ -823,8 +848,12 @@ elRunBtn.addEventListener("click", async () => {
       "Bulk used by plan (base units)",
       "",
       usedBase,
-      "from server (should ≤ remaining bulk unless overshoot)"
+      "from server (should ≤ remaining bulk unless overshoot)",
     );
+
+    // Show remaining bulk after plan (base units)
+    const bulkLeft = bulk - usedBase;
+    wEq("Bulk remaining after plan (base units)", "", nfmt(bulkLeft));
 
     // Global MOS check (base units) — should be close to Target MOS
     try {
@@ -832,7 +861,7 @@ elRunBtn.addEventListener("click", async () => {
         new Set([
           ...Object.keys(m.forecast?.IK || {}),
           ...Object.keys(m.forecast?.OK || {}),
-        ])
+        ]),
       )
         .map((x) => +x)
         .filter((x) => Number.isFinite(x));
@@ -862,12 +891,12 @@ elRunBtn.addEventListener("click", async () => {
       wDerive([
         `total_stock_base = Σ(stock × base_per_pack) = ${nfmt(totalStockBase)}`,
         `total_forecast_base = Σ(forecast × base_per_pack) = ${nfmt(
-          totalForecastBase
+          totalForecastBase,
         )}`,
         `MOS_after(global) = (total_stock_base + used_base_qty) ÷ total_forecast_base = (${nfmt(
-          totalStockBase
+          totalStockBase,
         )} + ${nfmt(usedBase)}) ÷ ${nfmt(totalForecastBase)} = ${nfmt(
-          mosAfterGlobal
+          mosAfterGlobal,
         )}  ≈ Target MOS ${nfmt(mosTarget)}`,
       ]);
     } catch {
@@ -906,7 +935,7 @@ elRunBtn.addEventListener("click", async () => {
       new Set([
         ...Object.keys(m.forecast?.IK || {}),
         ...Object.keys(m.forecast?.OK || {}),
-      ])
+      ]),
     )
       .map((x) => +x)
       .filter((x) => Number.isFinite(x));
@@ -936,7 +965,7 @@ elRunBtn.addEventListener("click", async () => {
 
     // Clarify table meaning for layman readers
     wNote(
-      "Table note: Target MOS is global from the server; Achieved MOS per region = (Σ_all stock×base_per_pack + Σ_plan fill×base_per_pack) ÷ Σ_all forecast×base_per_pack."
+      "Table note: Target MOS is global from the server; Achieved MOS per region = (Σ_all stock×base_per_pack + Σ_plan fill×base_per_pack) ÷ Σ_all forecast×base_per_pack.",
     );
 
     elBody.innerHTML = Object.entries(byRegion)
@@ -950,7 +979,7 @@ elRunBtn.addEventListener("click", async () => {
           })
           .join("");
         return `<tr><td>${region}</td>${cells}<td>${mos.toFixed(
-          2
+          2,
         )}</td><td>${achieved.toFixed(2)}</td></tr>`;
       })
       .join("");
