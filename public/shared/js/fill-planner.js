@@ -31,6 +31,13 @@ let __work = [];
 const nfmt = (v) =>
   typeof v === "number" && isFinite(v) ? Math.round(v * 1000) / 1000 : v;
 
+// stronger number helpers for audit lines
+const nfmt6 = (v) =>
+  typeof v === "number" && isFinite(v) ? Math.round(v * 1e6) / 1e6 : v;
+
+const pct = (x) =>
+  typeof x === "number" && isFinite(x) ? `${nfmt6(x * 100)}%` : "—";
+
 // section heading
 function wH(title) {
   __work.push(`\n— ${title} —`);
@@ -377,6 +384,21 @@ async function fetchSkuInfo(skuIds) {
   return out;
 }
 
+// Fetch product conversion_to_base and UOM for audit/readable maths
+async function fetchProductConv(productId) {
+  const { data, error } = await supabase
+    .from("products")
+    .select("id, conversion_to_base, uom_base, item")
+    .eq("id", productId)
+    .single();
+  if (error) throw error;
+  return {
+    conv: data?.conversion_to_base ?? 1,
+    uom: data?.uom_base ?? "(base)",
+    name: data?.item ?? "",
+  };
+}
+
 /* ─── build the SKU Metrics table ────────────────────────────────── */
 async function loadMetrics(skus, productId) {
   const ids = skus.map((s) => s.id);
@@ -633,11 +655,15 @@ elRunBtn.addEventListener("click", async () => {
 
   /* --- deduct emergency requirements (all rows) ---------------------- */
   const qtyInputs = document.querySelectorAll(".emg-qty");
+  let anyEmergency = false;
+  wH("Emergency Deduction (client-side, before server plan)");
 
   for (const inp of qtyInputs) {
     const qty = +inp.value;
     const skuId = +inp.dataset.skuId;
     if (!qty || !skuId) continue; // skip blank rows
+
+    anyEmergency = true;
 
     /* fetch pack_size & conversion_to_base */
     const { data: meta, error } = await supabase
@@ -653,17 +679,15 @@ elRunBtn.addEventListener("click", async () => {
     const unitMass = meta.pack_size * meta.product.conversion_to_base;
     const needBulk = qty * unitMass;
 
-    wH("Emergency Deduction");
     wDerive([
-      `base_per_pack = pack_size × conv_to_base = ${nfmt(
-        meta.pack_size,
-      )} × ${nfmt(meta.product.conversion_to_base)} = ${nfmt(unitMass)}`,
-      `bulk_needed   = qty_packs × base_per_pack = ${nfmt(qty)} × ${nfmt(
+      `SKU ${skuId}: qty_packs = ${nfmt(qty)}`,
+      `  base_per_pack = pack_size × conv_to_base = ${nfmt(meta.pack_size)} × ${nfmt(
+        meta.product.conversion_to_base,
+      )} = ${nfmt(unitMass)}`,
+      `  bulk_needed   = qty_packs × base_per_pack = ${nfmt(qty)} × ${nfmt(
         unitMass,
       )} = ${nfmt(needBulk)}`,
-      `bulk_after    = bulk_before − bulk_needed = ${nfmt(bulk)} − ${nfmt(
-        needBulk,
-      )} = ${nfmt(bulk - needBulk)}`,
+      `  bulk_after    = ${nfmt(bulk)} − ${nfmt(needBulk)} = ${nfmt(bulk - needBulk)}`,
     ]);
 
     /* guard – not enough bulk */
@@ -675,6 +699,8 @@ elRunBtn.addEventListener("click", async () => {
     }
     bulk -= needBulk; // deduct
   }
+
+  if (!anyEmergency) wNote("No urgent quantities entered.");
 
   /* guard – bulk now zero */
   if (bulk === 0) {
@@ -713,30 +739,26 @@ elRunBtn.addEventListener("click", async () => {
 
     /* ── MOS target: use what the function computed (dynamic) ── */
     const mosTarget = plan && plan.length ? Number(plan[0].mos) : null;
-    wH("Allocation Rules (how the server plans)");
+    wDerive([`Target MOS (this run) = ${nfmt(mosTarget)}`]);
+
+    wH("Allocation Rules (server truth)");
     wDerive([
-      "Goal: distribute remaining bulk so regions approach a common Target MOS (months of stock).",
+      "The server plans ONLY in base units and ONLY whole packs are allowed.",
       "",
-      "Definitions:",
-      "  MOS = Stock ÷ Forecast",
-      "  Target MOS = (Bulk_base + Σ(stock_units × base_per_pack)) ÷ Σ(forecast_units × base_per_pack)",
-      `  Target MOS (this run) = ${nfmt(mosTarget)}`,
+      "Phase A — Target MOS equalisation:",
+      "  Greedy adds packs to bring regions/SKUs toward a common Target MOS.",
+      "  Preference lane rule: for each SKU, the higher-forecast region is preferred until it is not behind.",
       "",
-      "Pack sizes:",
-      "  base_per_pack = pack_size × conversion_to_base",
+      "Phase B — Drain remaining bulk (ERP finish):",
+      "  Drain is allocated proportionally by REGION forecast weight.",
+      "  When remaining bulk becomes small, the server switches to smallest-pack-first",
+      "  to minimize unpackable residue.",
       "",
-      "How the server chooses which pack to add next (greedy scoring):",
-      "  1) Only whole packs can be added.",
-      "  2) First preference: for each SKU, fill the region with higher forecast (preferred lane).",
-      "     Other region is blocked while the preferred lane is still below target and a pack can fit.",
-      "  3) Benefit score is 'MOS gain per base unit', reduced for very slow movers:",
-      "     - Forecast floor: treat forecast as at least 5 units/month for scoring (prevents fu=1 dominating).",
-      "     - Slow mover dampener: fu/(fu+30) reduces priority when forecast is tiny.",
-      "  4) Region soft-cap: regions already at/above Target MOS are deprioritised.",
+      "Stop condition:",
+      "  Stops when remaining bulk is smaller than the smallest pack (cannot fit another whole pack).",
       "",
-      "Stop conditions:",
-      "  - No positive-benefit pack fits in remaining bulk, or bulk is smaller than smallest pack.",
-      "If overshoot is not allowed and total used bulk exceeds bulk, the server trims the least harmful packs.",
+      "Interpretation:",
+      "  leftover = unpackable residue due to integer pack constraints (expected, not an error).",
     ]);
 
     /* 2) meta / price for SKUs present in the plan */
@@ -822,21 +844,20 @@ elRunBtn.addEventListener("click", async () => {
         const mosBefore = safeDiv(st, f);
         // x.units is packs — convert packs → base units using basePerPack
         const fillPacks = x.units || 0;
-        const packSizeUnits =
-          basePerPack[x.skuId] || skuMap[x.skuId]?.packSize || 1;
-        const fillUnits = fillPacks * packSizeUnits;
-        const mosAfterCalc = f ? safeDiv(st + fillUnits, f) : 0;
+        const basePerPackSku = basePerPack[x.skuId] || 0;
+        const fillBase = fillPacks * basePerPackSku;
+        const mosAfterCalc = f ? safeDiv(st + fillBase, f) : 0;
 
         wDerive([
           `MOS_before(${x.label}) = stock ÷ forecast = ${nfmt(st)} ÷ ${nfmt(
             f,
           )} = ${nfmt(mosBefore)}`,
-          `fill = ${nfmt(fillPacks)} packs × ${nfmt(packSizeUnits)} units/pack = ${nfmt(
-            fillUnits,
-          )} units  → Target MOS = ${nfmt(x.mos_after)}`,
-          `MOS_after(${x.label}) = (stock + fill_units) ÷ forecast = (${nfmt(
+          `fill_base = ${nfmt(fillPacks)} packs × ${nfmt(basePerPackSku)} base/pack = ${nfmt(
+            fillBase,
+          )} base  → Target MOS = ${nfmt(x.mos_after)}`,
+          `MOS_after = (stock_base + fill_base) ÷ forecast_units_pm = (${nfmt(
             st,
-          )} + ${nfmt(fillUnits)}) ÷ ${nfmt(f)} = ${nfmt(mosAfterCalc)}`,
+          )} + ${nfmt(fillBase)}) ÷ ${nfmt(f)} = ${nfmt(mosAfterCalc)}`,
         ]);
       });
     });
@@ -854,6 +875,51 @@ elRunBtn.addEventListener("click", async () => {
     // Show remaining bulk after plan (base units)
     const bulkLeft = bulk - usedBase;
     wEq("Bulk remaining after plan (base units)", "", nfmt(bulkLeft));
+
+    // --- Coverage / residue audit (base + derived SKU-UOM) ------------------
+    wH("Bulk Audit (coverage + residue)");
+
+    // product conversion_to_base: base per 1 mL (for oils) => mL = kg / conv
+    let prodConv = null;
+    try {
+      prodConv = await fetchProductConv(+prodId);
+    } catch {
+      prodConv = null;
+    }
+
+    wDerive([
+      `bulk_input_base = ${nfmt6(bulk)}`,
+      `used_base_qty   = Σ(server.used_base_qty) = ${nfmt6(usedBase)}`,
+      `leftover_base   = bulk_input_base − used_base_qty = ${nfmt6(bulk)} − ${nfmt6(
+        usedBase,
+      )} = ${nfmt6(bulkLeft)}`,
+    ]);
+
+    if (prodConv && prodConv.conv && prodConv.conv > 0) {
+      const totalUom = bulk / prodConv.conv;
+      const usedUom = usedBase / prodConv.conv;
+      const leftUom = bulkLeft / prodConv.conv;
+      const coverage = totalUom > 0 ? usedUom / totalUom : 0;
+
+      wDerive([
+        "",
+        `conversion_to_base = ${nfmt6(prodConv.conv)} (base per 1 ${prodConv.uom === "kg" ? "unit" : "mL"})`,
+        `total_${prodConv.uom || "uom"} = bulk_base ÷ conv = ${nfmt6(bulk)} ÷ ${nfmt6(
+          prodConv.conv,
+        )} = ${nfmt6(totalUom)}`,
+        `used_${prodConv.uom || "uom"}  = used_base ÷ conv = ${nfmt6(usedBase)} ÷ ${nfmt6(
+          prodConv.conv,
+        )} = ${nfmt6(usedUom)}`,
+        `left_${prodConv.uom || "uom"}  = leftover_base ÷ conv = ${nfmt6(bulkLeft)} ÷ ${nfmt6(
+          prodConv.conv,
+        )} = ${nfmt6(leftUom)}  (unpackable residue)`,
+        `coverage = used_uom ÷ total_uom = ${nfmt6(usedUom)} ÷ ${nfmt6(totalUom)} = ${pct(
+          coverage,
+        )}`,
+      ]);
+    } else {
+      wNote("Note: could not load product conversion_to_base for UOM audit.");
+    }
 
     // Global MOS check (base units) — should be close to Target MOS
     try {
