@@ -8,6 +8,7 @@
   --text-color: #333;
   --bg-color: #f7f9fb;
   --panel-bg: #fff;
+  --muted: #6b7280;
   /* table divider color (theme-adaptive) */
   --table-divider: rgba(15, 23, 42, 0.06);
   /* subtle header elevation color (used as a faint shadow) */
@@ -30,6 +31,8 @@
   --bg-color: #1e1e1e;
   --text-color: #e0e0e0;
   --panel-bg: #2a2a2a;
+
+  --muted: #9ca3af;
 
   --btn-bg: #3a3a3a;
   --btn-hover-bg: #555;
@@ -120,7 +123,6 @@ h1 {
 }
 #userBar a {
   color: var(--primary);
-  color: #222; /* Ensure dark text for contrast */
   text-decoration: underline;
 }
 #userBar a:hover {
@@ -443,45 +445,9 @@ select.filter-input {
   color: #523021;
 }
 
-/* Snapshot indicator in header (moved from shared-ui.css) */
-.sc-snapshot {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: #fff;
-  border: 1px solid #e6eef8;
-  cursor: pointer;
-  position: relative;
-  font-weight: 600;
-  color: #0f172a;
-}
-.sc-snapshot:focus {
-  outline: 2px solid rgba(37, 99, 235, 0.16);
-  outline-offset: 2px;
-}
-.sc-snapshot-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #9ca3af; /* default grey */
-  flex: 0 0 10px;
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06) inset;
-}
-.sc-snapshot.snapshot-fresh .sc-snapshot-dot {
-  background: #16a34a;
-} /* green */
-.sc-snapshot.snapshot-warning .sc-snapshot-dot {
-  background: #f59e0b;
-} /* amber */
-.sc-snapshot.snapshot-stale .sc-snapshot-dot {
-  background: #ef4444;
-} /* red */
-.sc-snapshot-label {
-  font-size: 0.85rem;
-  color: #374151;
-}
+/* NOTE: simplified/duplicate snapshot block above removed. The
+   Professional ERP-style status display block later in the file
+   is kept as the canonical definition. */
 
 /* Professional ERP-style status display */
 .sc-snapshot {
@@ -764,15 +730,19 @@ select.filter-input:focus {
   padding: 4px 6px;
   box-sizing: border-box;
 }
-/* --- Opt out of UA auto-darkening (iOS/Android) --- */
+/* --- Theme-aware color-scheme handling --- */
 :root {
   color-scheme: light;
 }
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+/* Let form controls inherit the active scheme so they follow theme */
 input,
 select,
 textarea,
 button {
-  color-scheme: light;
+  color-scheme: inherit;
 }
 
 /* Utility: reserved for narrow/fixed-width appearance. Default to page font to avoid unexpected differences.
@@ -786,17 +756,25 @@ button {
   font-family:
     ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 }
-/* Force light form controls without changing your design tokens */
-:root,
-html,
-body {
-  color-scheme: light;
-}
-input,
-select,
-textarea,
-button {
-  color-scheme: light;
+/* color-scheme handled above; duplicate rules removed. */
+
+@media (max-width: 640px) {
+  body {
+    padding: 12px;
+  }
+  /* Ensure table wrappers allow horizontal scroll on small screens */
+  .table-scroll-wrap {
+    overflow-x: auto;
+  }
+  /* Allow wrapping for long text columns on mobile while keeping numeric
+     columns (not targeted here) nowrap. */
+  .table-scroll-wrap table th.col-item,
+  .table-scroll-wrap table td.col-item,
+  .table-scroll-wrap table th.col-note,
+  .table-scroll-wrap table td.col-note {
+    white-space: normal;
+    word-break: break-word;
+  }
 }
 
 /* Special styling for overall/total columns in tables */
@@ -1415,11 +1393,13 @@ button {
 }
 
 /* Ensure the outputs table scroll area has a reasonable max height */
+/* Consolidated .table-scroll-wrap: default constrained scrolling with
+   horizontal overflow allowed. Specific panels may override max-height
+   (e.g. #tab-outputs). */
 .table-scroll-wrap {
-  /* reuse the existing rule but let flex control height inside tab panels */
-  max-height: none;
+  max-height: min(75vh, 920px);
   overflow-y: auto;
-  overflow-x: auto;
+  overflow-x: auto; /* allow horizontal scroll if columns overflow */
   -webkit-overflow-scrolling: touch;
   border-top: 1px solid rgba(15, 23, 42, 0.04);
   border-bottom: 1px solid rgba(15, 23, 42, 0.04);

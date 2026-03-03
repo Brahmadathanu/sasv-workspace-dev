@@ -140,6 +140,142 @@ const metricsWrap = wrapTable(metricsTable); // SKU Metrics
 const emgWrap = wrapTable(emgTable); // Urgent Orders
 const planWrap = wrapTable(elTable); // Fill Plan
 
+// copy summary button and cached data
+let copyPlanBtn = null;
+let latestSummaryData = null;
+
+// Create an inline toggle button for the "Urgent Orders" drawer (keeps HTML unchanged)
+let emgToggleBtn = null;
+function updateEmgToggle() {
+  if (!emgToggleBtn || !emgWrap) return;
+  const visible =
+    getComputedStyle(emgWrap).display !== "none" &&
+    emgWrap.offsetParent !== null;
+  // accessibility
+  emgToggleBtn.setAttribute("aria-pressed", visible ? "true" : "false");
+  emgToggleBtn.title = visible ? "Hide urgent orders" : "Show urgent orders";
+  emgToggleBtn.setAttribute(
+    "aria-label",
+    visible ? "Hide urgent orders" : "Show urgent orders",
+  );
+  // rotate the SVG to indicate open/closed
+  const svg = emgToggleBtn.querySelector("svg");
+  if (svg) svg.style.transform = visible ? "rotate(180deg)" : "rotate(0deg)";
+}
+
+if (emgTitle) {
+  emgToggleBtn = document.createElement("button");
+  emgToggleBtn.type = "button";
+  emgToggleBtn.id = "fp-emg-toggle";
+  emgToggleBtn.className = "fp-small-toggle";
+  // ERP-styled icon button (SVG only)
+  emgToggleBtn.style.marginLeft = "6px";
+  emgToggleBtn.style.width = "24px";
+  emgToggleBtn.style.height = "24px";
+  emgToggleBtn.style.border = "none";
+  emgToggleBtn.style.background = "rgba(0,0,0,0.04)"; // light button background
+  emgToggleBtn.style.display = "inline-flex";
+  emgToggleBtn.style.alignItems = "center";
+  emgToggleBtn.style.justifyContent = "center";
+  emgToggleBtn.style.cursor = "pointer";
+  emgToggleBtn.style.padding = "3px";
+  emgToggleBtn.style.borderRadius = "4px";
+  emgToggleBtn.style.verticalAlign = "middle";
+  emgToggleBtn.style.transition = "background .12s ease, transform .12s ease";
+  emgToggleBtn.innerHTML = `
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`;
+  emgToggleBtn.addEventListener("click", () => {
+    if (!emgWrap) return;
+    const currentlyVisible =
+      getComputedStyle(emgWrap).display !== "none" &&
+      emgWrap.offsetParent !== null;
+    emgWrap.style.display = currentlyVisible ? "none" : "";
+    updateEmgToggle();
+    fitVisibleWraps();
+  });
+  emgToggleBtn.addEventListener(
+    "mouseenter",
+    () => (emgToggleBtn.style.background = "rgba(0,0,0,0.06)"),
+  );
+  emgToggleBtn.addEventListener(
+    "mouseleave",
+    () => (emgToggleBtn.style.background = "rgba(0,0,0,0.04)"),
+  );
+  emgTitle.appendChild(emgToggleBtn);
+  updateEmgToggle();
+}
+
+// Create a small SVG-only copy button next to the Fill Plan title (hidden until a plan is generated)
+if (fpTitle) {
+  copyPlanBtn = document.createElement("button");
+  copyPlanBtn.type = "button";
+  copyPlanBtn.id = "fp-copy-summary";
+  copyPlanBtn.className = "fp-small-toggle";
+  copyPlanBtn.style.marginLeft = "4px";
+  copyPlanBtn.style.width = "20px";
+  copyPlanBtn.style.height = "20px";
+  copyPlanBtn.style.border = "none";
+  copyPlanBtn.style.background = "#e6f8e6"; /* light green */
+  copyPlanBtn.style.display = "none"; // hidden until plan available
+  copyPlanBtn.style.alignItems = "center";
+  copyPlanBtn.style.justifyContent = "center";
+  copyPlanBtn.style.cursor = "pointer";
+  copyPlanBtn.style.padding = "2px";
+  copyPlanBtn.style.borderRadius = "4px";
+  copyPlanBtn.style.verticalAlign = "middle";
+  copyPlanBtn.style.transition = "background .12s ease";
+  copyPlanBtn.innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+    </svg>`;
+  copyPlanBtn.addEventListener(
+    "mouseenter",
+    () => (copyPlanBtn.style.background = "#d0f0d0"),
+  );
+  copyPlanBtn.addEventListener(
+    "mouseleave",
+    () => (copyPlanBtn.style.background = "#e6f8e6"),
+  );
+  // tooltip + accessibility label for hover/assistive tech
+  copyPlanBtn.title = "Copy plan summary to clipboard";
+  copyPlanBtn.setAttribute("aria-label", "Copy plan summary to clipboard");
+  copyPlanBtn.addEventListener("click", async () => {
+    if (!latestSummaryData) {
+      wNote("No plan to copy. Run Calculate first.");
+      return;
+    }
+    const s = latestSummaryData;
+    const lines = [];
+    lines.push(`Date: ${s.date}`);
+    lines.push(`Product: ${s.product}`);
+    lines.push(`Bulk: ${s.bulk} ${s.uom || "(base)"}`);
+    lines.push("");
+    if (s.urgents && s.urgents.length) {
+      lines.push("URGENT ORDERS");
+      s.urgents.forEach((u) => lines.push(`${u.label} x ${u.qty} Nos`));
+      lines.push("");
+    }
+    lines.push("FILL PLAN FOR REMAINING BULK");
+    Object.entries(s.fillPlan || {}).forEach(([region, items]) => {
+      lines.push(`Region ${region}:`);
+      items.forEach((it) => lines.push(`${it.label} x ${it.qty} Nos`));
+      lines.push("");
+    });
+
+    const text = lines.join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      wNote("✓ Summary copied to clipboard.");
+    } catch {
+      wNote("✗ Copy failed.");
+    }
+  });
+  fpTitle.appendChild(copyPlanBtn);
+}
+
 let allProducts = [];
 let productMap = {}; // id -> { name, uom }
 let productByName = {}; // lowercase name -> { id, uom }
@@ -153,6 +289,15 @@ elProdInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     e.preventDefault();
     resolveAndGo();
+  }
+});
+
+// Allow Enter in the Bulk input to trigger Calculate (desktop & mobile keyboards)
+elBulk?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    // emulate click on the Calculate button if enabled
+    if (elRunBtn && !elRunBtn.disabled) elRunBtn.click();
   }
 });
 
@@ -303,6 +448,12 @@ async function onProductSelect() {
       metricsWrap.style.display =
       planWrap.style.display =
         "none";
+    // keep toggle label in sync
+    try {
+      updateEmgToggle();
+    } catch {
+      void 0;
+    }
     return;
   }
   elUom.textContent = rec.uom;
@@ -339,7 +490,13 @@ async function loadForProduct(productId) {
 
   emgTitle.style.display = "";
   emgTable.style.display = "";
-  emgWrap.style.display = ""; // show wrapper
+  // keep urgent-orders drawer closed by default; user may open via the Show button
+  emgWrap.style.display = "none";
+  try {
+    updateEmgToggle();
+  } catch {
+    void 0;
+  }
   runWrap.style.display = "";
   fitVisibleWraps();
 
@@ -437,7 +594,7 @@ async function loadMetrics(skus, productId) {
   const stockKKD = {}; // KKD
   const stockOK = {}; // HO_OK
 
-  // region-level forecast (IK/OK) via region rows (godown_code IS NULL)
+  // region-level effective demand (IK/OK) via region rows (godown_code IS NULL)
   const fsumRegion = {};
   const fcountRegion = {};
 
@@ -459,7 +616,7 @@ async function loadMetrics(skus, productId) {
       stockOK[sku] = (stockOK[sku] || 0) + (+r.stock_units || 0);
     }
 
-    // ── FORECAST
+    // ── EFFECTIVE DEMAND
     // Region roll-up rows: godown_code IS NULL → use for IK / OK
     if (!god) {
       const key = `${sku}_${reg}`;
@@ -469,7 +626,7 @@ async function loadMetrics(skus, productId) {
       }
     }
 
-    // Depot KKD row: godown_code='KKD' → use for "Forecast KKD" column
+    // Depot KKD row: godown_code='KKD' → use for "Effective demand KKD" column
     if (god === "KKD" && r.forecast_units_pm != null) {
       fsumKKD[sku] = (fsumKKD[sku] || 0) + +r.forecast_units_pm;
       fcountKKD[sku] = (fcountKKD[sku] || 0) + 1;
@@ -519,6 +676,9 @@ async function loadMetrics(skus, productId) {
 
   /* ── Log a compact, human-readable metrics snapshot ── */
   wH("SKU Metrics (inputs used)");
+  wNote(
+    "Note: KKD column is derived from v_fill_inputs for UI only; it is not part of the planner RPC output.",
+  );
   skus.forEach((s) => {
     const id = s.id;
     const label = `${s.pack_size} ${s.uom}`;
@@ -637,7 +797,8 @@ elRunBtn.addEventListener("click", async () => {
     return;
   }
 
-  let bulk = +elBulk.value;
+  const bulkInput = +elBulk.value;
+  let bulk = bulkInput;
   const over = $("fp-overshoot").checked;
 
   wH("Planning Inputs");
@@ -721,13 +882,20 @@ elRunBtn.addEventListener("click", async () => {
       `                p_bulk_base_qty = ${nfmt(bulk)},`,
       `                p_allow_overshoot = ${over ? "TRUE" : "FALSE"} )`,
     ]);
-    const { data: plan, error } = await supabase.rpc("calc_fill_plan", {
-      p_product_id: +prodId,
-      p_bulk_base_qty: +bulk,
-      p_allow_overshoot: !!over,
-      p_debug: false, // disable diagnostics for cleaner output
-    });
-    if (error) throw error;
+    const { data: planRows, error: rpcError } = await supabase.rpc(
+      "calc_fill_plan",
+      {
+        p_product_id: +prodId,
+        p_bulk_base_qty: +bulk,
+        p_allow_overshoot: !!over,
+        p_debug: false, // disable diagnostics for cleaner output
+      },
+    );
+    if (rpcError) {
+      console.error("RPC calc_fill_plan failed:", rpcError);
+      throw new Error(rpcError.message || "RPC calc_fill_plan failed");
+    }
+    const plan = planRows || [];
     if (!plan?.length) {
       wH("No Allocation");
       elMsg.textContent =
@@ -747,12 +915,18 @@ elRunBtn.addEventListener("click", async () => {
       "",
       "Phase A — Target MOS equalisation:",
       "  Greedy adds packs to bring regions/SKUs toward a common Target MOS.",
-      "  Preference lane rule: for each SKU, the higher-forecast region is preferred until it is not behind.",
+      "  Preference lane rule: for each SKU, the higher-effective-demand region is preferred until it is not behind.",
       "",
       "Phase B — Drain remaining bulk (ERP finish):",
-      "  Drain is allocated proportionally by REGION forecast weight.",
+      "  Drain is allocated proportionally by REGION effective-demand weight.",
       "  When remaining bulk becomes small, the server switches to smallest-pack-first",
       "  to minimize unpackable residue.",
+      "",
+      "Demand basis: the server uses effective demand (`fu_eff` / `fu_units_pm`) not raw forecast.",
+      "  fu_eff = max(spike-guarded forecast, avg12 × sales_k).",
+      "  Spike-guard prevents one-off spikes from inflating demand for a run; avg12 blending smooths extremes.",
+      "  Rare/low-throughput SKUs and very large packs may be capped or deprioritised (Policy B).",
+      "  Large packs may overshoot MOS at the SKU level because packs are discrete; the global plan still targets overall MOS.",
       "",
       "Stop condition:",
       "  Stops when remaining bulk is smaller than the smallest pack (cannot fit another whole pack).",
@@ -761,24 +935,39 @@ elRunBtn.addEventListener("click", async () => {
       "  leftover = unpackable residue due to integer pack constraints (expected, not an error).",
     ]);
 
-    /* 2) meta / price for SKUs present in the plan */
+    /* 2) Debug diagnostics (use as truth for MOS math in workings)
+       Fetch diagnostics first so we compute MOS from server-provided
+       effective demand (`fu_units_pm`) and stock used (`su_units`). */
     const skuIds = [...new Set(plan.map((r) => r.sku_id))];
-    const skuMap = await fetchSkuInfo(skuIds);
 
-    // Optional: fetch debug diagnostics from server for the workings drawer
     let planDbg = null;
-    try {
-      const dbgRes = await supabase.rpc("calc_fill_plan", {
+    const { data: dbgRows, error: dbgErr } = await supabase.rpc(
+      "calc_fill_plan",
+      {
         p_product_id: +prodId,
         p_bulk_base_qty: +bulk,
         p_allow_overshoot: !!over,
         p_debug: true,
-      });
-      planDbg = dbgRes.data || null;
-    } catch {
-      // non-fatal — we only attempted to fetch diagnostics
+      },
+    );
+    if (dbgErr) {
+      // non-fatal — surface diagnostics failure in console and continue without debug
+      console.warn("RPC calc_fill_plan (debug) failed:", dbgErr);
       planDbg = null;
+    } else {
+      planDbg = dbgRows || null;
     }
+
+    // Build a quick lookup from debug rows keyed by region__sku
+    const keyRS = (region, skuId) => `${region}__${skuId}`;
+    const dbgByKey = {};
+    (planDbg || []).forEach((r) => {
+      dbgByKey[keyRS(r.region_code, r.sku_id)] = r;
+    });
+
+    // Optional: fetch SKU meta for labels and the UI table only (not used for MOS math)
+    const skuMap = await fetchSkuInfo(skuIds);
+
     // If debug diagnostics are available, surface a concise server-side score log
     if (planDbg && planDbg.length) {
       wH("Server Debug (final scores)");
@@ -787,84 +976,218 @@ elRunBtn.addEventListener("click", async () => {
         const lbl = skuMap[r.sku_id]?.label || r.sku_id;
         const b = Number(r.benefit_per_base);
         const flag =
-          b <= -1e8 ? "BLOCKED/NO-FIT" : b === 0 ? "NO-GAP" : "ELIGIBLE";
+          b <= -1e8
+            ? "FINAL-SNAPSHOT (bulk < smallest pack)"
+            : b === 0
+              ? "NO-GAP"
+              : "ELIGIBLE";
         wDerive([`${r.region_code}  ${lbl}: score = ${nfmt(b)}  → ${flag}`]);
       });
+      wNote(
+        "Note: Final scores shown here are a post-run snapshot. When remaining bulk is smaller than the smallest pack, the scoring rule sets large negative values (≈ -1e9) — this indicates the run ended, not a per-row eligibility ban.",
+      );
+      wH("Why a large pack may receive multiple packs");
+      wDerive([
+        "Server `fu_eff` calculation blends protections and long-term averages to avoid chasing spikes:",
+        "  fu_eff = max(spike-guarded forecast, avg12 × sales_k)",
+        "  Spike-guard reduces influence of one-off spikes; avg12 blending smooths demand over 12 months.",
+        "  The planner may also apply caps or deprioritisation for rare/low-throughput SKUs (Policy B).",
+        "  For very large packs, discrete pack sizes can cause per‑SKU MOS to jump — fills may overshoot MOS at SKU level because fractional packs are not allowed, while the global plan still targets overall MOS.",
+      ]);
     }
 
-    /* Pull cached metrics for this product */
-    const m = metricsCache[prodId] || {
-      stock: { IK: {}, KKD: {}, OK: {} },
-      stockIKplusKKD: {},
-      forecast: { IK: {}, OK: {} },
-      as_of_date: "",
-    };
+    // NOTE: metricsCache is available at `metricsCache[prodId]` for the UI,
+    // but MOS/demand math in the workings uses server debug rows (`planDbg`).
 
-    function stockFor(region, skuId) {
-      if (region === "IK") return m.stockIKplusKKD[skuId] || 0;
-      if (region === "OK") return m.stock.OK[skuId] || 0;
-      if (region === "KKD") return m.stock.KKD[skuId] || 0;
-      return 0;
+    /* Summarize plan and show MOS math per region & SKU
+       Map RPC rows to normalized objects and compute all aggregates from the RPC rows. */
+    wH("Calculation Workings");
+
+    // Prefer debug rows (contain fu_units_pm) as the authoritative source
+    const sourceRows = planDbg && planDbg.length ? planDbg : plan || [];
+    // Normalize rows (use server values as authoritative)
+    const rows = sourceRows.map((r) => ({
+      skuId: r.sku_id,
+      region: r.region_code,
+      fillUnits: Number(r.units_to_fill || 0),
+      usedBase: Number(r.used_base_qty || 0),
+      targetMos: Number(r.mos || 0),
+      achievedMos: Number((r.curr_mos ?? r.mos) || 0),
+      gapMos: Number(r.gap_mos || 0),
+      demandUnitsPm: Number(r.fu_units_pm || 0), // effective demand (fu_eff)
+      stockUnits: Number(r.su_units || 0),
+      umBase: Number(r.um_base || 0),
+    }));
+
+    // helpers for display formatting
+    const fmt = (v, d = 3) =>
+      Number.isFinite(Number(v)) ? Number(Number(v)).toFixed(d) : "—";
+    const fmt5 = (v) => fmt(v, 5);
+    const fmt3 = (v) => fmt(v, 3);
+    // (fmt1 removed — not needed)
+
+    // Planning Inputs
+    wH("Planning Inputs");
+    wEq("Bulk (base units)", "", nfmt6(bulk));
+    wEq("Allow overshoot", "", over ? "Yes" : "No");
+    wEq("Product ID", "", prodId);
+
+    // Demand definition
+    wH("Demand definition");
+    wDerive([
+      "Note: `demand_units_pm` is effective demand (fu_eff), not raw forecast.",
+      "  fu_eff is derived by spike-guard + long-term blending: fu_eff = max(spike-guarded forecast, avg12 × sales_k)",
+      "  All MOS calculations below use demand_units_pm (fu_eff) provided by the server.",
+    ]);
+
+    // Global aggregates — compute from debug rows when available (they include fu_units_pm & um_base)
+    const dbgSource = planDbg && planDbg.length ? planDbg : plan || [];
+    if (!(planDbg && planDbg.length)) {
+      wNote("Debug rows missing; aggregates may be incomplete.");
     }
-    function forecastFor(region, skuId) {
-      if (region === "IK") return m.forecast.IK[skuId] || 0;
-      if (region === "OK") return m.forecast.OK[skuId] || 0;
-      return 0;
-    }
-    const safeDiv = (a, b) => (b ? a / b : 0);
+    const totalStockBase = dbgSource.reduce(
+      (s, r) => s + Number(r.su_units || 0) * Number(r.um_base || 0),
+      0,
+    );
+    const totalDemandBase = dbgSource.reduce(
+      (s, r) => s + Number(r.fu_units_pm || 0) * Number(r.um_base || 0),
+      0,
+    );
+    const usedBaseTotal = dbgSource.reduce(
+      (s, r) => s + Number(r.used_base_qty ?? r.usedBase ?? 0),
+      0,
+    );
+    const leftoverBase = bulk - usedBaseTotal;
 
-    /* Summarize plan and show MOS math per region & SKU */
-    wH("Allocation Result (per region & SKU)");
-    const perRegion = {};
-    let totalPacks = 0;
-    plan.forEach((r) => {
-      const label = skuMap[r.sku_id]?.label || r.sku_id;
-      (perRegion[r.region_code] ||= []).push({
-        skuId: r.sku_id,
-        label,
-        units: r.units_to_fill,
-        mos_after: r.mos, // server's mos (target) is the same for all rows
-      });
-      totalPacks += r.units_to_fill || 0;
-    });
+    const target_mos_exact = totalDemandBase
+      ? (Number(bulk) + totalStockBase) / totalDemandBase
+      : 0;
+    const achieved_mos_exact = totalDemandBase
+      ? (usedBaseTotal + totalStockBase) / totalDemandBase
+      : 0;
+    const targetMosServer = rows.length ? rows[0].targetMos : mosTarget;
 
-    /* base_per_pack per SKU for bulk audit */
-    const basePerPack = {};
-    skuIds.forEach((id) => {
-      const s = skuMap[id];
-      basePerPack[id] = s ? s.packSize * (s.convBase || 1) : 0;
-    });
+    wH("Global Target MOS (server)");
+    wDerive([
+      `total_stock_base = Σ(su_units × um_base) = ${nfmt6(totalStockBase)}`,
+      `total_demand_base = Σ(fu_units_pm × um_base) = ${nfmt6(totalDemandBase)}`,
+      `target_mos_exact = (bulk_input_base + Σ(stock_base)) ÷ Σ(fu_eff×um) = (${nfmt6(bulk)} + ${nfmt6(
+        totalStockBase,
+      )}) ÷ ${nfmt6(totalDemandBase)} = ${nfmt6(target_mos_exact)}`,
+    ]);
 
-    /* Print equations for each region/SKU (using dynamic mosTarget) */
-    Object.entries(perRegion).forEach(([region, rows]) => {
+    // Per-row breakdown grouped by region
+    wH("Per-row breakdown");
+    const rowsByRegion = {};
+    rows.forEach((r) =>
+      (rowsByRegion[r.region] = rowsByRegion[r.region] || []).push(r),
+    );
+    Object.entries(rowsByRegion).forEach(([region, rr]) => {
       wNote(`Region ${region}`);
-      rows.forEach((x) => {
-        const f = forecastFor(region, x.skuId);
-        const st = stockFor(region, x.skuId);
-        const mosBefore = safeDiv(st, f);
-        // x.units is packs — convert packs → base units using basePerPack
-        const fillPacks = x.units || 0;
-        const basePerPackSku = basePerPack[x.skuId] || 0;
-        const fillBase = fillPacks * basePerPackSku;
-        const mosAfterCalc = f ? safeDiv(st + fillBase, f) : 0;
+      rr.forEach((r) => {
+        const mosBefore = r.demandUnitsPm ? r.stockUnits / r.demandUnitsPm : 0;
+        const mosAfter = r.demandUnitsPm
+          ? (r.stockUnits + r.fillUnits) / r.demandUnitsPm
+          : 0;
+        const usedBaseCheck = r.fillUnits * r.umBase;
+        const baseStock = r.stockUnits * r.umBase;
+        const baseDemand = r.demandUnitsPm * r.umBase;
 
         wDerive([
-          `MOS_before(${x.label}) = stock ÷ forecast = ${nfmt(st)} ÷ ${nfmt(
-            f,
-          )} = ${nfmt(mosBefore)}`,
-          `fill_base = ${nfmt(fillPacks)} packs × ${nfmt(basePerPackSku)} base/pack = ${nfmt(
-            fillBase,
-          )} base  → Target MOS = ${nfmt(x.mos_after)}`,
-          `MOS_after = (stock_base + fill_base) ÷ forecast_units_pm = (${nfmt(
-            st,
-          )} + ${nfmt(fillBase)}) ÷ ${nfmt(f)} = ${nfmt(mosAfterCalc)}`,
+          `SKU ${r.skuId}: um_base = ${fmt5(r.umBase)}`,
+          `  stock_units = ${fmt3(r.stockUnits)}`,
+          `  demand_units_pm (effective) = ${fmt3(r.demandUnitsPm)}`,
+          `  base_stock = stock_units × um_base = ${fmt3(baseStock)}`,
+          `  base_demand = demand_units_pm × um_base = ${fmt3(baseDemand)}`,
+          `  mos_before = stock ÷ demand = ${fmt3(mosBefore)}`,
+          `  fill_units = ${fmt3(r.fillUnits)}`,
+          `  used_base (server) = ${fmt3(r.usedBase)}  (calc = ${fmt3(usedBaseCheck)})`,
+          `  mos_after = (stock + fill) ÷ demand = ${fmt3(mosAfter)}  (server achieved = ${fmt3(
+            r.achievedMos,
+          )})`,
+          `  target_mos = ${fmt3(r.targetMos)}  gap_mos = ${fmt3(r.gapMos)}`,
         ]);
+
+        if (r.fillUnits === 0 && r.gapMos > 0) {
+          wNote(
+            `  ⚠ Not filled in this run (bulk exhausted before reaching it; caps/lane rules may also contribute); remaining gap = ${fmt3(
+              r.gapMos,
+            )}`,
+          );
+        }
       });
     });
-    wEq("Total packs to fill", "", totalPacks);
 
-    /* Bulk audit: trust server's used_base_qty (sum over rows) */
-    const usedBase = plan.reduce((sum, r) => sum + (+r.used_base_qty || 0), 0);
+    // Bulk consumption check
+    wH("Bulk consumption check");
+    wDerive([
+      `used_base_total = Σ(used_base) = ${fmt3(usedBaseTotal)}`,
+      `leftover_base = bulk_input_base − used_base_total = ${fmt3(bulk)} − ${fmt3(usedBaseTotal)} = ${fmt3(
+        leftoverBase,
+      )}`,
+    ]);
+    wNote(
+      "Leftover is expected due to discrete pack sizes; typically < smallest um_base.",
+    );
+
+    // Global MOS after plan — clarify target vs achieved
+    wH("Global MOS after plan");
+    wDerive([
+      "Target MOS (server) is computed using the full bulk_input_base:",
+      `  target_mos_exact = (bulk_input_base + Σ(stock_base)) ÷ Σ(fu_eff×um) = (${nfmt6(bulk)} + ${nfmt6(
+        totalStockBase,
+      )}) ÷ ${nfmt6(totalDemandBase)} = ${nfmt6(target_mos_exact)}`,
+      "Achieved MOS after the plan uses only the base actually consumed into whole packs (used_base_total):",
+      `  achieved_mos_exact = (Σ(stock_base) + used_base_total) ÷ Σ(fu_eff×um) = (${nfmt6(
+        totalStockBase,
+      )} + ${nfmt6(usedBaseTotal)}) ÷ ${nfmt6(totalDemandBase)} = ${nfmt6(achieved_mos_exact)}`,
+      `  leftover_base (unpackable residue) = ${nfmt6(leftoverBase)} — this is why achieved_mos_exact ≈ ${nfmt6(
+        achieved_mos_exact,
+      )} which is slightly below target ${nfmt6(target_mos_exact)}.`,
+      `  delta_mos = target_mos_exact − achieved_mos_exact = ${nfmt6(target_mos_exact - achieved_mos_exact)}`,
+    ]);
+
+    // Render a flat table with per-row details (Region × SKU rows)
+    const flatCols = [
+      { k: "region", label: "Region" },
+      { k: "skuId", label: "SKU" },
+      { k: "umBase", label: "Pack base" },
+      { k: "stockUnits", label: "Stock units" },
+      { k: "demandUnitsPm", label: "Effective demand (units/month)" },
+      { k: "fillUnits", label: "Fill units" },
+      { k: "usedBase", label: "Used base" },
+      { k: "mosBefore", label: "MOS before" },
+      { k: "mosAfter", label: "MOS after" },
+      { k: "gapMos", label: "Gap MOS" },
+    ];
+
+    elHead.innerHTML = flatCols.map((c) => `<th>${c.label}</th>`).join("");
+    elBody.innerHTML = rows
+      .map((r) => {
+        const mosBefore = r.demandUnitsPm ? r.stockUnits / r.demandUnitsPm : 0;
+        const mosAfter = r.demandUnitsPm
+          ? (r.stockUnits + r.fillUnits) / r.demandUnitsPm
+          : 0;
+        return `<tr>
+          <td>${escapeHtml(String(r.region || ""))}</td>
+          <td>${escapeHtml(String(r.skuId))}</td>
+          <td style="text-align:right">${fmt5(r.umBase)}</td>
+          <td style="text-align:right">${fmt3(r.stockUnits)}</td>
+          <td style="text-align:right">${fmt3(r.demandUnitsPm)}</td>
+          <td style="text-align:right">${fmt3(r.fillUnits)}</td>
+          <td style="text-align:right">${fmt3(r.usedBase)}</td>
+          <td style="text-align:right">${fmt3(mosBefore)}</td>
+          <td style="text-align:right">${fmt3(mosAfter)}</td>
+          <td style="text-align:right">${fmt3(r.gapMos)}</td>
+        </tr>`;
+      })
+      .join("");
+
+    // show global target briefly
+    wNote(`Server target MOS = ${fmt3(targetMosServer)}`);
+
+    /* Bulk audit: trust server's used_base_qty (sum over normalized rows) */
+    const usedBase = rows.reduce((sum, r) => sum + Number(r.usedBase || 0), 0);
     wEq(
       "Bulk used by plan (base units)",
       "",
@@ -879,7 +1202,7 @@ elRunBtn.addEventListener("click", async () => {
     // --- Coverage / residue audit (base + derived SKU-UOM) ------------------
     wH("Bulk Audit (coverage + residue)");
 
-    // product conversion_to_base: base per 1 mL (for oils) => mL = kg / conv
+    // product conversion_to_base: used for UOM audit if available
     let prodConv = null;
     try {
       prodConv = await fetchProductConv(+prodId);
@@ -903,14 +1226,14 @@ elRunBtn.addEventListener("click", async () => {
 
       wDerive([
         "",
-        `conversion_to_base = ${nfmt6(prodConv.conv)} (base per 1 ${prodConv.uom === "kg" ? "unit" : "mL"})`,
-        `total_${prodConv.uom || "uom"} = bulk_base ÷ conv = ${nfmt6(bulk)} ÷ ${nfmt6(
+        `conversion_to_base = ${nfmt6(prodConv.conv)} (base units per 1 ${prodConv.uom || "uom"} — from products.uom_base)`,
+        `total_${prodConv.uom || "uom"} = bulk_base ÷ conversion_to_base = ${nfmt6(bulk)} ÷ ${nfmt6(
           prodConv.conv,
         )} = ${nfmt6(totalUom)}`,
-        `used_${prodConv.uom || "uom"}  = used_base ÷ conv = ${nfmt6(usedBase)} ÷ ${nfmt6(
+        `used_${prodConv.uom || "uom"}  = used_base ÷ conversion_to_base = ${nfmt6(usedBase)} ÷ ${nfmt6(
           prodConv.conv,
         )} = ${nfmt6(usedUom)}`,
-        `left_${prodConv.uom || "uom"}  = leftover_base ÷ conv = ${nfmt6(bulkLeft)} ÷ ${nfmt6(
+        `left_${prodConv.uom || "uom"}  = leftover_base ÷ conversion_to_base = ${nfmt6(bulkLeft)} ÷ ${nfmt6(
           prodConv.conv,
         )} = ${nfmt6(leftUom)}  (unpackable residue)`,
         `coverage = used_uom ÷ total_uom = ${nfmt6(usedUom)} ÷ ${nfmt6(totalUom)} = ${pct(
@@ -921,49 +1244,40 @@ elRunBtn.addEventListener("click", async () => {
       wNote("Note: could not load product conversion_to_base for UOM audit.");
     }
 
-    // Global MOS check (base units) — should be close to Target MOS
+    // Global MOS check using server debug rows (fu_eff and um_base)
     try {
-      const allSkuIds = Array.from(
-        new Set([
-          ...Object.keys(m.forecast?.IK || {}),
-          ...Object.keys(m.forecast?.OK || {}),
-        ]),
-      )
-        .map((x) => +x)
-        .filter((x) => Number.isFinite(x));
-      const skuInfoAll = await fetchSkuInfo(allSkuIds);
-      const basePerPackAll = {};
-      allSkuIds.forEach((id) => {
-        const s = skuInfoAll[id];
-        basePerPackAll[id] = s ? s.packSize * (s.convBase || 1) : 0;
+      const dbgRows = planDbg && planDbg.length ? planDbg : plan || [];
+      let totalStockBase_dbg = 0;
+      let totalDemandBase_dbg = 0;
+      let totalFillBase_dbg = 0;
+      dbgRows.forEach((r) => {
+        const su = Number(r.su_units || 0);
+        const fuEff = Number(r.fu_units_pm || 0);
+        const um = Number(r.um_base || 0);
+        const fill = Number(r.units_to_fill || 0);
+        totalStockBase_dbg += su * um;
+        totalDemandBase_dbg += fuEff * um;
+        totalFillBase_dbg += fill * um;
       });
-      let totalStockBase = 0;
-      let totalForecastBase = 0;
-      const addTotals = (region) => {
-        allSkuIds.forEach((id) => {
-          const st = stockFor(region, id) || 0;
-          const f = forecastFor(region, id) || 0;
-          const bpp = basePerPackAll[id] || 0;
-          totalStockBase += st * bpp;
-          totalForecastBase += f * bpp;
-        });
-      };
-      addTotals("IK");
-      addTotals("OK");
-      const mosAfterGlobal = totalForecastBase
-        ? (totalStockBase + usedBase) / totalForecastBase
+      const target_mos_exact_dbg = totalDemandBase_dbg
+        ? (Number(bulk) + totalStockBase_dbg) / totalDemandBase_dbg
         : 0;
-      wH("Global MOS check");
+      const achieved_mos_exact_dbg = totalDemandBase_dbg
+        ? (totalStockBase_dbg + totalFillBase_dbg) / totalDemandBase_dbg
+        : 0;
+      const delta_mos_dbg = target_mos_exact_dbg - achieved_mos_exact_dbg;
+      wH("Global MOS check (debug rows)");
       wDerive([
-        `total_stock_base = Σ(stock × base_per_pack) = ${nfmt(totalStockBase)}`,
-        `total_forecast_base = Σ(forecast × base_per_pack) = ${nfmt(
-          totalForecastBase,
-        )}`,
-        `MOS_after(global) = (total_stock_base + used_base_qty) ÷ total_forecast_base = (${nfmt(
-          totalStockBase,
-        )} + ${nfmt(usedBase)}) ÷ ${nfmt(totalForecastBase)} = ${nfmt(
-          mosAfterGlobal,
-        )}  ≈ Target MOS ${nfmt(mosTarget)}`,
+        `total_stock_base = Σ(su_units × um_base) = ${nfmt6(totalStockBase_dbg)}`,
+        `total_demand_base = Σ(fu_eff × um_base) = ${nfmt6(totalDemandBase_dbg)}`,
+        `total_fill_base = Σ(units_to_fill × um_base) = ${nfmt6(totalFillBase_dbg)}`,
+        `target_mos_exact = (${nfmt6(bulk)} + ${nfmt6(totalStockBase_dbg)}) ÷ ${nfmt6(
+          totalDemandBase_dbg,
+        )} = ${nfmt6(target_mos_exact_dbg)}`,
+        `achieved_mos_exact = (${nfmt6(totalStockBase_dbg)} + ${nfmt6(totalFillBase_dbg)}) ÷ ${nfmt6(
+          totalDemandBase_dbg,
+        )} = ${nfmt6(achieved_mos_exact_dbg)}`,
+        `delta_mos = target_mos_exact − achieved_mos_exact = ${nfmt6(delta_mos_dbg)}`,
       ]);
     } catch {
       // Non-fatal if this approximation can't be computed
@@ -986,52 +1300,41 @@ elRunBtn.addEventListener("click", async () => {
       (byRegion[r.region_code] = byRegion[r.region_code] || {})[r.sku_id] = r;
     });
 
-    // Compute achieved MOS per region using ALL SKUs (prevents inflation when only some SKUs are in the plan)
-    // Achieved MOS(region) = (Σ_all stock×bpp + Σ_plan fill×bpp) ÷ Σ_all forecast×bpp
+    // Compute achieved MOS per region using server debug rows (fu_eff and um_base)
     const achievedByRegion = {};
-    // Build a quick lookup for plan fills by (region, sku)
+    // Build a quick lookup for plan fills by (region, sku) for table rendering
     const fillLookup = {};
     Object.entries(byRegion).forEach(([region, skuRows]) => {
       Object.entries(skuRows).forEach(([skuId, row]) => {
         fillLookup[`${region}_${+skuId}`] = row.units_to_fill || 0;
       });
     });
-    // Determine the full SKU universe we have metrics for (IK and OK)
-    const allSkuIds = Array.from(
-      new Set([
-        ...Object.keys(m.forecast?.IK || {}),
-        ...Object.keys(m.forecast?.OK || {}),
-      ]),
-    )
-      .map((x) => +x)
-      .filter((x) => Number.isFinite(x));
-    const skuInfoAll = await fetchSkuInfo(allSkuIds);
-    const basePerPackAll = {};
-    allSkuIds.forEach((id) => {
-      const s = skuInfoAll[id];
-      basePerPackAll[id] = s ? s.packSize * (s.convBase || 1) : 0;
-    });
-    ["IK", "OK"].forEach((region) => {
-      let sumStockBase = 0,
-        sumForecastBase = 0,
-        sumFillBase = 0;
-      allSkuIds.forEach((id) => {
-        const bpp = basePerPackAll[id] || 0;
-        const st = stockFor(region, id) || 0;
-        const f = forecastFor(region, id) || 0;
-        const fill = fillLookup[`${region}_${id}`] || 0;
-        sumStockBase += st * bpp;
-        sumForecastBase += f * bpp;
-        sumFillBase += fill * bpp;
+
+    const regionsFromDbg = Array.from(
+      new Set((planDbg || []).map((r) => r.region_code)),
+    );
+    regionsFromDbg.forEach((region) => {
+      let stockBase = 0,
+        demandBase = 0,
+        fillBase = 0;
+      (planDbg || []).forEach((r) => {
+        if (r.region_code !== region) return;
+        const su = Number(r.su_units || 0);
+        const fuEff = Number(r.fu_units_pm || 0);
+        const um = Number(r.um_base || 0);
+        const fill = Number(r.units_to_fill || 0);
+        stockBase += su * um;
+        demandBase += fuEff * um;
+        fillBase += fill * um;
       });
-      achievedByRegion[region] = sumForecastBase
-        ? (sumStockBase + sumFillBase) / sumForecastBase
+      achievedByRegion[region] = demandBase
+        ? (stockBase + fillBase) / demandBase
         : 0;
     });
 
     // Clarify table meaning for layman readers
     wNote(
-      "Table note: Target MOS is global from the server; Achieved MOS per region = (Σ_all stock×base_per_pack + Σ_plan fill×base_per_pack) ÷ Σ_all forecast×base_per_pack.",
+      "Table note: Target MOS is global from the server; Achieved MOS per region = (Σ su_units×um_base + Σ_plan units_to_fill×um_base) ÷ Σ fu_eff×um_base (from server debug rows).",
     );
 
     elBody.innerHTML = Object.entries(byRegion)
@@ -1051,6 +1354,44 @@ elRunBtn.addEventListener("click", async () => {
       .join("");
 
     elTable.style.display = "";
+
+    // Cache a simplified summary for the clipboard copy button
+    try {
+      const urgents = [];
+      const qtyInputs = document.querySelectorAll(".emg-qty");
+      for (const inp of qtyInputs) {
+        const q = +inp.value;
+        const skuId = +inp.dataset.skuId;
+        if (!q || !skuId) continue;
+        urgents.push({ label: skuMap[skuId]?.label || skuId, qty: q });
+      }
+
+      const fillPlan = {};
+      plan.forEach((r) => {
+        const region = r.region_code || "";
+        fillPlan[region] = fillPlan[region] || [];
+        fillPlan[region].push({
+          label: skuMap[r.sku_id]?.label || r.sku_id,
+          qty: r.units_to_fill || 0,
+        });
+      });
+
+      const prodName = productMap[prodId]?.name || "(unknown)";
+      const prodUom = productMap[prodId]?.uom || "(base)";
+      latestSummaryData = {
+        date: new Date().toLocaleString(),
+        product: prodName,
+        bulk: bulkInput,
+        uom: prodUom,
+        urgents,
+        fillPlan,
+      };
+      if (copyPlanBtn) copyPlanBtn.style.display = "";
+    } catch {
+      // non-fatal: ignore summary caching failures
+      latestSummaryData = null;
+      if (copyPlanBtn) copyPlanBtn.style.display = "none";
+    }
   } catch (err) {
     wH("Error");
     const msg = err?.message || err;

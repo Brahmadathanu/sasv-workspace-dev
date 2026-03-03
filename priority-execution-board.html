@@ -1,0 +1,252 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Priority Execution Board</title>
+    <link rel="stylesheet" href="public/shared/css/style.css" />
+    <style>
+      /* Module-specific layout using existing style patterns */
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        font-family:
+          system-ui,
+          Segoe UI,
+          Roboto,
+          Arial,
+          sans-serif;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        padding: 14px;
+      }
+      .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+      }
+      .page-header h1 {
+        margin: 0;
+        color: var(--primary);
+      }
+      .page-sub {
+        color: var(--muted, #6b7280);
+        font-size: 0.95rem;
+      }
+      .toolbar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-top: 8px;
+      }
+      .kpi-strip {
+        display: flex;
+        gap: 8px;
+        margin: 12px 0;
+        flex-wrap: wrap;
+      }
+      .kpi {
+        background: var(--panel-bg, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        padding: 8px 12px;
+        border-radius: 8px;
+        min-width: 120px;
+      }
+      .lens-pills {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .pill {
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--border, #e5e7eb);
+        background: var(--panel-bg);
+        cursor: pointer;
+      }
+      .pill.active {
+        background: var(--primary);
+        color: #fff;
+        border-color: var(--primary);
+      }
+      .main {
+        display: flex;
+        flex: 1 1 auto;
+        gap: 12px;
+        min-height: 0;
+      }
+      .table-card {
+        flex: 1 1 0;
+        overflow: auto;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        padding: 8px;
+        background: var(--panel-bg);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      thead th {
+        position: sticky;
+        top: 0;
+        background: var(--table-header, #fafafa);
+        z-index: 3;
+        padding: 8px;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+      }
+      tbody td {
+        padding: 8px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+      }
+      tr.clickable {
+        cursor: pointer;
+      }
+      /* Right-side details drawer */
+      .drawer {
+        width: 360px;
+        flex: 0 0 360px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        padding: 12px;
+        background: var(--panel-bg);
+        overflow: auto;
+      }
+      .drawer.hidden {
+        display: none;
+      }
+      .drawer .tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .drawer .tab {
+        padding: 6px 10px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        cursor: pointer;
+      }
+      .drawer .tab.active {
+        background: var(--primary);
+        color: #fff;
+        border-color: var(--primary);
+      }
+      /* Mobile: drawer becomes slide-over */
+      @media (max-width: 800px) {
+        body {
+          padding: 8px;
+        }
+        .main {
+          flex-direction: column;
+        }
+        .drawer {
+          position: fixed;
+          right: 0;
+          top: 0;
+          bottom: 0;
+          width: 100%;
+          max-width: 480px;
+          transform: translateX(100%);
+          transition: transform 0.22s ease;
+          z-index: 60;
+        }
+        .drawer.open {
+          transform: translateX(0);
+        }
+      }
+      .status {
+        padding: 12px;
+        color: var(--muted);
+      }
+      .controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .search {
+        padding: 8px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-header">
+      <div>
+        <h1>Priority Execution Board</h1>
+        <div class="page-sub" id="subtitle">
+          Production priority candidates — current month
+        </div>
+        <div class="toolbar">
+          <div class="controls">
+            <button id="refreshBtn" class="pill">Refresh</button>
+            <input
+              id="searchBox"
+              class="search"
+              placeholder="Search product / batch"
+            />
+          </div>
+        </div>
+      </div>
+      <div style="text-align: right">
+        <div id="rowCount">Rows: —</div>
+        <div id="lastRefreshed" class="page-sub">Last refreshed: —</div>
+      </div>
+    </div>
+
+    <div class="kpi-strip" id="kpiStrip">
+      <!-- KPIs injected here -->
+    </div>
+
+    <div class="lens-pills" id="lensPills">
+      <!-- Lens pills injected here -->
+    </div>
+
+    <div class="main">
+      <div class="table-card">
+        <div id="statusArea" class="status">Loading…</div>
+        <div id="tableWrap" style="display: none">
+          <table id="mainTable">
+            <thead>
+              <tr>
+                <th style="width: 80px">Rank</th>
+                <th>Batch</th>
+                <th>Product</th>
+                <th>State</th>
+                <th>PM</th>
+                <th>RM</th>
+                <th>Planned</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <aside class="drawer hidden" id="detailsDrawer" aria-hidden="true">
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          "
+        >
+          <strong id="drawerTitle">Details</strong>
+          <button id="drawerClose" class="pill">Close</button>
+        </div>
+        <div class="tabs" id="drawerTabs">
+          <div class="tab active" data-tab="why">Why it matters</div>
+          <div class="tab" data-tab="pm">PM blockers</div>
+          <div class="tab" data-tab="rm">RM blockers</div>
+        </div>
+        <div id="drawerContent">Select a row to view details.</div>
+      </aside>
+    </div>
+
+    <script type="module" src="js/priority-execution-board.js"></script>
+  </body>
+</html>

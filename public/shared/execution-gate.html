@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Execution Gate (Unblock Priority)</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <style>
+      /* small local tweaks to ensure table is responsive */
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+      .toolbar .right {
+        margin-left: auto;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .table-wrap {
+        overflow: auto;
+        max-height: 60vh;
+      }
+      .kpi-strip {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin: 8px 0;
+      }
+      .drawer {
+        position: fixed;
+        right: 0;
+        top: 0;
+        height: 100%;
+        width: 420px;
+        max-width: 100%;
+        background: #fff;
+        box-shadow: -6px 0 24px rgba(0, 0, 0, 0.08);
+        transform: translateX(100%);
+        transition: transform 0.2s;
+        z-index: 50;
+      }
+      .drawer.open {
+        transform: translateX(0);
+      }
+      @media (max-width: 640px) {
+        .drawer {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header>
+        <h1>Execution Gate (Unblock Priority)</h1>
+        <p class="muted">
+          RM/PM actions to unblock priority batches — Current month
+        </p>
+        <div
+          style="display: flex; gap: 12px; align-items: center; margin-top: 8px"
+        >
+          <div id="rowCount">Rows: -</div>
+          <div id="lastRefreshed">Last refreshed: -</div>
+        </div>
+      </header>
+
+      <section class="toolbar">
+        <input id="monthSelect" type="month" />
+        <input id="searchBox" placeholder="Search item name or id" />
+        <select id="sortSelect"></select>
+        <button id="refreshBtn">Refresh</button>
+        <button id="exportBtn">Export CSV (page)</button>
+        <label style="margin-left: 8px"
+          ><input id="showCount" type="checkbox" /> Show total count</label
+        >
+        <div class="right">
+          <label
+            >Page size:
+            <select id="pageSizeSelect">
+              <option>50</option>
+              <option>100</option>
+              <option>200</option>
+            </select></label
+          >
+          <button id="prevBtn">Prev</button>
+          <button id="nextBtn">Next</button>
+          <span id="pageInfo">Page 1</span>
+        </div>
+      </section>
+
+      <nav style="margin-top: 12px">
+        <button class="tabbtn active" data-tab="pm">PM Issue Priority</button>
+        <button class="tabbtn" data-tab="rm">RM Issue Priority</button>
+        <button class="tabbtn" data-tab="unassigned">
+          RM Unassigned Issues
+        </button>
+      </nav>
+
+      <section class="kpi-strip" id="kpiStrip"></section>
+
+      <div class="table-wrap" id="tableWrap">
+        <table id="mainTable" class="striped">
+          <thead id="tableHead"></thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+
+      <div id="statusArea" style="display: none; margin-top: 12px"></div>
+
+      <div id="detailsDrawer" class="drawer" aria-hidden="true">
+        <div
+          style="
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          "
+        >
+          <div id="drawerTitle">Details</div>
+          <button id="drawerClose">Close</button>
+        </div>
+        <div id="drawerContent" style="padding: 12px"></div>
+      </div>
+    </main>
+
+    <script type="module" src="js/execution-gate.js"></script>
+  </body>
+</html>
