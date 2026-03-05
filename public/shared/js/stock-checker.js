@@ -12,106 +12,29 @@ const PDF_UMD_PATHS = {
   autoTable: "/libs/jspdf.plugin.autotable.min.js",
 };
 
-// last query total rows (set in runQuery)
-// lastQueryTotal removed; totals now provided by RPC via __lastTotals
+/* global PDF_ESM_PATHS, __sc_isDragging: true, __sc_ignoreNextClick: true, __sc_mouseDown: true,
+   elTotalValue: true, elToggleValue: true, elValueModal: true, elValueModalClose: true, elValueBody: true,
+   elValueSnapshot: true, elRowModal: true, elRowModalClose: true, __sc_toastTimeout: true, __pdfExporting: true,
+   openRowModal: true */
 
-// DOM refs for new UI pieces (filled in init)
-let elTotalValue, elToggleValue;
-let elValueModal, elValueModalClose, elValueBody, elValueSnapshot;
-let elRowModal,
-  elRowModalClose,
-  elRowHeader,
-  elRowClassif,
-  elRowQty,
-  elRowValue,
-  elRowFooter;
-// guard for double-open on touch (was __lastOpenTs, removed — unused)
-let __sc_isDragging = false; // set while the user is dragging the table to avoid accidental opens
-let __sc_mouseDown = false;
-/* tap-tracking removed: use explicit Details button instead */
-let __sc_toastTimeout = null;
-let __sc_ignoreNextClick = false;
-const PDF_ESM_PATHS = {
-  jsPDF: "/libs/jspdf.es.min.js",
-  autoTable: "/libs/jspdf-autotable.es.js",
-};
-let __pdfExporting = false; // reentrancy guard for exportCoveragePDF
+/* exported elRowHeader, elRowClassif, elRowQty, elRowValue, elRowFooter, elRowModal, elRowModalClose */
+/* exported elTotalValue, elToggleValue, elValueModal, elValueModalClose, elValueBody, elValueSnapshot */
 
-function openRowModal(r) {
-  if (!elRowModal) return;
-  try {
-    __lastFocusBeforeRowModal =
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null;
-    elRowHeader.innerHTML = `<strong>${escapeHtml(r.item || "")}</strong> &nbsp; ${escapeHtml(
-      String(r.pack_size ?? ""),
-    )} ${escapeHtml(r.uom || "")}`;
-    const parts = [
-      r.category_name,
-      r.sub_category_name,
-      r.product_group_name,
-      r.sub_group_name,
-    ].filter(Boolean);
-    elRowClassif.textContent = parts.join(" → ");
+let elRowHeader, elRowClassif, elRowQty, elRowValue, elRowFooter;
+/* eslint no-unused-vars: ["error", { "varsIgnorePattern": "^(elRowHeader|elRowClassif|elRowQty|elRowValue|elRowFooter|elTotalValue|elToggleValue|elValueModal|elValueModalClose|elValueBody|elValueSnapshot)$" }] */
+// Module-scope runtime flags used across event handlers. Declared here to
+// avoid ReferenceErrors when listeners run before other initialization.
+// Ensure these runtime flags exist on `window` so other modules / listeners
+// referencing them don't throw ReferenceError. Use `??` to avoid clobbering
+// any prior value set by other scripts.
+window.__sc_mouseDown = window.__sc_mouseDown ?? false;
+window.__sc_isDragging = window.__sc_isDragging ?? false;
+window.__sc_ignoreNextClick = window.__sc_ignoreNextClick ?? false;
+window.__sc_toastTimeout = window.__sc_toastTimeout ?? null;
+window.__pdfExporting = window.__pdfExporting ?? false;
 
-    const stIK = Number(r.stock_ik) || 0;
-    const stKKD = Number(r.stock_kkd) || 0;
-    const stOK = Number(r.stock_ok) || 0;
-    const stockOverall = stIK + stKKD + stOK;
-    const fIK = Number(r.forecast_ik) || 0;
-    const fKKD = Number(r.forecast_kkd) || 0;
-    const fOK = Number(r.forecast_ok) || 0;
-    const forecastOverall = fIK + fKKD + fOK;
-    elRowQty.innerHTML = `
-      <div><strong>Stock</strong></div>
-      <div>IK: ${fmtInt(stIK)}</div>
-      <div>KKD: ${fmtInt(stKKD)}</div>
-      <div>OK: ${fmtInt(stOK)}</div>
-      <div style="margin-top:8px"><strong>Overall: ${fmtInt(
-        stockOverall,
-      )}</strong></div>
-      <hr/>
-      <div><strong>Demand</strong></div>
-      <div>IK: ${fmtInt(fIK)}</div>
-      <div>KKD: ${fmtInt(fKKD)}</div>
-      <div>OK: ${fmtInt(fOK)}</div>
-      <div style="margin-top:8px"><strong>Overall: ${fmtInt(
-        forecastOverall,
-      )}</strong></div>
-    `;
+/* eslint no-empty: "off" */
 
-    elRowValue.innerHTML = `
-      <div><strong>Value</strong></div>
-      <div>IK: ${fmtINR(r.stock_value_ik)}</div>
-      <div>KKD: ${fmtINR(r.stock_value_kkd)}</div>
-      <div>OK: ${fmtINR(r.stock_value_ok)}</div>
-      <div style="margin-top:8px"><strong>Overall: ${fmtINR(
-        r.stock_value_overall,
-      )}</strong></div>
-      <hr/>
-      <div><strong>Rate</strong></div>
-      <div>IK: ${fmtRate(r.rate_ik)}</div>
-      <div>KKD: ${fmtRate(r.rate_kkd)}</div>
-      <div>OK: ${fmtRate(r.rate_ok)}</div>
-      <div style="margin-top:8px"><strong>Overall: ${fmtRate(
-        r.rate_overall,
-      )}</strong></div>
-    `;
-
-    elRowFooter.textContent = `MRP IK: ${fmtRate(r.mrp_ik)} / MRP OK: ${fmtRate(
-      r.mrp_ok,
-    )} ${r.shade_flag ? " • Shade" : ""}`;
-
-    elRowModal.style.display = "flex";
-    elRowModal.setAttribute("aria-hidden", "false");
-    setTimeout(() => {
-      elRowModalClose?.focus();
-    }, 20);
-  } catch (err) {
-    console.error("openRowModal", err);
-  }
-}
 function $(id) {
   return document.getElementById(id);
 }
@@ -197,8 +120,8 @@ function filtersAreActive() {
         if (state.mos[k]?.en) return true;
       }
     }
-  } catch {
-    /* ignore */
+  } catch (err) {
+    void err;
   }
   return false;
 }
@@ -230,8 +153,8 @@ function updateFiltersButtonState() {
     try {
       const reset = document.getElementById("sc-clear");
       if (reset) reset.disabled = !active;
-    } catch {
-      void 0;
+    } catch (err) {
+      void err;
     }
 
     // Also update the explode options button so it highlights when either
@@ -253,8 +176,8 @@ function updateFiltersButtonState() {
           activeForDrawerButtons || anyExplode,
         );
       }
-    } catch {
-      /* ignore */
+    } catch (err) {
+      void err;
     }
   } catch {
     void 0;
@@ -409,6 +332,1010 @@ function toggleChip(btn, stateKey) {
   runQuery();
 }
 
+/* ---------------- Stock Checker: Click-drag selection + Copy (namespaced) ---------------- */
+// Non-invasive selection module: uses visible DOM rows (`tr[data-row-idx]`) and td index mapping.
+// Features: click-drag rectangle selection, Ctrl/Cmd+C to copy selected cells (with header), floating Copy button.
+(function scSelectionModule() {
+  const scSel_STATE = {
+    anchor: null, // { r, cidx } anchor of active range
+    last: null, // active cell
+    ranges: [], // array of { a:{r,cidx}, b:{r,cidx} }
+    activeRangeIndex: -1, // index into ranges
+    // keep `set` for backward compatibility with older builders
+    set: new Set(),
+  };
+
+  // Column mapping (left-to-right). Compute dynamically from table headers when possible.
+  let SC_COLS = [];
+
+  function scSel_computeCols() {
+    try {
+      const table = document.getElementById("sc-table");
+      let cols = [];
+      if (table) {
+        const ths = Array.from(table.querySelectorAll("thead th"));
+        if (ths.length) {
+          cols = ths.map((th) =>
+            (
+              th.dataset.sortCol ||
+              th.dataset.col ||
+              th.textContent ||
+              ""
+            ).trim(),
+          );
+        }
+      }
+      // fallback: infer from first rendered row
+      if (!cols.length) {
+        const first = document.querySelector("tr[data-row-idx]");
+        if (first) {
+          const tds = Array.from(first.children).filter(
+            (n) => n.tagName === "TD",
+          );
+          cols = tds.map((td, i) => {
+            // prefer explicit data-col or data-key if present
+            const d =
+              td.dataset &&
+              (td.dataset.col || td.dataset.key || td.dataset.valueKey);
+            if (d) return d;
+            // try to use class name as a readable key
+            const cls = td.className || "";
+            if (cls) return cls.split(" ")[0];
+            return `col_${i}`;
+          });
+        }
+      }
+      // final fallback: sensible defaults matching typical render order
+      if (!cols.length) {
+        cols = [
+          "category_name",
+          "sub_category_name",
+          "product_group_name",
+          "sub_group_name",
+          "item",
+          "pack_size",
+          "uom",
+          "stock_ik",
+          "stock_kkd",
+          "stock_ok",
+          "stock_overall",
+          "forecast_ik",
+          "forecast_kkd",
+          "forecast_ok",
+          "forecast_overall",
+          "mos_ik",
+          "mos_kkd",
+          "mos_ok",
+          "mos_overall",
+          "product_id",
+          "sku_id",
+        ];
+      }
+      SC_COLS = cols;
+    } catch (err) {
+      // do not throw — keep previous mapping if any
+      console.error("scSel_computeCols failed", err);
+    }
+  }
+
+  function scSel_key(r, c) {
+    return `${r}:${c}`;
+  }
+
+  function scSel_makeRange(a, b) {
+    return { a: { r: a.r, cidx: a.cidx }, b: { r: b.r, cidx: b.cidx } };
+  }
+
+  function scSel_isSingleCellRange(rg) {
+    return rg && rg.a && rg.b && rg.a.r === rg.b.r && rg.a.cidx === rg.b.cidx;
+  }
+
+  function scSel_sameSingleCell(rg, coord) {
+    return (
+      scSel_isSingleCellRange(rg) &&
+      rg.a.r === coord.r &&
+      rg.a.cidx === coord.cidx
+    );
+  }
+
+  // Map a td to coord {r, cidx, ckey, td}
+  function scSel_getCoordFromTd(td) {
+    if (!td) return null;
+    const tr = td.closest("tr[data-row-idx]");
+    if (!tr) return null;
+    const r = Number(tr.dataset.rowIdx);
+    const tds = Array.from(tr.children).filter((n) => n.tagName === "TD");
+    const cidx = tds.indexOf(td);
+    const ckey = SC_COLS[cidx] || `col_${cidx}`;
+    return { r, cidx, ckey, td };
+  }
+
+  function scSel_clear() {
+    scSel_STATE.set.clear();
+    scSel_STATE.anchor = null;
+    scSel_STATE.last = null;
+    scSel_STATE.ranges = [];
+    scSel_STATE.activeRangeIndex = -1;
+    scSel_refreshVisuals();
+    scSel_hideCopyBtn();
+  }
+
+  function scSel_selectRect(a, b) {
+    if (!a || !b) return;
+    // ensure an active range exists
+    if (scSel_STATE.activeRangeIndex < 0) {
+      scSel_STATE.ranges = [scSel_makeRange(a, b)];
+      scSel_STATE.activeRangeIndex = 0;
+    } else {
+      scSel_STATE.ranges[scSel_STATE.activeRangeIndex] = scSel_makeRange(a, b);
+    }
+
+    scSel_STATE.anchor = a;
+    scSel_STATE.last = b;
+
+    // Rebuild set for backward compatibility
+    scSel_STATE.set.clear();
+    for (const rg of scSel_STATE.ranges) {
+      const nr = scSel_normRange(rg);
+      for (let rr = nr.r1; rr <= nr.r2; rr++) {
+        for (let cc = nr.c1; cc <= nr.c2; cc++) {
+          scSel_STATE.set.add(scSel_key(rr, cc));
+        }
+      }
+    }
+
+    scSel_refreshVisuals();
+  }
+  function scSel_clearVisuals() {
+    document
+      .querySelectorAll("td.sc-sel-fill, td.sc-sel-active")
+      .forEach((el) => el.classList.remove("sc-sel-fill", "sc-sel-active"));
+    scSel_clearOverlays();
+  }
+
+  // overlay host for continuous rectangle borders
+  let scSel_overlayHost = null;
+  function scSel_ensureOverlayHost() {
+    if (scSel_overlayHost) return scSel_overlayHost;
+    const wrap = document.querySelector(".table-wrap") || document.body;
+    try {
+      if (!wrap.style.position) wrap.style.position = "relative";
+    } catch (err) {
+      void err;
+    }
+    const host = document.createElement("div");
+    host.className = "sc-sel-overlay-host";
+    host.style.position = "absolute";
+    host.style.left = "0";
+    host.style.top = "0";
+    host.style.right = "0";
+    host.style.bottom = "0";
+    host.style.pointerEvents = "none";
+    host.style.zIndex = "50";
+    wrap.appendChild(host);
+    scSel_overlayHost = host;
+    return host;
+  }
+
+  function scSel_clearOverlays() {
+    if (!scSel_overlayHost) return;
+    scSel_overlayHost.innerHTML = "";
+  }
+
+  function scSel_drawOverlayForRange(nr) {
+    const aTd = scSel_getTd({ r: nr.r1, cidx: nr.c1 });
+    const bTd = scSel_getTd({ r: nr.r2, cidx: nr.c2 });
+    if (!aTd || !bTd) return;
+    const host = scSel_ensureOverlayHost();
+    const wrap = document.querySelector(".table-wrap") || document.body;
+    const wrapRect = wrap.getBoundingClientRect();
+    const r1 = aTd.getBoundingClientRect();
+    const r2 = bTd.getBoundingClientRect();
+    const left = Math.min(r1.left, r2.left) - wrapRect.left;
+    const top = Math.min(r1.top, r2.top) - wrapRect.top;
+    const right = Math.max(r1.right, r2.right) - wrapRect.left;
+    const bottom = Math.max(r1.bottom, r2.bottom) - wrapRect.top;
+    const box = document.createElement("div");
+    box.className = "sc-sel-box";
+    box.style.position = "absolute";
+    box.style.left = `${left}px`;
+    box.style.top = `${top}px`;
+    box.style.width = `${right - left}px`;
+    box.style.height = `${bottom - top}px`;
+    host.appendChild(box);
+  }
+
+  function scSel_getTd(coord) {
+    if (!coord) return null;
+    const tr = document.querySelector(`tr[data-row-idx="${coord.r}"]`);
+    if (!tr) return null;
+    const tds = Array.from(tr.children).filter((n) => n.tagName === "TD");
+    return tds[coord.cidx] || null;
+  }
+
+  function scSel_normRange(rg) {
+    try {
+      // Expect either {r1,r2,c1,c2} or [{r,cidx},{r,cidx}] or {a:{r,cidx},b:{r,cidx}} or a single point
+      if (!rg) return { r1: 0, r2: -1, c1: 0, c2: -1 };
+      if (Array.isArray(rg) && rg.length === 2) {
+        const a = rg[0];
+        const b = rg[1];
+        const r1 = Math.min(a.r, b.r);
+        const r2 = Math.max(a.r, b.r);
+        const c1 = Math.min(a.cidx, b.cidx);
+        const c2 = Math.max(a.cidx, b.cidx);
+        return { r1, r2, c1, c2 };
+      }
+      if (rg.a && rg.b) {
+        const a = rg.a;
+        const b = rg.b;
+        const r1 = Math.min(a.r, b.r);
+        const r2 = Math.max(a.r, b.r);
+        const c1 = Math.min(a.cidx, b.cidx);
+        const c2 = Math.max(a.cidx, b.cidx);
+        return { r1, r2, c1, c2 };
+      }
+      if (
+        rg.r1 !== undefined &&
+        rg.r2 !== undefined &&
+        rg.c1 !== undefined &&
+        rg.c2 !== undefined
+      ) {
+        const r1 = Math.min(rg.r1, rg.r2);
+        const r2 = Math.max(rg.r1, rg.r2);
+        const c1 = Math.min(rg.c1, rg.c2);
+        const c2 = Math.max(rg.c1, rg.c2);
+        return { r1, r2, c1, c2 };
+      }
+      if (rg.r !== undefined && rg.cidx !== undefined) {
+        return { r1: rg.r, r2: rg.r, c1: rg.cidx, c2: rg.cidx };
+      }
+    } catch {
+      /* ignore */
+    }
+    return { r1: 0, r2: -1, c1: 0, c2: -1 };
+  }
+
+  function scSel_refreshVisuals() {
+    scSel_clearVisuals();
+    scSel_clearOverlays();
+    if (!scSel_STATE.ranges || !scSel_STATE.ranges.length)
+      return scSel_hideCopyBtn();
+
+    for (let i = 0; i < scSel_STATE.ranges.length; i++) {
+      const rg = scSel_STATE.ranges[i];
+      const { r1, r2, c1, c2 } = scSel_normRange(rg);
+      for (let rr = r1; rr <= r2; rr++) {
+        const tr = document.querySelector(`tr[data-row-idx="${rr}"]`);
+        if (!tr) continue;
+        const tds = Array.from(tr.children).filter((n) => n.tagName === "TD");
+        for (let cc = c1; cc <= c2; cc++) {
+          const td = tds[cc];
+          if (!td) continue;
+          td.classList.add("sc-sel-fill");
+        }
+      }
+      // draw a single overlay rectangle for this range
+      scSel_drawOverlayForRange({ r1, r2, c1, c2 });
+    }
+
+    // Active cell highlight only for single-cell active range
+    try {
+      const a = scSel_STATE.anchor;
+      const b = scSel_STATE.last;
+      const isSingle = a && b && a.r === b.r && a.cidx === b.cidx;
+      if (isSingle) {
+        const active = scSel_getTd(scSel_STATE.last);
+        if (active) active.classList.add("sc-sel-active");
+      }
+    } catch {
+      /* ignore */
+    }
+    scSel_showCopyBtn();
+  }
+
+  function scSel_escapeMdCell(s) {
+    return String(s ?? "")
+      .replaceAll("|", "\\|")
+      .replaceAll("\n", " ")
+      .trim();
+  }
+
+  // Group ranges so same-row single cells merge into one row block for copying
+  function scSel_groupRangesForCopy(ranges) {
+    const rects = [];
+    const singlesByRow = new Map();
+
+    for (const rg of ranges) {
+      const nr = scSel_normRange(rg);
+      const isSingle = nr.r1 === nr.r2 && nr.c1 === nr.c2;
+      if (!isSingle) {
+        rects.push(rg);
+        continue;
+      }
+      const row = nr.r1;
+      const arr = singlesByRow.get(row) || [];
+      arr.push({ r: row, cidx: nr.c1 });
+      singlesByRow.set(row, arr);
+    }
+
+    const mergedSingles = [];
+    for (const [row, cells] of singlesByRow.entries()) {
+      cells.sort((a, b) => a.cidx - b.cidx);
+      if (cells.length === 1) {
+        const c = cells[0];
+        mergedSingles.push(scSel_makeRange(c, c));
+      } else {
+        mergedSingles.push({ __type: "rowCells", row, cells });
+      }
+    }
+
+    mergedSingles.sort((a, b) => {
+      const ar = a.__type === "rowCells" ? a.row : scSel_normRange(a).r1;
+      const br = b.__type === "rowCells" ? b.row : scSel_normRange(b).r1;
+      return ar - br;
+    });
+
+    return [...mergedSingles, ...rects];
+  }
+
+  // Markdown pretty table helpers
+  function scSel_pad(s, n) {
+    const str = String(s ?? "");
+    return str.length >= n ? str : str + " ".repeat(n - str.length);
+  }
+
+  function scSel_mdTable(rows) {
+    if (!rows || !rows.length) return "";
+    const widths = rows[0].map((_, i) =>
+      Math.max(...rows.map((r) => String(r[i] ?? "").length)),
+    );
+    const header = `| ${rows[0].map((c, i) => scSel_pad(c, widths[i])).join(" | ")} |`;
+    const sep = `| ${widths.map((w) => "-".repeat(Math.max(3, w))).join(" | ")} |`;
+    const body = rows
+      .slice(1)
+      .map(
+        (r) => `| ${r.map((c, i) => scSel_pad(c, widths[i])).join(" | ")} |`,
+      );
+    return [header, sep, ...body].join("\n");
+  }
+
+  // TSV builder (Option B: multi-range blocks). Falls back to legacy set-based single-block when ranges not present.
+  function scSel_buildClipboardText_TSV() {
+    // If ranges model exists, use it
+    const ranges =
+      scSel_STATE.ranges && scSel_STATE.ranges.length
+        ? scSel_STATE.ranges
+        : null;
+
+    if (ranges && ranges.length) {
+      const blocks = [];
+      const blocksToCopy = scSel_groupRangesForCopy(ranges);
+      for (const rg of blocksToCopy) {
+        // merged single cells in same row -> synthetic rowCells block
+        if (rg && rg.__type === "rowCells") {
+          const cols = rg.cells.map((x) => x.cidx);
+          const headers = cols.map((c) => SC_COLS[c] || `C${c}`);
+          const lines = [headers.join("\t")];
+          const tr = document.querySelector(`tr[data-row-idx="${rg.row}"]`);
+          if (!tr) {
+            blocks.push(lines.join("\n"));
+            continue;
+          }
+          const tds = Array.from(tr.children).filter((n) => n.tagName === "TD");
+          const vals = cols.map((c) => {
+            const td = tds[c];
+            if (!td) return "";
+            return td.dataset?.value ? td.dataset.value : td.textContent.trim();
+          });
+          lines.push(vals.join("\t"));
+          blocks.push(lines.join("\n"));
+          continue;
+        }
+
+        const { r1, r2, c1, c2 } = scSel_normRange(rg);
+        const cols = [];
+        for (let c = c1; c <= c2; c++) cols.push(c);
+        const headers = cols.map((c) => SC_COLS[c] || `C${c}`);
+        const lines = [headers.join("\t")];
+        for (let r = r1; r <= r2; r++) {
+          const tr = document.querySelector(`tr[data-row-idx="${r}"]`);
+          if (!tr) continue;
+          const tds = Array.from(tr.children).filter((n) => n.tagName === "TD");
+          const vals = cols.map((c) => {
+            const td = tds[c];
+            if (!td) return "";
+            return td.dataset?.value ? td.dataset.value : td.textContent.trim();
+          });
+          lines.push(vals.join("\t"));
+        }
+        blocks.push(lines.join("\n"));
+      }
+      return blocks.join("\n\n");
+    }
+
+    // Legacy single-block behavior from `set`
+    if (!scSel_STATE.set || !scSel_STATE.set.size) return "";
+    const rows = Array.from(
+      new Set(Array.from(scSel_STATE.set).map((k) => Number(k.split(":")[0]))),
+    ).sort((a, b) => a - b);
+    const cols = Array.from(
+      new Set(Array.from(scSel_STATE.set).map((k) => Number(k.split(":")[1]))),
+    ).sort((a, b) => a - b);
+    const headers = cols.map((c) => SC_COLS[c] || `C${c}`);
+    const lines = [headers.join("\t")];
+    for (const r of rows) {
+      const tr = document.querySelector(`tr[data-row-idx="${r}"]`);
+      if (!tr) continue;
+      const tds = Array.from(tr.children).filter((n) => n.tagName === "TD");
+      const vals = cols.map((c) => {
+        const td = tds[c];
+        if (!td) return "";
+        return td.dataset && td.dataset.value
+          ? td.dataset.value
+          : td.textContent.trim();
+      });
+      lines.push(vals.join("\t"));
+    }
+    return lines.join("\n");
+  }
+
+  function scSel_buildClipboardText_MD() {
+    const ranges =
+      scSel_STATE.ranges && scSel_STATE.ranges.length
+        ? scSel_STATE.ranges
+        : null;
+
+    if (ranges && ranges.length) {
+      const blocks = [];
+      const blocksToCopy = scSel_groupRangesForCopy(ranges);
+      for (const rg of blocksToCopy) {
+        if (rg && rg.__type === "rowCells") {
+          const cols = rg.cells.map((x) => x.cidx);
+          const headers = cols.map((c) =>
+            scSel_escapeMdCell(SC_COLS[c] || `C${c}`),
+          );
+          const tr = document.querySelector(`tr[data-row-idx="${rg.row}"]`);
+          const tds = tr
+            ? Array.from(tr.children).filter((n) => n.tagName === "TD")
+            : [];
+          const vals = cols.map((c) => {
+            const td = tds[c];
+            if (!td) return "";
+            const raw = td.dataset?.value
+              ? td.dataset.value
+              : td.textContent.trim();
+            return scSel_escapeMdCell(raw);
+          });
+          const rows = [headers, vals];
+          blocks.push(scSel_mdTable(rows));
+          continue;
+        }
+
+        const { r1, r2, c1, c2 } = scSel_normRange(rg);
+        const cols = [];
+        for (let c = c1; c <= c2; c++) cols.push(c);
+        const headers = cols.map((c) =>
+          scSel_escapeMdCell(SC_COLS[c] || `C${c}`),
+        );
+        const rows = [headers];
+        for (let r = r1; r <= r2; r++) {
+          const tr = document.querySelector(`tr[data-row-idx="${r}"]`);
+          if (!tr) continue;
+          const tds = Array.from(tr.children).filter((n) => n.tagName === "TD");
+          const vals = cols.map((c) => {
+            const td = tds[c];
+            if (!td) return "";
+            const raw = td.dataset?.value
+              ? td.dataset.value
+              : td.textContent.trim();
+            return scSel_escapeMdCell(raw);
+          });
+          rows.push(vals);
+        }
+        blocks.push(scSel_mdTable(rows));
+      }
+      return blocks.join("\n\n");
+    }
+
+    // Fallback: build a single markdown table from `set`
+    if (!scSel_STATE.set || !scSel_STATE.set.size) return "";
+    const rows = Array.from(
+      new Set(Array.from(scSel_STATE.set).map((k) => Number(k.split(":")[0]))),
+    ).sort((a, b) => a - b);
+    const cols = Array.from(
+      new Set(Array.from(scSel_STATE.set).map((k) => Number(k.split(":")[1]))),
+    ).sort((a, b) => a - b);
+    const headers = cols.map((c) => scSel_escapeMdCell(SC_COLS[c] || `C${c}`));
+    const sep = cols.map(() => "---");
+    const lines = [];
+    lines.push(`| ${headers.join(" | ")} |`);
+    lines.push(`| ${sep.join(" | ")} |`);
+    for (const r of rows) {
+      const tr = document.querySelector(`tr[data-row-idx="${r}"]`);
+      if (!tr) continue;
+      const tds = Array.from(tr.children).filter((n) => n.tagName === "TD");
+      const vals = cols.map((c) => {
+        const td = tds[c];
+        if (!td) return "";
+        const raw =
+          td.dataset && td.dataset.value
+            ? td.dataset.value
+            : td.textContent.trim();
+        return scSel_escapeMdCell(raw);
+      });
+      lines.push(`| ${vals.join(" | ")} |`);
+    }
+    return lines.join("\n");
+  }
+
+  async function scSel_copyToClipboard(text, okMsg) {
+    if (!text) return;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        ta.remove();
+      }
+      setMsg(okMsg || "Copied selection.");
+      setTimeout(() => setMsg(""), 1200);
+    } catch (err) {
+      console.error("Copy failed", err);
+      setMsg("Copy failed.");
+      setTimeout(() => setMsg(""), 1800);
+    }
+  }
+
+  function scSel_copyTSV() {
+    const text = scSel_buildClipboardText_TSV();
+    scSel_copyToClipboard(text, "Copied TSV (header included).");
+  }
+
+  function scSel_copyMD() {
+    const text = scSel_buildClipboardText_MD();
+    scSel_copyToClipboard(text, "Copied Markdown table.");
+  }
+
+  let scSel_copyMenu = null;
+  function scSel_showCopyBtn() {
+    if (scSel_copyMenu) {
+      scSel_copyMenu.style.display = "flex";
+      return;
+    }
+
+    scSel_copyMenu = document.createElement("div");
+    scSel_copyMenu.className = "sc-copy-float-menu";
+    scSel_copyMenu.style.position = "fixed";
+    scSel_copyMenu.style.right = "12px";
+    scSel_copyMenu.style.bottom = "12px";
+    scSel_copyMenu.style.zIndex = 12010;
+    scSel_copyMenu.style.display = "flex";
+    scSel_copyMenu.style.gap = "8px";
+
+    const btnTSV = document.createElement("button");
+    btnTSV.className = "sc-copy-float";
+    btnTSV.type = "button";
+    btnTSV.textContent = "Copy TSV";
+    btnTSV.title = "Copy selection as TSV (best for Excel)";
+    btnTSV.addEventListener("click", scSel_copyTSV);
+
+    const btnMD = document.createElement("button");
+    btnMD.className = "sc-copy-float";
+    btnMD.type = "button";
+    btnMD.textContent = "Copy MD";
+    btnMD.title = "Copy selection as Markdown table (best for chat/docs)";
+    btnMD.addEventListener("click", scSel_copyMD);
+
+    scSel_copyMenu.appendChild(btnTSV);
+    scSel_copyMenu.appendChild(btnMD);
+
+    document.body.appendChild(scSel_copyMenu);
+  }
+
+  function scSel_hideCopyBtn() {
+    if (!scSel_copyMenu) return;
+    scSel_copyMenu.style.display = "none";
+  }
+
+  let scSel_pointerDown = false;
+  let scSel_abort = null;
+
+  function scSel_onPointerDown(ev) {
+    // Only proceed for primary button when using mouse
+    try {
+      if (ev.pointerType === "mouse" && ev.button !== 0) return;
+    } catch {
+      /* ignore */
+    }
+
+    // If other UI is dragging, avoid starting selection
+    try {
+      if (typeof __sc_isDragging !== "undefined" && __sc_isDragging) return;
+    } catch {
+      /* ignore */
+    }
+
+    const td =
+      ev.target?.closest?.("td") ||
+      document.elementFromPoint(ev.clientX, ev.clientY)?.closest?.("td");
+    const coord = td ? scSel_getCoordFromTd(td) : null;
+    if (!coord) return;
+
+    // Modifier-aware selection behaviour
+    const clicked = { r: coord.r, cidx: coord.cidx };
+
+    // Mark selection mode early so row handlers ignore this interaction
+    window.__sc_selectingCells = true;
+
+    // SHIFT+click: extend active range from anchor
+    if (
+      ev.shiftKey &&
+      scSel_STATE.anchor &&
+      scSel_STATE.activeRangeIndex >= 0
+    ) {
+      try {
+        ev.preventDefault();
+        ev.stopPropagation();
+      } catch {}
+      scSel_STATE.last = clicked;
+      scSel_selectRect(scSel_STATE.anchor, scSel_STATE.last);
+      try {
+        __sc_ignoreNextClick = true;
+      } catch {}
+      setTimeout(() => {
+        try {
+          __sc_ignoreNextClick = false;
+        } catch {}
+      }, 250);
+      setTimeout(() => {
+        window.__sc_selectingCells = false;
+      }, 0);
+      return;
+    }
+
+    // CTRL/CMD+click: toggle a single-cell range
+    if (ev.ctrlKey || ev.metaKey) {
+      try {
+        ev.preventDefault();
+        ev.stopPropagation();
+      } catch {}
+      const idx = scSel_STATE.ranges.findIndex((rg) =>
+        scSel_sameSingleCell(rg, clicked),
+      );
+      if (idx >= 0) {
+        scSel_STATE.ranges.splice(idx, 1);
+        scSel_STATE.activeRangeIndex = scSel_STATE.ranges.length - 1;
+        const ar = scSel_STATE.ranges[scSel_STATE.activeRangeIndex];
+        scSel_STATE.anchor = ar ? ar.a : null;
+        scSel_STATE.last = ar ? ar.b : null;
+      } else {
+        scSel_STATE.ranges.push(scSel_makeRange(clicked, clicked));
+        scSel_STATE.activeRangeIndex = scSel_STATE.ranges.length - 1;
+        scSel_STATE.anchor = clicked;
+        scSel_STATE.last = clicked;
+      }
+      // Rebuild set for compatibility
+      scSel_STATE.set.clear();
+      for (const rg of scSel_STATE.ranges) {
+        const nr = scSel_normRange(rg);
+        for (let rr = nr.r1; rr <= nr.r2; rr++) {
+          for (let cc = nr.c1; cc <= nr.c2; cc++)
+            scSel_STATE.set.add(scSel_key(rr, cc));
+        }
+      }
+      scSel_refreshVisuals();
+      try {
+        __sc_ignoreNextClick = true;
+      } catch {}
+      setTimeout(() => {
+        try {
+          __sc_ignoreNextClick = false;
+        } catch {}
+      }, 250);
+      setTimeout(() => {
+        window.__sc_selectingCells = false;
+      }, 0);
+      return;
+    }
+
+    // NORMAL click: prepare for drag/replace selection with single-cell active range
+    // Mark selection mode so row handlers ignore clicks
+    window.__sc_selectingCells = true;
+
+    // Capture pointer so move/up continue even if pointer leaves element
+    try {
+      if (ev.target && typeof ev.target.setPointerCapture === "function")
+        ev.target.setPointerCapture(ev.pointerId);
+    } catch {
+      /* ignore */
+    }
+
+    ev.preventDefault();
+    ev.stopPropagation();
+
+    scSel_pointerDown = true;
+    scSel_STATE.ranges = [scSel_makeRange(clicked, clicked)];
+    scSel_STATE.activeRangeIndex = 0;
+    scSel_STATE.anchor = clicked;
+    scSel_STATE.last = clicked;
+    // rebuild set
+    scSel_STATE.set.clear();
+    scSel_STATE.set.add(scSel_key(clicked.r, clicked.cidx));
+    scSel_refreshVisuals();
+    document.body.style.userSelect = "none";
+  }
+
+  function scSel_onPointerMove(ev) {
+    if (!scSel_pointerDown) return;
+    // Prevent scrolling while selecting
+    try {
+      ev.preventDefault();
+    } catch {
+      /* ignore */
+    }
+    const td = document
+      .elementFromPoint(ev.clientX, ev.clientY)
+      ?.closest?.("td");
+    const coord = td ? scSel_getCoordFromTd(td) : null;
+    if (!coord) return;
+    // Ensure an active range exists for dragging
+    if (scSel_STATE.activeRangeIndex < 0) {
+      scSel_STATE.ranges = [
+        scSel_makeRange(
+          scSel_STATE.anchor || coord,
+          scSel_STATE.anchor || coord,
+        ),
+      ];
+      scSel_STATE.activeRangeIndex = 0;
+    }
+    scSel_selectRect(scSel_STATE.anchor, { r: coord.r, cidx: coord.cidx });
+  }
+
+  function scSel_onPointerUp(ev) {
+    if (!scSel_pointerDown) return;
+    scSel_pointerDown = false;
+    document.body.style.userSelect = "";
+    // Release pointer capture if possible
+    try {
+      if (
+        ev &&
+        ev.target &&
+        typeof ev.target.releasePointerCapture === "function"
+      )
+        ev.target.releasePointerCapture(ev.pointerId);
+    } catch {
+      /* ignore */
+    }
+    // Allow row handlers to work again on next tick
+    setTimeout(() => {
+      window.__sc_selectingCells = false;
+    }, 0);
+  }
+
+  function scSel_onDocPointerDown(ev) {
+    try {
+      if (scSel_pointerDown) return; // don't clear while actively selecting
+      if (window.__sc_selectingCells) return;
+      const t = ev.target;
+      if (!t) return;
+      // If click is inside table or the copy menu, do not clear
+      if (
+        t.closest &&
+        (t.closest("#sc-table") || t.closest(".sc-copy-float-menu"))
+      )
+        return;
+      scSel_clear();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  // attach handlers to table body when available
+  function scSel_attach() {
+    // ensure column mapping is current before attaching
+    scSel_computeCols();
+
+    const localBody = document.getElementById("sc-body");
+    if (!localBody) return;
+    // Prevent duplicate listeners
+    if (scSel_abort) scSel_abort.abort();
+    scSel_abort = new AbortController();
+    const { signal } = scSel_abort;
+
+    // Pointer events handle mouse/touch/pen uniformly. Use capture for move/up so we receive events.
+    localBody.addEventListener("pointerdown", scSel_onPointerDown, {
+      signal,
+      passive: false,
+    });
+    document.addEventListener("pointermove", scSel_onPointerMove, {
+      signal,
+      passive: false,
+      capture: true,
+    });
+    document.addEventListener("pointerup", scSel_onPointerUp, {
+      signal,
+      passive: true,
+      capture: true,
+    });
+    document.addEventListener("pointercancel", scSel_onPointerUp, {
+      signal,
+      passive: true,
+      capture: true,
+    });
+    // Clear selection when user clicks/taps outside the table or copy menu
+    document.addEventListener("pointerdown", scSel_onDocPointerDown, {
+      signal,
+      passive: true,
+      capture: true,
+    });
+
+    function scSel_clampCoord(coord) {
+      try {
+        const rows = document.querySelectorAll("tr[data-row-idx]");
+        const maxR = Math.max(0, rows.length - 1);
+        const maxC = Math.max(
+          0,
+          SC_COLS && SC_COLS.length ? SC_COLS.length - 1 : 0,
+        );
+        return {
+          r: Math.max(0, Math.min(maxR, coord.r)),
+          cidx: Math.max(0, Math.min(maxC, coord.cidx)),
+        };
+      } catch {
+        return coord;
+      }
+    }
+
+    function scSel_scrollIntoView(coord) {
+      const td = scSel_getTd(coord);
+      if (!td) return;
+      try {
+        td.scrollIntoView({ block: "nearest", inline: "nearest" });
+      } catch {
+        /* ignore */
+      }
+    }
+
+    document.addEventListener(
+      "keydown",
+      (e) => {
+        // Copy
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
+          const hasSel =
+            (scSel_STATE.set && scSel_STATE.set.size) ||
+            (scSel_STATE.ranges && scSel_STATE.ranges.length) ||
+            !!scSel_STATE.anchor;
+          if (hasSel) {
+            e.preventDefault();
+            scSel_copyTSV();
+          }
+          return;
+        }
+
+        // Clear
+        if (e.key === "Escape") {
+          scSel_clear();
+          return;
+        }
+
+        // Navigation keys
+        const arrows = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
+        if (!arrows.includes(e.key)) return;
+
+        // Determine starting point
+        let current = scSel_STATE.last || scSel_STATE.anchor;
+        if (!current) return;
+        e.preventDefault();
+
+        const delta = { r: 0, cidx: 0 };
+        if (e.key === "ArrowUp") delta.r = -1;
+        if (e.key === "ArrowDown") delta.r = 1;
+        if (e.key === "ArrowLeft") delta.cidx = -1;
+        if (e.key === "ArrowRight") delta.cidx = 1;
+
+        const next = scSel_clampCoord({
+          r: current.r + delta.r,
+          cidx: current.cidx + delta.cidx,
+        });
+
+        if (e.shiftKey && scSel_STATE.anchor) {
+          scSel_STATE.last = next;
+          // ensure activeRangeIndex
+          if (scSel_STATE.activeRangeIndex < 0)
+            scSel_STATE.activeRangeIndex = 0;
+          scSel_selectRect(scSel_STATE.anchor, scSel_STATE.last);
+        } else {
+          // Move without shift collapses selection to single cell (Excel-like)
+          scSel_STATE.ranges = [scSel_makeRange(next, next)];
+          scSel_STATE.activeRangeIndex = 0;
+          scSel_STATE.anchor = next;
+          scSel_STATE.last = next;
+          // rebuild set
+          scSel_STATE.set.clear();
+          scSel_STATE.set.add(scSel_key(next.r, next.cidx));
+          scSel_refreshVisuals();
+        }
+        scSel_scrollIntoView(next);
+      },
+      { signal },
+    );
+
+    // keep columns mapping up-to-date when the table/headers change
+    try {
+      scSel_setupObserver();
+    } catch {
+      void 0;
+    }
+  }
+
+  // MutationObserver to recompute SC_COLS when the table structure or headers change
+  let scSel_observer = null;
+  function scSel_setupObserver() {
+    const tbl = document.getElementById("sc-table");
+    if (!tbl) return;
+    if (scSel_observer) scSel_observer.disconnect();
+    scSel_observer = new MutationObserver(
+      debounce(() => {
+        scSel_computeCols();
+        scSel_refreshVisuals();
+      }, 120),
+    );
+    scSel_observer.observe(tbl, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      characterData: true,
+    });
+  }
+
+  // inject minimal CSS
+  (function injectCss() {
+    const s = document.createElement("style");
+    s.textContent = `
+      td.sc-sel-fill { background: rgba(59, 130, 246, 0.10); }
+      td.sc-sel-active { outline: 2px solid rgba(37,99,235,1); outline-offset: -2px; }
+      .sc-sel-overlay-host { position: absolute; left:0;top:0;right:0;bottom:0;pointer-events:none; }
+      .sc-sel-box { box-sizing: border-box; border: 2px solid rgba(59,130,246,0.95); border-radius: 2px; }
+      .sc-copy-float { background:#0f172a;color:white;padding:8px 10px;border-radius:8px;border:none;box-shadow:0 6px 18px rgba(2,6,23,0.16);cursor:pointer; }
+      .sc-copy-float-menu {
+        background: rgba(255,255,255,0.92);
+        border: 1px solid rgba(148,163,184,0.6);
+        padding: 8px;
+        border-radius: 10px;
+        box-shadow: 0 6px 18px rgba(2,6,23,0.15);
+        backdrop-filter: blur(6px);
+      }
+      button.sc-copy-float {
+        border: 1px solid rgba(148,163,184,0.8);
+        background: #fff;
+        color: #0f172a;
+        padding: 8px 10px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      button.sc-copy-float:hover { filter: brightness(0.98); }
+    `;
+    document.head.appendChild(s);
+  })();
+
+  // Avoid referencing outer `elBody` (TDZ). Lookup DOM node and retry attaching.
+  scSel_attach();
+  setTimeout(scSel_attach, 300);
+  // also attempt to set up observer shortly after init
+  setTimeout(() => {
+    try {
+      scSel_setupObserver();
+    } catch {
+      void 0;
+    }
+  }, 400);
+})();
 // Use names directly for filtering (mirrors SQL)
 const RASO_NAMES = [
   "Bhasmam",
@@ -449,6 +1376,13 @@ let closeFiltersModalFn = null;
 let elExport, elExportPDF, elHome, elClear;
 let elCount, elUpdated, elPrev, elNext, elPage;
 let elTable, elBody;
+
+// DOM refs for value/total UI (assigned in init)
+let elTotalValue, elToggleValue;
+let elValueModal, elValueModalClose, elValueBody, elValueSnapshot;
+
+// Row modal refs (declared at module scope so assignments in init work)
+let elRowModal, elRowModalClose;
 
 let elQfMosLt3, elQfRaso;
 
@@ -3525,48 +4459,48 @@ function renderRows(rows) {
       <td class="col-meta" style="text-align:center">${escapeHtml(
         r.uom || "",
       )}</td>
-      <td class="col-stock" style="text-align:center">${fmtInt(r.stock_ik)}</td>
-      <td class="col-stock" style="text-align:center">${fmtInt(
+      <td class="col-stock" style="text-align:center" data-value="${Number(r.stock_ik) || 0}">${fmtInt(r.stock_ik)}</td>
+      <td class="col-stock" style="text-align:center" data-value="${Number(r.stock_kkd) || 0}">${fmtInt(
         r.stock_kkd,
       )}</td>
-      <td class="col-stock" style="text-align:center">${fmtInt(r.stock_ok)}</td>
-      <td class="col-overall" style="text-align:center">${fmtInt(
+      <td class="col-stock" style="text-align:center" data-value="${Number(r.stock_ok) || 0}">${fmtInt(r.stock_ok)}</td>
+      <td class="col-overall" style="text-align:center" data-value="${Number(stockOverall) || 0}">${fmtInt(
         stockOverall,
       )}</td>
       ${
         state.showValue
           ? `
-      <td class="col-value" style="text-align:center">${fmtINR(
+      <td class="col-value" style="text-align:center" data-value="${Number(r.stock_value_ik) || 0}">${fmtINR(
         r.stock_value_ik,
       )}</td>
-      <td class="col-value" style="text-align:center">${fmtINR(
+      <td class="col-value" style="text-align:center" data-value="${Number(r.stock_value_kkd) || 0}">${fmtINR(
         r.stock_value_kkd,
       )}</td>
-      <td class="col-value" style="text-align:center">${fmtINR(
+      <td class="col-value" style="text-align:center" data-value="${Number(r.stock_value_ok) || 0}">${fmtINR(
         r.stock_value_ok,
       )}</td>
-      <td class="col-value" style="text-align:center">${fmtINR(
+      <td class="col-value" style="text-align:center" data-value="${Number(r.stock_value_overall) || 0}">${fmtINR(
         r.stock_value_overall,
       )}</td>
       `
           : ""
       }
-      <td class="col-demand" style="text-align:center">${fmtInt(
+      <td class="col-demand" style="text-align:center" data-value="${Number(r.forecast_ik) || 0}">${fmtInt(
         r.forecast_ik,
       )}</td>
-      <td class="col-demand" style="text-align:center">${fmtInt(
+      <td class="col-demand" style="text-align:center" data-value="${Number(r.forecast_kkd) || 0}">${fmtInt(
         r.forecast_kkd,
       )}</td>
-      <td class="col-demand" style="text-align:center">${fmtInt(
+      <td class="col-demand" style="text-align:center" data-value="${Number(r.forecast_ok) || 0}">${fmtInt(
         r.forecast_ok,
       )}</td>
-      <td class="col-overall" style="text-align:center">${fmtInt(
+      <td class="col-overall" style="text-align:center" data-value="${Number(forecastOverall) || 0}">${fmtInt(
         forecastOverall,
       )}</td>
-      <td class="col-mos" style="text-align:center">${fmt3(r.mos_ik)}</td>
-      <td class="col-mos" style="text-align:center">${fmt3(r.mos_kkd)}</td>
-      <td class="col-mos" style="text-align:center">${fmt3(r.mos_ok)}</td>
-      <td class="col-overall" style="text-align:center">${fmt3(
+      <td class="col-mos" style="text-align:center" data-value="${Number(r.mos_ik) || 0}">${fmt3(r.mos_ik)}</td>
+      <td class="col-mos" style="text-align:center" data-value="${Number(r.mos_kkd) || 0}">${fmt3(r.mos_kkd)}</td>
+      <td class="col-mos" style="text-align:center" data-value="${Number(r.mos_ok) || 0}">${fmt3(r.mos_ok)}</td>
+      <td class="col-overall" style="text-align:center" data-value="${Number(r.mos_overall) || 0}">${fmt3(
         r.mos_overall,
       )}</td>
     </tr>`;
@@ -3610,6 +4544,10 @@ function renderRows(rows) {
 
     function handleSelect(e) {
       try {
+        // Don't apply row highlight for modifier-assisted spreadsheet selection
+        if (e && (e.shiftKey || e.ctrlKey || e.metaKey)) return;
+        // If the cell-selection module is active, don't run row selection handlers
+        if (window.__sc_selectingCells) return;
         if (window.__sc_isDragging || __sc_isDragging) {
           __sc_isDragging = false;
           return;
@@ -3673,7 +4611,7 @@ function renderRows(rows) {
     tr.addEventListener(
       "mousemove",
       function () {
-        __sc_isDragging = true;
+        if (__sc_mouseDown) __sc_isDragging = true;
       },
       { passive: true },
     );
