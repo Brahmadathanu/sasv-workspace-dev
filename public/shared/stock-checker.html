@@ -996,6 +996,17 @@
         max-height: calc(100vh - var(--sc-table-offset));
         background: var(--bg);
       }
+      /* Prevent pull-to-refresh / overscroll when interacting with the grid */
+      .table-wrap {
+        overscroll-behavior: contain;
+        touch-action: pan-x pan-y;
+        -webkit-overflow-scrolling: touch;
+      }
+      /* Prevent iOS text callout on long-press */
+      #sc-table,
+      #sc-table * {
+        -webkit-touch-callout: none;
+      }
       /* sc-msg placed inside the table card should overlay without
            contributing to document flow */
       .table-wrap .sc-msg-overlay {

@@ -944,6 +944,61 @@ function toggleChip(btn, stateKey) {
 
   let scSel_pointerDown = false;
   let scSel_abort = null;
+  // Long-press configuration / state for touch-driven selection
+  const SC_LONGPRESS_MS = 300; // 250-350ms feels natural
+  const SC_MOVE_TOL_PX = 8; // movement threshold before canceling long-press
+
+  let scSel_lpTimer = null;
+  let scSel_lpStart = null; // { x, y, pointerId, td, coord }
+  let scSel_longPressArmed = false;
+
+  function scSel_cancelLongPress() {
+    if (scSel_lpTimer) {
+      clearTimeout(scSel_lpTimer);
+      scSel_lpTimer = null;
+    }
+    scSel_lpStart = null;
+    scSel_longPressArmed = false;
+  }
+
+  function scSel_beginSelectionAt(coord, pointerId, td) {
+    try {
+      scSel_setSelectingMode(true);
+      scSel_pointerDown = true;
+      if (td && typeof td.setPointerCapture === "function") {
+        try {
+          td.setPointerCapture(pointerId);
+        } catch {
+          /* ignore */
+        }
+      }
+
+      scSel_STATE.ranges = [scSel_makeRange(coord, coord)];
+      scSel_STATE.activeRangeIndex = 0;
+      scSel_STATE.anchor = coord;
+      scSel_STATE.last = coord;
+      scSel_STATE.set.clear();
+      scSel_STATE.set.add(scSel_key(coord.r, coord.cidx));
+      scSel_refreshVisuals();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function scSel_setSelectingMode(on) {
+    try {
+      window.__sc_selectingCells = !!on;
+      const wrap =
+        document.querySelector(".table-wrap") ||
+        document.getElementById("sc-body");
+      if (wrap && wrap.style) {
+        wrap.style.touchAction = on ? "none" : "pan-x pan-y";
+      }
+      document.body.style.userSelect = on ? "none" : "";
+    } catch {
+      /* ignore */
+    }
+  }
 
   function scSel_onPointerDown(ev) {
     // Only proceed for primary button when using mouse
@@ -969,8 +1024,41 @@ function toggleChip(btn, stateKey) {
     // Modifier-aware selection behaviour
     const clicked = { r: coord.r, cidx: coord.cidx };
 
-    // Mark selection mode early so row handlers ignore this interaction
-    window.__sc_selectingCells = true;
+    // Decide behavior by pointer type: mouse -> immediate select; touch -> arm long-press
+    const sc_pt = ev.pointerType || (ev.touches ? "touch" : "mouse");
+    if (sc_pt === "touch") {
+      // Arm long-press selection; allow normal scroll until timer fires
+      scSel_cancelLongPress();
+      scSel_longPressArmed = true;
+      scSel_lpStart = {
+        x: ev.clientX,
+        y: ev.clientY,
+        pointerId: ev.pointerId,
+        td,
+        coord,
+      };
+      scSel_lpTimer = setTimeout(() => {
+        if (!scSel_longPressArmed || !scSel_lpStart) return;
+        try {
+          __sc_ignoreNextClick = true;
+        } catch {}
+        setTimeout(() => {
+          try {
+            __sc_ignoreNextClick = false;
+          } catch {}
+        }, 250);
+        // begin selection now
+        scSel_beginSelectionAt(
+          scSel_lpStart.coord,
+          scSel_lpStart.pointerId,
+          scSel_lpStart.td,
+        );
+      }, SC_LONGPRESS_MS);
+      return;
+    }
+
+    // For mouse/pen treat as immediate selection; prevent row handlers.
+    scSel_setSelectingMode(true);
 
     // SHIFT+click: extend active range from anchor
     if (
@@ -992,9 +1080,7 @@ function toggleChip(btn, stateKey) {
           __sc_ignoreNextClick = false;
         } catch {}
       }, 250);
-      setTimeout(() => {
-        window.__sc_selectingCells = false;
-      }, 0);
+      setTimeout(() => scSel_setSelectingMode(false), 0);
       return;
     }
 
@@ -1037,15 +1123,11 @@ function toggleChip(btn, stateKey) {
           __sc_ignoreNextClick = false;
         } catch {}
       }, 250);
-      setTimeout(() => {
-        window.__sc_selectingCells = false;
-      }, 0);
+      setTimeout(() => scSel_setSelectingMode(false), 0);
       return;
     }
 
     // NORMAL click: prepare for drag/replace selection with single-cell active range
-    // Mark selection mode so row handlers ignore clicks
-    window.__sc_selectingCells = true;
 
     // Capture pointer so move/up continue even if pointer leaves element
     try {
@@ -1071,35 +1153,50 @@ function toggleChip(btn, stateKey) {
   }
 
   function scSel_onPointerMove(ev) {
-    if (!scSel_pointerDown) return;
-    // Prevent scrolling while selecting
-    try {
-      ev.preventDefault();
-    } catch {
-      /* ignore */
+    // If selection is active, expand range
+    if (scSel_pointerDown) {
+      try {
+        ev.preventDefault(); // touch-action is none during active selection
+      } catch {
+        /* ignore */
+      }
+      const td = document
+        .elementFromPoint(ev.clientX, ev.clientY)
+        ?.closest?.("td");
+      const coord = td ? scSel_getCoordFromTd(td) : null;
+      if (!coord) return;
+      // Ensure an active range exists for dragging
+      if (scSel_STATE.activeRangeIndex < 0) {
+        scSel_STATE.ranges = [
+          scSel_makeRange(
+            scSel_STATE.anchor || coord,
+            scSel_STATE.anchor || coord,
+          ),
+        ];
+        scSel_STATE.activeRangeIndex = 0;
+      }
+      scSel_selectRect(scSel_STATE.anchor, { r: coord.r, cidx: coord.cidx });
+      return;
     }
-    const td = document
-      .elementFromPoint(ev.clientX, ev.clientY)
-      ?.closest?.("td");
-    const coord = td ? scSel_getCoordFromTd(td) : null;
-    if (!coord) return;
-    // Ensure an active range exists for dragging
-    if (scSel_STATE.activeRangeIndex < 0) {
-      scSel_STATE.ranges = [
-        scSel_makeRange(
-          scSel_STATE.anchor || coord,
-          scSel_STATE.anchor || coord,
-        ),
-      ];
-      scSel_STATE.activeRangeIndex = 0;
+
+    // If long-press is armed (touch) and user moves too far => cancel (user is scrolling)
+    if (scSel_longPressArmed && scSel_lpStart && ev.pointerType !== "mouse") {
+      const dx = ev.clientX - scSel_lpStart.x;
+      const dy = ev.clientY - scSel_lpStart.y;
+      if (Math.hypot(dx, dy) > SC_MOVE_TOL_PX) scSel_cancelLongPress();
     }
-    scSel_selectRect(scSel_STATE.anchor, { r: coord.r, cidx: coord.cidx });
   }
 
   function scSel_onPointerUp(ev) {
-    if (!scSel_pointerDown) return;
+    // If long-press never triggered, cancel and ignore (short tap / scroll end)
+    if (!scSel_pointerDown) {
+      scSel_cancelLongPress();
+      return;
+    }
+
+    // End selection drag
     scSel_pointerDown = false;
-    document.body.style.userSelect = "";
+    scSel_cancelLongPress();
     // Release pointer capture if possible
     try {
       if (
@@ -1111,10 +1208,18 @@ function toggleChip(btn, stateKey) {
     } catch {
       /* ignore */
     }
+    // Restore scrolling/selection handling
+    scSel_setSelectingMode(false);
     // Allow row handlers to work again on next tick
     setTimeout(() => {
       window.__sc_selectingCells = false;
     }, 0);
+  }
+
+  function scSel_onPointerCancel() {
+    scSel_pointerDown = false;
+    scSel_cancelLongPress();
+    scSel_setSelectingMode(false);
   }
 
   function scSel_onDocPointerDown(ev) {
@@ -1162,9 +1267,9 @@ function toggleChip(btn, stateKey) {
       passive: true,
       capture: true,
     });
-    document.addEventListener("pointercancel", scSel_onPointerUp, {
+    document.addEventListener("pointercancel", scSel_onPointerCancel, {
       signal,
-      passive: true,
+      passive: false,
       capture: true,
     });
     // Clear selection when user clicks/taps outside the table or copy menu
@@ -4630,12 +4735,8 @@ function renderRows(rows) {
       },
       { passive: true },
     );
-    Array.from(tr.children).forEach((td) => {
-      if (td.tagName === "TD") {
-        td.addEventListener("touchstart", handleSelect, { passive: true });
-        td.addEventListener("touchend", handleSelect, { passive: true });
-      }
-    });
+    // Removed per-td touch handlers to avoid mobile yellow-row highlighting
+    // and conflicts with the rectangular cell selection UX.
     // Attach explicit Details button handler (single-tap opens modal)
     const btn = tr.querySelector(".sc-row-details");
     if (btn) {
