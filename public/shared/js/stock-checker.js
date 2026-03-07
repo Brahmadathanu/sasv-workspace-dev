@@ -14,7 +14,7 @@ const PDF_UMD_PATHS = {
 
 /* global PDF_ESM_PATHS, __sc_isDragging: true, __sc_ignoreNextClick: true, __sc_mouseDown: true,
    elTotalValue: true, elToggleValue: true, elValueModal: true, elValueModalClose: true, elValueBody: true,
-   elValueSnapshot: true, elRowModal: true, elRowModalClose: true, __sc_toastTimeout: true, __pdfExporting: true,
+   elValueSnapshot: true, elRowModal: true, elRowModalClose: true, __pdfExporting: true,
    openRowModal: true */
 
 /* exported elRowHeader, elRowClassif, elRowQty, elRowValue, elRowFooter, elRowModal, elRowModalClose */
@@ -336,6 +336,8 @@ function toggleChip(btn, stateKey) {
 // Non-invasive selection module: uses visible DOM rows (`tr[data-row-idx]`) and td index mapping.
 // Features: click-drag rectangle selection, Ctrl/Cmd+C to copy selected cells (with header), floating Copy button.
 (function scSelectionModule() {
+  const SC_SELECTION_DEBUG = false;
+
   const selectionController = {
     mode: "idle", // idle | pointer | keyboard | mobile-select
     focusCell: null, // { r, cidx }
@@ -346,6 +348,13 @@ function toggleChip(btn, stateKey) {
     isDragging: false,
     mobileSelectEnabled: false,
   };
+
+  function scSel_dbg(...args) {
+    if (!SC_SELECTION_DEBUG) return;
+    try {
+      console.debug("[SCSEL]", ...args);
+    } catch {}
+  }
 
   // Column mapping (left-to-right). Compute dynamically from table headers when possible.
   let SC_COLS = [];
@@ -452,9 +461,46 @@ function toggleChip(btn, stateKey) {
   }
   function scSel_clearVisuals() {
     document
-      .querySelectorAll("td.sc-sel-fill, td.sc-sel-active")
-      .forEach((el) => el.classList.remove("sc-sel-fill", "sc-sel-active"));
+      .querySelectorAll("td.sc-cell-selected, td.sc-cell-focused")
+      .forEach((el) =>
+        el.classList.remove("sc-cell-selected", "sc-cell-focused"),
+      );
     scSel_clearOverlays();
+  }
+
+  function scSel_validateSelection() {
+    try {
+      const rg = selectionController.range;
+      if (!rg) return true;
+      const { r1, r2, c1, c2 } = scSel_normRange(rg);
+      const rows = document.querySelectorAll("tr[data-row-idx]");
+      const maxR = rows.length ? Math.max(0, rows.length - 1) : -1;
+      const maxC = SC_COLS && SC_COLS.length ? SC_COLS.length - 1 : -1;
+      if (r1 < 0 || r2 < r1 || c1 < 0 || c2 < c1) return false;
+      if (r1 > maxR || r2 > maxR) return false;
+      if (c1 > maxC || c2 > maxC) return false;
+      return true;
+    } catch (err) {
+      void err;
+      return false;
+    }
+  }
+
+  function scSel_onTableMutations() {
+    scSel_dbg("table mutated — recomputing cols and validating selection");
+    // Clear visuals to avoid painting stale classes while remapping
+    scSel_clearVisuals();
+    scSel_computeCols();
+    if (!scSel_validateSelection()) {
+      scSel_dbg("selection invalid after mutation — clearing");
+      selectionController.anchor = null;
+      selectionController.focusCell = null;
+      selectionController.range = null;
+      scSel_hideCopyBtn();
+      scSel_clearOverlays();
+      return;
+    }
+    renderSelection();
   }
 
   // overlay host for continuous rectangle borders
@@ -481,6 +527,56 @@ function toggleChip(btn, stateKey) {
     return host;
   }
 
+  // Toast host for selection/copy feedback (separate from global #sc-msg)
+  let scSel_toastHost = null;
+  function scSel_ensureToastHost() {
+    if (scSel_toastHost) return scSel_toastHost;
+    const wrap = document.querySelector(".table-wrap") || document.body;
+    try {
+      if (!wrap.style.position) wrap.style.position = "relative";
+    } catch {}
+    const host = document.createElement("div");
+    host.className = "sc-sel-toast-host";
+    host.style.position = "absolute";
+    host.style.top = "8px";
+    host.style.right = "8px";
+    host.style.zIndex = "12020";
+    host.style.pointerEvents = "none";
+    wrap.appendChild(host);
+    scSel_toastHost = host;
+    return host;
+  }
+
+  let scSel_toastTimer = null;
+  function scSel_showToast(msg, duration = 1400) {
+    try {
+      const host = scSel_ensureToastHost();
+      // reuse single toast element
+      let toast = host.querySelector(".sc-sel-toast");
+      if (!toast) {
+        toast = document.createElement("div");
+        toast.className = "sc-sel-toast";
+        host.appendChild(toast);
+      }
+      toast.textContent = String(msg || "");
+      toast.style.opacity = "1";
+      if (scSel_toastTimer) clearTimeout(scSel_toastTimer);
+      scSel_toastTimer = setTimeout(() => {
+        try {
+          toast.style.transition = "opacity 220ms ease";
+          toast.style.opacity = "0";
+          setTimeout(() => {
+            try {
+              toast.remove();
+            } catch {}
+          }, 260);
+        } catch {}
+      }, duration);
+    } catch {
+      /* ignore */
+    }
+  }
+
   function scSel_clearOverlays() {
     if (!scSel_overlayHost) return;
     scSel_overlayHost.innerHTML = "";
@@ -492,20 +588,28 @@ function toggleChip(btn, stateKey) {
     if (!aTd || !bTd) return;
     const host = scSel_ensureOverlayHost();
     const wrap = document.querySelector(".table-wrap") || document.body;
+    // getBoundingClientRect is viewport-based. To compute coordinates
+    // relative to the wrapper's content box (which may be scrolled), we
+    // subtract the wrapper rect and then add wrapper scroll offsets.
     const wrapRect = wrap.getBoundingClientRect();
     const r1 = aTd.getBoundingClientRect();
     const r2 = bTd.getBoundingClientRect();
-    const left = Math.min(r1.left, r2.left) - wrapRect.left;
-    const top = Math.min(r1.top, r2.top) - wrapRect.top;
-    const right = Math.max(r1.right, r2.right) - wrapRect.left;
-    const bottom = Math.max(r1.bottom, r2.bottom) - wrapRect.top;
+    const leftV = Math.min(r1.left, r2.left);
+    const topV = Math.min(r1.top, r2.top);
+    const rightV = Math.max(r1.right, r2.right);
+    const bottomV = Math.max(r1.bottom, r2.bottom);
+    // Convert viewport to wrapper-local coordinates and account for scroll
+    const left = Math.round(leftV - wrapRect.left + (wrap.scrollLeft || 0));
+    const top = Math.round(topV - wrapRect.top + (wrap.scrollTop || 0));
+    const right = Math.round(rightV - wrapRect.left + (wrap.scrollLeft || 0));
+    const bottom = Math.round(bottomV - wrapRect.top + (wrap.scrollTop || 0));
     const box = document.createElement("div");
     box.className = "sc-sel-box";
     box.style.position = "absolute";
     box.style.left = `${left}px`;
     box.style.top = `${top}px`;
-    box.style.width = `${right - left}px`;
-    box.style.height = `${bottom - top}px`;
+    box.style.width = `${Math.max(0, right - left)}px`;
+    box.style.height = `${Math.max(0, bottom - top)}px`;
     host.appendChild(box);
   }
 
@@ -562,31 +666,39 @@ function toggleChip(btn, stateKey) {
 
   // Central selection rendering entry point
   function renderSelection() {
+    scSel_dbg("renderSelection", {
+      mode: selectionController.mode,
+      focusCell: selectionController.focusCell,
+      anchor: selectionController.anchor,
+      range: selectionController.range,
+    });
     scSel_clearVisuals();
     scSel_clearOverlays();
     const rg = selectionController.range;
     if (!rg) return scSel_hideCopyBtn();
     const { r1, r2, c1, c2 } = scSel_normRange(rg);
-    for (let rr = r1; rr <= r2; rr++) {
-      const tr = document.querySelector(`tr[data-row-idx="${rr}"]`);
-      if (!tr) continue;
-      const tds = Array.from(tr.children).filter((n) => n.tagName === "TD");
-      for (let cc = c1; cc <= c2; cc++) {
-        const td = tds[cc];
-        if (!td) continue;
-        td.classList.add("sc-sel-fill");
-      }
-    }
-    scSel_drawOverlayForRange({ r1, r2, c1, c2 });
 
-    // Active cell highlight only for single-cell active range
+    // Determine whether this is a single-cell selection
+    const isSingle = r1 === r2 && c1 === c2;
+
+    // For multi-cell selection draw the outer overlay box; for single-cell
+    // selection rely on the focused-cell visual to avoid duplicate boxes.
+    if (!isSingle) scSel_drawOverlayForRange({ r1, r2, c1, c2 });
+
     try {
-      const a = selectionController.anchor;
-      const b = selectionController.focusCell;
-      const isSingle = a && b && a.r === b.r && a.cidx === b.cidx;
       if (isSingle) {
         const active = scSel_getTd(selectionController.focusCell);
-        if (active) active.classList.add("sc-sel-active");
+        if (active) active.classList.add("sc-cell-focused");
+      }
+      for (let rr = r1; rr <= r2; rr++) {
+        const tr = document.querySelector(`tr[data-row-idx="${rr}"]`);
+        if (!tr) continue;
+        const tds = Array.from(tr.children).filter((n) => n.tagName === "TD");
+        for (let cc = c1; cc <= c2; cc++) {
+          const td = tds[cc];
+          if (!td) continue;
+          if (!isSingle) td.classList.add("sc-cell-selected");
+        }
       }
     } catch {
       /* ignore */
@@ -624,15 +736,15 @@ function toggleChip(btn, stateKey) {
     return [header, sep, ...body].join("\n");
   }
 
-  // TSV builder — single rectangular range only
-  function scSel_buildClipboardText_TSV() {
+  // Utility: return selected rectangle values based on current selectionController.range
+  function getSelectedRectValues() {
     const rg = selectionController.range;
-    if (!rg) return "";
+    if (!rg) return null;
     const { r1, r2, c1, c2 } = scSel_normRange(rg);
     const cols = [];
     for (let c = c1; c <= c2; c++) cols.push(c);
     const headers = cols.map((c) => SC_COLS[c] || `C${c}`);
-    const lines = [headers.join("\t")];
+    const rows = [];
     for (let r = r1; r <= r2; r++) {
       const tr = document.querySelector(`tr[data-row-idx="${r}"]`);
       if (!tr) continue;
@@ -642,38 +754,29 @@ function toggleChip(btn, stateKey) {
         if (!td) return "";
         return td.dataset?.value ? td.dataset.value : td.textContent.trim();
       });
-      lines.push(vals.join("\t"));
+      rows.push(vals);
+    }
+    return { headers, rows };
+  }
+
+  function buildTSVFromRect(rect) {
+    if (!rect) return "";
+    const lines = [];
+    lines.push(rect.headers.join("\t"));
+    for (const r of rect.rows) {
+      lines.push(r.join("\t"));
     }
     return lines.join("\n");
   }
 
-  // Markdown builder — single rectangular range only
-  function scSel_buildClipboardText_MD() {
-    const rg = selectionController.range;
-    if (!rg) return "";
-    const { r1, r2, c1, c2 } = scSel_normRange(rg);
-    const cols = [];
-    for (let c = c1; c <= c2; c++) cols.push(c);
-    const headers = cols.map((c) => scSel_escapeMdCell(SC_COLS[c] || `C${c}`));
-    const rows = [headers];
-    for (let r = r1; r <= r2; r++) {
-      const tr = document.querySelector(`tr[data-row-idx="${r}"]`);
-      if (!tr) continue;
-      const tds = Array.from(tr.children).filter((n) => n.tagName === "TD");
-      const vals = cols.map((c) => {
-        const td = tds[c];
-        if (!td) return "";
-        const raw = td.dataset?.value
-          ? td.dataset.value
-          : td.textContent.trim();
-        return scSel_escapeMdCell(raw);
-      });
-      rows.push(vals);
-    }
-    return scSel_mdTable(rows);
+  function buildMarkdownFromRect(rect) {
+    if (!rect) return "";
+    const mdRows = [rect.headers.map((h) => scSel_escapeMdCell(h))];
+    for (const r of rect.rows) mdRows.push(r.map((c) => scSel_escapeMdCell(c)));
+    return scSel_mdTable(mdRows);
   }
 
-  async function scSel_copyToClipboard(text, okMsg) {
+  async function copyTextToClipboard(text, okMsg) {
     if (!text) return;
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -686,23 +789,28 @@ function toggleChip(btn, stateKey) {
         document.execCommand("copy");
         ta.remove();
       }
-      setMsg(okMsg || "Copied selection.");
-      setTimeout(() => setMsg(""), 1200);
+      // Use lightweight selection toast instead of the legacy #sc-msg overlay
+      scSel_showToast(okMsg || "Copied selection.");
     } catch (err) {
       console.error("Copy failed", err);
-      setMsg("Copy failed.");
-      setTimeout(() => setMsg(""), 1800);
+      scSel_showToast("Copy failed.");
     }
   }
 
+  /* Legacy clipboard helpers removed — new DOM-driven pipeline in use */
+
   function scSel_copyTSV() {
-    const text = scSel_buildClipboardText_TSV();
-    scSel_copyToClipboard(text, "Copied TSV (header included).");
+    scSel_dbg("copyTSV", { range: selectionController.range });
+    const rect = getSelectedRectValues();
+    const text = buildTSVFromRect(rect);
+    copyTextToClipboard(text, "Copied TSV (header included).");
   }
 
   function scSel_copyMD() {
-    const text = scSel_buildClipboardText_MD();
-    scSel_copyToClipboard(text, "Copied Markdown table.");
+    scSel_dbg("copyMD", { range: selectionController.range });
+    const rect = getSelectedRectValues();
+    const text = buildMarkdownFromRect(rect);
+    copyTextToClipboard(text, "Copied Markdown table.");
   }
 
   let scSel_copyMenu = null;
@@ -714,18 +822,16 @@ function toggleChip(btn, stateKey) {
 
     scSel_copyMenu = document.createElement("div");
     scSel_copyMenu.className = "sc-copy-float-menu";
-    scSel_copyMenu.style.position = "fixed";
-    scSel_copyMenu.style.right = "12px";
-    scSel_copyMenu.style.bottom = "12px";
-    scSel_copyMenu.style.zIndex = 12010;
-    scSel_copyMenu.style.display = "flex";
-    scSel_copyMenu.style.gap = "8px";
+    scSel_copyMenu.setAttribute("role", "group");
+    scSel_copyMenu.setAttribute("aria-label", "Selection actions");
+    scSel_copyMenu.setAttribute("aria-hidden", "false");
 
     const btnTSV = document.createElement("button");
     btnTSV.className = "sc-copy-float";
     btnTSV.type = "button";
     btnTSV.textContent = "Copy TSV";
     btnTSV.title = "Copy selection as TSV (best for Excel)";
+    btnTSV.setAttribute("aria-label", "Copy TSV");
     btnTSV.addEventListener("click", scSel_copyTSV);
 
     const btnMD = document.createElement("button");
@@ -733,57 +839,53 @@ function toggleChip(btn, stateKey) {
     btnMD.type = "button";
     btnMD.textContent = "Copy MD";
     btnMD.title = "Copy selection as Markdown table (best for chat/docs)";
+    btnMD.setAttribute("aria-label", "Copy Markdown");
     btnMD.addEventListener("click", scSel_copyMD);
 
     scSel_copyMenu.appendChild(btnTSV);
     scSel_copyMenu.appendChild(btnMD);
 
-    document.body.appendChild(scSel_copyMenu);
+    // On narrow screens, append to the table wrapper so the menu is positioned
+    // relative to the table and doesn't obstruct top toolbar controls.
+    try {
+      const isSmall =
+        (window.innerWidth || document.documentElement.clientWidth) <= 520;
+      if (isSmall) {
+        const wrap = document.querySelector(".table-wrap");
+        if (wrap) {
+          if (!wrap.style.position)
+            wrap.style.position = wrap.style.position || "relative";
+          wrap.appendChild(scSel_copyMenu);
+        } else {
+          document.body.appendChild(scSel_copyMenu);
+        }
+      } else {
+        document.body.appendChild(scSel_copyMenu);
+      }
+    } catch {
+      document.body.appendChild(scSel_copyMenu);
+    }
   }
 
   function scSel_hideCopyBtn() {
     if (!scSel_copyMenu) return;
     scSel_copyMenu.style.display = "none";
+    try {
+      scSel_copyMenu.setAttribute("aria-hidden", "true");
+    } catch {
+      /* ignore */
+    }
   }
 
   let scSel_pointerDown = false;
   let scSel_abort = null;
-  // Long-press configuration / state for touch-driven selection
-  const SC_LONGPRESS_MS = 300; // 250-350ms feels natural
-  const SC_MOVE_TOL_PX = 8; // movement threshold before canceling long-press
-
-  let scSel_lpTimer = null;
-  let scSel_lpStart = null; // { x, y, pointerId, td, coord }
-  let scSel_longPressArmed = false;
+  let scSel_gridInitDone = false;
+  // Movement threshold for switching from tap -> drag on touch
+  const SC_DRAG_TOL_PX = 8;
+  let scSel_touchStart = null; // { x, y, pointerId, td, coord }
 
   function scSel_cancelLongPress() {
-    if (scSel_lpTimer) {
-      clearTimeout(scSel_lpTimer);
-      scSel_lpTimer = null;
-    }
-    scSel_lpStart = null;
-    scSel_longPressArmed = false;
-  }
-
-  function scSel_beginSelectionAt(coord, pointerId, td) {
-    try {
-      scSel_setSelectingMode(true);
-      scSel_pointerDown = true;
-      if (td && typeof td.setPointerCapture === "function") {
-        try {
-          td.setPointerCapture(pointerId);
-        } catch {
-          /* ignore */
-        }
-      }
-
-      selectionController.anchor = coord;
-      selectionController.focusCell = coord;
-      selectionController.range = scSel_normRange(coord);
-      renderSelection();
-    } catch {
-      /* ignore */
-    }
+    // no-op: long-press heuristics removed in favor of explicit mobile toggle
   }
 
   function scSel_setSelectingMode(on) {
@@ -822,39 +924,61 @@ function toggleChip(btn, stateKey) {
     const coord = td ? scSel_getCoordFromTd(td) : null;
     if (!coord) return;
 
+    scSel_dbg("pointerdown", { pointerType: ev.pointerType, coord });
+
     // Modifier-aware selection behaviour
     const clicked = { r: coord.r, cidx: coord.cidx };
 
-    // Decide behavior by pointer type: mouse -> immediate select; touch -> arm long-press
+    // Decide behavior by pointer type. On touch, behave differently based on
+    // whether mobile Select mode is enabled. When mobile Select is ON, we
+    // become the authoritative grid owner and start selection immediately.
     const sc_pt = ev.pointerType || (ev.touches ? "touch" : "mouse");
     if (sc_pt === "touch") {
-      // Arm long-press selection; allow normal scroll until timer fires
-      scSel_cancelLongPress();
-      scSel_longPressArmed = true;
-      scSel_lpStart = {
-        x: ev.clientX,
-        y: ev.clientY,
-        pointerId: ev.pointerId,
-        td,
-        coord,
-      };
-      scSel_lpTimer = setTimeout(() => {
-        if (!scSel_longPressArmed || !scSel_lpStart) return;
+      if (!selectionController.mobileSelectEnabled) {
+        // Not in mobile-select mode: do not start selection here — allow normal scrolling/taps
+        scSel_touchStart = {
+          x: ev.clientX,
+          y: ev.clientY,
+          pointerId: ev.pointerId,
+          td,
+          coord,
+        };
         try {
-          __sc_ignoreNextClick = true;
+          if (td && typeof td.setPointerCapture === "function")
+            td.setPointerCapture(ev.pointerId);
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
+
+      // Mobile Select mode is enabled: become authoritative — start selection
+      // immediately and suppress row handlers.
+      try {
+        ev.preventDefault();
+        ev.stopPropagation();
+      } catch {}
+      scSel_setSelectingMode(true);
+      scSel_pointerDown = true;
+      selectionController.anchor = { r: coord.r, cidx: coord.cidx };
+      selectionController.focusCell = selectionController.anchor;
+      selectionController.range = scSel_normRange(selectionController.anchor);
+      try {
+        if (td && typeof td.setPointerCapture === "function")
+          td.setPointerCapture(ev.pointerId);
+      } catch {}
+      renderSelection();
+      document.body.style.userSelect = "none";
+      try {
+        __sc_ignoreNextClick = true;
+      } catch {
+        /* ignore */
+      }
+      setTimeout(() => {
+        try {
+          __sc_ignoreNextClick = false;
         } catch {}
-        setTimeout(() => {
-          try {
-            __sc_ignoreNextClick = false;
-          } catch {}
-        }, 250);
-        // begin selection now
-        scSel_beginSelectionAt(
-          scSel_lpStart.coord,
-          scSel_lpStart.pointerId,
-          scSel_lpStart.td,
-        );
-      }, SC_LONGPRESS_MS);
+      }, 250);
       return;
     }
 
@@ -916,6 +1040,16 @@ function toggleChip(btn, stateKey) {
       /* ignore */
     }
 
+    // Focus the grid wrapper so keyboard navigation is scoped here
+    try {
+      const gw =
+        document.getElementById("sc-grid-wrap") ||
+        document.querySelector(".table-wrap");
+      if (gw && typeof gw.focus === "function") gw.focus();
+    } catch {
+      /* ignore */
+    }
+
     ev.preventDefault();
     ev.stopPropagation();
 
@@ -931,7 +1065,7 @@ function toggleChip(btn, stateKey) {
     // If selection is active, expand range
     if (scSel_pointerDown) {
       try {
-        ev.preventDefault(); // touch-action is none during active selection
+        ev.preventDefault(); // suppress scrolling while actively dragging
       } catch {
         /* ignore */
       }
@@ -949,24 +1083,81 @@ function toggleChip(btn, stateKey) {
       return;
     }
 
-    // If long-press is armed (touch) and user moves too far => cancel (user is scrolling)
-    if (scSel_longPressArmed && scSel_lpStart && ev.pointerType !== "mouse") {
-      const dx = ev.clientX - scSel_lpStart.x;
-      const dy = ev.clientY - scSel_lpStart.y;
-      if (Math.hypot(dx, dy) > SC_MOVE_TOL_PX) scSel_cancelLongPress();
+    // If we have a touchStart recorded and mobile mode is enabled, check for movement threshold to begin drag
+    try {
+      if (scSel_touchStart && ev.pointerType !== "mouse") {
+        const dx = ev.clientX - scSel_touchStart.x;
+        const dy = ev.clientY - scSel_touchStart.y;
+        if (Math.hypot(dx, dy) > SC_DRAG_TOL_PX) {
+          scSel_dbg("touch threshold exceeded — begin drag", { dx, dy });
+          // Begin active drag-selection
+          scSel_pointerDown = true;
+          scSel_setSelectingMode(true);
+          document.body.style.userSelect = "none";
+          // Anchor is the start cell
+          selectionController.anchor = scSel_touchStart.coord;
+          selectionController.focusCell = scSel_touchStart.coord;
+          selectionController.range = scSel_normRange(
+            selectionController.anchor,
+          );
+          // Update selection to current pointer location
+          const td = document
+            .elementFromPoint(ev.clientX, ev.clientY)
+            ?.closest?.("td");
+          const coord = td ? scSel_getCoordFromTd(td) : null;
+          if (coord)
+            scSel_selectRect(selectionController.anchor, {
+              r: coord.r,
+              cidx: coord.cidx,
+            });
+        }
+      }
+    } catch {
+      /* ignore */
     }
   }
 
   function scSel_onPointerUp(ev) {
-    // If long-press never triggered, cancel and ignore (short tap / scroll end)
+    scSel_dbg("pointerup", {
+      pointerDown: scSel_pointerDown,
+      mobileEnabled: selectionController.mobileSelectEnabled,
+    });
+    // If we were not in an active drag, handle tap behavior when mobile-select is enabled
     if (!scSel_pointerDown) {
-      scSel_cancelLongPress();
+      try {
+        if (scSel_touchStart && selectionController.mobileSelectEnabled) {
+          // treat as tap: collapse selection to tapped cell
+          const td =
+            ev.target?.closest?.("td") ||
+            document.elementFromPoint(ev.clientX, ev.clientY)?.closest?.("td");
+          const coord = td ? scSel_getCoordFromTd(td) : scSel_touchStart.coord;
+          if (coord) {
+            selectionController.anchor = { r: coord.r, cidx: coord.cidx };
+            selectionController.focusCell = selectionController.anchor;
+            selectionController.range = scSel_normRange(
+              selectionController.anchor,
+            );
+            // focus grid wrapper
+            try {
+              const gw =
+                document.getElementById("sc-grid-wrap") ||
+                document.querySelector(".table-wrap");
+              if (gw && typeof gw.focus === "function") gw.focus();
+            } catch {}
+            renderSelection();
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+      // clear transient touch start
+      scSel_touchStart = null;
       return;
     }
 
     // End selection drag
     scSel_pointerDown = false;
-    scSel_cancelLongPress();
+    scSel_touchStart = null;
     // Release pointer capture if possible
     try {
       if (
@@ -987,7 +1178,9 @@ function toggleChip(btn, stateKey) {
   }
 
   function scSel_onPointerCancel() {
+    scSel_dbg("pointercancel");
     scSel_pointerDown = false;
+    scSel_touchStart = null;
     scSel_cancelLongPress();
     scSel_setSelectingMode(false);
   }
@@ -1021,8 +1214,25 @@ function toggleChip(btn, stateKey) {
     if (scSel_abort) scSel_abort.abort();
     scSel_abort = new AbortController();
     const { signal } = scSel_abort;
+    scSel_dbg("scSel_attach: listeners attached (signal created)");
 
-    // Pointer events handle mouse/touch/pen uniformly. Use capture for move/up so we receive events.
+    // Ensure grid wrapper is focusable and exposed as the grid owner
+    const gridWrap =
+      document.getElementById("sc-grid-wrap") ||
+      document.querySelector(".table-wrap") ||
+      document.getElementById("sc-body");
+    if (gridWrap && !scSel_gridInitDone) {
+      try {
+        if (!gridWrap.id) gridWrap.id = "sc-grid-wrap";
+        gridWrap.tabIndex = gridWrap.tabIndex >= 0 ? gridWrap.tabIndex : 0;
+        gridWrap.setAttribute("role", "grid");
+        gridWrap.setAttribute("aria-label", "Stock Checker results");
+        scSel_gridInitDone = true;
+      } catch {
+        /* ignore */
+      }
+    }
+
     localBody.addEventListener("pointerdown", scSel_onPointerDown, {
       signal,
       passive: false,
@@ -1096,9 +1306,25 @@ function toggleChip(btn, stateKey) {
           return;
         }
 
-        // Navigation keys
+        // Navigation keys — only handle arrows when the grid owns focus
         const arrows = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
         if (!arrows.includes(e.key)) return;
+
+        function scSel_gridOwnsFocus() {
+          try {
+            const wrap = document.getElementById("sc-grid-wrap");
+            const active = document.activeElement;
+            return !!(
+              wrap &&
+              active &&
+              (active === wrap || wrap.contains(active))
+            );
+          } catch {
+            return false;
+          }
+        }
+
+        if (!scSel_gridOwnsFocus()) return;
 
         // Determine starting point
         let current =
@@ -1151,16 +1377,14 @@ function toggleChip(btn, stateKey) {
     if (!tbl) return;
     if (scSel_observer) scSel_observer.disconnect();
     scSel_observer = new MutationObserver(
-      debounce(() => {
-        scSel_computeCols();
-        renderSelection();
-      }, 120),
+      debounce(scSel_onTableMutations, 120),
     );
+    // Observe structural changes; keep attribute watch minimal to avoid churn
     scSel_observer.observe(tbl, {
       childList: true,
       subtree: true,
       attributes: true,
-      characterData: true,
+      attributeFilter: ["data-row-idx", "data-col", "data-key", "data-value"],
     });
   }
 
@@ -1168,34 +1392,135 @@ function toggleChip(btn, stateKey) {
   (function injectCss() {
     const s = document.createElement("style");
     s.textContent = `
-      td.sc-sel-fill { background: rgba(59, 130, 246, 0.10); }
-      td.sc-sel-active { outline: 2px solid rgba(37,99,235,1); outline-offset: -2px; }
+      /* Selection visuals (single system) */
+      td.sc-cell-selected { background: rgba(59, 130, 246, 0.10); }
+      td.sc-cell-focused { outline: 2px solid rgba(37,99,235,1); outline-offset: -2px; }
+      /* Ensure native focus outlines don't produce duplicate highlights */
+      .table-wrap:focus { outline: none; }
+      td:focus { outline: none; }
       .sc-sel-overlay-host { position: absolute; left:0;top:0;right:0;bottom:0;pointer-events:none; }
       .sc-sel-box { box-sizing: border-box; border: 2px solid rgba(59,130,246,0.95); border-radius: 2px; }
-      .sc-copy-float { background:#0f172a;color:white;padding:8px 10px;border-radius:8px;border:none;box-shadow:0 6px 18px rgba(2,6,23,0.16);cursor:pointer; }
-      .sc-copy-float-menu {
-        background: rgba(255,255,255,0.92);
-        border: 1px solid rgba(148,163,184,0.6);
-        padding: 8px;
-        border-radius: 10px;
-        box-shadow: 0 6px 18px rgba(2,6,23,0.15);
-        backdrop-filter: blur(6px);
+      /* Mobile-only Select toggle visibility */
+      .sc-mobile-only { display: none; }
+      @media (max-width: 520px) {
+        .sc-mobile-only { display: inline-flex; margin-left: 8px; }
       }
-      button.sc-copy-float {
-        border: 1px solid rgba(148,163,184,0.8);
-        background: #fff;
-        color: #0f172a;
-        padding: 8px 10px;
+      /* Quieter copy action group: subtle, compact, secondary-style */
+      .sc-copy-float-menu {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        background: rgba(255,255,255,0.85);
+        border: 1px solid rgba(148,163,184,0.45);
+        padding: 6px;
         border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(2,6,23,0.06);
+        backdrop-filter: blur(4px);
+        font-size: 13px;
+      }
+      /* Default: fixed, bottom-right but visually low-contrast */
+      .sc-copy-float-menu { position: fixed; right: 12px; bottom: 12px; z-index: 12010; }
+      button.sc-copy-float {
+        appearance: none;
+        -webkit-appearance: none;
+        border: 1px solid transparent;
+        background: transparent;
+        color: rgba(15,23,42,0.9);
+        padding: 6px 8px;
+        border-radius: 6px;
         cursor: pointer;
         font-weight: 600;
+        line-height: 1;
       }
-      button.sc-copy-float:hover { filter: brightness(0.98); }
+      button.sc-copy-float[disabled] { opacity: 0.5; cursor: default; }
+      button.sc-copy-float:hover, button.sc-copy-float:focus {
+        background: rgba(2,6,23,0.04);
+        border-color: rgba(148,163,184,0.6);
+        outline: none;
+      }
+      /* Slightly more muted primary look for small screens: show as compact pill inside table area */
+      @media (max-width: 520px) {
+        .sc-copy-float-menu { position: absolute; top: 48px; right: 8px; bottom: auto; z-index: 9999; background: rgba(255,255,255,0.92); }
+        button.sc-copy-float { padding: 5px 7px; font-size: 12px; }
+      }
+      /* Selection/copy toast (ERP-style) */
+      .sc-sel-toast-host { position: absolute; top: 8px; right: 8px; z-index: 12020; pointer-events: none; }
+      .sc-sel-toast { pointer-events: auto; display: inline-block; background: rgba(255,255,255,0.98); border: 1px solid rgba(15,23,42,0.06); padding: 8px 10px; border-radius: 8px; box-shadow: 0 6px 18px rgba(2,6,23,0.08); color: rgba(15,23,42,0.9); font-size: 13px; }
     `;
     document.head.appendChild(s);
   })();
 
   // Avoid referencing outer `elBody` (TDZ). Lookup DOM node and retry attaching.
+  // Expose a small API for other modules to control mobile selection and to observe controller
+  try {
+    window.scSelection = window.scSelection || {};
+    window.scSelection.controller = selectionController;
+    window.scSelection.disableActive = function () {
+      try {
+        scSel_pointerDown = false;
+      } catch {
+        /* ignore */
+      }
+      try {
+        scSel_cancelLongPress();
+      } catch {
+        /* ignore */
+      }
+      try {
+        scSel_setSelectingMode(false);
+      } catch {
+        /* ignore */
+      }
+    };
+    window.scSelection.isMobileEnabled = function () {
+      return !!selectionController.mobileSelectEnabled;
+    };
+    window.scSelection.setMobileEnabled = function (v) {
+      selectionController.mobileSelectEnabled = !!v;
+    };
+    window.scSelection.clear = function () {
+      scSel_dbg("API clear() called");
+      try {
+        scSel_clear();
+      } catch {
+        /* ignore */
+      }
+    };
+    window.scSelection.debug = SC_SELECTION_DEBUG;
+    window.scSelection.log = scSel_dbg;
+    // Expose toast helper so legacy callers can show selection toasts safely
+    window.scSelection.showToast = function (msg, duration) {
+      try {
+        scSel_showToast(msg, duration);
+      } catch {
+        /* ignore */
+      }
+    };
+  } catch {
+    /* ignore */
+  }
+  // Clean up transient selection state on blur/visibility change so selection
+  // doesn't get stuck after app switches or navigation events.
+  try {
+    window.addEventListener("blur", () => {
+      scSel_dbg("window blur — cancelling transient selection state");
+      scSel_pointerDown = false;
+      scSel_touchStart = null;
+      scSel_setSelectingMode(false);
+    });
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState !== "visible") {
+        scSel_dbg(
+          "visibilitychange -> hidden — cancelling transient selection state",
+        );
+        scSel_pointerDown = false;
+        scSel_touchStart = null;
+        scSel_setSelectingMode(false);
+      }
+    });
+  } catch {
+    /* ignore */
+  }
   scSel_attach();
   setTimeout(scSel_attach, 300);
   // also attempt to set up observer shortly after init
@@ -1637,14 +1962,6 @@ async function init() {
     // Dynamic table offset: compute and set CSS variable so the table card
     // fills remaining viewport space and vertical scroll is inside the card.
     const tableWrap = document.querySelector(".table-wrap");
-    // Move the page-level message element into the table card so it doesn't
-    // add to the document height. Style class `sc-msg-overlay` will anchor
-    // it inside the card.
-    const scMsgEl = document.getElementById("sc-msg");
-    if (scMsgEl && tableWrap && scMsgEl.parentElement !== tableWrap) {
-      tableWrap.appendChild(scMsgEl);
-      scMsgEl.classList.add("sc-msg-overlay");
-    }
     function computeTableOffset() {
       if (!tableWrap) return;
       const rect = tableWrap.getBoundingClientRect();
@@ -1965,11 +2282,8 @@ async function init() {
                       "pack_size",
                       "uom",
                       "location",
-                      "godown",
-                      "stock_ok",
                       "stock_kkd",
                       "stock_ik",
-                      "stock_overall",
                       "stock_value",
                       "stock_value_overall",
                       "rate",
@@ -2693,6 +3007,54 @@ async function init() {
           .querySelector(".explode-controls input[type=checkbox]")
           ?.focus();
       });
+    }
+
+    // Mobile-only Select mode toggle (insert after explode details button)
+    try {
+      let btnMobileSelect = document.getElementById("sc-mobile-select-toggle");
+      if (!btnMobileSelect && btnExplodeDetails) {
+        btnMobileSelect = document.createElement("button");
+        btnMobileSelect.id = "sc-mobile-select-toggle";
+        btnMobileSelect.type = "button";
+        btnMobileSelect.className = "sc-btn sc-btn-subtle sc-mobile-only";
+        btnMobileSelect.setAttribute("aria-pressed", "false");
+        btnMobileSelect.setAttribute(
+          "aria-label",
+          "Enable cell selection mode",
+        );
+        btnMobileSelect.textContent = "Select";
+        btnExplodeDetails.insertAdjacentElement("afterend", btnMobileSelect);
+
+        btnMobileSelect.addEventListener("click", () => {
+          const now = btnMobileSelect.getAttribute("aria-pressed") === "true";
+          const next = !now;
+          btnMobileSelect.setAttribute("aria-pressed", String(next));
+          btnMobileSelect.classList.toggle("is-active", next);
+          // Use exposed API on scSelection
+          try {
+            if (
+              window.scSelection &&
+              typeof window.scSelection.setMobileEnabled === "function"
+            ) {
+              window.scSelection.setMobileEnabled(next);
+            } else if (window.scSelection && window.scSelection.controller) {
+              window.scSelection.controller.mobileSelectEnabled = next;
+            }
+            // If turning off, finish any active drag and restore normal behavior
+            if (
+              !next &&
+              window.scSelection &&
+              typeof window.scSelection.disableActive === "function"
+            ) {
+              window.scSelection.disableActive();
+            }
+          } catch {
+            /* ignore */
+          }
+        });
+      }
+    } catch {
+      /* ignore */
     }
 
     function closeExplodeModal() {
@@ -4382,32 +4744,17 @@ function renderRows(rows) {
   Array.from(elBody.querySelectorAll("tr")).forEach((tr) => {
     function showTapToast() {
       try {
-        let el = document.getElementById("sc-single-toast");
-        if (!el) {
-          el = document.createElement("div");
-          el.id = "sc-single-toast";
-          el.setAttribute("role", "status");
-          el.setAttribute("aria-live", "polite");
-          el.style.position = "fixed";
-          el.style.right = "12px";
-          el.style.bottom = "12px";
-          el.style.background = "rgba(6, 95, 70, 0.95)";
-          el.style.color = "#fff";
-          el.style.padding = "8px 10px";
-          el.style.borderRadius = "8px";
-          el.style.fontSize = "13px";
-          el.style.boxShadow = "0 6px 18px rgba(2,6,23,0.16)";
-          el.style.zIndex = 12000;
-          el.style.opacity = "0";
-          el.style.transition = "opacity 180ms ease";
-          document.body.appendChild(el);
+        // Use the unified selection toast (if available) so guidance doesn't
+        // appear under the copy menu at bottom-right. Fall back to legacy
+        // page message if the selection toast isn't exposed.
+        if (
+          window.scSelection &&
+          typeof window.scSelection.showToast === "function"
+        ) {
+          window.scSelection.showToast("Tap 'Details' to see more", 1200);
+        } else {
+          setMsg("Tap 'Details' to see more");
         }
-        el.textContent = "Tap 'Details' to see more";
-        el.style.opacity = "1";
-        if (__sc_toastTimeout) clearTimeout(__sc_toastTimeout);
-        __sc_toastTimeout = setTimeout(() => {
-          el.style.opacity = "0";
-        }, 1200);
       } catch {
         /* ignore */
       }
@@ -4419,6 +4766,15 @@ function renderRows(rows) {
         if (e && (e.shiftKey || e.ctrlKey || e.metaKey)) return;
         // If the cell-selection module is active, don't run row selection handlers
         if (window.__sc_selectingCells) return;
+        // If mobile Select mode is enabled, make row handlers inert
+        try {
+          if (
+            window.scSelection &&
+            window.scSelection.controller &&
+            window.scSelection.controller.mobileSelectEnabled
+          )
+            return;
+        } catch {}
         if (window.__sc_isDragging || __sc_isDragging) {
           __sc_isDragging = false;
           return;
@@ -4426,16 +4782,9 @@ function renderRows(rows) {
       } catch {
         /* ignore */
       }
-      Array.from(elBody.querySelectorAll("tr.selected-row")).forEach((row) =>
-        row.classList.remove("selected-row"),
-      );
-      let targetTr = tr;
-      if (e && e.target && e.target.tagName === "TD") {
-        targetTr = e.target.parentElement;
-      }
-      targetTr.classList.add("selected-row");
-      // For safety, do not open the details modal on row tap.
-      // Show a helper toast directing the user to the explicit Details button.
+      // Do not apply legacy row highlight classes — selection ownership is
+      // handled by the cell-selection subsystem. Keep only the helper toast
+      // to direct users to the explicit Details button.
       showTapToast();
     }
 
