@@ -1,4 +1,6 @@
 import { supabase } from "../public/shared/js/supabaseClient.js";
+import { requireAuthAndPermission } from "../public/shared/js/appAuth.js";
+import { bootstrapApp } from "../public/shared/js/appBootstrap.js";
 /* global confirmDatePlugin, flatpickr */
 
 /**
@@ -37,7 +39,7 @@ const parseDMY = (s) => {
 const formatDMY = (d) =>
   `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(
     2,
-    "0"
+    "0",
   )}-${d.getFullYear()}`;
 
 /**
@@ -162,7 +164,7 @@ async function loadSkuActivities() {
       .select("label")
       .eq("active", true)
       .eq("affects_bottled_stock", 1),
-    500
+    500,
   ); // adjust to true if boolean
   hideLoading();
 
@@ -174,7 +176,7 @@ async function loadSkuActivities() {
   skuActSet = new Set(
     (data || [])
       .map((r) => (r.label || "").trim().toLowerCase())
-      .filter(Boolean)
+      .filter(Boolean),
   );
 }
 
@@ -251,6 +253,7 @@ async function askConfirm(msg) {
  * Remove any existing packaging events and their SKUs for a given logId.
  * @param {number|string} logId
  */
+// eslint-disable-next-line no-unused-vars
 async function clearPackaging(logId) {
   const { data } = await supabase
     .from("packaging_events")
@@ -328,7 +331,7 @@ async function configureDoneModal(activity, item, batch, id) {
       qty_uom,
       lab_ref_number,
       sku_breakdown
-    `
+    `,
     )
     .eq("id", id)
     .single();
@@ -405,7 +408,7 @@ async function configureDoneModal(activity, item, batch, id) {
                      data-pack-size="${s.pack_size}"
                      data-uom="${s.uom}">
             </td>
-          </tr>`
+          </tr>`,
         );
       });
 
@@ -418,19 +421,19 @@ async function configureDoneModal(activity, item, batch, id) {
       if (!skus.length) {
         console.warn(
           "configureDoneModal: no active product_skus for product",
-          prod.id
+          prod.id,
         );
       } else {
         // If there were no event_skus stored, fall back to legacy sku_breakdown
         if (!existing.length && rec?.sku_breakdown) {
           console.debug(
             "configureDoneModal: falling back to rec.sku_breakdown",
-            rec.sku_breakdown
+            rec.sku_breakdown,
           );
           rec.sku_breakdown.split(";").forEach((entry) => {
             const [ps, uom, , cnt] = entry.trim().split(" ");
             const inp = doneSkuBody.querySelector(
-              `input[data-pack-size="${ps}"][data-uom="${uom}"]`
+              `input[data-pack-size="${ps}"][data-uom="${uom}"]`,
             );
             if (inp) inp.value = cnt;
           });
@@ -460,7 +463,7 @@ async function configureDoneModal(activity, item, batch, id) {
                    data-pack-size="${r.pack_size}"
                    data-uom="${r.uom}">
           </td>
-        </tr>`
+        </tr>`,
       );
     });
     // prefill transfer counts
@@ -468,7 +471,7 @@ async function configureDoneModal(activity, item, batch, id) {
       rec.sku_breakdown.split(";").forEach((entry) => {
         const [ps, uom, , cnt] = entry.trim().split(" ");
         const inp = doneTransBody.querySelector(
-          `input[data-pack-size="${ps}"][data-uom="${uom}"]`
+          `input[data-pack-size="${ps}"][data-uom="${uom}"]`,
         );
         if (inp) inp.value = cnt;
       });
@@ -541,7 +544,7 @@ async function promptDone(activity, item, batch, id) {
         ) {
           if (
             !(await askConfirm(
-              "Qty After Process & UOM not entered. Continue?"
+              "Qty After Process & UOM not entered. Continue?",
             ))
           )
             return;
@@ -551,7 +554,7 @@ async function promptDone(activity, item, batch, id) {
       // 4) SKU breakdown if shown
       if (doneSkuSec.style.display !== "none") {
         const anySku = Array.from(doneSkuBody.querySelectorAll("input")).some(
-          (i) => +i.value > 0
+          (i) => +i.value > 0,
         );
         if (!anySku) {
           await askConfirm("Enter at least one SKU count greater than zero.");
@@ -620,7 +623,7 @@ async function configureDoingModal(activity, item, batch, id) {
   doneForm.reset();
   doneCompletedOnSection.style.display = "none";
   [doneLabRefSec, doneSkuSec, doneTransSec, doneQtySection].forEach(
-    (el) => (el.style.display = "none")
+    (el) => (el.style.display = "none"),
   );
 
   // Show only the relevant Doing panels
@@ -636,7 +639,7 @@ async function configureDoingModal(activity, item, batch, id) {
   const { data: rec, error } = await supabase
     .from("daily_work_log")
     .select(
-      "juice_or_decoction,specify,count_of_saravam,fuel,fuel_under,fuel_over"
+      "juice_or_decoction,specify,count_of_saravam,fuel,fuel_under,fuel_over",
     )
     .eq("id", id)
     .single();
@@ -759,6 +762,30 @@ async function saveStatus(id, sel) {
   const actL = activity.toLowerCase().trim();
   const isStockTransfer = /stock\s*transfer/i.test(actL);
 
+  // Helper to call RPC with explicit payload and handle response
+  async function callRpcAndHandle(payload) {
+    console.log("[update-log-status] RPC payload", payload);
+    const { data, error } = await supabase.rpc(
+      "rpc_update_daily_work_log_status",
+      payload,
+    );
+    console.log("[update-log-status] RPC result", data, error);
+    if (!error && !data) {
+      console.warn("[update-log-status] RPC returned no data");
+    }
+    if (error) {
+      console.error("RPC error:", error);
+      alert(
+        `Could not update record ${id} to ${payload.p_new_status}:\n${
+          error.message || JSON.stringify(error)
+        }`,
+      );
+      sel.value = prevStatus;
+      return false;
+    }
+    return true;
+  }
+
   if (newStat === "Done") {
     const r = await promptDone(activity, item, bn, id);
     if (r.choice === "cancel") {
@@ -778,13 +805,11 @@ async function saveStatus(id, sel) {
 
     // ── PRE-FLIGHT FG BULK STOCK CHECK (client-side) ─────────────────────
     if (skuActSet.has(actL)) {
-      // 1) Sum pack_size × count (rows are already numbers)
       const totalUnits = r.rows.reduce(
         (sum, x) => sum + (Number(x.packSize) || 0) * (Number(x.count) || 0),
-        0
+        0,
       );
 
-      // 2) Product-level conversion factor to base unit
       const { data: prod, error: prodErr } = await supabase
         .from("products")
         .select("conversion_to_base, uom_base")
@@ -795,7 +820,6 @@ async function saveStatus(id, sel) {
       const factor = Number(prod?.conversion_to_base) || 1;
       const totalBaseQty = totalUnits * factor;
 
-      // 3) Current FG bulk stock row (skip if none)
       const { data: bulk, error: bulkErr } = await supabase
         .from("fg_bulk_stock")
         .select("qty_on_hand")
@@ -809,93 +833,63 @@ async function saveStatus(id, sel) {
         const EPS = 0.001;
 
         if (totalBaseQty > available + EPS) {
-          // show in-page warning modal instead of alert/confirm
           stockWarningText.textContent =
-            `Cannot mark Done: packaging ${totalBaseQty.toFixed(3)} ${
-              prod?.uom_base || ""
-            } ` +
-            `> available ${available.toFixed(3)} ${
-              prod?.uom_base || ""
-            } in FG bulk stock.`;
+            `Cannot mark Done: packaging ${totalBaseQty.toFixed(3)} ${prod?.uom_base || ""} ` +
+            `> available ${available.toFixed(3)} ${prod?.uom_base || ""} in FG bulk stock.`;
           show(stockWarningModal);
           sel.value = prevStatus;
           return;
         }
       }
-      // If no bulk row, let it pass — DB trigger will ignore/adjust anyway.
     }
 
-    // parse & build payload
-    const [d, m, y] = r.completedOn.split("-").map(Number);
-    const isoDate = new Date(y, m - 1, d).toISOString().slice(0, 10);
-    const upd = {
-      status: "Done",
-      completed_on: isoDate,
-      qty_after_process: null,
-      qty_uom: null,
-      sku_breakdown: null,
-      lab_ref_number: null,
-      storage_qty: storageData ? storageData.storageQty : null,
-      storage_qty_uom: storageData ? storageData.storageUom : null,
+    // Build RPC payload
+    let isoDate = null;
+    if (r.completedOn) {
+      const [d, m, y] = r.completedOn.split("-").map(Number);
+      isoDate = new Date(y, m - 1, d).toISOString().slice(0, 10);
+    }
+
+    const sku_breakdown =
+      skuActSet.has(actL) || actL === "transfer to fg store"
+        ? (r.rows || [])
+            .map((x) => `${x.packSize} ${x.uom} x ${x.count}`)
+            .join("; ")
+        : null;
+
+    const payload = {
+      p_id: Number(id),
+      p_new_status: "Done",
+      p_completed_on: isoDate,
+      p_qty_after_process:
+        skuActSet.has(actL) || actL === "transfer to fg store"
+          ? null
+          : (r.qty ?? null),
+      p_qty_uom:
+        skuActSet.has(actL) || actL === "transfer to fg store"
+          ? null
+          : (r.uom ?? null),
+      p_lab_ref_number:
+        actL === "finished goods quality assessment"
+          ? (r.labRef ?? null)
+          : null,
+      p_sku_breakdown: sku_breakdown,
+      p_storage_qty: storageData ? storageData.storageQty : null,
+      p_storage_qty_uom: storageData ? storageData.storageUom : null,
+      p_juice_or_decoction: null,
+      p_specify: null,
+      p_count_of_saravam: null,
+      p_fuel: null,
+      p_fuel_under: null,
+      p_fuel_over: null,
     };
 
-    if (actL === "finished goods quality assessment") {
-      upd.lab_ref_number = r.labRef;
-    } else if (skuActSet.has(actL) || actL === "transfer to fg store") {
-      upd.sku_breakdown = r.rows
-        .map((x) => `${x.packSize} ${x.uom} x ${x.count}`)
-        .join("; ");
-    } else {
-      upd.qty_after_process = r.qty;
-      upd.qty_uom = r.uom;
-    }
+    const ok = await callRpcAndHandle(payload);
+    if (!ok) return;
 
-    // update main record
-    const { error: updErr } = await supabase
-      .from("daily_work_log")
-      .update(upd)
-      .eq("id", Number(id));
-    if (updErr) {
-      console.error("Update failed:", updErr);
-      alert(`Could not update record ${id} to Done:\n${updErr.message}`);
-      sel.value = prevStatus;
-      return;
-    }
-
-    // upsert packaging events if needed
-    if (skuActSet.has(actL) || actL === "transfer to fg store") {
-      const { data: pe } = await supabase
-        .from("packaging_events")
-        .upsert(
-          { work_log_id: id, event_type: activity },
-          { onConflict: "work_log_id" }
-        )
-        .select("id")
-        .single();
-      if (pe) {
-        await supabase
-          .from("event_skus")
-          .delete()
-          .eq("packaging_event_id", pe.id);
-        const toInsert = (r.rows || []).filter(
-          (x) => Number.isFinite(x.skuId) && x.skuId > 0
-        );
-        if (toInsert.length) {
-          await supabase.from("event_skus").insert(
-            toInsert.map((x) => ({
-              packaging_event_id: pe.id,
-              sku_id: x.skuId,
-              count: x.count,
-            }))
-          );
-        }
-      }
-    }
-
-    // if user wants "Save & New", go to add-log-entry
     if (r.choice === "new") {
       window.location.href = `add-log-entry.html?item=${encodeURIComponent(
-        item
+        item,
       )}&bn=${encodeURIComponent(bn)}`;
       return;
     }
@@ -905,7 +899,7 @@ async function saveStatus(id, sel) {
   }
 
   if (newStat === "Doing") {
-    await clearPackaging(id);
+    // Do NOT call clearPackaging here per refactor requirements
 
     if (
       /juice|grinding|kashayam/.test(actL) ||
@@ -917,41 +911,66 @@ async function saveStatus(id, sel) {
         return;
       }
 
-      const upd = { status: "Doing" };
-      if (/juice|grinding|kashayam/.test(actL)) {
-        upd.juice_or_decoction = doneJuiceOrDecoction.value || null;
-        upd.specify = doneSpecify.value || null;
-      }
-      if (/putam|gaja putam|seelamann/.test(actL)) {
-        upd.count_of_saravam = doneCountSaravam.value
-          ? Number(doneCountSaravam.value)
-          : null;
-        upd.fuel = doneFuel.value || null;
-        upd.fuel_under = doneFuelUnder.value || null;
-        upd.fuel_over = doneFuelOver.value || null;
-      }
+      const payload = {
+        p_id: Number(id),
+        p_new_status: "Doing",
+        p_completed_on: null,
+        p_qty_after_process: null,
+        p_qty_uom: null,
+        p_lab_ref_number: null,
+        p_sku_breakdown: null,
+        p_storage_qty: null,
+        p_storage_qty_uom: null,
+        p_juice_or_decoction: /juice|grinding|kashayam/.test(actL)
+          ? doneJuiceOrDecoction.value || null
+          : null,
+        p_specify: /juice|grinding|kashayam/.test(actL)
+          ? doneSpecify.value || null
+          : null,
+        p_count_of_saravam: /putam|gaja putam|seelamann/.test(actL)
+          ? doneCountSaravam.value
+            ? Number(doneCountSaravam.value)
+            : null
+          : null,
+        p_fuel: /putam|gaja putam|seelamann/.test(actL)
+          ? doneFuel.value || null
+          : null,
+        p_fuel_under: /putam|gaja putam|seelamann/.test(actL)
+          ? doneFuelUnder.value || null
+          : null,
+        p_fuel_over: /putam|gaja putam|seelamann/.test(actL)
+          ? doneFuelOver.value || null
+          : null,
+      };
 
-      const { error } = await supabase
-        .from("daily_work_log")
-        .update(upd)
-        .eq("id", id);
-      if (error) {
-        console.error("Update failed:", error);
-        sel.value = prevStatus;
-      }
+      const ok = await callRpcAndHandle(payload);
+      if (!ok) return;
+      await loadStatus();
+      return;
     } else {
-      const { error } = await supabase
-        .from("daily_work_log")
-        .update({ status: "Doing" })
-        .eq("id", id);
-      if (error) {
-        console.error("Update failed:", error);
-        sel.value = prevStatus;
-      }
-    }
+      const payload = {
+        p_id: Number(id),
+        p_new_status: "Doing",
+        p_completed_on: null,
+        p_qty_after_process: null,
+        p_qty_uom: null,
+        p_lab_ref_number: null,
+        p_sku_breakdown: null,
+        p_storage_qty: null,
+        p_storage_qty_uom: null,
+        p_juice_or_decoction: null,
+        p_specify: null,
+        p_count_of_saravam: null,
+        p_fuel: null,
+        p_fuel_under: null,
+        p_fuel_over: null,
+      };
 
-    loadStatus();
-    return;
+      const ok = await callRpcAndHandle(payload);
+      if (!ok) return;
+      await loadStatus();
+      return;
+    }
   }
 
   // ── In Storage branch ────────────────────────────────────────────────────
@@ -961,52 +980,56 @@ async function saveStatus(id, sel) {
       sel.value = prevStatus;
       return;
     }
-    // build payload: reset all other fields
+
     const payload = {
-      status: "In Storage",
-      storage_qty: r.storageQty,
-      storage_qty_uom: r.storageUom,
-      completed_on: null,
-      qty_after_process: null,
-      qty_uom: null,
-      sku_breakdown: null,
-      lab_ref_number: null,
-      juice_or_decoction: null,
-      specify: null,
-      count_of_saravam: null,
-      fuel: null,
-      fuel_under: null,
-      fuel_over: null,
+      p_id: Number(id),
+      p_new_status: "In Storage",
+      p_completed_on: null,
+      p_qty_after_process: null,
+      p_qty_uom: null,
+      p_lab_ref_number: null,
+      p_sku_breakdown: null,
+      p_storage_qty: r.storageQty,
+      p_storage_qty_uom: r.storageUom,
+      p_juice_or_decoction: null,
+      p_specify: null,
+      p_count_of_saravam: null,
+      p_fuel: null,
+      p_fuel_under: null,
+      p_fuel_over: null,
     };
-    const { error: updErr } = await supabase
-      .from("daily_work_log")
-      .update(payload)
-      .eq("id", id);
-    if (updErr) {
-      console.error("Update failed:", updErr);
-      sel.value = prevStatus;
-      return;
-    }
-    loadStatus();
+
+    const ok = await callRpcAndHandle(payload);
+    if (!ok) return;
+    await loadStatus();
     return;
   }
 
-  // On Hold & other transitions
-  await clearPackaging(id);
-  const { error } = await supabase
-    .from("daily_work_log")
-    .update({
-      status: newStat,
-      completed_on: null,
-      qty_after_process: null,
-      qty_uom: null,
-      sku_breakdown: null,
-      lab_ref_number: null,
-    })
-    .eq("id", id);
-  if (error) console.error("Update failed:", error);
+  // On Hold & other transitions (no clearPackaging, single RPC)
+  {
+    const payload = {
+      p_id: Number(id),
+      p_new_status: newStat,
+      p_completed_on: null,
+      p_qty_after_process: null,
+      p_qty_uom: null,
+      p_lab_ref_number: null,
+      p_sku_breakdown: null,
+      p_storage_qty: null,
+      p_storage_qty_uom: null,
+      p_juice_or_decoction: null,
+      p_specify: null,
+      p_count_of_saravam: null,
+      p_fuel: null,
+      p_fuel_under: null,
+      p_fuel_over: null,
+    };
 
-  loadStatus();
+    const ok = await callRpcAndHandle(payload);
+    if (!ok) return;
+    await loadStatus();
+    return;
+  }
 }
 
 /**
@@ -1020,7 +1043,7 @@ async function loadStatus() {
     let q = supabase
       .from("daily_work_log")
       .select(
-        "id,log_date,item,batch_number,batch_size,batch_uom,section_id,plant_id,activity,status,due_date"
+        "id,log_date,item,batch_number,batch_size,batch_uom,section_id,plant_id,activity,status,due_date",
       )
       .in("status", ["Doing", "On Hold", "In Storage"]);
 
@@ -1069,14 +1092,14 @@ async function loadStatus() {
       if (bn) return bn;
       return coll.compare(
         plantMap[a.plant_id] || "",
-        plantMap[b.plant_id] || ""
+        plantMap[b.plant_id] || "",
       );
     });
 
     data.forEach((r) => {
       const act = r.activity.toLowerCase().trim();
       const allowStorage = ["intermediate storage", "fg bulk storage"].includes(
-        act
+        act,
       );
 
       bodyTbl.insertAdjacentHTML(
@@ -1099,14 +1122,14 @@ async function loadStatus() {
         data-bn="${r.batch_number}"
         data-prev-status="${r.status}">
   <option value="Doing"      ${r.status === "Doing" ? "selected" : ""} ${
-          allowStorage ? "disabled" : ""
-        }>Doing</option>
+    allowStorage ? "disabled" : ""
+  }>Doing</option>
   <option value="On Hold"    ${r.status === "On Hold" ? "selected" : ""} ${
-          allowStorage ? "disabled" : ""
-        }>On Hold</option>
+    allowStorage ? "disabled" : ""
+  }>On Hold</option>
   <option value="In Storage" ${r.status === "In Storage" ? "selected" : ""} ${
-          allowStorage ? "" : "disabled"
-        }>In Storage</option>
+    allowStorage ? "" : "disabled"
+  }>In Storage</option>
   <option value="Done"       ${
     r.status === "Done" ? "selected" : ""
   }>Done</option>
@@ -1115,7 +1138,7 @@ async function loadStatus() {
       <td>
         <a href="#" class="save-link" data-id="${r.id}">Save</a>
       </td>
-    </tr>`
+    </tr>`,
       );
     });
 
@@ -1198,7 +1221,7 @@ async function init() {
 
   const _pl = await fetchAllQuery(
     supabase.from("plant_machinery").select("id,plant_name"),
-    500
+    500,
   );
   const pl = _pl.data;
   const plErr = _pl.error;
@@ -1206,7 +1229,7 @@ async function init() {
 
   const _secs = await fetchAllQuery(
     supabase.from("sections").select("id,section_name").order("section_name"),
-    500
+    500,
   );
   const secs = _secs.data;
   const secsErr = _secs.error;
@@ -1217,13 +1240,13 @@ async function init() {
 
   const _items = await fetchAllQuery(
     supabase.from("bmr_details").select("item").order("item"),
-    500
+    500,
   );
   const itemsRaw = _items.data;
   const itemsErr = _items.error;
   if (!itemsErr) {
     const uniqueItems = Array.from(new Set(itemsRaw.map((r) => r.item))).map(
-      (i) => ({ item: i })
+      (i) => ({ item: i }),
     );
     populate(sItem, uniqueItems, "item", "item", "Item");
   }
@@ -1235,7 +1258,7 @@ async function init() {
       .select("activity")
       .in("status", ["Doing", "On Hold", "In Storage"])
       .order("activity"),
-    500
+    500,
   );
   const allActs = _acts.data;
   const actsErr = _acts.error;
@@ -1253,7 +1276,7 @@ async function init() {
 
   homeBtn.addEventListener(
     "click",
-    () => (window.location.href = "index.html")
+    () => (window.location.href = "index.html"),
   );
 
   sSection.addEventListener("change", () => {
@@ -1268,7 +1291,7 @@ async function init() {
             .select("id,subsection_name")
             .eq("section_id", sSection.value)
             .order("subsection_name"),
-          500
+          500,
         );
         const subs = _subs.data;
         populate(sSub, subs, "id", "subsection_name", "Sub-section");
@@ -1291,7 +1314,7 @@ async function init() {
             .eq("section_id", sSection.value)
             .eq("subsection_id", sSub.value)
             .order("area_name"),
-          500
+          500,
         );
         const areas = _areas.data;
         populate(sArea, areas, "id", "area_name", "Area");
@@ -1318,7 +1341,7 @@ async function init() {
             .select("bn", { distinct: true })
             .eq("item", sItem.value)
             .order("bn"),
-          500
+          500,
         );
         const bns = _bns.data;
         populate(
@@ -1326,7 +1349,7 @@ async function init() {
           bns.map((r) => ({ bn: r.bn })),
           "bn",
           "bn",
-          "BN"
+          "BN",
         );
         sBN.disabled = false;
       }
@@ -1339,7 +1362,7 @@ async function init() {
 
   clearBtn.addEventListener("click", () => {
     [sSection, sSub, sArea, sItem, sBN, sActivity, sStatusFilter].forEach(
-      (x) => (x.value = "")
+      (x) => (x.value = ""),
     );
     [sSub, sArea, sBN].forEach((x) => (x.disabled = true));
     sOverdue.checked = false;
@@ -1372,4 +1395,17 @@ async function init() {
   await loadStatus();
 }
 
-document.addEventListener("DOMContentLoaded", init);
+document.addEventListener("DOMContentLoaded", async () => {
+  const boot = await bootstrapApp({ loginPage: "login.html" });
+  if (!boot.ok) return;
+  console.log("[update-log-status] bootstrap passed");
+
+  // Auth & permission gate: ensure active session and module view permission
+  const gate = await requireAuthAndPermission(
+    "module:update-log-status",
+    "view",
+  );
+  if (!gate.ok) return;
+  console.log("[update-log-status] auth gate passed");
+  init();
+});

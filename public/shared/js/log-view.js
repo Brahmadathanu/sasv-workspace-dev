@@ -2,6 +2,8 @@
 
 import { supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
+import { bootstrapApp } from "./appBootstrap.js";
+import { requireAuthAndPermission } from "./appAuth.js";
 
 /* ── Flatpickr base config -------------------------------------------------- */
 const fpBase = {
@@ -97,7 +99,18 @@ let perPage = 25;
 let totalRows = null; // null = unknown
 
 /* ── Initial bootstrap ------------------------------------------------------ */
-document.addEventListener("DOMContentLoaded", init);
+document.addEventListener("DOMContentLoaded", async () => {
+  const boot = await bootstrapApp({ loginPage: "login.html" });
+  if (!boot.ok) return;
+
+  const gate = await requireAuthAndPermission("module:view-logs", "view");
+  if (!gate.ok) return;
+
+  console.log("[view-logs] bootstrap passed");
+  console.log("[view-logs] auth gate passed");
+
+  await init();
+});
 
 async function init() {
   // HOME → Hub home if in Hub, otherwise Workspace home
@@ -289,7 +302,7 @@ function adjustLogsTableHeight() {
   const gap = 16; // small breathing room
   const avail = Math.max(
     120,
-    window.innerHeight - wrapRect.top - paginationHeight - gap - 24
+    window.innerHeight - wrapRect.top - paginationHeight - gap - 24,
   );
   wrap.style.maxHeight = avail + "px";
 }
@@ -424,7 +437,7 @@ async function loadPlants() {
   const opts = [
     `<option value="">Plant / Machinery</option>`,
     ...(data || []).map(
-      (r) => `<option value="${r.id}">${r.plant_name}</option>`
+      (r) => `<option value="${r.id}">${r.plant_name}</option>`,
     ),
   ];
   fPlant.innerHTML = opts.join("");
@@ -448,7 +461,7 @@ async function fetchActivitiesFromSupabase(query) {
     return [];
   }
   return [...new Set((data || []).map((r) => r.activity).filter(Boolean))].map(
-    (activity) => ({ activity: activity })
+    (activity) => ({ activity: activity }),
   );
 }
 
@@ -558,7 +571,7 @@ async function loadTable(page = currentPage) {
       created_at,
       plant_machinery(plant_name)
     `,
-    { count: "exact" }
+    { count: "exact" },
   );
 
   if (fDate.value) q = q.eq("log_date", toISODate(fDate.value));
@@ -658,7 +671,7 @@ async function loadTable(page = currentPage) {
         <td>${r.status ?? ""}</td>
         <td><a href="#" class="view-link" data-id="${r.id}">View</a></td>
       </tr>
-    `
+    `,
     );
   });
 
@@ -697,7 +710,7 @@ async function fetchAllLogs() {
         created_at,
         id,
         plant_machinery(plant_name)
-      `
+      `,
       )
       // Use a stable, deterministic ordering for pagination:
       .order("log_date", { ascending: false })
@@ -741,14 +754,14 @@ async function exportCsv() {
   // Check if any filter is active
   const hasFilter = Boolean(
     fDate.value ||
-      fSection.value ||
-      fSub.value ||
-      fArea.value ||
-      fPlant.value ||
-      fItem.value ||
-      fBN.value ||
-      fAct.value ||
-      fStatus.value
+    fSection.value ||
+    fSub.value ||
+    fArea.value ||
+    fPlant.value ||
+    fItem.value ||
+    fBN.value ||
+    fAct.value ||
+    fStatus.value,
   );
 
   let rowsData;
@@ -783,15 +796,15 @@ async function exportCsv() {
           r.status ?? "",
         ]
           .map((v) => `"${String(v).replace(/"/g, '""')}"`)
-          .join(",")
+          .join(","),
       );
     }
   } else {
     // For visible, already processed above
     csvRows.push(
       ...rowsData.map((rowArr) =>
-        rowArr.map((txt) => `"${txt.replace(/"/g, '""')}"`).join(",")
-      )
+        rowArr.map((txt) => `"${txt.replace(/"/g, '""')}"`).join(","),
+      ),
     );
   }
 
@@ -881,20 +894,20 @@ async function exportPdf() {
       `DAILY WORK LOGS AS ON ${new Date().toLocaleDateString("en-GB")}`,
       pw / 2,
       75,
-      { align: "center" }
+      { align: "center" },
     );
 
   // Check filters
   const hasFilter = Boolean(
     fDate.value ||
-      fSection.value ||
-      fSub.value ||
-      fArea.value ||
-      fPlant.value ||
-      fItem.value ||
-      fBN.value ||
-      fAct.value ||
-      fStatus.value
+    fSection.value ||
+    fSub.value ||
+    fArea.value ||
+    fPlant.value ||
+    fItem.value ||
+    fBN.value ||
+    fAct.value ||
+    fStatus.value,
   );
 
   let data = [];
@@ -1029,7 +1042,7 @@ async function showDetails(e) {
       `
       *,sections(section_name),subsections(subsection_name),
       areas(area_name),plant_machinery(plant_name)
-    `
+    `,
     )
     .eq("id", id)
     .single();
@@ -1074,7 +1087,7 @@ async function showDetails(e) {
     if (val !== null && val !== undefined && val !== "") {
       detailBody.insertAdjacentHTML(
         "beforeend",
-        `<tr><th>${lbl}</th><td>${val}</td></tr>`
+        `<tr><th>${lbl}</th><td>${val}</td></tr>`,
       );
     }
   });

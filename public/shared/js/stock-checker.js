@@ -336,13 +336,15 @@ function toggleChip(btn, stateKey) {
 // Non-invasive selection module: uses visible DOM rows (`tr[data-row-idx]`) and td index mapping.
 // Features: click-drag rectangle selection, Ctrl/Cmd+C to copy selected cells (with header), floating Copy button.
 (function scSelectionModule() {
-  const scSel_STATE = {
-    anchor: null, // { r, cidx } anchor of active range
-    last: null, // active cell
-    ranges: [], // array of { a:{r,cidx}, b:{r,cidx} }
-    activeRangeIndex: -1, // index into ranges
-    // keep `set` for backward compatibility with older builders
-    set: new Set(),
+  const selectionController = {
+    mode: "idle", // idle | pointer | keyboard | mobile-select
+    focusCell: null, // { r, cidx }
+    anchor: null, // { r, cidx }
+    range: null, // { r1, c1, r2, c2 }
+    pointerId: null,
+    pointerStart: null, // { x, y }
+    isDragging: false,
+    mobileSelectEnabled: false,
   };
 
   // Column mapping (left-to-right). Compute dynamically from table headers when possible.
@@ -418,25 +420,7 @@ function toggleChip(btn, stateKey) {
     }
   }
 
-  function scSel_key(r, c) {
-    return `${r}:${c}`;
-  }
-
-  function scSel_makeRange(a, b) {
-    return { a: { r: a.r, cidx: a.cidx }, b: { r: b.r, cidx: b.cidx } };
-  }
-
-  function scSel_isSingleCellRange(rg) {
-    return rg && rg.a && rg.b && rg.a.r === rg.b.r && rg.a.cidx === rg.b.cidx;
-  }
-
-  function scSel_sameSingleCell(rg, coord) {
-    return (
-      scSel_isSingleCellRange(rg) &&
-      rg.a.r === coord.r &&
-      rg.a.cidx === coord.cidx
-    );
-  }
+  // (legacy multi-range helpers removed; single rectangular selection model in use)
 
   // Map a td to coord {r, cidx, ckey, td}
   function scSel_getCoordFromTd(td) {
@@ -451,40 +435,20 @@ function toggleChip(btn, stateKey) {
   }
 
   function scSel_clear() {
-    scSel_STATE.set.clear();
-    scSel_STATE.anchor = null;
-    scSel_STATE.last = null;
-    scSel_STATE.ranges = [];
-    scSel_STATE.activeRangeIndex = -1;
-    scSel_refreshVisuals();
+    selectionController.anchor = null;
+    selectionController.focusCell = null;
+    selectionController.range = null;
+    renderSelection();
     scSel_hideCopyBtn();
   }
 
   function scSel_selectRect(a, b) {
     if (!a || !b) return;
-    // ensure an active range exists
-    if (scSel_STATE.activeRangeIndex < 0) {
-      scSel_STATE.ranges = [scSel_makeRange(a, b)];
-      scSel_STATE.activeRangeIndex = 0;
-    } else {
-      scSel_STATE.ranges[scSel_STATE.activeRangeIndex] = scSel_makeRange(a, b);
-    }
-
-    scSel_STATE.anchor = a;
-    scSel_STATE.last = b;
-
-    // Rebuild set for backward compatibility
-    scSel_STATE.set.clear();
-    for (const rg of scSel_STATE.ranges) {
-      const nr = scSel_normRange(rg);
-      for (let rr = nr.r1; rr <= nr.r2; rr++) {
-        for (let cc = nr.c1; cc <= nr.c2; cc++) {
-          scSel_STATE.set.add(scSel_key(rr, cc));
-        }
-      }
-    }
-
-    scSel_refreshVisuals();
+    selectionController.anchor = a;
+    selectionController.focusCell = b;
+    const nr = scSel_normRange({ a: a, b: b });
+    selectionController.range = nr;
+    renderSelection();
   }
   function scSel_clearVisuals() {
     document
@@ -596,36 +560,32 @@ function toggleChip(btn, stateKey) {
     return { r1: 0, r2: -1, c1: 0, c2: -1 };
   }
 
-  function scSel_refreshVisuals() {
+  // Central selection rendering entry point
+  function renderSelection() {
     scSel_clearVisuals();
     scSel_clearOverlays();
-    if (!scSel_STATE.ranges || !scSel_STATE.ranges.length)
-      return scSel_hideCopyBtn();
-
-    for (let i = 0; i < scSel_STATE.ranges.length; i++) {
-      const rg = scSel_STATE.ranges[i];
-      const { r1, r2, c1, c2 } = scSel_normRange(rg);
-      for (let rr = r1; rr <= r2; rr++) {
-        const tr = document.querySelector(`tr[data-row-idx="${rr}"]`);
-        if (!tr) continue;
-        const tds = Array.from(tr.children).filter((n) => n.tagName === "TD");
-        for (let cc = c1; cc <= c2; cc++) {
-          const td = tds[cc];
-          if (!td) continue;
-          td.classList.add("sc-sel-fill");
-        }
+    const rg = selectionController.range;
+    if (!rg) return scSel_hideCopyBtn();
+    const { r1, r2, c1, c2 } = scSel_normRange(rg);
+    for (let rr = r1; rr <= r2; rr++) {
+      const tr = document.querySelector(`tr[data-row-idx="${rr}"]`);
+      if (!tr) continue;
+      const tds = Array.from(tr.children).filter((n) => n.tagName === "TD");
+      for (let cc = c1; cc <= c2; cc++) {
+        const td = tds[cc];
+        if (!td) continue;
+        td.classList.add("sc-sel-fill");
       }
-      // draw a single overlay rectangle for this range
-      scSel_drawOverlayForRange({ r1, r2, c1, c2 });
     }
+    scSel_drawOverlayForRange({ r1, r2, c1, c2 });
 
     // Active cell highlight only for single-cell active range
     try {
-      const a = scSel_STATE.anchor;
-      const b = scSel_STATE.last;
+      const a = selectionController.anchor;
+      const b = selectionController.focusCell;
       const isSingle = a && b && a.r === b.r && a.cidx === b.cidx;
       if (isSingle) {
-        const active = scSel_getTd(scSel_STATE.last);
+        const active = scSel_getTd(selectionController.focusCell);
         if (active) active.classList.add("sc-sel-active");
       }
     } catch {
@@ -641,43 +601,7 @@ function toggleChip(btn, stateKey) {
       .trim();
   }
 
-  // Group ranges so same-row single cells merge into one row block for copying
-  function scSel_groupRangesForCopy(ranges) {
-    const rects = [];
-    const singlesByRow = new Map();
-
-    for (const rg of ranges) {
-      const nr = scSel_normRange(rg);
-      const isSingle = nr.r1 === nr.r2 && nr.c1 === nr.c2;
-      if (!isSingle) {
-        rects.push(rg);
-        continue;
-      }
-      const row = nr.r1;
-      const arr = singlesByRow.get(row) || [];
-      arr.push({ r: row, cidx: nr.c1 });
-      singlesByRow.set(row, arr);
-    }
-
-    const mergedSingles = [];
-    for (const [row, cells] of singlesByRow.entries()) {
-      cells.sort((a, b) => a.cidx - b.cidx);
-      if (cells.length === 1) {
-        const c = cells[0];
-        mergedSingles.push(scSel_makeRange(c, c));
-      } else {
-        mergedSingles.push({ __type: "rowCells", row, cells });
-      }
-    }
-
-    mergedSingles.sort((a, b) => {
-      const ar = a.__type === "rowCells" ? a.row : scSel_normRange(a).r1;
-      const br = b.__type === "rowCells" ? b.row : scSel_normRange(b).r1;
-      return ar - br;
-    });
-
-    return [...mergedSingles, ...rects];
-  }
+  // multi-range grouping removed — clipboard builders use a single rectangular range
 
   // Markdown pretty table helpers
   function scSel_pad(s, n) {
@@ -700,173 +624,53 @@ function toggleChip(btn, stateKey) {
     return [header, sep, ...body].join("\n");
   }
 
-  // TSV builder (Option B: multi-range blocks). Falls back to legacy set-based single-block when ranges not present.
+  // TSV builder — single rectangular range only
   function scSel_buildClipboardText_TSV() {
-    // If ranges model exists, use it
-    const ranges =
-      scSel_STATE.ranges && scSel_STATE.ranges.length
-        ? scSel_STATE.ranges
-        : null;
-
-    if (ranges && ranges.length) {
-      const blocks = [];
-      const blocksToCopy = scSel_groupRangesForCopy(ranges);
-      for (const rg of blocksToCopy) {
-        // merged single cells in same row -> synthetic rowCells block
-        if (rg && rg.__type === "rowCells") {
-          const cols = rg.cells.map((x) => x.cidx);
-          const headers = cols.map((c) => SC_COLS[c] || `C${c}`);
-          const lines = [headers.join("\t")];
-          const tr = document.querySelector(`tr[data-row-idx="${rg.row}"]`);
-          if (!tr) {
-            blocks.push(lines.join("\n"));
-            continue;
-          }
-          const tds = Array.from(tr.children).filter((n) => n.tagName === "TD");
-          const vals = cols.map((c) => {
-            const td = tds[c];
-            if (!td) return "";
-            return td.dataset?.value ? td.dataset.value : td.textContent.trim();
-          });
-          lines.push(vals.join("\t"));
-          blocks.push(lines.join("\n"));
-          continue;
-        }
-
-        const { r1, r2, c1, c2 } = scSel_normRange(rg);
-        const cols = [];
-        for (let c = c1; c <= c2; c++) cols.push(c);
-        const headers = cols.map((c) => SC_COLS[c] || `C${c}`);
-        const lines = [headers.join("\t")];
-        for (let r = r1; r <= r2; r++) {
-          const tr = document.querySelector(`tr[data-row-idx="${r}"]`);
-          if (!tr) continue;
-          const tds = Array.from(tr.children).filter((n) => n.tagName === "TD");
-          const vals = cols.map((c) => {
-            const td = tds[c];
-            if (!td) return "";
-            return td.dataset?.value ? td.dataset.value : td.textContent.trim();
-          });
-          lines.push(vals.join("\t"));
-        }
-        blocks.push(lines.join("\n"));
-      }
-      return blocks.join("\n\n");
-    }
-
-    // Legacy single-block behavior from `set`
-    if (!scSel_STATE.set || !scSel_STATE.set.size) return "";
-    const rows = Array.from(
-      new Set(Array.from(scSel_STATE.set).map((k) => Number(k.split(":")[0]))),
-    ).sort((a, b) => a - b);
-    const cols = Array.from(
-      new Set(Array.from(scSel_STATE.set).map((k) => Number(k.split(":")[1]))),
-    ).sort((a, b) => a - b);
+    const rg = selectionController.range;
+    if (!rg) return "";
+    const { r1, r2, c1, c2 } = scSel_normRange(rg);
+    const cols = [];
+    for (let c = c1; c <= c2; c++) cols.push(c);
     const headers = cols.map((c) => SC_COLS[c] || `C${c}`);
     const lines = [headers.join("\t")];
-    for (const r of rows) {
+    for (let r = r1; r <= r2; r++) {
       const tr = document.querySelector(`tr[data-row-idx="${r}"]`);
       if (!tr) continue;
       const tds = Array.from(tr.children).filter((n) => n.tagName === "TD");
       const vals = cols.map((c) => {
         const td = tds[c];
         if (!td) return "";
-        return td.dataset && td.dataset.value
-          ? td.dataset.value
-          : td.textContent.trim();
+        return td.dataset?.value ? td.dataset.value : td.textContent.trim();
       });
       lines.push(vals.join("\t"));
     }
     return lines.join("\n");
   }
 
+  // Markdown builder — single rectangular range only
   function scSel_buildClipboardText_MD() {
-    const ranges =
-      scSel_STATE.ranges && scSel_STATE.ranges.length
-        ? scSel_STATE.ranges
-        : null;
-
-    if (ranges && ranges.length) {
-      const blocks = [];
-      const blocksToCopy = scSel_groupRangesForCopy(ranges);
-      for (const rg of blocksToCopy) {
-        if (rg && rg.__type === "rowCells") {
-          const cols = rg.cells.map((x) => x.cidx);
-          const headers = cols.map((c) =>
-            scSel_escapeMdCell(SC_COLS[c] || `C${c}`),
-          );
-          const tr = document.querySelector(`tr[data-row-idx="${rg.row}"]`);
-          const tds = tr
-            ? Array.from(tr.children).filter((n) => n.tagName === "TD")
-            : [];
-          const vals = cols.map((c) => {
-            const td = tds[c];
-            if (!td) return "";
-            const raw = td.dataset?.value
-              ? td.dataset.value
-              : td.textContent.trim();
-            return scSel_escapeMdCell(raw);
-          });
-          const rows = [headers, vals];
-          blocks.push(scSel_mdTable(rows));
-          continue;
-        }
-
-        const { r1, r2, c1, c2 } = scSel_normRange(rg);
-        const cols = [];
-        for (let c = c1; c <= c2; c++) cols.push(c);
-        const headers = cols.map((c) =>
-          scSel_escapeMdCell(SC_COLS[c] || `C${c}`),
-        );
-        const rows = [headers];
-        for (let r = r1; r <= r2; r++) {
-          const tr = document.querySelector(`tr[data-row-idx="${r}"]`);
-          if (!tr) continue;
-          const tds = Array.from(tr.children).filter((n) => n.tagName === "TD");
-          const vals = cols.map((c) => {
-            const td = tds[c];
-            if (!td) return "";
-            const raw = td.dataset?.value
-              ? td.dataset.value
-              : td.textContent.trim();
-            return scSel_escapeMdCell(raw);
-          });
-          rows.push(vals);
-        }
-        blocks.push(scSel_mdTable(rows));
-      }
-      return blocks.join("\n\n");
-    }
-
-    // Fallback: build a single markdown table from `set`
-    if (!scSel_STATE.set || !scSel_STATE.set.size) return "";
-    const rows = Array.from(
-      new Set(Array.from(scSel_STATE.set).map((k) => Number(k.split(":")[0]))),
-    ).sort((a, b) => a - b);
-    const cols = Array.from(
-      new Set(Array.from(scSel_STATE.set).map((k) => Number(k.split(":")[1]))),
-    ).sort((a, b) => a - b);
+    const rg = selectionController.range;
+    if (!rg) return "";
+    const { r1, r2, c1, c2 } = scSel_normRange(rg);
+    const cols = [];
+    for (let c = c1; c <= c2; c++) cols.push(c);
     const headers = cols.map((c) => scSel_escapeMdCell(SC_COLS[c] || `C${c}`));
-    const sep = cols.map(() => "---");
-    const lines = [];
-    lines.push(`| ${headers.join(" | ")} |`);
-    lines.push(`| ${sep.join(" | ")} |`);
-    for (const r of rows) {
+    const rows = [headers];
+    for (let r = r1; r <= r2; r++) {
       const tr = document.querySelector(`tr[data-row-idx="${r}"]`);
       if (!tr) continue;
       const tds = Array.from(tr.children).filter((n) => n.tagName === "TD");
       const vals = cols.map((c) => {
         const td = tds[c];
         if (!td) return "";
-        const raw =
-          td.dataset && td.dataset.value
-            ? td.dataset.value
-            : td.textContent.trim();
+        const raw = td.dataset?.value
+          ? td.dataset.value
+          : td.textContent.trim();
         return scSel_escapeMdCell(raw);
       });
-      lines.push(`| ${vals.join(" | ")} |`);
+      rows.push(vals);
     }
-    return lines.join("\n");
+    return scSel_mdTable(rows);
   }
 
   async function scSel_copyToClipboard(text, okMsg) {
@@ -973,13 +777,10 @@ function toggleChip(btn, stateKey) {
         }
       }
 
-      scSel_STATE.ranges = [scSel_makeRange(coord, coord)];
-      scSel_STATE.activeRangeIndex = 0;
-      scSel_STATE.anchor = coord;
-      scSel_STATE.last = coord;
-      scSel_STATE.set.clear();
-      scSel_STATE.set.add(scSel_key(coord.r, coord.cidx));
-      scSel_refreshVisuals();
+      selectionController.anchor = coord;
+      selectionController.focusCell = coord;
+      selectionController.range = scSel_normRange(coord);
+      renderSelection();
     } catch {
       /* ignore */
     }
@@ -1061,17 +862,16 @@ function toggleChip(btn, stateKey) {
     scSel_setSelectingMode(true);
 
     // SHIFT+click: extend active range from anchor
-    if (
-      ev.shiftKey &&
-      scSel_STATE.anchor &&
-      scSel_STATE.activeRangeIndex >= 0
-    ) {
+    if (ev.shiftKey && selectionController.anchor) {
       try {
         ev.preventDefault();
         ev.stopPropagation();
       } catch {}
-      scSel_STATE.last = clicked;
-      scSel_selectRect(scSel_STATE.anchor, scSel_STATE.last);
+      selectionController.focusCell = clicked;
+      scSel_selectRect(
+        selectionController.anchor,
+        selectionController.focusCell,
+      );
       try {
         __sc_ignoreNextClick = true;
       } catch {}
@@ -1084,37 +884,16 @@ function toggleChip(btn, stateKey) {
       return;
     }
 
-    // CTRL/CMD+click: toggle a single-cell range
+    // CTRL/CMD+click: collapse selection to single cell (disable multi-range)
     if (ev.ctrlKey || ev.metaKey) {
       try {
         ev.preventDefault();
         ev.stopPropagation();
       } catch {}
-      const idx = scSel_STATE.ranges.findIndex((rg) =>
-        scSel_sameSingleCell(rg, clicked),
-      );
-      if (idx >= 0) {
-        scSel_STATE.ranges.splice(idx, 1);
-        scSel_STATE.activeRangeIndex = scSel_STATE.ranges.length - 1;
-        const ar = scSel_STATE.ranges[scSel_STATE.activeRangeIndex];
-        scSel_STATE.anchor = ar ? ar.a : null;
-        scSel_STATE.last = ar ? ar.b : null;
-      } else {
-        scSel_STATE.ranges.push(scSel_makeRange(clicked, clicked));
-        scSel_STATE.activeRangeIndex = scSel_STATE.ranges.length - 1;
-        scSel_STATE.anchor = clicked;
-        scSel_STATE.last = clicked;
-      }
-      // Rebuild set for compatibility
-      scSel_STATE.set.clear();
-      for (const rg of scSel_STATE.ranges) {
-        const nr = scSel_normRange(rg);
-        for (let rr = nr.r1; rr <= nr.r2; rr++) {
-          for (let cc = nr.c1; cc <= nr.c2; cc++)
-            scSel_STATE.set.add(scSel_key(rr, cc));
-        }
-      }
-      scSel_refreshVisuals();
+      selectionController.anchor = clicked;
+      selectionController.focusCell = clicked;
+      selectionController.range = scSel_normRange(clicked);
+      renderSelection();
       try {
         __sc_ignoreNextClick = true;
       } catch {}
@@ -1141,14 +920,10 @@ function toggleChip(btn, stateKey) {
     ev.stopPropagation();
 
     scSel_pointerDown = true;
-    scSel_STATE.ranges = [scSel_makeRange(clicked, clicked)];
-    scSel_STATE.activeRangeIndex = 0;
-    scSel_STATE.anchor = clicked;
-    scSel_STATE.last = clicked;
-    // rebuild set
-    scSel_STATE.set.clear();
-    scSel_STATE.set.add(scSel_key(clicked.r, clicked.cidx));
-    scSel_refreshVisuals();
+    selectionController.anchor = clicked;
+    selectionController.focusCell = clicked;
+    selectionController.range = scSel_normRange(clicked);
+    renderSelection();
     document.body.style.userSelect = "none";
   }
 
@@ -1165,17 +940,12 @@ function toggleChip(btn, stateKey) {
         ?.closest?.("td");
       const coord = td ? scSel_getCoordFromTd(td) : null;
       if (!coord) return;
-      // Ensure an active range exists for dragging
-      if (scSel_STATE.activeRangeIndex < 0) {
-        scSel_STATE.ranges = [
-          scSel_makeRange(
-            scSel_STATE.anchor || coord,
-            scSel_STATE.anchor || coord,
-          ),
-        ];
-        scSel_STATE.activeRangeIndex = 0;
-      }
-      scSel_selectRect(scSel_STATE.anchor, { r: coord.r, cidx: coord.cidx });
+      // Expand current anchor -> pointer
+      if (!selectionController.anchor) selectionController.anchor = coord;
+      scSel_selectRect(selectionController.anchor, {
+        r: coord.r,
+        cidx: coord.cidx,
+      });
       return;
     }
 
@@ -1312,9 +1082,7 @@ function toggleChip(btn, stateKey) {
         // Copy
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
           const hasSel =
-            (scSel_STATE.set && scSel_STATE.set.size) ||
-            (scSel_STATE.ranges && scSel_STATE.ranges.length) ||
-            !!scSel_STATE.anchor;
+            !!selectionController.range || !!selectionController.anchor;
           if (hasSel) {
             e.preventDefault();
             scSel_copyTSV();
@@ -1333,7 +1101,8 @@ function toggleChip(btn, stateKey) {
         if (!arrows.includes(e.key)) return;
 
         // Determine starting point
-        let current = scSel_STATE.last || scSel_STATE.anchor;
+        let current =
+          selectionController.focusCell || selectionController.anchor;
         if (!current) return;
         e.preventDefault();
 
@@ -1348,22 +1117,19 @@ function toggleChip(btn, stateKey) {
           cidx: current.cidx + delta.cidx,
         });
 
-        if (e.shiftKey && scSel_STATE.anchor) {
-          scSel_STATE.last = next;
-          // ensure activeRangeIndex
-          if (scSel_STATE.activeRangeIndex < 0)
-            scSel_STATE.activeRangeIndex = 0;
-          scSel_selectRect(scSel_STATE.anchor, scSel_STATE.last);
+        if (e.shiftKey && selectionController.anchor) {
+          selectionController.focusCell = next;
+          selectionController.range = scSel_normRange({
+            a: selectionController.anchor,
+            b: selectionController.focusCell,
+          });
+          renderSelection();
         } else {
           // Move without shift collapses selection to single cell (Excel-like)
-          scSel_STATE.ranges = [scSel_makeRange(next, next)];
-          scSel_STATE.activeRangeIndex = 0;
-          scSel_STATE.anchor = next;
-          scSel_STATE.last = next;
-          // rebuild set
-          scSel_STATE.set.clear();
-          scSel_STATE.set.add(scSel_key(next.r, next.cidx));
-          scSel_refreshVisuals();
+          selectionController.anchor = next;
+          selectionController.focusCell = next;
+          selectionController.range = scSel_normRange(next);
+          renderSelection();
         }
         scSel_scrollIntoView(next);
       },
@@ -1387,7 +1153,7 @@ function toggleChip(btn, stateKey) {
     scSel_observer = new MutationObserver(
       debounce(() => {
         scSel_computeCols();
-        scSel_refreshVisuals();
+        renderSelection();
       }, 120),
     );
     scSel_observer.observe(tbl, {

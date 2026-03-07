@@ -3,6 +3,8 @@
  * ----------------------------------------------------------------------- */
 
 import { supabase } from "../public/shared/js/supabaseClient.js";
+import { requireAuthAndPermission } from "../public/shared/js/appAuth.js";
+import { bootstrapApp } from "../public/shared/js/appBootstrap.js";
 /* global flatpickr, confirmDatePlugin, TomSelect */
 
 /* ─────────────────────────────  DATE HELPERS  ────────────────────────── */
@@ -13,7 +15,7 @@ const parseDMY = (s) => {
 const formatDMY = (d) =>
   `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(
     2,
-    "0"
+    "0",
   )}-${d.getFullYear()}`;
 const addBiz = (start, n) => {
   const d = new Date(start);
@@ -112,7 +114,7 @@ const QUICK_MODULES = [
 /* ─────────────────────────────  STATE  ───────────────────────────────── */
 let lastDurations = {};
 let currentItemSkus = [];
-let currentUserEmail = null;
+// currentUserEmail removed — server handles uploaded_by via RPC
 let dirty = false;
 let skipStockWarnActs = new Set();
 let openRowChecked = false;
@@ -188,7 +190,7 @@ function bindWrapAround(ts) {
     if (!ts.isOpen) return;
 
     const options = Array.from(
-      ts.dropdown_content.querySelectorAll(".option:not(.disabled)")
+      ts.dropdown_content.querySelectorAll(".option:not(.disabled)"),
     );
     if (!options.length) return;
 
@@ -314,22 +316,7 @@ const populate = (sel, rows, vKey, tKey, ph) =>
 const populateDataList = (dl, items, key) =>
   (dl.innerHTML = items.map((i) => `<option value="${i[key]}">`).join(""));
 
-/* ───────────────────────────  DUPLICATE MSG  ────────────────────────── */
-const duplicateMessage = (row) => {
-  const parts = [
-    `Item : ${row.item}`,
-    `Batch Number: ${row.batch_number}`,
-    `Activity : ${row.activity}`,
-    `Log Date : ${row.log_date}`,
-  ];
-  if (row.started_on && row.started_on !== row.log_date)
-    parts.push(`Started On : ${row.started_on}`);
-  return (
-    "A log with the same details already exists:\n\n" +
-    parts.join("\n") +
-    "\n\nOpen the existing log entry instead of adding a new one."
-  );
-};
+/* duplicateMessage removed: server now handles duplicates via RPC */
 
 /* ────────────────────────────  LOAD ACTIVITIES  ─────────────────────── */
 async function loadActivities() {
@@ -356,7 +343,7 @@ async function loadActivities() {
   // Refresh duration map (for due-date calculation)
   lastDurations = {};
   (data || []).forEach(
-    (r) => (lastDurations[r.activity_name] = r.duration_days)
+    (r) => (lastDurations[r.activity_name] = r.duration_days),
   );
 
   // If Tom Select is active, feed it. Otherwise, fall back to native select.
@@ -378,7 +365,7 @@ async function loadActivities() {
         data,
         "activity_name",
         "activity_name",
-        "-- Select Activity --"
+        "-- Select Activity --",
       );
       activitySel.disabled = false;
     } else {
@@ -439,14 +426,14 @@ function showOpenLogsModal(rows) {
         <td>${r.section}</td>
         <td>${r.status}</td>
       </tr>
-    `
+    `,
       )
       .join("");
 
     // Ensure none selected initially
     const clearSelection = () => {
       [...tbody.querySelectorAll("input[name='openRowPick']")].forEach(
-        (r) => (r.checked = false)
+        (r) => (r.checked = false),
       );
     };
     clearSelection();
@@ -560,10 +547,10 @@ function updateSections() {
 
   // — DISABLE “In Storage” in status dropdown unless storage activity
   const allowStorage = ["intermediate storage", "fg bulk storage"].includes(
-    actNorm
+    actNorm,
   );
   const storageOpt = Array.from(statusSel.options).find(
-    (opt) => opt.value === "In Storage"
+    (opt) => opt.value === "In Storage",
   );
   if (storageOpt) storageOpt.disabled = !allowStorage;
 
@@ -585,7 +572,7 @@ function renderSkuTable() {
         <td>${sku.pack_size}</td>
         <td>${sku.uom}</td>
         <td><input type="number" min="0" data-sku-id="${sku.id}"></td>
-      </tr>`
+      </tr>`,
     );
   });
 }
@@ -606,7 +593,7 @@ async function renderTransferTable() {
         <td>${r.uom}</td>
         <td>${r.on_hand}</td>
         <td><input type="number" min="0" max="${r.on_hand}" data-sku-id="${r.sku_id}"></td>
-      </tr>`
+      </tr>`,
     );
   });
 }
@@ -810,7 +797,7 @@ function initTomSelects() {
         // update your durations map so due-date calc keeps working
         lastDurations = {};
         (data || []).forEach(
-          (r) => (lastDurations[r.activity_name] = r.duration_days)
+          (r) => (lastDurations[r.activity_name] = r.duration_days),
         );
         cb(data || []);
       } catch {
@@ -844,6 +831,14 @@ function focusActivity() {
 
 /* ─────────────────────────────  INIT  ───────────────────────────────── */
 window.addEventListener("DOMContentLoaded", async () => {
+  const boot = await bootstrapApp({ loginPage: "login.html" });
+  if (!boot.ok) return;
+  console.log("[log-add] bootstrap passed");
+
+  // Auth & permission gate: ensure active session and module view permission
+  const gate = await requireAuthAndPermission("module:add-log-entry", "view");
+  if (!gate.ok) return;
+  console.log("[log-add] auth gate passed");
   ["log_date", "started_on"].forEach((id) => {
     const el = $(id);
     attachMask(el);
@@ -860,10 +855,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   initTomSelects();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (user) currentUserEmail = user.email;
+  // auth user info not required client-side for RPC payload
 
   homeBtn.onclick = async () => {
     if (dirty && !(await askConfirm("Unsaved changes—leave?"))) return;
@@ -893,7 +885,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
     const absUrl = new URL(
       `${mod.path}?${params.toString()}`,
-      window.location.href
+      window.location.href,
     ).toString();
 
     if (window.app?.openModuleUrl) {
@@ -909,7 +901,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       (m, i) =>
         `<button type="button" class="quick-btn" data-mod="${m.id}" title="${
           m.label
-        } (Alt+${i + 1})">${m.label}</button>`
+        } (Alt+${i + 1})">${m.label}</button>`,
     ).join("");
 
     quickBar.addEventListener("click", (e) => {
@@ -983,7 +975,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
     if (!skipErr && skipActs) {
       skipStockWarnActs = new Set(
-        skipActs.map((r) => (r.label || "").trim().toLowerCase())
+        skipActs.map((r) => (r.label || "").trim().toLowerCase()),
       );
     } else {
       console.error("skip list load failed:", skipErr);
@@ -1068,14 +1060,14 @@ areaSel.addEventListener("change", async () => {
       a.plant_name.localeCompare(b.plant_name, undefined, {
         numeric: true,
         sensitivity: "base",
-      })
+      }),
     );
     populate(
       plantSel,
       data,
       "id",
       "plant_name",
-      "-- Select Plant/Machinery --"
+      "-- Select Plant/Machinery --",
     );
     plantSel.disabled = false;
   }
@@ -1160,13 +1152,13 @@ batchSel.addEventListener("change", async () => {
 activitySel.addEventListener("change", async () => {
   const actNorm = (activitySel.value || "").trim().toLowerCase();
   const isStorageAct = ["intermediate storage", "fg bulk storage"].includes(
-    actNorm
+    actNorm,
   );
 
   // ─── SKU activity stock-impact warning ─────────────────────────────────
   if (skuActSet.has(actNorm) && lastWarnedSkuAct !== actNorm) {
     await showAlert(
-      "This activity will affect Bottled SOH and the quantity available for “Transfer to FG Store”. Please make sure this log really needs to be saved."
+      "This activity will affect Bottled SOH and the quantity available for “Transfer to FG Store”. Please make sure this log really needs to be saved.",
     );
     focusActivity(); // Tom-Select aware refocus
     lastWarnedSkuAct = actNorm;
@@ -1178,14 +1170,14 @@ activitySel.addEventListener("change", async () => {
   const autoJ = /kashaya/.test(actNorm)
     ? "Kashayam"
     : /swarasa/.test(actNorm)
-    ? "Swarasam"
-    : JUICE_MAP[actNorm] || null;
+      ? "Swarasam"
+      : JUICE_MAP[actNorm] || null;
 
   // Force correct value for bhavana acts (even if user picked 'Decoction')
   if (/kashaya|swarasa/.test(actNorm)) {
     form.juice_or_decoction.value = getJuiceValue(
       actNorm,
-      form.juice_or_decoction.value
+      form.juice_or_decoction.value,
     );
   } else if (autoJ && !form.juice_or_decoction.value) {
     form.juice_or_decoction.value = autoJ;
@@ -1219,7 +1211,7 @@ activitySel.addEventListener("change", async () => {
       .limit(1);
     if (!qa?.length) {
       await showAlert(
-        "Finished Goods Quality Assessment not completed for this batch."
+        "Finished Goods Quality Assessment not completed for this batch.",
       );
       activitySel.value = "";
     }
@@ -1245,7 +1237,7 @@ statusSel.addEventListener("change", () => {
     // Clear Post‑Processing fields
     const qtyInput = form.querySelector("input[name='qty_after_process']");
     const uomSelect = form.querySelector(
-      "select[name='qty_after_process_uom']"
+      "select[name='qty_after_process_uom']",
     );
     if (qtyInput) qtyInput.value = "";
     if (uomSelect) uomSelect.value = "";
@@ -1363,7 +1355,7 @@ async function handleSubmit(isNew) {
   if (isStorage && actNorm === "fg bulk storage") {
     if (!storageQtyInput.value || !storageUomSel.value) {
       await showAlert(
-        "Storage Qty and UOM are required when Activity is “FG bulk storage” and Status is “In Storage.”"
+        "Storage Qty and UOM are required when Activity is “FG bulk storage” and Status is “In Storage.”",
       );
       return;
     }
@@ -1401,13 +1393,13 @@ async function handleSubmit(isNew) {
   /* ---- Build payload -------------------------------------------------- */
   const row = {
     log_date: toISO(form.log_date.value),
-    section_id: sectionSel.value,
-    subsection_id: subSel.value || null,
-    area_id: areaSel.value || null,
-    plant_id: plantSel.value || null,
+    section_id: sectionSel.value ? Number(sectionSel.value) : null,
+    subsection_id: subSel.value ? Number(subSel.value) : null,
+    area_id: areaSel.value ? Number(areaSel.value) : null,
+    plant_id: plantSel.value ? Number(plantSel.value) : null,
     item: itemInput.value,
     batch_number: batchSel.value,
-    batch_size: sizeInput.value || null,
+    batch_size: sizeInput.value ? Number(sizeInput.value) : null,
     batch_uom: uomInput.value || null,
     activity: activitySel.value,
     juice_or_decoction: juiceVal,
@@ -1416,7 +1408,9 @@ async function handleSubmit(isNew) {
       ? Number(form.rm_juice_qty.value)
       : null,
     rm_juice_uom: form.rm_juice_uom?.value || null,
-    count_of_saravam: form.count_of_saravam?.value || null,
+    count_of_saravam: form.count_of_saravam?.value
+      ? Number(form.count_of_saravam.value)
+      : null,
     fuel: form.fuel?.value || null,
     fuel_under: form.fuel_under?.value || null,
     fuel_over: form.fuel_over?.value || null,
@@ -1435,7 +1429,6 @@ async function handleSubmit(isNew) {
     sku_breakdown: null,
     lab_ref_number: form.lab_ref_number?.value || null,
     remarks: form.remarks?.value || null,
-    uploaded_by: currentUserEmail,
   };
 
   /* ---- Optional Qty/UOM ---------------------------------------------- */
@@ -1453,7 +1446,7 @@ async function handleSubmit(isNew) {
       if (!(await askConfirm("Qty After Process & UOM not entered. Continue?")))
         return;
     } else {
-      row.qty_after_process = qv;
+      row.qty_after_process = qv ? Number(qv) : null;
       row.qty_uom = uv;
     }
   }
@@ -1531,59 +1524,58 @@ async function handleSubmit(isNew) {
       if (totalBase > avail + 0.0001) {
         await showAlert(
           `Cannot package ${totalBase.toFixed(3)} ${baseUom}; ` +
-            `only ${avail.toFixed(3)} ${baseUom} available.`
+            `only ${avail.toFixed(3)} ${baseUom} available.`,
         );
         return; // abort Submit
       }
     }
   }
 
-  /* ---- INSERT --------------------------------------------------------- */
-  let newId;
+  /* ---- CALL RPC (server will insert daily_work_log + packaging + event_skus) ----- */
 
-  const { data, error } = await supabase
-    .from("daily_work_log")
-    .insert([row])
-    .select("id");
+  const payload = {
+    p_log_date: row.log_date,
+    p_section_id: row.section_id,
+    p_subsection_id: row.subsection_id,
+    p_area_id: row.area_id,
+    p_plant_id: row.plant_id,
+    p_item: row.item,
+    p_batch_number: row.batch_number,
+    p_batch_size: row.batch_size,
+    p_batch_uom: row.batch_uom,
+    p_activity: row.activity,
+    p_juice_or_decoction: row.juice_or_decoction,
+    p_specify: row.specify,
+    p_count_of_saravam: row.count_of_saravam,
+    p_fuel: row.fuel,
+    p_fuel_under: row.fuel_under,
+    p_fuel_over: row.fuel_over,
+    p_started_on: row.started_on,
+    p_due_date: row.due_date,
+    p_status: row.status,
+    p_completed_on: row.completed_on,
+    p_qty_after_process: row.qty_after_process,
+    p_qty_uom: row.qty_uom,
+    p_remarks: row.remarks,
+    p_lab_ref_number: row.lab_ref_number,
+    p_sku_breakdown: row.sku_breakdown,
+    p_storage_qty: row.storage_qty,
+    p_storage_qty_uom: row.storage_qty_uom,
+    p_rm_juice_qty: row.rm_juice_qty,
+    p_rm_juice_uom: row.rm_juice_uom,
+  };
+  // lightweight debug logs (file already uses console.error elsewhere)
+  console.log("Saving daily work log via RPC", payload);
+  const { data, error } = await supabase.rpc(
+    "rpc_create_daily_work_log_with_packaging",
+    payload,
+  );
+  console.log("RPC save result", data, error);
 
   if (error) {
-    console.error("Supabase error:", error);
-    const isDup =
-      error.code === "23505" ||
-      /duplicate key/i.test(error.message || "") ||
-      /duplicate key/i.test(error.details || "");
-    await showAlert(
-      isDup
-        ? duplicateMessage(row)
-        : `Unexpected error: ${error.message || "see console"}`
-    );
+    console.error("RPC error:", error);
+    await showAlert(`Save failed: ${error.message || "see console"}`);
     return;
-  }
-  newId = data[0].id;
-
-  /* ---- Packaging events ---------------------------------------------- */
-  if (isDone && (skuActSet.has(actNorm) || isTransfer)) {
-    const { data: pe } = await supabase
-      .from("packaging_events")
-      .insert([{ work_log_id: newId, event_type: row.activity }])
-      .select("id");
-    if (pe?.length) {
-      const inputs = skuActSet.has(actNorm)
-        ? skuTableBody.querySelectorAll("input")
-        : transferTableBody.querySelectorAll("input");
-      const evRows = [...inputs]
-        .map((i) => {
-          const cnt = +i.value;
-          if (cnt <= 0) return null;
-          return {
-            packaging_event_id: pe[0].id,
-            sku_id: +i.dataset.skuId,
-            count: cnt,
-          };
-        })
-        .filter(Boolean);
-      if (evRows.length) await supabase.from("event_skus").insert(evRows);
-    }
   }
 
   /* ---- SUCCESS -------------------------------------------------------- */
