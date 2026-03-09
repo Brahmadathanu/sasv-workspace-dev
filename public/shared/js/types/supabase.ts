@@ -677,6 +677,41 @@ export type Database = {
             referencedRelation: "v_wip_expected_output_base"
             referencedColumns: ["product_id"]
           },
+          {
+            foreignKeyName: "fk_bmr_product_uom"
+            columns: ["product_id", "uom"]
+            isOneToOne: false
+            referencedRelation: "fg_bulk_stock"
+            referencedColumns: ["product_id", "on_hand_qty_uom"]
+          },
+          {
+            foreignKeyName: "fk_bmr_product_uom"
+            columns: ["product_id", "uom"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id", "uom_base"]
+          },
+          {
+            foreignKeyName: "fk_bmr_product_uom"
+            columns: ["product_id", "uom"]
+            isOneToOne: false
+            referencedRelation: "v_picker_products"
+            referencedColumns: ["id", "uom_code"]
+          },
+          {
+            foreignKeyName: "fk_bmr_product_uom"
+            columns: ["product_id", "uom"]
+            isOneToOne: false
+            referencedRelation: "v_product_bulk_soh"
+            referencedColumns: ["product_id", "uom_base"]
+          },
+          {
+            foreignKeyName: "fk_bmr_product_uom"
+            columns: ["product_id", "uom"]
+            isOneToOne: false
+            referencedRelation: "v_product_details"
+            referencedColumns: ["product_id", "uom_base"]
+          },
         ]
       }
       categories: {
@@ -5750,6 +5785,42 @@ export type Database = {
           },
         ]
       }
+      pm_issue_priority_snapshot_current_month: {
+        Row: {
+          blocked_batch_count: number | null
+          month_start: string
+          pm_name: string | null
+          pm_stock_item_id: number
+          pm_uom: string | null
+          refreshed_at: string
+          risk_per_pm_qty: number | null
+          total_remaining_pm_qty: number | null
+          total_risk_unlocked_units: number | null
+        }
+        Insert: {
+          blocked_batch_count?: number | null
+          month_start: string
+          pm_name?: string | null
+          pm_stock_item_id: number
+          pm_uom?: string | null
+          refreshed_at?: string
+          risk_per_pm_qty?: number | null
+          total_remaining_pm_qty?: number | null
+          total_risk_unlocked_units?: number | null
+        }
+        Update: {
+          blocked_batch_count?: number | null
+          month_start?: string
+          pm_name?: string | null
+          pm_stock_item_id?: number
+          pm_uom?: string | null
+          refreshed_at?: string
+          risk_per_pm_qty?: number | null
+          total_remaining_pm_qty?: number | null
+          total_risk_unlocked_units?: number | null
+        }
+        Relationships: []
+      }
       priority_queue_snapshot_current_month: {
         Row: {
           batch_number: string
@@ -8236,6 +8307,75 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      rm_issue_priority_snapshot_current_month: {
+        Row: {
+          blocked_batch_count: number | null
+          month_start: string
+          refreshed_at: string
+          risk_share_per_rm_qty: number | null
+          rm_name: string | null
+          rm_stock_item_id: number
+          rm_uom: string | null
+          total_remaining_rm_qty: number | null
+          total_risk_share_units: number | null
+        }
+        Insert: {
+          blocked_batch_count?: number | null
+          month_start: string
+          refreshed_at?: string
+          risk_share_per_rm_qty?: number | null
+          rm_name?: string | null
+          rm_stock_item_id: number
+          rm_uom?: string | null
+          total_remaining_rm_qty?: number | null
+          total_risk_share_units?: number | null
+        }
+        Update: {
+          blocked_batch_count?: number | null
+          month_start?: string
+          refreshed_at?: string
+          risk_share_per_rm_qty?: number | null
+          rm_name?: string | null
+          rm_stock_item_id?: number
+          rm_uom?: string | null
+          total_remaining_rm_qty?: number | null
+          total_risk_share_units?: number | null
+        }
+        Relationships: []
+      }
+      rm_unassigned_issues_snapshot_current_month: {
+        Row: {
+          affected_batches: number | null
+          last_issue_voucher_date: string | null
+          month_start: string
+          refreshed_at: string
+          rm_name: string | null
+          rm_stock_item_id: number
+          rm_uom: string | null
+          total_risk_locked_units: number | null
+        }
+        Insert: {
+          affected_batches?: number | null
+          last_issue_voucher_date?: string | null
+          month_start: string
+          refreshed_at?: string
+          rm_name?: string | null
+          rm_stock_item_id: number
+          rm_uom?: string | null
+          total_risk_locked_units?: number | null
+        }
+        Update: {
+          affected_batches?: number | null
+          last_issue_voucher_date?: string | null
+          month_start?: string
+          refreshed_at?: string
+          rm_name?: string | null
+          rm_stock_item_id?: number
+          rm_uom?: string | null
+          total_risk_locked_units?: number | null
+        }
+        Relationships: []
       }
       season_profile: {
         Row: {
@@ -10911,6 +11051,41 @@ export type Database = {
             referencedRelation: "v_wip_expected_output_base"
             referencedColumns: ["product_id"]
           },
+          {
+            foreignKeyName: "fk_bmr_product_uom"
+            columns: ["product_id", "uom"]
+            isOneToOne: false
+            referencedRelation: "fg_bulk_stock"
+            referencedColumns: ["product_id", "on_hand_qty_uom"]
+          },
+          {
+            foreignKeyName: "fk_bmr_product_uom"
+            columns: ["product_id", "uom"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id", "uom_base"]
+          },
+          {
+            foreignKeyName: "fk_bmr_product_uom"
+            columns: ["product_id", "uom"]
+            isOneToOne: false
+            referencedRelation: "v_picker_products"
+            referencedColumns: ["id", "uom_code"]
+          },
+          {
+            foreignKeyName: "fk_bmr_product_uom"
+            columns: ["product_id", "uom"]
+            isOneToOne: false
+            referencedRelation: "v_product_bulk_soh"
+            referencedColumns: ["product_id", "uom_base"]
+          },
+          {
+            foreignKeyName: "fk_bmr_product_uom"
+            columns: ["product_id", "uom"]
+            isOneToOne: false
+            referencedRelation: "v_product_details"
+            referencedColumns: ["product_id", "uom_base"]
+          },
         ]
       }
       bottled_stock_on_hand: {
@@ -13442,6 +13617,41 @@ export type Database = {
             referencedRelation: "v_wip_expected_output_base"
             referencedColumns: ["product_id"]
           },
+          {
+            foreignKeyName: "fk_bmr_product_uom"
+            columns: ["product_id", "uom"]
+            isOneToOne: false
+            referencedRelation: "fg_bulk_stock"
+            referencedColumns: ["product_id", "on_hand_qty_uom"]
+          },
+          {
+            foreignKeyName: "fk_bmr_product_uom"
+            columns: ["product_id", "uom"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id", "uom_base"]
+          },
+          {
+            foreignKeyName: "fk_bmr_product_uom"
+            columns: ["product_id", "uom"]
+            isOneToOne: false
+            referencedRelation: "v_picker_products"
+            referencedColumns: ["id", "uom_code"]
+          },
+          {
+            foreignKeyName: "fk_bmr_product_uom"
+            columns: ["product_id", "uom"]
+            isOneToOne: false
+            referencedRelation: "v_product_bulk_soh"
+            referencedColumns: ["product_id", "uom_base"]
+          },
+          {
+            foreignKeyName: "fk_bmr_product_uom"
+            columns: ["product_id", "uom"]
+            isOneToOne: false
+            referencedRelation: "v_product_details"
+            referencedColumns: ["product_id", "uom_base"]
+          },
         ]
       }
       v_bmr_with_map_flag: {
@@ -13598,6 +13808,41 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_wip_expected_output_base"
             referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fk_bmr_product_uom"
+            columns: ["product_id", "uom"]
+            isOneToOne: false
+            referencedRelation: "fg_bulk_stock"
+            referencedColumns: ["product_id", "on_hand_qty_uom"]
+          },
+          {
+            foreignKeyName: "fk_bmr_product_uom"
+            columns: ["product_id", "uom"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id", "uom_base"]
+          },
+          {
+            foreignKeyName: "fk_bmr_product_uom"
+            columns: ["product_id", "uom"]
+            isOneToOne: false
+            referencedRelation: "v_picker_products"
+            referencedColumns: ["id", "uom_code"]
+          },
+          {
+            foreignKeyName: "fk_bmr_product_uom"
+            columns: ["product_id", "uom"]
+            isOneToOne: false
+            referencedRelation: "v_product_bulk_soh"
+            referencedColumns: ["product_id", "uom_base"]
+          },
+          {
+            foreignKeyName: "fk_bmr_product_uom"
+            columns: ["product_id", "uom"]
+            isOneToOne: false
+            referencedRelation: "v_product_details"
+            referencedColumns: ["product_id", "uom_base"]
           },
         ]
       }
@@ -24683,6 +24928,17 @@ export type Database = {
         }[]
       }
       allocate_kind_code: { Args: { p_name: string }; Returns: string }
+      app_get_current_user_context: { Args: never; Returns: Json }
+      app_get_my_permissions: { Args: never; Returns: Json }
+      app_get_permissions_core: { Args: { p_user_id: string }; Returns: Json }
+      app_has_permission: {
+        Args: { p_mode?: string; p_target: string }
+        Returns: boolean
+      }
+      app_has_permission_core: {
+        Args: { p_mode?: string; p_target: string; p_user_id: string }
+        Returns: boolean
+      }
       apply_manual_plan_set: {
         Args: {
           p_from: string
@@ -25256,10 +25512,16 @@ export type Database = {
         Args: { p_batch_number: string; p_eps?: number; p_product_id: number }
         Returns: undefined
       }
-      fn_fg_force_close: {
-        Args: { p_user?: string; p_work_log_id: number }
-        Returns: undefined
-      }
+      fn_fg_eps_default: { Args: never; Returns: number }
+      fn_fg_force_close:
+        | {
+            Args: { p_user?: string; p_work_log_id: number }
+            Returns: undefined
+          }
+        | {
+            Args: { p_eps?: number; p_user: string; p_work_log_id: number }
+            Returns: undefined
+          }
       fn_fg_ledger_add: {
         Args: {
           p_batch_number: string
@@ -25273,10 +25535,22 @@ export type Database = {
         Returns: undefined
       }
       fn_fg_mark_done_if_zero: {
+        Args: { p_batch_number: string; p_eps: number; p_product_id: number }
+        Returns: undefined
+      }
+      fn_fg_reconcile_batch: {
         Args: { p_batch_number: string; p_eps?: number; p_product_id: number }
         Returns: undefined
       }
       fn_fmt_group_suffix: { Args: { gid: number }; Returns: string }
+      fn_parse_sku_breakdown: {
+        Args: { p_sku_breakdown: string }
+        Returns: {
+          pack_size: number
+          sku_count: number
+          uom: string
+        }[]
+      }
       fn_plm_map_sku_to_template: {
         Args: { p_notes?: string; p_sku_id: number; p_tpl_id: number }
         Returns: undefined
@@ -26152,6 +26426,10 @@ export type Database = {
         Args: { p_header_id: number; p_product_ids: number[] }
         Returns: undefined
       }
+      refresh_execution_gate_snapshots_current_month: {
+        Args: { p_month_start?: string }
+        Returns: undefined
+      }
       refresh_mv_forecast_plan_12m: { Args: never; Returns: undefined }
       refresh_priority_queue_snapshot: { Args: never; Returns: undefined }
       refresh_sales_monthly: { Args: never; Returns: undefined }
@@ -26183,6 +26461,53 @@ export type Database = {
         Returns: {
           row_data: Json
           total_count: number
+        }[]
+      }
+      rpc_create_daily_work_log_with_packaging: {
+        Args: {
+          p_activity: string
+          p_area_id: number
+          p_batch_number: string
+          p_batch_size: number
+          p_batch_uom: string
+          p_completed_on: string
+          p_count_of_saravam: number
+          p_due_date: string
+          p_fuel: string
+          p_fuel_over: string
+          p_fuel_under: string
+          p_item: string
+          p_juice_or_decoction: string
+          p_lab_ref_number: string
+          p_log_date: string
+          p_plant_id: number
+          p_qty_after_process: number
+          p_qty_uom: string
+          p_remarks: string
+          p_rm_juice_qty: number
+          p_rm_juice_uom: string
+          p_section_id: number
+          p_sku_breakdown: string
+          p_specify: string
+          p_started_on: string
+          p_status: string
+          p_storage_qty: number
+          p_storage_qty_uom: string
+          p_subsection_id: number
+        }
+        Returns: {
+          daily_work_log_id: number
+          inserted_event_sku_count: number
+          packaging_event_id: number
+        }[]
+      }
+      rpc_debug_runtime_identity: {
+        Args: never
+        Returns: {
+          current_role_name: string
+          current_user_name: string
+          jwt_role: string
+          session_user_email: string
         }[]
       }
       rpc_enqueue_job: {
@@ -27160,6 +27485,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      rpc_trace_log_pipeline: {
+        Args: { p_batch_number: string; p_item?: string }
+        Returns: Json
+      }
       rpc_trace_search: {
         Args: {
           p_end?: string
@@ -27172,6 +27501,70 @@ export type Database = {
         Returns: {
           row_data: Json
           total_count: number
+        }[]
+      }
+      rpc_update_daily_work_log_status: {
+        Args: {
+          p_completed_on?: string
+          p_count_of_saravam?: number
+          p_fuel?: string
+          p_fuel_over?: string
+          p_fuel_under?: string
+          p_id: number
+          p_juice_or_decoction?: string
+          p_lab_ref_number?: string
+          p_new_status: string
+          p_qty_after_process?: number
+          p_qty_uom?: string
+          p_sku_breakdown?: string
+          p_specify?: string
+          p_storage_qty?: number
+          p_storage_qty_uom?: string
+        }
+        Returns: {
+          daily_work_log_id: number
+          final_status: string
+          inserted_event_sku_count: number
+          packaging_event_id: number
+        }[]
+      }
+      rpc_update_daily_work_log_with_packaging: {
+        Args: {
+          p_activity: string
+          p_area_id: number
+          p_batch_number: string
+          p_batch_size: number
+          p_batch_uom: string
+          p_completed_on: string
+          p_count_of_saravam: number
+          p_due_date: string
+          p_fuel: string
+          p_fuel_over: string
+          p_fuel_under: string
+          p_id: number
+          p_item: string
+          p_juice_or_decoction: string
+          p_lab_ref_number: string
+          p_log_date: string
+          p_plant_id: number
+          p_qty_after_process: number
+          p_qty_uom: string
+          p_remarks: string
+          p_rm_juice_qty: number
+          p_rm_juice_uom: string
+          p_section_id: number
+          p_sku_breakdown: string
+          p_specify: string
+          p_started_on: string
+          p_status: string
+          p_storage_qty: number
+          p_storage_qty_uom: string
+          p_subsection_id: number
+        }
+        Returns: {
+          daily_work_log_id: number
+          inserted_event_sku_count: number
+          packaging_event_id: number
         }[]
       }
       sdv_zero_revenue_abs: {

@@ -3183,7 +3183,7 @@ function switchTab(tabName) {
 // EXPORT FUNCTIONALITY
 // =========================================================================
 
-async function exportCurrentTab() {
+async function exportCsvCurrentTab() {
   showToast("Preparing export...", "info", 1000);
 
   try {
@@ -3344,6 +3344,10 @@ async function exportCurrentTab() {
   }
 }
 
+// Backwards-compat alias (safe minimal rename) — expose on `window` so
+// external callers can rely on the global without creating an unused local.
+window.exportCurrentTab = (...args) => exportCsvCurrentTab(...args);
+
 function convertToCSV(data) {
   if (!data || data.length === 0) return "";
 
@@ -3388,6 +3392,136 @@ function downloadCSV(csv, filename) {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+}
+
+// =========================================================================
+// COPY TRANSFER SUMMARY HELPERS
+// =========================================================================
+
+async function fetchTransferSummaryRowsForCopy() {
+  const from = formatDateForDB(state.dateFrom) || "1900-01-01";
+  const to = formatDateForDB(state.dateTo) || "2100-01-01";
+  try {
+    const { data, error } = await supabase
+      .from("v_tally_fg_transfer_normalized")
+      .select(
+        "transfer_date, transfer_godown_code, product_name, batch_code, pack_size, sku_pack_uom, qty_value_raw",
+      )
+      .gte("transfer_date", from)
+      .lte("transfer_date", to)
+      .order("transfer_date", { ascending: true })
+      .order("transfer_godown_code", { ascending: true })
+      .order("product_name", { ascending: true })
+      .order("batch_code", { ascending: true });
+
+    if (error) {
+      handleSupabaseError(error);
+      throw error;
+    }
+    return data || [];
+  } catch (err) {
+    console.error("fetchTransferSummaryRowsForCopy failed", err);
+    throw err;
+  }
+}
+
+function buildTransferSummaryText(rows) {
+  if (!rows || !rows.length) return "";
+
+  const singleDay = state.dateFrom === state.dateTo;
+  const headerLines = ["FG Transfer Summary"];
+  if (singleDay) headerLines.push(`Date: ${state.dateFrom}`);
+  else headerLines.push(`Period: ${state.dateFrom} to ${state.dateTo}`);
+  headerLines.push("");
+
+  // Group by date -> godown
+  const byDate = {};
+  for (const r of rows) {
+    const d = formatDateFromDBToDDMMYYYY(r.transfer_date) || "";
+    const godown = r.transfer_godown_code || "UNSPECIFIED GODOWN";
+    if (!byDate[d]) byDate[d] = {};
+    if (!byDate[d][godown]) byDate[d][godown] = [];
+    byDate[d][godown].push(r);
+  }
+
+  const out = [...headerLines];
+  let totalLines = 0;
+
+  const dateKeys = Object.keys(byDate).sort();
+  for (const dateKey of dateKeys) {
+    if (!singleDay) out.push(formatDateFromDBToDDMMYYYY(dateKey) || dateKey);
+    const godowns = Object.keys(byDate[dateKey]).sort();
+    for (const godown of godowns) {
+      out.push(godown);
+      const items = byDate[dateKey][godown];
+      let idx = 1;
+      for (const it of items) {
+        const product = it.product_name || "—";
+        const batch = it.batch_code || "—";
+        const pack =
+          [it.pack_size, it.sku_pack_uom].filter(Boolean).join(" ") || "—";
+        const qty =
+          typeof it.qty_value_raw !== "undefined" && it.qty_value_raw !== null
+            ? String(it.qty_value_raw)
+            : "—";
+        out.push(
+          `${idx}. ${product} | Batch: ${batch} | Pack: ${pack} | Qty: ${qty}`,
+        );
+        idx++;
+        totalLines++;
+      }
+      out.push("");
+    }
+  }
+
+  out.push(`Total lines: ${totalLines}`);
+  return out.join("\n");
+}
+
+async function copyTextToClipboard(text) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+  } catch {
+    // fallthrough to legacy method
+  }
+
+  // Fallback
+  return new Promise((res, rej) => {
+    try {
+      const ta = document.createElement("textarea");
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      if (ok) res();
+      else rej(new Error("execCommand copy failed"));
+    } catch (err) {
+      rej(err);
+    }
+  });
+}
+
+async function copyTransferSummary() {
+  showToast("Preparing transfer summary...", "info", 1000);
+  try {
+    const rows = await fetchTransferSummaryRowsForCopy();
+    if (!rows || !rows.length) {
+      showToast("No transfer rows found for selected period", "warning");
+      return;
+    }
+    const text = buildTransferSummaryText(rows);
+    await copyTextToClipboard(text);
+    showToast("Transfer summary copied to clipboard", "success");
+  } catch (err) {
+    console.error("copyTransferSummary failed", err);
+    showToast("Failed to copy transfer summary", "error");
+  }
 }
 
 // =========================================================================
@@ -3581,7 +3715,110 @@ async function init() {
 
   const exportBtn = document.getElementById("exportBtn");
   if (exportBtn) {
-    exportBtn.addEventListener("click", exportCurrentTab);
+    // Replace single Export button with a small Export menu wrapper
+    // Preserve existing element id (`exportBtn`) for minimal impact.
+    const wrap = document.createElement("div");
+    wrap.className = "export-menu-wrap";
+
+    // Move existing button into wrapper
+    exportBtn.parentNode.insertBefore(wrap, exportBtn);
+    wrap.appendChild(exportBtn);
+
+    // Create menu
+    const menu = document.createElement("div");
+    menu.id = "exportMenu";
+    menu.className = "export-menu hidden";
+    menu.setAttribute("role", "menu");
+
+    const btnCsv = document.createElement("button");
+    btnCsv.id = "exportCsvBtn";
+    btnCsv.type = "button";
+    btnCsv.setAttribute("role", "menuitem");
+    btnCsv.textContent = "Export CSV";
+
+    const btnCopy = document.createElement("button");
+    btnCopy.id = "copyTransferSummaryBtn";
+    btnCopy.type = "button";
+    btnCopy.setAttribute("role", "menuitem");
+    btnCopy.textContent = "Copy Transfer Summary";
+
+    menu.appendChild(btnCsv);
+    menu.appendChild(btnCopy);
+    wrap.appendChild(menu);
+
+    // Minimal styles to position the menu — scoped and non-intrusive
+    const styleId = "fg-tr-export-menu-styles";
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement("style");
+      style.id = styleId;
+      style.textContent = `
+        .export-menu-wrap{position:relative;display:inline-block}
+        .export-menu{position:absolute;right:0;top:100%;background:#fff;border:1px solid #ccc;padding:6px;display:flex;flex-direction:column;gap:6px;box-shadow:0 6px 18px rgba(0,0,0,0.08);z-index:9999;min-width:160px}
+        .export-menu.hidden{display:none}
+        .export-menu button{background:none;border:0;padding:8px 10px;text-align:left;cursor:pointer;color:#222}
+        .export-menu button:hover,.export-menu button:focus{background:#f3f3f3;outline:none}
+      `;
+      document.head.appendChild(style);
+    }
+
+    // Menu controller
+    function toggleExportMenu(forceOpen) {
+      const shouldOpen =
+        typeof forceOpen === "boolean"
+          ? forceOpen
+          : menu.classList.contains("hidden");
+      if (shouldOpen) menu.classList.remove("hidden");
+      else menu.classList.add("hidden");
+      exportBtn.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+    }
+
+    function closeExportMenu() {
+      menu.classList.add("hidden");
+      exportBtn.setAttribute("aria-expanded", "false");
+    }
+
+    // Close on outside click
+    function onDocClick(ev) {
+      if (!wrap.contains(ev.target)) closeExportMenu();
+    }
+
+    function onKeyDown(ev) {
+      if (ev.key === "Escape") closeExportMenu();
+    }
+
+    exportBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      toggleExportMenu();
+    });
+
+    // Wire menu actions
+    btnCsv.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      closeExportMenu();
+      try {
+        await exportCsvCurrentTab();
+      } catch (err) {
+        console.error("Export CSV failed", err);
+      }
+    });
+
+    btnCopy.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      closeExportMenu();
+      try {
+        await copyTransferSummary();
+      } catch (err) {
+        console.error("copyTransferSummary failed", err);
+      }
+    });
+
+    document.addEventListener("click", onDocClick);
+    document.addEventListener("keydown", onKeyDown);
+    // ensure cleanup on unload to avoid leaks
+    window.addEventListener("unload", () => {
+      document.removeEventListener("click", onDocClick);
+      document.removeEventListener("keydown", onKeyDown);
+    });
   }
 
   // Reset Filters button: restore defaults and navigate to Overview

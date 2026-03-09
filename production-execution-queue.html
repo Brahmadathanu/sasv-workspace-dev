@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>Priority Execution Board</title>
+    <title>Production Execution Queue</title>
     <link rel="stylesheet" href="public/shared/css/style.css" />
     <style>
       /* Module-specific layout using existing style patterns */
@@ -55,6 +55,24 @@
         border-radius: 8px;
         min-width: 120px;
       }
+      /* Table cell alignment helpers */
+      .c-center { text-align: center; }
+      .c-left { text-align: left; }
+      .c-right { text-align: right; }
+      /* Status chips */
+      .chip {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        color: #fff;
+        font-weight: 600;
+      }
+      .chip.green { background: #16a34a; }
+      .chip.amber { background: #f59e0b; }
+      .chip.red { background: #ef4444; }
+      .chip.blue { background: #3b82f6; }
+      .chip.gray { background: #6b7280; }
       .lens-pills {
         display: flex;
         gap: 8px;
@@ -143,19 +161,18 @@
         .main {
           flex-direction: column;
         }
+        /* On small screens, show drawer as block below table instead of slide-over */
         .drawer {
-          position: fixed;
-          right: 0;
-          top: 0;
-          bottom: 0;
+          position: static;
           width: 100%;
-          max-width: 480px;
-          transform: translateX(100%);
-          transition: transform 0.22s ease;
-          z-index: 60;
+          max-width: 100%;
+          transform: none;
+          transition: none;
+          z-index: auto;
+          display: none;
         }
         .drawer.open {
-          transform: translateX(0);
+          display: block;
         }
       }
       .status {
@@ -172,54 +189,108 @@
         border: 1px solid var(--border);
         border-radius: 8px;
       }
+      /* Hide HOME label on small screens to match stock-checker behavior */
+      #homeBtn .home-label {
+        display: inline;
+      }
+      @media (max-width: 520px) {
+        #homeBtn .home-label {
+          display: none;
+        }
+        #homeBtn svg {
+          margin-right: 0;
+        }
+        #homeBtn {
+          padding-left: 8px;
+          padding-right: 8px;
+        }
+      }
     </style>
   </head>
   <body>
-    <div class="page-header">
-      <div>
-        <h1>Priority Execution Board</h1>
-        <div class="page-sub" id="subtitle">
-          Production priority candidates — current month
-        </div>
-        <div class="toolbar">
-          <div class="controls">
-            <button id="refreshBtn" class="pill">Refresh</button>
-            <input
-              id="searchBox"
-              class="search"
-              placeholder="Search product / batch"
-            />
+    <div class="header-card" style="border:1px solid var(--border);padding:12px;border-radius:8px;background:var(--panel-bg);">
+      <div class="page-header">
+        <div>
+          <h1>Production Execution Queue</h1>
+          <div class="page-sub" id="subtitle">
+            Ranked current-month batch priorities for production execution
+          </div>
+          <div class="toolbar">
+            <div class="controls">
+              <button id="refreshBtn" class="pill">Refresh</button>
+              <input
+                id="searchBox"
+                class="search"
+                placeholder="Search batch or product"
+              />
+            </div>
           </div>
         </div>
-      </div>
-      <div style="text-align: right">
+        <div style="text-align: right">
+        <button id="homeBtn" type="button" title="Home" aria-label="Home">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9,22 9,12 15,12 15,22" />
+          </svg>
+          <span class="home-label">HOME</span>
+        </button>
         <div id="rowCount">Rows: —</div>
         <div id="lastRefreshed" class="page-sub">Last refreshed: —</div>
       </div>
     </div>
 
-    <div class="kpi-strip" id="kpiStrip">
-      <!-- KPIs injected here -->
+    <div class="card kpi-row" style="margin-top:12px;padding:12px;border-radius:8px;background:var(--panel-bg);border:1px solid var(--border);">
+      <div class="kpi-strip" id="kpiStrip">
+        <!-- KPIs injected here -->
+      </div>
     </div>
 
-    <div class="lens-pills" id="lensPills">
-      <!-- Lens pills injected here -->
+    <div class="card" style="margin-top:12px;padding:10px;border-radius:8px;background:var(--panel-bg);border:1px solid var(--border);">
+      <div class="lens-pills" id="lensPills">
+        <!-- Lens pills injected here -->
+      </div>
     </div>
 
     <div class="main">
       <div class="table-card">
         <div id="statusArea" class="status">Loading…</div>
-        <div id="tableWrap" style="display: none">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
+          <div>
+            <label for="pageSize">Page size:</label>
+            <select id="pageSize">
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+              <option value="200">200</option>
+            </select>
+          </div>
+          <div>
+            <button id="exportCsv" class="pill">Export CSV</button>
+            <span id="paginationInfo" style="margin-left:12px"></span>
+            <button id="prevPage" class="pill" style="margin-left:8px">Prev</button>
+            <button id="nextPage" class="pill" style="margin-left:6px">Next</button>
+          </div>
+        </div>
+        <div id="tableWrap" style="display: none; overflow:auto">
           <table id="mainTable">
             <thead>
               <tr>
-                <th style="width: 80px">Rank</th>
-                <th>Batch</th>
-                <th>Product</th>
-                <th>State</th>
-                <th>PM</th>
-                <th>RM</th>
-                <th>Planned</th>
+                <th class="c-center" style="width:80px">Rank</th>
+                <th class="c-center">Batch</th>
+                <th class="c-left">Product</th>
+                <th class="c-center">State</th>
+                <th class="c-center">Lane</th>
+                <th class="c-center">PM</th>
+                <th class="c-center">RM</th>
+                <th class="c-right">Risk Reduction</th>
+                <th class="c-center">Top Region</th>
               </tr>
             </thead>
             <tbody id="tableBody"></tbody>
@@ -239,7 +310,8 @@
           <button id="drawerClose" class="pill">Close</button>
         </div>
         <div class="tabs" id="drawerTabs">
-          <div class="tab active" data-tab="why">Why it matters</div>
+          <div class="tab active" data-tab="details">Details</div>
+          <div class="tab" data-tab="why">Why it matters</div>
           <div class="tab" data-tab="pm">PM blockers</div>
           <div class="tab" data-tab="rm">RM blockers</div>
         </div>
@@ -247,6 +319,6 @@
       </aside>
     </div>
 
-    <script type="module" src="js/priority-execution-board.js"></script>
+    <script type="module" src="js/production-execution-queue.js"></script>
   </body>
 </html>

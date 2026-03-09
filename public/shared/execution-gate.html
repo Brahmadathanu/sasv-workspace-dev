@@ -29,102 +29,200 @@
         flex-wrap: wrap;
         margin: 8px 0;
       }
-      .drawer {
-        position: fixed;
-        right: 0;
-        top: 0;
-        height: 100%;
-        width: 420px;
-        max-width: 100%;
-        background: #fff;
-        box-shadow: -6px 0 24px rgba(0, 0, 0, 0.08);
-        transform: translateX(100%);
-        transition: transform 0.2s;
-        z-index: 50;
+      .card {
+        background: var(--card-bg, #fff);
+        border: 1px solid var(--panel-border, #eee);
+        border-radius: 6px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
       }
-      .drawer.open {
-        transform: translateX(0);
+      .tabs .tabbtn {
+        padding: 8px 12px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      .tabs .tabbtn.active {
+        background: var(--accent, #f0f4ff);
+        border-radius: 6px;
       }
       @media (max-width: 640px) {
-        .drawer {
-          width: 100%;
+        .main-workspace {
+          flex-direction: column;
+        }
+        .left-pane,
+        .right-pane {
+          flex: 0 0 100%;
         }
       }
     </style>
   </head>
   <body>
     <main class="page">
-      <header>
-        <h1>Execution Gate (Unblock Priority)</h1>
-        <p class="muted">
-          RM/PM actions to unblock priority batches — Current month
-        </p>
-        <div
-          style="display: flex; gap: 12px; align-items: center; margin-top: 8px"
-        >
-          <div id="rowCount">Rows: -</div>
-          <div id="lastRefreshed">Last refreshed: -</div>
+      <header
+        class="card"
+        style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 12px;
+          padding: 12px;
+        "
+      >
+        <div>
+          <h1>Execution Gate (Unblock Priority)</h1>
+          <p class="muted">RM/PM actions required to unblock production</p>
+        </div>
+        <div style="text-align: right">
+          <div>
+            Month: <strong><span id="monthLabel">-</span></strong>
+          </div>
+          <div style="font-size: 0.9rem; color: var(--muted)">
+            Snapshot refreshed: <span id="lastSnapshot">-</span>
+          </div>
         </div>
       </header>
 
-      <section class="toolbar">
-        <input id="monthSelect" type="month" />
-        <input id="searchBox" placeholder="Search item name or id" />
-        <select id="sortSelect"></select>
-        <button id="refreshBtn">Refresh</button>
-        <button id="exportBtn">Export CSV (page)</button>
-        <label style="margin-left: 8px"
-          ><input id="showCount" type="checkbox" /> Show total count</label
-        >
-        <div class="right">
-          <label
-            >Page size:
-            <select id="pageSizeSelect">
-              <option>50</option>
-              <option>100</option>
-              <option>200</option>
-            </select></label
-          >
-          <button id="prevBtn">Prev</button>
-          <button id="nextBtn">Next</button>
-          <span id="pageInfo">Page 1</span>
-        </div>
+      <section class="card" style="padding: 8px; margin-top: 12px">
+        <div class="kpi-strip" id="kpiStrip"></div>
       </section>
 
-      <nav style="margin-top: 12px">
-        <button class="tabbtn active" data-tab="pm">PM Issue Priority</button>
-        <button class="tabbtn" data-tab="rm">RM Issue Priority</button>
-        <button class="tabbtn" data-tab="unassigned">
-          RM Unassigned Issues
-        </button>
+      <nav
+        class="tabs"
+        style="
+          margin-top: 12px;
+          display: flex;
+          gap: 8px;
+          align-items: flex-start;
+        "
+      >
+        <div style="display: flex; flex-direction: column">
+          <button class="tabbtn active" data-tab="pm">
+            PM Issue / Procurement Priority
+          </button>
+          <small class="muted"
+            >Packing materials ranked by production impact unlocked if issued or
+            procured.</small
+          >
+        </div>
+        <div style="display: flex; flex-direction: column">
+          <button class="tabbtn" data-tab="rm">
+            RM Issue / Procurement Priority
+          </button>
+          <small class="muted"
+            >Raw materials ranked by production impact unlocked if issued or
+            procured.</small
+          >
+        </div>
+        <div style="display: flex; flex-direction: column">
+          <button class="tabbtn" data-tab="unassigned">
+            RM Unassigned Issues
+          </button>
+          <small class="muted"
+            >Raw material issues blocked due to assignment or traceability
+            problems.</small
+          >
+        </div>
       </nav>
 
-      <section class="kpi-strip" id="kpiStrip"></section>
+      <section
+        class="control-strip"
+        style="
+          margin-top: 12px;
+          padding: 8px;
+          background: var(--panel-bg, #fbfbfb);
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          align-items: center;
+        "
+      >
+        <input
+          id="searchBox"
+          placeholder="Search item name or id"
+          style="min-width: 160px"
+        />
+        <select id="sortSelect"></select>
+        <input
+          id="minRisk"
+          type="number"
+          placeholder="Min risk"
+          style="width: 120px"
+        />
+        <input
+          id="minBlocked"
+          type="number"
+          placeholder="Min blocked batches"
+          style="width: 150px"
+        />
+        <button id="refreshBtn">Refresh snapshots</button>
+        <button id="exportBtn">Export CSV (page)</button>
+        <label
+          style="
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          "
+          >Page size:
+          <select id="pageSizeSelect">
+            <option>25</option>
+            <option>50</option>
+            <option>100</option>
+            <option>200</option>
+          </select></label
+        >
+        <button id="prevBtn">Prev</button>
+        <button id="nextBtn">Next</button>
+        <span id="pageInfo">Page 1</span>
+        <div id="rowCount" style="margin-left: 8px">Rows: -</div>
+      </section>
 
-      <div class="table-wrap" id="tableWrap">
-        <table id="mainTable" class="striped">
-          <thead id="tableHead"></thead>
-          <tbody id="tableBody"></tbody>
-        </table>
-      </div>
+      <main
+        class="main-workspace"
+        style="
+          display: flex;
+          gap: 12px;
+          margin-top: 12px;
+          align-items: flex-start;
+        "
+      >
+        <div class="left-pane" style="flex: 0 0 65%">
+          <section class="card" style="padding: 8px">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+              "
+            >
+              <div id="tableTitle" style="font-weight: 600">
+                PM items ranked by production unblock impact
+              </div>
+              <div id="lastRefreshed" class="muted">Fetched: -</div>
+            </div>
+            <div
+              class="table-wrap"
+              id="tableWrap"
+              style="margin-top: 8px; overflow: auto; max-height: 60vh"
+            >
+              <table id="mainTable" class="striped" style="width: 100%">
+                <thead id="tableHead"></thead>
+                <tbody id="tableBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+        <aside
+          class="right-pane card"
+          id="detailPanel"
+          style="flex: 0 0 35%; padding: 12px; min-height: 200px"
+        >
+          <div id="detailContent"><em>Select a row to see details</em></div>
+        </aside>
+      </main>
 
       <div id="statusArea" style="display: none; margin-top: 12px"></div>
-
-      <div id="detailsDrawer" class="drawer" aria-hidden="true">
-        <div
-          style="
-            padding: 12px;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          "
-        >
-          <div id="drawerTitle">Details</div>
-          <button id="drawerClose">Close</button>
-        </div>
-        <div id="drawerContent" style="padding: 12px"></div>
-      </div>
     </main>
 
     <script type="module" src="js/execution-gate.js"></script>
