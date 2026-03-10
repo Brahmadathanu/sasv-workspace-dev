@@ -208,6 +208,7 @@ function buildStockCheckerFiltersPayload() {
   payload.quick = {
     mosLt3: !!(state.quick && state.quick.mosLt3),
     raso: !!(state.quick && state.quick.raso),
+    capsTabs: !!(state.quick && state.quick.capsTabs),
   };
 
   payload.category_id =
@@ -255,6 +256,162 @@ function buildStockCheckerFiltersPayload() {
   }
 
   return payload;
+}
+
+// --- Preset management for quick chips that map to advanced exclusions ---
+// Tracks ids added by presets so we can safely remove only those later.
+const __presetManaged = {
+  capsTabs: new Set(),
+};
+
+function unionIds(existing, incoming) {
+  const s = new Set((existing || []).map((x) => String(x)));
+  (incoming || []).forEach((id) => s.add(String(id)));
+  return Array.from(s);
+}
+
+function subtractIds(existing, removable) {
+  const rem = new Set((removable || []).map((x) => String(x)));
+  return (existing || []).filter((id) => !rem.has(String(id)));
+}
+
+async function computeCapsTabsExcludedIds() {
+  // Returns array of ids (strings) that should be excluded to implement
+  // the Caps/Tabs preset (i.e. all product groups except the allowed names).
+  const allowed = new Set(["capsule / tablet", "mathirai / vatakam"]);
+
+  // Prefer to derive ids from existing advanced exclusion select if present
+  const sel = document.getElementById("ex-pgroup");
+  if (sel && sel.options && sel.options.length) {
+    const excluded = new Set();
+    for (const opt of Array.from(sel.options)) {
+      if (!opt || opt.value === "") continue;
+      let ids = [];
+      try {
+        ids = JSON.parse(opt.dataset.ids || "[]");
+      } catch {
+        ids = [opt.value];
+      }
+      const label = String(opt.textContent || opt.value || "")
+        .trim()
+        .toLowerCase();
+      if (allowed.has(label)) {
+        // keep allowed ids — do nothing
+      } else {
+        ids.forEach((id) => excluded.add(String(id)));
+      }
+    }
+    return Array.from(excluded);
+  }
+
+  // Fallback: query product_groups from server
+  try {
+    const { data, error } = await supabase
+      .from("product_groups")
+      .select("id, group_name")
+      .order("group_name");
+    if (error || !Array.isArray(data)) return [];
+    const out = [];
+    for (const r of data) {
+      try {
+        const nm = String(r.group_name ?? "")
+          .trim()
+          .toLowerCase();
+        if (!allowed.has(nm)) out.push(String(r.id));
+      } catch {
+        void 0;
+      }
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
+function syncExPgroupUI() {
+  try {
+    const sel = document.getElementById("ex-pgroup");
+    if (!sel) return;
+    const list = document.getElementById("ex-pgroup-list");
+    const btn = document.querySelector(
+      '.multi-btn[data-target="ex-pgroup-list"]',
+    );
+
+    const selSet = new Set(
+      (state.ex && state.ex.pgroups ? state.ex.pgroups : []).map(String),
+    );
+    // update hidden <select> options selection and select._selectedIds
+    Array.from(sel.options || []).forEach((opt) => {
+      try {
+        const ids = JSON.parse(opt.dataset.ids || "[]");
+        opt.selected = (ids || []).some((id) => selSet.has(String(id)));
+      } catch {
+        opt.selected = selSet.has(String(opt.value));
+      }
+    });
+    try {
+      sel._selectedIds = new Set(Array.from(selSet));
+    } catch {
+      /* ignore */
+    }
+
+    // update visible checkbox list if present — options and items share order
+    if (list) {
+      const checks = Array.from(
+        list.querySelectorAll('input[type="checkbox"]'),
+      );
+      const opts = Array.from(sel.options || []).filter((o) => o.value !== "");
+      for (let i = 0; i < opts.length; i++) {
+        const opt = opts[i];
+        const cb = checks[i];
+        if (!cb) continue;
+        cb.checked = opt.selected;
+      }
+    }
+
+    if (btn && typeof btn._updateText === "function") {
+      try {
+        btn._updateText();
+      } catch {
+        void 0;
+      }
+    }
+  } catch {
+    /* defensive no-op */
+  }
+}
+
+async function applyCapsTabsPreset(enable) {
+  try {
+    if (enable) {
+      const excludedIds = await computeCapsTabsExcludedIds();
+      // remember what we added so we can remove them later
+      __presetManaged.capsTabs = new Set((excludedIds || []).map(String));
+      state.ex = state.ex || {
+        cats: [],
+        subcats: [],
+        pgroups: [],
+        sgroups: [],
+      };
+      state.ex.pgroups = unionIds(state.ex.pgroups || [], excludedIds || []);
+      // sync UI
+      syncExPgroupUI();
+    } else {
+      const toRemove = Array.from(__presetManaged.capsTabs || []);
+      state.ex = state.ex || {
+        cats: [],
+        subcats: [],
+        pgroups: [],
+        sgroups: [],
+      };
+      state.ex.pgroups = subtractIds(state.ex.pgroups || [], toRemove || []);
+      __presetManaged.capsTabs = new Set();
+      syncExPgroupUI();
+    }
+  } catch (err) {
+    console.error("applyCapsTabsPreset failed", err);
+    throw err;
+  }
 }
 
 // ────────────── jsPDF / autoTable loader & guards ──────────────
@@ -328,6 +485,7 @@ function toggleChip(btn, stateKey) {
   setChip(btn, next);
   if (stateKey === "mosLt3") state.quick.mosLt3 = next;
   if (stateKey === "raso") state.quick.raso = next;
+  if (stateKey === "capsTabs") state.quick.capsTabs = next;
   page = 1;
   runQuery();
 }
@@ -1580,7 +1738,7 @@ let elValueModal, elValueModalClose, elValueBody, elValueSnapshot;
 // Row modal refs (declared at module scope so assignments in init work)
 let elRowModal, elRowModalClose;
 
-let elQfMosLt3, elQfRaso;
+let elQfMosLt3, elQfRaso, elQfCapsTabs;
 
 // Advanced drawer controls
 let exCat, exSubcat, exPgroup, exSgroup;
@@ -1617,7 +1775,7 @@ let selectedProductId = "";
 const state = {
   pack_size: "",
   uom: "",
-  quick: { mosLt3: false, raso: false },
+  quick: { mosLt3: false, raso: false, capsTabs: false },
   category_id: "",
   sub_category_id: "",
   product_group_id: "",
@@ -1754,6 +1912,7 @@ async function init() {
 
     elQfMosLt3 = $("qf-moslt3");
     elQfRaso = $("qf-raso");
+    elQfCapsTabs = $("qf-capstabs");
 
     // Advanced
     exCat = $("ex-cat");
@@ -3306,6 +3465,31 @@ async function init() {
       });
       setChip(elQfRaso, state.quick.raso === true);
     }
+    if (elQfCapsTabs) {
+      elQfCapsTabs.addEventListener("click", async () => {
+        console.debug && console.debug("qf-capstabs clicked");
+        // compute next state and update visual + state
+        const now = elQfCapsTabs.getAttribute("aria-pressed") === "true";
+        const next = !now;
+        setChip(elQfCapsTabs, next);
+        state.quick = state.quick || {};
+        state.quick.capsTabs = next;
+        try {
+          await applyCapsTabsPreset(next);
+        } catch (err) {
+          console.error(err);
+          setMsg("Failed to apply Caps/Tabs preset");
+        }
+        page = 1;
+        try {
+          if (typeof closeFiltersModalFn === "function") closeFiltersModalFn();
+        } catch {
+          void 0;
+        }
+        await runQuery();
+      });
+      setChip(elQfCapsTabs, state.quick.capsTabs === true);
+    }
 
     wireClassificationFilters();
     await populateDrawerClassificationFilters();
@@ -4754,7 +4938,7 @@ async function runQuery() {
 
     if (error) throw error;
 
-    const rows = (data && data.rows) || [];
+    let rows = (data && data.rows) || [];
     const total = (data && (data.count ?? data.total ?? 0)) || 0;
     const totals = (data && data.totals) || null;
     const snapshot_date =
@@ -6030,11 +6214,20 @@ function clearAll() {
       ok: { en: false, op: "gt", v1: "", v2: "", notNull: false },
       ov: { en: false, op: "gt", v1: "", v2: "", notNull: false },
     },
-    quick: { mosLt3: false, raso: false },
+    quick: { mosLt3: false, raso: false, capsTabs: false },
   });
 
   setChip(elQfMosLt3, false);
   setChip(elQfRaso, false);
+  setChip(elQfCapsTabs, false);
+
+  // clear any preset-managed ids so Clear truly resets UI state
+  try {
+    __presetManaged.capsTabs = new Set();
+    syncExPgroupUI();
+  } catch {
+    void 0;
+  }
 
   page = 1;
   runQuery();
