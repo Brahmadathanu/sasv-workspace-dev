@@ -3558,7 +3558,6 @@ function wireClassificationFilters() {
 // Populate and wire up classification filters in the drawer
 async function populateDrawerClassificationFilters() {
   if (!drawerCat || !drawerSubcat || !drawerPgroup || !drawerSgroup) return;
-
   function fillSelect(select, rows, valueKey, labelKey) {
     select.innerHTML = '<option value="">All</option>';
     (rows || []).forEach((row) => {
@@ -3574,14 +3573,33 @@ async function populateDrawerClassificationFilters() {
     const sel = document.getElementById(selectId);
     const list = document.getElementById(listId);
     if (!sel || !list) return;
-    // render items from select options (skip the "All" placeholder option if present)
+
+    // render header with bulk action controls
     list.innerHTML = "";
-    // header with close button
     const hdr = document.createElement("div");
     hdr.className = "mc-header";
     const hdrTitle = document.createElement("div");
     hdrTitle.className = "mc-title";
     hdrTitle.textContent = buttonText || "";
+
+    const hdrActions = document.createElement("div");
+    hdrActions.className = "mc-actions";
+
+    const btnAll = document.createElement("button");
+    btnAll.type = "button";
+    btnAll.className = "mc-bulk-btn";
+    btnAll.textContent = "All";
+
+    const btnNone = document.createElement("button");
+    btnNone.type = "button";
+    btnNone.className = "mc-bulk-btn";
+    btnNone.textContent = "None";
+
+    const btnInvert = document.createElement("button");
+    btnInvert.type = "button";
+    btnInvert.className = "mc-bulk-btn";
+    btnInvert.textContent = "Invert";
+
     const hdrClose = document.createElement("button");
     hdrClose.type = "button";
     hdrClose.className = "mc-close-btn";
@@ -3590,34 +3608,101 @@ async function populateDrawerClassificationFilters() {
       ev.stopPropagation();
       list.hidden = true;
     });
+
+    hdrActions.appendChild(btnAll);
+    hdrActions.appendChild(btnNone);
+    hdrActions.appendChild(btnInvert);
+    hdrActions.appendChild(hdrClose);
+
     hdr.appendChild(hdrTitle);
-    hdr.appendChild(hdrClose);
+    hdr.appendChild(hdrActions);
     list.appendChild(hdr);
 
+    // helper to parse underlying ids from option.dataset.ids
+    const getUnderlyingIds = (opt) => {
+      try {
+        const arr = JSON.parse(opt.dataset.ids || "[]");
+        return Array.isArray(arr) ? arr.map(String) : [];
+      } catch {
+        return [];
+      }
+    };
+
+    // ensure a Set of raw selected ids exists on the hidden select
+    if (!(sel._selectedIds instanceof Set)) {
+      sel._selectedIds = new Set();
+      Array.from(sel.options).forEach((opt) => {
+        if (opt.selected)
+          getUnderlyingIds(opt).forEach((id) =>
+            sel._selectedIds.add(String(id)),
+          );
+      });
+    }
+
+    // Build item rows with checkboxes linked to options
+    const itemRows = [];
     Array.from(sel.options).forEach((opt) => {
-      if (opt.value === "") return; // skip All placeholder
+      if (opt.value === "") return; // skip placeholder
       const item = document.createElement("div");
       item.className = "mc-item";
       const cb = document.createElement("input");
       cb.type = "checkbox";
-      cb.dataset.value = opt.value;
-      cb.checked = opt.selected || false;
+      cb.checked = !!opt.selected;
       const lbl = document.createElement("label");
       lbl.textContent = opt.textContent;
       item.appendChild(cb);
       item.appendChild(lbl);
       list.appendChild(item);
+      itemRows.push({ item, cb, lbl, opt });
+    });
 
+    const parent = list.parentElement;
+    const btn = parent?.querySelector(".multi-btn");
+
+    // count badge removed — no helpers required
+
+    function syncOptionFromCheckbox(opt, checked) {
+      const ids = getUnderlyingIds(opt);
+      opt.selected = checked;
+      if (checked) ids.forEach((id) => sel._selectedIds.add(String(id)));
+      else ids.forEach((id) => sel._selectedIds.delete(String(id)));
+    }
+
+    function setAllChecked(checked) {
+      itemRows.forEach(({ cb, opt }) => {
+        cb.checked = checked;
+        syncOptionFromCheckbox(opt, checked);
+      });
+      updateButtonText();
+      try {
+        if (Object.keys(window.__origFilterPlacement || {}).length === 0)
+          updateFiltersButtonState();
+      } catch {
+        void 0;
+      }
+    }
+
+    function invertChecked() {
+      itemRows.forEach(({ cb, opt }) => {
+        const next = !cb.checked;
+        cb.checked = next;
+        syncOptionFromCheckbox(opt, next);
+      });
+      updateButtonText();
+      try {
+        if (Object.keys(window.__origFilterPlacement || {}).length === 0)
+          updateFiltersButtonState();
+      } catch {
+        void 0;
+      }
+    }
+
+    // wire checkbox change handlers
+    itemRows.forEach(({ cb, opt }) => {
       cb.addEventListener("change", () => {
-        // sync to underlying select
-        const value = cb.dataset.value;
-        const targetOpt = Array.from(sel.options).find(
-          (o) => String(o.value) === String(value),
-        );
-        if (targetOpt) targetOpt.selected = cb.checked;
-        // update button summary
+        syncOptionFromCheckbox(opt, cb.checked);
+        updateButtonText();
         try {
-          updateButtonText();
           if (Object.keys(window.__origFilterPlacement || {}).length === 0)
             updateFiltersButtonState();
         } catch {
@@ -3626,41 +3711,284 @@ async function populateDrawerClassificationFilters() {
       });
     });
 
-    // wire button toggle
-    const parent = list.parentElement;
-    const btn = parent?.querySelector(".multi-btn");
-    if (!btn) return;
-    const updateButtonText = () => {
-      const selected = Array.from(sel.options)
-        .filter((o) => o.value !== "" && o.selected)
-        .map((o) => o.textContent);
-      btn.textContent = selected.length
-        ? selected.join(", ")
-        : buttonText || btn.textContent;
-    };
-    // expose for use in change handler
-    btn._updateText = updateButtonText;
-    btn.textContent = buttonText || btn.textContent;
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const hid = list.hidden;
-      // close any other open lists
-      document
-        .querySelectorAll(".multi-list")
-        .forEach((l) => (l.hidden = true));
-      list.hidden = !hid;
+    // bulk action handlers
+    btnAll.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      setAllChecked(true);
     });
-    // prevent clicks inside list from bubbling to document (which closes lists)
-    list.addEventListener("click", (ev) => ev.stopPropagation());
-    // initialize button text
-    try {
-      updateButtonText();
-    } catch {
-      void 0;
+    btnNone.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      setAllChecked(false);
+    });
+    btnInvert.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      invertChecked();
+    });
+
+    function updateButtonText() {
+      if (!btn) return;
+      const selectedLabels = itemRows
+        .filter((x) => x.cb.checked)
+        .map((x) => x.opt.textContent);
+      const total = itemRows.length;
+      if (selectedLabels.length === 0) {
+        btn.textContent = buttonText || "";
+      } else if (selectedLabels.length === 1) {
+        btn.textContent = selectedLabels[0];
+      } else if (selectedLabels.length === total) {
+        btn.textContent = "All selected";
+      } else {
+        btn.textContent = `${selectedLabels.length} selected`;
+      }
     }
+
+    // wire trigger button (guard to avoid duplicate handlers)
+    if (btn) {
+      btn._updateText = () => {
+        updateButtonText();
+      };
+      btn.textContent = buttonText || btn.textContent;
+      if (!btn.dataset.mcBound) {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          document.querySelectorAll(".multi-list").forEach((l) => {
+            if (l !== list) l.hidden = true;
+          });
+          list.hidden = !list.hidden;
+        });
+        btn.dataset.mcBound = "1";
+      }
+    }
+
+    // prevent clicks inside list from closing it
+    list.addEventListener("click", (ev) => ev.stopPropagation());
+
+    // initial button text (badge intentionally disabled)
+    updateButtonText();
   }
 
-  // Build helper maps and a smarter fill that disambiguates duplicate names
+  // Build label -> [ids] map and fill a hidden <select> with unique visible labels
+  function buildLabelToIdsMap(rows, labelKey, idKey = "id") {
+    const map = {};
+    (rows || []).forEach((row) => {
+      const label = normalize(row[labelKey]);
+      const id = normalize(row[idKey]);
+      if (!label || !id) return;
+      map[label] = map[label] || [];
+      if (!map[label].includes(id)) map[label].push(id);
+    });
+    return map;
+  }
+
+  function fillMultiUnique(select, rows, valueKey, labelKey) {
+    // Example: Ayurveda + Siddha both have sub-category "Classical".
+    // Advanced Exclude shows one checkbox: "Classical". Checking it
+    // excludes both underlying sub-category ids (both are added to
+    // select._selectedIds). This keeps the UI simple while preserving
+    // correct exclusion semantics internally.
+    if (!select) return {};
+    // preserve previously selected raw ids if present
+    const prevSelectedIds =
+      select._selectedIds instanceof Set
+        ? new Set(select._selectedIds)
+        : new Set(
+            Array.from(select.selectedOptions || []).map((o) =>
+              String(o.value),
+            ),
+          );
+
+    const labelToIds = buildLabelToIdsMap(rows, labelKey, valueKey);
+    select.innerHTML = "";
+
+    Object.keys(labelToIds)
+      .sort((a, b) => a.localeCompare(b))
+      .forEach((label) => {
+        const ids = labelToIds[label];
+        const opt = document.createElement("option");
+        // option value is visible label (deduped)
+        opt.value = label;
+        opt.textContent = label;
+        opt.dataset.ids = JSON.stringify(ids);
+        // mark selected if any underlying id was previously selected
+        opt.selected = ids.some((id) => prevSelectedIds.has(String(id)));
+        select.appendChild(opt);
+      });
+
+    // store raw selected id set for sync operations
+    select._selectedIds = prevSelectedIds;
+    return labelToIds;
+  }
+
+  // Helper utilities for dedupe, mapping and scoping
+  const normalize = (v) => String(v ?? "").trim();
+
+  // Example: Ayurveda + Siddha both have sub-category "Classical".
+  // The dropdown shows one "Classical" (no duplicates), but selecting it
+  // without a Category selected will map to both underlying ids. If a
+  // Category is selected, the scope narrows and the same visible label
+  // will map only to ids under that Category.
+  //
+  // We dedupe visually to keep the UI tidy; internal state may still
+  // contain multiple ids for one visible label (stored as scalar or
+  // array) so filters represent the union of matching rows.
+  function buildNameToIdsMap(rows, labelKey, idKey = "id") {
+    const map = {};
+    (rows || []).forEach((row) => {
+      const name = normalize(row[labelKey]);
+      const id = normalize(row[idKey]);
+      if (!name || !id) return;
+      map[name] = map[name] || [];
+      if (!map[name].includes(id)) map[name].push(id);
+    });
+    return map;
+  }
+
+  function fillUniqueNameSelect(select, rows, labelKey) {
+    select.innerHTML = '<option value="">All</option>';
+    const seen = new Set();
+    (rows || []).forEach((row) => {
+      const name = normalize(row[labelKey]);
+      if (!name || seen.has(name)) return;
+      seen.add(name);
+      const opt = document.createElement("option");
+      opt.value = name;
+      opt.textContent = name;
+      select.appendChild(opt);
+    });
+  }
+
+  function toStateValue(ids) {
+    if (!ids || !ids.length) return "";
+    return ids.length === 1 ? ids[0] : ids.slice();
+  }
+
+  // Scoped filtering helpers
+  const getFilteredSubcatsByCategory = (catId) =>
+    catId
+      ? allSubcats.filter((s) => String(s.category_id) === String(catId))
+      : allSubcats.slice();
+
+  // Compute scoped rows and maps based on current state and visible selections
+  function getScopedRows() {
+    const scoped = {};
+    // scopedSubcats: depends on category
+    scoped.scopedSubcats = getFilteredSubcatsByCategory(
+      state.category_id || "",
+    );
+
+    // build map for scopedSubcats to determine selected subcat ids for current visible name
+    const scopedSubcatMap = buildNameToIdsMap(
+      scoped.scopedSubcats,
+      "subcategory_name",
+      "id",
+    );
+    const currentSubcatVisible = drawerSubcat.value || "";
+    const selectedSubcatIds =
+      currentSubcatVisible && scopedSubcatMap[currentSubcatVisible]
+        ? scopedSubcatMap[currentSubcatVisible].slice()
+        : [];
+
+    // scopedPgroups: if subcat selected, only groups under those subcats; otherwise groups under scopedSubcats
+    const pgroupsBase = selectedSubcatIds.length
+      ? allPgroups.filter((p) =>
+          selectedSubcatIds.includes(String(p.sub_category_id)),
+        )
+      : allPgroups.filter((p) =>
+          scoped.scopedSubcats
+            .map((s) => String(s.id))
+            .includes(String(p.sub_category_id)),
+        );
+    scoped.scopedPgroups = pgroupsBase;
+
+    const scopedPgroupMap = buildNameToIdsMap(
+      scoped.scopedPgroups,
+      "group_name",
+      "id",
+    );
+    const currentPgroupVisible = drawerPgroup.value || "";
+    const selectedPgroupIds =
+      currentPgroupVisible && scopedPgroupMap[currentPgroupVisible]
+        ? scopedPgroupMap[currentPgroupVisible].slice()
+        : [];
+
+    // scopedSgroups: if pgroup selected, only sub-groups under those pgroups; otherwise all sgroups under scopedPgroups
+    const sgroupsBase = selectedPgroupIds.length
+      ? allSgroups.filter((s) =>
+          selectedPgroupIds.includes(String(s.product_group_id)),
+        )
+      : allSgroups.filter((s) =>
+          scoped.scopedPgroups
+            .map((p) => String(p.id))
+            .includes(String(s.product_group_id)),
+        );
+    scoped.scopedSgroups = sgroupsBase;
+
+    return scoped;
+  }
+
+  // Render function: rebuild maps and refill visible selects from current scope
+  function renderClassificationScopes() {
+    const scoped = getScopedRows();
+
+    // Rebuild maps scoped to current parent selection
+    subcatNameToIds = buildNameToIdsMap(
+      scoped.scopedSubcats,
+      "subcategory_name",
+      "id",
+    );
+    pgroupNameToIds = buildNameToIdsMap(
+      scoped.scopedPgroups,
+      "group_name",
+      "id",
+    );
+    sgroupNameToIds = buildNameToIdsMap(
+      scoped.scopedSgroups,
+      "sub_group_name",
+      "id",
+    );
+
+    // Refill selects (unique visible labels)
+    // Preserve current visible selection when still present, otherwise clear
+    const prevSubVisible = drawerSubcat.value || "";
+    fillUniqueNameSelect(
+      drawerSubcat,
+      scoped.scopedSubcats,
+      "subcategory_name",
+    );
+    if (
+      prevSubVisible &&
+      Array.from(drawerSubcat.options).some((o) => o.value === prevSubVisible)
+    ) {
+      drawerSubcat.value = prevSubVisible;
+    } else {
+      drawerSubcat.value = "";
+      state.sub_category_id = "";
+    }
+
+    const prevPVisible = drawerPgroup.value || "";
+    fillUniqueNameSelect(drawerPgroup, scoped.scopedPgroups, "group_name");
+    if (
+      prevPVisible &&
+      Array.from(drawerPgroup.options).some((o) => o.value === prevPVisible)
+    ) {
+      drawerPgroup.value = prevPVisible;
+    } else {
+      drawerPgroup.value = "";
+      state.product_group_id = "";
+    }
+
+    const prevSVisible = drawerSgroup.value || "";
+    fillUniqueNameSelect(drawerSgroup, scoped.scopedSgroups, "sub_group_name");
+    if (
+      prevSVisible &&
+      Array.from(drawerSgroup.options).some((o) => o.value === prevSVisible)
+    ) {
+      drawerSgroup.value = prevSVisible;
+    } else {
+      drawerSgroup.value = "";
+      state.sub_group_id = "";
+    }
+  }
 
   // 1) Categories
   const { data: cats, error: catErr } = await supabase
@@ -3702,97 +4030,19 @@ async function populateDrawerClassificationFilters() {
     console.error("Error prefetching classification lists:", err);
   }
 
-  // Build lookup maps for parents (kept for potential future use)
-  // Build name -> ids map for sub-categories so we can show unique names
-  // in the sub-category select while still mapping a chosen name to the
-  // underlying sub-category ids (union across categories). This implements
-  // the ERP-style behaviour the user requested: choose "xx" and get all
-  // xx rows regardless of Category, but if Category is selected we will
-  // restrict the names shown to those within that Category.
+  // Scoped name -> ids maps (kept as module-scope variables for handlers)
   let subcatNameToIds = {};
-  const buildSubcatNameMap = (rows) => {
-    subcatNameToIds = {};
-    (rows || []).forEach((r) => {
-      const name = String(r.subcategory_name || "").trim();
-      if (!name) return;
-      subcatNameToIds[name] = subcatNameToIds[name] || [];
-      subcatNameToIds[name].push(String(r.id));
-    });
-  };
-
-  // product-group name -> ids map and helpers
   let pgroupNameToIds = {};
-  const buildPgroupNameMap = (rows) => {
-    pgroupNameToIds = {};
-    (rows || []).forEach((r) => {
-      const name = String(r.group_name || "").trim();
-      if (!name) return;
-      pgroupNameToIds[name] = pgroupNameToIds[name] || [];
-      pgroupNameToIds[name].push(String(r.id));
-    });
-  };
-  function fillPgroupSelectUnique(select, rows) {
-    select.innerHTML = '<option value="">All</option>';
-    const seen = new Set();
-    (rows || []).forEach((r) => {
-      const name = String(r.group_name || "").trim();
-      if (!name || seen.has(name)) return;
-      seen.add(name);
-      const opt = document.createElement("option");
-      opt.value = name;
-      opt.textContent = name;
-      select.appendChild(opt);
-    });
-  }
-
-  // sub-group name -> ids map and helpers
   let sgroupNameToIds = {};
-  const buildSgroupNameMap = (rows) => {
-    sgroupNameToIds = {};
-    (rows || []).forEach((r) => {
-      const name = String(r.sub_group_name || "").trim();
-      if (!name) return;
-      sgroupNameToIds[name] = sgroupNameToIds[name] || [];
-      sgroupNameToIds[name].push(String(r.id));
-    });
-  };
-  function fillSgroupSelectUnique(select, rows) {
-    select.innerHTML = '<option value="">All</option>';
-    const seen = new Set();
-    (rows || []).forEach((r) => {
-      const name = String(r.sub_group_name || "").trim();
-      if (!name || seen.has(name)) return;
-      seen.add(name);
-      const opt = document.createElement("option");
-      opt.value = name;
-      opt.textContent = name;
-      select.appendChild(opt);
-    });
-  }
 
-  // Populate all selects initially (user requested all enabled by default)
-  // For sub-categories we show unique names (no parent suffix) by default.
-  buildSubcatNameMap(allSubcats);
-  function fillSubcatSelectUnique(select, rows) {
-    select.innerHTML = '<option value="">All</option>';
-    const seen = new Set();
-    (rows || []).forEach((r) => {
-      const name = String(r.subcategory_name || "").trim();
-      if (!name || seen.has(name)) return;
-      seen.add(name);
-      const opt = document.createElement("option");
-      opt.value = name;
-      opt.textContent = name;
-      select.appendChild(opt);
-    });
+  // Populate all selects initially (show unique visible labels)
+  // Use the generic helpers to fill unique visible names once data is fetched below.
+  // initial render of classification scopes from the fetched master lists
+  try {
+    renderClassificationScopes();
+  } catch (err) {
+    void err;
   }
-
-  fillSubcatSelectUnique(drawerSubcat, allSubcats);
-  // Populate product-group and sub-group selects with unique names
-  buildPgroupNameMap(allPgroups);
-  buildSgroupNameMap(allSgroups);
-  fillPgroupSelectUnique(drawerPgroup, allPgroups);
-  fillSgroupSelectUnique(drawerSgroup, allSgroups);
 
   // Also populate advanced exclusion selects (hidden) and build checkbox UIs
   try {
@@ -3801,7 +4051,8 @@ async function populateDrawerClassificationFilters() {
     const exPgroupEl = document.getElementById("ex-pgroup");
     const exSgroupEl = document.getElementById("ex-sgroup");
     if (exCatEl && cats) {
-      fillSelect(exCatEl, cats, "id", "category_name");
+      // categories are usually unique, but use the same helper for consistency
+      fillMultiUnique(exCatEl, cats, "id", "category_name");
       buildMultiFromSelect(
         "ex-cat",
         "ex-cat-list",
@@ -3809,7 +4060,7 @@ async function populateDrawerClassificationFilters() {
       );
     }
     if (exSubcatEl && allSubcats) {
-      fillSelect(exSubcatEl, allSubcats, "id", "subcategory_name");
+      fillMultiUnique(exSubcatEl, allSubcats, "id", "subcategory_name");
       buildMultiFromSelect(
         "ex-subcat",
         "ex-subcat-list",
@@ -3817,7 +4068,7 @@ async function populateDrawerClassificationFilters() {
       );
     }
     if (exPgroupEl && allPgroups) {
-      fillSelect(exPgroupEl, allPgroups, "id", "group_name");
+      fillMultiUnique(exPgroupEl, allPgroups, "id", "group_name");
       buildMultiFromSelect(
         "ex-pgroup",
         "ex-pgroup-list",
@@ -3825,7 +4076,7 @@ async function populateDrawerClassificationFilters() {
       );
     }
     if (exSgroupEl && allSgroups) {
-      fillSelect(exSgroupEl, allSgroups, "id", "sub_group_name");
+      fillMultiUnique(exSgroupEl, allSgroups, "id", "sub_group_name");
       buildMultiFromSelect(
         "ex-sgroup",
         "ex-sgroup-list",
@@ -3863,150 +4114,99 @@ async function populateDrawerClassificationFilters() {
     void 0;
   }
 
-  // 2) Category → Sub-categories (filter client-side; keep controls enabled)
-  drawerCat.addEventListener("change", () => {
-    const catId = drawerCat.value || "";
-    state.category_id = catId;
-    state.sub_category_id = "";
-    state.product_group_id = "";
-    state.sub_group_id = "";
+  // Wire change handlers once — they reference the scoped maps/rows above
+  if (!window.__classificationWired) {
+    // Category change narrows downstream scopes and clears child selection
+    drawerCat.addEventListener("change", () => {
+      const catId = drawerCat.value || "";
+      state.category_id = catId;
+      // clear downstream selections
+      state.sub_category_id = "";
+      state.product_group_id = "";
+      state.sub_group_id = "";
+      // clear visible child selects so render will rebuild from parent scope
+      drawerSubcat.value = "";
+      drawerPgroup.value = "";
+      drawerSgroup.value = "";
+      // rebuild scoped maps and visible selects
+      renderClassificationScopes();
+      page = 1;
+      if (Object.keys(window.__origFilterPlacement || {}).length === 0) {
+        runQuery();
+        updateFiltersButtonState();
+      }
+    });
 
-    const filtered = catId
-      ? allSubcats.filter((s) => String(s.category_id) === String(catId))
-      : allSubcats;
-    // Rebuild name -> ids map within this filtered set and populate unique names
-    buildSubcatNameMap(filtered);
-    fillSubcatSelectUnique(drawerSubcat, filtered);
+    // Sub-category change: map visible name -> ids (within current category scope)
+    drawerSubcat.addEventListener("change", () => {
+      const selName = drawerSubcat.value || "";
+      const ids =
+        selName && subcatNameToIds[selName]
+          ? subcatNameToIds[selName].slice()
+          : [];
+      state.sub_category_id = toStateValue(ids);
+      // clear downstream
+      state.product_group_id = "";
+      state.sub_group_id = "";
+      drawerPgroup.value = "";
+      drawerSgroup.value = "";
+      // rebuild downstream scopes from this selection
+      renderClassificationScopes();
+      page = 1;
+      if (Object.keys(window.__origFilterPlacement || {}).length === 0) {
+        runQuery();
+        updateFiltersButtonState();
+      }
+    });
 
-    // Narrow Product Groups to those under the filtered sub-categories
-    const filteredSubcatIds = (filtered || []).map((s) => String(s.id));
-    const pgFiltered = filteredSubcatIds.length
-      ? allPgroups.filter((p) =>
-          filteredSubcatIds.includes(String(p.sub_category_id)),
-        )
-      : allPgroups;
-    buildPgroupNameMap(pgFiltered);
-    fillPgroupSelectUnique(drawerPgroup, pgFiltered);
+    // Product-group change: map visible name -> ids (within current subcat/category scope)
+    drawerPgroup.addEventListener("change", () => {
+      const selName = drawerPgroup.value || "";
+      const ids =
+        selName && pgroupNameToIds[selName]
+          ? pgroupNameToIds[selName].slice()
+          : [];
+      state.product_group_id = toStateValue(ids);
+      // clear downstream
+      state.sub_group_id = "";
+      drawerSgroup.value = "";
+      // rebuild scoped sub-groups
+      renderClassificationScopes();
+      page = 1;
+      if (Object.keys(window.__origFilterPlacement || {}).length === 0)
+        runQuery();
+    });
 
-    // Narrow Sub-groups to those under the filtered product-groups
-    const pgFilteredIds = (pgFiltered || []).map((p) => String(p.id));
-    const sgFiltered = pgFilteredIds.length
-      ? allSgroups.filter((s) =>
-          pgFilteredIds.includes(String(s.product_group_id)),
-        )
-      : allSgroups;
-    buildSgroupNameMap(sgFiltered);
-    fillSgroupSelectUnique(drawerSgroup, sgFiltered);
+    // Sub-group change: map visible name -> ids; do not touch parents
+    drawerSgroup.addEventListener("change", () => {
+      const selName = drawerSgroup.value || "";
+      const ids =
+        selName && sgroupNameToIds[selName]
+          ? sgroupNameToIds[selName].slice()
+          : [];
+      state.sub_group_id = toStateValue(ids);
+      page = 1;
+      if (Object.keys(window.__origFilterPlacement || {}).length === 0) {
+        runQuery();
+        updateFiltersButtonState();
+      }
+    });
 
-    page = 1;
-    if (Object.keys(window.__origFilterPlacement || {}).length === 0) {
-      runQuery();
-      updateFiltersButtonState();
-    }
-  });
-
-  // 3) Sub-category → Product groups
-  drawerSubcat.addEventListener("change", () => {
-    const selName = drawerSubcat.value || "";
-    // Map selected sub-category NAME to underlying ids (could be multiple)
-    let subcatIdsForSel = [];
-    if (selName)
-      subcatIdsForSel = subcatNameToIds[selName]
-        ? subcatNameToIds[selName].slice()
-        : [];
-
-    // State: if single id, keep as scalar; if multiple, store array; if none, clear
-    state.sub_category_id =
-      subcatIdsForSel.length === 1
-        ? subcatIdsForSel[0]
-        : subcatIdsForSel.length
-          ? subcatIdsForSel
-          : "";
-    state.product_group_id = "";
-    state.sub_group_id = "";
-
-    const filtered = subcatIdsForSel.length
-      ? allPgroups.filter((p) =>
-          subcatIdsForSel.includes(String(p.sub_category_id)),
-        )
-      : allPgroups;
-    // populate product-group select with unique names from filtered list
-    buildPgroupNameMap(filtered);
-    fillPgroupSelectUnique(drawerPgroup, filtered);
-
-    // Reset sub-groups to full list (unique names)
-    buildSgroupNameMap(allSgroups);
-    fillSgroupSelectUnique(drawerSgroup, allSgroups);
-
-    page = 1;
-    if (Object.keys(window.__origFilterPlacement || {}).length === 0) {
-      runQuery();
-      updateFiltersButtonState();
-    }
-  });
-
-  // 4) Product group → Sub-groups
-  drawerPgroup.addEventListener("change", () => {
-    const selName = drawerPgroup.value || "";
-    let pgroupIdsForSel = [];
-    if (selName)
-      pgroupIdsForSel = pgroupNameToIds[selName]
-        ? pgroupNameToIds[selName].slice()
-        : [];
-
-    state.product_group_id =
-      pgroupIdsForSel.length === 1
-        ? pgroupIdsForSel[0]
-        : pgroupIdsForSel.length
-          ? pgroupIdsForSel
-          : "";
-    state.sub_group_id = "";
-
-    const filtered = pgroupIdsForSel.length
-      ? allSgroups.filter((s) =>
-          pgroupIdsForSel.includes(String(s.product_group_id)),
-        )
-      : allSgroups;
-    buildSgroupNameMap(filtered);
-    fillSgroupSelectUnique(drawerSgroup, filtered);
-
-    // Do not auto-select parent fields here. Upper-level selections should
-    // narrow lower-level selects; selecting a lower-level field shouldn't
-    // change upper fields. This keeps fields independent and ERP-like.
-
-    page = 1;
-    if (Object.keys(window.__origFilterPlacement || {}).length === 0)
-      runQuery();
-  });
-
-  // 5) Sub-group change just sets the state and filters
-  drawerSgroup.addEventListener("change", () => {
-    const selName = drawerSgroup.value || "";
-    let sgroupIdsForSel = [];
-    if (selName)
-      sgroupIdsForSel = sgroupNameToIds[selName]
-        ? sgroupNameToIds[selName].slice()
-        : [];
-    state.sub_group_id =
-      sgroupIdsForSel.length === 1
-        ? sgroupIdsForSel[0]
-        : sgroupIdsForSel.length
-          ? sgroupIdsForSel
-          : "";
-    page = 1;
-    if (Object.keys(window.__origFilterPlacement || {}).length === 0) {
-      runQuery();
-      updateFiltersButtonState();
-    }
-  });
+    window.__classificationWired = true;
+  }
 }
 
 async function populateAdvancedExclusions() {
   if (__advExInitDone) return;
   __advExInitDone = true;
 
-  const getSel = (el) =>
-    Array.from(el?.selectedOptions || []).map((o) => o.value);
+  const normalize = (v) => String(v ?? "").trim();
+
+  const getSel = (el) => {
+    if (!el) return [];
+    if (el._selectedIds instanceof Set) return Array.from(el._selectedIds);
+    return Array.from(el.selectedOptions || []).map((o) => String(o.value));
+  };
 
   const dedupeById = (rows) => {
     const seen = new Set();
@@ -4029,18 +4229,37 @@ async function populateAdvancedExclusions() {
 
   const fillMulti = (select, rows, valueKey, labelKey) => {
     if (!select) return;
-    const prev = new Set(
-      Array.from(select.selectedOptions).map((o) => o.value),
-    );
-    select.innerHTML = "";
+    const prev =
+      select._selectedIds instanceof Set
+        ? new Set(select._selectedIds)
+        : new Set(
+            Array.from(select.selectedOptions).map((o) => String(o.value)),
+          );
+
+    // build label -> ids map (deduped)
+    const labelToIds = {};
     dedupeById(rows).forEach((row) => {
-      const val = String(row[valueKey]);
-      const opt = document.createElement("option");
-      opt.value = val;
-      opt.textContent = row[labelKey];
-      if (prev.has(val)) opt.selected = true;
-      select.appendChild(opt);
+      const label = normalize(row[labelKey]);
+      const id = String(row[valueKey]);
+      if (!label || !id) return;
+      labelToIds[label] = labelToIds[label] || [];
+      if (!labelToIds[label].includes(id)) labelToIds[label].push(id);
     });
+
+    select.innerHTML = "";
+    Object.keys(labelToIds)
+      .sort((a, b) => a.localeCompare(b))
+      .forEach((label) => {
+        const ids = labelToIds[label];
+        const opt = document.createElement("option");
+        opt.value = label;
+        opt.textContent = label;
+        opt.dataset.ids = JSON.stringify(ids);
+        opt.selected = ids.some((id) => prev.has(String(id)));
+        select.appendChild(opt);
+      });
+
+    select._selectedIds = prev;
   };
 
   const loadCats = async () => {
@@ -4225,16 +4444,10 @@ function wireAdvanced() {
 }
 
 function readAdvancedState() {
-  state.ex.cats = Array.from(exCat?.selectedOptions || []).map((o) => o.value);
-  state.ex.subcats = Array.from(exSubcat?.selectedOptions || []).map(
-    (o) => o.value,
-  );
-  state.ex.pgroups = Array.from(exPgroup?.selectedOptions || []).map(
-    (o) => o.value,
-  );
-  state.ex.sgroups = Array.from(exSgroup?.selectedOptions || []).map(
-    (o) => o.value,
-  );
+  state.ex.cats = getMultiSelectedIds(exCat);
+  state.ex.subcats = getMultiSelectedIds(exSubcat);
+  state.ex.pgroups = getMultiSelectedIds(exPgroup);
+  state.ex.sgroups = getMultiSelectedIds(exSgroup);
 
   const getMosRule = (opEl, v1El, v2El, nnEl) => {
     const op = opEl?.value ?? "gt";
@@ -4260,6 +4473,14 @@ function countAdvancedActive() {
     if (state.mos[k].en) c++;
   });
   return c;
+}
+
+// Shared helper to read underlying selected ids from deduped multi-selects
+function getMultiSelectedIds(selectEl) {
+  if (!selectEl) return [];
+  if (selectEl._selectedIds instanceof Set)
+    return Array.from(selectEl._selectedIds);
+  return Array.from(selectEl.selectedOptions || []).map((o) => String(o.value));
 }
 
 async function updateStockSnapshotLabel() {
@@ -5729,6 +5950,11 @@ function clearAll() {
   [exCat, exSubcat, exPgroup, exSgroup].forEach((sel) => {
     if (!sel) return;
     Array.from(sel.options).forEach((o) => (o.selected = false));
+    try {
+      if (sel._selectedIds instanceof Set) sel._selectedIds.clear();
+    } catch {
+      void 0;
+    }
   });
   // If multi-checkbox dropdowns exist, uncheck their checkboxes and
   // refresh the trigger button text so the UI reflects cleared selects.
