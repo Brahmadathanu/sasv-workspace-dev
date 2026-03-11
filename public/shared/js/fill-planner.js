@@ -594,72 +594,40 @@ async function loadMetrics(skus, productId) {
   const stockKKD = {}; // KKD
   const stockOK = {}; // HO_OK
 
-  // region-level effective demand (IK/OK) via region rows (godown_code IS NULL)
-  const fsumRegion = {};
-  const fcountRegion = {};
-
-  // depot-level forecast (KKD) via depot row (godown_code='KKD')
-  const fsumKKD = {};
-  const fcountKKD = {};
+  // ─── split stock: IK, KKD, OK and accumulate depot-wise forecasts ───
+  // We'll keep stock maps as before and also build depot-wise forecast maps
+  const forecastIK = {}; // HO_IK
+  const forecastKKD = {}; // KKD
+  const forecastOK = {}; // HO_OK
 
   vfRows.forEach((r) => {
     const sku = r.sku_id;
-    const reg = (r.region_code || "").trim().toUpperCase();
     const god = (r.godown_code || "").trim().toUpperCase();
 
-    // ── STOCK by depot
+    // STOCK by depot
     if (god === "HO_IK") {
       stockIK[sku] = (stockIK[sku] || 0) + (+r.stock_units || 0);
+      forecastIK[sku] = (forecastIK[sku] || 0) + (+r.forecast_units_pm || 0);
     } else if (god === "KKD") {
       stockKKD[sku] = (stockKKD[sku] || 0) + (+r.stock_units || 0);
+      forecastKKD[sku] = (forecastKKD[sku] || 0) + (+r.forecast_units_pm || 0);
     } else if (god === "HO_OK") {
       stockOK[sku] = (stockOK[sku] || 0) + (+r.stock_units || 0);
+      forecastOK[sku] = (forecastOK[sku] || 0) + (+r.forecast_units_pm || 0);
     }
-
-    // ── EFFECTIVE DEMAND
-    // Region roll-up rows: godown_code IS NULL → use for IK / OK
-    if (!god) {
-      const key = `${sku}_${reg}`;
-      if (r.forecast_units_pm != null) {
-        fsumRegion[key] = (fsumRegion[key] || 0) + +r.forecast_units_pm;
-        fcountRegion[key] = (fcountRegion[key] || 0) + 1;
-      }
-    }
-
-    // Depot KKD row: godown_code='KKD' → use for "Effective demand KKD" column
-    if (god === "KKD" && r.forecast_units_pm != null) {
-      fsumKKD[sku] = (fsumKKD[sku] || 0) + +r.forecast_units_pm;
-      fcountKKD[sku] = (fcountKKD[sku] || 0) + 1;
-    }
-
-    // (Note: HO_OK depot forecast equals OK region forecast, but we keep OK from region roll-up for consistency.)
+    // ignore region roll-up rows for metrics (we want depot-wise forecasts)
   });
-  const aveRegion = (sku, region) => {
-    const key = `${sku}_${region}`;
-    return fcountRegion[key]
-      ? Math.round(fsumRegion[key] / fcountRegion[key])
-      : "—";
-  };
-  const aveKKD = (sku) =>
-    fcountKKD[sku] ? Math.round(fsumKKD[sku] / fcountKKD[sku]) : "—";
 
   // pretty printer for MOS cells
   const fmtMOS = (x) => (Number.isFinite(x) ? nfmt(x) : "—");
 
-  /* ── Build and cache metrics for later MOS math ── */
-  const forecastIK = {};
-  const forecastOK = {};
-  const forecastKKD = {};
-
+  /* ── Build and cache metrics for later MOS math (depot-wise forecasts) ── */
+  // ensure every SKU has a numeric entry (default 0)
   skus.forEach((s) => {
-    // region-level (from roll-up rows)
-    forecastIK[s.id] =
-      aveRegion(s.id, "IK") === "—" ? 0 : aveRegion(s.id, "IK");
-    forecastOK[s.id] =
-      aveRegion(s.id, "OK") === "—" ? 0 : aveRegion(s.id, "OK");
-    // depot-level (KKD) for the UI column
-    const k = aveKKD(s.id);
-    forecastKKD[s.id] = k === "—" ? 0 : k;
+    const id = s.id;
+    forecastIK[id] = forecastIK[id] || 0;
+    forecastKKD[id] = forecastKKD[id] || 0;
+    forecastOK[id] = forecastOK[id] || 0;
   });
 
   const stockIKplusKKD = {};
@@ -670,14 +638,15 @@ async function loadMetrics(skus, productId) {
   metricsCache[productId] = {
     stock: { IK: stockIK, KKD: stockKKD, OK: stockOK },
     stockIKplusKKD,
-    forecast: { IK: forecastIK, KKD: forecastKKD, OK: forecastOK }, // KKD added (UI only)
+    // forecasts are depot-wise: HO_IK, KKD, HO_OK
+    forecast: { IK: forecastIK, KKD: forecastKKD, OK: forecastOK },
     as_of_date: "",
   };
 
   /* ── Log a compact, human-readable metrics snapshot ── */
   wH("SKU Metrics (inputs used)");
   wNote(
-    "Note: KKD column is derived from v_fill_inputs for UI only; it is not part of the planner RPC output.",
+    "Note: Metrics are depot-wise. HO_IK, KKD and HO_OK forecasts are read from godown-level rows of v_fill_inputs.",
   );
   skus.forEach((s) => {
     const id = s.id;
@@ -734,9 +703,9 @@ async function loadMetrics(skus, productId) {
         <td>${stIK}</td>
         <td>${stKKD}</td>
         <td>${stOK}</td>
-        <td>${aveRegion(s.id, "IK")}</td>
-        <td>${aveKKD(s.id)}</td>
-        <td>${aveRegion(s.id, "OK")}</td>
+        <td>${fIK || "—"}</td>
+        <td>${fKKD || "—"}</td>
+        <td>${fOK || "—"}</td>
         <td>${fmtMOS(mosIK)}</td>
         <td>${fmtMOS(mosKKD)}</td>
         <td>${fmtMOS(mosOK)}</td>
