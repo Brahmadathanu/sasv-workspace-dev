@@ -690,9 +690,8 @@ async function loadMetrics(skus, productId) {
       const fKKD = forecastKKD[s.id] || 0;
       const fOK = forecastOK[s.id] || 0;
 
-      // Convention used elsewhere in your code:
-      //   IK MOS uses IK + KKD as the stock numerator.
-      const mosIK = fIK ? (stIK + stKKD) / fIK : NaN;
+      // Convention: MOS should be depot-wise now — IK means HO_IK only
+      const mosIK = fIK ? stIK / fIK : NaN;
       const mosKKD = fKKD ? stKKD / fKKD : NaN;
       const mosOK = fOK ? stOK / fOK : NaN;
 
