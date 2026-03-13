@@ -516,6 +516,13 @@ function updateSections() {
     .querySelectorAll("input, select")
     .forEach((el) => (el.disabled = !showStorage));
 
+  // — FG Bulk guidance note: only for FG bulk storage + In Storage (first receipt)
+  const fgBulkGuidanceEl = document.getElementById("fgBulkAddGuidance");
+  if (fgBulkGuidanceEl) {
+    fgBulkGuidanceEl.style.display =
+      inStorage && actNorm === "fg bulk storage" ? "block" : "none";
+  }
+
   // — Completed On always when Done
   compOnSection.style.display = done ? "block" : "none";
 

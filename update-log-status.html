@@ -208,6 +208,47 @@
     box-sizing: border-box;
     font-size: 15px;
   }
+
+  /* ── FG BULK INTERNAL TRANSFER guidance ─────────────────────────────── */
+  /* Badge shown next to activity name for active stock positions */
+  .fg-storage-badge {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 6px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #78350f;
+    background: #fef3c7;
+    border: 1px solid #fde68a;
+    border-radius: 10px;
+    vertical-align: middle;
+    cursor: default;
+  }
+  /* Transfer action link in the row's Actions cell */
+  .transfer-link {
+    display: inline-block;
+    margin-left: 10px;
+    padding: 2px 8px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #1d4ed8;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 4px;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .transfer-link:hover {
+    background: #dbeafe;
+    border-color: #93c5fd;
+    color: #1e40af;
+  }
+  /* Subtle row highlight for active storage positions */
+  tr.fg-bulk-active-row td {
+    background: #fffbeb;
+  }
 </style>
 </head>
 

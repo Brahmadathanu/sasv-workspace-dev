@@ -1101,11 +1101,14 @@ async function loadStatus() {
       const allowStorage = ["intermediate storage", "fg bulk storage"].includes(
         act,
       );
+      // ERP guard: identify active FG bulk stock positions
+      const isActiveFgBulk =
+        act === "fg bulk storage" && r.status === "In Storage";
 
       bodyTbl.insertAdjacentHTML(
         "beforeend",
         `
-    <tr>
+    <tr${isActiveFgBulk ? ' class="fg-bulk-active-row"' : ""}>
       <td>${new Date(r.log_date).toLocaleDateString("en-GB")}</td>
       <td>${r.item}</td>
       <td>${r.batch_number}</td>
@@ -1113,7 +1116,7 @@ async function loadStatus() {
       <td>${r.batch_uom ?? ""}</td>
       <td>${sectionMap[r.section_id] || ""}</td>
       <td>${plantMap[r.plant_id] || ""}</td>
-      <td>${r.activity}</td>
+      <td>${r.activity}${isActiveFgBulk ? ' <span class="fg-storage-badge" title="Active stock position \u2014 use FG Bulk Internal Transfer to relocate">In Storage</span>' : ""}</td>
       <td>
         <select class="statSel"
         data-id="${r.id}"
@@ -1136,7 +1139,11 @@ async function loadStatus() {
 </select>
       </td>
       <td>
-        <a href="#" class="save-link" data-id="${r.id}">Save</a>
+        <a href="#" class="save-link" data-id="${r.id}">Save</a>${
+          isActiveFgBulk
+            ? `<a href="fg-bulk-internal-transfer.html" class="transfer-link" title="Move this stock to another location">Transfer &rarr;</a>`
+            : ""
+        }
       </td>
     </tr>`,
       );

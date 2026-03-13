@@ -250,6 +250,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     let e_plant;
     let e_remarks;
     let editRow = null; // holds the full row fetched when opening the edit modal
+    let activeFgBulkLock = false; // true when the open row is an active FG bulk storage position
 
     // ── Paging state & helpers ───────────────────────────────────────────────
     const pager = {
@@ -1749,10 +1750,24 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
     }
 
+    // ── ERP GUARD: identify active FG bulk stock positions ────────────────────
+    function isActiveFgBulkStorage(activity, status) {
+      return (
+        String(activity || "")
+          .trim()
+          .toLowerCase() === "fg bulk storage" &&
+        String(status || "")
+          .trim()
+          .toLowerCase() === "in storage"
+      );
+    }
+
     // ────────────────────────────────────────────────────────────────────────────
     // OPEN & POPULATE EDIT MODAL
     // ────────────────────────────────────────────────────────────────────────────
     async function openEditModal(id) {
+      // Reset FG bulk lock state each time the modal opens
+      activeFgBulkLock = false;
       // 2) Local refs inside the modal (assign to module-scope vars)
       e_section = editModal.querySelector("#e_section");
       e_sub = editModal.querySelector("#e_sub");
@@ -2245,6 +2260,24 @@ document.addEventListener("DOMContentLoaded", async () => {
       // lock the uneditable fields once everything is ready
       lockStaticFields();
 
+      // ── FG BULK STORAGE EDIT GUARD ─────────────────────────────────────────
+      // For rows that represent active stock positions, additionally lock the
+      // storage quantity fields and show the ERP guidance banner.
+      function applyFgBulkEditGuard() {
+        activeFgBulkLock = true;
+        // Lock storage qty fields (location fields already locked above)
+        [e_storageQty, e_storageUom].forEach(lock);
+        const guEl = editModal.querySelector("#fgBulkEditGuard");
+        if (guEl) guEl.style.display = "block";
+      }
+
+      const fgGuardEl = editModal.querySelector("#fgBulkEditGuard");
+      if (isActiveFgBulkStorage(row.activity, row.status)) {
+        applyFgBulkEditGuard();
+      } else if (fgGuardEl) {
+        fgGuardEl.style.display = "none";
+      }
+
       // reveal modal only after fields are populated & locked
       showModal(editModal);
     }
@@ -2254,6 +2287,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     // ────────────────────────────────────────────────────────────────────────────
     editForm.onsubmit = async (ev) => {
       ev.preventDefault();
+
+      // ── FG BULK STORAGE SAFETY NET ─────────────────────────────────────────
+      // If editing a live storage position, restore original locked field values
+      // before building the payload (guards against any DOM manipulation).
+      if (activeFgBulkLock && editRow) {
+        if (e_section) e_section.value = editRow.section_id || "";
+        if (e_sub) e_sub.value = editRow.subsection_id || "";
+        if (e_area) e_area.value = editRow.area_id || "";
+        if (e_plant) e_plant.value = editRow.plant_id || "";
+        if (e_storageQty) e_storageQty.value = editRow.storage_qty ?? "";
+        if (e_storageUom) e_storageUom.value = editRow.storage_qty_uom || "";
+      }
 
       // 0) Clear any previous validation messages
       editForm

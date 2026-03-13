@@ -1,0 +1,805 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FG Bulk Internal Transfer</title>
+    <link rel="stylesheet" href="public/shared/css/style.css" />
+    <style>
+      /* Page-level spacing to match update-log-status */
+      body {
+        background: var(--bg-color);
+        color: var(--text-color);
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        transition:
+          background 0.3s,
+          color 0.3s;
+      }
+
+      /* ── Page description ─────────────────────────────────── */
+      .page-desc {
+        margin: 12px 0 28px;
+        font-size: 0.9rem;
+        line-height: 2.5;
+        color: #6b7280;
+      }
+
+      /* ── Guidance strip ───────────────────────────────────── */
+      .guidance {
+        background: #fffbeb;
+        border: 1px solid #fcd34d;
+        border-radius: 6px;
+        padding: 10px 16px;
+        font-size: 0.84rem;
+        color: #92400e;
+        margin-bottom: 18px;
+        line-height: 1.5;
+      }
+      .guidance strong {
+        color: #78350f;
+      }
+
+      /* ── Filters ──────────────────────────────────────────── */
+      .filters-row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 14px;
+      }
+      .filters-row input {
+        padding: 7px 10px;
+        font-size: 0.875rem;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        background: #fff;
+      }
+      .filters-row input:focus {
+        outline: 2px solid #3b82f6;
+        outline-offset: -1px;
+      }
+      .filter-item {
+        flex: 1;
+      }
+      .filter-batch {
+        width: 200px;
+      }
+
+      /* ── Source card ──────────────────────────────────────── */
+      .source-card {
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #fff;
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+      }
+      .source-card-hdr {
+        padding: 11px 16px;
+        background: #f3f4f6;
+        border-bottom: 1px solid #d1d5db;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #374151;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .source-table-wrap {
+        /* Limit the table height to available viewport space so the page
+           does not grow indefinitely. Adjust offset (260px) to accommodate
+           header, guidance, filters and padding. */
+        max-height: calc(100vh - 350px);
+        overflow-y: auto;
+      }
+
+      /* Keep main panel normal flow so page scroll appears only when needed */
+      main.panel {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      /* ── Source table ─────────────────────────────────────── */
+      .source-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.875rem;
+      }
+      .source-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #f9fafb;
+        padding: 9px 12px;
+        text-align: left;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #4b5563;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        border-bottom: 2px solid #d1d5db;
+        white-space: nowrap;
+      }
+      .source-table thead th.col-num {
+        text-align: right;
+      }
+      .source-table tbody tr {
+        cursor: pointer;
+        border-bottom: 1px solid #f3f4f6;
+        transition: background 0.1s;
+      }
+      /* Zebra striping: subtle ERP-style alternate row background */
+      .source-table tbody tr:nth-child(even) {
+        background: #fbfdff;
+      }
+      .source-table tbody tr:last-child {
+        border-bottom: none;
+      }
+      .source-table tbody tr:hover {
+        background: #eff6ff;
+      }
+      .source-table tbody tr.row-selected {
+        background: #dbeafe;
+      }
+      .source-table tbody td {
+        padding: 10px 12px;
+        color: #111827;
+        white-space: nowrap;
+        line-height: 1.35;
+      }
+      .source-table tbody td.col-num {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        font-weight: 500;
+        color: #065f46;
+      }
+      .source-table .empty-row td {
+        text-align: center;
+        padding: 32px;
+        color: #9ca3af;
+        cursor: default;
+        font-style: italic;
+      }
+      .source-table .empty-row:hover {
+        background: transparent;
+      }
+
+      /* ── Row count ────────────────────────────────────────── */
+      .row-count {
+        font-size: 0.78rem;
+        color: #9ca3af;
+        margin: 0;
+        padding: 0 2px;
+      }
+
+      /* ── Modal overlay ────────────────────────────────────── */
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.55);
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding: 28px 16px;
+        z-index: 900;
+        overflow-y: auto;
+      }
+      .modal-overlay[hidden] {
+        display: none;
+      }
+      .modal-box {
+        background: #fff;
+        border-radius: 10px;
+        box-shadow:
+          0 8px 30px rgba(0, 0, 0, 0.18),
+          0 2px 8px rgba(0, 0, 0, 0.08);
+        width: 100%;
+        max-width: 1100px;
+        display: flex;
+        flex-direction: column;
+        max-height: calc(100vh - 56px);
+        overflow: hidden;
+      }
+
+      /* ── Modal header ─────────────────────────────────────── */
+      .modal-hdr {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 16px 24px;
+        border-bottom: 1px solid #e5e7eb;
+        background: #f9fafb;
+        flex-shrink: 0;
+      }
+      .modal-hdr-text h2 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 700;
+        color: #111827;
+      }
+      .modal-hdr-sub {
+        font-size: 0.8rem;
+        color: #6b7280;
+        margin-top: 2px;
+      }
+      .modal-close {
+        background: none;
+        border: 1px solid #d1d5db;
+        border-radius: 5px;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        color: #6b7280;
+        cursor: pointer;
+        flex-shrink: 0;
+        line-height: 1;
+      }
+      .modal-close:hover {
+        background: #fee2e2;
+        border-color: #fca5a5;
+        color: #b91c1c;
+      }
+
+      /* ── Modal body ───────────────────────────────────────── */
+      .modal-body {
+        padding: 20px 24px;
+        overflow-y: auto;
+        flex: 1;
+      }
+      .modal-cards {
+        display: grid;
+        grid-template-columns: 240px 1fr 230px;
+        gap: 16px;
+        align-items: stretch; /* all cards grow to the same row height */
+      }
+
+      /* ── Modal cards ──────────────────────────────────────── */
+      .mcard {
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column; /* title pinned top, body fills rest */
+        background: #f8fafc; /* subtle off-white for all cards */
+      }
+      /* Per-card light tints */
+      .mcard:nth-child(1) {
+        background: #f5f3ff;
+        border-color: #ddd6fe;
+      } /* indigo tint – Selected Source */
+      .mcard:nth-child(2) {
+        background: #f0f9ff;
+        border-color: #bae6fd;
+      } /* sky tint – Transfer Entry */
+      .mcard:nth-child(3) {
+        background: #f0fdf4;
+        border-color: #bbf7d0;
+      } /* green tint – Posting Summary */
+      .mcard-title {
+        padding: 10px 16px;
+        background: rgba(255, 255, 255, 0.55);
+        border-bottom: 2px solid #e5e7eb;
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: #374151;
+        flex-shrink: 0;
+      }
+      /* Accent left border per card position to distinguish them */
+      .mcard:nth-child(1) .mcard-title {
+        border-left: 3px solid #6366f1;
+      }
+      .mcard:nth-child(2) .mcard-title {
+        border-left: 3px solid #0284c7;
+      }
+      .mcard:nth-child(3) .mcard-title {
+        border-left: 3px solid #059669;
+      }
+      .mcard-body {
+        padding: 16px;
+        font-size: 0.875rem;
+        flex: 1; /* fills remaining card height */
+        overflow-y: auto; /* scroll if content overflows */
+        background: transparent;
+      }
+
+      /* ── Source info card ─────────────────────────────────── */
+      .src-rows {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .src-field {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .src-lbl {
+        font-size: 0.68rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #9ca3af;
+      }
+      .src-val {
+        font-size: 0.875rem;
+        color: #111827;
+        font-weight: 500;
+      }
+      .src-val.prominent {
+        font-size: 0.95rem;
+        font-weight: 700;
+      }
+      .src-val.available {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #065f46;
+      }
+      .src-divider {
+        border: none;
+        border-top: 1px solid #f3f4f6;
+        margin: 2px 0;
+      }
+
+      /* ── Transfer entry form ──────────────────────────────── */
+      .form-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .form-row-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .fgroup {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .fgroup label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #374151;
+      }
+      .opt-note {
+        font-weight: 400;
+        text-transform: none;
+        color: #9ca3af;
+        letter-spacing: 0;
+      }
+      .fgroup input,
+      .fgroup select,
+      .fgroup textarea {
+        padding: 7px 10px;
+        font-size: 0.875rem;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        background: #fff;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .fgroup input:focus,
+      .fgroup select:focus,
+      .fgroup textarea:focus {
+        outline: 2px solid #3b82f6;
+        outline-offset: -1px;
+      }
+      .fgroup select:disabled {
+        background: #f9fafb;
+        color: #9ca3af;
+        cursor: not-allowed;
+      }
+      .fgroup textarea {
+        resize: vertical;
+        min-height: 52px;
+      }
+      .dst-legend {
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #6b7280;
+        margin: 0 0 8px;
+        padding: 8px 0 0;
+        border-top: 1px solid #f3f4f6;
+      }
+
+      /* ── Posting summary card ─────────────────────────────── */
+      .sum-rows {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .sum-item {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .sum-lbl {
+        font-size: 0.68rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #9ca3af;
+      }
+      .sum-val {
+        font-size: 0.84rem;
+        color: #111827;
+        line-height: 1.35;
+      }
+      .sum-val.accent {
+        color: #1d4ed8;
+        font-weight: 600;
+      }
+      .sum-val.qty {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #065f46;
+      }
+      .sum-divider {
+        border: none;
+        border-top: 1px solid #f3f4f6;
+        margin: 0;
+      }
+      .muted-text {
+        color: #9ca3af;
+        font-style: italic;
+        font-size: 0.84rem;
+      }
+
+      /* ── Modal footer ─────────────────────────────────────── */
+      .modal-footer {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 24px;
+        border-top: 1px solid #e5e7eb;
+        background: #f9fafb;
+        flex-shrink: 0;
+      }
+      .modal-msg {
+        flex: 1;
+        font-size: 0.875rem;
+      }
+      .modal-msg .msg-success {
+        color: #065f46;
+        background: #d1fae5;
+        padding: 6px 12px;
+        border-radius: 4px;
+        display: inline-block;
+        font-weight: 500;
+      }
+      .modal-msg .msg-error {
+        color: #991b1b;
+        background: #fee2e2;
+        padding: 6px 12px;
+        border-radius: 4px;
+        display: inline-block;
+        font-weight: 500;
+      }
+      .modal-msg .msg-info {
+        color: #1e40af;
+        background: #dbeafe;
+        padding: 6px 12px;
+        border-radius: 4px;
+        display: inline-block;
+      }
+      /* Buttons */
+      .action-link {
+        background: none;
+        border: none;
+        color: #1d4ed8;
+        cursor: pointer;
+        padding: 6px 8px;
+        border-radius: 6px;
+        font-weight: 600;
+      }
+      .action-link:hover {
+        background: rgba(59, 130, 246, 0.08);
+      }
+
+      #submitBtn {
+        background: #1d4ed8;
+        color: #ffffff;
+        border: 1px solid #1d4ed8;
+        padding: 8px 14px;
+        border-radius: 8px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      #submitBtn:hover {
+        background: #154fad;
+        border-color: #154fad;
+      }
+      #submitBtn[disabled] {
+        opacity: 0.6;
+        cursor: wait;
+      }
+
+      /* Secondary buttons in modal footer */
+      #resetBtn,
+      #cancelBtn {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        padding: 8px 12px;
+        border-radius: 8px;
+        color: #374151;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      #resetBtn:hover,
+      #cancelBtn:hover {
+        background: #f3f4f6;
+      }
+      /* HOME button (from update-log-status) */
+      #homeBtn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        border: 1px solid #fdba74 !important;
+        border-radius: 6px;
+        background: #fed7aa !important;
+        color: #9a3412 !important;
+        cursor: pointer;
+        font-size: 0.875rem;
+        font-family: inherit;
+        font-weight: 500;
+        transition: all 0.2s;
+      }
+      #homeBtn:hover {
+        background: #fdba74 !important;
+        border-color: #fb923c !important;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      #homeBtn svg {
+        flex-shrink: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ── Page Header ──────────────────────────────────────── -->
+    <div class="header">
+      <div
+        style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 12px;
+        "
+      >
+        <div>
+          <h1 style="margin: 0">FG Bulk Internal Transfer</h1>
+          <p class="page-desc" style="margin: 4px 0 0">
+            Move finished-goods bulk stock between storage locations without
+            modifying the original work-log record.
+          </p>
+        </div>
+        <button id="homeBtn" aria-label="Home">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9,22 9,12 15,12 15,22" />
+          </svg>
+          HOME
+        </button>
+      </div>
+    </div>
+
+    <main class="panel">
+      <!-- Guidance Strip -->
+      <div class="guidance">
+        <strong>Guidance:</strong> Use this module only to physically relocate
+        FG bulk stock. Do <em>not</em> edit the original FG Bulk Storage
+        work-log entry to change the storage location.
+      </div>
+
+      <!-- Filters Row -->
+      <div class="filters-row">
+        <input
+          id="filterItem"
+          type="text"
+          placeholder="Search item…"
+          class="filter-item"
+          autocomplete="off"
+        />
+        <input
+          id="filterBatch"
+          type="text"
+          placeholder="Search batch…"
+          class="filter-batch"
+          autocomplete="off"
+        />
+        <button id="clearFilters" type="button" class="action-link">
+          Clear
+        </button>
+      </div>
+
+      <!-- Source Stock Table -->
+      <div class="source-card">
+        <div class="source-card-hdr">
+          <div>
+            FG Bulk Stock — Available by Location &nbsp;·&nbsp; Click a row to
+            open transfer entry
+          </div>
+          <div id="rowCount" class="row-count"></div>
+        </div>
+        <div class="source-table-wrap">
+          <table class="source-table">
+            <thead>
+              <tr>
+                <th style="width: 28%">Item</th>
+                <th style="width: 12%">Batch</th>
+                <th style="width: 6%">UOM</th>
+                <th class="col-num" style="width: 10%">Available</th>
+                <th style="width: 12%">Section</th>
+                <th style="width: 12%">Sub-section</th>
+                <th style="width: 10%">Area</th>
+                <th style="width: 10%">Plant</th>
+              </tr>
+            </thead>
+            <tbody id="sourceTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+
+    <!-- ── Transfer Modal ───────────────────────────────────── -->
+    <div
+      id="transferModal"
+      class="modal-overlay"
+      hidden
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modalTitle"
+    >
+      <div class="modal-box">
+        <!-- Modal Header -->
+        <div class="modal-hdr">
+          <div class="modal-hdr-text">
+            <h2 id="modalTitle">Transfer Entry</h2>
+            <div id="modalSubtitle" class="modal-hdr-sub">
+              Review the selected source, enter transfer details, and submit.
+            </div>
+          </div>
+          <button
+            type="button"
+            id="modalCloseBtn"
+            class="modal-close"
+            title="Close (Esc)"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="modal-body">
+          <div class="modal-cards">
+            <!-- Card 1: Selected Source -->
+            <div class="mcard">
+              <div class="mcard-title">Selected Source</div>
+              <div class="mcard-body">
+                <div id="selectedSourceBody" class="src-rows">
+                  <span class="muted-text">No source selected.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Card 2: Transfer Entry -->
+            <div class="mcard">
+              <div class="mcard-title">Transfer Entry</div>
+              <div class="mcard-body">
+                <form id="transferForm" novalidate>
+                  <div class="form-stack">
+                    <div class="form-row-2">
+                      <div class="fgroup">
+                        <label for="transferDate">Transfer Date</label>
+                        <input type="date" id="transferDate" required />
+                      </div>
+                      <div class="fgroup">
+                        <label for="transferQty">Quantity</label>
+                        <input
+                          type="number"
+                          id="transferQty"
+                          step="any"
+                          min="0.001"
+                          required
+                          placeholder="0.000"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div class="dst-legend">Destination Location</div>
+                      <div class="form-stack">
+                        <div class="form-row-2">
+                          <div class="fgroup">
+                            <label for="dstSection">Section</label>
+                            <select id="dstSection" required></select>
+                          </div>
+                          <div class="fgroup">
+                            <label for="dstSubsection"
+                              >Sub-section
+                              <span class="opt-note">(optional)</span></label
+                            >
+                            <select id="dstSubsection"></select>
+                          </div>
+                        </div>
+                        <div class="form-row-2">
+                          <div class="fgroup">
+                            <label for="dstArea">Area</label>
+                            <select id="dstArea" required></select>
+                          </div>
+                          <div class="fgroup">
+                            <label for="dstPlant">Plant / Machinery</label>
+                            <select id="dstPlant" required></select>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="fgroup">
+                      <label for="remarks"
+                        >Remarks <span class="opt-note">(optional)</span></label
+                      >
+                      <textarea id="remarks" rows="2"></textarea>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+
+            <!-- Card 3: Posting Summary -->
+            <div class="mcard">
+              <div class="mcard-title">Posting Summary</div>
+              <div class="mcard-body">
+                <div id="postingSummaryBody" class="sum-rows">
+                  <span class="muted-text"
+                    >Fill in transfer details to preview.</span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Footer / Action Bar -->
+        <div class="modal-footer">
+          <button type="submit" id="submitBtn" form="transferForm">
+            Submit Transfer
+          </button>
+          <button type="button" id="resetBtn" class="action-link">Reset</button>
+          <button type="button" id="cancelBtn" class="action-link">
+            Cancel
+          </button>
+          <div id="modalMsgArea" class="modal-msg"></div>
+        </div>
+      </div>
+    </div>
+
+    <script
+      type="module"
+      src="public/shared/js/fg-bulk-internal-transfer.js"
+    ></script>
+  </body>
+</html>

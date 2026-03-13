@@ -133,10 +133,9 @@ function isPmOk(row) {
   const s = String(row?.pm_gate_status || "").toUpperCase();
   return s === "OK" || s === "PM_OK";
 }
-
-function isRmOk(row) {
-  const s = String(row?.rm_gate_status || "").toUpperCase();
-  return s === "OK" || s === "RM_OK";
+// Stage-aware RM readiness helper (preferred)
+function isRmClearForExecution(row) {
+  return row?.is_rm_ok_for_stage === true;
 }
 
 function isFastConversion(row) {
@@ -149,7 +148,7 @@ function applyLensFilter() {
   let rows = [...QUEUE];
   switch (CURRENT_LENS) {
     case "ready":
-      rows = rows.filter((r) => isPmOk(r) && isRmOk(r));
+      rows = rows.filter((r) => isPmOk(r) && isRmClearForExecution(r));
       break;
     case "fast_conversion":
       rows = rows.filter((r) => isFastConversion(r));
@@ -158,7 +157,7 @@ function applyLensFilter() {
       rows = rows.filter((r) => !isPmOk(r));
       break;
     case "rm_blocked":
-      rows = rows.filter((r) => !isRmOk(r));
+      rows = rows.filter((r) => !isRmClearForExecution(r));
       break;
     case "all":
     default:
@@ -185,6 +184,7 @@ function applySearch() {
       const hay = [
         r.batch_number,
         r.product_id != null ? String(r.product_id) : null,
+        r.product_name != null ? String(r.product_name) : null,
       ]
         .filter(Boolean)
         .join(" ")
@@ -197,9 +197,11 @@ function applySearch() {
 
 function renderSummaryStrip(rowsDisplayed) {
   const total = QUEUE.length || 0;
-  const readyCount = QUEUE.filter((r) => isPmOk(r) && isRmOk(r)).length;
+  const readyCount = QUEUE.filter(
+    (r) => isPmOk(r) && isRmClearForExecution(r),
+  ).length;
   const pmBlocked = QUEUE.filter((r) => !isPmOk(r)).length;
-  const rmBlocked = QUEUE.filter((r) => !isRmOk(r)).length;
+  const rmBlocked = QUEUE.filter((r) => !isRmClearForExecution(r)).length;
   const fastConv = QUEUE.filter((r) => isFastConversion(r)).length;
 
   const visibleRows = Array.isArray(rowsDisplayed) ? rowsDisplayed : VIEW;
@@ -267,16 +269,16 @@ function renderTable(rows) {
           : "-",
       "c-left",
     );
+    // New Item column (product_name) — show snapshot-provided name
+    const item = make(r.product_name || "-", "c-left");
     const state = make(r.primary_state || "-", "c-center");
 
     // Lane: show queue_lane and a status chip
     const laneTd = document.createElement("td");
     laneTd.className = "c-center";
-    const laneText = document.createElement("div");
-    laneText.textContent = r.queue_lane ?? "-";
     const chip = document.createElement("span");
     chip.className = "chip gray";
-    if (!isRmOk(r)) {
+    if (!isRmClearForExecution(r)) {
       chip.className = "chip red";
       chip.textContent = "RM Blocked";
     } else if (!isPmOk(r)) {
@@ -285,15 +287,14 @@ function renderTable(rows) {
     } else if (isFastConversion(r)) {
       chip.className = "chip blue";
       chip.textContent = "Fast Conv";
-    } else if (isPmOk(r) && isRmOk(r)) {
+    } else if (isPmOk(r) && isRmClearForExecution(r)) {
       chip.className = "chip green";
       chip.textContent = "Ready";
     } else {
       chip.className = "chip gray";
       chip.textContent = "Unknown";
     }
-    laneTd.appendChild(laneText);
-    laneTd.appendChild(document.createElement("div")).style.height = "6px";
+    // keep numeric queue_lane available in data model; do not display it here
     laneTd.appendChild(chip);
 
     const pmTd = make(
@@ -302,7 +303,9 @@ function renderTable(rows) {
       "c-center",
     );
     const rmTd = make(
-      r.rm_gate_status || (r.is_rm_ok_for_stage === false ? "RM_BLOCKED" : "-"),
+      r.rm_gate_status_display ||
+        r.rm_gate_status ||
+        (r.is_rm_ok_for_stage === false ? "RM_BLOCKED" : "-"),
       "c-center",
     );
     const riskTd = make(
@@ -311,11 +314,12 @@ function renderTable(rows) {
         : "-",
       "c-right",
     );
-    const regionTd = make(r.top_region_code || "-", "c-center");
+    const regionTd = make(r.top_region || "-", "c-center");
 
     tr.appendChild(rank);
     tr.appendChild(batch);
     tr.appendChild(prod);
+    tr.appendChild(item);
     tr.appendChild(state);
     tr.appendChild(laneTd);
     tr.appendChild(pmTd);
@@ -346,6 +350,23 @@ function openDetails(row) {
 }
 
 function closeDetails() {
+  // If focus is inside the drawer, move it to a sensible element
+  // before hiding the drawer to avoid blocking assistive tech.
+  try {
+    const active = document.activeElement;
+    if (detailsDrawer.contains(active)) {
+      if (searchBox && typeof searchBox.focus === "function") {
+        searchBox.focus();
+      } else if (refreshBtn && typeof refreshBtn.focus === "function") {
+        refreshBtn.focus();
+      } else if (active && typeof active.blur === "function") {
+        active.blur();
+      }
+    }
+  } catch {
+    // ignore focus management errors
+  }
+
   detailsDrawer.classList.add("hidden");
   detailsDrawer.classList.remove("open");
   detailsDrawer.setAttribute("aria-hidden", "true");
@@ -366,7 +387,7 @@ function setDrawerTab(id) {
   } else if (id === "pm") {
     drawerContent.innerHTML = `<div><strong>PM Gate Status</strong><div style="margin-top:8px">${SELECTED_ROW.pm_gate_status || "-"}</div></div>`;
   } else if (id === "rm") {
-    drawerContent.innerHTML = `<div><strong>RM Gate Status</strong><div style="margin-top:8px">${SELECTED_ROW.rm_gate_status || "-"}</div></div>`;
+    drawerContent.innerHTML = `<div><strong>RM Gate Status</strong><div style="margin-top:8px">${SELECTED_ROW.rm_gate_status_display || SELECTED_ROW.rm_gate_status || "-"}</div></div>`;
   }
 }
 
@@ -379,21 +400,21 @@ function renderDetailPanel(row) {
   const s1 = document.createElement("div");
   s1.innerHTML = `<h3 style="margin:0 0 6px 0">Batch summary</h3>`;
   const list1 = document.createElement("div");
-  list1.innerHTML = `<div><strong>Batch Number:</strong> ${row.batch_number || "-"}</div><div><strong>Product:</strong> ${row.product_id || row.top_sku_id || "-"}</div><div><strong>Primary State:</strong> ${row.primary_state || "-"}</div><div><strong>Queue Lane:</strong> ${row.queue_lane || "-"}</div>`;
+  list1.innerHTML = `<div><strong>Batch Number:</strong> ${row.batch_number || "-"}</div><div><strong>Product ID:</strong> ${row.product_id || row.top_sku_id || "-"}</div><div><strong>Item:</strong> ${row.product_name || "-"}</div><div><strong>Primary State:</strong> ${row.primary_state || "-"}</div><div><strong>Queue Lane:</strong> ${row.queue_lane || "-"}</div>`;
   s1.appendChild(list1);
 
   // Section 2 - Execution status
   const s2 = document.createElement("div");
   s2.innerHTML = `<h3 style="margin:0 0 6px 0">Execution status</h3>`;
   const list2 = document.createElement("div");
-  list2.innerHTML = `<div><strong>PM Gate Status:</strong> ${row.pm_gate_status || "-"}</div><div><strong>RM Gate Status:</strong> ${row.rm_gate_status || "-"}</div>`;
+  list2.innerHTML = `<div><strong>PM Gate Status:</strong> ${row.pm_gate_status || "-"}</div><div><strong>RM Gate Status:</strong> ${row.rm_gate_status_display || row.rm_gate_status || "-"}</div>`;
   s2.appendChild(list2);
 
   // Section 3 - Impact
   const s3 = document.createElement("div");
   s3.innerHTML = `<h3 style="margin:0 0 6px 0">Impact</h3>`;
   const list3 = document.createElement("div");
-  list3.innerHTML = `<div><strong>Candidate Supply Quantity:</strong> ${row.candidate_supply_qty ?? "-"}</div><div><strong>Total Risk Reduction Units:</strong> ${row.total_risk_reduction_units ?? "-"}</div><div><strong>Top Impacted Region:</strong> ${row.top_region_code || "-"}</div><div><strong>Top Impacted SKU:</strong> ${row.top_sku_id || "-"}</div>`;
+  list3.innerHTML = `<div><strong>Candidate Supply Quantity:</strong> ${row.candidate_supply_base_qty ?? "-"}</div><div><strong>Total Risk Reduction Units:</strong> ${row.total_risk_reduction_units ?? "-"}</div><div><strong>Top Impacted Region:</strong> ${row.top_region || "-"}</div><div><strong>Top Impacted SKU:</strong> ${row.top_sku_label || row.top_sku_id || "-"}</div>`;
   s3.appendChild(list3);
 
   // Section 4 - Priority reasoning
@@ -407,7 +428,7 @@ function renderDetailPanel(row) {
   const s5 = document.createElement("div");
   s5.innerHTML = `<h3 style="margin:0 0 6px 0">Recommended action</h3>`;
   const action = document.createElement("div");
-  if (!isRmOk(row)) {
+  if (!isRmClearForExecution(row)) {
     action.textContent =
       "Resolve raw material blocker first. Refer to Execution Gate → RM tab.";
   } else if (!isPmOk(row)) {
@@ -416,7 +437,7 @@ function renderDetailPanel(row) {
   } else if (isFastConversion(row)) {
     action.textContent =
       "Prioritize this batch for quick conversion into finished supply.";
-  } else if (isPmOk(row) && isRmOk(row)) {
+  } else if (isPmOk(row) && isRmClearForExecution(row)) {
     action.textContent = "Proceed with production execution for this batch.";
   } else {
     action.textContent = "Review batch details and decide next steps.";
@@ -443,7 +464,9 @@ async function loadWhyMatters(row) {
     }
     const { data, error } = await supabase
       .from("v_batch_risk_reduction_current_month")
-      .select("*")
+      .select(
+        "sku_id, sku_label, region_code, risk_reduction_units, risk_reduction_base_qty",
+      )
       .eq(key.column, key.value)
       .limit(100);
     if (error) throw error;
@@ -454,9 +477,9 @@ async function loadWhyMatters(row) {
     }
     // Render small table: Region | SKU | Risk Reduction Units (desc)
     const rows = data.map((d) => ({
-      region: d.top_region_code || d.region || "-",
-      sku: d.sku_id || d.top_sku_id || "-",
-      units: Number(d.risk_reduction_units ?? d.risk_reduction_base_qty ?? 0),
+      region: d.region_code || "-",
+      sku: d.sku_label || d.sku_id || "-",
+      units: Number(d.risk_reduction_units ?? 0),
     }));
     rows.sort((a, b) => b.units - a.units);
     const table = document.createElement("table");
@@ -492,8 +515,9 @@ function exportCsvForRows(rows, pageNumber) {
     "queue_lane",
     "pm_gate_status",
     "rm_gate_status",
+    "rm_gate_status_display",
     "total_risk_reduction_units",
-    "top_region_code",
+    "top_region",
     "top_sku_id",
   ];
   const csv = [headers.join(",")];
@@ -532,13 +556,19 @@ async function loadQueue() {
     const cols = [
       "month_start",
       "product_id",
+      "product_name",
       "batch_number",
       "primary_state",
       "pm_gate_status",
       "rm_gate_status",
+      "rm_gate_status_display",
       "is_pm_ok",
       "is_pm_blocked",
       "is_rm_ok_for_stage",
+      "candidate_supply_base_qty",
+      "top_region",
+      "top_sku_id",
+      "top_sku_label",
       "total_risk_reduction_units",
       "stage_rank",
       "queue_lane",
