@@ -307,7 +307,7 @@
       .sc-modal {
         position: fixed;
         inset: 0;
-        z-index: 1000;
+        z-index: 12030;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -726,6 +726,24 @@
         color: #0f172a;
         border-color: #d1d5db;
         box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03);
+      }
+      /* Subtle variant: ghost-style, used for the mobile Select toggle */
+      .sc-btn.sc-btn-subtle {
+        background: transparent;
+        color: #374151;
+        border-color: #d1d5db;
+        font-weight: 600;
+        font-size: 13px;
+        padding: 6px 10px;
+      }
+      .sc-btn.sc-btn-subtle:hover {
+        background: #f3f4f6;
+      }
+      .sc-btn.sc-btn-subtle[aria-pressed="true"],
+      .sc-btn.sc-btn-subtle.is-active {
+        background: #0a62c3;
+        color: #fff;
+        border-color: #0a62c3;
       }
       .sc-btn.icon {
         padding: 8px;
@@ -2505,6 +2523,15 @@
             <path d="M14 12h6" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </button>
+        <button
+          id="sc-mobile-select-toggle"
+          class="sc-btn sc-btn-subtle sc-mobile-only"
+          type="button"
+          aria-pressed="false"
+          aria-label="Enable cell selection mode"
+        >
+          Select
+        </button>
       </div>
       <div class="pagination" style="margin-left: auto">
         <button
@@ -2790,6 +2817,7 @@
       class="sc-modal"
       role="dialog"
       aria-modal="true"
+      aria-hidden="true"
       style="display: none"
     >
       <div class="sc-modal-backdrop" data-close="true"></div>

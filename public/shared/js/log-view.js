@@ -89,6 +89,192 @@ const populate = (sel, rows, valKey, txtKey, ph) =>
 /* Section-name cache (for table render) */
 const sectionMap = {};
 
+/* Transfer-history page-level lookup: makeBatchItemKey → transfer row[] */
+let movementLookup = {};
+
+/* ════════════════════════════════════════════════════════════════════════
+   TRANSFER-HISTORY HELPERS
+   ════════════════════════════════════════════════════════════════════════ */
+
+/** Canonical lookup key combining item and batch_number */
+const makeBatchItemKey = (item, batchNumber) =>
+  `${(item || "").trim()}||${String(batchNumber || "").trim()}`;
+
+/** Null-safe, trimmed string */
+const normaliseText = (v) => (v != null ? String(v).trim() : "");
+
+/** Return true when activity denotes FG bulk storage (case-insensitive) */
+function isFgBulkStorageActivity(activity) {
+  return normaliseText(activity).toLowerCase() === "fg bulk storage";
+}
+
+/** Decide whether to show movement badge for a given log row */
+function shouldShowMovementBadge(logRow, transferRows) {
+  if (!logRow) return false;
+  const hasTransfers = Array.isArray(transferRows) && transferRows.length > 0;
+  return isFgBulkStorageActivity(logRow.activity) && hasTransfers;
+}
+
+/**
+ * Build a readable location string from the four location name parts.
+ * Null / empty parts are omitted; parts are joined with " / ".
+ */
+// formatLocationLine removed (superseded by formatLocationBlock)
+
+/**
+ * Render location as a multi-line block (each non-empty part on its own line).
+ * Returns an HTML string safe for insertion into a table cell.
+ */
+function formatLocationBlock(sectionName, subsectionName, areaName, plantName) {
+  const parts = [sectionName, subsectionName, areaName, plantName]
+    .map(normaliseText)
+    .filter(Boolean);
+  if (!parts.length) return "—";
+  const inner = parts.map((p) => `<div>${p}</div>`).join("");
+  return `<div class="loc-block">${inner}</div>`;
+}
+
+/**
+ * Fetch transfer-history rows for the given set of log rows in a single
+ * batched Supabase query. Returns [] on error (non-fatal by design).
+ */
+async function fetchTransferHistoryForVisibleRows(logRows) {
+  if (!logRows.length) return [];
+
+  // Collect distinct item+BN pairs from the page
+  const seen = new Set();
+  const pairs = [];
+  for (const r of logRows) {
+    const key = makeBatchItemKey(r.item, r.batch_number);
+    if (!seen.has(key)) {
+      seen.add(key);
+      pairs.push({ item: r.item, batch_number: r.batch_number });
+    }
+  }
+  if (!pairs.length) return [];
+
+  // Fetch using IN on both item and batch_number, then post-filter to guard
+  // against false positives from the cross-product of two IN clauses.
+  const items = [...new Set(pairs.map((p) => p.item))];
+  const batchNums = [...new Set(pairs.map((p) => String(p.batch_number)))];
+
+  const { data, error } = await supabase
+    .from("v_fg_bulk_transfer_history")
+    .select(
+      "id,transfer_date,item,batch_number,qty,uom," +
+        "from_section_name,from_subsection_name,from_area_name,from_plant_name," +
+        "to_section_name,to_subsection_name,to_area_name,to_plant_name," +
+        "remarks,created_by",
+    )
+    .in("item", items)
+    .in("batch_number", batchNums)
+    .order("transfer_date", { ascending: true });
+
+  if (error) {
+    console.error("[view-logs] Transfer history batch fetch error:", error);
+    return [];
+  }
+
+  const pairSet = new Set(
+    pairs.map((p) => makeBatchItemKey(p.item, p.batch_number)),
+  );
+  return (data || []).filter((r) =>
+    pairSet.has(makeBatchItemKey(r.item, r.batch_number)),
+  );
+}
+
+/** Build a lookup map: makeBatchItemKey → transfer row array */
+function buildTransferHistoryLookup(transferRows) {
+  const map = {};
+  for (const r of transferRows) {
+    const key = makeBatchItemKey(r.item, r.batch_number);
+    if (!map[key]) map[key] = [];
+    map[key].push(r);
+  }
+  return map;
+}
+
+/** Return the cached transfer rows for one log row (empty array if none). */
+function getTransferRowsForLogRow(logRow, lookup) {
+  return lookup[makeBatchItemKey(logRow.item, logRow.batch_number)] || [];
+}
+
+/** Return the <td> HTML for the Movement column of a main-table row. */
+function renderMovementBadge(logRow, xferRows) {
+  if (!shouldShowMovementBadge(logRow, xferRows))
+    return `<td class="movement-cell">—</td>`;
+  return `<td class="movement-cell"><span class="movement-badge transferred">Transferred</span></td>`;
+}
+
+/**
+ * Build the HTML for the "FG Bulk Transfer History" section in the modal.
+ * Returns "" when there are no rows.
+ */
+function renderTransferHistorySection(xferRows) {
+  if (!xferRows.length) return "";
+
+  const rowsHtml = xferRows
+    .map((r) => {
+      const fromHtml = formatLocationBlock(
+        r.from_section_name,
+        r.from_subsection_name,
+        r.from_area_name,
+        r.from_plant_name,
+      );
+      const toHtml = formatLocationBlock(
+        r.to_section_name,
+        r.to_subsection_name,
+        r.to_area_name,
+        r.to_plant_name,
+      );
+      return `
+        <tr>
+          <td>${fmtDate(r.transfer_date)}</td>
+          <td>${normaliseText(r.qty)}</td>
+          <td>${normaliseText(r.uom)}</td>
+          <td>${fromHtml}</td>
+          <td>${toHtml}</td>
+          <td>${normaliseText(r.remarks)}</td>
+        </tr>`;
+    })
+    .join("");
+
+  return `
+    <div class="modal-section" id="transferHistorySection">
+      <h4 class="modal-section-heading">FG Bulk Transfer History</h4>
+      <table class="transfer-history-table">
+        <thead>
+          <tr>
+            <th>Date</th><th>Qty</th><th>UOM</th>
+            <th>From</th><th>To</th><th>Remarks</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>`;
+}
+
+/**
+ * Insert the transfer-history section into the modal, replacing any
+ * previous instance.
+ */
+function appendTransferHistoryToModal(xferRows) {
+  clearTransferHistorySection();
+  const html = renderTransferHistorySection(xferRows);
+  if (!html) return;
+  const actions = document.querySelector(".modal-box .modal-actions");
+  if (actions) {
+    actions.insertAdjacentHTML("beforebegin", html);
+  } else {
+    document.querySelector(".modal-box")?.insertAdjacentHTML("beforeend", html);
+  }
+}
+
+/** Remove any existing transfer-history section from the modal. */
+function clearTransferHistorySection() {
+  document.getElementById("transferHistorySection")?.remove();
+}
+
 /* ─── Render-race guard ──────────────────────────────────────────────── */
 /* Every time we start a new table refresh we bump this number. Only the
    request that finishes _last_ is allowed to update the DOM.            */
@@ -612,8 +798,6 @@ async function loadTable(page = currentPage) {
   if (myVersion !== queryVersion) return;
 
   /* 6️⃣ – We are still the newest ➜ clear and render */
-  tbody.replaceChildren();
-
   const rows = data ? data.slice() : [];
 
   // Update pagination total if server returned a count
@@ -630,7 +814,7 @@ async function loadTable(page = currentPage) {
     }
   }
 
-  /* 7️⃣ – Natural-order sort (unchanged) */
+  // Natural-order sort (unchanged)
   const coll = new Intl.Collator("en", { numeric: true, sensitivity: "base" });
   rows.sort((a, b) => {
     let diff = new Date(a.log_date) - new Date(b.log_date);
@@ -652,10 +836,31 @@ async function loadTable(page = currentPage) {
     return coll.compare(pa, pb);
   });
 
-  /* 8️⃣ – Render rows (unchanged) */
+  /* Batch-fetch transfer history for this page (non-fatal).
+     Runs BEFORE clearing the DOM to avoid a flash of an empty table. */
+  movementLookup = {};
+  if (rows.length) {
+    try {
+      const xferRows = await fetchTransferHistoryForVisibleRows(rows);
+      movementLookup = buildTransferHistoryLookup(xferRows);
+    } catch (err) {
+      console.error("[view-logs] Movement lookup failed:", err);
+      // Non-fatal — movement badges simply won't appear this page load.
+    }
+  }
+
+  /* Check version again: a new request may have fired during the async
+     transfer-history fetch above. If so, abort — the newer request owns
+     the DOM. */
+  if (myVersion !== queryVersion) return;
+
+  /* Safe to clear and render */
+  tbody.replaceChildren();
+
   rows.forEach((r) => {
     const plantName = r.plant_machinery?.plant_name || "";
     const sectionName = sectionMap[r.section_id] || "";
+    const xferRows = getTransferRowsForLogRow(r, movementLookup);
     tbody.insertAdjacentHTML(
       "beforeend",
       `
@@ -669,13 +874,14 @@ async function loadTable(page = currentPage) {
         <td>${plantName}</td>
         <td>${r.activity}</td>
         <td>${r.status ?? ""}</td>
+        ${renderMovementBadge(r, xferRows)}
         <td><a href="#" class="view-link" data-id="${r.id}">View</a></td>
       </tr>
     `,
     );
   });
 
-  /* 9️⃣ – Attach “View” links (unchanged) */
+  // Attach View links
   document
     .querySelectorAll(".view-link")
     .forEach((a) => a.addEventListener("click", showDetails));
@@ -772,8 +978,8 @@ async function exportCsv() {
   } else {
     // Filters applied: use current visible rows
     rowsData = [...tbody.rows].map((tr) => {
-      // slice(0, -1) drops the last "Action" column
-      const cells = [...tr.cells].slice(0, -1);
+      // slice(0, -2) drops the Movement badge and Action columns
+      const cells = [...tr.cells].slice(0, -2);
       return cells.map((td) => td.textContent.trim());
     });
   }
@@ -1091,6 +1297,37 @@ async function showDetails(e) {
       );
     }
   });
+
+  // Render FG Bulk Transfer History section (non-fatal addition)
+  clearTransferHistorySection();
+  try {
+    const key = makeBatchItemKey(log.item, log.batch_number);
+    // Use the cached page lookup when available; fall back to a focused fetch.
+    let xferRows = movementLookup[key];
+    if (xferRows === undefined) {
+      const { data: xData, error: xErr } = await supabase
+        .from("v_fg_bulk_transfer_history")
+        .select(
+          "id,transfer_date,item,batch_number,qty,uom," +
+            "from_section_name,from_subsection_name,from_area_name,from_plant_name," +
+            "to_section_name,to_subsection_name,to_area_name,to_plant_name," +
+            "remarks,created_by",
+        )
+        .eq("item", log.item)
+        .eq("batch_number", String(log.batch_number))
+        .order("transfer_date", { ascending: true });
+      if (xErr) {
+        console.error("[view-logs] Transfer history modal fetch error:", xErr);
+        xferRows = [];
+      } else {
+        xferRows = xData || [];
+      }
+    }
+    appendTransferHistoryToModal(xferRows);
+  } catch (err) {
+    console.error("[view-logs] Transfer history modal error:", err);
+    // Non-fatal — log entry details are still shown correctly.
+  }
 
   show(overlay);
 }

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en-GB">
   <head>
     <meta charset="UTF-8" />
@@ -25,7 +25,9 @@
         color: var(--text-color);
         font-family: Arial, sans-serif;
         margin: 20px;
-        transition: background 0.3s, color 0.3s;
+        transition:
+          background 0.3s,
+          color 0.3s;
       }
 
       /* Page header (use same structure as production pages) */
@@ -230,8 +232,8 @@
         color: var(--text-color);
         padding: 24px;
         border-radius: 8px;
-        width: 95%;
-        max-width: 620px;
+        width: 96%;
+        max-width: 900px;
         max-height: 85vh;
         overflow: auto;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
@@ -306,6 +308,104 @@
         font-family: inherit;
         font-size: 14px;
         font-weight: 400;
+      }
+
+      /* ─── MOVEMENT BADGE (main table) ──────────────────────────────────── */
+      .movement-cell {
+        white-space: nowrap;
+        text-align: center;
+        width: 80px;
+        color: #6b7280;
+      }
+      .movement-badge {
+        display: inline-block;
+        padding: 2px 7px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        line-height: 1.6;
+        border: 1px solid transparent;
+      }
+      .movement-badge.transferred {
+        background: #e8f4f8;
+        color: #1a6a8f;
+        border-color: #b3d9ec;
+      }
+
+      /* ─── TRANSFER HISTORY SECTION (detail modal) ──────────────────────── */
+      .modal-section {
+        margin-top: 20px;
+        border-top: 1px solid #d1d5db;
+        padding-top: 14px;
+      }
+      .modal-section-heading {
+        margin: 0 0 10px;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--primary);
+      }
+      .transfer-history-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+        margin-bottom: 0;
+        table-layout: fixed;
+      }
+      .transfer-history-table th,
+      .transfer-history-table td {
+        padding: 6px 8px;
+        border: 1px solid #d1d5db;
+        text-align: left;
+        vertical-align: top;
+        white-space: normal;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+      }
+      /* column widths */
+      .transfer-history-table th:nth-child(1),
+      .transfer-history-table td:nth-child(1) {
+        width: 80px;
+      }
+      .transfer-history-table th:nth-child(2),
+      .transfer-history-table td:nth-child(2) {
+        width: 70px;
+      }
+      .transfer-history-table th:nth-child(3),
+      .transfer-history-table td:nth-child(3) {
+        width: 60px;
+      }
+      .transfer-history-table th:nth-child(4),
+      .transfer-history-table td:nth-child(4) {
+        width: 34%;
+      }
+      .transfer-history-table th:nth-child(5),
+      .transfer-history-table td:nth-child(5) {
+        width: 34%;
+      }
+      .transfer-history-table th:nth-child(6),
+      .transfer-history-table td:nth-child(6) {
+        width: 140px;
+      }
+      .loc-block div {
+        display: block;
+      }
+      .transfer-history-table thead th {
+        background: #f1f5f9;
+        font-weight: 600;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+      .transfer-history-table tbody tr:nth-child(even) {
+        background: #f8fafc;
+      }
+      .muted-note {
+        font-size: 12px;
+        color: #9ca3af;
+        font-style: italic;
       }
     </style>
   </head>
@@ -421,6 +521,7 @@
             <th>Plant&nbsp;/&nbsp;Machinery</th>
             <th>Activity</th>
             <th>Status</th>
+            <th>Movement</th>
             <th>Action</th>
           </tr>
         </thead>

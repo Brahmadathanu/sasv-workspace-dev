@@ -14,8 +14,7 @@ const PDF_UMD_PATHS = {
 
 /* global PDF_ESM_PATHS, __sc_isDragging: true, __sc_ignoreNextClick: true, __sc_mouseDown: true,
    elTotalValue: true, elToggleValue: true, elValueModal: true, elValueModalClose: true, elValueBody: true,
-   elValueSnapshot: true, elRowModal: true, elRowModalClose: true, __pdfExporting: true,
-   openRowModal: true */
+   elValueSnapshot: true, elRowModal: true, elRowModalClose: true, __pdfExporting: true */
 
 /* exported elRowHeader, elRowClassif, elRowQty, elRowValue, elRowFooter, elRowModal, elRowModalClose */
 /* exported elTotalValue, elToggleValue, elValueModal, elValueModalClose, elValueBody, elValueSnapshot */
@@ -1792,6 +1791,112 @@ const state = {
 
 let __advExInitDone = false;
 
+/* ── Row modal controller (module-scope so renderRows + init can both use them) ── */
+function renderRowModal(row) {
+  if (!row) return;
+
+  // Header: item name + pack size + UOM on one line (matches original design)
+  if (elRowHeader) {
+    elRowHeader.innerHTML =
+      `<strong>${escapeHtml(row.item || row.item_name || "")}</strong>` +
+      (row.pack_size || row.uom
+        ? ` &nbsp; ${escapeHtml(String(row.pack_size ?? ""))} ${escapeHtml(row.uom || "")}`
+        : "");
+  }
+
+  // Classification breadcrumb
+  if (elRowClassif) {
+    const parts = [
+      row.category_name,
+      row.sub_category_name,
+      row.product_group_name,
+      row.sub_group_name,
+    ].filter(Boolean);
+    elRowClassif.textContent = parts.length ? parts.join(" › ") : "";
+  }
+
+  // Left card: Stock (IK/KKD/OK + Overall) ── hr ── Demand (IK/KKD/OK + Overall)
+  if (elRowQty) {
+    const stIK = Number(row.stock_ik) || 0;
+    const stKKD = Number(row.stock_kkd) || 0;
+    const stOK = Number(row.stock_ok) || 0;
+    const stockOverall = stIK + stKKD + stOK;
+    const fIK = Number(row.forecast_ik) || 0;
+    const fKKD = Number(row.forecast_kkd) || 0;
+    const fOK = Number(row.forecast_ok) || 0;
+    const forecastOverall = fIK + fKKD + fOK;
+    elRowQty.innerHTML =
+      `<div><strong>Stock</strong></div>` +
+      `<div><span>IK</span><span class="num">${fmtInt(stIK)}</span></div>` +
+      `<div><span>KKD</span><span class="num">${fmtInt(stKKD)}</span></div>` +
+      `<div><span>OK</span><span class="num">${fmtInt(stOK)}</span></div>` +
+      `<div style="margin-top:8px"><strong>Overall: ${fmtInt(stockOverall)}</strong></div>` +
+      `<hr style="border:none;border-top:1px solid var(--border);margin:8px 0"/>` +
+      `<div><strong>Demand</strong></div>` +
+      `<div><span>IK</span><span class="num">${fmtInt(fIK)}</span></div>` +
+      `<div><span>KKD</span><span class="num">${fmtInt(fKKD)}</span></div>` +
+      `<div><span>OK</span><span class="num">${fmtInt(fOK)}</span></div>` +
+      `<div style="margin-top:8px"><strong>Overall: ${fmtInt(forecastOverall)}</strong></div>`;
+  }
+
+  // Right card: Value (IK/KKD/OK + Overall) ── hr ── Rate (IK/KKD/OK + Overall)
+  if (elRowValue) {
+    elRowValue.innerHTML =
+      `<div><strong>Value</strong></div>` +
+      `<div><span>IK</span><span class="num">${fmtINR(row.stock_value_ik)}</span></div>` +
+      `<div><span>KKD</span><span class="num">${fmtINR(row.stock_value_kkd)}</span></div>` +
+      `<div><span>OK</span><span class="num">${fmtINR(row.stock_value_ok)}</span></div>` +
+      `<div style="margin-top:8px"><strong>Overall: ${fmtINR(row.stock_value_overall)}</strong></div>` +
+      `<hr style="border:none;border-top:1px solid var(--border);margin:8px 0"/>` +
+      `<div><strong>Rate</strong></div>` +
+      `<div><span>IK</span><span class="num">${fmtRate(row.rate_ik)}</span></div>` +
+      `<div><span>KKD</span><span class="num">${fmtRate(row.rate_kkd)}</span></div>` +
+      `<div><span>OK</span><span class="num">${fmtRate(row.rate_ok)}</span></div>` +
+      `<div style="margin-top:8px"><strong>Overall: ${fmtRate(row.rate_overall)}</strong></div>`;
+  }
+
+  // Footer: MRP IK / MRP OK + shade flag (null-safe — show only when field exists)
+  if (elRowFooter) {
+    const mrpParts = [];
+    if (row.mrp_ik != null) mrpParts.push(`MRP IK: ${fmtRate(row.mrp_ik)}`);
+    if (row.mrp_ok != null) mrpParts.push(`MRP OK: ${fmtRate(row.mrp_ok)}`);
+    const shadeStr = row.shade_flag ? "  ·  Shade" : "";
+    elRowFooter.textContent = mrpParts.length
+      ? mrpParts.join("  /  ") + shadeStr
+      : row.shade_flag
+        ? "Shade"
+        : "";
+  }
+}
+
+function openRowModal(row, triggerEl) {
+  if (!elRowModal) return;
+  __lastFocusBeforeRowModal =
+    triggerEl instanceof HTMLElement
+      ? triggerEl
+      : document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+  renderRowModal(row);
+  elRowModal.style.display = "flex";
+  elRowModal.setAttribute("aria-hidden", "false");
+  try {
+    const closeBtn =
+      elRowModal.querySelector("button[id$='-close']") || elRowModalClose;
+    if (closeBtn && typeof closeBtn.focus === "function") {
+      closeBtn.focus();
+    } else {
+      const panel = elRowModal.querySelector(".sc-modal-panel");
+      if (panel) {
+        panel.tabIndex = panel.tabIndex >= 0 ? panel.tabIndex : -1;
+        panel.focus();
+      }
+    }
+  } catch {
+    void 0;
+  }
+}
+
 /* Lightweight DOM-ready helper */
 function onReady(fn) {
   if (document.readyState === "loading") {
@@ -3168,48 +3273,67 @@ async function init() {
       });
     }
 
-    // Mobile-only Select mode toggle (insert after explode details button)
-    try {
-      let btnMobileSelect = document.getElementById("sc-mobile-select-toggle");
-      if (!btnMobileSelect && btnExplodeDetails) {
-        btnMobileSelect = document.createElement("button");
-        btnMobileSelect.id = "sc-mobile-select-toggle";
-        btnMobileSelect.type = "button";
-        btnMobileSelect.className = "sc-btn sc-btn-subtle sc-mobile-only";
-        btnMobileSelect.setAttribute("aria-pressed", "false");
-        btnMobileSelect.setAttribute(
-          "aria-label",
-          "Enable cell selection mode",
-        );
-        btnMobileSelect.textContent = "Select";
-        btnExplodeDetails.insertAdjacentElement("afterend", btnMobileSelect);
+    // Mobile-only Select mode toggle — bind to the static button in HTML
+    function setMobileSelectMode(enabled) {
+      const btnMobileSelect = document.getElementById(
+        "sc-mobile-select-toggle",
+      );
+      const on = !!enabled;
+      // Update selection controller
+      try {
+        if (window.scSelection && window.scSelection.controller) {
+          window.scSelection.controller.mobileSelectEnabled = on;
+        }
+      } catch {
+        /* ignore */
+      }
+      // Update button state
+      if (btnMobileSelect) {
+        btnMobileSelect.setAttribute("aria-pressed", String(on));
+        btnMobileSelect.classList.toggle("is-active", on);
+      }
+      // When disabling, cancel any active drag and restore normal scroll behavior
+      if (!on) {
+        try {
+          if (
+            window.scSelection &&
+            typeof window.scSelection.disableActive === "function"
+          ) {
+            window.scSelection.disableActive();
+          }
+        } catch {
+          /* ignore */
+        }
+        // Re-enable touch scrolling on the table wrapper
+        try {
+          const wrap =
+            document.querySelector(".table-wrap") ||
+            document.getElementById("sc-body");
+          if (wrap && wrap.style) wrap.style.touchAction = "pan-x pan-y";
+        } catch {
+          /* ignore */
+        }
+        document.body.style.userSelect = "";
+      }
+    }
 
-        btnMobileSelect.addEventListener("click", () => {
-          const now = btnMobileSelect.getAttribute("aria-pressed") === "true";
-          const next = !now;
-          btnMobileSelect.setAttribute("aria-pressed", String(next));
-          btnMobileSelect.classList.toggle("is-active", next);
-          // Use exposed API on scSelection
+    try {
+      const btnMobileSelect = document.getElementById(
+        "sc-mobile-select-toggle",
+      );
+      if (btnMobileSelect) {
+        // Use both click and touchend for reliable iPhone/PWA toggle
+        const handleSelectToggle = (ev) => {
           try {
-            if (
-              window.scSelection &&
-              typeof window.scSelection.setMobileEnabled === "function"
-            ) {
-              window.scSelection.setMobileEnabled(next);
-            } else if (window.scSelection && window.scSelection.controller) {
-              window.scSelection.controller.mobileSelectEnabled = next;
-            }
-            // If turning off, finish any active drag and restore normal behavior
-            if (
-              !next &&
-              window.scSelection &&
-              typeof window.scSelection.disableActive === "function"
-            ) {
-              window.scSelection.disableActive();
-            }
+            ev.preventDefault();
           } catch {
             /* ignore */
           }
+          const now = btnMobileSelect.getAttribute("aria-pressed") === "true";
+          setMobileSelectMode(!now);
+        };
+        btnMobileSelect.addEventListener("click", handleSelectToggle, {
+          passive: false,
         });
       }
     } catch {
@@ -5294,7 +5418,8 @@ function renderRows(rows) {
         }
         const r = __lastRows[idx];
         try {
-          openRowModal(r);
+          const trigger = src instanceof HTMLElement ? src : null;
+          openRowModal(r, trigger);
         } catch (err) {
           console.error("openForRow error", err, { idx, r });
         }
