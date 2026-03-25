@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -153,7 +153,9 @@
         border-radius: 10px;
         border: 1px solid var(--brand);
         line-height: 1;
-        transition: transform 0.06s ease-out, background 0.15s,
+        transition:
+          transform 0.06s ease-out,
+          background 0.15s,
           border-color 0.15s;
       }
       .hub-card h3 a:hover {
@@ -467,7 +469,9 @@
     <!-- PWA Service Worker -->
     <script>
       if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("/public/sw.js").catch(console.error);
+        navigator.serviceWorker
+          .register("/sw.js", { scope: "/" })
+          .catch(console.error);
       }
     </script>
     <script>

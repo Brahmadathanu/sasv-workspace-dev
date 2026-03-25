@@ -28,6 +28,9 @@ function setHubDebugState(key, value) {
   globalThis.__APP_MODULE_DEBUG_STATE__.pwaHub[key] = value;
 }
 
+let activeRenderPromise = null;
+let queuedRenderReason = null;
+
 async function getUserPermissions(userId) {
   if (!userId) return null;
   try {
@@ -572,7 +575,7 @@ async function logoutFlow() {
   }
 }
 
-async function render() {
+async function performRender() {
   setBusy(true);
   if (elEmpty) elEmpty.style.display = "none";
 
@@ -649,6 +652,32 @@ async function render() {
   setBusy(false);
 }
 
+async function render(reason = "manual") {
+  if (activeRenderPromise) {
+    queuedRenderReason = reason;
+    hubDebug("render:queued", { reason });
+    return activeRenderPromise;
+  }
+
+  activeRenderPromise = (async () => {
+    let nextReason = reason;
+
+    while (nextReason) {
+      const currentReason = nextReason;
+      queuedRenderReason = null;
+      hubDebug("render:run", { reason: currentReason });
+      await performRender();
+      nextReason = queuedRenderReason;
+    }
+  })();
+
+  try {
+    await activeRenderPromise;
+  } finally {
+    activeRenderPromise = null;
+  }
+}
+
 function wireEvents() {
   elLoginForm?.addEventListener("submit", signInWithPassword);
   btnLogout?.addEventListener("click", logoutFlow);
@@ -671,8 +700,9 @@ function wireEvents() {
     .getElementById("auth-forgot")
     ?.addEventListener("click", sendPasswordReset);
 
-  supabase.auth.onAuthStateChange(() => {
-    render().catch(console.error);
+  supabase.auth.onAuthStateChange((event) => {
+    hubDebug("auth-state-change", { event });
+    render(`auth:${event}`).catch(console.error);
   });
 }
 
@@ -683,7 +713,7 @@ function wireEvents() {
       note: "Set window.__APP_MODULE_DEBUG__ = false to silence temporary logs.",
     });
     wireEvents();
-    await render();
+    await render("boot");
   } catch (e) {
     console.error(e);
     showMsg("Something went wrong. Reload the page.", true);
