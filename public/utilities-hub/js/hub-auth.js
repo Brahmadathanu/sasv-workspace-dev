@@ -702,6 +702,23 @@ function wireEvents() {
 
   supabase.auth.onAuthStateChange((event) => {
     hubDebug("auth-state-change", { event });
+
+    if (event === "INITIAL_SESSION") {
+      hubDebug("auth-state-ignored", {
+        event,
+        reason: "boot render already handles initial session",
+      });
+      return;
+    }
+
+    if (event === "SIGNED_IN" && activeRenderPromise) {
+      hubDebug("auth-state-ignored", {
+        event,
+        reason: "render already in flight",
+      });
+      return;
+    }
+
     render(`auth:${event}`).catch(console.error);
   });
 }
