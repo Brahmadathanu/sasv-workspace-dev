@@ -292,7 +292,7 @@
         <a
           class="module-link"
           data-module-id="production-execution-queue"
-          href="production-execution-queue.html"
+          href="public/shared/production-execution-queue.html"
         >
           Production Execution Queue
         </a>
@@ -332,22 +332,10 @@
 
         <a
           class="module-link"
-          data-module-id="material-indent-register"
-          href="#"
-          aria-disabled="true"
-          title="Coming soon"
+          data-module-id="procurement-execution-console"
+          href="public/shared/procurement-execution-console.html"
         >
-          Material Indent Register
-        </a>
-
-        <a
-          class="module-link"
-          data-module-id="vendor-material-map"
-          href="#"
-          aria-disabled="true"
-          title="Coming soon"
-        >
-          Vendor–Material Map
+          Procurement Execution Console
         </a>
 
         <a
@@ -844,10 +832,212 @@
     </script>
     <script type="module" src="public/shared/js/supabaseClient.js"></script>
     <script type="module">
-      import { supabase } from "../public/shared/js/supabaseClient.js";
+      import { supabase } from "./public/shared/js/supabaseClient.js";
+      import {
+        buildPermissionMap,
+        getModuleAccessLevel,
+        loadClientModuleRegistry,
+        normalizeModuleKey,
+      } from "./public/shared/js/module-registry.js";
 
-      // Expose supabase client globally for admin module and other utilities
       window.supabase = supabase;
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\"/g, "&quot;");
+      }
+
+      const ELECTRON_DEBUG_ENABLED = globalThis.__APP_MODULE_DEBUG__ !== false;
+
+      function electronDebug(event, details) {
+        if (!ELECTRON_DEBUG_ENABLED) return;
+        console.log(`[ElectronHomeDebug] ${event}`, details || {});
+      }
+
+      function setElectronDebugState(key, value) {
+        if (!ELECTRON_DEBUG_ENABLED) return;
+        globalThis.__APP_MODULE_DEBUG_STATE__ ||= {};
+        globalThis.__APP_MODULE_DEBUG_STATE__.electronHome ||= {};
+        globalThis.__APP_MODULE_DEBUG_STATE__.electronHome[key] = value;
+      }
+
+      function captureStaticWorkspaceSections() {
+        return Array.from(document.querySelectorAll("section.panel")).map(
+          (panel, panelIndex) => ({
+            panel,
+            title: panel.querySelector("h2")?.textContent?.trim() || "Section",
+            hint:
+              panel.querySelector(".section-hint")?.textContent?.trim() || "",
+            order: panelIndex,
+            links: Array.from(panel.querySelectorAll("a.module-link")).map(
+              (anchor, linkIndex) => ({
+                moduleKey: normalizeModuleKey(anchor.dataset.moduleId || ""),
+                label: (anchor.textContent || anchor.innerText || "").trim(),
+                href: anchor.getAttribute("href") || "#",
+                order: linkIndex,
+                title: anchor.getAttribute("title") || "",
+                placeholder:
+                  anchor.getAttribute("aria-disabled") === "true" &&
+                  (anchor.dataset.href || "") === "" &&
+                  (anchor.getAttribute("href") || "") === "#",
+              }),
+            ),
+          }),
+        );
+      }
+
+      function buildWorkspaceSections(staticSections, registryRows) {
+        const sections = new Map();
+        const staticByModule = new Map();
+        const renderedKeys = new Set();
+
+        staticSections.forEach((section) => {
+          sections.set(section.title, {
+            title: section.title,
+            hint: section.hint,
+            order: section.order,
+            items: [],
+          });
+
+          section.links.forEach((link) => {
+            staticByModule.set(link.moduleKey, {
+              ...link,
+              sectionTitle: section.title,
+              sectionHint: section.hint,
+              sectionOrder: section.order,
+            });
+          });
+        });
+
+        registryRows.forEach((row, index) => {
+          const fallback = staticByModule.get(row.moduleKey);
+          const sectionTitle = row.sectionLabel || fallback?.sectionTitle || "Other";
+          if (!sections.has(sectionTitle)) {
+            sections.set(sectionTitle, {
+              title: sectionTitle,
+              hint: fallback?.sectionHint || "",
+              order: fallback?.sectionOrder ?? staticSections.length + sections.size,
+              items: [],
+            });
+          }
+
+          sections.get(sectionTitle).items.push({
+            moduleKey: row.moduleKey,
+            label: row.label || fallback?.label || row.moduleKey,
+            routePath: row.routePath || fallback?.href || "#",
+            order: Number.isFinite(Number(row.sortOrder))
+              ? Number(row.sortOrder)
+              : fallback?.order ?? index,
+            minNavMode: row.minNavMode || "view",
+            placeholder: false,
+            title: "",
+          });
+          renderedKeys.add(row.moduleKey);
+        });
+
+        staticSections.forEach((section) => {
+          const bucket = sections.get(section.title);
+          section.links.forEach((link) => {
+            if (renderedKeys.has(link.moduleKey) && !link.placeholder) return;
+            bucket.items.push({
+              moduleKey: link.moduleKey,
+              label: link.label,
+              routePath: link.href,
+              order: link.order,
+              minNavMode: "view",
+              placeholder: link.placeholder,
+              title: link.title,
+            });
+          });
+        });
+
+        return Array.from(sections.values())
+          .sort((left, right) => left.order - right.order)
+          .map((section) => ({
+            ...section,
+            items: section.items.sort((left, right) => {
+              if (left.order !== right.order) return left.order - right.order;
+              return left.label.localeCompare(right.label);
+            }),
+          }));
+      }
+
+      function renderWorkspaceSections(staticSections, sections) {
+        const insertionPoint = document.querySelector("body > script");
+        sections.forEach((section, index) => {
+          let panel = staticSections[index]?.panel;
+          if (!panel) {
+            panel = document.createElement("section");
+            panel.className = "panel";
+            panel.innerHTML =
+              '<h2></h2><p class="section-hint"></p><div class="module-list"></div>';
+            document.body.insertBefore(panel, insertionPoint);
+          }
+
+          const heading = panel.querySelector("h2");
+          const hint = panel.querySelector(".section-hint");
+          const list = panel.querySelector(".module-list");
+          if (heading) heading.textContent = section.title;
+          if (hint) hint.textContent = section.hint || "";
+          if (list) {
+            list.innerHTML = section.items
+              .map((item) => {
+                const href = item.placeholder ? "#" : item.routePath || "#";
+                const attrs = [
+                  'class="module-link"',
+                  `data-module-id="${escapeHtml(item.moduleKey)}"`,
+                  `data-min-nav-mode="${escapeHtml(item.minNavMode || "view")}"`,
+                  `data-placeholder="${item.placeholder ? "true" : "false"}"`,
+                ];
+                if (!item.placeholder) {
+                  attrs.push(`data-href="${escapeHtml(item.routePath || "#")}"`);
+                }
+                if (item.placeholder) {
+                  attrs.push('aria-disabled="true"');
+                  if (item.title) {
+                    attrs.push(`title="${escapeHtml(item.title)}"`);
+                  }
+                }
+                return `<a ${attrs.join(" ")} href="${escapeHtml(href)}">${escapeHtml(item.label)}</a>`;
+              })
+              .join("");
+          }
+          panel.style.display = "";
+        });
+
+        staticSections.slice(sections.length).forEach(({ panel }) => {
+          panel.style.display = "none";
+        });
+      }
+
+      async function renderRegistryWorkspaceMenu() {
+        const registryRows = await loadClientModuleRegistry("electron");
+        if (!registryRows.length) return false;
+
+        const staticSections = captureStaticWorkspaceSections();
+        const sections = buildWorkspaceSections(staticSections, registryRows);
+        renderWorkspaceSections(staticSections, sections);
+        setElectronDebugState("registrySections", sections);
+        electronDebug("renderRegistryWorkspaceMenu", {
+          registryCount: registryRows.length,
+          sectionCount: sections.length,
+          sections: sections.map((section) => ({
+            title: section.title,
+            itemCount: section.items.length,
+            items: section.items.map((item) => ({
+              moduleKey: item.moduleKey,
+              label: item.label,
+              routePath: item.routePath,
+              placeholder: !!item.placeholder,
+              minNavMode: item.minNavMode,
+            })),
+          })),
+        });
+        return true;
+      }
 
       async function initApp() {
         try {
@@ -860,23 +1050,29 @@
             data: { user },
           } = await supabase.auth.getUser();
 
-          // presence constants
+          electronDebug("initApp:start", {
+            userId: user?.id || null,
+            email: user?.email || null,
+            debugEnabled: ELECTRON_DEBUG_ENABLED,
+          });
+
           const PRESENCE_REFRESH_MS = 20_000;
           const ONLINE_THRESHOLD_MS = 60_000;
 
-          async function sendHeartbeat(u) {
+          async function sendHeartbeat(actor) {
             await supabase.from("user_presence").upsert(
               {
-                user_id: u.id,
-                email: u.email,
+                user_id: actor.id,
+                email: actor.email,
                 last_seen: new Date().toISOString(),
               },
-              { onConflict: "user_id" }
+              { onConflict: "user_id" },
             );
           }
+
           async function getOnlineUsers() {
             const cutoff = new Date(
-              Date.now() - ONLINE_THRESHOLD_MS
+              Date.now() - ONLINE_THRESHOLD_MS,
             ).toISOString();
             const { data: users, error } = await supabase
               .from("user_presence")
@@ -890,13 +1086,15 @@
             return users || [];
           }
 
-          function colorFromString(str) {
+          function colorFromString(value) {
             let hash = 0;
-            for (let i = 0; i < str.length; i++)
-              hash = str.charCodeAt(i) + ((hash << 5) - hash);
+            for (let index = 0; index < value.length; index += 1) {
+              hash = value.charCodeAt(index) + ((hash << 5) - hash);
+            }
             const hue = Math.abs(hash) % 360;
             return `hsl(${hue}, 65%, 60%)`;
           }
+
           function initialsFromEmail(email) {
             const name = email.split("@")[0];
             const parts = name.split(/[._-]/).filter(Boolean);
@@ -904,18 +1102,22 @@
               parts.length >= 2 ? parts[0][0] + parts[1][0] : name.slice(0, 2)
             ).toUpperCase();
           }
+
           function renderOnlineBubbles(users) {
             const container = document.getElementById("onlineUsersContainer");
             if (!container) return;
             container.innerHTML = "";
-            users.forEach((u) => {
+            users.forEach((onlineUser) => {
               const bubble = document.createElement("div");
               bubble.className = "online-bubble";
-              bubble.textContent = initialsFromEmail(u.email);
-              bubble.style.setProperty("--bubble-bg", colorFromString(u.email));
+              bubble.textContent = initialsFromEmail(onlineUser.email);
+              bubble.style.setProperty(
+                "--bubble-bg",
+                colorFromString(onlineUser.email),
+              );
               const tooltip = document.createElement("div");
               tooltip.className = "tooltip";
-              tooltip.textContent = u.email;
+              tooltip.textContent = onlineUser.email;
               bubble.appendChild(tooltip);
               bubble.addEventListener("mouseenter", () => fitTooltip(tooltip));
               bubble.addEventListener("focus", () => fitTooltip(tooltip));
@@ -923,6 +1125,7 @@
               fitTooltip(tooltip);
             });
           }
+
           function fitTooltip(tooltip) {
             const rect = tooltip.getBoundingClientRect();
             const gap = 6;
@@ -941,35 +1144,46 @@
           if (!userInfoEl || !logoutEl) return;
           userInfoEl.textContent = `Logged in as ${user.email}`;
 
-          // presence: startup & polling
           await sendHeartbeat(user);
           setInterval(() => sendHeartbeat(user), PRESENCE_REFRESH_MS);
+
           async function refreshOnlineDisplay() {
             const onlineUsers = await getOnlineUsers();
             renderOnlineBubbles(onlineUsers);
           }
+
           refreshOnlineDisplay();
           setInterval(refreshOnlineDisplay, 30_000);
 
-          // cleanup on window close (best effort)
           window.addEventListener("beforeunload", () => {
             supabase.from("user_presence").delete().eq("user_id", user.id);
           });
 
-          // logout: ensure presence deletion first
           logoutEl.replaceWith(logoutEl.cloneNode(true));
           const freshLogoutEl = document.getElementById("logoutLink");
-          freshLogoutEl.addEventListener("click", async (e) => {
-            e.preventDefault();
-            await supabase
-              .from("user_presence")
-              .delete()
-              .eq("user_id", user.id);
+          freshLogoutEl.addEventListener("click", async (event) => {
+            event.preventDefault();
+            await supabase.from("user_presence").delete().eq("user_id", user.id);
             await supabase.auth.signOut();
             window.location.href = "login.html";
           });
 
-          // permissions (use canonical RPC)
+          try {
+            const usedRegistryMenu = await renderRegistryWorkspaceMenu();
+            setElectronDebugState("usedRegistryMenu", usedRegistryMenu);
+            electronDebug("initApp:menu-source", {
+              usedRegistryMenu,
+            });
+          } catch (registryError) {
+            console.warn("Registry menu fallback", registryError);
+            electronDebug("initApp:menu-registry-error", {
+              message: registryError.message,
+              details: registryError.details || null,
+              hint: registryError.hint || null,
+              code: registryError.code || null,
+            });
+          }
+
           try {
             const { data: perms, error: permsErr } = await supabase.rpc(
               "get_user_permissions",
@@ -977,73 +1191,98 @@
             );
 
             if (permsErr || !Array.isArray(perms)) {
-              console.warn("get_user_permissions failed or returned unexpected data", permsErr || perms);
-              // RPC unavailable: show only placeholders (coming-soon) and hide real modules
-              document.querySelectorAll("a.module-link").forEach((a) => {
-                if (a.getAttribute("aria-disabled") === "true") a.style.display = "inline-block";
-                else a.style.display = "none";
+              console.warn(
+                "get_user_permissions failed or returned unexpected data",
+                permsErr || perms,
+              );
+              document.querySelectorAll("a.module-link").forEach((anchor) => {
+                const isPlaceholder =
+                  anchor.dataset.placeholder === "true" ||
+                  (anchor.getAttribute("aria-disabled") === "true" &&
+                    !anchor.dataset.href);
+                anchor.style.display = isPlaceholder ? "inline-block" : "none";
               });
             } else {
-              const permMap = {};
-              (perms || []).forEach((p) => {
-                if (!p || !p.target) return;
-                const t = String(p.target || "");
-                let slug = null;
-                if (t.startsWith("module:")) slug = t.slice(7);
-                else if (t.startsWith("role:")) slug = t.slice(5);
-                if (!slug) return;
-                if (!permMap[slug]) permMap[slug] = { view: false, edit: false };
-                permMap[slug].view = permMap[slug].view || !!p.can_view;
-                permMap[slug].edit = permMap[slug].edit || !!p.can_edit;
-              });
+              const permissionMap = buildPermissionMap(perms);
+              const moduleDecisions = [];
+              document.querySelectorAll("a.module-link").forEach((anchor) => {
+                const moduleKey = normalizeModuleKey(anchor.dataset.moduleId || "");
+                const minNavMode =
+                  String(anchor.dataset.minNavMode || "view").toLowerCase() ||
+                  "view";
+                const accessLevel = getModuleAccessLevel(
+                  { moduleKey, minNavMode },
+                  permissionMap,
+                );
+                const isPlaceholder =
+                  anchor.dataset.placeholder === "true" ||
+                  (anchor.getAttribute("aria-disabled") === "true" &&
+                    !anchor.dataset.href);
 
-              // Apply permissions to module tiles
-              document.querySelectorAll("a.module-link").forEach((a) => {
-                const isPlaceholder = a.getAttribute("aria-disabled") === "true";
-                const id = a.dataset.moduleId || "";
-                const perm = permMap[id];
+                moduleDecisions.push({
+                  moduleKey,
+                  label: (anchor.textContent || "").trim(),
+                  accessLevel,
+                  minNavMode,
+                  placeholder: isPlaceholder,
+                  routePath:
+                    anchor.dataset.href || anchor.getAttribute("href") || "#",
+                });
 
-                if (!perm || (!perm.view && !perm.edit)) {
-                  // hide modules without permission; keep placeholders visible
-                  if (!isPlaceholder) a.style.display = "none";
-                  else a.style.display = "inline-block";
+                if (accessLevel === "none") {
+                  anchor.style.display = isPlaceholder ? "inline-block" : "none";
                   return;
                 }
 
-                // user has some access — show tile
-                a.style.display = "inline-block";
-                if (isPlaceholder) return; // do not override coming-soon placeholders
+                anchor.style.display = "inline-block";
+                if (isPlaceholder) return;
 
-                if (perm.edit === true) {
-                  // full use
-                  a.classList.remove("locked-module");
-                  a.removeAttribute("aria-disabled");
-                  a.title = "";
-                  if (a.dataset.href) a.setAttribute("href", a.dataset.href);
+                if (accessLevel === "use") {
+                  anchor.classList.remove("locked-module");
+                  anchor.removeAttribute("aria-disabled");
+                  anchor.title = "";
+                  if (anchor.dataset.href) {
+                    anchor.setAttribute("href", anchor.dataset.href);
+                  }
                 } else {
-                  // view-only
-                  if (!a.dataset.href) a.dataset.href = a.getAttribute("href") || "";
-                  a.setAttribute("href", "#");
-                  a.setAttribute("aria-disabled", "true");
-                  a.classList.add("locked-module");
-                  a.title = "View-only access (not enabled for use)";
+                  if (!anchor.dataset.href) {
+                    anchor.dataset.href = anchor.getAttribute("href") || "";
+                  }
+                  anchor.setAttribute("href", "#");
+                  anchor.setAttribute("aria-disabled", "true");
+                  anchor.classList.add("locked-module");
+                  anchor.title = "View-only access (not enabled for use)";
                 }
               });
 
-              // Click guard: prevent navigation for locked tiles
+              setElectronDebugState("permissionMap", permissionMap);
+              setElectronDebugState("moduleDecisions", moduleDecisions);
+              electronDebug("initApp:permissions-applied", {
+                permissionTargets: perms.map((perm) => ({
+                  target: perm.target,
+                  canView: !!perm.can_view,
+                  canEdit: !!perm.can_edit,
+                })),
+                moduleDecisions,
+              });
+
               if (!window.__moduleClickGuard) {
                 document.addEventListener(
                   "click",
-                  (e) => {
-                    const link = e.target.closest && e.target.closest("a.module-link");
+                  (event) => {
+                    const link =
+                      event.target.closest &&
+                      event.target.closest("a.module-link");
                     if (!link) return;
                     if (
                       link.getAttribute("aria-disabled") === "true" &&
                       link.classList.contains("locked-module")
                     ) {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      alert("This module is view-only for your account. Contact admin for full access.");
+                      event.preventDefault();
+                      event.stopPropagation();
+                      alert(
+                        "This module is view-only for your account. Contact admin for full access.",
+                      );
                     }
                   },
                   true,
@@ -1053,10 +1292,12 @@
             }
           } catch (e) {
             console.warn("Permission fetch error", e);
-            // On unexpected error: show placeholders only
-            document.querySelectorAll("a.module-link").forEach((a) => {
-              if (a.getAttribute("aria-disabled") === "true") a.style.display = "inline-block";
-              else a.style.display = "none";
+            document.querySelectorAll("a.module-link").forEach((anchor) => {
+              const isPlaceholder =
+                anchor.dataset.placeholder === "true" ||
+                (anchor.getAttribute("aria-disabled") === "true" &&
+                  !anchor.dataset.href);
+              anchor.style.display = isPlaceholder ? "inline-block" : "none";
             });
           }
         } catch (err) {

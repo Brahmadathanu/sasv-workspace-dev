@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -25,8 +25,9 @@
       body {
         background: var(--erp-bg);
         color: var(--erp-text);
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-          Oxygen, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
+          Cantarell, "Helvetica Neue", Arial, sans-serif;
       }
       /* Typography tweaks to improve legibility (align with stock-checker) */
       body {
@@ -247,7 +248,9 @@
         z-index: 1500; /* ensure backdrop covers entire viewport above page content */
         opacity: 0;
         visibility: hidden;
-        transition: opacity 0.22s ease, visibility 0s linear 0.22s;
+        transition:
+          opacity 0.22s ease,
+          visibility 0s linear 0.22s;
         pointer-events: none;
       }
       .drawer-backdrop.show {
@@ -430,7 +433,9 @@
           max-height: 76px;
           overflow: hidden;
           padding: 10px;
-          transition: max-height 0.28s ease, padding 0.18s ease;
+          transition:
+            max-height 0.28s ease,
+            padding 0.18s ease;
         }
         .filters-card.expanded {
           max-height: 640px; /* allow full expansion when user opens */
@@ -666,7 +671,9 @@
       .advanced-drawer {
         overflow: hidden;
         max-height: 0;
-        transition: max-height 0.28s ease, padding 0.18s ease;
+        transition:
+          max-height 0.28s ease,
+          padding 0.18s ease;
         padding-top: 0;
       }
       .advanced-drawer.open {
@@ -822,20 +829,21 @@
       .filters-grid select:focus {
         outline: none;
         border-color: var(--erp-accent);
-        box-shadow: 0 6px 18px rgba(37, 99, 235, 0.08),
+        box-shadow:
+          0 6px 18px rgba(37, 99, 235, 0.08),
           0 0 0 3px rgba(37, 99, 235, 0.06);
       }
       /* Small chevron indicator for selects */
       .filters-grid select {
-        background-image: linear-gradient(
-            45deg,
-            transparent 50%,
-            var(--erp-text) 50%
-          ),
+        background-image:
+          linear-gradient(45deg, transparent 50%, var(--erp-text) 50%),
           linear-gradient(135deg, var(--erp-text) 50%, transparent 50%);
-        background-position: calc(100% - 14px) calc(1em + 2px),
+        background-position:
+          calc(100% - 14px) calc(1em + 2px),
           calc(100% - 10px) calc(1em + 2px);
-        background-size: 6px 6px, 6px 6px;
+        background-size:
+          6px 6px,
+          6px 6px;
         background-repeat: no-repeat;
       }
       .tab-bar {
@@ -959,6 +967,7 @@
         align-items: stretch;
       }
       .table-card {
+        position: relative; /* needed for card-level busy overlay */
         display: flex;
         flex-direction: column;
         gap: 10px;
@@ -1453,6 +1462,38 @@
           transform: rotate(360deg);
         }
       }
+      /* Card-level busy overlay (inside table-card, not full-page) */
+      .table-card-overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.75);
+        z-index: 20;
+        border-radius: 10px;
+      }
+      .tco-box {
+        display: inline-flex;
+        gap: 10px;
+        align-items: center;
+        padding: 10px 16px;
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+        font-weight: 600;
+        font-size: 13px;
+        color: var(--erp-text);
+      }
+      .tco-spinner {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        border: 3px solid rgba(15, 23, 42, 0.08);
+        border-top-color: var(--erp-accent, #2563eb);
+        animation: spex-spin 0.8s linear infinite;
+        flex: 0 0 20px;
+      }
       @media (max-width: 1024px) {
         .filters-grid {
           grid-template-columns: repeat(2, minmax(200px, 1fr));
@@ -1814,6 +1855,19 @@
 
       <section class="content">
         <div class="card table-card">
+          <!-- Card-level busy overlay, shown while tab data is loading -->
+          <div
+            id="tableCardBusy"
+            class="table-card-overlay"
+            style="display: none"
+            aria-live="polite"
+            aria-busy="true"
+          >
+            <div class="tco-box">
+              <div class="tco-spinner" aria-hidden="true"></div>
+              <span class="tco-msg">Loading…</span>
+            </div>
+          </div>
           <div class="tab-bar">
             <div class="tab-buttons">
               <button class="tab-btn active" data-tab="overview">

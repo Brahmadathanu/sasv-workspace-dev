@@ -1,0 +1,1637 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Procurement Execution Console</title>
+    <link rel="stylesheet" href="css/style.css" />
+
+    <style>
+      .page-header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+      .page-sub {
+        color: var(--muted, #6b7280);
+        font-size: 0.95rem;
+      }
+      #homeBtn .home-label {
+        display: inline;
+      }
+      @media (max-width: 520px) {
+        #homeBtn .home-label {
+          display: none;
+        }
+        #homeBtn svg {
+          margin-right: 0;
+        }
+        #homeBtn {
+          padding-left: 8px;
+          padding-right: 8px;
+        }
+      }
+      /* ERP-style tab strip */
+      .tabs {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 0;
+        margin: 0 0 16px;
+        border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+        background: rgba(0, 0, 0, 0.02);
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+      .tabs::-webkit-scrollbar {
+        display: none;
+      }
+      .tab-btn {
+        flex-shrink: 0;
+        border: none;
+        border-bottom: 3px solid transparent;
+        background: transparent;
+        padding: 10px 20px 9px;
+        cursor: pointer;
+        color: rgba(0, 0, 0, 0.55);
+        letter-spacing: 0.01em;
+        white-space: normal;
+        text-align: left;
+        margin-bottom: -2px;
+        transition:
+          color 0.15s,
+          border-color 0.15s,
+          background 0.15s;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+      }
+      .tab-title {
+        font-size: 13px;
+        font-weight: 600;
+        line-height: 1.2;
+      }
+      .tab-sub {
+        font-size: 10px;
+        font-weight: 400;
+        opacity: 0.65;
+        line-height: 1.2;
+      }
+      .tab-btn:hover {
+        color: rgba(0, 0, 0, 0.85);
+        background: rgba(10, 100, 200, 0.05);
+      }
+      .tab-btn.active {
+        color: #0a64c8;
+        font-weight: 700;
+        border-bottom-color: #0a64c8;
+        background: transparent;
+      }
+      .tab-panel {
+        display: none;
+      }
+      .tab-panel.active {
+        display: block;
+      }
+
+      .toolbar {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin: 10px 0 14px;
+      }
+      .toolbar input,
+      .toolbar select {
+        padding: 8px 10px;
+        border: 1px solid rgba(0, 0, 0, 0.12);
+        border-radius: 10px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        padding: 8px 10px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+        vertical-align: top;
+      }
+      th {
+        text-align: left;
+        font-weight: 600;
+      }
+      .muted {
+        opacity: 0.7;
+      }
+      .pill {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 999px;
+        border: 1px solid rgba(0, 0, 0, 0.12);
+        font-size: 12px;
+      }
+      .row-actions button {
+        margin-right: 6px;
+        padding: 6px 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(0, 0, 0, 0.12);
+        background: transparent;
+        cursor: pointer;
+      }
+
+      .split {
+        display: grid;
+        grid-template-columns: 1.4fr 1fr;
+        gap: 12px;
+      }
+      @media (max-width: 1100px) {
+        .split {
+          grid-template-columns: 1fr;
+        }
+      }
+      .card {
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 14px;
+        padding: 12px;
+      }
+      pre.json {
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-size: 12px;
+        background: rgba(0, 0, 0, 0.04);
+        padding: 10px;
+        border-radius: 10px;
+        overflow: auto;
+        max-height: 320px;
+      }
+
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        z-index: 9999;
+      }
+      .modal-backdrop.show {
+        display: flex;
+      }
+      .modal {
+        width: 100%;
+        max-width: 720px;
+        background: var(--panel-bg, #fff);
+        border-radius: 16px;
+        padding: 14px;
+        border: 1px solid rgba(0, 0, 0, 0.14);
+        display: flex;
+        flex-direction: column;
+        max-height: calc(100vh - 60px);
+      }
+      .modal-header {
+        position: sticky;
+        top: 0;
+        background: var(--panel-bg, #fff);
+        z-index: 2;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+        flex-shrink: 0;
+      }
+      .modal-body {
+        overflow: auto;
+        padding-top: 10px;
+        flex: 1;
+      }
+      .modal h3 {
+        margin: 0 0 10px;
+      }
+      .modal .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .modal label {
+        font-size: 12px;
+        opacity: 0.8;
+      }
+      .modal input,
+      .modal select,
+      .modal textarea {
+        width: 100%;
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(0, 0, 0, 0.12);
+      }
+      .modal textarea {
+        min-height: 80px;
+      }
+      .modal .actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 12px;
+        flex-shrink: 0;
+      }
+      .kv-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .kv-table td {
+        padding: 6px 8px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+        vertical-align: top;
+      }
+      .kv-table td.key {
+        width: 220px;
+        opacity: 0.75;
+      }
+      .section-title {
+        margin: 12px 0 6px;
+        font-weight: 600;
+      }
+
+      /* Tab counts */
+      .tab-count {
+        display: inline-block;
+        background: rgba(10, 100, 200, 0.18);
+        color: #0a64c8;
+        border-radius: 999px;
+        padding: 1px 7px;
+        font-size: 11px;
+        font-weight: 700;
+        min-width: 20px;
+        text-align: center;
+        vertical-align: middle;
+        margin-left: 5px;
+      }
+      .tab-count:empty {
+        display: none;
+      }
+      .tab-btn.active .tab-count {
+        background: rgba(10, 100, 200, 0.15);
+      }
+
+      /* PR form grid */
+      .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .form-grid .full-col {
+        grid-column: 1 / -1;
+      }
+      .form-group label {
+        display: block;
+        font-size: 12px;
+        opacity: 0.8;
+        margin-bottom: 3px;
+      }
+      .form-group input,
+      .form-group select,
+      .form-group textarea {
+        width: 100%;
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(0, 0, 0, 0.12);
+        box-sizing: border-box;
+      }
+
+      /* Locked row style */
+      tr.locked-row td {
+        opacity: 0.55;
+      }
+    </style>
+  </head>
+
+  <body data-theme="system">
+    <div
+      style="
+        border: 1px solid var(--border);
+        padding: 12px 16px;
+        border-radius: 8px;
+        background: var(--panel-bg);
+        margin-bottom: 16px;
+      "
+    >
+      <div class="page-header" style="align-items: flex-start">
+        <div>
+          <h1 style="margin: 0">Procurement Execution Console</h1>
+          <div class="page-sub">
+            Operational cockpit for procurement execution: priorities, vendor
+            decisions, FIFO allocation, and overshoot control.
+          </div>
+        </div>
+        <div style="text-align: right">
+          <button id="homeBtn" type="button" title="Home" aria-label="Home">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9,22 9,12 15,12 15,22" />
+            </svg>
+            <span class="home-label">HOME</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <section class="panel" id="mainPanel">
+      <div class="tabs" role="tablist" aria-label="Procurement tabs">
+        <button class="tab-btn" data-tab="pr">
+          <div class="tab-title">
+            PR Workbench <span class="tab-count" id="tabCountPr"></span>
+          </div>
+          <div class="tab-sub">MRP-sourced draft → active</div>
+        </button>
+        <button class="tab-btn active" data-tab="action">
+          <div class="tab-title">
+            Action Queue <span class="tab-count" id="tabCountAction"></span>
+          </div>
+          <div class="tab-sub">Priority-ranked sourcing actions</div>
+        </button>
+        <button class="tab-btn" data-tab="indents">
+          <div class="tab-title">
+            Indents <span class="tab-count" id="tabCountIndents"></span>
+          </div>
+          <div class="tab-sub">Draft → Approved → Issued → Closed</div>
+        </button>
+        <button class="tab-btn" data-tab="excess">
+          <div class="tab-title">
+            Excess &amp; Overshoot
+            <span class="tab-count" id="tabCountExcess"></span>
+          </div>
+          <div class="tab-sub">FIFO allocation &amp; acceptance</div>
+        </button>
+        <button class="tab-btn" data-tab="vendors">
+          <div class="tab-title">
+            Vendor Mapping <span class="tab-count" id="tabCountVendors"></span>
+          </div>
+          <div class="tab-sub">Resolve unmatched ERP aliases</div>
+        </button>
+      </div>
+
+      <!-- PR WORKBENCH -->
+      <div class="tab-panel" id="tab-pr">
+        <div class="toolbar">
+          <select id="prFilterStatus">
+            <option value="">All Statuses</option>
+            <option value="draft">Draft</option>
+            <option value="active">Active</option>
+            <option value="closed">Closed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+          <select id="prFilterClass">
+            <option value="">All Classes</option>
+            <option value="1">RM</option>
+            <option value="2">PLM</option>
+            <option value="5">IND</option>
+          </select>
+          <input id="prSearch" placeholder="Search PR number…" />
+          <button id="prBtnRefresh">Refresh</button>
+          <button id="btnGeneratePr">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+              style="vertical-align: -2px; margin-right: 4px"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" /></svg
+            >Generate Draft PR
+          </button>
+        </div>
+
+        <div class="card">
+          <div class="page-header">
+            <h2 style="margin: 0">Purchase Requisitions</h2>
+            <div class="muted" id="prMeta"></div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>PR Number</th>
+                <th>Status</th>
+                <th>Eff. From</th>
+                <th>Horizon</th>
+                <th>Class</th>
+                <th>Lines</th>
+              </tr>
+            </thead>
+            <tbody id="prTbody"></tbody>
+          </table>
+          <div class="toolbar" style="justify-content: space-between">
+            <div class="muted" id="prPaging"></div>
+            <div>
+              <button id="prBtnPrev">Prev</button>
+              <button id="prBtnNext">Next</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ACTION QUEUE -->
+      <div class="tab-panel active" id="tab-action">
+        <div class="toolbar">
+          <select id="fBand">
+            <option value="">All Bands</option>
+            <option value="P1">P1</option>
+            <option value="P2">P2</option>
+            <option value="P3">P3</option>
+          </select>
+
+          <select id="fClass">
+            <option value="">All Classes</option>
+            <option value="1">RM</option>
+            <option value="2">PLM</option>
+            <option value="5">IND</option>
+          </select>
+
+          <input id="fSearch" placeholder="Search item / indent / vendor…" />
+
+          <select id="fNeeds">
+            <option value="">All</option>
+            <option value="needs_vendor">Needs vendor candidates</option>
+            <option value="needs_selection">Needs vendor selection</option>
+            <option value="has_excess">Has net excess</option>
+          </select>
+
+          <button id="btnRefresh">Refresh</button>
+        </div>
+
+        <div class="split">
+          <div class="card">
+            <div class="page-header">
+              <h2 style="margin: 0">Lines</h2>
+              <div class="muted" id="aqMeta"></div>
+            </div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>Indent</th>
+                  <th>Item</th>
+                  <th>Remaining</th>
+                  <th>Priority</th>
+                  <th>L1 Vendor</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="aqTbody"></tbody>
+            </table>
+
+            <div class="toolbar" style="justify-content: space-between">
+              <div class="muted" id="aqPaging"></div>
+              <div>
+                <button id="btnPrev">Prev</button>
+                <button id="btnNext">Next</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 style="margin: 0 0 10px">Details</h2>
+            <div class="muted">
+              Click any row to view priority evidence &amp; decision.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- INDENTS -->
+      <div class="tab-panel" id="tab-indents">
+        <div class="toolbar">
+          <select id="iStatus">
+            <option value="">All Statuses</option>
+            <option value="draft">Draft</option>
+            <option value="approved">Approved</option>
+            <option value="issued">Issued</option>
+            <option value="closed">Closed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+          <select id="iClass">
+            <option value="">All Classes</option>
+            <option value="1">RM</option>
+            <option value="2">PLM</option>
+            <option value="5">IND</option>
+          </select>
+          <input id="iSearch" placeholder="Search indent number…" />
+          <button id="iBtnRefresh">Refresh</button>
+          <button id="iBtnNewDraft">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+              style="vertical-align: -2px; margin-right: 4px"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" /></svg
+            >New Indent
+          </button>
+          <button id="iBtnFromPR">Create from PR</button>
+        </div>
+        <div class="card">
+          <div class="page-header">
+            <h2 style="margin: 0">Indents</h2>
+            <div class="muted" id="iMeta"></div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Indent #</th>
+                <th>Approved Date</th>
+                <th>Status</th>
+                <th>Class</th>
+                <th>Lines</th>
+              </tr>
+            </thead>
+            <tbody id="iTbody"></tbody>
+          </table>
+          <div class="toolbar" style="justify-content: space-between">
+            <div class="muted" id="iPaging"></div>
+            <div>
+              <button id="iBtnPrev">Prev</button>
+              <button id="iBtnNext">Next</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EXCESS -->
+      <div class="tab-panel" id="tab-excess">
+        <div class="toolbar">
+          <input id="eSearch" placeholder="Search item…" />
+          <button id="eBtnRefresh">Refresh</button>
+        </div>
+        <div class="card" style="margin-bottom: 12px">
+          <div class="page-header">
+            <h2 style="margin: 0">Excess Purchases</h2>
+            <div class="muted" id="eMeta"></div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Voucher</th>
+                <th>Item</th>
+                <th>Class</th>
+                <th>Purchase Qty</th>
+                <th>Allocated</th>
+                <th>Unallocated</th>
+                <th>Accepted</th>
+                <th>Net Unalloc</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="eTbody"></tbody>
+          </table>
+          <div class="toolbar" style="justify-content: space-between">
+            <div class="muted" id="ePaging"></div>
+            <div>
+              <button id="eBtnPrev">Prev</button>
+              <button id="eBtnNext">Next</button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <h2 style="margin: 0 0 10px">Acceptance Audit</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Item</th>
+                <th>Accepted Qty</th>
+                <th>Reason</th>
+                <th>By</th>
+              </tr>
+            </thead>
+            <tbody id="eAuditTbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- VENDORS -->
+      <div class="tab-panel" id="tab-vendors">
+        <div class="toolbar">
+          <input id="vSearch" placeholder="Search alias…" />
+          <button id="vBtnRefresh">Refresh</button>
+          <a
+            id="linkVendorMaster"
+            href="#"
+            style="
+              margin-left: auto;
+              font-size: 12px;
+              color: #0a64c8;
+              text-decoration: none;
+              padding: 6px 10px;
+              border-radius: 8px;
+              border: 1px solid rgba(10, 100, 200, 0.3);
+            "
+            title="Vendor master management (coming soon)"
+            onclick="
+              event.preventDefault();
+              alert('Vendor Master page not yet available.');
+            "
+          >
+            View Vendor Master &#8599;
+          </a>
+        </div>
+        <div class="card">
+          <div class="page-header">
+            <h2 style="margin: 0">Unmapped Vendor Aliases</h2>
+            <div class="muted" id="vMeta"></div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Alias</th>
+                <th>Source</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="vTbody"></tbody>
+          </table>
+          <div class="toolbar" style="justify-content: space-between">
+            <div class="muted" id="vPaging"></div>
+            <div>
+              <button id="vBtnPrev">Prev</button>
+              <button id="vBtnNext">Next</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Indent View modal -->
+    <div class="modal-backdrop" id="indentViewModalBackdrop" aria-hidden="true">
+      <div class="modal" style="max-width: 1100px">
+        <div class="modal-header page-header">
+          <div>
+            <h3
+              style="margin: 0; display: flex; align-items: center; gap: 10px"
+            >
+              <span id="iLinesTitle">Lines</span>
+              <span class="pill" id="indentViewStatus"></span>
+            </h3>
+            <div
+              class="muted"
+              id="indentViewMeta"
+              style="font-size: 12px; margin-top: 4px"
+            ></div>
+          </div>
+          <button
+            id="btnIndentViewClose"
+            style="
+              background: transparent;
+              border: none;
+              cursor: pointer;
+              font-size: 22px;
+              line-height: 1;
+            "
+          >
+            &times;
+          </button>
+        </div>
+        <div class="modal-body">
+          <div
+            style="
+              display: flex;
+              gap: 6px;
+              flex-wrap: wrap;
+              align-items: center;
+              margin-bottom: 16px;
+              padding-bottom: 14px;
+              border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+            "
+          >
+            <div
+              id="iLinesActions"
+              style="display: flex; gap: 6px; flex-wrap: wrap"
+            >
+              <button id="iBtnAddLine">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                  style="vertical-align: -2px; margin-right: 4px"
+                >
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" /></svg
+                >Add Line
+              </button>
+              <button id="iBtnEditLineQty" disabled>Edit Qty</button>
+              <button id="iBtnExportIndent">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                  style="vertical-align: -2px; margin-right: 4px"
+                >
+                  <path
+                    d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                  />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" /></svg
+                >Export PR Form
+              </button>
+            </div>
+            <div
+              id="indentViewHint"
+              class="muted"
+              style="font-size: 12px; margin-left: auto"
+            ></div>
+          </div>
+          <div id="iLinesEmpty" class="muted">No lines for this indent.</div>
+          <table id="iLinesTable" style="display: none">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Item</th>
+                <th>Class</th>
+                <th>UOM</th>
+                <th>Requested</th>
+                <th>Allocated</th>
+                <th>Remaining</th>
+                <th>Rec. Vendor</th>
+                <th>Rec. Rate</th>
+                <th>Sel. Vendor</th>
+                <th>Sel. Rate</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="iLinesTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detail modal -->
+    <div class="modal-backdrop" id="detailModalBackdrop" aria-hidden="true">
+      <div class="modal" style="max-width: 760px">
+        <div class="modal-header page-header">
+          <h3 style="margin: 0" id="detailModalTitle"></h3>
+          <button
+            id="btnDetailClose"
+            style="
+              background: transparent;
+              border: none;
+              cursor: pointer;
+              font-size: 20px;
+              line-height: 1;
+            "
+          >
+            &times;
+          </button>
+        </div>
+        <div class="modal-body" id="detailModalBody">
+          <div
+            style="margin: 8px 0 12px; display: flex; gap: 8px; flex-wrap: wrap"
+          >
+            <span class="pill" id="detailBand"></span>
+            <span class="pill" id="detailMos"></span>
+            <span class="pill" id="detailLead"></span>
+          </div>
+
+          <div class="section-title">Summary</div>
+          <div id="detailSummary"></div>
+
+          <div class="section-title">Priority Factors</div>
+          <div id="detailPriority"></div>
+
+          <div class="section-title">Vendor Decision</div>
+          <div id="detailVendor"></div>
+
+          <div class="section-title">Vendor Evidence (L1)</div>
+          <div id="detailEvidenceList"></div>
+        </div>
+        <div class="actions">
+          <button id="btnDetailClose2">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vendor selection modal -->
+    <div class="modal-backdrop" id="vendorModalBackdrop" aria-hidden="true">
+      <div class="modal">
+        <h3>Select Vendor</h3>
+        <div class="muted" id="vendorModalItem"></div>
+
+        <div class="grid" style="margin-top: 10px">
+          <div>
+            <label>Choose vendor option</label>
+            <select id="vendorPick"></select>
+          </div>
+          <div>
+            <label>Selected rate (optional)</label>
+            <input id="vendorRate" placeholder="e.g. 40.00" />
+          </div>
+        </div>
+
+        <div style="margin-top: 10px">
+          <label>Reason (required if not recommended)</label>
+          <textarea
+            id="vendorReason"
+            placeholder="Reason for selecting a different vendor…"
+          ></textarea>
+        </div>
+
+        <div class="actions">
+          <button id="btnVendorCancel">Cancel</button>
+          <button id="btnVendorSave">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Indent action modal -->
+    <div
+      class="modal-backdrop"
+      id="indentActionModalBackdrop"
+      aria-hidden="true"
+    >
+      <div class="modal" style="max-width: 480px">
+        <h3 id="indentActionTitle">Confirm Action</h3>
+        <div class="muted" id="indentActionItem"></div>
+        <div id="indentApproveDateRow" style="margin-top: 10px; display: none">
+          <label>Approval Date</label>
+          <input type="date" id="indentApproveDate" />
+        </div>
+        <div
+          id="indentOverrideReasonRow"
+          style="margin-top: 10px; display: none"
+        >
+          <label>Override Reason (required)</label>
+          <textarea
+            id="indentOverrideReason"
+            placeholder="Reason for close with override…"
+          ></textarea>
+        </div>
+        <div class="actions">
+          <button id="btnIndentActionCancel">Cancel</button>
+          <button id="btnIndentActionConfirm">Confirm</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Accept excess modal -->
+    <div
+      class="modal-backdrop"
+      id="acceptExcessModalBackdrop"
+      aria-hidden="true"
+    >
+      <div class="modal" style="max-width: 480px">
+        <h3>Accept Excess</h3>
+        <div class="muted" id="acceptExcessItem"></div>
+        <div style="margin-top: 10px">
+          <label
+            >Accept Qty
+            <span class="muted"
+              >(max: <span id="acceptExcessMax"></span>)</span
+            ></label
+          >
+          <input id="acceptExcessQty" type="number" min="0.001" step="any" />
+        </div>
+        <div style="margin-top: 10px">
+          <label>Reason (required)</label>
+          <textarea
+            id="acceptExcessReason"
+            placeholder="Reason for accepting excess…"
+          ></textarea>
+        </div>
+        <div class="actions">
+          <button id="btnAcceptExcessCancel">Cancel</button>
+          <button id="btnAcceptExcessSave">Accept</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Create vendor + map modal -->
+    <div
+      class="modal-backdrop"
+      id="createVendorModalBackdrop"
+      aria-hidden="true"
+    >
+      <div class="modal" style="max-width: 520px">
+        <h3>Create Vendor &amp; Map Alias</h3>
+        <div class="muted" id="createVendorAlias"></div>
+        <div style="margin-top: 10px">
+          <label>Vendor Display Name</label>
+          <input id="createVendorName" placeholder="Display name…" />
+        </div>
+        <div class="actions">
+          <button id="btnCreateVendorCancel">Cancel</button>
+          <button id="btnCreateVendorSave">Create &amp; Map</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Map to existing vendor modal -->
+    <div class="modal-backdrop" id="mapVendorModalBackdrop" aria-hidden="true">
+      <div class="modal" style="max-width: 520px">
+        <h3>Map Alias to Existing Vendor</h3>
+        <div class="muted" id="mapVendorAlias"></div>
+        <div style="margin-top: 10px">
+          <label>Filter vendors</label>
+          <input id="mapVendorFilter" placeholder="Type to filter list…" />
+        </div>
+        <div style="margin-top: 8px">
+          <label>Select Vendor</label>
+          <select
+            id="mapVendorPick"
+            size="8"
+            style="
+              width: 100%;
+              border-radius: 10px;
+              border: 1px solid rgba(0, 0, 0, 0.12);
+              padding: 4px;
+            "
+          ></select>
+        </div>
+        <div class="actions">
+          <button id="btnMapVendorCancel">Cancel</button>
+          <button id="btnMapVendorSave">Map</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PR Detail modal -->
+    <div class="modal-backdrop" id="prViewModalBackdrop" aria-hidden="true">
+      <div class="modal" style="max-width: 900px">
+        <div class="modal-header page-header">
+          <div>
+            <h3
+              style="margin: 0; display: flex; align-items: center; gap: 10px"
+            >
+              <span id="prLinesTitle"></span>
+              <span class="pill" id="prDetailStatus"></span>
+            </h3>
+            <div
+              class="muted"
+              id="prDetailMeta"
+              style="font-size: 12px; margin-top: 4px"
+            ></div>
+          </div>
+          <button
+            id="btnPrViewClose"
+            style="
+              background: transparent;
+              border: none;
+              cursor: pointer;
+              font-size: 22px;
+              line-height: 1;
+            "
+          >
+            &times;
+          </button>
+        </div>
+        <div class="modal-body">
+          <div
+            style="
+              display: flex;
+              gap: 6px;
+              flex-wrap: wrap;
+              align-items: center;
+              margin-bottom: 16px;
+              padding-bottom: 14px;
+              border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+            "
+          >
+            <button id="btnPrActivate">Activate</button>
+            <button id="btnPrClosePr">Close / Cancel</button>
+            <button id="btnPrAddLine">+ Add Line</button>
+            <button
+              id="btnPrCreateIndent"
+              style="display: none; font-weight: 600"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+                style="vertical-align: -2px; margin-right: 4px"
+              >
+                <line x1="5" y1="12" x2="19" y2="12" />
+                <polyline points="12 5 19 12 12 19" /></svg
+              >Create Indent
+            </button>
+            <button id="btnPrExportForm" style="margin-left: auto">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+                style="vertical-align: -2px; margin-right: 4px"
+              >
+                <path
+                  d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" /></svg
+              >Export Form
+            </button>
+            <div
+              id="prDetailHint"
+              class="muted"
+              style="font-size: 12px; width: 100%; margin-top: 2px"
+            ></div>
+          </div>
+          <div id="prLinesEmpty" class="muted">No lines for this PR.</div>
+          <table id="prLinesTable" style="display: none">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Class</th>
+                <th>UOM</th>
+                <th>Sys. Sug.</th>
+                <th>Requested</th>
+                <th>Delta</th>
+                <th>Final</th>
+                <th>Reason</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="prLinesTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Generate Draft PR modal -->
+    <div class="modal-backdrop" id="generatePrModalBackdrop" aria-hidden="true">
+      <div class="modal" style="max-width: 560px">
+        <div class="modal-header page-header">
+          <h3 style="margin: 0">Generate Draft PR from MRP</h3>
+          <button
+            id="btnGenPrClose"
+            style="
+              background: transparent;
+              border: none;
+              cursor: pointer;
+              font-size: 20px;
+              line-height: 1;
+            "
+          >
+            &times;
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>PR Number <span style="color: red">*</span></label>
+              <input id="prNewNumber" placeholder="e.g. PR-2026-001" />
+            </div>
+            <div class="form-group">
+              <label>Effective From <span style="color: red">*</span></label>
+              <input type="date" id="prEffectiveFrom" />
+            </div>
+            <div class="form-group">
+              <label>Horizon Start Month</label>
+              <input type="month" id="prHorizonStart" />
+            </div>
+            <div class="form-group">
+              <label>Horizon End Month</label>
+              <input type="month" id="prHorizonEnd" />
+            </div>
+            <div class="form-group">
+              <label>Material Class Filter</label>
+              <select id="prMaterialClass">
+                <option value="">All Classes</option>
+                <option value="1">RM</option>
+                <option value="2">PLM</option>
+                <option value="5">IND</option>
+              </select>
+            </div>
+            <div class="form-group full-col">
+              <label>Notes</label>
+              <textarea id="prNotes" placeholder="Optional notes…"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="actions">
+          <button id="btnGenPrCancel">Cancel</button>
+          <button id="btnGenPrConfirm">Generate</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PR Edit Requested Qty modal -->
+    <div class="modal-backdrop" id="prEditReqModalBackdrop" aria-hidden="true">
+      <div class="modal" style="max-width: 460px">
+        <div class="modal-header page-header">
+          <h3 style="margin: 0">Edit Requested Qty</h3>
+        </div>
+        <div class="modal-body">
+          <div class="muted" id="prEditReqItem"></div>
+          <div style="margin-top: 10px">
+            <label>Requested Qty <span style="color: red">*</span></label>
+            <input id="prEditReqQty" type="number" min="0" step="any" />
+          </div>
+          <div style="margin-top: 10px">
+            <label>Reason (required if manual override)</label>
+            <textarea id="prEditReqReason" placeholder="Reason…"></textarea>
+          </div>
+        </div>
+        <div class="actions">
+          <button id="btnPrEditReqCancel">Cancel</button>
+          <button id="btnPrEditReqSave">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PR Edit Manual Delta modal -->
+    <div
+      class="modal-backdrop"
+      id="prEditDeltaModalBackdrop"
+      aria-hidden="true"
+    >
+      <div class="modal" style="max-width: 460px">
+        <div class="modal-header page-header">
+          <h3 style="margin: 0">Edit Manual Delta</h3>
+        </div>
+        <div class="modal-body">
+          <div class="muted" id="prEditDeltaItem"></div>
+          <div style="margin-top: 10px">
+            <label>Manual Delta Qty (positive = add, negative = reduce)</label>
+            <input id="prEditDeltaQty" type="number" step="any" />
+          </div>
+          <div style="margin-top: 10px">
+            <label>Reason <span style="color: red">*</span></label>
+            <textarea
+              id="prEditDeltaReason"
+              placeholder="Reason for delta…"
+            ></textarea>
+          </div>
+        </div>
+        <div class="actions">
+          <button id="btnPrEditDeltaCancel">Cancel</button>
+          <button id="btnPrEditDeltaSave">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PR Add Line modal -->
+    <div class="modal-backdrop" id="prAddLineModalBackdrop" aria-hidden="true">
+      <div class="modal" style="max-width: 520px">
+        <div class="modal-header page-header">
+          <h3 style="margin: 0">Add PR Line</h3>
+        </div>
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="form-group full-col">
+              <label>Material Class</label>
+              <select id="prAddLineClass">
+                <option value="">All</option>
+                <option value="1">RM</option>
+                <option value="2">PLM</option>
+                <option value="5">IND</option>
+              </select>
+            </div>
+            <div class="form-group full-col">
+              <label>Stock Item <span style="color: red">*</span></label>
+              <div
+                id="prAddLineItemDisplay"
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  padding: 8px 10px;
+                  border-radius: 10px;
+                  border: 1px solid rgba(0, 0, 0, 0.12);
+                  background: rgba(0, 0, 0, 0.03);
+                  min-height: 36px;
+                "
+              >
+                <span id="prAddLineItemText" class="muted" style="flex: 1"
+                  >None selected</span
+                >
+                <button
+                  id="prAddLineItemChange"
+                  type="button"
+                  style="
+                    background: transparent;
+                    border: none;
+                    cursor: pointer;
+                    color: #0a64c8;
+                    font-size: 12px;
+                    padding: 0;
+                    font-weight: 500;
+                  "
+                >
+                  Change
+                </button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>UOM</label>
+              <div
+                style="
+                  padding: 8px 10px;
+                  border-radius: 10px;
+                  border: 1px solid rgba(0, 0, 0, 0.12);
+                  background: rgba(0, 0, 0, 0.03);
+                  min-height: 36px;
+                "
+              >
+                <span id="prAddLineUomText" class="muted">—</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Requested Qty <span style="color: red">*</span></label>
+              <input id="prAddLineQty" type="number" min="0.001" step="any" />
+            </div>
+            <div class="form-group full-col">
+              <label>Reason</label>
+              <textarea
+                id="prAddLineReason"
+                placeholder="Optional reason…"
+              ></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="actions">
+          <button id="btnPrAddLineCancel">Cancel</button>
+          <button id="btnPrAddLineSave">Add Line</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PR Set Status modal (Activate / Close / Cancel) -->
+    <div
+      class="modal-backdrop"
+      id="prSetStatusModalBackdrop"
+      aria-hidden="true"
+    >
+      <div class="modal" style="max-width: 460px">
+        <h3 id="prSetStatusTitle">Change PR Status</h3>
+        <div class="muted" id="prSetStatusItem"></div>
+        <div style="margin-top: 10px">
+          <label>Note (optional)</label>
+          <textarea
+            id="prSetStatusNote"
+            placeholder="Optional note…"
+          ></textarea>
+        </div>
+        <div class="actions">
+          <button id="btnPrSetStatusCancel">Cancel</button>
+          <button id="btnPrSetStatusConfirm">Confirm</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Create Indent (manual) modal -->
+    <div
+      class="modal-backdrop"
+      id="createIndentModalBackdrop"
+      aria-hidden="true"
+    >
+      <div class="modal" style="max-width: 520px">
+        <div class="modal-header page-header">
+          <h3 style="margin: 0">New Draft Indent</h3>
+        </div>
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Indent Number <span style="color: red">*</span></label>
+              <input
+                id="ciIndentNumber"
+                placeholder="Auto-generated if blank"
+              />
+            </div>
+            <div class="form-group">
+              <label>Indent Date <span style="color: red">*</span></label>
+              <input type="date" id="ciIndentDate" />
+            </div>
+            <div class="form-group">
+              <label>Material Class</label>
+              <select id="ciMaterialClass">
+                <option value="">All</option>
+                <option value="1">RM</option>
+                <option value="2">PLM</option>
+                <option value="5">IND</option>
+              </select>
+            </div>
+            <div class="form-group full-col">
+              <label>Notes</label>
+              <textarea id="ciNotes" placeholder="Optional notes…"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="actions">
+          <button id="btnCiCancel">Cancel</button>
+          <button id="btnCiCreate">Create Indent</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Create Indent from PR modal -->
+    <div
+      class="modal-backdrop"
+      id="indentFromPrModalBackdrop"
+      aria-hidden="true"
+    >
+      <div class="modal" style="max-width: 520px">
+        <div class="modal-header page-header">
+          <h3 style="margin: 0">Create Indent from PR</h3>
+        </div>
+        <div class="modal-body">
+          <div style="margin-top: 6px">
+            <label>Select Active PR</label>
+            <select
+              id="ifpPrPick"
+              size="6"
+              style="
+                width: 100%;
+                border-radius: 10px;
+                border: 1px solid rgba(0, 0, 0, 0.12);
+                padding: 4px;
+                margin-top: 4px;
+              "
+            ></select>
+          </div>
+          <div style="margin-top: 10px">
+            <label>Indent Number (leave blank to auto-generate)</label>
+            <input id="ifpIndentNumber" placeholder="Auto-generated if blank" />
+          </div>
+        </div>
+        <div class="actions">
+          <button id="btnIfpCancel">Cancel</button>
+          <button id="btnIfpCreate">Create Indent</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stock Item Picker modal -->
+    <div
+      class="modal-backdrop"
+      id="stockPickerModalBackdrop"
+      aria-hidden="true"
+      style="z-index: 10001"
+    >
+      <div class="modal" style="max-width: 660px">
+        <div class="modal-header page-header">
+          <h3 style="margin: 0">Select Stock Item</h3>
+          <button
+            id="btnStockPickerClose"
+            style="
+              background: transparent;
+              border: none;
+              cursor: pointer;
+              font-size: 22px;
+              line-height: 1;
+            "
+          >
+            &times;
+          </button>
+        </div>
+        <div class="modal-body">
+          <div style="margin-bottom: 10px; display: flex; gap: 8px">
+            <input
+              id="stockPickerSearch"
+              placeholder="Search by name or code…"
+              style="
+                flex: 1;
+                padding: 8px 10px;
+                border-radius: 10px;
+                border: 1px solid rgba(0, 0, 0, 0.12);
+              "
+            />
+          </div>
+          <div
+            id="stockPickerStatus"
+            class="muted"
+            style="font-size: 12px; margin-bottom: 6px"
+          ></div>
+          <table id="stockPickerTable" style="display: none">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Class</th>
+              </tr>
+            </thead>
+            <tbody id="stockPickerTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Indent Add Line modal -->
+    <div
+      class="modal-backdrop"
+      id="indentAddLineModalBackdrop"
+      aria-hidden="true"
+    >
+      <div class="modal" style="max-width: 520px">
+        <div class="modal-header page-header">
+          <h3 style="margin: 0" id="ialTitle">Add Indent Line</h3>
+        </div>
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="form-group full-col" id="ialClassRow">
+              <label>Material Class</label>
+              <select id="ialMaterialClass">
+                <option value="">All</option>
+                <option value="1">RM</option>
+                <option value="2">PLM</option>
+                <option value="5">IND</option>
+              </select>
+            </div>
+            <div class="form-group full-col">
+              <label>Stock Item <span style="color: red">*</span></label>
+              <div
+                id="ialItemDisplay"
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  padding: 8px 10px;
+                  border-radius: 10px;
+                  border: 1px solid rgba(0, 0, 0, 0.12);
+                  background: rgba(0, 0, 0, 0.03);
+                  min-height: 36px;
+                "
+              >
+                <span id="ialItemText" class="muted" style="flex: 1"
+                  >None selected</span
+                >
+                <button
+                  id="ialItemChange"
+                  type="button"
+                  style="
+                    background: transparent;
+                    border: none;
+                    cursor: pointer;
+                    color: #0a64c8;
+                    font-size: 12px;
+                    padding: 0;
+                    font-weight: 500;
+                  "
+                >
+                  Change
+                </button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>UOM</label>
+              <div
+                style="
+                  padding: 8px 10px;
+                  border-radius: 10px;
+                  border: 1px solid rgba(0, 0, 0, 0.12);
+                  background: rgba(0, 0, 0, 0.03);
+                  min-height: 36px;
+                "
+              >
+                <span id="ialUomText" class="muted">—</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Requested Qty <span style="color: red">*</span></label>
+              <input id="ialQty" type="number" min="0.001" step="any" />
+            </div>
+            <div class="form-group full-col">
+              <label
+                >Reason
+                <span id="ialReasonReq" style="color: red; display: none"
+                  >*</span
+                ></label
+              >
+              <textarea id="ialReason" placeholder="Reason…"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="actions">
+          <button id="btnIalCancel">Cancel</button>
+          <button id="btnIalSave">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast notifications -->
+    <div
+      id="toastContainer"
+      style="
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        z-index: 10000;
+        pointer-events: none;
+      "
+    ></div>
+
+    <!-- Export Purchase Requisition modal -->
+    <div
+      class="modal-backdrop"
+      id="exportIndentModalBackdrop"
+      aria-hidden="true"
+    >
+      <div class="modal" style="max-width: 520px">
+        <div class="modal-header page-header">
+          <h3 style="margin: 0">Export Purchase Requisition</h3>
+        </div>
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Department / Unit</label>
+              <input id="expDeptUnit" type="text" value="SHRO / SASV" />
+            </div>
+            <div class="form-group">
+              <label>Requisition No.</label>
+              <input id="expReqNo" type="text" readonly />
+            </div>
+            <div class="form-group full-col">
+              <label>Location</label>
+              <input
+                id="expLocation"
+                type="text"
+                value="Raw Material Store, Santhigiri Ayurveda Siddha Vaidyasala"
+              />
+            </div>
+            <div class="form-group">
+              <label>Date</label>
+              <input id="expReqDate" type="date" />
+            </div>
+            <div class="form-group">
+              <label>Requisition Type</label>
+              <input id="expReqType" type="text" readonly />
+            </div>
+            <div class="form-group">
+              <label>Requested By</label>
+              <input
+                id="expRequestedBy"
+                type="text"
+                placeholder="Name&hellip;"
+              />
+            </div>
+            <div class="form-group">
+              <label>Contact Details</label>
+              <input
+                id="expContactDetails"
+                type="text"
+                placeholder="Phone / Email&hellip;"
+              />
+            </div>
+          </div>
+        </div>
+        <div class="actions">
+          <button id="btnExpCancel">Cancel</button>
+          <button id="btnExpOpenPrint">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+              style="vertical-align: -2px; margin-right: 4px"
+            >
+              <path
+                d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+              />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" /></svg
+            >Open Print View
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="js/supabaseClient.js"></script>
+    <script type="module" src="js/procurement-execution-console.js"></script>
+  </body>
+</html>

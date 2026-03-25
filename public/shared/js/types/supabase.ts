@@ -244,6 +244,160 @@ export type Database = {
         }
         Relationships: []
       }
+      app_module_clients: {
+        Row: {
+          client_key: string
+          created_at: string
+          launch_mode: string
+          module_key: string
+          nav_enabled: boolean
+          route_path: string
+          updated_at: string
+        }
+        Insert: {
+          client_key: string
+          created_at?: string
+          launch_mode?: string
+          module_key: string
+          nav_enabled?: boolean
+          route_path: string
+          updated_at?: string
+        }
+        Update: {
+          client_key?: string
+          created_at?: string
+          launch_mode?: string
+          module_key?: string
+          nav_enabled?: boolean
+          route_path?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "app_module_clients_module_key_fkey"
+            columns: ["module_key"]
+            isOneToOne: false
+            referencedRelation: "app_modules"
+            referencedColumns: ["module_key"]
+          },
+        ]
+      }
+      app_module_legacy_map: {
+        Row: {
+          legacy_key: string
+          module_key: string
+          source_system: string
+        }
+        Insert: {
+          legacy_key: string
+          module_key: string
+          source_system: string
+        }
+        Update: {
+          legacy_key?: string
+          module_key?: string
+          source_system?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "app_module_legacy_map_module_key_fkey"
+            columns: ["module_key"]
+            isOneToOne: false
+            referencedRelation: "app_modules"
+            referencedColumns: ["module_key"]
+          },
+        ]
+      }
+      app_modules: {
+        Row: {
+          created_at: string
+          description: string | null
+          icon_key: string | null
+          is_active: boolean
+          is_assignable: boolean
+          label: string
+          min_nav_mode: string
+          module_key: string
+          section_key: string | null
+          show_in_navigation: boolean
+          sort_order: number
+          target_key: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          icon_key?: string | null
+          is_active?: boolean
+          is_assignable?: boolean
+          label: string
+          min_nav_mode?: string
+          module_key: string
+          section_key?: string | null
+          show_in_navigation?: boolean
+          sort_order?: number
+          target_key: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          icon_key?: string | null
+          is_active?: boolean
+          is_assignable?: boolean
+          label?: string
+          min_nav_mode?: string
+          module_key?: string
+          section_key?: string | null
+          show_in_navigation?: boolean
+          sort_order?: number
+          target_key?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "app_modules_section_key_fkey"
+            columns: ["section_key"]
+            isOneToOne: false
+            referencedRelation: "app_nav_sections"
+            referencedColumns: ["key"]
+          },
+          {
+            foreignKeyName: "fk_app_modules_target"
+            columns: ["target_key"]
+            isOneToOne: true
+            referencedRelation: "permission_targets"
+            referencedColumns: ["key"]
+          },
+        ]
+      }
+      app_nav_sections: {
+        Row: {
+          created_at: string
+          is_active: boolean
+          key: string
+          label: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          is_active?: boolean
+          key: string
+          label: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          is_active?: boolean
+          key?: string
+          label?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       areas: {
         Row: {
           area_name: string
@@ -1131,50 +1285,349 @@ export type Database = {
         }
         Relationships: []
       }
-      fg_bulk_stock_ledger: {
+      fg_bulk_internal_transfer: {
         Row: {
           batch_number: string
           created_at: string
           created_by: string | null
+          from_area_id: number | null
+          from_plant_id: number | null
+          from_section_id: number | null
+          from_subsection_id: number | null
           id: number
-          movement_date: string
+          item: string
           product_id: number
           qty: number
           qty_base: number
-          reason_code: string
-          source_id: number
-          source_table: string
+          remarks: string | null
+          source_work_log_id: number | null
+          to_area_id: number | null
+          to_plant_id: number | null
+          to_section_id: number | null
+          to_subsection_id: number | null
+          transfer_date: string
           uom: string
         }
         Insert: {
           batch_number: string
           created_at?: string
           created_by?: string | null
+          from_area_id?: number | null
+          from_plant_id?: number | null
+          from_section_id?: number | null
+          from_subsection_id?: number | null
           id?: number
-          movement_date?: string
+          item: string
           product_id: number
           qty: number
           qty_base: number
-          reason_code: string
-          source_id: number
-          source_table: string
+          remarks?: string | null
+          source_work_log_id?: number | null
+          to_area_id?: number | null
+          to_plant_id?: number | null
+          to_section_id?: number | null
+          to_subsection_id?: number | null
+          transfer_date: string
           uom: string
         }
         Update: {
           batch_number?: string
           created_at?: string
           created_by?: string | null
+          from_area_id?: number | null
+          from_plant_id?: number | null
+          from_section_id?: number | null
+          from_subsection_id?: number | null
+          id?: number
+          item?: string
+          product_id?: number
+          qty?: number
+          qty_base?: number
+          remarks?: string | null
+          source_work_log_id?: number | null
+          to_area_id?: number | null
+          to_plant_id?: number | null
+          to_section_id?: number | null
+          to_subsection_id?: number | null
+          transfer_date?: string
+          uom?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_from_area_id_fkey"
+            columns: ["from_area_id"]
+            isOneToOne: false
+            referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_from_plant_id_fkey"
+            columns: ["from_plant_id"]
+            isOneToOne: false
+            referencedRelation: "plant_machinery"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_from_section_id_fkey"
+            columns: ["from_section_id"]
+            isOneToOne: false
+            referencedRelation: "sections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_from_subsection_id_fkey"
+            columns: ["from_subsection_id"]
+            isOneToOne: false
+            referencedRelation: "subsections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "fg_bulk_stock"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "mv_fg_bulk_rollup"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "mv_wip_rollup"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_bottled_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_bulk_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_storage_residuals"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_wip_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_picker_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_ppq_p2_time_sensitivity_by_product"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_ppq_p3_supply_continuity_by_product"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_bulk_soh"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_sdv_dim_product_hierarchy"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_planning_attrs"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_checker"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_batches"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_expected_output_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_source_work_log_id_fkey"
+            columns: ["source_work_log_id"]
+            isOneToOne: false
+            referencedRelation: "daily_work_log"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_source_work_log_id_fkey"
+            columns: ["source_work_log_id"]
+            isOneToOne: false
+            referencedRelation: "v_dwl_fg_transfer_event_lines"
+            referencedColumns: ["dwl_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_source_work_log_id_fkey"
+            columns: ["source_work_log_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_storage_residuals"
+            referencedColumns: ["work_log_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_to_area_id_fkey"
+            columns: ["to_area_id"]
+            isOneToOne: false
+            referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_to_plant_id_fkey"
+            columns: ["to_plant_id"]
+            isOneToOne: false
+            referencedRelation: "plant_machinery"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_to_section_id_fkey"
+            columns: ["to_section_id"]
+            isOneToOne: false
+            referencedRelation: "sections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_to_subsection_id_fkey"
+            columns: ["to_subsection_id"]
+            isOneToOne: false
+            referencedRelation: "subsections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fg_bulk_stock_ledger: {
+        Row: {
+          area_id: number | null
+          batch_number: string
+          created_at: string
+          created_by: string | null
+          id: number
+          movement_date: string
+          plant_id: number | null
+          product_id: number
+          qty: number
+          qty_base: number
+          reason_code: string
+          section_id: number | null
+          source_id: number
+          source_table: string
+          subsection_id: number | null
+          uom: string
+        }
+        Insert: {
+          area_id?: number | null
+          batch_number: string
+          created_at?: string
+          created_by?: string | null
           id?: number
           movement_date?: string
+          plant_id?: number | null
+          product_id: number
+          qty: number
+          qty_base: number
+          reason_code: string
+          section_id?: number | null
+          source_id: number
+          source_table: string
+          subsection_id?: number | null
+          uom: string
+        }
+        Update: {
+          area_id?: number | null
+          batch_number?: string
+          created_at?: string
+          created_by?: string | null
+          id?: number
+          movement_date?: string
+          plant_id?: number | null
           product_id?: number
           qty?: number
           qty_base?: number
           reason_code?: string
+          section_id?: number | null
           source_id?: number
           source_table?: string
+          subsection_id?: number | null
           uom?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_area_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_plant_fkey"
+            columns: ["plant_id"]
+            isOneToOne: false
+            referencedRelation: "plant_machinery"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
             columns: ["product_id"]
@@ -1300,6 +1753,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_wip_expected_output_base"
             referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_section_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "sections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_subsection_fkey"
+            columns: ["subsection_id"]
+            isOneToOne: false
+            referencedRelation: "subsections"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1900,7 +2367,42 @@ export type Database = {
             foreignKeyName: "inv_rm_form_conversion_consume_stock_item_id_fkey"
             columns: ["consume_stock_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_rm_form_conversion_consume_stock_item_id_fkey"
+            columns: ["consume_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_rm_form_conversion_consume_stock_item_id_fkey"
+            columns: ["consume_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_rm_form_conversion_consume_stock_item_id_fkey"
+            columns: ["consume_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_rm_form_conversion_consume_stock_item_id_fkey"
+            columns: ["consume_stock_item_id"]
+            isOneToOne: false
             referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_rm_form_conversion_consume_stock_item_id_fkey"
+            columns: ["consume_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
             referencedColumns: ["stock_item_id"]
           },
           {
@@ -2047,7 +2549,42 @@ export type Database = {
             foreignKeyName: "inv_rm_form_conversion_purchase_stock_item_id_fkey"
             columns: ["purchase_stock_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_rm_form_conversion_purchase_stock_item_id_fkey"
+            columns: ["purchase_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_rm_form_conversion_purchase_stock_item_id_fkey"
+            columns: ["purchase_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_rm_form_conversion_purchase_stock_item_id_fkey"
+            columns: ["purchase_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_rm_form_conversion_purchase_stock_item_id_fkey"
+            columns: ["purchase_stock_item_id"]
+            isOneToOne: false
             referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_rm_form_conversion_purchase_stock_item_id_fkey"
+            columns: ["purchase_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
             referencedColumns: ["stock_item_id"]
           },
           {
@@ -2156,6 +2693,7 @@ export type Database = {
           last_updated_by: string | null
           name: string
           notes: string | null
+          rm_procurement_mode: string | null
         }
         Insert: {
           active?: boolean
@@ -2169,6 +2707,7 @@ export type Database = {
           last_updated_by?: string | null
           name: string
           notes?: string | null
+          rm_procurement_mode?: string | null
         }
         Update: {
           active?: boolean
@@ -2182,6 +2721,7 @@ export type Database = {
           last_updated_by?: string | null
           name?: string
           notes?: string | null
+          rm_procurement_mode?: string | null
         }
         Relationships: [
           {
@@ -2310,7 +2850,42 @@ export type Database = {
             foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
             columns: ["inv_stock_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
             referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
             referencedColumns: ["stock_item_id"]
           },
           {
@@ -2475,7 +3050,42 @@ export type Database = {
             foreignKeyName: "inv_stock_item_class_map_stock_item_id_fkey"
             columns: ["stock_item_id"]
             isOneToOne: true
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_class_map_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_class_map_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_class_map_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_class_map_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: true
             referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_class_map_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
             referencedColumns: ["stock_item_id"]
           },
           {
@@ -2658,7 +3268,42 @@ export type Database = {
             foreignKeyName: "inv_stock_item_moq_policy_stock_item_id_fkey"
             columns: ["stock_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_moq_policy_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_moq_policy_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_moq_policy_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_moq_policy_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
             referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_moq_policy_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
             referencedColumns: ["stock_item_id"]
           },
           {
@@ -2853,7 +3498,42 @@ export type Database = {
             foreignKeyName: "inv_stock_item_season_profile_stock_item_id_fkey"
             columns: ["stock_item_id"]
             isOneToOne: true
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_season_profile_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_season_profile_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_season_profile_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_season_profile_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: true
             referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_season_profile_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
             referencedColumns: ["stock_item_id"]
           },
           {
@@ -3810,7 +4490,42 @@ export type Database = {
             foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
             columns: ["rm_stock_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
             referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
             referencedColumns: ["stock_item_id"]
           },
           {
@@ -4540,7 +5255,42 @@ export type Database = {
             foreignKeyName: "plm_bom_line_stock_item_id_fkey"
             columns: ["stock_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
             referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
             referencedColumns: ["stock_item_id"]
           },
           {
@@ -4782,7 +5532,42 @@ export type Database = {
             foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
             columns: ["stock_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
             referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
             referencedColumns: ["stock_item_id"]
           },
           {
@@ -5026,7 +5811,42 @@ export type Database = {
             foreignKeyName: "plm_pack_format_line_stock_item_id_fkey"
             columns: ["stock_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_pack_format_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_pack_format_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_pack_format_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_pack_format_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
             referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_pack_format_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
             referencedColumns: ["stock_item_id"]
           },
           {
@@ -5445,7 +6265,42 @@ export type Database = {
             foreignKeyName: "plm_sku_plm_override_stock_item_id_fkey"
             columns: ["stock_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_sku_plm_override_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_sku_plm_override_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_sku_plm_override_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_sku_plm_override_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
             referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_sku_plm_override_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
             referencedColumns: ["stock_item_id"]
           },
           {
@@ -5675,7 +6530,42 @@ export type Database = {
             foreignKeyName: "plm_tpl_line_stock_item_id_fkey"
             columns: ["stock_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_tpl_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_tpl_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_tpl_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_tpl_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
             referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "plm_tpl_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
             referencedColumns: ["stock_item_id"]
           },
           {
@@ -5785,6 +6675,99 @@ export type Database = {
           },
         ]
       }
+      pm_blockers_snapshot_current_month: {
+        Row: {
+          allocation_approx_present: boolean | null
+          batch_number: string
+          first_issue_date: string | null
+          is_optional_pm: boolean | null
+          is_override_pm: boolean | null
+          issue_source_keys: string[] | null
+          issue_vouchers: string[] | null
+          issued_pm_qty: number | null
+          last_issue_date: string | null
+          month_start: string
+          over_issued_qty: number | null
+          planned_pm_qty: number | null
+          pm_blocker_class: string | null
+          pm_gate_status: string | null
+          pm_name: string | null
+          pm_stock_item_id: number
+          pm_uom: string | null
+          primary_state: string | null
+          priority_rank: number | null
+          product_id: number
+          queue_lane: number | null
+          remaining_pm_qty: number | null
+          stage_rank: number | null
+          stock_qty: number | null
+          top_region: string | null
+          top_risk_reduction_units: number | null
+          top_sku_id: number | null
+          total_risk_reduction_units: number | null
+        }
+        Insert: {
+          allocation_approx_present?: boolean | null
+          batch_number: string
+          first_issue_date?: string | null
+          is_optional_pm?: boolean | null
+          is_override_pm?: boolean | null
+          issue_source_keys?: string[] | null
+          issue_vouchers?: string[] | null
+          issued_pm_qty?: number | null
+          last_issue_date?: string | null
+          month_start: string
+          over_issued_qty?: number | null
+          planned_pm_qty?: number | null
+          pm_blocker_class?: string | null
+          pm_gate_status?: string | null
+          pm_name?: string | null
+          pm_stock_item_id: number
+          pm_uom?: string | null
+          primary_state?: string | null
+          priority_rank?: number | null
+          product_id: number
+          queue_lane?: number | null
+          remaining_pm_qty?: number | null
+          stage_rank?: number | null
+          stock_qty?: number | null
+          top_region?: string | null
+          top_risk_reduction_units?: number | null
+          top_sku_id?: number | null
+          total_risk_reduction_units?: number | null
+        }
+        Update: {
+          allocation_approx_present?: boolean | null
+          batch_number?: string
+          first_issue_date?: string | null
+          is_optional_pm?: boolean | null
+          is_override_pm?: boolean | null
+          issue_source_keys?: string[] | null
+          issue_vouchers?: string[] | null
+          issued_pm_qty?: number | null
+          last_issue_date?: string | null
+          month_start?: string
+          over_issued_qty?: number | null
+          planned_pm_qty?: number | null
+          pm_blocker_class?: string | null
+          pm_gate_status?: string | null
+          pm_name?: string | null
+          pm_stock_item_id?: number
+          pm_uom?: string | null
+          primary_state?: string | null
+          priority_rank?: number | null
+          product_id?: number
+          queue_lane?: number | null
+          remaining_pm_qty?: number | null
+          stage_rank?: number | null
+          stock_qty?: number | null
+          top_region?: string | null
+          top_risk_reduction_units?: number | null
+          top_sku_id?: number | null
+          total_risk_reduction_units?: number | null
+        }
+        Relationships: []
+      }
       pm_issue_priority_snapshot_current_month: {
         Row: {
           blocked_batch_count: number | null
@@ -5824,8 +6807,13 @@ export type Database = {
       priority_queue_snapshot_current_month: {
         Row: {
           batch_number: string
+          batch_size_declared: number | null
+          batch_uom: string | null
+          bottled_on_hand_base_qty: number | null
+          bottled_on_hand_units: number | null
           candidate_supply_base_qty: number | null
           expected_output_base_qty: number | null
+          fg_bulk_on_hand_base_qty: number | null
           has_label_or_override_pending: boolean | null
           has_mandatory_pm_pending: boolean | null
           has_unassigned_rm_issues: boolean | null
@@ -5841,8 +6829,10 @@ export type Database = {
           priority_rank_v3: number | null
           priority_rank_v4: number | null
           product_id: number
+          product_name: string | null
           queue_lane: number | null
           rm_gate_status: string | null
+          rm_gate_status_display: string | null
           rm_issue_completion_ratio: number | null
           rm_pending_lines: number | null
           snapshot_refreshed_at: string
@@ -5854,13 +6844,19 @@ export type Database = {
           top_region: string | null
           top_risk_reduction_units: number | null
           top_sku_id: number | null
+          top_sku_label: string | null
           total_risk_reduction_units: number | null
           transferred_out_base_qty: number | null
         }
         Insert: {
           batch_number: string
+          batch_size_declared?: number | null
+          batch_uom?: string | null
+          bottled_on_hand_base_qty?: number | null
+          bottled_on_hand_units?: number | null
           candidate_supply_base_qty?: number | null
           expected_output_base_qty?: number | null
+          fg_bulk_on_hand_base_qty?: number | null
           has_label_or_override_pending?: boolean | null
           has_mandatory_pm_pending?: boolean | null
           has_unassigned_rm_issues?: boolean | null
@@ -5876,8 +6872,10 @@ export type Database = {
           priority_rank_v3?: number | null
           priority_rank_v4?: number | null
           product_id: number
+          product_name?: string | null
           queue_lane?: number | null
           rm_gate_status?: string | null
+          rm_gate_status_display?: string | null
           rm_issue_completion_ratio?: number | null
           rm_pending_lines?: number | null
           snapshot_refreshed_at?: string
@@ -5889,13 +6887,19 @@ export type Database = {
           top_region?: string | null
           top_risk_reduction_units?: number | null
           top_sku_id?: number | null
+          top_sku_label?: string | null
           total_risk_reduction_units?: number | null
           transferred_out_base_qty?: number | null
         }
         Update: {
           batch_number?: string
+          batch_size_declared?: number | null
+          batch_uom?: string | null
+          bottled_on_hand_base_qty?: number | null
+          bottled_on_hand_units?: number | null
           candidate_supply_base_qty?: number | null
           expected_output_base_qty?: number | null
+          fg_bulk_on_hand_base_qty?: number | null
           has_label_or_override_pending?: boolean | null
           has_mandatory_pm_pending?: boolean | null
           has_unassigned_rm_issues?: boolean | null
@@ -5911,8 +6915,10 @@ export type Database = {
           priority_rank_v3?: number | null
           priority_rank_v4?: number | null
           product_id?: number
+          product_name?: string | null
           queue_lane?: number | null
           rm_gate_status?: string | null
+          rm_gate_status_display?: string | null
           rm_issue_completion_ratio?: number | null
           rm_pending_lines?: number | null
           snapshot_refreshed_at?: string
@@ -5924,6 +6930,7 @@ export type Database = {
           top_region?: string | null
           top_risk_reduction_units?: number | null
           top_sku_id?: number | null
+          top_sku_label?: string | null
           total_risk_reduction_units?: number | null
           transferred_out_base_qty?: number | null
         }
@@ -6082,6 +7089,216 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      proc_indent_line_sourcing_decision: {
+        Row: {
+          decided_at: string
+          decided_by: string | null
+          indent_line_id: number
+          recommended_meta: Json
+          recommended_rate: number | null
+          recommended_source: string | null
+          recommended_vendor_id: number | null
+          selected_rate: number | null
+          selected_vendor_id: number | null
+          selection_reason: string | null
+        }
+        Insert: {
+          decided_at?: string
+          decided_by?: string | null
+          indent_line_id: number
+          recommended_meta?: Json
+          recommended_rate?: number | null
+          recommended_source?: string | null
+          recommended_vendor_id?: number | null
+          selected_rate?: number | null
+          selected_vendor_id?: number | null
+          selection_reason?: string | null
+        }
+        Update: {
+          decided_at?: string
+          decided_by?: string | null
+          indent_line_id?: number
+          recommended_meta?: Json
+          recommended_rate?: number | null
+          recommended_source?: string | null
+          recommended_vendor_id?: number | null
+          selected_rate?: number | null
+          selected_vendor_id?: number | null
+          selection_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proc_indent_line_sourcing_decision_rec_fk"
+            columns: ["recommended_vendor_id"]
+            isOneToOne: false
+            referencedRelation: "proc_vendor"
+            referencedColumns: ["vendor_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_sourcing_decision_sel_fk"
+            columns: ["selected_vendor_id"]
+            isOneToOne: false
+            referencedRelation: "proc_vendor"
+            referencedColumns: ["vendor_id"]
+          },
+        ]
+      }
+      proc_indent_priority_override: {
+        Row: {
+          indent_line_id: number
+          overridden_at: string
+          overridden_by: string | null
+          override_band: string
+          override_reason: string
+        }
+        Insert: {
+          indent_line_id: number
+          overridden_at?: string
+          overridden_by?: string | null
+          override_band: string
+          override_reason: string
+        }
+        Update: {
+          indent_line_id?: number
+          overridden_at?: string
+          overridden_by?: string | null
+          override_band?: string
+          override_reason?: string
+        }
+        Relationships: []
+      }
+      proc_item_criticality_policy: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          criticality_class: string
+          effective_from: string | null
+          effective_to: string | null
+          id: number
+          is_active: boolean
+          reason: string | null
+          stock_item_id: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          criticality_class: string
+          effective_from?: string | null
+          effective_to?: string | null
+          id?: number
+          is_active?: boolean
+          reason?: string | null
+          stock_item_id: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          criticality_class?: string
+          effective_from?: string | null
+          effective_to?: string | null
+          id?: number
+          is_active?: boolean
+          reason?: string | null
+          stock_item_id?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      proc_item_lead_time_policy: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          effective_from: string | null
+          effective_to: string | null
+          id: number
+          is_active: boolean
+          lead_time_days: number
+          notes: string | null
+          source: string | null
+          stock_item_id: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string | null
+          effective_to?: string | null
+          id?: number
+          is_active?: boolean
+          lead_time_days: number
+          notes?: string | null
+          source?: string | null
+          stock_item_id: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string | null
+          effective_to?: string | null
+          id?: number
+          is_active?: boolean
+          lead_time_days?: number
+          notes?: string | null
+          source?: string | null
+          stock_item_id?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      proc_item_production_urgency: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: number
+          is_active: boolean
+          reason: string | null
+          stock_item_id: number
+          updated_at: string
+          updated_by: string | null
+          urgency_band: string
+          urgency_score: number | null
+          valid_from: string | null
+          valid_to: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: number
+          is_active?: boolean
+          reason?: string | null
+          stock_item_id: number
+          updated_at?: string
+          updated_by?: string | null
+          urgency_band: string
+          urgency_score?: number | null
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: number
+          is_active?: boolean
+          reason?: string | null
+          stock_item_id?: number
+          updated_at?: string
+          updated_by?: string | null
+          urgency_band?: string
+          urgency_score?: number | null
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Relationships: []
       }
       proc_pr_header: {
         Row: {
@@ -6277,6 +7494,205 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "v_proc_pr_header"
             referencedColumns: ["pr_id"]
+          },
+        ]
+      }
+      proc_vendor: {
+        Row: {
+          address_line1: string | null
+          address_line2: string | null
+          city: string | null
+          country: string | null
+          created_at: string
+          created_by: string | null
+          display_name: string
+          district: string | null
+          email: string | null
+          gstin: string | null
+          is_active: boolean
+          legal_name: string | null
+          meta: Json
+          notes: string | null
+          pan: string | null
+          payment_terms: string | null
+          phone: string | null
+          pincode: string | null
+          state: string | null
+          updated_at: string
+          updated_by: string | null
+          vendor_id: number
+          vendor_type: string | null
+          website: string | null
+        }
+        Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          created_by?: string | null
+          display_name: string
+          district?: string | null
+          email?: string | null
+          gstin?: string | null
+          is_active?: boolean
+          legal_name?: string | null
+          meta?: Json
+          notes?: string | null
+          pan?: string | null
+          payment_terms?: string | null
+          phone?: string | null
+          pincode?: string | null
+          state?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          vendor_id?: number
+          vendor_type?: string | null
+          website?: string | null
+        }
+        Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          created_by?: string | null
+          display_name?: string
+          district?: string | null
+          email?: string | null
+          gstin?: string | null
+          is_active?: boolean
+          legal_name?: string | null
+          meta?: Json
+          notes?: string | null
+          pan?: string | null
+          payment_terms?: string | null
+          phone?: string | null
+          pincode?: string | null
+          state?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          vendor_id?: number
+          vendor_type?: string | null
+          website?: string | null
+        }
+        Relationships: []
+      }
+      proc_vendor_alias: {
+        Row: {
+          alias_id: number
+          alias_key: string
+          alias_text: string
+          created_at: string
+          created_by: string | null
+          notes: string | null
+          source_system: string
+          status: string
+          updated_at: string
+          updated_by: string | null
+          vendor_id: number | null
+        }
+        Insert: {
+          alias_id?: number
+          alias_key: string
+          alias_text: string
+          created_at?: string
+          created_by?: string | null
+          notes?: string | null
+          source_system: string
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+          vendor_id?: number | null
+        }
+        Update: {
+          alias_id?: number
+          alias_key?: string
+          alias_text?: string
+          created_at?: string
+          created_by?: string | null
+          notes?: string | null
+          source_system?: string
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+          vendor_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proc_vendor_alias_vendor_fk"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "proc_vendor"
+            referencedColumns: ["vendor_id"]
+          },
+        ]
+      }
+      proc_vendor_item_rate: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          is_active: boolean
+          lead_time_days: number | null
+          material_class_id: number | null
+          meta: Json
+          min_order_qty: number | null
+          rate_id: number
+          rate_value: number
+          remarks: string | null
+          stock_item_id: number
+          uom_id: number | null
+          updated_at: string
+          updated_by: string | null
+          valid_from: string | null
+          valid_to: string | null
+          vendor_id: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          is_active?: boolean
+          lead_time_days?: number | null
+          material_class_id?: number | null
+          meta?: Json
+          min_order_qty?: number | null
+          rate_id?: number
+          rate_value: number
+          remarks?: string | null
+          stock_item_id: number
+          uom_id?: number | null
+          updated_at?: string
+          updated_by?: string | null
+          valid_from?: string | null
+          valid_to?: string | null
+          vendor_id: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          is_active?: boolean
+          lead_time_days?: number | null
+          material_class_id?: number | null
+          meta?: Json
+          min_order_qty?: number | null
+          rate_id?: number
+          rate_value?: number
+          remarks?: string | null
+          stock_item_id?: number
+          uom_id?: number | null
+          updated_at?: string
+          updated_by?: string | null
+          valid_from?: string | null
+          valid_to?: string | null
+          vendor_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proc_vendor_item_rate_vendor_fk"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "proc_vendor"
+            referencedColumns: ["vendor_id"]
           },
         ]
       }
@@ -7923,6 +9339,96 @@ export type Database = {
         }
         Relationships: []
       }
+      rm_blockers_snapshot_current_month: {
+        Row: {
+          allocation_approx: boolean | null
+          batch_id: number | null
+          batch_number: string
+          has_unassigned_issues: boolean | null
+          is_optional_rm: boolean | null
+          issue_vouchers: string[] | null
+          issued_rm_qty: number | null
+          last_issue_voucher_date: string | null
+          month_start: string
+          over_issued_qty: number | null
+          planned_rm_qty: number | null
+          pm_gate_status: string | null
+          primary_state: string | null
+          priority_rank: number | null
+          product_id: number
+          queue_lane: number | null
+          remaining_rm_qty: number | null
+          rm_blocker_class: string | null
+          rm_gate_status: string | null
+          rm_name: string | null
+          rm_pending_lines: number | null
+          rm_procurement_mode: string | null
+          rm_stock_item_id: number
+          rm_trace_path: Json | null
+          rm_uom: string | null
+          stage_rank: number | null
+          total_risk_reduction_units: number | null
+        }
+        Insert: {
+          allocation_approx?: boolean | null
+          batch_id?: number | null
+          batch_number: string
+          has_unassigned_issues?: boolean | null
+          is_optional_rm?: boolean | null
+          issue_vouchers?: string[] | null
+          issued_rm_qty?: number | null
+          last_issue_voucher_date?: string | null
+          month_start: string
+          over_issued_qty?: number | null
+          planned_rm_qty?: number | null
+          pm_gate_status?: string | null
+          primary_state?: string | null
+          priority_rank?: number | null
+          product_id: number
+          queue_lane?: number | null
+          remaining_rm_qty?: number | null
+          rm_blocker_class?: string | null
+          rm_gate_status?: string | null
+          rm_name?: string | null
+          rm_pending_lines?: number | null
+          rm_procurement_mode?: string | null
+          rm_stock_item_id: number
+          rm_trace_path?: Json | null
+          rm_uom?: string | null
+          stage_rank?: number | null
+          total_risk_reduction_units?: number | null
+        }
+        Update: {
+          allocation_approx?: boolean | null
+          batch_id?: number | null
+          batch_number?: string
+          has_unassigned_issues?: boolean | null
+          is_optional_rm?: boolean | null
+          issue_vouchers?: string[] | null
+          issued_rm_qty?: number | null
+          last_issue_voucher_date?: string | null
+          month_start?: string
+          over_issued_qty?: number | null
+          planned_rm_qty?: number | null
+          pm_gate_status?: string | null
+          primary_state?: string | null
+          priority_rank?: number | null
+          product_id?: number
+          queue_lane?: number | null
+          remaining_rm_qty?: number | null
+          rm_blocker_class?: string | null
+          rm_gate_status?: string | null
+          rm_name?: string | null
+          rm_pending_lines?: number | null
+          rm_procurement_mode?: string | null
+          rm_stock_item_id?: number
+          rm_trace_path?: Json | null
+          rm_uom?: string | null
+          stage_rank?: number | null
+          total_risk_reduction_units?: number | null
+        }
+        Relationships: []
+      }
       rm_bom_header: {
         Row: {
           created_at: string
@@ -8212,7 +9718,42 @@ export type Database = {
             foreignKeyName: "rm_bom_line_stock_item_id_fkey"
             columns: ["stock_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "rm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "rm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "rm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "rm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
             referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "rm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
             referencedColumns: ["stock_item_id"]
           },
           {
@@ -9628,7 +11169,42 @@ export type Database = {
             foreignKeyName: "sp_bom_header_owner_item_id_fkey"
             columns: ["owner_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "sp_bom_header_owner_item_id_fkey"
+            columns: ["owner_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "sp_bom_header_owner_item_id_fkey"
+            columns: ["owner_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "sp_bom_header_owner_item_id_fkey"
+            columns: ["owner_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "sp_bom_header_owner_item_id_fkey"
+            columns: ["owner_item_id"]
+            isOneToOne: false
             referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "sp_bom_header_owner_item_id_fkey"
+            columns: ["owner_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
             referencedColumns: ["stock_item_id"]
           },
           {
@@ -9819,7 +11395,42 @@ export type Database = {
             foreignKeyName: "sp_bom_line_stock_item_id_fkey"
             columns: ["stock_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "sp_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "sp_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "sp_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "sp_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
             referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "sp_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
             referencedColumns: ["stock_item_id"]
           },
           {
@@ -11927,6 +13538,7 @@ export type Database = {
           batch_size_declared: number | null
           batch_uom: string | null
           bmr_id: number | null
+          bottled_on_hand_base_qty: number | null
           bottled_on_hand_units: number | null
           expected_output_base_qty: number | null
           fg_bulk_on_hand_base_qty: number | null
@@ -11958,6 +13570,7 @@ export type Database = {
           batch_size_declared: number | null
           batch_uom: string | null
           bmr_id: number | null
+          bottled_on_hand_base_qty: number | null
           bottled_on_hand_units: number | null
           expected_output_base_qty: number | null
           fg_bulk_on_hand_base_qty: number | null
@@ -12806,7 +14419,42 @@ export type Database = {
             foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
             columns: ["stock_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
             referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
             referencedColumns: ["stock_item_id"]
           },
           {
@@ -12919,6 +14567,7 @@ export type Database = {
           risk_reduction_units: number | null
           shortfall_units_before_incoming: number | null
           sku_id: number | null
+          sku_label: string | null
         }
         Relationships: []
       }
@@ -13041,7 +14690,42 @@ export type Database = {
             foreignKeyName: "rm_bom_line_stock_item_id_fkey"
             columns: ["stock_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "rm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "rm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "rm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "rm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
             referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "rm_bom_line_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
             referencedColumns: ["stock_item_id"]
           },
           {
@@ -13212,7 +14896,42 @@ export type Database = {
             foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
             columns: ["stock_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
             referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
             referencedColumns: ["stock_item_id"]
           },
           {
@@ -13316,6 +15035,8 @@ export type Database = {
       v_batch_supply_candidates: {
         Row: {
           batch_number: string | null
+          batch_size_declared: number | null
+          batch_uom: string | null
           bottled_on_hand_base_qty: number | null
           bottled_on_hand_units: number | null
           eligible_supply_base_qty: number | null
@@ -14378,12 +16099,735 @@ export type Database = {
         }
         Relationships: []
       }
+      v_fg_bulk_batch_balance: {
+        Row: {
+          batch_number: string | null
+          item: string | null
+          product_id: number | null
+          qty: number | null
+          qty_base: number | null
+          uom: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "fg_bulk_stock"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "mv_fg_bulk_rollup"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "mv_wip_rollup"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_bottled_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_bulk_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_storage_residuals"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_wip_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_picker_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_ppq_p2_time_sensitivity_by_product"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_ppq_p3_supply_continuity_by_product"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_bulk_soh"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_sdv_dim_product_hierarchy"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_planning_attrs"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_checker"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_batches"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_expected_output_base"
+            referencedColumns: ["product_id"]
+          },
+        ]
+      }
+      v_fg_bulk_batch_balance_by_location: {
+        Row: {
+          area_id: number | null
+          area_name: string | null
+          batch_number: string | null
+          item: string | null
+          plant_id: number | null
+          plant_name: string | null
+          product_id: number | null
+          qty: number | null
+          qty_base: number | null
+          section_id: number | null
+          section_name: string | null
+          subsection_id: number | null
+          subsection_name: string | null
+          uom: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_area_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_plant_fkey"
+            columns: ["plant_id"]
+            isOneToOne: false
+            referencedRelation: "plant_machinery"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "fg_bulk_stock"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "mv_fg_bulk_rollup"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "mv_wip_rollup"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_bottled_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_bulk_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_storage_residuals"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_wip_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_picker_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_ppq_p2_time_sensitivity_by_product"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_ppq_p3_supply_continuity_by_product"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_bulk_soh"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_sdv_dim_product_hierarchy"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_planning_attrs"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_checker"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_batches"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_expected_output_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_section_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "sections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_subsection_fkey"
+            columns: ["subsection_id"]
+            isOneToOne: false
+            referencedRelation: "subsections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_fg_bulk_stock_by_location: {
+        Row: {
+          area_id: number | null
+          area_name: string | null
+          batch_number: string | null
+          item: string | null
+          plant_id: number | null
+          plant_name: string | null
+          product_id: number | null
+          qty: number | null
+          qty_base: number | null
+          section_id: number | null
+          section_name: string | null
+          subsection_id: number | null
+          subsection_name: string | null
+          uom: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_area_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_plant_fkey"
+            columns: ["plant_id"]
+            isOneToOne: false
+            referencedRelation: "plant_machinery"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "fg_bulk_stock"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "mv_fg_bulk_rollup"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "mv_wip_rollup"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_bottled_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_bulk_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_storage_residuals"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_wip_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_picker_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_ppq_p2_time_sensitivity_by_product"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_ppq_p3_supply_continuity_by_product"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_bulk_soh"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_sdv_dim_product_hierarchy"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_planning_attrs"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_checker"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_batches"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_expected_output_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_section_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "sections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_subsection_fkey"
+            columns: ["subsection_id"]
+            isOneToOne: false
+            referencedRelation: "subsections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_fg_bulk_stock_by_product_base: {
         Row: {
           product_id: number | null
           qty_base: number | null
         }
         Relationships: []
+      }
+      v_fg_bulk_transfer_history: {
+        Row: {
+          batch_number: string | null
+          created_at: string | null
+          created_by: string | null
+          from_area_id: number | null
+          from_area_name: string | null
+          from_plant_id: number | null
+          from_plant_name: string | null
+          from_section_id: number | null
+          from_section_name: string | null
+          from_subsection_id: number | null
+          from_subsection_name: string | null
+          id: number | null
+          item: string | null
+          product_id: number | null
+          qty: number | null
+          qty_base: number | null
+          remarks: string | null
+          source_work_log_id: number | null
+          to_area_id: number | null
+          to_area_name: string | null
+          to_plant_id: number | null
+          to_plant_name: string | null
+          to_section_id: number | null
+          to_section_name: string | null
+          to_subsection_id: number | null
+          to_subsection_name: string | null
+          transfer_date: string | null
+          uom: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_from_area_id_fkey"
+            columns: ["from_area_id"]
+            isOneToOne: false
+            referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_from_plant_id_fkey"
+            columns: ["from_plant_id"]
+            isOneToOne: false
+            referencedRelation: "plant_machinery"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_from_section_id_fkey"
+            columns: ["from_section_id"]
+            isOneToOne: false
+            referencedRelation: "sections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_from_subsection_id_fkey"
+            columns: ["from_subsection_id"]
+            isOneToOne: false
+            referencedRelation: "subsections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "fg_bulk_stock"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "mv_fg_bulk_rollup"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "mv_wip_rollup"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_bottled_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_bulk_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_storage_residuals"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_wip_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_picker_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_ppq_p2_time_sensitivity_by_product"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_ppq_p3_supply_continuity_by_product"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_bulk_soh"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_sdv_dim_product_hierarchy"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_planning_attrs"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_checker"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_batches"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_expected_output_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_source_work_log_id_fkey"
+            columns: ["source_work_log_id"]
+            isOneToOne: false
+            referencedRelation: "daily_work_log"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_source_work_log_id_fkey"
+            columns: ["source_work_log_id"]
+            isOneToOne: false
+            referencedRelation: "v_dwl_fg_transfer_event_lines"
+            referencedColumns: ["dwl_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_source_work_log_id_fkey"
+            columns: ["source_work_log_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_storage_residuals"
+            referencedColumns: ["work_log_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_to_area_id_fkey"
+            columns: ["to_area_id"]
+            isOneToOne: false
+            referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_to_plant_id_fkey"
+            columns: ["to_plant_id"]
+            isOneToOne: false
+            referencedRelation: "plant_machinery"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_to_section_id_fkey"
+            columns: ["to_section_id"]
+            isOneToOne: false
+            referencedRelation: "sections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_to_subsection_id_fkey"
+            columns: ["to_subsection_id"]
+            isOneToOne: false
+            referencedRelation: "subsections"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       v_fg_stock_dates: {
         Row: {
@@ -16044,7 +18488,42 @@ export type Database = {
             foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
             columns: ["inv_stock_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
             referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
             referencedColumns: ["stock_item_id"]
           },
           {
@@ -17153,6 +19632,7 @@ export type Database = {
           has_bulk_stock: boolean | null
           has_unassigned_issues: boolean | null
           inventory_state: string | null
+          is_optional_rm: boolean | null
           issue_vouchers: string[] | null
           issued_rm_qty: number | null
           last_issue_voucher_date: string | null
@@ -17163,6 +19643,7 @@ export type Database = {
           production_status: string | null
           remaining_rm_qty: number | null
           rm_name: string | null
+          rm_procurement_mode: string | null
           rm_stock_item_id: number | null
           rm_trace_path: Json | null
           rm_uom: string | null
@@ -17431,7 +19912,42 @@ export type Database = {
             foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
             columns: ["rm_stock_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
             referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
             referencedColumns: ["stock_item_id"]
           },
           {
@@ -17581,7 +20097,42 @@ export type Database = {
             foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
             columns: ["rm_stock_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
             referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_rm_stock_item_id_fkey"
+            columns: ["rm_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
             referencedColumns: ["stock_item_id"]
           },
           {
@@ -17961,6 +20512,7 @@ export type Database = {
           queue_lane: number | null
           remaining_pm_qty: number | null
           stage_rank: number | null
+          stock_qty: number | null
           top_region: string | null
           top_risk_reduction_units: number | null
           top_sku_id: number | null
@@ -18471,6 +21023,34 @@ export type Database = {
           },
         ]
       }
+      v_proc_indent_line_vendor_candidates: {
+        Row: {
+          evidence: Json | null
+          indent_line_id: number | null
+          rate_value: number | null
+          vendor_id: number | null
+          vendor_name: string | null
+        }
+        Relationships: []
+      }
+      v_proc_indent_line_vendor_ranked: {
+        Row: {
+          indent_line_id: number | null
+          l1_evidence: Json | null
+          l1_rate_value: number | null
+          l1_vendor_id: number | null
+          l1_vendor_name: string | null
+          l2_evidence: Json | null
+          l2_rate_value: number | null
+          l2_vendor_id: number | null
+          l2_vendor_name: string | null
+          l3_evidence: Json | null
+          l3_rate_value: number | null
+          l3_vendor_id: number | null
+          l3_vendor_name: string | null
+        }
+        Relationships: []
+      }
       v_proc_indent_lines_console: {
         Row: {
           allocated_qty: number | null
@@ -18563,6 +21143,327 @@ export type Database = {
           },
         ]
       }
+      v_proc_indent_priority_final: {
+        Row: {
+          aging_days: number | null
+          allocated_qty: number | null
+          approved_date: string | null
+          avg_monthly_6m: number | null
+          criticality_class: string | null
+          criticality_reason: string | null
+          indent_id: number | null
+          indent_line_id: number | null
+          indent_number: string | null
+          lead_time_days: number | null
+          material_class_code: string | null
+          material_class_id: number | null
+          material_class_label: string | null
+          missing_consumption_record: boolean | null
+          missing_stock_record: boolean | null
+          mos_months: number | null
+          net_excess_qty: number | null
+          overridden_at: string | null
+          overridden_by: string | null
+          override_band: string | null
+          override_reason: string | null
+          penalty_oversupply: number | null
+          priority_band_final: string | null
+          priority_band_system: string | null
+          priority_score_system: number | null
+          priority_why: Json | null
+          prod_pull_score: number | null
+          prod_pull_why: Json | null
+          remaining_qty: number | null
+          requested_qty: number | null
+          score_aging: number | null
+          score_criticality: number | null
+          score_lead_time: number | null
+          score_manual_urgency: number | null
+          score_mos: number | null
+          score_prod_pull: number | null
+          stock_item_id: number | null
+          stock_item_name: string | null
+          stock_qty: number | null
+          uom_code: string | null
+          uom_id: number | null
+          urgency_band: string | null
+          urgency_reason: string | null
+          urgency_score: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proc_indent_line_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "proc_indent_header"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_console"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_header_balance"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_material_class_fk"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_proc_indent_priority_system: {
+        Row: {
+          aging_days: number | null
+          allocated_qty: number | null
+          approved_date: string | null
+          avg_monthly_6m: number | null
+          criticality_class: string | null
+          criticality_reason: string | null
+          indent_id: number | null
+          indent_line_id: number | null
+          indent_number: string | null
+          lead_time_days: number | null
+          material_class_code: string | null
+          material_class_id: number | null
+          material_class_label: string | null
+          missing_consumption_record: boolean | null
+          missing_stock_record: boolean | null
+          mos_months: number | null
+          net_excess_qty: number | null
+          penalty_oversupply: number | null
+          prod_pull_score: number | null
+          prod_pull_why: Json | null
+          remaining_qty: number | null
+          requested_qty: number | null
+          score_aging: number | null
+          score_criticality: number | null
+          score_lead_time: number | null
+          score_manual_urgency: number | null
+          score_mos: number | null
+          score_prod_pull: number | null
+          stock_item_id: number | null
+          stock_item_name: string | null
+          stock_qty: number | null
+          uom_code: string | null
+          uom_id: number | null
+          urgency_band: string | null
+          urgency_reason: string | null
+          urgency_score: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proc_indent_line_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "proc_indent_header"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_console"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_header_balance"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_material_class_fk"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_proc_indent_sourcing_variance: {
+        Row: {
+          actual_vendor_id: number | null
+          allocated_qty: number | null
+          indent_line_id: number | null
+          selected_vendor_id: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proc_indent_line_sourcing_decision_sel_fk"
+            columns: ["selected_vendor_id"]
+            isOneToOne: false
+            referencedRelation: "proc_vendor"
+            referencedColumns: ["vendor_id"]
+          },
+          {
+            foreignKeyName: "proc_vendor_alias_vendor_fk"
+            columns: ["actual_vendor_id"]
+            isOneToOne: false
+            referencedRelation: "proc_vendor"
+            referencedColumns: ["vendor_id"]
+          },
+        ]
+      }
+      v_proc_item_consumption_rate: {
+        Row: {
+          avg_monthly_12m: number | null
+          avg_monthly_3m: number | null
+          avg_monthly_6m: number | null
+          nonzero_months_12m: number | null
+          stock_item_id: number | null
+        }
+        Relationships: []
+      }
+      v_proc_item_criticality_effective: {
+        Row: {
+          criticality_class: string | null
+          reason: string | null
+          stock_item_id: number | null
+        }
+        Relationships: []
+      }
+      v_proc_item_lead_time_effective: {
+        Row: {
+          lead_time_days: number | null
+          notes: string | null
+          source: string | null
+          stock_item_id: number | null
+        }
+        Relationships: []
+      }
+      v_proc_item_mos: {
+        Row: {
+          avg_monthly_12m: number | null
+          avg_monthly_3m: number | null
+          avg_monthly_6m: number | null
+          missing_consumption_record: boolean | null
+          missing_stock_record: boolean | null
+          mos_months: number | null
+          nonzero_months_12m: number | null
+          stock_item_id: number | null
+          stock_qty: number | null
+        }
+        Relationships: []
+      }
+      v_proc_item_production_urgency_effective: {
+        Row: {
+          reason: string | null
+          stock_item_id: number | null
+          urgency_band: string | null
+          urgency_score: number | null
+        }
+        Relationships: []
+      }
+      v_proc_item_vendor_best_avg_last3: {
+        Row: {
+          best_avg_last_seen_date: string | null
+          best_avg_rate_last3: number | null
+          best_avg_vendor_id_last3: number | null
+          material_class_id: number | null
+          stock_item_id: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inv_stock_item_class_map_category_id_fkey"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_vendor_alias_vendor_fk"
+            columns: ["best_avg_vendor_id_last3"]
+            isOneToOne: false
+            referencedRelation: "proc_vendor"
+            referencedColumns: ["vendor_id"]
+          },
+        ]
+      }
+      v_proc_item_vendor_best_rate_180d: {
+        Row: {
+          best_rate_date_180d: string | null
+          best_rate_value_180d: number | null
+          best_vendor_id_180d: number | null
+          material_class_id: number | null
+          stock_item_id: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inv_stock_item_class_map_category_id_fkey"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_vendor_alias_vendor_fk"
+            columns: ["best_vendor_id_180d"]
+            isOneToOne: false
+            referencedRelation: "proc_vendor"
+            referencedColumns: ["vendor_id"]
+          },
+        ]
+      }
+      v_proc_item_vendor_history: {
+        Row: {
+          last_purchase_date: string | null
+          last_vendor_id: number | null
+          material_class_id: number | null
+          stock_item_id: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inv_stock_item_class_map_category_id_fkey"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_vendor_alias_vendor_fk"
+            columns: ["last_vendor_id"]
+            isOneToOne: false
+            referencedRelation: "proc_vendor"
+            referencedColumns: ["vendor_id"]
+          },
+        ]
+      }
+      v_proc_item_vendor_last_purchase: {
+        Row: {
+          last_purchase_date: string | null
+          last_rate_value: number | null
+          last_vendor_id: number | null
+          material_class_id: number | null
+          stock_item_id: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inv_stock_item_class_map_category_id_fkey"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_vendor_alias_vendor_fk"
+            columns: ["last_vendor_id"]
+            isOneToOne: false
+            referencedRelation: "proc_vendor"
+            referencedColumns: ["vendor_id"]
+          },
+        ]
+      }
       v_proc_pr_header: {
         Row: {
           created_at: string | null
@@ -18648,6 +21549,141 @@ export type Database = {
           },
         ]
       }
+      v_proc_procurement_action_queue: {
+        Row: {
+          aging_days: number | null
+          allocated_qty: number | null
+          approved_date: string | null
+          avg_monthly_6m: number | null
+          criticality_class: string | null
+          decided_at: string | null
+          decided_by: string | null
+          has_net_excess: boolean | null
+          has_selected_vendor: boolean | null
+          has_vendor_candidates: boolean | null
+          indent_id: number | null
+          indent_line_id: number | null
+          indent_number: string | null
+          l1_evidence: Json | null
+          l1_rate_value: number | null
+          l1_vendor_id: number | null
+          l1_vendor_name: string | null
+          l2_evidence: Json | null
+          l2_rate_value: number | null
+          l2_vendor_id: number | null
+          l2_vendor_name: string | null
+          l3_evidence: Json | null
+          l3_rate_value: number | null
+          l3_vendor_id: number | null
+          l3_vendor_name: string | null
+          lead_time_days: number | null
+          material_class_code: string | null
+          material_class_id: number | null
+          material_class_label: string | null
+          mos_months: number | null
+          net_excess_qty: number | null
+          priority_band_final: string | null
+          priority_band_system: string | null
+          priority_score_system: number | null
+          priority_why: Json | null
+          prod_pull_score: number | null
+          recommended_meta: Json | null
+          recommended_rate: number | null
+          recommended_source: string | null
+          recommended_vendor_id: number | null
+          remaining_qty: number | null
+          requested_qty: number | null
+          selected_rate: number | null
+          selected_vendor_id: number | null
+          selection_reason: string | null
+          stock_item_id: number | null
+          stock_item_name: string | null
+          stock_qty: number | null
+          uom_code: string | null
+          uom_id: number | null
+          urgency_band: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proc_indent_line_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "proc_indent_header"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_console"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_header_balance"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_material_class_fk"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_sourcing_decision_rec_fk"
+            columns: ["recommended_vendor_id"]
+            isOneToOne: false
+            referencedRelation: "proc_vendor"
+            referencedColumns: ["vendor_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_sourcing_decision_sel_fk"
+            columns: ["selected_vendor_id"]
+            isOneToOne: false
+            referencedRelation: "proc_vendor"
+            referencedColumns: ["vendor_id"]
+          },
+        ]
+      }
+      v_proc_prod_pull_by_item: {
+        Row: {
+          best_priority_rank: number | null
+          best_queue_lane: number | null
+          material_class_id: number | null
+          max_risk_reduction_units: number | null
+          prod_pull_score: number | null
+          prod_pull_why: Json | null
+          stock_item_id: number | null
+        }
+        Relationships: []
+      }
+      v_proc_prod_pull_pm_by_item: {
+        Row: {
+          best_priority_rank: number | null
+          best_queue_lane: number | null
+          material_class_id: number | null
+          max_risk_reduction_units: number | null
+          prod_pull_score: number | null
+          prod_pull_why: Json | null
+          stock_item_id: number | null
+        }
+        Relationships: []
+      }
+      v_proc_prod_pull_rm_by_item: {
+        Row: {
+          best_priority_rank: number | null
+          best_queue_lane: number | null
+          material_class_id: number | null
+          max_risk_reduction_units: number | null
+          prod_pull_score: number | null
+          prod_pull_why: Json | null
+          stock_item_id: number | null
+        }
+        Relationships: []
+      }
       v_proc_purchase_excess_console: {
         Row: {
           accepted_qty: number | null
@@ -18693,6 +21729,57 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_uom_picker"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_proc_purchase_fact_with_vendor: {
+        Row: {
+          billed_amount_value: number | null
+          material_class_id: number | null
+          purchase_fact_id: number | null
+          purchase_qty: number | null
+          rate_value: number | null
+          stock_item_id: number | null
+          supplier_name: string | null
+          uom_id: number | null
+          vendor_id: number | null
+          voucher_date: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inv_stock_item_class_map_category_id_fkey"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "inv_uom"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_picker"
+            referencedColumns: ["uom_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_uom_picker"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_vendor_alias_vendor_fk"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "proc_vendor"
+            referencedColumns: ["vendor_id"]
           },
         ]
       }
@@ -18819,6 +21906,76 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_uom_picker"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_proc_vendor_alias_unmapped_from_outstanding: {
+        Row: {
+          alias_key: string | null
+          alias_text: string | null
+          source_system: string | null
+          status: string | null
+          vendor_id: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proc_vendor_alias_vendor_fk"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "proc_vendor"
+            referencedColumns: ["vendor_id"]
+          },
+        ]
+      }
+      v_proc_vendor_alias_unmapped_from_purchases: {
+        Row: {
+          alias_key: string | null
+          alias_text: string | null
+          source_system: string | null
+          status: string | null
+          vendor_id: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proc_vendor_alias_vendor_fk"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "proc_vendor"
+            referencedColumns: ["vendor_id"]
+          },
+        ]
+      }
+      v_proc_vendor_alias_unmapped_queue: {
+        Row: {
+          alias_key: string | null
+          alias_text: string | null
+          source_system: string | null
+          status: string | null
+          vendor_id: number | null
+        }
+        Relationships: []
+      }
+      v_proc_vendor_item_rate_effective: {
+        Row: {
+          lead_time_days: number | null
+          material_class_id: number | null
+          min_order_qty: number | null
+          rate_id: number | null
+          rate_value: number | null
+          remarks: string | null
+          stock_item_id: number | null
+          uom_id: number | null
+          valid_from: string | null
+          valid_to: string | null
+          vendor_id: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proc_vendor_item_rate_vendor_fk"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "proc_vendor"
+            referencedColumns: ["vendor_id"]
           },
         ]
       }
@@ -19367,8 +22524,13 @@ export type Database = {
       v_production_priority_queue_current_month: {
         Row: {
           batch_number: string | null
+          batch_size_declared: number | null
+          batch_uom: string | null
+          bottled_on_hand_base_qty: number | null
+          bottled_on_hand_units: number | null
           candidate_supply_base_qty: number | null
           expected_output_base_qty: number | null
+          fg_bulk_on_hand_base_qty: number | null
           has_label_or_override_pending: boolean | null
           has_mandatory_pm_pending: boolean | null
           has_unassigned_rm_issues: boolean | null
@@ -19384,8 +22546,10 @@ export type Database = {
           priority_rank_v3: number | null
           priority_rank_v4: number | null
           product_id: number | null
+          product_name: string | null
           queue_lane: number | null
           rm_gate_status: string | null
+          rm_gate_status_display: string | null
           rm_issue_completion_ratio: number | null
           rm_pending_lines: number | null
           stage_rank: number | null
@@ -19396,6 +22560,7 @@ export type Database = {
           top_region: string | null
           top_risk_reduction_units: number | null
           top_sku_id: number | null
+          top_sku_label: string | null
           total_risk_reduction_units: number | null
           transferred_out_base_qty: number | null
         }
@@ -19556,6 +22721,7 @@ export type Database = {
           batch_id: number | null
           batch_number: string | null
           has_unassigned_issues: boolean | null
+          is_optional_rm: boolean | null
           issue_vouchers: string[] | null
           issued_rm_qty: number | null
           last_issue_voucher_date: string | null
@@ -19572,6 +22738,7 @@ export type Database = {
           rm_gate_status: string | null
           rm_name: string | null
           rm_pending_lines: number | null
+          rm_procurement_mode: string | null
           rm_stock_item_id: number | null
           rm_trace_path: Json | null
           rm_uom: string | null
@@ -19683,7 +22850,42 @@ export type Database = {
             foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
             columns: ["stock_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
             referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
             referencedColumns: ["stock_item_id"]
           },
           {
@@ -19829,7 +23031,42 @@ export type Database = {
             foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
             columns: ["inv_stock_item_id"]
             isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
             referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
             referencedColumns: ["stock_item_id"]
           },
           {
@@ -23672,8 +26909,13 @@ export type Database = {
       v_supply_candidates_current_month: {
         Row: {
           batch_number: string | null
+          batch_size_declared: number | null
+          batch_uom: string | null
+          bottled_on_hand_base_qty: number | null
+          bottled_on_hand_units: number | null
           candidate_supply_base_qty: number | null
           expected_output_base_qty: number | null
+          fg_bulk_on_hand_base_qty: number | null
           has_label_or_override_pending: boolean | null
           has_mandatory_pm_pending: boolean | null
           has_unassigned_rm_issues: boolean | null
@@ -25512,6 +28754,21 @@ export type Database = {
         Args: { p_batch_number: string; p_eps?: number; p_product_id: number }
         Returns: undefined
       }
+      fn_fg_bulk_batch_balance: {
+        Args: { p_batch_number: string; p_product_id: number }
+        Returns: number
+      }
+      fn_fg_bulk_location_balance: {
+        Args: {
+          p_area_id: number
+          p_batch_number: string
+          p_plant_id: number
+          p_product_id: number
+          p_section_id: number
+          p_subsection_id: number
+        }
+        Returns: number
+      }
       fn_fg_eps_default: { Args: never; Returns: number }
       fn_fg_force_close:
         | {
@@ -26298,6 +29555,10 @@ export type Database = {
         Args: { p_indent_id: number }
         Returns: boolean
       }
+      proc_indent_clear_priority_override: {
+        Args: { p_indent_line_id: number }
+        Returns: undefined
+      }
       proc_indent_close_strict: {
         Args: { p_indent_id: number }
         Returns: undefined
@@ -26335,11 +29596,32 @@ export type Database = {
         Args: { p_indent_date?: string; p_material_class_id: number }
         Returns: string
       }
+      proc_indent_recommend_vendor: {
+        Args: { p_indent_line_id: number }
+        Returns: undefined
+      }
+      proc_indent_set_priority_override: {
+        Args: {
+          p_indent_line_id: number
+          p_override_band: string
+          p_reason: string
+        }
+        Returns: undefined
+      }
       proc_indent_set_status: {
         Args: {
           p_approved_date?: string
           p_indent_id: number
           p_status: string
+        }
+        Returns: undefined
+      }
+      proc_indent_set_vendor_selection: {
+        Args: {
+          p_indent_line_id: number
+          p_reason?: string
+          p_selected_rate?: number
+          p_selected_vendor_id: number
         }
         Returns: undefined
       }
@@ -26376,6 +29658,14 @@ export type Database = {
       }
       proc_pr_set_status: {
         Args: { p_note?: string; p_pr_id: number; p_status: string }
+        Returns: undefined
+      }
+      proc_vendor_create_and_map_tally_alias: {
+        Args: { p_alias_text: string; p_display_name: string }
+        Returns: number
+      }
+      proc_vendor_map_tally_alias: {
+        Args: { p_alias_text: string; p_vendor_id: number }
         Returns: undefined
       }
       process_supply_rollup_refresh: { Args: never; Returns: undefined }
@@ -26424,6 +29714,10 @@ export type Database = {
       refresh_batch_plan: { Args: { p_header_id: number }; Returns: undefined }
       refresh_batch_plan_lines: {
         Args: { p_header_id: number; p_product_ids: number[] }
+        Returns: undefined
+      }
+      refresh_blocker_snapshots_current_month: {
+        Args: never
         Returns: undefined
       }
       refresh_execution_gate_snapshots_current_month: {
@@ -26500,6 +29794,54 @@ export type Database = {
           inserted_event_sku_count: number
           packaging_event_id: number
         }[]
+      }
+      rpc_create_fg_bulk_internal_transfer: {
+        Args: {
+          p_batch_number: string
+          p_from_area_id: number
+          p_from_plant_id: number
+          p_from_section_id: number
+          p_from_subsection_id: number
+          p_item: string
+          p_product_id: number
+          p_qty: number
+          p_remarks?: string
+          p_source_work_log_id?: number
+          p_to_area_id: number
+          p_to_plant_id: number
+          p_to_section_id: number
+          p_to_subsection_id: number
+          p_transfer_date: string
+          p_uom: string
+        }
+        Returns: {
+          batch_number: string
+          created_at: string
+          created_by: string | null
+          from_area_id: number | null
+          from_plant_id: number | null
+          from_section_id: number | null
+          from_subsection_id: number | null
+          id: number
+          item: string
+          product_id: number
+          qty: number
+          qty_base: number
+          remarks: string | null
+          source_work_log_id: number | null
+          to_area_id: number | null
+          to_plant_id: number | null
+          to_section_id: number | null
+          to_subsection_id: number | null
+          transfer_date: string
+          uom: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "fg_bulk_internal_transfer"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       rpc_debug_runtime_identity: {
         Args: never

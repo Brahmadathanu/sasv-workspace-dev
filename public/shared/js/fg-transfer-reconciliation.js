@@ -69,6 +69,12 @@ const PROBLEM_KIND_OPTIONS = [
 let mfWorkingStatus = new Set();
 let mfWorkingProblem = new Set();
 
+const transferSummaryCopyCache = {
+  key: null,
+  result: null,
+  promise: null,
+};
+
 // =========================================================================
 // UTILITY FUNCTIONS
 // =========================================================================
@@ -112,6 +118,10 @@ function setSingleDayRangeFromDBDate(dbDate) {
   const ddmmyyyy = formatDateFromDBToDDMMYYYY(dbDate);
   state.dateFrom = ddmmyyyy;
   state.dateTo = ddmmyyyy;
+  invalidateTransferSummaryCopyCache();
+  void prepareTransferSummaryForCopy().catch((err) => {
+    console.error("prepareTransferSummaryForCopy failed", err);
+  });
   const inp = document.getElementById("dateRange");
   if (inp) {
     inp.value = `${ddmmyyyy} to ${ddmmyyyy}`;
@@ -3080,6 +3090,7 @@ function switchTab(tabName) {
       // If user navigates to Overview initially, reset filters to defaults
       state.dateFrom = getDefaultFromDate();
       state.dateTo = getDefaultToDate();
+      invalidateTransferSummaryCopyCache();
       state.searchText = "";
       state.statusFilter = null;
       state.problemFilter = null;
@@ -3147,6 +3158,9 @@ function switchTab(tabName) {
 
       // Reset pagination
       resetPages();
+      void prepareTransferSummaryForCopy().catch((err) => {
+        console.error("prepareTransferSummaryForCopy failed", err);
+      });
 
       renderOverviewTab();
       state._overviewVisited = true;
@@ -3394,6 +3408,18 @@ function downloadCSV(csv, filename) {
   document.body.removeChild(link);
 }
 
+function getTransferSummaryCopyCacheKey() {
+  const from = formatDateForDB(state.dateFrom) || "1900-01-01";
+  const to = formatDateForDB(state.dateTo) || "2100-01-01";
+  return `${from}|${to}`;
+}
+
+function invalidateTransferSummaryCopyCache() {
+  transferSummaryCopyCache.key = null;
+  transferSummaryCopyCache.result = null;
+  transferSummaryCopyCache.promise = null;
+}
+
 // =========================================================================
 // COPY TRANSFER SUMMARY HELPERS
 // =========================================================================
@@ -3478,6 +3504,55 @@ function buildTransferSummaryText(rows) {
   return out.join("\n");
 }
 
+async function prepareTransferSummaryForCopy(options = {}) {
+  const { force = false } = options;
+  const key = getTransferSummaryCopyCacheKey();
+
+  if (
+    !force &&
+    transferSummaryCopyCache.key === key &&
+    transferSummaryCopyCache.result
+  ) {
+    return transferSummaryCopyCache.result;
+  }
+
+  if (
+    !force &&
+    transferSummaryCopyCache.key === key &&
+    transferSummaryCopyCache.promise
+  ) {
+    return transferSummaryCopyCache.promise;
+  }
+
+  const pending = (async () => {
+    const rows = await fetchTransferSummaryRowsForCopy();
+    const result = {
+      rows,
+      hasRows: Array.isArray(rows) && rows.length > 0,
+      text: buildTransferSummaryText(rows),
+    };
+    transferSummaryCopyCache.key = key;
+    transferSummaryCopyCache.result = result;
+    return result;
+  })();
+
+  transferSummaryCopyCache.key = key;
+  transferSummaryCopyCache.promise = pending;
+
+  try {
+    return await pending;
+  } catch (err) {
+    if (transferSummaryCopyCache.key === key) {
+      invalidateTransferSummaryCopyCache();
+    }
+    throw err;
+  } finally {
+    if (transferSummaryCopyCache.key === key) {
+      transferSummaryCopyCache.promise = null;
+    }
+  }
+}
+
 async function copyTextToClipboard(text) {
   try {
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -3492,11 +3567,19 @@ async function copyTextToClipboard(text) {
   return new Promise((res, rej) => {
     try {
       const ta = document.createElement("textarea");
+      ta.setAttribute("readonly", "");
       ta.style.position = "fixed";
-      ta.style.left = "-9999px";
+      ta.style.left = "0";
+      ta.style.top = "0";
+      ta.style.width = "1px";
+      ta.style.height = "1px";
+      ta.style.opacity = "0";
+      ta.style.pointerEvents = "none";
       ta.value = text;
       document.body.appendChild(ta);
+      ta.focus();
       ta.select();
+      ta.setSelectionRange(0, ta.value.length);
       const ok = document.execCommand("copy");
       document.body.removeChild(ta);
       if (ok) res();
@@ -3508,14 +3591,31 @@ async function copyTextToClipboard(text) {
 }
 
 async function copyTransferSummary() {
-  showToast("Preparing transfer summary...", "info", 1000);
   try {
-    const rows = await fetchTransferSummaryRowsForCopy();
-    if (!rows || !rows.length) {
+    const key = getTransferSummaryCopyCacheKey();
+    if (
+      transferSummaryCopyCache.key !== key ||
+      !transferSummaryCopyCache.result
+    ) {
+      if (!transferSummaryCopyCache.promise) {
+        void prepareTransferSummaryForCopy().catch((err) => {
+          console.error("prepareTransferSummaryForCopy failed", err);
+        });
+      }
+      showToast(
+        "Preparing transfer summary. Tap copy again in a moment.",
+        "info",
+        1800,
+      );
+      return;
+    }
+
+    const { hasRows, text } = transferSummaryCopyCache.result;
+    if (!hasRows) {
       showToast("No transfer rows found for selected period", "warning");
       return;
     }
-    const text = buildTransferSummaryText(rows);
+
     await copyTextToClipboard(text);
     showToast("Transfer summary copied to clipboard", "success");
   } catch (err) {
@@ -3551,6 +3651,10 @@ async function initFilters() {
           state.dateFrom = formatDate(selectedDates[0]);
           state.dateTo = formatDate(selectedDates[1]);
         }
+        invalidateTransferSummaryCopyCache();
+        void prepareTransferSummaryForCopy().catch((err) => {
+          console.error("prepareTransferSummaryForCopy failed", err);
+        });
         resetPages();
         switchTab(state.currentTab);
       },
@@ -3649,6 +3753,9 @@ async function init() {
 
   // Initialize filters
   await initFilters();
+  void prepareTransferSummaryForCopy().catch((err) => {
+    console.error("prepareTransferSummaryForCopy failed", err);
+  });
   // Remember initial toggle defaults so the master-filters button does not
   // appear active on first load just because system defaults are "on".
   state._initialHideMatched = state.hideMatched;
@@ -3769,6 +3876,11 @@ async function init() {
           : menu.classList.contains("hidden");
       if (shouldOpen) menu.classList.remove("hidden");
       else menu.classList.add("hidden");
+      if (shouldOpen) {
+        void prepareTransferSummaryForCopy().catch((err) => {
+          console.error("prepareTransferSummaryForCopy failed", err);
+        });
+      }
       exportBtn.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
     }
 
@@ -3842,6 +3954,7 @@ async function init() {
       // behavior because Overview will preserve filters after first visit).
       state.dateFrom = getDefaultFromDate();
       state.dateTo = getDefaultToDate();
+      invalidateTransferSummaryCopyCache();
       state.searchText = "";
       state.statusFilter = null;
       state.problemFilter = null;
@@ -3914,6 +4027,9 @@ async function init() {
 
       // Reset pagination and re-render the active tab (do not force Overview)
       resetPages();
+      void prepareTransferSummaryForCopy().catch((err) => {
+        console.error("prepareTransferSummaryForCopy failed", err);
+      });
       if (state.currentTab === "overview") {
         // If already on Overview, render it and mark visited so subsequent
         // navigations don't auto-reset filters.

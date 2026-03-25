@@ -19,7 +19,7 @@ export const Platform = {
   },
   goHome() {
     if (this.isElectron) {
-      window.location.href = "../../index.html";
+      window.location.href = "/index.html";
     } else {
       // Always go to /utilities-hub/index.html from web root
       window.location.href = "/utilities-hub/index.html";

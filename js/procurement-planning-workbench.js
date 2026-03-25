@@ -56,6 +56,32 @@ function debounce(fn, wait = 300) {
   };
 }
 
+// Non-blocking ERP-style toast notification — replaces alert() calls.
+function showToast(msg, type = "error") {
+  const container = document.getElementById("ppw-toast-container");
+  if (!container) {
+    console.warn("[Toast]", msg);
+    return;
+  }
+  const styles = {
+    error: "background:#fef2f2;border:1px solid #fca5a5;color:#991b1b;",
+    warn: "background:#fffbeb;border:1px solid #fcd34d;color:#92400e;",
+    info: "background:#eff6ff;border:1px solid #93c5fd;color:#1e40af;",
+  };
+  const toast = document.createElement("div");
+  toast.style.cssText =
+    (styles[type] || styles.info) +
+    "padding:10px 16px;border-radius:8px;font-size:0.9rem;max-width:340px;" +
+    "box-shadow:0 4px 14px rgba(0,0,0,0.08);pointer-events:auto;";
+  toast.textContent = msg;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.transition = "opacity 0.4s";
+    toast.style.opacity = "0";
+    setTimeout(() => toast.remove(), 400);
+  }, 4000);
+}
+
 // Final Procurement Plan: visible columns in the table (rest shown in detail modal)
 const FP_VISIBLE_COLS = [
   "month_start",
@@ -165,6 +191,9 @@ let fpLastRows = [];
 let overlayLastRows = [];
 let convLastRows = [];
 let traceLastRows = [];
+
+// Last clicked stock item id in the Traceability tab (used by Clear cache button)
+let traceSelectedItemId = null;
 
 // Suppress master-start/master-end change handling when programmatically updating
 let suppressMasterRangeChange = false;
@@ -340,6 +369,10 @@ const pagerState = {
   conv: { page: 0, perPage: 100, total: null },
   tr: { page: 0, perPage: 100, total: null },
 };
+
+// Per-tab inflight guard: prevents duplicate parallel loads per tab.
+// Pass force=true to bypass (e.g. explicit refresh).
+const tabInflight = { fp: false, ov: false, conv: false, tr: false };
 
 function updatePagerUI(prefix) {
   try {
@@ -747,6 +780,10 @@ async function onRowClick(row) {
   const month = getMonthStart(row);
   const sections = [];
 
+  // Track last-clicked item in Traceability tab for the "Clear cache" action
+  const _activeTabId = document.querySelector(".tab.active")?.dataset?.tab;
+  if (_activeTabId === "traceability" && id != null) traceSelectedItemId = id;
+
   // Enhanced metadata display with key metrics first
   function buildSummarySection(r) {
     const materialKindMap = {
@@ -1063,7 +1100,9 @@ async function onRowClick(row) {
 }
 
 // Tab loaders
-async function loadFinalPlan() {
+async function loadFinalPlan(force = false) {
+  if (tabInflight.fp && !force) return;
+  tabInflight.fp = true;
   showLoading("Loading final procurement plan...");
   const { start, end } = getMasterRange();
   const search = ($("fp-search").value || "").trim();
@@ -1092,9 +1131,14 @@ async function loadFinalPlan() {
     updatePagerUI("fp");
   } catch (err) {
     console.debug(err);
+    showToast(
+      "Failed to load Final Procurement Plan. Check the console for details.",
+      "error",
+    );
     renderTable("fp-thead", "fp-tbody", []);
   } finally {
     hideLoading();
+    tabInflight.fp = false;
   }
 }
 
@@ -1164,12 +1208,15 @@ async function loadOverlayRuns() {
   }
 }
 
-async function loadOverlayForRun(runId) {
+async function loadOverlayForRun(runId, force = false) {
+  if (tabInflight.ov && !force) return;
+  tabInflight.ov = true;
   showLoading("Loading overlay rows...");
   if (!runId) {
     overlayLastRows = [];
     renderTable("ov-thead", "ov-tbody", []);
     hideLoading();
+    tabInflight.ov = false;
     return;
   }
 
@@ -1212,9 +1259,14 @@ async function loadOverlayForRun(runId) {
   }
   if (error) {
     console.debug(error);
+    showToast(
+      "Failed to load RM Overlay data. Check the console for details.",
+      "error",
+    );
     overlayLastRows = [];
     renderTable("ov-thead", "ov-tbody", []);
     hideLoading();
+    tabInflight.ov = false;
     return;
   }
 
@@ -1223,6 +1275,7 @@ async function loadOverlayForRun(runId) {
     overlayLastRows = [];
     renderTable("ov-thead", "ov-tbody", []);
     hideLoading();
+    tabInflight.ov = false;
     return;
   }
 
@@ -1232,9 +1285,12 @@ async function loadOverlayForRun(runId) {
   renderTable("ov-thead", "ov-tbody", overlayLastRows);
   updatePagerUI("ov");
   hideLoading();
+  tabInflight.ov = false;
 }
 
-async function loadConversionSummary() {
+async function loadConversionSummary(force = false) {
+  if (tabInflight.conv && !force) return;
+  tabInflight.conv = true;
   showLoading("Loading conversion summary...");
 
   const search = ($("conv-search").value || "").trim();
@@ -1263,12 +1319,17 @@ async function loadConversionSummary() {
     updatePagerUI("conv");
   } catch (err) {
     console.debug(err);
+    showToast(
+      "Failed to load RM Conversion Summary. Check the console for details.",
+      "error",
+    );
     convLastRows = [];
     pagerState.conv.total = null;
     renderTable("conv-thead", "conv-tbody", []);
     updatePagerUI("conv");
   } finally {
     hideLoading();
+    tabInflight.conv = false;
   }
 }
 
@@ -1294,18 +1355,13 @@ function initUi() {
     });
   });
 
-  // filters
-  [
-    "master-preset",
-    "master-start",
-    "master-end",
-    "fp-search",
-    "fp-material-kind",
-    "fp-only-net",
-  ].forEach((id) => {
+  // filters — master-preset/start/end have their own dedicated change handlers below
+  // that already use suppressMasterRangeChange; keep only FP-specific filters here.
+  ["fp-search", "fp-material-kind", "fp-only-net"].forEach((id) => {
     const el = $(id);
     if (!el) return;
     el.addEventListener("change", () => {
+      if (suppressMasterRangeChange) return;
       if (document.querySelector(".tab.active").dataset.tab === "final-plan") {
         pagerState.fp.page = 0;
         loadFinalPlan();
@@ -1562,9 +1618,17 @@ function initUi() {
     downloadCSV(`final_procurement_plan_${Date.now()}`, fpLastRows || []);
   });
   $("fp-export-json").addEventListener("click", () => {
+    const { start, end, preset } = getMasterRange();
     downloadJSON(`final_procurement_plan_${Date.now()}`, {
       generated_at: new Date().toISOString(),
-      filters: {},
+      filters: {
+        preset,
+        start,
+        end,
+        search: ($("fp-search")?.value || "").trim() || null,
+        material_kind: $("fp-material-kind")?.value || "all",
+        only_net_need: $("fp-only-net")?.checked || false,
+      },
       rows: fpLastRows || [],
     });
   });
@@ -1578,8 +1642,17 @@ function initUi() {
   if ($("ov-export-json")) {
     $("ov-export-json").addEventListener("click", () => {
       const runId = selectedOverlayRunId || "unknown";
+      const { start, end, preset } = getMasterRange();
       downloadJSON(`rm_season_overlay_run_${runId}`, {
         generated_at: new Date().toISOString(),
+        filters: {
+          preset,
+          start,
+          end,
+          search: ($("ov-search")?.value || "").trim() || null,
+          only_nonzero: $("ov-only-nonzero")?.checked || false,
+          overlay_run_id: runId,
+        },
         overlay_run_id: runId,
         rows: overlayLastRows || [],
       });
@@ -1593,95 +1666,47 @@ function initUi() {
   }
   if ($("conv-export-json")) {
     $("conv-export-json").addEventListener("click", () => {
+      const { start, end, preset } = getMasterRange();
       downloadJSON(`rm_conversion_summary_${Date.now()}`, {
         generated_at: new Date().toISOString(),
+        filters: {
+          preset,
+          start,
+          end,
+          search: ($("conv-search")?.value || "").trim() || null,
+        },
         rows: convLastRows || [],
       });
     });
   }
 
-  $("tr-export-json").addEventListener("click", async () => {
-    const search = ($("tr-search").value || "").trim();
-    if (!search) return alert("Enter stock item search");
-    const { start, end } = getMasterRange();
-    const mk = $("tr-material-kind")?.value || "all";
-    // Use server-side RPCs to fetch bundle components (future-proofed)
-    const rpcPlanParams = {
-      p_start: start || null,
-      p_end: end || null,
-      p_search: search || null,
-      p_material_kind: null,
-      p_only_net: false,
-      p_page: 1,
-      p_per_page: 2000,
-    };
-    const planRes = await supabase.rpc(
-      "rpc_procurement_plan_search",
-      rpcPlanParams,
-    );
-    const plan = planRes.error
-      ? []
-      : (planRes.data || []).map((r) => r.row_data);
-
-    // overlay: fetch base rows via RPC and use returned row_data directly
-    let ov = [];
-    try {
-      const { start: mstart, end: mend } = getMasterRange();
-      const rpcOvParams = {
-        p_start: mstart || null,
-        p_end: mend || null,
-        p_search: search || null,
-        p_run_id: null,
-        p_only_nonzero: false,
-        p_page: 1,
-        p_per_page: 2000,
-      };
-      const ovRes = await supabase.rpc(
-        "rpc_overlay_monthly_search",
-        rpcOvParams,
+  // Trace export: exports the rows currently visible in the Traceability table
+  // (traceLastRows) together with active filter metadata so the export always
+  // matches exactly what the user sees on screen.
+  $("tr-export-json").addEventListener("click", () => {
+    const search = ($("tr-search")?.value || "").trim();
+    if (!search && !traceLastRows.length) {
+      showToast(
+        "No trace data loaded. Apply filters and load the Traceability tab first.",
+        "warn",
       );
-      ov = ovRes.error ? [] : (ovRes.data || []).map((r) => r.row_data);
-    } catch (err) {
-      console.debug(err);
-      ov = [];
+      return;
     }
-
-    // conversion summary via RPC
-    const convRes = await supabase.rpc("rpc_conversion_summary_search", {
-      p_start: start || null,
-      p_end: end || null,
-      p_search: search || null,
-      p_page: 1,
-      p_per_page: 2000,
-    });
-    const conv = convRes.error
-      ? []
-      : (convRes.data || []).map((r) => r.row_data);
-
-    // trace via RPC
-    const traceRes = await supabase.rpc("rpc_trace_search", {
-      p_start: start || null,
-      p_end: end || null,
-      p_search: search || null,
-      p_material_kind: mk !== "all" ? mk : null,
-      p_page: 1,
-      p_per_page: 2000,
-    });
-    const trace = traceRes.error
-      ? []
-      : (traceRes.data || []).map((r) => r.row_data);
+    const { start, end, preset } = getMasterRange();
+    const mk = $("tr-material-kind")?.value || "all";
     const bundle = {
       generated_at: new Date().toISOString(),
-      search,
-      start,
-      end,
-      material_kind_filter: mk,
-      plan: plan || [],
-      overlay: ov || [],
-      conversion: conv || [],
-      trace: trace || [],
+      filters: {
+        preset,
+        start,
+        end,
+        search: search || null,
+        material_kind: mk,
+        overlay_run_id: selectedOverlayRunId,
+      },
+      trace: traceLastRows || [],
     };
-    downloadJSON(`trace_bundle_${search}_${Date.now()}`, bundle);
+    downloadJSON(`trace_bundle_${search || "all"}_${Date.now()}`, bundle);
   });
 
   // Pager controls wiring
@@ -1882,13 +1907,34 @@ function initUi() {
       ]);
     });
   }
+
+  // Clear cache button (Traceability tab): invalidates the 5-min detail
+  // modal cache for the last-clicked item, or clears all cache entries if
+  // no item has been selected in the current session.
+  const trClearCache = $("tr-clear-cache");
+  if (trClearCache) {
+    trClearCache.addEventListener("click", () => {
+      if (traceSelectedItemId != null) {
+        invalidateDetailCache(traceSelectedItemId);
+        showToast(
+          `Detail cache cleared for item ${traceSelectedItemId}.`,
+          "info",
+        );
+      } else {
+        detailModalCache.clear();
+        showToast("Detail cache cleared for all items.", "info");
+      }
+    });
+  }
 }
 
 // fetch helpers removed — exports use cached rows (fpLastRows, overlayLastRows, convLastRows)
 
 // bootstrap
 // Override previous trace loader with RPC-backed implementation (keeps original name)
-async function loadTraceability() {
+async function loadTraceability(force = false) {
+  if (tabInflight.tr && !force) return;
+  tabInflight.tr = true;
   showLoading("Loading traceability...");
   // Use server-side RPC for procurement-plan style trace listing
   const search = ($("tr-search").value || "").trim();
@@ -1937,6 +1983,7 @@ async function loadTraceability() {
     renderTable("tr-thead", "tr-tbody", traceLastRows, cols);
     updatePagerUI("tr");
     hideLoading();
+    tabInflight.tr = false;
   }
 }
 window.addEventListener("DOMContentLoaded", async () => {

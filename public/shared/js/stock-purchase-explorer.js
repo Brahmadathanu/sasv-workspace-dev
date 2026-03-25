@@ -60,6 +60,9 @@ let cacheSub = [];
 let cacheGrp = [];
 let cacheSGrp = [];
 
+// Monotonically increasing counter for stale-result guard in reloadActiveTab
+let _requestSeq = 0;
+
 // Pagination helpers: reset pages when filters change
 function resetPages() {
   state.pageOverview = 1;
@@ -192,7 +195,7 @@ classificationSelect.addEventListener("change", async () => {
       }
       // If the mapped code exists in the category select, pick it and populate downstream
       const opt = Array.from(categoryFilter.options).find(
-        (o) => o.value === mapped
+        (o) => o.value === mapped,
       );
       if (opt) {
         categoryFilter.value = mapped;
@@ -383,7 +386,7 @@ async function loadClassificationOptions(attempt = 1) {
             (c) =>
               `<option value="${c.code}">${c.code} — ${
                 c.label || c.code
-              }</option>`
+              }</option>`,
           )
           .join("");
       // ensure category select is enabled after population
@@ -405,7 +408,7 @@ async function loadClassificationOptions(attempt = 1) {
       "Failed to load classification taxonomy (attempt",
       attempt,
       ")",
-      err
+      err,
     );
     // Retry once after a small delay for transient network issues
     if (attempt < 2) {
@@ -444,7 +447,7 @@ function populateSubcategoriesForCategory(categoryCode) {
     subs
       .map(
         (s) =>
-          `<option value="${s.code}">${s.code} — ${s.label || s.code}</option>`
+          `<option value="${s.code}">${s.code} — ${s.label || s.code}</option>`,
       )
       .join("");
   subcategoryFilter.disabled = false;
@@ -462,14 +465,14 @@ function populateGroupsForSubcategory(subcategoryCode) {
     return;
   }
   const grps = cacheGrp.filter(
-    (g) => String(g.subcategory_id) === String(sub.id)
+    (g) => String(g.subcategory_id) === String(sub.id),
   );
   groupFilter.innerHTML =
     `<option value="all">(All groups)</option>` +
     grps
       .map(
         (g) =>
-          `<option value="${g.code}">${g.code} — ${g.label || g.code}</option>`
+          `<option value="${g.code}">${g.code} — ${g.label || g.code}</option>`,
       )
       .join("");
   groupFilter.disabled = false;
@@ -489,7 +492,7 @@ function populateSubgroupsForGroup(groupCode) {
     sgs
       .map(
         (s) =>
-          `<option value="${s.code}">${s.code} — ${s.label || s.code}</option>`
+          `<option value="${s.code}">${s.code} — ${s.label || s.code}</option>`,
       )
       .join("");
   subgroupFilter.disabled = false;
@@ -546,7 +549,7 @@ function _getFocusable(el) {
     '[tabindex]:not([tabindex="-1"])',
   ].join(",");
   return Array.from(el.querySelectorAll(selectors)).filter(
-    (f) => f.offsetParent !== null
+    (f) => f.offsetParent !== null,
   );
 }
 
@@ -631,7 +634,7 @@ function setBackgroundInert(enable, exceptions = []) {
       .concat(exceptions || [])
       .filter(Boolean);
     _backgroundDisabled = Array.from(page.querySelectorAll(selectors)).filter(
-      (el) => !exceptionEls.some((ex) => ex && ex.contains && ex.contains(el))
+      (el) => !exceptionEls.some((ex) => ex && ex.contains && ex.contains(el)),
     );
     _backgroundDisabled.forEach((el) => {
       const prev = el.getAttribute("tabindex");
@@ -845,7 +848,7 @@ function openMobileFiltersModal() {
           (c) =>
             `<option value="${c.code}">${c.code} — ${
               c.label || c.code
-            }</option>`
+            }</option>`,
         )
         .join("");
     mobileCategoryFilter.value = _mobileFilterValues.categoryCode;
@@ -925,7 +928,7 @@ function applyMobileFilters() {
   const mobileDateRange = document.getElementById("mobileDateRange");
   const mobileCategoryFilter = document.getElementById("mobileCategoryFilter");
   const mobileSubcategoryFilter = document.getElementById(
-    "mobileSubcategoryFilter"
+    "mobileSubcategoryFilter",
   );
   const mobileGroupFilter = document.getElementById("mobileGroupFilter");
   const mobileSubgroupFilter = document.getElementById("mobileSubgroupFilter");
@@ -1004,7 +1007,7 @@ function resetMobileFilters() {
   const mobileDateRange = document.getElementById("mobileDateRange");
   const mobileCategoryFilter = document.getElementById("mobileCategoryFilter");
   const mobileSubcategoryFilter = document.getElementById(
-    "mobileSubcategoryFilter"
+    "mobileSubcategoryFilter",
   );
   const mobileGroupFilter = document.getElementById("mobileGroupFilter");
   const mobileSubgroupFilter = document.getElementById("mobileSubgroupFilter");
@@ -1045,7 +1048,7 @@ function resetFilters() {
     const mobileDateRange = document.getElementById("mobileDateRange");
     const mobileCategory = document.getElementById("mobileCategoryFilter");
     const mobileSubcategory = document.getElementById(
-      "mobileSubcategoryFilter"
+      "mobileSubcategoryFilter",
     );
     const mobileGroup = document.getElementById("mobileGroupFilter");
     const mobileSubgroup = document.getElementById("mobileSubgroupFilter");
@@ -1406,7 +1409,7 @@ async function loadPurchaseSummary({
 
   const { data, error } = await supabase.rpc(
     "fn_purchase_summary_filtered",
-    rpcParams
+    rpcParams,
   );
   if (error) return { error: handleSupabaseError(error) };
 
@@ -1434,7 +1437,7 @@ async function loadPurchaseSummary({
     }
     if (searchText) {
       countQuery = countQuery.or(
-        `name.ilike.%${searchText}%,code.ilike.%${searchText}%`
+        `name.ilike.%${searchText}%,code.ilike.%${searchText}%`,
       );
     }
     if (fromDate)
@@ -1459,7 +1462,7 @@ async function loadPurchaseDetails({ invStockItemId, fromDate, toDate }) {
   };
   const { data, error } = await supabase.rpc(
     "fn_purchase_details_filtered",
-    rpcParams
+    rpcParams,
   );
   if (error) return { error: handleSupabaseError(error) };
   return { data };
@@ -1474,7 +1477,7 @@ async function loadConsumptionMonthly({ invStockItemId, fromDate, toDate }) {
   };
   const { data, error } = await supabase.rpc(
     "fn_consumption_monthly_filtered",
-    rpcParams
+    rpcParams,
   );
   if (error) return { error: handleSupabaseError(error) };
   return { data };
@@ -1502,12 +1505,12 @@ async function loadConsumptionSummary({
 
   const { data, error } = await supabase.rpc(
     "fn_consumption_summary_filtered",
-    rpcParams
+    rpcParams,
   );
   if (error) {
     console.warn(
       "fn_consumption_summary_filtered RPC error, falling back to client aggregation:",
-      error
+      error,
     );
     return await fallbackLoadConsumptionSummary({
       sourceKind,
@@ -1546,7 +1549,7 @@ async function loadConsumptionSummary({
         p_source_kind: rpcParams.p_source_kind,
         p_search: rpcParams.p_search,
         p_category_code: rpcParams.p_category_code,
-      }
+      },
     );
     if (!cntErr && cntData) {
       // Support common return shapes: [{ count: N }] or plain integer array
@@ -1596,7 +1599,7 @@ async function fallbackLoadConsumptionSummary({
   let query = supabase
     .from("v_item_consumption_monthly_by_item")
     .select(
-      `inv_stock_item_id,month_start_date,total_consumed_qty,rm_pm_issue_qty,consumable_out_qty,source_kind`
+      `inv_stock_item_id,month_start_date,total_consumed_qty,rm_pm_issue_qty,consumable_out_qty,source_kind`,
     );
 
   if (sourceKind && sourceKind !== "all")
@@ -1656,7 +1659,7 @@ async function fallbackLoadConsumptionSummary({
   const itemMap = new Map((items || []).map((it) => [it.id, it]));
   try {
     const uomIds = Array.from(
-      new Set((items || []).map((it) => it.default_uom_id).filter(Boolean))
+      new Set((items || []).map((it) => it.default_uom_id).filter(Boolean)),
     );
     if (uomIds.length) {
       const { data: uoms, error: uomErr } = await supabase
@@ -1757,7 +1760,7 @@ async function fallbackLoadConsumptionSummary({
     summaries = summaries.filter(
       (r) =>
         (r.name || "").toLowerCase().includes(lower) ||
-        (r.code || "").toLowerCase().includes(lower)
+        (r.code || "").toLowerCase().includes(lower),
     );
   }
 
@@ -1765,22 +1768,22 @@ async function fallbackLoadConsumptionSummary({
   // classification columns in some deployments.
   if (state.currentCategoryCode && state.currentCategoryCode !== "all") {
     summaries = summaries.filter(
-      (r) => r.category_code === state.currentCategoryCode
+      (r) => r.category_code === state.currentCategoryCode,
     );
   }
   if (state.currentSubcategoryCode && state.currentSubcategoryCode !== "all") {
     summaries = summaries.filter(
-      (r) => r.subcategory_code === state.currentSubcategoryCode
+      (r) => r.subcategory_code === state.currentSubcategoryCode,
     );
   }
   if (state.currentGroupCode && state.currentGroupCode !== "all") {
     summaries = summaries.filter(
-      (r) => r.group_code === state.currentGroupCode
+      (r) => r.group_code === state.currentGroupCode,
     );
   }
   if (state.currentSubgroupCode && state.currentSubgroupCode !== "all") {
     summaries = summaries.filter(
-      (r) => r.subgroup_code === state.currentSubgroupCode
+      (r) => r.subgroup_code === state.currentSubgroupCode,
     );
   }
 
@@ -1832,71 +1835,30 @@ function formatCurrencyINR(v) {
 
 // Rendering functions
 function renderLoading() {
-  // Use the full-page loading mask for ERP parity; avoid duplicate inline loader
   tableArea.innerHTML = "";
-  showLoadingMask();
+  setBusy(true, "Loading\u2026");
 }
 function renderError(msg) {
   tableArea.innerHTML = `<div class="error">${msg}</div>`;
-  hideLoadingMask();
+  setBusy(false);
 }
 function renderNoData() {
   tableArea.innerHTML = '<div class="no-data">No data found.</div>';
-  hideLoadingMask();
+  setBusy(false);
   const p = document.getElementById("paginator");
   if (p) p.innerHTML = "";
 }
 
-// Page-wide ERP-style loading mask (blur + message). Uses setBackgroundInert but avoids interfering when modal is open.
-let _loadingMaskEl = null;
-function showLoadingMask() {
-  if (_loadingMaskEl) return;
-  // Create structure matching ERP pages: <div class="screen-mask"><div class="mask-box"><div class="spinner"></div><div id="pageMaskText">Loading…</div></div></div>
-  _loadingMaskEl = document.createElement("div");
-  _loadingMaskEl.className = "screen-mask open";
-  _loadingMaskEl.setAttribute("aria-live", "polite");
-  _loadingMaskEl.setAttribute("aria-busy", "true");
-
-  const maskBox = document.createElement("div");
-  maskBox.className = "mask-box";
-
-  const spinner = document.createElement("div");
-  spinner.className = "spinner";
-  spinner.setAttribute("aria-hidden", "true");
-
-  const txt = document.createElement("div");
-  txt.id = "pageMaskText";
-  txt.textContent = "Loading…";
-
-  maskBox.appendChild(spinner);
-  maskBox.appendChild(txt);
-  _loadingMaskEl.appendChild(maskBox);
-  document.body.appendChild(_loadingMaskEl);
-  // make background inert unless modal or drawer is open
-  try {
-    const activeModal = modalOverlay && modalOverlay.classList.contains("open");
-    const activeDrawer = filtersCard && filtersCard.classList.contains("open");
-
-    if (activeModal) {
-      setBackgroundInert(true, [modalOverlay]);
-    } else if (activeDrawer) {
-      // Keep entire filters card and its children interactive during loading
-      setBackgroundInert(true, [filtersCard]);
-    } else {
-      setBackgroundInert(true);
-    }
-  } catch (err) {
-    void err;
-  }
-}
-
-function hideLoadingMask() {
-  if (!_loadingMaskEl) return;
-  _loadingMaskEl.remove();
-  _loadingMaskEl = null;
-  // restore background inert only if modal is not open
-  if (!(modalOverlay && modalOverlay.classList.contains("open"))) {
-    setBackgroundInert(false);
+// Card-level busy overlay (inside .table-card, not full-page)
+function setBusy(flag, msg) {
+  const overlay = document.getElementById("tableCardBusy");
+  if (!overlay) return;
+  if (flag) {
+    const txtEl = overlay.querySelector(".tco-msg");
+    if (txtEl) txtEl.textContent = msg || "Loading\u2026";
+    overlay.style.display = "flex";
+  } else {
+    overlay.style.display = "none";
   }
 }
 
@@ -1938,7 +1900,7 @@ async function fetchUomsForItemIds(ids) {
   if (itemsErr || !items) return new Map();
 
   const uomIds = Array.from(
-    new Set((items || []).map((it) => it.default_uom_id).filter(Boolean))
+    new Set((items || []).map((it) => it.default_uom_id).filter(Boolean)),
   );
   if (!uomIds.length) {
     const m = new Map();
@@ -1985,25 +1947,25 @@ function renderOverviewTable(rows) {
       <td style="vertical-align:middle; text-align:center">${row.code}</td>
       <td style="vertical-align:middle; text-align:left">${row.name}</td>
       <td style="vertical-align:middle; text-align:center">${getRowUOM(
-        row
+        row,
       )}</td>
       <td style="vertical-align:middle; text-align:center">${formatClassification(
-        row
+        row,
       )}</td>
       <td style="vertical-align:middle; text-align:right">${formatIndianNumber(
-        row.current_stock_qty
+        row.current_stock_qty,
       )}</td>
       <td style="vertical-align:middle; text-align:right">${formatCurrencyINR(
-        row.current_stock_rate
+        row.current_stock_rate,
       )}</td>
       <td style="vertical-align:middle; text-align:right">${formatIndianNumber(
-        row.total_purchased_qty
+        row.total_purchased_qty,
       )}</td>
       <td style="vertical-align:middle; text-align:right">${formatCurrencyINR(
-        row.avg_purchase_rate
+        row.avg_purchase_rate,
       )}</td>
       <td style="vertical-align:middle; text-align:right">${formatIndianNumber(
-        row.total_consumed_qty
+        row.total_consumed_qty,
       )}</td>
       <td style="vertical-align:middle; text-align:center">${
         row.months_with_usage ?? "–"
@@ -2015,7 +1977,7 @@ function renderOverviewTable(rows) {
   });
   html += "</tbody></table>";
   tableArea.innerHTML = html;
-  hideLoadingMask();
+  setBusy(false);
   // render paginator
   renderPaginator(totalCount, state.pageOverview, state.pageSize, "overview");
   // Row click
@@ -2047,22 +2009,22 @@ function renderStockTable(rows) {
       <td style="vertical-align:middle; text-align:center">${row.code}</td>
       <td style="vertical-align:middle; text-align:left">${row.name}</td>
       <td style="vertical-align:middle; text-align:center">${getRowUOM(
-        row
+        row,
       )}</td>
       <td style="vertical-align:middle; text-align:center">${formatClassification(
-        row
+        row,
       )}</td>
       <td style="vertical-align:middle; text-align:right">${formatIndianNumber(
-        row.qty_value
+        row.qty_value,
       )}</td>
       <td style="vertical-align:middle; text-align:right">${formatCurrencyINR(
-        row.avg_rate_value
+        row.avg_rate_value,
       )}</td>
     </tr>`;
   });
   html += "</tbody></table>";
   tableArea.innerHTML = html;
-  hideLoadingMask();
+  setBusy(false);
   renderPaginator(totalCount, state.pageStock, state.pageSize, "stock");
 }
 
@@ -2086,16 +2048,16 @@ function renderPurchaseSummaryTable(rows) {
       <td style="vertical-align:middle; text-align:center">${row.code}</td>
       <td style="vertical-align:middle; text-align:left">${row.name}</td>
       <td style="vertical-align:middle; text-align:center">${getRowUOM(
-        row
+        row,
       )}</td>
       <td style="vertical-align:middle; text-align:center">${formatClassification(
-        row
+        row,
       )}</td>
       <td style="vertical-align:middle; text-align:right">${formatIndianNumber(
-        row.total_purchased_qty
+        row.total_purchased_qty,
       )}</td>
       <td style="vertical-align:middle; text-align:right">${formatCurrencyINR(
-        row.avg_purchase_rate
+        row.avg_purchase_rate,
       )}</td>
       <td style="vertical-align:middle; text-align:center">${
         row.last_purchase_date ?? "–"
@@ -2107,7 +2069,7 @@ function renderPurchaseSummaryTable(rows) {
   });
   html += "</tbody></table>";
   tableArea.innerHTML = html;
-  hideLoadingMask();
+  setBusy(false);
   renderPaginator(totalCount, state.pagePurchase, state.pageSize, "purchase");
   // Row click
   tableArea.querySelectorAll("tr[data-id]").forEach((tr) => {
@@ -2146,19 +2108,19 @@ function renderConsumptionTable(rows, totalCount) {
       <td style="vertical-align:middle; text-align:center">${row.code}</td>
       <td style="vertical-align:middle; text-align:left">${row.name}</td>
       <td style="vertical-align:middle; text-align:center">${getRowUOM(
-        row
+        row,
       )}</td>
       <td style="vertical-align:middle; text-align:center">${formatClassification(
-        row
+        row,
       )}</td>
       <td style="vertical-align:middle; text-align:right">${formatIndianNumber(
-        row.total_consumed_qty
+        row.total_consumed_qty,
       )}</td>
       <td style="vertical-align:middle; text-align:right">${formatIndianNumber(
-        row.rm_pm_issue_qty
+        row.rm_pm_issue_qty,
       )}</td>
       <td style="vertical-align:middle; text-align:right">${formatIndianNumber(
-        row.consumable_out_qty
+        row.consumable_out_qty,
       )}</td>
       <td style="vertical-align:middle; text-align:center">${
         row.months_with_usage ?? "–"
@@ -2174,13 +2136,13 @@ function renderConsumptionTable(rows, totalCount) {
 
   html += "</tbody></table>";
   tableArea.innerHTML = html;
-  hideLoadingMask();
+  setBusy(false);
 
   renderPaginator(
     totalCount,
     state.pageConsumption,
     state.pageSize,
-    "consumption"
+    "consumption",
   );
 
   // Row click: open monthly history modal
@@ -2202,9 +2164,12 @@ async function loadAndRenderConsumptionMonthly(invStockItemId) {
     toDate: state.currentToDate,
   });
   if (error) {
-    modalContent.innerHTML = `<div class="error">${
-      error.userMessage || error.message
-    }</div>`;
+    const errMsg =
+      error.userMessage ||
+      error.message ||
+      "Failed to load consumption history";
+    showStatusToast(errMsg, "error", 4000);
+    modalContent.innerHTML = `<div class="error">${errMsg}</div>`;
     return;
   }
   if (!data || !data.length) {
@@ -2213,7 +2178,13 @@ async function loadAndRenderConsumptionMonthly(invStockItemId) {
     return;
   }
 
-  let html = `<h3 style="margin-top:0">Monthly Consumption</h3>
+  let html = `<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+    <h3 style="margin:0;flex:1">Monthly Consumption</h3>
+    <button id="btnCopyItemId" class="btn ghost" style="font-size:12px;padding:4px 10px;gap:5px;" title="Copy item ID to clipboard" data-copyid="${invStockItemId}">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      Copy ID
+    </button>
+  </div>
     <div class="modal-table-wrap">
       <table class="erp-table">
         <thead><tr>
@@ -2235,6 +2206,19 @@ async function loadAndRenderConsumptionMonthly(invStockItemId) {
 
   html += `</tbody></table></div>`;
   modalContent.innerHTML = html;
+  // Wire copy-ID button
+  const copyBtn = modalContent.querySelector("#btnCopyItemId");
+  if (copyBtn) {
+    copyBtn.addEventListener("click", () => {
+      const id = copyBtn.dataset.copyid;
+      if (id) {
+        navigator.clipboard.writeText(id).then(
+          () => showStatusToast("Item ID copied", "success", 1800),
+          () => showStatusToast("Copy failed", "error", 2000),
+        );
+      }
+    });
+  }
 }
 
 // Paginator renderer and navigation
@@ -2254,7 +2238,7 @@ function renderPaginator(total, page, pageSize, tab) {
   const selHtml = `<select id="pageSizeSel" aria-label="Rows per page">${sizes
     .map(
       (s) =>
-        `<option value="${s}" ${s === pageSize ? "selected" : ""}>${s}</option>`
+        `<option value="${s}" ${s === pageSize ? "selected" : ""}>${s}</option>`,
     )
     .join("")}</select>`;
 
@@ -2288,7 +2272,7 @@ function renderPaginator(total, page, pageSize, tab) {
     prev.addEventListener("click", () => goToPage(tab, Math.max(1, page - 1)));
   if (next)
     next.addEventListener("click", () =>
-      goToPage(tab, Math.min(totalPages, page + 1))
+      goToPage(tab, Math.min(totalPages, page + 1)),
     );
 }
 
@@ -2421,14 +2405,22 @@ async function loadAndRenderPurchaseDetail(invStockItemId) {
     fromDate: state.currentFromDate,
     toDate: state.currentToDate,
   });
-  if (error)
-    return (modalContent.innerHTML = `<div class="error">${
-      error.userMessage || error.message
-    }</div>`);
+  if (error) {
+    const errMsg =
+      error.userMessage || error.message || "Failed to load purchase history";
+    showStatusToast(errMsg, "error", 4000);
+    return (modalContent.innerHTML = `<div class="error">${errMsg}</div>`);
+  }
   if (!data || !data.length)
     return (modalContent.innerHTML =
       '<div class="no-data">No purchase history found.</div>');
-  let html = `<h3 style="margin-top:0">Purchase History</h3>
+  let html = `<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+    <h3 style="margin:0;flex:1">Purchase History</h3>
+    <button id="btnCopyItemId" class="btn ghost" style="font-size:12px;padding:4px 10px;gap:5px;" title="Copy item ID to clipboard" data-copyid="${invStockItemId}">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      Copy ID
+    </button>
+  </div>
     <div class="modal-table-wrap">
       <table class="erp-table">
         <thead><tr>
@@ -2452,15 +2444,31 @@ async function loadAndRenderPurchaseDetail(invStockItemId) {
   });
   html += `</tbody></table></div>`;
   modalContent.innerHTML = html;
+  // Wire copy-ID button
+  const copyBtn = modalContent.querySelector("#btnCopyItemId");
+  if (copyBtn) {
+    copyBtn.addEventListener("click", () => {
+      const id = copyBtn.dataset.copyid;
+      if (id) {
+        navigator.clipboard.writeText(id).then(
+          () => showStatusToast("Item ID copied", "success", 1800),
+          () => showStatusToast("Copy failed", "error", 2000),
+        );
+      }
+    });
+  }
 }
 
 // Main tab reload logic
 async function reloadActiveTab(preselectId) {
+  // Stale-result guard: capture sequence before going async; discard results
+  // if a newer request has been started before this one resolves.
+  const mySeq = ++_requestSeq;
   renderLoading();
-  // ensure modal closed and side-panel hidden
+  // ensure modal closed
   closeDetailModal();
   state.selectedItemId = preselectId || null;
-  // sync tab button UI with current state
+  // sync tab button UI with current state (does NOT reset currentTab)
   setActiveTab(state.currentTab);
   if (state.currentTab === "overview") {
     const res = await loadOverviewItems({
@@ -2469,8 +2477,18 @@ async function reloadActiveTab(preselectId) {
       page: state.pageOverview,
       pageSize: state.pageSize,
     });
-    if (res.error)
+    if (mySeq !== _requestSeq) {
+      setBusy(false);
+      return;
+    }
+    if (res.error) {
+      showStatusToast(
+        res.error.userMessage || res.error.message || "Error loading data",
+        "error",
+        4000,
+      );
       return renderError(res.error.userMessage || res.error.message);
+    }
     renderOverviewTable(res.data, res.count || 0);
     // Do not auto-open the overview item modal on reload. Selection/highlight
     // is preserved in `state.selectedItemId`, but the in-page modal will not
@@ -2482,8 +2500,18 @@ async function reloadActiveTab(preselectId) {
       page: state.pageStock,
       pageSize: state.pageSize,
     });
-    if (res.error)
+    if (mySeq !== _requestSeq) {
+      setBusy(false);
+      return;
+    }
+    if (res.error) {
+      showStatusToast(
+        res.error.userMessage || res.error.message || "Error loading data",
+        "error",
+        4000,
+      );
       return renderError(res.error.userMessage || res.error.message);
+    }
     renderStockTable(res.data, res.count || 0);
   } else if (state.currentTab === "purchase") {
     const res = await loadPurchaseSummary({
@@ -2494,8 +2522,18 @@ async function reloadActiveTab(preselectId) {
       page: state.pagePurchase,
       pageSize: state.pageSize,
     });
-    if (res.error)
+    if (mySeq !== _requestSeq) {
+      setBusy(false);
+      return;
+    }
+    if (res.error) {
+      showStatusToast(
+        res.error.userMessage || res.error.message || "Error loading data",
+        "error",
+        4000,
+      );
       return renderError(res.error.userMessage || res.error.message);
+    }
     renderPurchaseSummaryTable(res.data, res.count || 0);
   } else if (state.currentTab === "consumption") {
     const res = await loadConsumptionSummary({
@@ -2506,8 +2544,18 @@ async function reloadActiveTab(preselectId) {
       page: state.pageConsumption,
       pageSize: state.pageSize,
     });
-    if (res.error)
+    if (mySeq !== _requestSeq) {
+      setBusy(false);
+      return;
+    }
+    if (res.error) {
+      showStatusToast(
+        res.error.userMessage || res.error.message || "Error loading data",
+        "error",
+        4000,
+      );
       return renderError(res.error.userMessage || res.error.message);
+    }
     renderConsumptionTable(res.data, res.count || 0);
   }
   // table area uses CSS flex + internal scrolling; pagination controlled by page-size selector

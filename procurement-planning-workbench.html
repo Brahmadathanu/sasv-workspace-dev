@@ -990,6 +990,41 @@
               <option value="raw_material">Raw Material</option>
               <option value="packaging_material">Packaging Material</option>
             </select>
+            <button
+              id="tr-clear-cache"
+              class="btn"
+              title="Clear detail modal cache for the last-clicked item (or all items if none selected)"
+              style="
+                height: 38px;
+                padding: 6px 10px;
+                font-size: 0.85rem;
+                border: 1px solid #e6e9ee;
+                border-radius: 8px;
+                background: #fff;
+                color: #475569;
+                display: inline-flex;
+                align-items: center;
+                gap: 5px;
+                cursor: pointer;
+              "
+            >
+              <svg
+                width="13"
+                height="13"
+                fill="currentColor"
+                viewBox="0 0 16 16"
+                aria-hidden="true"
+              >
+                <path
+                  d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"
+                />
+                <path
+                  fill-rule="evenodd"
+                  d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"
+                />
+              </svg>
+              Clear cache
+            </button>
             <div class="actions" style="margin-left: auto; position: relative">
               <button id="tr-export" aria-label="Export" title="Export">
                 <svg
@@ -1089,6 +1124,23 @@
         </div>
       </div>
     </div>
+
+    <!-- Toast notifications (non-blocking, ERP-style) -->
+    <div
+      id="ppw-toast-container"
+      aria-live="polite"
+      aria-atomic="false"
+      style="
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        z-index: 9000;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        pointer-events: none;
+      "
+    ></div>
 
     <script type="module" src="js/procurement-planning-workbench.js"></script>
   </body>
