@@ -30,6 +30,11 @@ function setHubDebugState(key, value) {
 
 let activeRenderPromise = null;
 let queuedRenderReason = null;
+let lastRenderedSessionKey = null;
+
+function getSessionRenderKey(session) {
+  return session?.user?.id || "anon";
+}
 
 async function getUserPermissions(userId) {
   if (!userId) return null;
@@ -582,6 +587,8 @@ async function performRender() {
   const {
     data: { session },
   } = await supabase.auth.getSession();
+  lastRenderedSessionKey = getSessionRenderKey(session);
+  setHubDebugState("lastRenderedSessionKey", lastRenderedSessionKey);
 
   updateAuthUI(session);
   await showGreeting(session);
@@ -700,8 +707,9 @@ function wireEvents() {
     .getElementById("auth-forgot")
     ?.addEventListener("click", sendPasswordReset);
 
-  supabase.auth.onAuthStateChange((event) => {
-    hubDebug("auth-state-change", { event });
+  supabase.auth.onAuthStateChange((event, session) => {
+    const sessionKey = getSessionRenderKey(session);
+    hubDebug("auth-state-change", { event, sessionKey });
 
     if (event === "INITIAL_SESSION") {
       hubDebug("auth-state-ignored", {
@@ -715,6 +723,15 @@ function wireEvents() {
       hubDebug("auth-state-ignored", {
         event,
         reason: "render already in flight",
+      });
+      return;
+    }
+
+    if (sessionKey === lastRenderedSessionKey) {
+      hubDebug("auth-state-ignored", {
+        event,
+        reason: "session unchanged",
+        sessionKey,
       });
       return;
     }
