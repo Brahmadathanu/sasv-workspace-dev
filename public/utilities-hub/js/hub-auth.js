@@ -14,20 +14,6 @@ import {
   normalizeModuleKey,
 } from "../../shared/js/module-registry.js";
 
-const HUB_DEBUG_ENABLED = globalThis.__APP_MODULE_DEBUG__ !== false;
-
-function hubDebug(event, details) {
-  if (!HUB_DEBUG_ENABLED) return;
-  console.log(`[PwaHubDebug] ${event}`, details || {});
-}
-
-function setHubDebugState(key, value) {
-  if (!HUB_DEBUG_ENABLED) return;
-  globalThis.__APP_MODULE_DEBUG_STATE__ ||= {};
-  globalThis.__APP_MODULE_DEBUG_STATE__.pwaHub ||= {};
-  globalThis.__APP_MODULE_DEBUG_STATE__.pwaHub[key] = value;
-}
-
 let activeRenderPromise = null;
 let queuedRenderReason = null;
 let lastRenderedSessionKey = null;
@@ -69,57 +55,83 @@ const btnLogout = document.getElementById("hub-logout");
 
 const LEGACY_UTIL_URLS = Object.freeze({
   fill_planner: "../shared/fill-planner.html",
+  "fill-planner": "../shared/fill-planner.html",
   plant_occupancy: "../shared/plant-occupancy.html",
+  "plant-occupancy": "../shared/plant-occupancy.html",
   stock_checker: "../shared/stock-checker.html",
+  "stock-checker": "../shared/stock-checker.html",
   wip_stock: "../shared/wip-stock.html",
+  "wip-stock": "../shared/wip-stock.html",
   fg_bulk_stock: "../shared/fg-bulk-stock.html",
+  "fg-bulk-stock": "../shared/fg-bulk-stock.html",
   bottled_stock: "../shared/bottled-stock.html",
+  "bottled-stock": "../shared/bottled-stock.html",
   bmr_card_not_initiated: "../shared/bmr-card-not-initiated.html",
+  "bmr-card-not-initiated": "../shared/bmr-card-not-initiated.html",
   sales_viewer: "../shared/sales-viewer.html",
+  "sales-viewer": "../shared/sales-viewer.html",
+  "sales-data-viewer": "../shared/sales-viewer.html",
   stock_purchase_explorer: "../shared/stock-purchase-explorer.html",
+  "stock-purchase-explorer": "../shared/stock-purchase-explorer.html",
   fg_transfer_reconciliation: "../shared/fg-transfer-reconciliation.html",
+  "fg-transfer-reconciliation": "../shared/fg-transfer-reconciliation.html",
+  "production-execution-queue": "../shared/production-execution-queue.html",
+  production_execution_queue: "../shared/production-execution-queue.html",
   view_log: "../shared/view-logs.html",
   view_logs: "../shared/view-logs.html",
+  "view-logs": "../shared/view-logs.html",
   etl_monitor: "../shared/operations-monitor.html",
   etl_control: "../shared/operations-control.html",
+  "operations-monitor": "../shared/operations-monitor.html",
+  "operations-control": "../shared/operations-control.html",
   hub_admin: "./admin.html",
+  "admin-console": "./admin.html",
 });
 
 const SECTION_ORDER = Object.freeze({
-  "Planning & Operations": 10,
-  "Inventory & Sales Analytics": 20,
-  "Work Logs": 30,
-  System: 90,
-  Admin: 100,
+  "Work Log": 10,
+  "Planning Workspace": 20,
+  "MRP & Procurement": 30,
+  "Inventory & Sales Analytics": 40,
+  "Product & Reference Master": 50,
+  "Plant & Assets": 60,
+  "BMR & Production Records": 70,
+  SOPs: 80,
+  "System & Integrations": 90,
+  Administration: 100,
 });
 
 const MODULE_META = Object.freeze({
-  "fill-planner": { section: "Planning & Operations", order: 10 },
-  "plant-occupancy": { section: "Planning & Operations", order: 20 },
-  "stock-checker": { section: "Inventory & Sales Analytics", order: 10 },
-  "wip-stock": { section: "Inventory & Sales Analytics", order: 20 },
-  "fg-bulk-stock": { section: "Inventory & Sales Analytics", order: 30 },
-  "bottled-stock": { section: "Inventory & Sales Analytics", order: 40 },
+  "fill-planner": { section: "System & Integrations", order: 30 },
+  "plant-occupancy": { section: "MRP & Procurement", order: 95 },
+  "stock-checker": { section: "System & Integrations", order: 40 },
+  "wip-stock": { section: "Inventory & Sales Analytics", order: 120 },
+  "fg-bulk-stock": { section: "Inventory & Sales Analytics", order: 130 },
+  "bottled-stock": { section: "Inventory & Sales Analytics", order: 140 },
   "sales-data-viewer": {
     section: "Inventory & Sales Analytics",
-    order: 45,
+    order: 110,
   },
   "bmr-card-not-initiated": {
     section: "Inventory & Sales Analytics",
-    order: 50,
+    order: 150,
   },
   "stock-purchase-explorer": {
     section: "Inventory & Sales Analytics",
-    order: 60,
+    order: 80,
   },
   "fg-transfer-reconciliation": {
     section: "Inventory & Sales Analytics",
-    order: 70,
+    order: 90,
   },
-  "view-logs": { section: "Work Logs", order: 10 },
-  "operations-monitor": { section: "System", order: 10 },
-  "operations-control": { section: "System", order: 20 },
-  "admin-console": { section: "Admin", order: 10 },
+  "production-execution-queue": {
+    section: "MRP & Procurement",
+    order: 50,
+  },
+  "view-logs": { section: "Work Log", order: 40 },
+  "operations-monitor": { section: "System & Integrations", order: 10 },
+  "operations-control": { section: "System & Integrations", order: 20 },
+  "admin-console": { section: "Administration", order: 10 },
 });
 
 function setBusy(on) {
@@ -280,29 +292,10 @@ async function loadUtilities() {
           minNavMode: row.minNavMode || "view",
         };
       });
-      setHubDebugState("utilitySource", "registry");
-      setHubDebugState("registryUtilities", mapped);
-      hubDebug("loadUtilities:registry", {
-        count: mapped.length,
-        modules: mapped.map((utility) => ({
-          moduleKey: utility.moduleKey,
-          label: utility.label,
-          sectionLabel: utility.sectionLabel,
-          href: utility.href,
-          minNavMode: utility.minNavMode,
-        })),
-      });
       return mapped;
     }
-    hubDebug("loadUtilities:registry-empty", { clientKey: "pwa" });
   } catch (error) {
     console.debug("loadUtilities registry fallback", error);
-    hubDebug("loadUtilities:registry-error", {
-      message: error.message,
-      details: error.details || null,
-      hint: error.hint || null,
-      code: error.code || null,
-    });
   }
 
   const { data, error } = await supabase
@@ -325,17 +318,6 @@ async function loadUtilities() {
         order: getFallbackOrder(moduleKey),
         minNavMode: "view",
       };
-    });
-    setHubDebugState("utilitySource", "hub_utilities");
-    setHubDebugState("legacyUtilities", mapped);
-    hubDebug("loadUtilities:legacy-table", {
-      count: mapped.length,
-      modules: mapped.map((utility) => ({
-        key: utility.key,
-        moduleKey: utility.moduleKey,
-        label: utility.label,
-        href: utility.href,
-      })),
     });
     return mapped;
   }
@@ -369,17 +351,6 @@ async function loadUtilities() {
     },
   ];
 
-  setHubDebugState("utilitySource", "hardcoded-fallback");
-  setHubDebugState("fallbackUtilities", fallbackUtilities);
-  hubDebug("loadUtilities:hardcoded-fallback", {
-    count: fallbackUtilities.length,
-    modules: fallbackUtilities.map((utility) => ({
-      moduleKey: utility.moduleKey,
-      label: utility.label,
-      href: utility.href,
-    })),
-  });
-
   return fallbackUtilities;
 }
 
@@ -392,13 +363,7 @@ async function loadAccessMap(userId, utilities) {
 
   try {
     const perms = await getUserPermissions(userId);
-    if (!perms) {
-      hubDebug("loadAccessMap:no-permissions", {
-        userId,
-        utilityCount: utilities.length,
-      });
-      return map;
-    }
+    if (!perms) return map;
 
     const permissionMap = buildPermissionMap(perms);
     utilities.forEach((utility) => {
@@ -407,28 +372,8 @@ async function loadAccessMap(userId, utilities) {
         permissionMap,
       );
     });
-    setHubDebugState("permissionMap", permissionMap);
-    setHubDebugState("accessMap", map);
-    hubDebug("loadAccessMap:resolved", {
-      userId,
-      permissionTargets: perms.map((perm) => ({
-        target: perm.target,
-        canView: !!perm.can_view,
-        canEdit: !!perm.can_edit,
-      })),
-      moduleAccess: utilities.map((utility) => ({
-        moduleKey: utility.moduleKey,
-        label: utility.label,
-        accessLevel: map[utility.id] || "none",
-        minNavMode: utility.minNavMode,
-      })),
-    });
   } catch (e) {
     console.debug("loadAccessMap RPC failed", e);
-    hubDebug("loadAccessMap:error", {
-      userId,
-      message: e.message,
-    });
   }
 
   return map;
@@ -588,14 +533,9 @@ async function performRender() {
     data: { session },
   } = await supabase.auth.getSession();
   lastRenderedSessionKey = getSessionRenderKey(session);
-  setHubDebugState("lastRenderedSessionKey", lastRenderedSessionKey);
 
   updateAuthUI(session);
   await showGreeting(session);
-  hubDebug("render:start", {
-    userId: session?.user?.id || null,
-    email: session?.user?.email || null,
-  });
 
   let utilities;
   let accessMap;
@@ -621,27 +561,6 @@ async function performRender() {
     if (visibleIds.has(id)) prunedAccessMap[id] = level;
   });
 
-  const visibleSummary = visibleUtilities
-    .map((utility) => ({
-      moduleKey: utility.moduleKey,
-      label: utility.label,
-      href: utility.href,
-      accessLevel: prunedAccessMap[utility.id] || "none",
-      sectionLabel:
-        utility.sectionLabel || getFallbackSection(utility.moduleKey),
-    }))
-    .filter((utility) => utility.accessLevel !== "none");
-
-  setHubDebugState("renderSummary", {
-    admin,
-    visibleSummary,
-  });
-  hubDebug("render:final", {
-    admin,
-    visibleCount: visibleSummary.length,
-    visibleModules: visibleSummary,
-  });
-
   if (elRoot) {
     elRoot.innerHTML = renderUtilitiesSectioned(
       visibleUtilities,
@@ -662,7 +581,6 @@ async function performRender() {
 async function render(reason = "manual") {
   if (activeRenderPromise) {
     queuedRenderReason = reason;
-    hubDebug("render:queued", { reason });
     return activeRenderPromise;
   }
 
@@ -670,9 +588,7 @@ async function render(reason = "manual") {
     let nextReason = reason;
 
     while (nextReason) {
-      const currentReason = nextReason;
       queuedRenderReason = null;
-      hubDebug("render:run", { reason: currentReason });
       await performRender();
       nextReason = queuedRenderReason;
     }
@@ -709,30 +625,16 @@ function wireEvents() {
 
   supabase.auth.onAuthStateChange((event, session) => {
     const sessionKey = getSessionRenderKey(session);
-    hubDebug("auth-state-change", { event, sessionKey });
 
     if (event === "INITIAL_SESSION") {
-      hubDebug("auth-state-ignored", {
-        event,
-        reason: "boot render already handles initial session",
-      });
       return;
     }
 
     if (event === "SIGNED_IN" && activeRenderPromise) {
-      hubDebug("auth-state-ignored", {
-        event,
-        reason: "render already in flight",
-      });
       return;
     }
 
     if (sessionKey === lastRenderedSessionKey) {
-      hubDebug("auth-state-ignored", {
-        event,
-        reason: "session unchanged",
-        sessionKey,
-      });
       return;
     }
 
@@ -742,10 +644,6 @@ function wireEvents() {
 
 (async function boot() {
   try {
-    hubDebug("boot", {
-      debugEnabled: HUB_DEBUG_ENABLED,
-      note: "Set window.__APP_MODULE_DEBUG__ = false to silence temporary logs.",
-    });
     wireEvents();
     await render("boot");
   } catch (e) {

@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v154"; // bumped to force asset refresh
+const CACHE_NAME = "hub-cache-v155"; // bumped to force asset refresh
 
 const PRECACHE = [
   // Hub shell
@@ -19,6 +19,8 @@ const PRECACHE = [
   // Utility pages
   "/shared/fill-planner.html",
   "/shared/stock-checker.html",
+  "/shared/production-execution-queue.html",
+  "/shared/js/production-execution-queue.js",
   "/shared/etl-monitor.html",
   "/shared/js/etl-control.js",
 

@@ -850,20 +850,6 @@
           .replace(/\"/g, "&quot;");
       }
 
-      const ELECTRON_DEBUG_ENABLED = globalThis.__APP_MODULE_DEBUG__ !== false;
-
-      function electronDebug(event, details) {
-        if (!ELECTRON_DEBUG_ENABLED) return;
-        console.log(`[ElectronHomeDebug] ${event}`, details || {});
-      }
-
-      function setElectronDebugState(key, value) {
-        if (!ELECTRON_DEBUG_ENABLED) return;
-        globalThis.__APP_MODULE_DEBUG_STATE__ ||= {};
-        globalThis.__APP_MODULE_DEBUG_STATE__.electronHome ||= {};
-        globalThis.__APP_MODULE_DEBUG_STATE__.electronHome[key] = value;
-      }
-
       function captureStaticWorkspaceSections() {
         return Array.from(document.querySelectorAll("section.panel")).map(
           (panel, panelIndex) => ({
@@ -1020,22 +1006,6 @@
         const staticSections = captureStaticWorkspaceSections();
         const sections = buildWorkspaceSections(staticSections, registryRows);
         renderWorkspaceSections(staticSections, sections);
-        setElectronDebugState("registrySections", sections);
-        electronDebug("renderRegistryWorkspaceMenu", {
-          registryCount: registryRows.length,
-          sectionCount: sections.length,
-          sections: sections.map((section) => ({
-            title: section.title,
-            itemCount: section.items.length,
-            items: section.items.map((item) => ({
-              moduleKey: item.moduleKey,
-              label: item.label,
-              routePath: item.routePath,
-              placeholder: !!item.placeholder,
-              minNavMode: item.minNavMode,
-            })),
-          })),
-        });
         return true;
       }
 
@@ -1049,12 +1019,6 @@
           const {
             data: { user },
           } = await supabase.auth.getUser();
-
-          electronDebug("initApp:start", {
-            userId: user?.id || null,
-            email: user?.email || null,
-            debugEnabled: ELECTRON_DEBUG_ENABLED,
-          });
 
           const PRESENCE_REFRESH_MS = 20_000;
           const ONLINE_THRESHOLD_MS = 60_000;
@@ -1170,18 +1134,8 @@
 
           try {
             const usedRegistryMenu = await renderRegistryWorkspaceMenu();
-            setElectronDebugState("usedRegistryMenu", usedRegistryMenu);
-            electronDebug("initApp:menu-source", {
-              usedRegistryMenu,
-            });
           } catch (registryError) {
             console.warn("Registry menu fallback", registryError);
-            electronDebug("initApp:menu-registry-error", {
-              message: registryError.message,
-              details: registryError.details || null,
-              hint: registryError.hint || null,
-              code: registryError.code || null,
-            });
           }
 
           try {
@@ -1253,17 +1207,6 @@
                   anchor.classList.add("locked-module");
                   anchor.title = "View-only access (not enabled for use)";
                 }
-              });
-
-              setElectronDebugState("permissionMap", permissionMap);
-              setElectronDebugState("moduleDecisions", moduleDecisions);
-              electronDebug("initApp:permissions-applied", {
-                permissionTargets: perms.map((perm) => ({
-                  target: perm.target,
-                  canView: !!perm.can_view,
-                  canEdit: !!perm.can_edit,
-                })),
-                moduleDecisions,
               });
 
               if (!window.__moduleClickGuard) {

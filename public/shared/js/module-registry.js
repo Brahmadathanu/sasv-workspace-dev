@@ -1,18 +1,5 @@
 import { supabase } from "./supabaseClient.js";
 
-const MODULE_REGISTRY_DEBUG_ENABLED = globalThis.__APP_MODULE_DEBUG__ !== false;
-
-function moduleRegistryDebug(event, details) {
-  if (!MODULE_REGISTRY_DEBUG_ENABLED) return;
-  console.log(`[ModuleRegistryDebug] ${event}`, details || {});
-}
-
-function setModuleRegistryDebugState(key, value) {
-  if (!MODULE_REGISTRY_DEBUG_ENABLED) return;
-  globalThis.__APP_MODULE_DEBUG_STATE__ ||= {};
-  globalThis.__APP_MODULE_DEBUG_STATE__[key] = value;
-}
-
 const MODULE_KEY_ALIASES = Object.freeze({
   "hub-admin": "admin-console",
   hub_admin: "admin-console",
@@ -57,15 +44,6 @@ export function buildPermissionMap(perms) {
     map[moduleKey].can_view = map[moduleKey].can_view || !!perm.can_view;
     map[moduleKey].can_edit = map[moduleKey].can_edit || !!perm.can_edit;
   }
-  moduleRegistryDebug("buildPermissionMap", {
-    inputCount: Array.isArray(perms) ? perms.length : 0,
-    moduleCount: Object.keys(map).length,
-    modules: Object.entries(map).map(([moduleKey, access]) => ({
-      moduleKey,
-      canView: !!access.can_view,
-      canEdit: !!access.can_edit,
-    })),
-  });
   return map;
 }
 
@@ -89,7 +67,6 @@ export function getModuleAccessLevel(moduleLike, permissionMap) {
 }
 
 export async function loadClientModuleRegistry(clientKey) {
-  moduleRegistryDebug("loadClientModuleRegistry:start", { clientKey });
   const { data, error } = await supabase
     .from("v_app_module_registry")
     .select(
@@ -101,13 +78,6 @@ export async function loadClientModuleRegistry(clientKey) {
     .order("label", { ascending: true });
 
   if (error) {
-    moduleRegistryDebug("loadClientModuleRegistry:error", {
-      clientKey,
-      message: error.message,
-      details: error.details || null,
-      hint: error.hint || null,
-      code: error.code || null,
-    });
     throw error;
   }
 
@@ -125,19 +95,6 @@ export async function loadClientModuleRegistry(clientKey) {
     routePath: safeString(row.route_path),
     clientKey: safeString(row.client_key),
   }));
-
-  setModuleRegistryDebugState(`registry:${clientKey}`, rows);
-  moduleRegistryDebug("loadClientModuleRegistry:success", {
-    clientKey,
-    rowCount: rows.length,
-    rows: rows.map((row) => ({
-      moduleKey: row.moduleKey,
-      label: row.label,
-      sectionLabel: row.sectionLabel,
-      minNavMode: row.minNavMode,
-      routePath: row.routePath,
-    })),
-  });
 
   return rows;
 }
