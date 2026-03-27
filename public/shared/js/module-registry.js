@@ -17,6 +17,49 @@ function safeString(value) {
   return String(value ?? "").trim();
 }
 
+function trimLeadingDots(value) {
+  return value.replace(/^(\.\.\/|\.\/)+/, "");
+}
+
+export function normalizeClientRoute(routePath, clientKey) {
+  const raw = safeString(routePath);
+  if (!raw) return "";
+
+  if (/^(https?:|mailto:|tel:|#)/i.test(raw)) {
+    return raw;
+  }
+
+  if (clientKey === "pwa") {
+    if (raw === "./admin.html") return raw;
+    if (/^\.\.\/shared\//i.test(raw)) return raw;
+    if (/^\.\.\/utilities-hub\//i.test(raw)) return raw;
+    if (/^\/?public\//i.test(raw)) {
+      return `/${raw.replace(/^\/?public\//i, "")}`;
+    }
+    if (/^\/?shared\//i.test(raw) || /^\/?utilities-hub\//i.test(raw)) {
+      return raw.startsWith("/") ? raw : `/${raw}`;
+    }
+    return raw;
+  }
+
+  if (clientKey === "electron") {
+    if (/^\/?public\//i.test(raw)) {
+      return raw.replace(/^\//, "");
+    }
+    if (/^\.\.\/shared\//i.test(raw)) {
+      return `public/${trimLeadingDots(raw).replace(/^shared\//i, "shared/")}`;
+    }
+    if (/^\.\/admin\.html$/i.test(raw)) {
+      return "public/utilities-hub/admin.html";
+    }
+    if (/^\/?shared\//i.test(raw) || /^\/?utilities-hub\//i.test(raw)) {
+      return `public/${raw.replace(/^\//, "")}`;
+    }
+  }
+
+  return raw;
+}
+
 export function normalizeModuleKey(value) {
   const raw = safeString(value).toLowerCase();
   if (!raw) return "";
@@ -66,6 +109,38 @@ export function getModuleAccessLevel(moduleLike, permissionMap) {
   return "none";
 }
 
+export async function loadNavigationSections() {
+  let data;
+  let error;
+
+  ({ data, error } = await supabase
+    .from("app_nav_sections")
+    .select("key,label,sort_order,description")
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true }));
+
+  if (error) {
+    ({ data, error } = await supabase
+      .from("app_nav_sections")
+      .select("key,label,sort_order")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true }));
+  }
+
+  if (error) {
+    throw error;
+  }
+
+  return (Array.isArray(data) ? data : []).map((row) => ({
+    key: normalizeModuleKey(row.key),
+    label: safeString(row.label),
+    sortOrder: Number.isFinite(Number(row.sort_order))
+      ? Number(row.sort_order)
+      : 999,
+    description: safeString(row.description),
+  }));
+}
+
 export async function loadClientModuleRegistry(clientKey) {
   const { data, error } = await supabase
     .from("v_app_module_registry")
@@ -92,7 +167,7 @@ export async function loadClientModuleRegistry(clientKey) {
       ? Number(row.sort_order)
       : 999,
     minNavMode: safeString(row.min_nav_mode).toLowerCase() || "view",
-    routePath: safeString(row.route_path),
+    routePath: normalizeClientRoute(row.route_path, safeString(row.client_key)),
     clientKey: safeString(row.client_key),
   }));
 

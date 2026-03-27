@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
   <head>
     <meta charset="UTF-8" />
@@ -120,7 +120,10 @@
         /* subtle inner highlight to make the pill feel crisp */
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
         outline: none;
-        transition: border-color 0.12s, transform 0.06s, background-color 0.12s;
+        transition:
+          border-color 0.12s,
+          transform 0.06s,
+          background-color 0.12s;
       }
       #moduleSearch:focus {
         border-color: rgba(10, 100, 200, 0.28);
@@ -161,568 +164,7 @@
       <datalist id="module-list-datalist"></datalist>
     </div>
 
-    <!-- Work Log -->
-    <section class="panel">
-      <h2>Work Log</h2>
-      <p class="section-hint">
-        Daily operational notes, task tracking, and activity history.
-      </p>
-      <div class="module-list">
-        <a
-          class="module-link"
-          data-module-id="add-log-entry"
-          href="add-log-entry.html"
-          >Add Log Entry</a
-        >
-        <a
-          class="module-link"
-          data-module-id="update-log-status"
-          href="update-log-status.html"
-          >Update Log Status</a
-        >
-        <a
-        <!-- Stock & Purchase Explorer entry removed for now -->
-        <a
-          class="module-link"
-          data-module-id="edit-log-entry"
-          href="edit-log-entry.html"
-          >Edit Log Entry</a
-        >
-        <a
-          class="module-link"
-          data-module-id="view-logs"
-          href="public/shared/view-logs.html"
-          >View Logs</a
-        >
-        <a
-          class="module-link"
-          data-module-id="fg-bulk-internal-transfer"
-          href="fg-bulk-internal-transfer.html"
-          >FG Bulk Internal Transfer</a
-        >
-        <a
-          class="module-link"
-          data-module-id="manage-activities"
-          href="manage-activities.html"
-          >Manage Activities</a
-        >
-      </div>
-    </section>
-
-    <!-- Planning Workspace -->
-    <section class="panel">
-      <h2>Planning Workspace</h2>
-      <p class="section-hint">
-        Plan demand with model outputs, review exceptions, apply overrides, and
-        publish the final plan.
-      </p>
-      <div class="module-list">
-        <a
-          class="module-link"
-          data-module-id="forecast-console"
-          href="public/shared/forecast-console.html"
-          >Forecast Console</a
-        >
-        <!-- Demand Overrides module removed; functionality integrated elsewhere -->
-        <a
-          class="module-link"
-          data-module-id="production-planning-workbench"
-          href="production-planning-workbench.html"
-          >Production Planning Workbench</a
-        >
-        <a
-          class="module-link"
-          data-module-id="supply-overrides"
-          href="supply-overrides.html"
-          >Supply Overrides</a
-        >
-        <a
-          class="module-link"
-          data-module-id="supply-batch-plan"
-          href="supply-batch-plan.html"
-          >Supply Batch Plan</a
-        >
-      </div>
-    </section>
-
-    <!-- MRP & Procurement -->
-    <section class="panel">
-      <h2>MRP & Procurement</h2>
-      <p class="section-hint">
-        Convert the published plan into material requirements and purchase
-        actions.
-      </p>
-      <div class="module-list">
-        
-
-        
-
-        <a
-          class="module-link"
-          data-module-id="mrp-master-data-console"
-          href="public/shared/mrp-master-data-console.html"
-        >
-          MRP Master Data Console
-        </a>
-
-        <a
-          class="module-link"
-          data-module-id="mrp-material-board"
-          href="public/shared/mrp-material-board.html"
-        >
-          Material Requirements Board
-        </a>
-
-        <a
-          class="module-link"
-          data-module-id="pm-issue-allocation"
-          href="public/shared/pm-issue-allocation.html"
-        >
-          PM Issue Allocation
-        </a>
-
-        <a
-          class="module-link"
-          data-module-id="pm-rebuild-dashboard"
-          href="public/shared/pm-rebuild-dashboard.html"
-        >
-          PM Rebuild Dashboard
-        </a>
-
-        <a
-          class="module-link"
-          data-module-id="production-execution-queue"
-          href="public/shared/production-execution-queue.html"
-        >
-          Production Execution Queue
-        </a>
-
-        <a
-          class="module-link"
-          data-module-id="rm-issue-allocation"
-          href="public/shared/rm-issue-allocation.html"
-        >
-          RM Issue Allocation
-        </a>
-
-        <a
-          class="module-link"
-          data-module-id="rm-rebuild-dashboard"
-          href="public/shared/rm-rebuild-dashboard.html"
-        >
-          RM Rebuild Dashboard
-        </a>
-        <!-- RM Seasonal Mapping removed: module deprecated and files will be deleted -->
-
-        <a
-          class="module-link"
-          data-module-id="rm-seasonal-overlay"
-          href="public/shared/rm-seasonal-overlay.html"
-        >
-          RM Seasonal Overlay
-        </a>
-
-        <a
-          class="module-link"
-          data-module-id="procurement-planning-workbench"
-          href="procurement-planning-workbench.html"
-        >
-          Procurement Planning Workbench
-        </a>
-
-        <a
-          class="module-link"
-          data-module-id="procurement-execution-console"
-          href="public/shared/procurement-execution-console.html"
-        >
-          Procurement Execution Console
-        </a>
-
-        <a
-          class="module-link"
-          data-module-id="plant-occupancy"
-          href="public/shared/plant-occupancy.html"
-        >
-          Plant / Machinery Occupancy
-        </a>
-      </div>
-    </section>
-
-    <!-- Inventory & Sales Analytics -->
-    <section class="panel">
-      <h2>Inventory & Sales Analytics</h2>
-      <p class="section-hint">
-        Operational checks to defend the plan—coverage, risk, and trends.
-      </p>
-      <div class="module-list">
-        <a
-          class="module-link"
-          data-module-id="manage-uom"
-          href="manage-uom.html"
-        >
-          Manage UOM
-        </a>
-        <a
-          class="module-link"
-          data-module-id="manage-stock-items"
-          href="manage-stock-items.html"
-        >
-          Manage Stock Items
-        </a>
-        <a
-          class="module-link"
-          data-module-id="manage-category-map"
-          href="manage-category-map.html"
-        >
-          Category Map
-        </a>
-        <a
-          class="module-link"
-          data-module-id="manage-rm-bom"
-          href="manage-rm-bom.html"
-        >
-          Manage Raw Material BOM
-        </a>
-        <a
-          class="module-link"
-          data-module-id="manage-sp-bom"
-          href="manage-sp-bom.html"
-        >
-          Manage Semi-finished BOM
-        </a>
-        <a
-          class="module-link"
-          data-module-id="pm-templates"
-          href="manage-pm-bom.html"
-        >
-          Manage PM BOM
-        </a>
-        <a
-          class="module-link"
-          data-module-id="tally-inv-mapping"
-          href="manage-tally-inv-mapping.html"
-        >
-          Tally Stock Item Mapping
-        </a>
-        <a
-          class="module-link"
-          data-module-id="stock-purchase-explorer"
-          href="public/shared/stock-purchase-explorer.html"
-        >
-          Stock & Purchase Explorer
-        </a>
-        <a
-          class="module-link"
-          data-module-id="fg-transfer-reconciliation"
-          href="public/shared/fg-transfer-reconciliation.html"
-        >
-          FG Transfer Reconciliation
-        </a>
-        <a
-          class="module-link"
-          data-module-id="execution-gate"
-          href="public/shared/execution-gate.html"
-          >Execution Gate (Unblock Priority)</a
-        >
-        <a
-          class="module-link"
-          data-module-id="stockouts-risk"
-          href="#"
-          aria-disabled="true"
-          title="Coming soon"
-          >Stockouts & At-Risk</a
-        >
-        <a
-          class="module-link"
-          data-module-id="sales-data-viewer"
-          href="public/shared/sales-viewer.html"
-        >
-          Sales Viewer
-        </a>
-        <a
-          class="module-link"
-          data-module-id="sales-runrate"
-          href="#"
-          aria-disabled="true"
-          title="Coming soon"
-          >Sales Run-Rate</a
-        >
-        <a
-          class="module-link"
-          data-module-id="wip-stock"
-          href="public/shared/wip-stock.html"
-        >
-          WIP Stock
-        </a>
-        <a
-          class="module-link"
-          data-module-id="fg-bulk-stock"
-          href="public/shared/fg-bulk-stock.html"
-        >
-          FG Bulk Stock
-        </a>
-        <a
-          class="module-link"
-          data-module-id="bottled-stock"
-          href="public/shared/bottled-stock.html"
-        >
-          Bottled Stock
-        </a>
-        <a
-          class="module-link"
-          data-module-id="bmr-card-not-initiated"
-          href="public/shared/bmr-card-not-initiated.html"
-        >
-          BMR Card – Not Initiated
-        </a>
-      </div>
-    </section>
-
-    <!-- Product & Reference Master -->
-    <section class="panel">
-      <h2>Product & Reference Master</h2>
-      <p class="section-hint">
-        Single source of truth for products, SKUs, costing, and reference
-        publications.
-      </p>
-      <div class="module-list">
-        <a
-          class="module-link"
-          data-module-id="manage-products"
-          href="manage-products.html"
-          >Products</a
-        >
-        <a
-          class="module-link"
-          data-module-id="manage-skus"
-          href="#"
-          aria-disabled="true"
-          title="Coming soon"
-          >SKUs</a
-        >
-        <a
-          class="module-link"
-          data-module-id="manage-cost-sheets"
-          href="#"
-          aria-disabled="true"
-          title="Coming soon"
-          >Cost Sheets</a
-        >
-
-        <a
-          class="module-link"
-          data-module-id="manage-categories"
-          href="manage-categories.html"
-          >Categories</a
-        >
-        <a
-          class="module-link"
-          data-module-id="manage-subcategories"
-          href="manage-subcategories.html"
-          >Sub-categories</a
-        >
-        <a
-          class="module-link"
-          data-module-id="manage-product-groups"
-          href="manage-product-groups.html"
-          >Groups</a
-        >
-        <a
-          class="module-link"
-          data-module-id="manage-subgroups"
-          href="manage-subgroups.html"
-          >Sub-groups</a
-        >
-
-        <a
-          class="module-link"
-          data-module-id="manage-references"
-          href="manage-references.html"
-          >References</a
-        >
-        <a
-          class="module-link"
-          data-module-id="manage-publications"
-          href="manage-publications.html"
-          >Publications</a
-        >
-        <a
-          class="module-link"
-          data-module-id="manage-chapters"
-          href="manage-chapters.html"
-          >Chapters</a
-        >
-      </div>
-    </section>
-
-    <!-- Plant & Assets -->
-    <section class="panel">
-      <h2>Plant & Assets</h2>
-      <p class="section-hint">
-        Physical manufacturing structure—sections, areas, machines, and types.
-      </p>
-      <div class="module-list">
-        <a
-          class="module-link"
-          data-module-id="manage-sections"
-          href="manage-sections.html"
-          >Sections</a
-        >
-        <a
-          class="module-link"
-          data-module-id="manage-subsections"
-          href="manage-subsections.html"
-          >Sub-sections</a
-        >
-        <a
-          class="module-link"
-          data-module-id="manage-areas"
-          href="manage-areas.html"
-          >Areas</a
-        >
-        <a
-          class="module-link"
-          data-module-id="manage-plants"
-          href="manage-plants.html"
-          >Plants/Machinery</a
-        >
-        <a
-          class="module-link"
-          data-module-id="manage-machine-types"
-          href="manage-machine-types.html"
-          >Machine Types</a
-        >
-      </div>
-    </section>
-
-    <!-- BMR & Production Records -->
-    <section class="panel">
-      <h2>BMR & Production Records</h2>
-      <p class="section-hint">
-        Batch manufacturing records and production traceability.
-      </p>
-      <div class="module-list">
-        <a
-          class="module-link"
-          data-module-id="add-bmr-entry"
-          href="add-bmr-entry.html"
-          >Add BMR</a
-        >
-        <a
-          class="module-link"
-          data-module-id="edit-bmr-entry"
-          href="edit-bmr-entry.html"
-          >Edit BMR</a
-        >
-        <a
-          class="module-link"
-          data-module-id="view-bmr-entry"
-          href="view-bmr-entry.html"
-          >View BMR</a
-        >
-      </div>
-    </section>
-
-    <!-- SOPs -->
-    <section class="panel">
-      <h2>SOPs</h2>
-      <p class="section-hint">
-        Standard operating procedures: draft, review, and publish.
-      </p>
-      <div class="module-list">
-        <a
-          class="module-link"
-          data-module-id="sop-dashboard"
-          href="sop-dashboard.html"
-          >SOP Dashboard</a
-        >
-        <a
-          class="module-link"
-          data-module-id="sop-editor"
-          href="sop-editor.html"
-          >New / Edit SOP</a
-        >
-        <a
-          class="module-link"
-          data-module-id="sop-viewer"
-          href="sop-viewer.html"
-          >View SOP</a
-        >
-      </div>
-    </section>
-
-    <!-- System & Integrations -->
-    <section class="panel">
-      <h2>System & Integrations</h2>
-      <p class="section-hint">Operations, pipelines, and helper tools.</p>
-      <div class="module-list">
-        <!-- Renamed: ETL → Operations -->
-        <a
-          class="module-link"
-          data-module-id="operations-monitor"
-          href="public/shared/operations-monitor.html"
-          >Operations Monitor</a
-        >
-        <a
-          class="module-link"
-          data-module-id="operations-control"
-          href="public/shared/operations-control.html"
-          >Operations Control</a
-        >
-
-        <a
-          class="module-link"
-          data-module-id="fill-planner"
-          href="public/shared/fill-planner.html"
-          >Fill Planner</a
-        >
-        <a
-          class="module-link"
-          data-module-id="stock-checker"
-          href="public/shared/stock-checker.html"
-          >Stock Checker</a
-        >
-      </div>
-    </section>
-
-    <!-- Administration -->
-    <section class="panel">
-      <h2>Administration</h2>
-      <p class="section-hint">System administration and user access control.</p>
-      <div class="module-list">
-        <a
-          class="module-link"
-          data-module-id="admin-console"
-          href="public/utilities-hub/admin.html"
-        >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true"
-            style="vertical-align: middle; margin-right: 8px; flex-shrink: 0"
-          >
-            <!-- White shield background for contrast on blue buttons -->
-            <path
-              d="M12 2L3 5v6c0 5 3.7 9.7 9 11 5.3-1.3 9-6 9-11V5l-9-3z"
-              fill="#ffffff"
-              stroke="none"
-            />
-            <!-- Blue check mark inside the shield -->
-            <path
-              d="M9 12l2 2 4-4"
-              stroke="#0a62c3"
-              stroke-width="1.8"
-              fill="none"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-          Canonical Admin
-        </a>
-      </div>
-    </section>
+    <main id="workspace-sections" aria-live="polite"></main>
 
     <!-- Supabase & Init -->
     <script>
@@ -789,13 +231,12 @@
 
         // Rebuild on DOMContentLoaded and when permissions hide/show modules
         window.addEventListener("DOMContentLoaded", buildIndex);
-        // also observe for DOM changes to module-list areas
+        // observe the workspace shell so dynamically rendered sections are indexed
         const observer = new MutationObserver(() => buildIndex());
-        document
-          .querySelectorAll(".module-list")
-          .forEach((el) =>
-            observer.observe(el, { childList: true, subtree: true })
-          );
+        const workspaceRoot = document.getElementById("workspace-sections");
+        if (workspaceRoot) {
+          observer.observe(workspaceRoot, { childList: true, subtree: true });
+        }
 
         // Key handling: Enter navigates
         input?.addEventListener("keydown", (e) => {
@@ -814,7 +255,7 @@
           if (!v) return;
           const idx = input._moduleIndex || [];
           const exact = idx.find(
-            (x) => x.label.toLowerCase() === v.toLowerCase()
+            (x) => x.label.toLowerCase() === v.toLowerCase(),
           );
           if (exact && !exact.disabled) {
             // small delay to allow browser selection to finalize
@@ -826,7 +267,7 @@
 
         // Optional: open datalist options on focus
         input?.addEventListener("focus", () =>
-          input.setAttribute("list", "module-list-datalist")
+          input.setAttribute("list", "module-list-datalist"),
         );
       })();
     </script>
@@ -837,6 +278,7 @@
         buildPermissionMap,
         getModuleAccessLevel,
         loadClientModuleRegistry,
+        loadNavigationSections,
         normalizeModuleKey,
       } from "./public/shared/js/module-registry.js";
 
@@ -850,93 +292,47 @@
           .replace(/\"/g, "&quot;");
       }
 
-      function captureStaticWorkspaceSections() {
-        return Array.from(document.querySelectorAll("section.panel")).map(
-          (panel, panelIndex) => ({
-            panel,
-            title: panel.querySelector("h2")?.textContent?.trim() || "Section",
-            hint:
-              panel.querySelector(".section-hint")?.textContent?.trim() || "",
-            order: panelIndex,
-            links: Array.from(panel.querySelectorAll("a.module-link")).map(
-              (anchor, linkIndex) => ({
-                moduleKey: normalizeModuleKey(anchor.dataset.moduleId || ""),
-                label: (anchor.textContent || anchor.innerText || "").trim(),
-                href: anchor.getAttribute("href") || "#",
-                order: linkIndex,
-                title: anchor.getAttribute("title") || "",
-                placeholder:
-                  anchor.getAttribute("aria-disabled") === "true" &&
-                  (anchor.dataset.href || "") === "" &&
-                  (anchor.getAttribute("href") || "") === "#",
-              }),
-            ),
-          }),
-        );
+      const workspaceRoot = document.getElementById("workspace-sections");
+
+      function buildSectionCatalogMap(sectionRows) {
+        const map = new Map();
+        sectionRows.forEach((section) => {
+          map.set(section.key, section);
+          if (section.label) {
+            map.set(section.label, section);
+          }
+        });
+        return map;
       }
 
-      function buildWorkspaceSections(staticSections, registryRows) {
+      function buildWorkspaceSections(registryRows, sectionCatalog) {
         const sections = new Map();
-        const staticByModule = new Map();
-        const renderedKeys = new Set();
-
-        staticSections.forEach((section) => {
-          sections.set(section.title, {
-            title: section.title,
-            hint: section.hint,
-            order: section.order,
-            items: [],
-          });
-
-          section.links.forEach((link) => {
-            staticByModule.set(link.moduleKey, {
-              ...link,
-              sectionTitle: section.title,
-              sectionHint: section.hint,
-              sectionOrder: section.order,
-            });
-          });
-        });
 
         registryRows.forEach((row, index) => {
-          const fallback = staticByModule.get(row.moduleKey);
-          const sectionTitle = row.sectionLabel || fallback?.sectionTitle || "Other";
+          const sectionMeta =
+            sectionCatalog.get(row.sectionKey) ||
+            sectionCatalog.get(row.sectionLabel) ||
+            null;
+          const sectionTitle = row.sectionLabel || "Other";
           if (!sections.has(sectionTitle)) {
             sections.set(sectionTitle, {
               title: sectionTitle,
-              hint: fallback?.sectionHint || "",
-              order: fallback?.sectionOrder ?? staticSections.length + sections.size,
+              hint: sectionMeta?.description || "",
+              order: sectionMeta?.sortOrder ?? index,
               items: [],
             });
           }
 
           sections.get(sectionTitle).items.push({
             moduleKey: row.moduleKey,
-            label: row.label || fallback?.label || row.moduleKey,
-            routePath: row.routePath || fallback?.href || "#",
+            label: row.label || row.moduleKey,
+            routePath: row.routePath || "#",
             order: Number.isFinite(Number(row.sortOrder))
               ? Number(row.sortOrder)
-              : fallback?.order ?? index,
+              : index,
             minNavMode: row.minNavMode || "view",
             placeholder: false,
             title: "",
-          });
-          renderedKeys.add(row.moduleKey);
-        });
-
-        staticSections.forEach((section) => {
-          const bucket = sections.get(section.title);
-          section.links.forEach((link) => {
-            if (renderedKeys.has(link.moduleKey) && !link.placeholder) return;
-            bucket.items.push({
-              moduleKey: link.moduleKey,
-              label: link.label,
-              routePath: link.href,
-              order: link.order,
-              minNavMode: "view",
-              placeholder: link.placeholder,
-              title: link.title,
-            });
           });
         });
 
@@ -951,17 +347,15 @@
           }));
       }
 
-      function renderWorkspaceSections(staticSections, sections) {
-        const insertionPoint = document.querySelector("body > script");
-        sections.forEach((section, index) => {
-          let panel = staticSections[index]?.panel;
-          if (!panel) {
-            panel = document.createElement("section");
-            panel.className = "panel";
-            panel.innerHTML =
-              '<h2></h2><p class="section-hint"></p><div class="module-list"></div>';
-            document.body.insertBefore(panel, insertionPoint);
-          }
+      function renderWorkspaceSections(sections) {
+        if (!workspaceRoot) return;
+        workspaceRoot.innerHTML = "";
+
+        sections.forEach((section) => {
+          const panel = document.createElement("section");
+          panel.className = "panel";
+          panel.innerHTML =
+            '<h2></h2><p class="section-hint"></p><div class="module-list"></div>';
 
           const heading = panel.querySelector("h2");
           const hint = panel.querySelector(".section-hint");
@@ -979,7 +373,9 @@
                   `data-placeholder="${item.placeholder ? "true" : "false"}"`,
                 ];
                 if (!item.placeholder) {
-                  attrs.push(`data-href="${escapeHtml(item.routePath || "#")}"`);
+                  attrs.push(
+                    `data-href="${escapeHtml(item.routePath || "#")}"`,
+                  );
                 }
                 if (item.placeholder) {
                   attrs.push('aria-disabled="true"');
@@ -991,21 +387,46 @@
               })
               .join("");
           }
-          panel.style.display = "";
-        });
-
-        staticSections.slice(sections.length).forEach(({ panel }) => {
-          panel.style.display = "none";
+          workspaceRoot.appendChild(panel);
         });
       }
 
-      async function renderRegistryWorkspaceMenu() {
-        const registryRows = await loadClientModuleRegistry("electron");
-        if (!registryRows.length) return false;
+      function renderWorkspaceStatus(title, message) {
+        if (!workspaceRoot) return;
+        workspaceRoot.innerHTML = "";
 
-        const staticSections = captureStaticWorkspaceSections();
-        const sections = buildWorkspaceSections(staticSections, registryRows);
-        renderWorkspaceSections(staticSections, sections);
+        const panel = document.createElement("section");
+        panel.className = "panel";
+        panel.innerHTML =
+          '<h2></h2><p class="section-hint"></p><div class="module-list"></div>';
+
+        const heading = panel.querySelector("h2");
+        const hint = panel.querySelector(".section-hint");
+        const list = panel.querySelector(".module-list");
+        if (heading) heading.textContent = title;
+        if (hint) hint.textContent = message;
+        if (list) list.innerHTML = "";
+        workspaceRoot.appendChild(panel);
+      }
+
+      async function renderRegistryWorkspaceMenu() {
+        const [registryRows, sectionRows] = await Promise.all([
+          loadClientModuleRegistry("electron"),
+          loadNavigationSections(),
+        ]);
+        if (!registryRows.length) {
+          renderWorkspaceStatus(
+            "No workspace modules",
+            "No Electron modules are currently registered for this client.",
+          );
+          return false;
+        }
+
+        const sections = buildWorkspaceSections(
+          registryRows,
+          buildSectionCatalogMap(sectionRows),
+        );
+        renderWorkspaceSections(sections);
         return true;
       }
 
@@ -1127,15 +548,25 @@
           const freshLogoutEl = document.getElementById("logoutLink");
           freshLogoutEl.addEventListener("click", async (event) => {
             event.preventDefault();
-            await supabase.from("user_presence").delete().eq("user_id", user.id);
+            await supabase
+              .from("user_presence")
+              .delete()
+              .eq("user_id", user.id);
             await supabase.auth.signOut();
             window.location.href = "login.html";
           });
 
           try {
-            const usedRegistryMenu = await renderRegistryWorkspaceMenu();
+            await renderRegistryWorkspaceMenu();
           } catch (registryError) {
-            console.warn("Registry menu fallback", registryError);
+            console.error(
+              "Failed to load Electron module registry",
+              registryError,
+            );
+            renderWorkspaceStatus(
+              "Module registry unavailable",
+              "Workspace modules could not be loaded right now. Contact admin if this keeps happening.",
+            );
           }
 
           try {
@@ -1160,7 +591,9 @@
               const permissionMap = buildPermissionMap(perms);
               const moduleDecisions = [];
               document.querySelectorAll("a.module-link").forEach((anchor) => {
-                const moduleKey = normalizeModuleKey(anchor.dataset.moduleId || "");
+                const moduleKey = normalizeModuleKey(
+                  anchor.dataset.moduleId || "",
+                );
                 const minNavMode =
                   String(anchor.dataset.minNavMode || "view").toLowerCase() ||
                   "view";
@@ -1184,7 +617,9 @@
                 });
 
                 if (accessLevel === "none") {
-                  anchor.style.display = isPlaceholder ? "inline-block" : "none";
+                  anchor.style.display = isPlaceholder
+                    ? "inline-block"
+                    : "none";
                   return;
                 }
 

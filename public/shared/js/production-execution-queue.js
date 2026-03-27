@@ -70,6 +70,7 @@ let SELECTED_ROW = null;
 let CURRENT_PAGE = 1;
 let PAGE_SIZE = 25;
 let LAST_PAGE_ROWS = [];
+let CURRENT_ROWS = [];
 
 const LENSES = [
   { id: "ready", label: "Ready to Execute" },
@@ -306,6 +307,12 @@ function formatStorageQty(row) {
     return `${baseQty} ${uom}`.trim();
   }
 
+  if (state === "WIP") {
+    if (row?.batch_size_declared == null) return "-";
+    const uom = row.batch_uom || "";
+    return `${row.batch_size_declared} ${uom}`.trim();
+  }
+
   return "-";
 }
 
@@ -415,10 +422,12 @@ function renderTable(rows) {
   if (!rows || rows.length === 0) {
     setStatus("No rows match the current filter.");
     document.getElementById("paginationInfo").textContent = "";
+    CURRENT_ROWS = [];
     renderSummaryStrip([]);
     return;
   }
   clearStatus();
+  CURRENT_ROWS = rows;
 
   // pagination
   const pageSize = PAGE_SIZE;
@@ -983,7 +992,7 @@ function copyReadyList() {
     })
     .toUpperCase();
   const lines = [`*READY TO EXECUTE (AS ON ${dateStr})*`, ""];
-  (LAST_PAGE_ROWS || []).forEach((r) => {
+  (CURRENT_ROWS.length ? CURRENT_ROWS : LAST_PAGE_ROWS).forEach((r) => {
     const storage = formatStorageQty(r);
     lines.push(
       `${r.priority_rank_v4} ${r.product_name || r.product_id} - ${r.batch_number} - ${r.primary_state} - ${storage}`,

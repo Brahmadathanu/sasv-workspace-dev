@@ -2,8 +2,8 @@
 // =============================================================================
 // SASV Utilities Hub — Auth, Access Control, and Curated Utilities Grid
 // Requires: ../../shared/js/supabaseClient.js (exporting `supabase`)
-// Prefers the canonical registry view `v_app_module_registry`, but keeps the
-// legacy `hub_utilities` fallback so the hub remains usable during migration.
+// Uses the canonical registry view `v_app_module_registry` as the sole
+// navigation source for the PWA hub.
 // =============================================================================
 
 import { supabase } from "../../shared/js/supabaseClient.js";
@@ -11,6 +11,7 @@ import {
   buildPermissionMap,
   getModuleAccessLevel,
   loadClientModuleRegistry,
+  loadNavigationSections,
   normalizeModuleKey,
 } from "../../shared/js/module-registry.js";
 
@@ -53,87 +54,6 @@ const elAuthMsg = document.getElementById("auth-msg");
 const elLoggedIn = document.getElementById("hub-logged-in");
 const btnLogout = document.getElementById("hub-logout");
 
-const LEGACY_UTIL_URLS = Object.freeze({
-  fill_planner: "../shared/fill-planner.html",
-  "fill-planner": "../shared/fill-planner.html",
-  plant_occupancy: "../shared/plant-occupancy.html",
-  "plant-occupancy": "../shared/plant-occupancy.html",
-  stock_checker: "../shared/stock-checker.html",
-  "stock-checker": "../shared/stock-checker.html",
-  wip_stock: "../shared/wip-stock.html",
-  "wip-stock": "../shared/wip-stock.html",
-  fg_bulk_stock: "../shared/fg-bulk-stock.html",
-  "fg-bulk-stock": "../shared/fg-bulk-stock.html",
-  bottled_stock: "../shared/bottled-stock.html",
-  "bottled-stock": "../shared/bottled-stock.html",
-  bmr_card_not_initiated: "../shared/bmr-card-not-initiated.html",
-  "bmr-card-not-initiated": "../shared/bmr-card-not-initiated.html",
-  sales_viewer: "../shared/sales-viewer.html",
-  "sales-viewer": "../shared/sales-viewer.html",
-  "sales-data-viewer": "../shared/sales-viewer.html",
-  stock_purchase_explorer: "../shared/stock-purchase-explorer.html",
-  "stock-purchase-explorer": "../shared/stock-purchase-explorer.html",
-  fg_transfer_reconciliation: "../shared/fg-transfer-reconciliation.html",
-  "fg-transfer-reconciliation": "../shared/fg-transfer-reconciliation.html",
-  "production-execution-queue": "../shared/production-execution-queue.html",
-  production_execution_queue: "../shared/production-execution-queue.html",
-  view_log: "../shared/view-logs.html",
-  view_logs: "../shared/view-logs.html",
-  "view-logs": "../shared/view-logs.html",
-  etl_monitor: "../shared/operations-monitor.html",
-  etl_control: "../shared/operations-control.html",
-  "operations-monitor": "../shared/operations-monitor.html",
-  "operations-control": "../shared/operations-control.html",
-  hub_admin: "./admin.html",
-  "admin-console": "./admin.html",
-});
-
-const SECTION_ORDER = Object.freeze({
-  "Work Log": 10,
-  "Planning Workspace": 20,
-  "MRP & Procurement": 30,
-  "Inventory & Sales Analytics": 40,
-  "Product & Reference Master": 50,
-  "Plant & Assets": 60,
-  "BMR & Production Records": 70,
-  SOPs: 80,
-  "System & Integrations": 90,
-  Administration: 100,
-});
-
-const MODULE_META = Object.freeze({
-  "fill-planner": { section: "System & Integrations", order: 30 },
-  "plant-occupancy": { section: "MRP & Procurement", order: 95 },
-  "stock-checker": { section: "System & Integrations", order: 40 },
-  "wip-stock": { section: "Inventory & Sales Analytics", order: 120 },
-  "fg-bulk-stock": { section: "Inventory & Sales Analytics", order: 130 },
-  "bottled-stock": { section: "Inventory & Sales Analytics", order: 140 },
-  "sales-data-viewer": {
-    section: "Inventory & Sales Analytics",
-    order: 110,
-  },
-  "bmr-card-not-initiated": {
-    section: "Inventory & Sales Analytics",
-    order: 150,
-  },
-  "stock-purchase-explorer": {
-    section: "Inventory & Sales Analytics",
-    order: 80,
-  },
-  "fg-transfer-reconciliation": {
-    section: "Inventory & Sales Analytics",
-    order: 90,
-  },
-  "production-execution-queue": {
-    section: "MRP & Procurement",
-    order: 50,
-  },
-  "view-logs": { section: "Work Log", order: 40 },
-  "operations-monitor": { section: "System & Integrations", order: 10 },
-  "operations-control": { section: "System & Integrations", order: 20 },
-  "admin-console": { section: "Administration", order: 10 },
-});
-
 function setBusy(on) {
   elRoot?.setAttribute("aria-busy", on ? "true" : "false");
 }
@@ -166,16 +86,13 @@ function clearMsgSoon(ms = 3000) {
   }, ms);
 }
 
-function getFallbackSection(moduleKey) {
-  return MODULE_META[moduleKey]?.section || "Other";
-}
-
-function getFallbackOrder(moduleKey) {
-  return MODULE_META[moduleKey]?.order ?? 999;
-}
-
-function getSectionSort(sectionLabel) {
-  return SECTION_ORDER[sectionLabel] ?? 999;
+function formatSectionLabel(sectionKey) {
+  const normalized = normalizeModuleKey(sectionKey);
+  if (!normalized) return "Other";
+  return normalized
+    .split("-")
+    .map((part) => (part ? part[0].toUpperCase() + part.slice(1) : ""))
+    .join(" ");
 }
 
 function sortByCuration(a, b) {
@@ -186,20 +103,6 @@ function sortByCuration(a, b) {
   if (orderDelta !== 0) return orderDelta;
 
   return (a.label || "").localeCompare(b.label || "");
-}
-
-async function isHubAdmin(userId) {
-  if (!userId) return false;
-  try {
-    const perms = await getUserPermissions(userId);
-    if (!perms) return false;
-    return perms.some(
-      (perm) => perm && perm.target === "module:admin-console" && perm.can_view,
-    );
-  } catch (e) {
-    console.warn("Admin check failed:", e);
-    return false;
-  }
 }
 
 function renderMessageCard(title, message) {
@@ -215,36 +118,46 @@ function renderUtilitiesSectioned(utilities, accessMap) {
     (utility) => (accessMap[utility.id] || "none") !== "none",
   );
 
-  const bySection = {};
+  const bySection = new Map();
   visible
     .map((utility) => ({
       ...utility,
       sectionLabel:
-        utility.sectionLabel || getFallbackSection(utility.moduleKey),
-      sectionSort:
-        utility.sectionSort ??
-        getSectionSort(
-          utility.sectionLabel || getFallbackSection(utility.moduleKey),
-        ),
-      order: utility.order ?? getFallbackOrder(utility.moduleKey),
+        utility.sectionLabel || formatSectionLabel(utility.sectionKey),
+      sectionSort: utility.sectionSort ?? 999,
+      order: utility.order ?? 999,
       accessLevel: accessMap[utility.id] || "none",
     }))
     .forEach((utility) => {
-      (bySection[utility.sectionLabel] ||= []).push(utility);
+      if (!bySection.has(utility.sectionLabel)) {
+        bySection.set(utility.sectionLabel, {
+          label: utility.sectionLabel,
+          description: utility.sectionDescription || "",
+          sort: utility.sectionSort ?? 999,
+          items: [],
+        });
+      }
+      const bucket = bySection.get(utility.sectionLabel);
+      if (!bucket.description && utility.sectionDescription) {
+        bucket.description = utility.sectionDescription;
+      }
+      bucket.sort = Math.min(bucket.sort, utility.sectionSort ?? 999);
+      bucket.items.push(utility);
     });
 
-  const sections = Object.keys(bySection).sort(
-    (left, right) => getSectionSort(left) - getSectionSort(right),
+  const sections = Array.from(bySection.values()).sort(
+    (left, right) => left.sort - right.sort,
   );
 
   let html = "";
-  sections.forEach((sectionLabel) => {
-    const list = bySection[sectionLabel].sort(sortByCuration);
+  sections.forEach((section) => {
+    const list = section.items.sort(sortByCuration);
     if (!list.length) return;
 
     html += `
       <div class="hub-section">
-        <h3 class="hub-section-title">${safeText(sectionLabel)}</h3>
+        <h3 class="hub-section-title">${safeText(section.label)}</h3>
+        ${section.description ? `<p>${safeText(section.description)}</p>` : ""}
         <div class="hub-grid">`;
 
     list.forEach((utility) => {
@@ -273,85 +186,42 @@ function renderUtilitiesSectioned(utilities, accessMap) {
 }
 
 async function loadUtilities() {
-  try {
-    const registryRows = await loadClientModuleRegistry("pwa");
-    if (registryRows.length) {
-      const mapped = registryRows.map((row) => {
-        const sectionLabel =
-          row.sectionLabel || getFallbackSection(row.moduleKey);
-        return {
-          id: row.moduleKey,
-          key: row.moduleKey,
-          moduleKey: row.moduleKey,
-          label: row.label,
-          description: row.description || "",
-          href: row.routePath || "#",
-          sectionLabel,
-          sectionSort: getSectionSort(sectionLabel),
-          order: row.sortOrder ?? getFallbackOrder(row.moduleKey),
-          minNavMode: row.minNavMode || "view",
-        };
-      });
-      return mapped;
+  const [registryRows, sectionRows] = await Promise.all([
+    loadClientModuleRegistry("pwa"),
+    loadNavigationSections(),
+  ]);
+  const sectionMetaByKey = new Map();
+  const sectionMetaByLabel = new Map();
+
+  sectionRows.forEach((row) => {
+    sectionMetaByKey.set(row.key, row);
+    if (row.label) {
+      sectionMetaByLabel.set(row.label, row);
     }
-  } catch (error) {
-    console.debug("loadUtilities registry fallback", error);
-  }
+  });
 
-  const { data, error } = await supabase
-    .from("hub_utilities")
-    .select("id, key, label, description");
+  return registryRows.map((row) => {
+    const sectionLabel = row.sectionLabel || formatSectionLabel(row.sectionKey);
+    const sectionMeta =
+      sectionMetaByKey.get(row.sectionKey) ||
+      sectionMetaByLabel.get(sectionLabel) ||
+      null;
 
-  if (!error && Array.isArray(data)) {
-    const mapped = data.map((row) => {
-      const moduleKey = normalizeModuleKey(row.key);
-      const sectionLabel = getFallbackSection(moduleKey);
-      return {
-        id: String(row.id),
-        key: row.key,
-        moduleKey,
-        label: row.label,
-        description: row.description || "",
-        href: LEGACY_UTIL_URLS[row.key] || "#",
-        sectionLabel,
-        sectionSort: getSectionSort(sectionLabel),
-        order: getFallbackOrder(moduleKey),
-        minNavMode: "view",
-      };
-    });
-    return mapped;
-  }
-
-  const fallbackUtilities = [
-    {
-      id: "fill-planner",
-      key: "fill_planner",
-      moduleKey: "fill-planner",
-      label: "Fill Planner",
-      description:
-        "Plan fills from bulk with emergency SKU deductions + MOS context.",
-      href: LEGACY_UTIL_URLS.fill_planner,
-      sectionLabel: "Planning & Operations",
-      sectionSort: getSectionSort("Planning & Operations"),
-      order: 10,
-      minNavMode: "view",
-    },
-    {
-      id: "stock-checker",
-      key: "stock_checker",
-      moduleKey: "stock-checker",
-      label: "Stock Checker",
-      description:
-        "Quick search with filters and CSV export for stock/forecast/MOS.",
-      href: LEGACY_UTIL_URLS.stock_checker,
-      sectionLabel: "Inventory & Sales Analytics",
-      sectionSort: getSectionSort("Inventory & Sales Analytics"),
-      order: 10,
-      minNavMode: "view",
-    },
-  ];
-
-  return fallbackUtilities;
+    return {
+      id: row.moduleKey,
+      key: row.moduleKey,
+      moduleKey: row.moduleKey,
+      label: row.label,
+      description: row.description || "",
+      href: row.routePath || "#",
+      sectionKey: row.sectionKey,
+      sectionLabel,
+      sectionDescription: sectionMeta?.description || "",
+      sectionSort: sectionMeta?.sortOrder ?? 999,
+      order: row.sortOrder ?? 999,
+      minNavMode: row.minNavMode || "view",
+    };
+  });
 }
 
 async function loadAccessMap(userId, utilities) {
@@ -542,36 +412,27 @@ async function performRender() {
   try {
     utilities = await loadUtilities();
     accessMap = await loadAccessMap(session?.user?.id, utilities);
-  } catch {
+  } catch (error) {
+    console.error("Failed to load PWA module registry", error);
     if (elRoot) {
-      elRoot.innerHTML = renderMessageCard("Loading…", "Preparing your tools.");
+      elRoot.innerHTML = renderMessageCard(
+        "Module registry unavailable",
+        "Tools could not be loaded right now. Contact admin if this keeps happening.",
+      );
     }
+    if (elEmpty) elEmpty.style.display = "none";
     setBusy(false);
     return;
   }
 
-  const admin = await isHubAdmin(session?.user?.id);
-  const visibleUtilities = admin
-    ? utilities
-    : utilities.filter((utility) => utility.moduleKey !== "admin-console");
-
-  const visibleIds = new Set(visibleUtilities.map((utility) => utility.id));
-  const prunedAccessMap = {};
-  Object.entries(accessMap).forEach(([id, level]) => {
-    if (visibleIds.has(id)) prunedAccessMap[id] = level;
-  });
-
   if (elRoot) {
-    elRoot.innerHTML = renderUtilitiesSectioned(
-      visibleUtilities,
-      prunedAccessMap,
-    );
+    elRoot.innerHTML = renderUtilitiesSectioned(utilities, accessMap);
     elRoot.classList.remove("hub-grid");
     elRoot.classList.add("hub-root-sectioned");
   }
 
-  const hasVisible = visibleUtilities.some(
-    (utility) => (prunedAccessMap[utility.id] || "none") !== "none",
+  const hasVisible = utilities.some(
+    (utility) => (accessMap[utility.id] || "none") !== "none",
   );
   if (elEmpty) elEmpty.style.display = hasVisible ? "none" : "";
 
