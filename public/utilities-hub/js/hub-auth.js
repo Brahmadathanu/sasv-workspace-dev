@@ -462,6 +462,10 @@ async function render(reason = "manual") {
   }
 }
 
+function handleSignedInSignal(reason) {
+  render(reason).catch(console.error);
+}
+
 function wireEvents() {
   elLoginForm?.addEventListener("submit", signInWithPassword);
   btnLogout?.addEventListener("click", logoutFlow);
@@ -483,6 +487,33 @@ function wireEvents() {
   document
     .getElementById("auth-forgot")
     ?.addEventListener("click", sendPasswordReset);
+
+  try {
+    const authChannel = new BroadcastChannel("sasv-auth");
+    authChannel.addEventListener("message", (event) => {
+      if (event?.data?.type === "signed-in") {
+        handleSignedInSignal("broadcast:signed-in");
+      }
+    });
+  } catch {
+    // BroadcastChannel is not available on all mobile browsers.
+  }
+
+  navigator.serviceWorker?.addEventListener("message", (event) => {
+    if (event?.data?.type === "signed-in") {
+      handleSignedInSignal("sw:signed-in");
+    }
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      handleSignedInSignal("visibilitychange");
+    }
+  });
+
+  window.addEventListener("pageshow", () => {
+    handleSignedInSignal("pageshow");
+  });
 
   supabase.auth.onAuthStateChange((event, session) => {
     const sessionKey = getSessionRenderKey(session);

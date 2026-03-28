@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -40,75 +40,139 @@
   <body>
     <div class="card">
       <h1>Signing you in…</h1>
-      <p>
+      <p id="status">
         If the app is installed, it should open automatically. You can close
         this tab after it does.
       </p>
       <button id="open">Open SASV Utilities Hub</button>
     </div>
 
-      <script type="module">
-        import { supabase } from "../../shared/js/supabaseClient.js";
+    <script type="module">
+      import { supabase } from "../../shared/js/supabaseClient.js";
 
-        const card = document.querySelector(".card");
+      const card = document.querySelector(".card");
+      const status = document.getElementById("status");
+      const HUB_URL = "/utilities-hub/";
 
-        function broadcastSignedIn() {
-          // 1) Ask SW to wake/focus the PWA
-          if ("serviceWorker" in navigator) {
-            navigator.serviceWorker.ready
-              .then((reg) => (reg.active || navigator.serviceWorker.controller)?.postMessage({ type: "signed-in" }))
-              .catch(() => {});
-          }
-          // 2) Also ping any open hub tab/window
-          try {
-            const bc = new BroadcastChannel("sasv-auth");
-            bc.postMessage({ type: "signed-in" });
-          } catch {}
+      function setStatus(text) {
+        if (status) {
+          status.textContent = text;
+        }
+      }
+
+      function broadcastSignedIn() {
+        if ("serviceWorker" in navigator) {
+          navigator.serviceWorker.ready
+            .then((reg) =>
+              (reg.active || navigator.serviceWorker.controller)?.postMessage({
+                type: "signed-in",
+              }),
+            )
+            .catch(() => {});
         }
 
-        function showResetForm() {
-          const form = document.createElement("form");
-          form.innerHTML = `
-            <h2>Set a new password</h2>
-            <p style="color:#475569;margin:0.4rem 0">Enter a new password to finish resetting.</p>
-            <input id="new-pass" type="password" placeholder="New password" style="height:40px;padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;width:100%;margin-top:8px" />
-            <button id="save-pass" type="submit" style="margin-top:10px;padding:0.6rem 1rem;border-radius:8px;border:1px solid #0a62c3;background:#0a62c3;color:#fff;cursor:pointer;">Save password</button>
-            <p id="msg" style="margin-top:8px;color:#475569"></p>
-          `;
-          card.appendChild(form);
+        try {
+          const bc = new BroadcastChannel("sasv-auth");
+          bc.postMessage({ type: "signed-in" });
+          bc.close();
+        } catch {}
+      }
 
-          const msg = form.querySelector("#msg");
-          form.addEventListener("submit", async (e) => {
-            e.preventDefault();
-            const pwd = form.querySelector("#new-pass").value;
-            if (!pwd) { msg.textContent = "Enter a password."; return; }
-            msg.textContent = "Updating…";
-            try {
-              const { error } = await supabase.auth.updateUser({ password: pwd });
-              if (error) throw error;
-              msg.textContent = "Password updated. You’re signed in.";
-              broadcastSignedIn();
-            } catch (err) {
-              console.error(err);
-              msg.textContent = "Could not update password. Try again.";
-            }
+      async function establishSessionFromUrl() {
+        const hashParams = new URLSearchParams(location.hash.replace(/^#/, ""));
+        const searchParams = new URLSearchParams(location.search);
+        const accessToken = hashParams.get("access_token");
+        const refreshToken = hashParams.get("refresh_token");
+        const authCode = searchParams.get("code");
+
+        if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
           });
+          if (error) throw error;
+          return;
         }
 
-        // If this is a password recovery link, show reset form
-        const hash = location.hash || "";
-        if (hash.includes("type=recovery")) {
-          showResetForm();
-        } else {
-          // Normal magic/sign-in callback: just notify app and show button
-          broadcastSignedIn();
+        if (authCode) {
+          const { error } =
+            await supabase.auth.exchangeCodeForSession(authCode);
+          if (error) throw error;
         }
+      }
 
-        // Manual fallback button
-        document.getElementById("open")?.addEventListener("click", () => {
-          location.href = "/utilities-hub/";
+      function openHub() {
+        location.href = HUB_URL;
+      }
+
+      function scheduleOpenHub(delayMs = 350) {
+        window.setTimeout(openHub, delayMs);
+      }
+
+      function showResetForm() {
+        if (card.querySelector("form")) return;
+
+        const form = document.createElement("form");
+        form.innerHTML = `
+          <h2>Set a new password</h2>
+          <p style="color:#475569;margin:0.4rem 0">Enter a new password to finish resetting.</p>
+          <input id="new-pass" type="password" placeholder="New password" style="height:40px;padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;width:100%;margin-top:8px" />
+          <button id="save-pass" type="submit" style="margin-top:10px;padding:0.6rem 1rem;border-radius:8px;border:1px solid #0a62c3;background:#0a62c3;color:#fff;cursor:pointer;">Save password</button>
+          <p id="msg" style="margin-top:8px;color:#475569"></p>
+        `;
+        card.appendChild(form);
+
+        const msg = form.querySelector("#msg");
+        form.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          const pwd = form.querySelector("#new-pass").value;
+          if (!pwd) {
+            msg.textContent = "Enter a password.";
+            return;
+          }
+
+          msg.textContent = "Updating…";
+          try {
+            const { error } = await supabase.auth.updateUser({ password: pwd });
+            if (error) throw error;
+            msg.textContent = "Password updated. You are signed in.";
+            setStatus("Password updated. Opening the hub…");
+            broadcastSignedIn();
+            scheduleOpenHub();
+          } catch (err) {
+            console.error(err);
+            msg.textContent = "Could not update password. Try again.";
+          }
         });
-      </script>
+      }
+
+      async function boot() {
+        try {
+          setStatus("Completing sign-in…");
+          await establishSessionFromUrl();
+
+          const hash = location.hash || "";
+          if (hash.includes("type=recovery")) {
+            setStatus("Recovery verified. Set a new password to continue.");
+            showResetForm();
+            return;
+          }
+
+          setStatus("Sign-in complete. Opening the hub…");
+          broadcastSignedIn();
+          scheduleOpenHub();
+        } catch (error) {
+          console.error("Auth callback failed", error);
+          setStatus(
+            error?.message ||
+              "Could not complete sign-in automatically. Use the button below to open the hub.",
+          );
+        }
+      }
+
+      document.getElementById("open")?.addEventListener("click", openHub);
+
+      boot();
     </script>
   </body>
 </html>
