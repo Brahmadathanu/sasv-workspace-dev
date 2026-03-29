@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v159"; // bumped to force asset refresh
+const CACHE_NAME = "hub-cache-v160"; // bumped to force asset refresh
 
 const PRECACHE = [
   // Hub shell

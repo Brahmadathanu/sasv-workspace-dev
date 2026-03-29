@@ -72,6 +72,171 @@ let PAGE_SIZE = 25;
 let LAST_PAGE_ROWS = [];
 let CURRENT_ROWS = [];
 
+// ── Universal queue filter state ─────────────────────────────────────────────
+const QUEUE_FILTER_STATES = [
+  "NOT_INITIATED",
+  "WIP",
+  "FG_BULK",
+  "BOTTLED",
+  "MIXED",
+];
+
+function getDefaultQueueFilters() {
+  return { states: [] };
+}
+
+let QUEUE_FILTERS = getDefaultQueueFilters();
+
+function formatStateLabel(value) {
+  const map = {
+    NOT_INITIATED: "Not Initiated",
+    WIP: "WIP",
+    FG_BULK: "FG Bulk",
+    BOTTLED: "Bottled",
+    MIXED: "Mixed",
+  };
+  return (
+    map[String(value || "").toUpperCase()] ||
+    String(value || "").replace(/_/g, " ")
+  );
+}
+
+function isAnyQueueFilterActive() {
+  return QUEUE_FILTERS.states.length > 0;
+}
+
+function applyQueueFilters(rows) {
+  if (!QUEUE_FILTERS.states.length) return rows;
+  return rows.filter((r) =>
+    QUEUE_FILTERS.states.includes(String(r.primary_state || "").toUpperCase()),
+  );
+}
+
+function setQueueStateFilter(value, checked) {
+  const v = String(value || "").toUpperCase();
+  if (checked) {
+    if (!QUEUE_FILTERS.states.includes(v)) QUEUE_FILTERS.states.push(v);
+  } else {
+    QUEUE_FILTERS.states = QUEUE_FILTERS.states.filter((s) => s !== v);
+  }
+  _syncFilterDrawerUI();
+  _updateFilterBtnState();
+  CURRENT_PAGE = 1;
+  applyLensFilter();
+}
+
+function clearQueueFilters() {
+  QUEUE_FILTERS = getDefaultQueueFilters();
+  _syncFilterDrawerUI();
+  _updateFilterBtnState();
+  CURRENT_PAGE = 1;
+  applyLensFilter();
+}
+
+function _updateFilterBtnState() {
+  const btn = document.getElementById("peqFilterBtn");
+  if (!btn) return;
+  const active = isAnyQueueFilterActive();
+  btn.classList.toggle("peq-filter-btn--active", active);
+  const badge = btn.querySelector(".peq-filter-badge");
+  if (badge) {
+    const count = QUEUE_FILTERS.states.length > 0 ? 1 : 0;
+    badge.textContent = count || "";
+    badge.style.display = count ? "" : "none";
+  }
+}
+
+function _syncFilterDrawerUI() {
+  const drawer = document.getElementById("peqFilterDrawer");
+  if (!drawer) return;
+  QUEUE_FILTER_STATES.forEach((val) => {
+    const cb = drawer.querySelector(`input[data-state="${val}"]`);
+    if (cb) cb.checked = QUEUE_FILTERS.states.includes(val);
+  });
+  const summary = drawer.querySelector(".peq-filter-summary");
+  if (summary) {
+    if (!QUEUE_FILTERS.states.length) {
+      summary.textContent = "All states";
+    } else {
+      summary.textContent = QUEUE_FILTERS.states
+        .map(formatStateLabel)
+        .join(", ");
+    }
+  }
+}
+
+let _filterDrawerOpen = false;
+
+function toggleFilterDrawer() {
+  const drawer = document.getElementById("peqFilterDrawer");
+  if (!drawer) return;
+  _filterDrawerOpen = !_filterDrawerOpen;
+  drawer.classList.toggle("open", _filterDrawerOpen);
+  if (_filterDrawerOpen) {
+    _syncFilterDrawerUI();
+    setTimeout(() => {
+      document.addEventListener("click", _onFilterOutsideClick);
+      document.addEventListener("keydown", _onFilterEsc);
+    }, 0);
+  } else {
+    document.removeEventListener("click", _onFilterOutsideClick);
+    document.removeEventListener("keydown", _onFilterEsc);
+  }
+}
+
+function closeFilterDrawer() {
+  if (!_filterDrawerOpen) return;
+  _filterDrawerOpen = false;
+  const drawer = document.getElementById("peqFilterDrawer");
+  if (drawer) drawer.classList.remove("open");
+  document.removeEventListener("click", _onFilterOutsideClick);
+  document.removeEventListener("keydown", _onFilterEsc);
+}
+
+function _onFilterOutsideClick(e) {
+  const wrapper = document.getElementById("peqFilterWrapper");
+  if (wrapper && !wrapper.contains(e.target)) closeFilterDrawer();
+}
+
+function _onFilterEsc(e) {
+  if (e.key === "Escape") closeFilterDrawer();
+}
+
+function _wireFilterDrawer() {
+  const btn = document.getElementById("peqFilterBtn");
+  const drawer = document.getElementById("peqFilterDrawer");
+  if (!btn || !drawer) return;
+
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleFilterDrawer();
+  });
+
+  QUEUE_FILTER_STATES.forEach((val) => {
+    const cb = drawer.querySelector(`input[data-state="${val}"]`);
+    if (cb) {
+      cb.addEventListener("change", () => setQueueStateFilter(val, cb.checked));
+    }
+  });
+
+  const selectAll = drawer.querySelector("#peqFilterSelectAll");
+  if (selectAll) {
+    selectAll.addEventListener("click", () => {
+      QUEUE_FILTERS.states = [...QUEUE_FILTER_STATES];
+      _syncFilterDrawerUI();
+      _updateFilterBtnState();
+      CURRENT_PAGE = 1;
+      applyLensFilter();
+    });
+  }
+
+  const clearBtn = drawer.querySelector("#peqFilterClear");
+  if (clearBtn) clearBtn.addEventListener("click", clearQueueFilters);
+
+  // stop clicks inside drawer from bubbling to outside-click handler
+  drawer.addEventListener("click", (e) => e.stopPropagation());
+}
+
 const LENSES = [
   { id: "ready", label: "Ready to Execute" },
   { id: "fast_conversion", label: "Fast Conversion" },
@@ -308,7 +473,7 @@ function formatStorageQty(row) {
 
 function applyLensFilter() {
   if (!Array.isArray(QUEUE)) QUEUE = [];
-  let rows = [...QUEUE];
+  let rows = applyQueueFilters([...QUEUE]);
   switch (CURRENT_LENS) {
     case "ready":
       rows = rows.filter((r) => Number(r.queue_lane) === 1);
@@ -1596,6 +1761,7 @@ async function loadQueue() {
       return;
     }
     // wire UI
+    _wireFilterDrawer();
     refreshBtn.addEventListener("click", refreshSnapshotAndReload);
     searchBox.addEventListener(
       "input",
