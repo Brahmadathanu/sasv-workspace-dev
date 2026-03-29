@@ -80,9 +80,12 @@ const LENSES = [
   { id: "all", label: "All Batches" },
 ];
 
-// ── Per-batch blocker caches (populated lazily on tab open) ────────────────
+// â”€â”€ Per-batch blocker caches (populated lazily on tab open) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const PM_BLOCKER_CACHE = new Map();
 const RM_BLOCKER_CACHE = new Map();
+
+// â”€â”€ Currently open copy menu (one at a time) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+let _activeStatusMenu = null;
 
 function getBatchKey(row) {
   return `${row.product_id}::${row.batch_number}`;
@@ -103,31 +106,18 @@ function setStatus(msg, type = "normal") {
 }
 
 async function refreshSnapshotAndReload() {
+  // Heavy planning data refresh is handled by scheduled jobs;
+  // this button only reloads served snapshot data.
   try {
     refreshBtn.disabled = true;
-    setStatus("Refreshing queue snapshot (1/2)…");
-    const { error: e1 } = await supabase.rpc("refresh_priority_queue_snapshot");
-    if (e1) throw e1;
-    setStatus("Refreshing blocker snapshots (2/2)…");
-    const { error: e2 } = await supabase.rpc(
-      "refresh_blocker_snapshots_current_month",
-    );
-    if (e2) throw e2;
-    // Invalidate per-batch blocker caches so re-opened modals fetch fresh data
+    setStatus("Reloading latest served snapshotsâ€¦");
     PM_BLOCKER_CACHE.clear();
     RM_BLOCKER_CACHE.clear();
-    setStatus("Snapshots refreshed successfully.");
     await loadQueue();
+    showToast("Latest queue and blocker snapshots reloaded", "success");
   } catch (e) {
-    console.error("Snapshot refresh failed", e);
-    const msg = (e && (e.message || e.error || e.code || "")).toString();
-    if (/permission|privileg|42501/i.test(msg)) {
-      setStatus("You do not have permission to refresh snapshots.", "error");
-    } else {
-      setStatus("Refresh failed: " + (e.message || e), "error");
-    }
-    // attempt to load existing snapshot even if refresh fails
-    await loadQueue();
+    console.error("Refresh failed", e);
+    setStatus("Refresh failed: " + (e.message || e), "error");
   } finally {
     refreshBtn.disabled = false;
   }
@@ -227,7 +217,7 @@ function getRmDisplay(row) {
     : { text: "RM Blocked", cls: "rm-block" };
 }
 
-// ── Modal display helpers ───────────────────────────────────────────
+// â”€â”€ Modal display helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function formatStatusBadge(text, type) {
   const S = {
     ok: "background:#e7f8ef;color:#1d8f54",
@@ -509,6 +499,9 @@ function renderTable(rows) {
     const pmChip = document.createElement("span");
     pmChip.className = `status-chip ${isPmOk(r) ? "pm-ok" : "pm-block"}`;
     pmChip.textContent = isPmOk(r) ? "PM OK" : "PM Blocked";
+    pmChip.title = isPmOk(r)
+      ? "PM gates are clear"
+      : "Blocked after priority-based reservation of packing material";
     pmTd.appendChild(pmChip);
 
     // RM chip
@@ -518,6 +511,12 @@ function renderTable(rows) {
     const rmDisplay = getRmDisplay(r);
     rmChip.className = `status-chip ${rmDisplay.cls}`;
     rmChip.textContent = rmDisplay.text;
+    rmChip.title =
+      rmDisplay.cls === "rm-na"
+        ? "RM is not an execution gate for FG_BULK / BOTTLED stages"
+        : rmDisplay.cls === "rm-ok"
+          ? "RM gates are clear"
+          : "Blocked after priority-based reservation of raw material";
     rmTd.appendChild(rmChip);
 
     tr.appendChild(laneTd);
@@ -557,21 +556,21 @@ function openDetails(row) {
     const _title = document.getElementById("drawerTitle");
     const _subtitle = document.getElementById("drawerSubtitle");
     if (_title)
-      _title.textContent = `${row.product_name || ""} — Batch ${row.batch_number || ""}`;
+      _title.textContent = `${row.product_name || ""} â€” Batch ${row.batch_number || ""}`;
     if (_subtitle) {
       const laneInfo = getLaneLabel(row);
       _subtitle.innerHTML =
         `<span>${row.primary_state || "-"}</span>` +
-        `<span style="opacity:0.4">·</span>` +
+        `<span style="opacity:0.4">Â·</span>` +
         `<span>Priority #${row.priority_rank_v4 ?? "-"}</span>` +
-        `<span style="opacity:0.4">·</span>` +
+        `<span style="opacity:0.4">Â·</span>` +
         formatStatusBadge(laneInfo.text, laneInfo.type);
     }
     if (_modal) {
       _modal.classList.remove("hidden");
       _modal.setAttribute("aria-hidden", "false");
     }
-    // synchronous — #detailsModal is a sibling of .table-card, not an ancestor,
+    // synchronous â€” #detailsModal is a sibling of .table-card, not an ancestor,
     // so row click events never bubble into it; setTimeout is not needed
     setDrawerTab("details");
   } catch (err) {
@@ -589,24 +588,7 @@ function closeDetails() {
   SELECTED_ROW = null;
 }
 
-// ── Blocker formatters ───────────────────────────────────────────────────
-function formatProcurementMode(value) {
-  const v = String(value || "").toUpperCase();
-  if (v === "JIT" || v === "JIT_PROCURED") return "JIT Procured";
-  return "Stock Required";
-}
-
-function formatPmBlockerType(value) {
-  if (!value) return "-";
-  return String(value).replace(/_/g, " ");
-}
-
-function formatRmBlockerType(r) {
-  if (r.has_unassigned_issues) return "Unassigned Issue";
-  return "Shortage";
-}
-
-// ── Blocker loaders (snapshot tables) ────────────────────────────────
+// â”€â”€ Blocker loaders (snapshot tables) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function _getMonthStart() {
   const now = new Date();
   return (
@@ -621,14 +603,17 @@ async function loadPmBlockers(row) {
   const key = getBatchKey(row);
   if (PM_BLOCKER_CACHE.has(key)) return PM_BLOCKER_CACHE.get(key);
   const { data, error } = await supabase
-    .from("pm_blockers_snapshot_current_month")
+    .from("pm_status_snapshot_current_month")
     .select(
-      "pm_stock_item_id,pm_name,pm_uom,planned_pm_qty,issued_pm_qty,remaining_pm_qty,stock_qty,pm_blocker_class",
+      "product_id,batch_number,pm_stock_item_id,pm_name,pm_uom," +
+        "planned_pm_qty,issued_pm_qty,stock_qty,uncovered_qty," +
+        "is_optional_pm,is_override_pm,is_blocking_line,pm_status_class,pm_status_reason",
     )
     .eq("month_start", _getMonthStart())
     .eq("product_id", row.product_id)
     .eq("batch_number", row.batch_number)
-    .order("remaining_pm_qty", { ascending: false });
+    .order("is_blocking_line", { ascending: false })
+    .order("pm_name", { ascending: true });
   if (error) throw error;
   const rows = data || [];
   PM_BLOCKER_CACHE.set(key, rows);
@@ -639,25 +624,314 @@ async function loadRmBlockers(row) {
   const key = getBatchKey(row);
   if (RM_BLOCKER_CACHE.has(key)) return RM_BLOCKER_CACHE.get(key);
   const { data, error } = await supabase
-    .from("rm_blockers_snapshot_current_month")
+    .from("rm_status_snapshot_current_month")
     .select(
-      "rm_stock_item_id,rm_name,rm_uom,planned_rm_qty,issued_rm_qty,remaining_rm_qty,rm_blocker_class,is_optional_rm,rm_procurement_mode,has_unassigned_issues",
+      "product_id,batch_number,rm_stock_item_id,rm_name,rm_uom," +
+        "planned_rm_qty,issued_rm_qty,stock_qty,uncovered_qty," +
+        "is_optional_rm,rm_procurement_mode,has_unassigned_issues," +
+        "is_blocking_line,rm_status_class,rm_status_reason",
     )
     .eq("month_start", _getMonthStart())
     .eq("product_id", row.product_id)
     .eq("batch_number", row.batch_number)
-    .order("remaining_rm_qty", { ascending: false });
+    .order("is_blocking_line", { ascending: false })
+    .order("rm_name", { ascending: true });
   if (error) throw error;
   const rows = data || [];
   RM_BLOCKER_CACHE.set(key, rows);
   return rows;
 }
 
-// ── Blocker renderers ───────────────────────────────────────────────────
+// â”€â”€ Status class formatters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function formatPmStatusClass(value) {
+  const map = {
+    LABEL_OR_OVERRIDE_BLOCKING: "Label / Override Blocking",
+    BLOCKING_SHORTAGE: "Blocking Shortage",
+    OPTIONAL_PM: "Optional PM",
+    SUFFICIENT_MANDATORY: "Sufficient Mandatory",
+  };
+  const k = String(value || "").toUpperCase();
+  return map[k] || String(value || "-").replace(/_/g, " ");
+}
+
+function formatRmStatusClass(value) {
+  const map = {
+    BLOCKING_SHORTAGE: "Blocking Shortage",
+    OPTIONAL_RM: "Optional RM",
+    JIT_NON_BLOCKING: "JIT Non-blocking",
+    SUFFICIENT_STOCK_REQUIRED: "Sufficient Stock",
+  };
+  const k = String(value || "").toUpperCase();
+  return map[k] || String(value || "-").replace(/_/g, " ");
+}
+
+function formatRmProcurementMode(value) {
+  const v = String(value || "").toLowerCase();
+  if (v === "jit_procured" || v === "jit") return "JIT";
+  if (v === "stock_required") return "Stock Required";
+  return String(value || "-").replace(/_/g, " ");
+}
+
+function groupStatusRows(rows) {
+  const blocking = rows.filter((r) => r.is_blocking_line);
+  const nonBlocking = rows.filter((r) => !r.is_blocking_line);
+  return { blocking, nonBlocking };
+}
+
+// â”€â”€ Status chip renderers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function _pmStatusChip(value) {
+  const k = String(value || "").toUpperCase();
+  const isBlocking =
+    k === "LABEL_OR_OVERRIDE_BLOCKING" || k === "BLOCKING_SHORTAGE";
+  const isOptional = k === "OPTIONAL_PM";
+  const isSufficient = k === "SUFFICIENT_MANDATORY";
+  const cls = isBlocking
+    ? "blocking"
+    : isOptional
+      ? "optional"
+      : isSufficient
+        ? "sufficient"
+        : "optional";
+  const label = isBlocking
+    ? "Blocking"
+    : isOptional
+      ? "Optional"
+      : isSufficient
+        ? "Sufficient"
+        : formatPmStatusClass(value);
+  return `<span class="peq-status-chip peq-status-chip--${cls}">${label}</span>`;
+}
+
+function _rmStatusChip(value) {
+  const k = String(value || "").toUpperCase();
+  const isBlocking = k === "BLOCKING_SHORTAGE";
+  const isOptional = k === "OPTIONAL_RM";
+  const isJit = k === "JIT_NON_BLOCKING";
+  const isSufficient = k === "SUFFICIENT_STOCK_REQUIRED";
+  const cls = isBlocking
+    ? "blocking"
+    : isOptional
+      ? "optional"
+      : isJit
+        ? "jit"
+        : isSufficient
+          ? "sufficient"
+          : "optional";
+  const label = isBlocking
+    ? "Blocking"
+    : isOptional
+      ? "Optional"
+      : isJit
+        ? "JIT"
+        : isSufficient
+          ? "Sufficient"
+          : formatRmStatusClass(value);
+  return `<span class="peq-status-chip peq-status-chip--${cls}">${label}</span>`;
+}
+
+// â”€â”€ Copy helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function buildPmStatusCopyText(rows, row) {
+  const product = row.product_name || row.product_id || "";
+  const batch = row.batch_number || "";
+  const header = [
+    "Product",
+    "Batch",
+    "PM Item",
+    "Planned",
+    "Issued",
+    "Stock",
+    "Shortage",
+    "Status",
+    "Class",
+    "Reason",
+  ].join("\t");
+  const toRow = (r) =>
+    [
+      product,
+      batch,
+      r.pm_name || r.pm_stock_item_id || "",
+      r.planned_pm_qty ?? "",
+      r.issued_pm_qty ?? "",
+      r.stock_qty ?? "",
+      r.uncovered_qty != null && Number(r.uncovered_qty) !== 0
+        ? r.uncovered_qty
+        : "",
+      r.is_blocking_line ? "BLOCKING" : "NON_BLOCKING",
+      formatPmStatusClass(r.pm_status_class),
+      r.pm_status_reason || "",
+    ].join("\t");
+  return [header, ...rows.map(toRow)].join("\n");
+}
+
+function buildRmStatusCopyText(rows, row) {
+  const product = row.product_name || row.product_id || "";
+  const batch = row.batch_number || "";
+  const header = [
+    "Product",
+    "Batch",
+    "RM Item",
+    "Planned",
+    "Issued",
+    "Stock",
+    "Shortage",
+    "Mode",
+    "Status",
+    "Class",
+    "Reason",
+  ].join("\t");
+  const toRow = (r) =>
+    [
+      product,
+      batch,
+      r.rm_name || r.rm_stock_item_id || "",
+      r.planned_rm_qty ?? "",
+      r.issued_rm_qty ?? "",
+      r.stock_qty ?? "",
+      r.uncovered_qty != null && Number(r.uncovered_qty) !== 0
+        ? r.uncovered_qty
+        : "",
+      formatRmProcurementMode(r.rm_procurement_mode),
+      r.is_blocking_line ? "BLOCKING" : "NON_BLOCKING",
+      formatRmStatusClass(r.rm_status_class),
+      r.rm_status_reason || "",
+    ].join("\t");
+  return [header, ...rows.map(toRow)].join("\n");
+}
+
+function copyStatusToClipboard(text, label) {
+  if (!text) {
+    showToast("No status lines to copy", "info");
+    return;
+  }
+  navigator.clipboard.writeText(text).then(
+    () => showToast(`${label} copied`, "success"),
+    () => showToast("Copy failed \u2014 check browser permissions", "error"),
+  );
+}
+
+function closeStatusCopyMenus() {
+  if (_activeStatusMenu) {
+    _activeStatusMenu.classList.remove("open");
+    _activeStatusMenu = null;
+  }
+}
+
+function buildPmStatusShareableText(rows, row) {
+  const product = row.product_name || row.product_id || "";
+  const batch = row.batch_number || "";
+  const { blocking, nonBlocking } = groupStatusRows(rows);
+  const fmtQty = (v) => (v != null ? String(v) : "-");
+  const fmtShortage = (r) => {
+    const v = r.uncovered_qty;
+    return v != null && Number(v) !== 0 ? String(v) : null;
+  };
+  const pmLine = (r, i) => {
+    const parts = [
+      `${i + 1}. ${r.pm_name || r.pm_stock_item_id || "-"}`,
+      `Planned: ${fmtQty(r.planned_pm_qty)}`,
+      `Issued: ${fmtQty(r.issued_pm_qty)}`,
+      `Stock: ${fmtQty(r.stock_qty)}`,
+    ];
+    const shortage = fmtShortage(r);
+    if (shortage) parts.push(`Shortage: ${shortage}`);
+    parts.push(`Class: ${formatPmStatusClass(r.pm_status_class)}`);
+    return [parts.join(" | "), `   Reason: ${r.pm_status_reason || "-"}`].join(
+      "\n",
+    );
+  };
+  const lines = ["PM Status List", `Product: ${product} | Batch: ${batch}`];
+  if (blocking.length) {
+    lines.push("", "Blocking lines");
+    blocking.forEach((r, i) => lines.push(pmLine(r, i)));
+  }
+  if (nonBlocking.length) {
+    lines.push("", "Non-blocking dependencies");
+    nonBlocking.forEach((r, i) => {
+      const parts = [
+        `${i + 1}. ${r.pm_name || r.pm_stock_item_id || "-"}`,
+        `Planned: ${fmtQty(r.planned_pm_qty)}`,
+        `Issued: ${fmtQty(r.issued_pm_qty)}`,
+        `Stock: ${fmtQty(r.stock_qty)}`,
+        `Class: ${formatPmStatusClass(r.pm_status_class)}`,
+      ];
+      lines.push(parts.join(" | "), `   Reason: ${r.pm_status_reason || "-"}`);
+    });
+  }
+  return lines.join("\n").trimEnd();
+}
+
+function buildRmStatusShareableText(rows, row) {
+  const product = row.product_name || row.product_id || "";
+  const batch = row.batch_number || "";
+  const { blocking, nonBlocking } = groupStatusRows(rows);
+  const fmtQty = (v) => (v != null ? String(v) : "-");
+  const fmtShortage = (r) => {
+    const v = r.uncovered_qty;
+    return v != null && Number(v) !== 0 ? String(v) : null;
+  };
+  const rmLine = (r, i) => {
+    const parts = [
+      `${i + 1}. ${r.rm_name || r.rm_stock_item_id || "-"}`,
+      `Planned: ${fmtQty(r.planned_rm_qty)}`,
+      `Issued: ${fmtQty(r.issued_rm_qty)}`,
+      `Stock: ${fmtQty(r.stock_qty)}`,
+    ];
+    const shortage = fmtShortage(r);
+    if (shortage) parts.push(`Shortage: ${shortage}`);
+    parts.push(
+      `Mode: ${formatRmProcurementMode(r.rm_procurement_mode)}`,
+      `Class: ${formatRmStatusClass(r.rm_status_class)}`,
+    );
+    return [parts.join(" | "), `   Reason: ${r.rm_status_reason || "-"}`].join(
+      "\n",
+    );
+  };
+  const lines = ["RM Status List", `Product: ${product} | Batch: ${batch}`];
+  if (blocking.length) {
+    lines.push("", "Blocking lines");
+    blocking.forEach((r, i) => lines.push(rmLine(r, i)));
+  }
+  if (nonBlocking.length) {
+    lines.push("", "Non-blocking dependencies");
+    nonBlocking.forEach((r, i) => {
+      const parts = [
+        `${i + 1}. ${r.rm_name || r.rm_stock_item_id || "-"}`,
+        `Planned: ${fmtQty(r.planned_rm_qty)}`,
+        `Issued: ${fmtQty(r.issued_rm_qty)}`,
+        `Stock: ${fmtQty(r.stock_qty)}`,
+        `Mode: ${formatRmProcurementMode(r.rm_procurement_mode)}`,
+        `Class: ${formatRmStatusClass(r.rm_status_class)}`,
+      ];
+      lines.push(parts.join(" | "), `   Reason: ${r.rm_status_reason || "-"}`);
+    });
+  }
+  return lines.join("\n").trimEnd();
+}
+
+// â”€â”€ Blocker renderers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const _th = (t, align = "left") =>
   `<th style="text-align:${align};padding:5px 8px;border-bottom:2px solid var(--border);font-size:11px;text-transform:uppercase;color:var(--muted,#6b7280);font-weight:600;white-space:nowrap">${t}</th>`;
 const _td = (t, align = "left") =>
   `<td style="text-align:${align};padding:6px 8px;border-bottom:1px solid var(--border);font-size:12.5px">${t ?? "-"}</td>`;
+
+function _pmStatusRow(r, muted = false) {
+  const rowStyle = muted ? ' style="opacity:0.72"' : "";
+  const shortage =
+    r.uncovered_qty != null && !muted
+      ? r.uncovered_qty
+      : r.uncovered_qty != null && Number(r.uncovered_qty) !== 0
+        ? r.uncovered_qty
+        : "\u2014";
+  return `<tr${rowStyle}>
+    ${_td(r.pm_name || r.pm_stock_item_id)}
+    ${_td(r.planned_pm_qty ?? "-", "right")}
+    ${_td(r.issued_pm_qty ?? "-", "right")}
+    ${_td(r.stock_qty ?? "-", "right")}
+    ${_td(shortage, "right")}
+    ${_td(_pmStatusChip(r.pm_status_class))}
+    ${_td(r.pm_status_reason || "-")}
+  </tr>`;
+}
 
 function renderPmBlockers(row, rows) {
   const _content = document.getElementById("drawerContent");
@@ -670,45 +944,125 @@ function renderPmBlockers(row, rows) {
       <div class="peq-kv"><span class="peq-k">Status</span><span class="peq-v">${row.pm_gate_status || "-"}</span></div>
     </div>`;
 
-  if (String(row.pm_gate_status || "").toUpperCase() !== "PM_BLOCKED") {
-    _content.innerHTML =
-      headerHtml +
-      `<p style="color:var(--muted,#6b7280);font-size:13px">No active PM blockers for this batch.</p>`;
-    return;
-  }
   if (!rows.length) {
     _content.innerHTML =
       headerHtml +
-      `<p style="color:var(--muted,#6b7280);font-size:13px">No PM blocker rows returned.</p>`;
+      `<p style="color:var(--muted,#6b7280);font-size:13px">No PM status lines available for this batch.</p>`;
     return;
   }
 
-  const tbody = rows
-    .map(
-      (r) => `<tr>
-    ${_td(r.pm_name || r.pm_stock_item_id)}
-    ${_td(r.pm_uom)}
-    ${_td(r.planned_pm_qty ?? "-", "right")}
-    ${_td(r.issued_pm_qty ?? "-", "right")}
-    ${_td(r.stock_qty ?? "-", "right")}
-    ${_td(r.remaining_pm_qty ?? "-", "right")}
-    ${_td(formatPmBlockerType(r.pm_blocker_class))}
-  </tr>`,
-    )
-    .join("");
-
-  _content.innerHTML =
-    headerHtml +
-    `
-    <div class="peq-card-title" style="margin-bottom:8px">PM Blocker Lines</div>
-    <div style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse">
-        <thead><tr>
-          ${_th("PM Item")}${_th("UOM")}${_th("Planned", "right")}${_th("Issued", "right")}${_th("Stock", "right")}${_th("Shortage", "right")}${_th("Type")}
-        </tr></thead>
-        <tbody>${tbody}</tbody>
-      </table>
+  const { blocking, nonBlocking } = groupStatusRows(rows);
+  const total = rows.length;
+  const colHeaders = `${_th("PM Item")}${_th("Planned", "right")}${_th("Issued", "right")}${_th("Stock", "right")}${_th("Shortage", "right")}${_th("Class")}${_th("Reason")}`;
+  const infoBox = `<div style="margin-bottom:12px;padding:8px 12px;background:rgba(37,99,235,0.04);border-left:3px solid var(--erp-accent,#2563eb);border-radius:4px;font-size:12.5px;color:var(--erp-text,#374151)">PM status is evaluated after allocating shared PM stock to higher-priority batches first.</div>`;
+  const tabActionsHtml = `
+    <div class="peq-tab-actions">
+      <span class="peq-tab-actions-summary">${total} line${total !== 1 ? "s" : ""} &mdash; ${blocking.length} blocking, ${nonBlocking.length} non-blocking</span>
+      <div class="peq-copy-wrapper">
+        <button id="peq-pm-copy-btn" class="peq-copy-icon-btn" type="button" title="Copy list" aria-label="Copy list">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </button>
+        <div id="peq-pm-copy-menu" class="peq-copy-menu" role="menu">
+          <button class="peq-copy-menu-item" data-action="shareable" type="button">Copy shareable</button>
+          <button class="peq-copy-menu-item" data-action="tsv" type="button">Copy TSV</button>
+        </div>
+      </div>
     </div>`;
+
+  let html = headerHtml + tabActionsHtml + infoBox;
+
+  if (blocking.length) {
+    html += `<div class="peq-status-section">
+      <div class="peq-status-section-title peq-status-section-title--blocking">Blocking lines</div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr>${colHeaders}</tr></thead>
+          <tbody>${blocking.map((r) => _pmStatusRow(r, false)).join("")}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+
+  if (nonBlocking.length) {
+    html += `<div class="peq-status-section">
+      <div class="peq-status-section-title peq-status-section-title--nonblocking">Non-blocking dependencies</div>
+      <p class="peq-status-note">These PM lines are visible for execution awareness but are not currently blocking this batch.</p>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr>${colHeaders}</tr></thead>
+          <tbody>${nonBlocking.map((r) => _pmStatusRow(r, true)).join("")}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+
+  _content.innerHTML = html;
+
+  const _pmBtn = _content.querySelector("#peq-pm-copy-btn");
+  const _pmMenu = _content.querySelector("#peq-pm-copy-menu");
+  _pmBtn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isOpen = _pmMenu?.classList.contains("open");
+    closeStatusCopyMenus();
+    if (!isOpen && _pmMenu) {
+      _pmMenu.classList.add("open");
+      _activeStatusMenu = _pmMenu;
+      setTimeout(() => {
+        document.addEventListener("click", closeStatusCopyMenus, {
+          once: true,
+        });
+        document.addEventListener("keydown", function _esc(ev) {
+          if (ev.key === "Escape") {
+            closeStatusCopyMenus();
+            document.removeEventListener("keydown", _esc);
+          }
+        });
+      }, 0);
+    }
+  });
+  _pmMenu
+    ?.querySelector('[data-action="shareable"]')
+    ?.addEventListener("click", () => {
+      closeStatusCopyMenus();
+      if (!rows.length) {
+        showToast("No status lines to copy", "info");
+        return;
+      }
+      copyStatusToClipboard(
+        buildPmStatusShareableText(rows, row),
+        "Shareable list",
+      );
+    });
+  _pmMenu
+    ?.querySelector('[data-action="tsv"]')
+    ?.addEventListener("click", () => {
+      closeStatusCopyMenus();
+      if (!rows.length) {
+        showToast("No status lines to copy", "info");
+        return;
+      }
+      copyStatusToClipboard(buildPmStatusCopyText(rows, row), "TSV list");
+    });
+}
+
+function _rmStatusRow(r, muted = false) {
+  const rowStyle = muted ? ' style="opacity:0.72"' : "";
+  const shortage =
+    r.uncovered_qty != null && !muted
+      ? r.uncovered_qty
+      : r.uncovered_qty != null && Number(r.uncovered_qty) !== 0
+        ? r.uncovered_qty
+        : "\u2014";
+  return `<tr${rowStyle}>
+    ${_td(r.rm_name || r.rm_stock_item_id)}
+    ${_td(r.planned_rm_qty ?? "-", "right")}
+    ${_td(r.issued_rm_qty ?? "-", "right")}
+    ${_td(r.stock_qty ?? "-", "right")}
+    ${_td(shortage, "right")}
+    ${_td(formatRmProcurementMode(r.rm_procurement_mode))}
+    ${_td(_rmStatusChip(r.rm_status_class))}
+    ${_td(r.rm_status_reason || "-")}
+  </tr>`;
 }
 
 function renderRmBlockers(row, rows) {
@@ -730,48 +1084,106 @@ function renderRmBlockers(row, rows) {
       `<p style="color:var(--muted,#6b7280);font-size:13px">RM is not an active execution gate at this stage.</p>`;
     return;
   }
-  if (String(row.rm_gate_status || "").toUpperCase() !== "RM_BLOCKED") {
-    _content.innerHTML =
-      headerHtml +
-      `<p style="color:var(--muted,#6b7280);font-size:13px">No active RM blockers for this batch.</p>`;
-    return;
-  }
+
   if (!rows.length) {
     _content.innerHTML =
       headerHtml +
-      `<p style="color:var(--muted,#6b7280);font-size:13px">No RM blocker rows returned.</p>`;
+      `<p style="color:var(--muted,#6b7280);font-size:13px">No RM status lines available for this batch.</p>`;
     return;
   }
 
-  const tbody = rows
-    .map((r) => {
-      let typeTxt = formatRmBlockerType(r);
-      if (r.is_optional_rm)
-        typeTxt += ` <span class="peq-badge" style="background:#eff6ff;color:#2563eb;font-size:10px">Optional</span>`;
-      return `<tr>
-      ${_td(r.rm_name || r.rm_stock_item_id)}
-      ${_td(r.rm_uom)}
-      ${_td(r.planned_rm_qty ?? "-", "right")}
-      ${_td(r.issued_rm_qty ?? "-", "right")}
-      ${_td(r.remaining_rm_qty ?? "-", "right")}
-      ${_td(formatProcurementMode(r.rm_procurement_mode))}
-      ${_td(typeTxt)}
-    </tr>`;
-    })
-    .join("");
-
-  _content.innerHTML =
-    headerHtml +
-    `
-    <div class="peq-card-title" style="margin-bottom:8px">RM Blocker Lines</div>
-    <div style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse">
-        <thead><tr>
-          ${_th("RM Item")}${_th("UOM")}${_th("Planned", "right")}${_th("Issued", "right")}${_th("Remaining", "right")}${_th("Mode")}${_th("Type")}
-        </tr></thead>
-        <tbody>${tbody}</tbody>
-      </table>
+  const { blocking, nonBlocking } = groupStatusRows(rows);
+  const total = rows.length;
+  const colHeaders = `${_th("RM Item")}${_th("Planned", "right")}${_th("Issued", "right")}${_th("Stock", "right")}${_th("Shortage", "right")}${_th("Mode")}${_th("Class")}${_th("Reason")}`;
+  const infoBox = `<div style="margin-bottom:12px;padding:8px 12px;background:rgba(37,99,235,0.04);border-left:3px solid var(--erp-accent,#2563eb);border-radius:4px;font-size:12.5px;color:var(--erp-text,#374151)">RM status is evaluated after allocating shared RM stock to higher-priority batches first.</div>`;
+  const tabActionsHtml = `
+    <div class="peq-tab-actions">
+      <span class="peq-tab-actions-summary">${total} line${total !== 1 ? "s" : ""} &mdash; ${blocking.length} blocking, ${nonBlocking.length} non-blocking</span>
+      <div class="peq-copy-wrapper">
+        <button id="peq-rm-copy-btn" class="peq-copy-icon-btn" type="button" title="Copy list" aria-label="Copy list">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </button>
+        <div id="peq-rm-copy-menu" class="peq-copy-menu" role="menu">
+          <button class="peq-copy-menu-item" data-action="shareable" type="button">Copy shareable</button>
+          <button class="peq-copy-menu-item" data-action="tsv" type="button">Copy TSV</button>
+        </div>
+      </div>
     </div>`;
+
+  let html = headerHtml + tabActionsHtml + infoBox;
+
+  if (blocking.length) {
+    html += `<div class="peq-status-section">
+      <div class="peq-status-section-title peq-status-section-title--blocking">Blocking lines</div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr>${colHeaders}</tr></thead>
+          <tbody>${blocking.map((r) => _rmStatusRow(r, false)).join("")}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+
+  if (nonBlocking.length) {
+    html += `<div class="peq-status-section">
+      <div class="peq-status-section-title peq-status-section-title--nonblocking">Non-blocking dependencies</div>
+      <p class="peq-status-note">These RM lines are visible for execution awareness but are not currently blocking this batch.</p>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr>${colHeaders}</tr></thead>
+          <tbody>${nonBlocking.map((r) => _rmStatusRow(r, true)).join("")}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+
+  _content.innerHTML = html;
+
+  const _rmBtn = _content.querySelector("#peq-rm-copy-btn");
+  const _rmMenu = _content.querySelector("#peq-rm-copy-menu");
+  _rmBtn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isOpen = _rmMenu?.classList.contains("open");
+    closeStatusCopyMenus();
+    if (!isOpen && _rmMenu) {
+      _rmMenu.classList.add("open");
+      _activeStatusMenu = _rmMenu;
+      setTimeout(() => {
+        document.addEventListener("click", closeStatusCopyMenus, {
+          once: true,
+        });
+        document.addEventListener("keydown", function _esc(ev) {
+          if (ev.key === "Escape") {
+            closeStatusCopyMenus();
+            document.removeEventListener("keydown", _esc);
+          }
+        });
+      }, 0);
+    }
+  });
+  _rmMenu
+    ?.querySelector('[data-action="shareable"]')
+    ?.addEventListener("click", () => {
+      closeStatusCopyMenus();
+      if (!rows.length) {
+        showToast("No status lines to copy", "info");
+        return;
+      }
+      copyStatusToClipboard(
+        buildRmStatusShareableText(rows, row),
+        "Shareable list",
+      );
+    });
+  _rmMenu
+    ?.querySelector('[data-action="tsv"]')
+    ?.addEventListener("click", () => {
+      closeStatusCopyMenus();
+      if (!rows.length) {
+        showToast("No status lines to copy", "info");
+        return;
+      }
+      copyStatusToClipboard(buildRmStatusCopyText(rows, row), "TSV list");
+    });
 }
 
 function setDrawerTab(id) {
@@ -802,7 +1214,7 @@ function setDrawerTab(id) {
     renderImpactTab(SELECTED_ROW);
   } else if (id === "pm") {
     const _r = SELECTED_ROW;
-    _content.innerHTML = `<p style="color:var(--muted,#6b7280);font-size:13px;padding:8px">Loading PM blockers…</p>`;
+    _content.innerHTML = `<p style="color:var(--muted,#6b7280);font-size:13px;padding:8px">Loading PM blockersâ€¦</p>`;
     loadPmBlockers(_r)
       .then((rows) => renderPmBlockers(_r, rows))
       .catch((err) => {
@@ -811,7 +1223,7 @@ function setDrawerTab(id) {
       });
   } else if (id === "rm") {
     const _r = SELECTED_ROW;
-    _content.innerHTML = `<p style="color:var(--muted,#6b7280);font-size:13px;padding:8px">Loading RM blockers…</p>`;
+    _content.innerHTML = `<p style="color:var(--muted,#6b7280);font-size:13px;padding:8px">Loading RM blockersâ€¦</p>`;
     loadRmBlockers(_r)
       .then((rows) => renderRmBlockers(_r, rows))
       .catch((err) => {
@@ -833,6 +1245,17 @@ function renderDetailPanel(row) {
   const fgBtl = isFastConversion(row);
   const rmTypeKey =
     rmD.cls === "rm-ok" ? "ok" : rmD.cls === "rm-block" ? "block" : "na";
+  const _pmBlocked = !isPmOk(row);
+  const _rmBlocked = !fgBtl && !isRmClearForExecution(row);
+  const execLogic =
+    _pmBlocked && _rmBlocked
+      ? "Packing material not sufficient after higher-priority reservation. Raw material not sufficient after higher-priority reservation."
+      : _pmBlocked
+        ? "Packing material not sufficient after higher-priority reservation."
+        : _rmBlocked
+          ? "Raw material not sufficient after higher-priority reservation."
+          : "Reservation-aware execution gates are clear.";
+  const hasBlocker = _pmBlocked || _rmBlocked;
 
   _content.innerHTML = `
     <div class="peq-summary-strip">
@@ -841,6 +1264,7 @@ function renderDetailPanel(row) {
       ${makeSummaryCardHtml("RM Status", formatStatusBadge(rmD.text, rmTypeKey))}
       ${makeSummaryCardHtml("Risk Reduc.", String(row.total_risk_reduction_units ?? "-"))}
       ${makeSummaryCardHtml("Storage Qty", formatStorageQty(row))}
+      ${makeSummaryCardHtml("Gate Logic", "Reservation-aware")}
     </div>
     <div class="peq-section-grid">
       <div class="peq-card">
@@ -873,9 +1297,14 @@ function renderDetailPanel(row) {
         <div class="peq-kv"><span class="peq-k">Top Region</span><span class="peq-v">${row.top_region || "-"}</span></div>
         <div class="peq-kv"><span class="peq-k">Top SKU</span><span class="peq-v">${row.top_sku_label || row.top_sku_id || "-"}</span></div>
       </div>
+      <div class="peq-card">
+        <div class="peq-card-title">Execution Logic</div>
+        <div style="font-size:13px;color:var(--erp-text,#0f172a);line-height:1.5">${execLogic}</div>
+      </div>
       <div class="peq-action-card ${action.cls}">
         <div class="peq-action-label">Recommended Action</div>
         ${action.text}
+        ${hasBlocker ? '<div class="peq-note" style="margin-top:8px;font-size:12px;color:var(--muted,#6b7280)">This decision is reservation-aware, not raw-stock-only.</div>' : ""}
       </div>
     </div>`;
   console.log("[PEQ] renderDetailPanel: done");
@@ -907,7 +1336,7 @@ function renderImpactTab(row) {
       </table>
     </div>
     <div class="peq-card-title" style="margin-bottom:8px">Risk Breakdown by Region &amp; SKU</div>
-    <div id="whyRiskTable"><p style="color:var(--muted,#6b7280);font-size:13px">Loading risk breakdown…</p></div>`;
+    <div id="whyRiskTable"><p style="color:var(--muted,#6b7280);font-size:13px">Loading risk breakdownâ€¦</p></div>`;
   loadWhyMatters(row);
 }
 
@@ -1005,7 +1434,7 @@ function copyReadyList() {
     })
     .catch((err) => {
       console.error("Copy to clipboard failed:", err);
-      showToast("Copy failed — check browser permissions", "error");
+      showToast("Copy failed â€” check browser permissions", "error");
     });
 }
 
@@ -1202,7 +1631,7 @@ async function loadQueue() {
       const t = ev.target.closest(".tab");
       if (t) setDrawerTab(t.dataset.tab);
     });
-    // Pagination & export controls — registered once to avoid duplicate listeners on refresh
+    // Pagination & export controls â€” registered once to avoid duplicate listeners on refresh
     const pageSizeEl = document.getElementById("pageSize");
     if (pageSizeEl) {
       try {
@@ -1267,7 +1696,7 @@ async function loadQueue() {
         }, 120),
       );
     }
-    // Freshness indicator — click to expand/collapse detail, matching stock-checker
+    // Freshness indicator â€” click to expand/collapse detail, matching stock-checker
     if (lastRefreshed) {
       const margin = 8;
       const MIN_WIDTH = 160;

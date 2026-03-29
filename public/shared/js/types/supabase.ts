@@ -280,6 +280,13 @@ export type Database = {
             referencedRelation: "app_modules"
             referencedColumns: ["module_key"]
           },
+          {
+            foreignKeyName: "app_module_clients_module_key_fkey"
+            columns: ["module_key"]
+            isOneToOne: false
+            referencedRelation: "v_app_module_registry"
+            referencedColumns: ["module_key"]
+          },
         ]
       }
       app_module_legacy_map: {
@@ -304,6 +311,13 @@ export type Database = {
             columns: ["module_key"]
             isOneToOne: false
             referencedRelation: "app_modules"
+            referencedColumns: ["module_key"]
+          },
+          {
+            foreignKeyName: "app_module_legacy_map_module_key_fkey"
+            columns: ["module_key"]
+            isOneToOne: false
+            referencedRelation: "v_app_module_registry"
             referencedColumns: ["module_key"]
           },
         ]
@@ -374,6 +388,7 @@ export type Database = {
       app_nav_sections: {
         Row: {
           created_at: string
+          description: string | null
           is_active: boolean
           key: string
           label: string
@@ -382,6 +397,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          description?: string | null
           is_active?: boolean
           key: string
           label: string
@@ -390,6 +406,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          description?: string | null
           is_active?: boolean
           key?: string
           label?: string
@@ -6804,6 +6821,195 @@ export type Database = {
         }
         Relationships: []
       }
+      pm_leverage_snapshot_current_month: {
+        Row: {
+          blocked_batch_count: number | null
+          coverage_ratio: number | null
+          leverage_category: string | null
+          month_start: string
+          pm_name: string | null
+          pm_stock_item_id: number
+          pm_uom: string | null
+          refreshed_at: string | null
+          shortage_qty: number | null
+          stock_qty: number | null
+          surplus_qty: number | null
+          total_required_qty: number | null
+        }
+        Insert: {
+          blocked_batch_count?: number | null
+          coverage_ratio?: number | null
+          leverage_category?: string | null
+          month_start: string
+          pm_name?: string | null
+          pm_stock_item_id: number
+          pm_uom?: string | null
+          refreshed_at?: string | null
+          shortage_qty?: number | null
+          stock_qty?: number | null
+          surplus_qty?: number | null
+          total_required_qty?: number | null
+        }
+        Update: {
+          blocked_batch_count?: number | null
+          coverage_ratio?: number | null
+          leverage_category?: string | null
+          month_start?: string
+          pm_name?: string | null
+          pm_stock_item_id?: number
+          pm_uom?: string | null
+          refreshed_at?: string | null
+          shortage_qty?: number | null
+          stock_qty?: number | null
+          surplus_qty?: number | null
+          total_required_qty?: number | null
+        }
+        Relationships: []
+      }
+      pm_reservation_snapshot_current_month: {
+        Row: {
+          available_before_reservation: number | null
+          batch_number: string | null
+          higher_priority_required_qty: number | null
+          is_blocking_after_reservation: boolean | null
+          is_optional_pm: boolean | null
+          is_override_pm: boolean | null
+          issued_pm_qty: number | null
+          month_start: string | null
+          planned_pm_qty_issue: number | null
+          pm_name: string | null
+          pm_stock_item_id: number | null
+          pm_uom: string | null
+          primary_state: string | null
+          priority_rank_v4: number | null
+          product_id: number | null
+          product_name: string | null
+          queue_lane: number | null
+          required_from_stock_qty: number | null
+          reserved_qty: number | null
+          stock_qty_current: number | null
+          uncovered_qty: number | null
+        }
+        Insert: {
+          available_before_reservation?: number | null
+          batch_number?: string | null
+          higher_priority_required_qty?: number | null
+          is_blocking_after_reservation?: boolean | null
+          is_optional_pm?: boolean | null
+          is_override_pm?: boolean | null
+          issued_pm_qty?: number | null
+          month_start?: string | null
+          planned_pm_qty_issue?: number | null
+          pm_name?: string | null
+          pm_stock_item_id?: number | null
+          pm_uom?: string | null
+          primary_state?: string | null
+          priority_rank_v4?: number | null
+          product_id?: number | null
+          product_name?: string | null
+          queue_lane?: number | null
+          required_from_stock_qty?: number | null
+          reserved_qty?: number | null
+          stock_qty_current?: number | null
+          uncovered_qty?: number | null
+        }
+        Update: {
+          available_before_reservation?: number | null
+          batch_number?: string | null
+          higher_priority_required_qty?: number | null
+          is_blocking_after_reservation?: boolean | null
+          is_optional_pm?: boolean | null
+          is_override_pm?: boolean | null
+          issued_pm_qty?: number | null
+          month_start?: string | null
+          planned_pm_qty_issue?: number | null
+          pm_name?: string | null
+          pm_stock_item_id?: number | null
+          pm_uom?: string | null
+          primary_state?: string | null
+          priority_rank_v4?: number | null
+          product_id?: number | null
+          product_name?: string | null
+          queue_lane?: number | null
+          required_from_stock_qty?: number | null
+          reserved_qty?: number | null
+          stock_qty_current?: number | null
+          uncovered_qty?: number | null
+        }
+        Relationships: []
+      }
+      pm_status_snapshot_current_month: {
+        Row: {
+          available_before_reservation: number | null
+          batch_number: string
+          higher_priority_required_qty: number | null
+          is_blocking_line: boolean
+          is_optional_pm: boolean | null
+          is_override_pm: boolean | null
+          issued_pm_qty: number | null
+          month_start: string
+          planned_pm_qty: number | null
+          pm_name: string | null
+          pm_status_class: string
+          pm_status_reason: string | null
+          pm_stock_item_id: number
+          pm_uom: string | null
+          primary_state: string | null
+          product_id: number
+          refreshed_at: string
+          required_from_stock_qty: number | null
+          reserved_qty: number | null
+          stock_qty: number | null
+          uncovered_qty: number | null
+        }
+        Insert: {
+          available_before_reservation?: number | null
+          batch_number: string
+          higher_priority_required_qty?: number | null
+          is_blocking_line?: boolean
+          is_optional_pm?: boolean | null
+          is_override_pm?: boolean | null
+          issued_pm_qty?: number | null
+          month_start: string
+          planned_pm_qty?: number | null
+          pm_name?: string | null
+          pm_status_class: string
+          pm_status_reason?: string | null
+          pm_stock_item_id: number
+          pm_uom?: string | null
+          primary_state?: string | null
+          product_id: number
+          refreshed_at?: string
+          required_from_stock_qty?: number | null
+          reserved_qty?: number | null
+          stock_qty?: number | null
+          uncovered_qty?: number | null
+        }
+        Update: {
+          available_before_reservation?: number | null
+          batch_number?: string
+          higher_priority_required_qty?: number | null
+          is_blocking_line?: boolean
+          is_optional_pm?: boolean | null
+          is_override_pm?: boolean | null
+          issued_pm_qty?: number | null
+          month_start?: string
+          planned_pm_qty?: number | null
+          pm_name?: string | null
+          pm_status_class?: string
+          pm_status_reason?: string | null
+          pm_stock_item_id?: number
+          pm_uom?: string | null
+          primary_state?: string | null
+          product_id?: number
+          refreshed_at?: string
+          required_from_stock_qty?: number | null
+          reserved_qty?: number | null
+          stock_qty?: number | null
+          uncovered_qty?: number | null
+        }
+        Relationships: []
+      }
       priority_queue_snapshot_current_month: {
         Row: {
           batch_number: string
@@ -9882,6 +10088,195 @@ export type Database = {
           rm_uom?: string | null
           total_remaining_rm_qty?: number | null
           total_risk_share_units?: number | null
+        }
+        Relationships: []
+      }
+      rm_leverage_snapshot_current_month: {
+        Row: {
+          blocked_batch_count: number | null
+          coverage_ratio: number | null
+          leverage_category: string | null
+          month_start: string
+          refreshed_at: string | null
+          rm_name: string | null
+          rm_stock_item_id: number
+          rm_uom: string | null
+          shortage_qty: number | null
+          stock_qty: number | null
+          surplus_qty: number | null
+          total_required_qty: number | null
+        }
+        Insert: {
+          blocked_batch_count?: number | null
+          coverage_ratio?: number | null
+          leverage_category?: string | null
+          month_start: string
+          refreshed_at?: string | null
+          rm_name?: string | null
+          rm_stock_item_id: number
+          rm_uom?: string | null
+          shortage_qty?: number | null
+          stock_qty?: number | null
+          surplus_qty?: number | null
+          total_required_qty?: number | null
+        }
+        Update: {
+          blocked_batch_count?: number | null
+          coverage_ratio?: number | null
+          leverage_category?: string | null
+          month_start?: string
+          refreshed_at?: string | null
+          rm_name?: string | null
+          rm_stock_item_id?: number
+          rm_uom?: string | null
+          shortage_qty?: number | null
+          stock_qty?: number | null
+          surplus_qty?: number | null
+          total_required_qty?: number | null
+        }
+        Relationships: []
+      }
+      rm_reservation_snapshot_current_month: {
+        Row: {
+          available_before_reservation: number | null
+          batch_id: number | null
+          batch_number: string
+          has_unassigned_issues: boolean | null
+          higher_priority_required_qty: number | null
+          is_blocking_after_reservation: boolean | null
+          issued_rm_qty: number | null
+          month_start: string
+          planned_rm_qty: number | null
+          primary_state: string | null
+          priority_rank_v4: number | null
+          product_id: number
+          product_name: string | null
+          queue_lane: number | null
+          required_from_stock_qty: number | null
+          reserved_qty: number | null
+          rm_name: string | null
+          rm_stock_item_id: number
+          rm_uom: string | null
+          stock_qty_current: number | null
+          uncovered_qty: number | null
+        }
+        Insert: {
+          available_before_reservation?: number | null
+          batch_id?: number | null
+          batch_number: string
+          has_unassigned_issues?: boolean | null
+          higher_priority_required_qty?: number | null
+          is_blocking_after_reservation?: boolean | null
+          issued_rm_qty?: number | null
+          month_start: string
+          planned_rm_qty?: number | null
+          primary_state?: string | null
+          priority_rank_v4?: number | null
+          product_id: number
+          product_name?: string | null
+          queue_lane?: number | null
+          required_from_stock_qty?: number | null
+          reserved_qty?: number | null
+          rm_name?: string | null
+          rm_stock_item_id: number
+          rm_uom?: string | null
+          stock_qty_current?: number | null
+          uncovered_qty?: number | null
+        }
+        Update: {
+          available_before_reservation?: number | null
+          batch_id?: number | null
+          batch_number?: string
+          has_unassigned_issues?: boolean | null
+          higher_priority_required_qty?: number | null
+          is_blocking_after_reservation?: boolean | null
+          issued_rm_qty?: number | null
+          month_start?: string
+          planned_rm_qty?: number | null
+          primary_state?: string | null
+          priority_rank_v4?: number | null
+          product_id?: number
+          product_name?: string | null
+          queue_lane?: number | null
+          required_from_stock_qty?: number | null
+          reserved_qty?: number | null
+          rm_name?: string | null
+          rm_stock_item_id?: number
+          rm_uom?: string | null
+          stock_qty_current?: number | null
+          uncovered_qty?: number | null
+        }
+        Relationships: []
+      }
+      rm_status_snapshot_current_month: {
+        Row: {
+          available_before_reservation: number | null
+          batch_number: string
+          has_unassigned_issues: boolean | null
+          higher_priority_required_qty: number | null
+          is_blocking_line: boolean
+          is_optional_rm: boolean | null
+          issued_rm_qty: number | null
+          month_start: string
+          planned_rm_qty: number | null
+          product_id: number
+          refreshed_at: string
+          required_from_stock_qty: number | null
+          reserved_qty: number | null
+          rm_name: string | null
+          rm_procurement_mode: string | null
+          rm_status_class: string
+          rm_status_reason: string | null
+          rm_stock_item_id: number
+          rm_uom: string | null
+          stock_qty: number | null
+          uncovered_qty: number | null
+        }
+        Insert: {
+          available_before_reservation?: number | null
+          batch_number: string
+          has_unassigned_issues?: boolean | null
+          higher_priority_required_qty?: number | null
+          is_blocking_line?: boolean
+          is_optional_rm?: boolean | null
+          issued_rm_qty?: number | null
+          month_start: string
+          planned_rm_qty?: number | null
+          product_id: number
+          refreshed_at?: string
+          required_from_stock_qty?: number | null
+          reserved_qty?: number | null
+          rm_name?: string | null
+          rm_procurement_mode?: string | null
+          rm_status_class: string
+          rm_status_reason?: string | null
+          rm_stock_item_id: number
+          rm_uom?: string | null
+          stock_qty?: number | null
+          uncovered_qty?: number | null
+        }
+        Update: {
+          available_before_reservation?: number | null
+          batch_number?: string
+          has_unassigned_issues?: boolean | null
+          higher_priority_required_qty?: number | null
+          is_blocking_line?: boolean
+          is_optional_rm?: boolean | null
+          issued_rm_qty?: number | null
+          month_start?: string
+          planned_rm_qty?: number | null
+          product_id?: number
+          refreshed_at?: string
+          required_from_stock_qty?: number | null
+          reserved_qty?: number | null
+          rm_name?: string | null
+          rm_procurement_mode?: string | null
+          rm_status_class?: string
+          rm_status_reason?: string | null
+          rm_stock_item_id?: number
+          rm_uom?: string | null
+          stock_qty?: number | null
+          uncovered_qty?: number | null
         }
         Relationships: []
       }
@@ -13121,6 +13516,51 @@ export type Database = {
         }
         Relationships: []
       }
+      mv_production_priority_queue_current_month: {
+        Row: {
+          batch_number: string | null
+          batch_size_declared: number | null
+          batch_uom: string | null
+          bottled_on_hand_base_qty: number | null
+          bottled_on_hand_units: number | null
+          candidate_supply_base_qty: number | null
+          expected_output_base_qty: number | null
+          fg_bulk_on_hand_base_qty: number | null
+          has_label_or_override_pending: boolean | null
+          has_mandatory_pm_pending: boolean | null
+          has_unassigned_rm_issues: boolean | null
+          in_system_base_qty_est: number | null
+          is_pm_blocked: boolean | null
+          is_pm_ok: boolean | null
+          is_rm_ok_for_stage: boolean | null
+          month_start: string | null
+          pending_pm_lines: number | null
+          pm_gate_status: string | null
+          pm_issue_completion_ratio: number | null
+          primary_state: string | null
+          priority_rank_v3: number | null
+          priority_rank_v4: number | null
+          product_id: number | null
+          product_name: string | null
+          queue_lane: number | null
+          rm_gate_status: string | null
+          rm_gate_status_display: string | null
+          rm_issue_completion_ratio: number | null
+          rm_pending_lines: number | null
+          stage_rank: number | null
+          supply_continuity_reason: string | null
+          supply_continuity_score: number | null
+          time_sensitivity_reason: string | null
+          time_sensitivity_score: number | null
+          top_region: string | null
+          top_risk_reduction_units: number | null
+          top_sku_id: number | null
+          top_sku_label: string | null
+          total_risk_reduction_units: number | null
+          transferred_out_base_qty: number | null
+        }
+        Relationships: []
+      }
       mv_system_plan_monthly: {
         Row: {
           month_start: string | null
@@ -13500,6 +13940,41 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "sop_series"
             referencedColumns: ["code"]
+          },
+        ]
+      }
+      v_app_module_registry: {
+        Row: {
+          client_key: string | null
+          description: string | null
+          icon_key: string | null
+          is_active: boolean | null
+          is_assignable: boolean | null
+          label: string | null
+          min_nav_mode: string | null
+          module_key: string | null
+          nav_enabled: boolean | null
+          route_path: string | null
+          section_key: string | null
+          section_label: string | null
+          show_in_navigation: boolean | null
+          sort_order: number | null
+          target_key: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "app_modules_section_key_fkey"
+            columns: ["section_key"]
+            isOneToOne: false
+            referencedRelation: "app_nav_sections"
+            referencedColumns: ["key"]
+          },
+          {
+            foreignKeyName: "fk_app_modules_target"
+            columns: ["target_key"]
+            isOneToOne: true
+            referencedRelation: "permission_targets"
+            referencedColumns: ["key"]
           },
         ]
       }
@@ -20533,6 +21008,32 @@ export type Database = {
         }
         Relationships: []
       }
+      v_pm_reservation_priority_current_month: {
+        Row: {
+          available_before_reservation: number | null
+          batch_number: string | null
+          higher_priority_required_qty: number | null
+          is_blocking_after_reservation: boolean | null
+          is_optional_pm: boolean | null
+          is_override_pm: boolean | null
+          issued_pm_qty: number | null
+          month_start: string | null
+          planned_pm_qty_issue: number | null
+          pm_name: string | null
+          pm_stock_item_id: number | null
+          pm_uom: string | null
+          primary_state: string | null
+          priority_rank_v4: number | null
+          product_id: number | null
+          product_name: string | null
+          queue_lane: number | null
+          required_from_stock_qty: number | null
+          reserved_qty: number | null
+          stock_qty_current: number | null
+          uncovered_qty: number | null
+        }
+        Relationships: []
+      }
       v_ppq_bottled_stock_by_batch_product_base: {
         Row: {
           batch_number: string | null
@@ -23140,6 +23641,32 @@ export type Database = {
             referencedColumns: ["stock_item_id"]
           },
         ]
+      }
+      v_rm_reservation_priority_current_month: {
+        Row: {
+          available_before_reservation: number | null
+          batch_id: number | null
+          batch_number: string | null
+          has_unassigned_issues: boolean | null
+          higher_priority_required_qty: number | null
+          is_blocking_after_reservation: boolean | null
+          issued_rm_qty: number | null
+          month_start: string | null
+          planned_rm_qty: number | null
+          primary_state: string | null
+          priority_rank_v4: number | null
+          product_id: number | null
+          product_name: string | null
+          queue_lane: number | null
+          required_from_stock_qty: number | null
+          reserved_qty: number | null
+          rm_name: string | null
+          rm_stock_item_id: number | null
+          rm_uom: string | null
+          stock_qty_current: number | null
+          uncovered_qty: number | null
+        }
+        Relationships: []
       }
       v_rm_seasonal_items: {
         Row: {
@@ -29724,8 +30251,32 @@ export type Database = {
         Args: { p_month_start?: string }
         Returns: undefined
       }
+      refresh_material_status_snapshots_current_month: {
+        Args: never
+        Returns: undefined
+      }
       refresh_mv_forecast_plan_12m: { Args: never; Returns: undefined }
+      refresh_mv_production_priority_queue_current_month: {
+        Args: never
+        Returns: undefined
+      }
+      refresh_pm_leverage_snapshot_current_month: {
+        Args: never
+        Returns: undefined
+      }
+      refresh_pm_reservation_snapshot_current_month: {
+        Args: never
+        Returns: undefined
+      }
       refresh_priority_queue_snapshot: { Args: never; Returns: undefined }
+      refresh_rm_leverage_snapshot_current_month: {
+        Args: never
+        Returns: undefined
+      }
+      refresh_rm_reservation_snapshot_current_month: {
+        Args: never
+        Returns: undefined
+      }
       refresh_sales_monthly: { Args: never; Returns: undefined }
       refresh_sales_monthly_both: { Args: never; Returns: undefined }
       refresh_supply_rollups: { Args: never; Returns: undefined }
