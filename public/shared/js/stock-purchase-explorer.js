@@ -2178,13 +2178,7 @@ async function loadAndRenderConsumptionMonthly(invStockItemId) {
     return;
   }
 
-  let html = `<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-    <h3 style="margin:0;flex:1">Monthly Consumption</h3>
-    <button id="btnCopyItemId" class="btn ghost" style="font-size:12px;padding:4px 10px;gap:5px;" title="Copy item ID to clipboard" data-copyid="${invStockItemId}">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-      Copy ID
-    </button>
-  </div>
+  let html = `<h3 style="margin-top:0">Monthly Consumption</h3>
     <div class="modal-table-wrap">
       <table class="erp-table">
         <thead><tr>
@@ -2206,19 +2200,6 @@ async function loadAndRenderConsumptionMonthly(invStockItemId) {
 
   html += `</tbody></table></div>`;
   modalContent.innerHTML = html;
-  // Wire copy-ID button
-  const copyBtn = modalContent.querySelector("#btnCopyItemId");
-  if (copyBtn) {
-    copyBtn.addEventListener("click", () => {
-      const id = copyBtn.dataset.copyid;
-      if (id) {
-        navigator.clipboard.writeText(id).then(
-          () => showStatusToast("Item ID copied", "success", 1800),
-          () => showStatusToast("Copy failed", "error", 2000),
-        );
-      }
-    });
-  }
 }
 
 // Paginator renderer and navigation
@@ -2414,13 +2395,7 @@ async function loadAndRenderPurchaseDetail(invStockItemId) {
   if (!data || !data.length)
     return (modalContent.innerHTML =
       '<div class="no-data">No purchase history found.</div>');
-  let html = `<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-    <h3 style="margin:0;flex:1">Purchase History</h3>
-    <button id="btnCopyItemId" class="btn ghost" style="font-size:12px;padding:4px 10px;gap:5px;" title="Copy item ID to clipboard" data-copyid="${invStockItemId}">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-      Copy ID
-    </button>
-  </div>
+  let html = `<h3 style="margin-top:0">Purchase History</h3>
     <div class="modal-table-wrap">
       <table class="erp-table">
         <thead><tr>
@@ -2444,19 +2419,6 @@ async function loadAndRenderPurchaseDetail(invStockItemId) {
   });
   html += `</tbody></table></div>`;
   modalContent.innerHTML = html;
-  // Wire copy-ID button
-  const copyBtn = modalContent.querySelector("#btnCopyItemId");
-  if (copyBtn) {
-    copyBtn.addEventListener("click", () => {
-      const id = copyBtn.dataset.copyid;
-      if (id) {
-        navigator.clipboard.writeText(id).then(
-          () => showStatusToast("Item ID copied", "success", 1800),
-          () => showStatusToast("Copy failed", "error", 2000),
-        );
-      }
-    });
-  }
 }
 
 // Main tab reload logic
