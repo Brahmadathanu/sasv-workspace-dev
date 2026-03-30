@@ -11,8 +11,13 @@ contextBridge.exposeInMainWorld("app", {
 
 contextBridge.exposeInMainWorld("electronAPI", {
   getAppVersion: () => ipcRenderer.invoke("get-app-version"),
-  onUpdateStatus: (cb) =>
-    ipcRenderer.on("updater:status", (_evt, payload) => cb && cb(payload)),
+  getUpdateState: () => ipcRenderer.invoke("updater:get-state"),
+  checkForUpdates: () => ipcRenderer.invoke("updater:check"),
+  onUpdateStatus: (cb) => {
+    const handler = (_evt, payload) => cb && cb(payload);
+    ipcRenderer.on("updater:status", handler);
+    return () => ipcRenderer.removeListener("updater:status", handler);
+  },
   restartNow: () => ipcRenderer.invoke("updater:restart"),
 });
 

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
   <head>
     <meta charset="UTF-8" />
@@ -209,61 +209,9 @@
     <script type="module" src="public/shared/js/supabaseClient.js"></script>
     <script type="module" src="js/login.js"></script>
     <script type="module">
-      import { toast } from "/public/shared/js/ui-helpers.js";
-      const api = window.electronAPI;
-      if (api && api.onUpdateStatus) {
-        let shownAvailable = false;
-        api.onUpdateStatus(({ status, version, message }) => {
-          switch (status) {
-            case "available":
-              if (!shownAvailable) {
-                toast(
-                  `Downloading update${version ? " v" + version : ""}…`,
-                  "info"
-                );
-                shownAvailable = true;
-              }
-              break;
-            case "downloaded":
-              showUpdateBanner(version);
-              break;
-            case "error":
-              toast(`Update error: ${message || "Unknown error"}`, "error");
-              break;
-            default:
-              // suppress noisy 'checking'/'not-available' to reduce annoyance
-              break;
-          }
-        });
-      }
+      import { initUpdaterUI } from "/public/shared/js/updater-ui.js";
 
-      function showUpdateBanner(version) {
-        const id = "update-banner";
-        if (document.getElementById(id)) return;
-        const wrap = document.createElement("div");
-        wrap.id = id;
-        wrap.style.cssText = `
-          position: fixed; left: 50%; transform: translateX(-50%);
-          bottom: 24px; z-index: 9999; background: #0f172a; color: #fff;
-          padding: 10px 14px; border-radius: 10px; box-shadow: 0 10px 20px rgba(0,0,0,.2);
-          display: flex; align-items: center; gap: 10px; font-size: 14px;`;
-        const label = document.createElement("span");
-        label.textContent = `Update${
-          version ? " v" + version : ""
-        } downloaded.`;
-        const btn = document.createElement("button");
-        btn.textContent = "Restart now";
-        btn.style.cssText =
-          "margin-left:8px; background:#22c55e; color:#0b2816; border:none; padding:6px 10px; border-radius:6px; font-weight:600; cursor:pointer;";
-        btn.onclick = () => api && api.restartNow && api.restartNow();
-        const later = document.createElement("button");
-        later.textContent = "Later";
-        later.style.cssText =
-          "background:transparent; color:#cbd5e1; border:1px solid rgba(203,213,225,.4); padding:6px 10px; border-radius:6px; cursor:pointer;";
-        later.onclick = () => wrap.remove();
-        wrap.append(label, btn, later);
-        document.body.appendChild(wrap);
-      }
+      initUpdaterUI();
     </script>
   </body>
 </html>

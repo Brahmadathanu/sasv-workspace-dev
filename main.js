@@ -36,23 +36,70 @@ const {
 } = require("docx");
 const { autoUpdater } = require("electron-updater");
 
+const UPDATE_CHECK_INTERVAL_MS = 30 * 60 * 1000;
+const UPDATE_RECHECK_ON_FOCUS_MS = 10 * 60 * 1000;
+let updateCheckTimer = null;
+let updateCheckInFlight = false;
+let lastUpdateCheckAt = 0;
+let lastUpdateState = { status: "idle" };
+
 // ---------------- Small helpers ----------------
 const safeName = (s, def = "SOP") =>
   String(s || def).replace(/[\\/:*?"<>|]+/g, "_");
 
 // ---------------- Auto-update events (non-blocking ERP-style) ----------------
 function sendUpdate(payload) {
+  lastUpdateState = {
+    ...lastUpdateState,
+    ...payload,
+    at: new Date().toISOString(),
+  };
   try {
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send("updater:status", payload);
+      mainWindow.webContents.send("updater:status", lastUpdateState);
     }
   } catch (e) {
     console.warn("updater:status send failed", e && e.message);
   }
 }
 
+function canCheckForUpdates() {
+  if (!app.isPackaged) return false;
+  if (updateCheckInFlight) return false;
+  if (lastUpdateState.status === "progress") return false;
+  return true;
+}
+
+async function checkForAppUpdates(reason = "manual") {
+  if (!canCheckForUpdates()) return false;
+  updateCheckInFlight = true;
+  lastUpdateCheckAt = Date.now();
+  sendUpdate({ status: "checking", reason });
+
+  try {
+    await autoUpdater.checkForUpdates();
+    return true;
+  } catch (error) {
+    console.error("Auto-update check failed:", error);
+    sendUpdate({
+      status: "error",
+      message: (error && error.message) || "Update check failed",
+      reason,
+    });
+    return false;
+  } finally {
+    updateCheckInFlight = false;
+  }
+}
+
+function scheduleUpdateChecks() {
+  if (updateCheckTimer) clearInterval(updateCheckTimer);
+  updateCheckTimer = setInterval(() => {
+    checkForAppUpdates("interval").catch(() => {});
+  }, UPDATE_CHECK_INTERVAL_MS);
+}
+
 autoUpdater.on("checking-for-update", () => {
-  // quiet; renderer may choose to show subtle indicator if needed
   sendUpdate({ status: "checking" });
 });
 autoUpdater.on("update-available", (info) => {
@@ -69,7 +116,13 @@ autoUpdater.on("error", (err) => {
   });
 });
 autoUpdater.on("download-progress", (p) => {
-  sendUpdate({ status: "progress", percent: p.percent, bps: p.bytesPerSecond });
+  sendUpdate({
+    status: "progress",
+    percent: p.percent,
+    bps: p.bytesPerSecond,
+    transferred: p.transferred,
+    total: p.total,
+  });
 });
 autoUpdater.on("update-downloaded", (info) => {
   sendUpdate({ status: "downloaded", version: info && info.version });
@@ -138,6 +191,13 @@ function createWindow() {
     },
   });
   mainWindow.loadURL("http://localhost:3000/login.html");
+  mainWindow.webContents.on("did-finish-load", () => {
+    try {
+      mainWindow.webContents.send("updater:status", lastUpdateState);
+    } catch (e) {
+      console.warn("updater:status initial send failed", e && e.message);
+    }
+  });
 }
 
 // simple helpers exposed via IPC
@@ -172,9 +232,11 @@ ipcMain.on("open-module-url", (event, { absUrl, opts = {} }) => {
 });
 
 ipcMain.handle("get-app-version", () => app.getVersion());
+ipcMain.handle("updater:get-state", () => lastUpdateState);
+ipcMain.handle("updater:check", () => checkForAppUpdates("renderer"));
 ipcMain.handle("updater:restart", () => {
   try {
-    autoUpdater.quitAndInstall();
+    autoUpdater.quitAndInstall(true, true);
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e && e.message };
@@ -225,6 +287,8 @@ ipcMain.handle("auth:hasPermission", (_evt, moduleName, action) => {
 app.whenReady().then(() => {
   createWindow();
   try {
+    autoUpdater.autoDownload = true;
+    autoUpdater.autoInstallOnAppQuit = true;
     autoUpdater.setFeedURL({
       provider: "github",
       owner: "Brahmadathanu",
@@ -232,15 +296,25 @@ app.whenReady().then(() => {
       private: false,
       token: null,
     });
-    autoUpdater.checkForUpdatesAndNotify();
+    scheduleUpdateChecks();
+    checkForAppUpdates("startup").catch(() => {});
   } catch (err) {
     console.log("Auto-update skipped (dev mode):", err.message);
   }
+});
+app.on("browser-window-focus", () => {
+  if (Date.now() - lastUpdateCheckAt >= UPDATE_RECHECK_ON_FOCUS_MS) {
+    checkForAppUpdates("focus").catch(() => {});
+  }
+});
+app.on("resume", () => {
+  checkForAppUpdates("resume").catch(() => {});
 });
 app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
 app.on("window-all-closed", () => {
+  if (updateCheckTimer) clearInterval(updateCheckTimer);
   if (process.platform !== "darwin") app.quit();
 });
 

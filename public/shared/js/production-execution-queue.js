@@ -72,6 +72,44 @@ let PAGE_SIZE = 25;
 let LAST_PAGE_ROWS = [];
 let CURRENT_ROWS = [];
 
+// ── Product classification cache ─────────────────────────────────────────────
+const PRODUCT_DETAILS_MAP = new Map();
+
+async function loadProductDetails() {
+  try {
+    const { data, error } = await supabase
+      .from("v_product_details")
+      .select(
+        "product_id,category_name,subcategory_name,group_name,sub_group_name",
+      );
+    if (error) {
+      console.warn("[PEQ] loadProductDetails error:", error);
+      return;
+    }
+    (data || []).forEach((r) => {
+      PRODUCT_DETAILS_MAP.set(r.product_id, {
+        category_name: r.category_name || "—",
+        subcategory_name: r.subcategory_name || "—",
+        group_name: r.group_name || "—",
+        sub_group_name: r.sub_group_name || "—",
+      });
+    });
+    console.debug("[PEQ] product details loaded:", PRODUCT_DETAILS_MAP.size);
+  } catch (e) {
+    console.warn("[PEQ] loadProductDetails failed:", e);
+  }
+}
+
+function enrichRowWithClassification(row) {
+  const det = PRODUCT_DETAILS_MAP.get(row.product_id);
+  return Object.assign({}, row, {
+    category_name: det?.category_name ?? "—",
+    subcategory_name: det?.subcategory_name ?? "—",
+    group_name: det?.group_name ?? "—",
+    sub_group_name: det?.sub_group_name ?? "—",
+  });
+}
+
 // ── Universal queue filter state ─────────────────────────────────────────────
 const QUEUE_FILTER_STATES = [
   "NOT_INITIATED",
@@ -82,7 +120,13 @@ const QUEUE_FILTER_STATES = [
 ];
 
 function getDefaultQueueFilters() {
-  return { states: [] };
+  return {
+    states: [],
+    categories: [],
+    subcategories: [],
+    groups: [],
+    subgroups: [],
+  };
 }
 
 let QUEUE_FILTERS = getDefaultQueueFilters();
@@ -102,14 +146,43 @@ function formatStateLabel(value) {
 }
 
 function isAnyQueueFilterActive() {
-  return QUEUE_FILTERS.states.length > 0;
+  return (
+    QUEUE_FILTERS.states.length > 0 ||
+    QUEUE_FILTERS.categories.length > 0 ||
+    QUEUE_FILTERS.subcategories.length > 0 ||
+    QUEUE_FILTERS.groups.length > 0 ||
+    QUEUE_FILTERS.subgroups.length > 0
+  );
 }
 
 function applyQueueFilters(rows) {
-  if (!QUEUE_FILTERS.states.length) return rows;
-  return rows.filter((r) =>
-    QUEUE_FILTERS.states.includes(String(r.primary_state || "").toUpperCase()),
-  );
+  let out = rows;
+  if (QUEUE_FILTERS.states.length) {
+    out = out.filter((r) =>
+      QUEUE_FILTERS.states.includes(
+        String(r.primary_state || "").toUpperCase(),
+      ),
+    );
+  }
+  if (QUEUE_FILTERS.categories.length) {
+    out = out.filter((r) =>
+      QUEUE_FILTERS.categories.includes(r.category_name || "—"),
+    );
+  }
+  if (QUEUE_FILTERS.subcategories.length) {
+    out = out.filter((r) =>
+      QUEUE_FILTERS.subcategories.includes(r.subcategory_name || "—"),
+    );
+  }
+  if (QUEUE_FILTERS.groups.length) {
+    out = out.filter((r) => QUEUE_FILTERS.groups.includes(r.group_name || "—"));
+  }
+  if (QUEUE_FILTERS.subgroups.length) {
+    out = out.filter((r) =>
+      QUEUE_FILTERS.subgroups.includes(r.sub_group_name || "—"),
+    );
+  }
+  return out;
 }
 
 function setQueueStateFilter(value, checked) {
@@ -118,6 +191,20 @@ function setQueueStateFilter(value, checked) {
     if (!QUEUE_FILTERS.states.includes(v)) QUEUE_FILTERS.states.push(v);
   } else {
     QUEUE_FILTERS.states = QUEUE_FILTERS.states.filter((s) => s !== v);
+  }
+  _syncFilterDrawerUI();
+  _updateFilterBtnState();
+  CURRENT_PAGE = 1;
+  applyLensFilter();
+}
+
+function setQueueClassificationFilter(dimension, value, checked) {
+  const arr = QUEUE_FILTERS[dimension];
+  if (!arr) return;
+  if (checked) {
+    if (!arr.includes(value)) arr.push(value);
+  } else {
+    QUEUE_FILTERS[dimension] = arr.filter((v) => v !== value);
   }
   _syncFilterDrawerUI();
   _updateFilterBtnState();
@@ -140,7 +227,13 @@ function _updateFilterBtnState() {
   btn.classList.toggle("peq-filter-btn--active", active);
   const badge = btn.querySelector(".peq-filter-badge");
   if (badge) {
-    const count = QUEUE_FILTERS.states.length > 0 ? 1 : 0;
+    const count = [
+      QUEUE_FILTERS.states,
+      QUEUE_FILTERS.categories,
+      QUEUE_FILTERS.subcategories,
+      QUEUE_FILTERS.groups,
+      QUEUE_FILTERS.subgroups,
+    ].filter((arr) => arr.length > 0).length;
     badge.textContent = count || "";
     badge.style.display = count ? "" : "none";
   }
@@ -163,6 +256,88 @@ function _syncFilterDrawerUI() {
         .join(", ");
     }
   }
+  // sync classification checkboxes
+  [
+    { dim: "categories", attr: "data-category" },
+    { dim: "subcategories", attr: "data-subcategory" },
+    { dim: "groups", attr: "data-group" },
+    { dim: "subgroups", attr: "data-subgroup" },
+  ].forEach(({ dim, attr }) => {
+    drawer.querySelectorAll(`input[${attr}]`).forEach((cb) => {
+      cb.checked = QUEUE_FILTERS[dim].includes(cb.getAttribute(attr));
+    });
+  });
+}
+
+function _populateClassificationFilters() {
+  const drawer = document.getElementById("peqFilterDrawer");
+  if (!drawer) return;
+
+  // remove any previously injected classification sections
+  drawer
+    .querySelectorAll(".peq-filter-section--classification")
+    .forEach((el) => el.remove());
+
+  const actionsEl = drawer.querySelector(".peq-filter-actions");
+
+  const dims = [
+    {
+      dim: "categories",
+      attr: "data-category",
+      label: "Category",
+      key: "category_name",
+    },
+    {
+      dim: "subcategories",
+      attr: "data-subcategory",
+      label: "Sub-category",
+      key: "subcategory_name",
+    },
+    { dim: "groups", attr: "data-group", label: "Group", key: "group_name" },
+    {
+      dim: "subgroups",
+      attr: "data-subgroup",
+      label: "Sub-group",
+      key: "sub_group_name",
+    },
+  ];
+
+  dims.forEach(({ dim, attr, label, key }) => {
+    const unique = [...new Set(QUEUE.map((r) => r[key] || "—"))].sort((a, b) =>
+      a === "—" ? 1 : b === "—" ? -1 : a.localeCompare(b),
+    );
+    if (!unique.length) return;
+
+    const section = document.createElement("div");
+    section.className = "peq-filter-section peq-filter-section--classification";
+
+    const titleEl = document.createElement("div");
+    titleEl.className = "peq-filter-section-title";
+    titleEl.textContent = label;
+    section.appendChild(titleEl);
+
+    const ul = document.createElement("ul");
+    ul.className = "peq-filter-checklist";
+    unique.forEach((val) => {
+      const li = document.createElement("li");
+      const lbl = document.createElement("label");
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.setAttribute(attr, val);
+      cb.checked = QUEUE_FILTERS[dim].includes(val);
+      lbl.appendChild(cb);
+      lbl.appendChild(document.createTextNode(" " + val));
+      li.appendChild(lbl);
+      ul.appendChild(li);
+    });
+    section.appendChild(ul);
+
+    if (actionsEl) {
+      drawer.insertBefore(section, actionsEl);
+    } else {
+      drawer.appendChild(section);
+    }
+  });
 }
 
 let _filterDrawerOpen = false;
@@ -219,6 +394,36 @@ function _wireFilterDrawer() {
     }
   });
 
+  // classification checkboxes are delegated (populated dynamically)
+  drawer.addEventListener("change", (e) => {
+    const cb = e.target;
+    if (!(cb instanceof HTMLInputElement)) return;
+    if (cb.hasAttribute("data-category"))
+      setQueueClassificationFilter(
+        "categories",
+        cb.getAttribute("data-category"),
+        cb.checked,
+      );
+    else if (cb.hasAttribute("data-subcategory"))
+      setQueueClassificationFilter(
+        "subcategories",
+        cb.getAttribute("data-subcategory"),
+        cb.checked,
+      );
+    else if (cb.hasAttribute("data-group"))
+      setQueueClassificationFilter(
+        "groups",
+        cb.getAttribute("data-group"),
+        cb.checked,
+      );
+    else if (cb.hasAttribute("data-subgroup"))
+      setQueueClassificationFilter(
+        "subgroups",
+        cb.getAttribute("data-subgroup"),
+        cb.checked,
+      );
+  });
+
   const selectAll = drawer.querySelector("#peqFilterSelectAll");
   if (selectAll) {
     selectAll.addEventListener("click", () => {
@@ -235,6 +440,19 @@ function _wireFilterDrawer() {
 
   // stop clicks inside drawer from bubbling to outside-click handler
   drawer.addEventListener("click", (e) => e.stopPropagation());
+}
+
+function getFilteredRowCountText(filteredCount, totalCount) {
+  if (filteredCount === totalCount)
+    return `Showing ${totalCount} batch${totalCount !== 1 ? "es" : ""}`;
+  return `Showing ${filteredCount} of ${totalCount} batch${totalCount !== 1 ? "es" : ""}`;
+}
+
+function _updateRowCount(filteredCount, totalCount) {
+  const el = document.getElementById("peqRowCount");
+  if (!el) return;
+  el.textContent = getFilteredRowCountText(filteredCount, totalCount);
+  el.style.display = "";
 }
 
 const LENSES = [
@@ -275,7 +493,7 @@ async function refreshSnapshotAndReload() {
   // this button only reloads served snapshot data.
   try {
     refreshBtn.disabled = true;
-    setStatus("Reloading latest served snapshotsâ€¦");
+    setStatus("Reloading latest served snapshots…");
     PM_BLOCKER_CACHE.clear();
     RM_BLOCKER_CACHE.clear();
     await loadQueue();
@@ -523,6 +741,7 @@ function applySearch() {
       return hay.includes(q);
     });
   }
+  _updateRowCount(filtered.length, QUEUE.length);
   renderTable(filtered);
 }
 
@@ -721,21 +940,21 @@ function openDetails(row) {
     const _title = document.getElementById("drawerTitle");
     const _subtitle = document.getElementById("drawerSubtitle");
     if (_title)
-      _title.textContent = `${row.product_name || ""} â€” Batch ${row.batch_number || ""}`;
+      _title.textContent = `${row.product_name || ""} — Batch ${row.batch_number || ""}`;
     if (_subtitle) {
       const laneInfo = getLaneLabel(row);
       _subtitle.innerHTML =
         `<span>${row.primary_state || "-"}</span>` +
-        `<span style="opacity:0.4">Â·</span>` +
+        `<span style="opacity:0.4">·</span>` +
         `<span>Priority #${row.priority_rank_v4 ?? "-"}</span>` +
-        `<span style="opacity:0.4">Â·</span>` +
+        `<span style="opacity:0.4">·</span>` +
         formatStatusBadge(laneInfo.text, laneInfo.type);
     }
     if (_modal) {
       _modal.classList.remove("hidden");
       _modal.setAttribute("aria-hidden", "false");
     }
-    // synchronous â€” #detailsModal is a sibling of .table-card, not an ancestor,
+    // synchronous — #detailsModal is a sibling of .table-card, not an ancestor,
     // so row click events never bubble into it; setTimeout is not needed
     setDrawerTab("details");
   } catch (err) {
@@ -1379,7 +1598,7 @@ function setDrawerTab(id) {
     renderImpactTab(SELECTED_ROW);
   } else if (id === "pm") {
     const _r = SELECTED_ROW;
-    _content.innerHTML = `<p style="color:var(--muted,#6b7280);font-size:13px;padding:8px">Loading PM blockersâ€¦</p>`;
+    _content.innerHTML = `<p style="color:var(--muted,#6b7280);font-size:13px;padding:8px">Loading PM blockers…</p>`;
     loadPmBlockers(_r)
       .then((rows) => renderPmBlockers(_r, rows))
       .catch((err) => {
@@ -1388,7 +1607,7 @@ function setDrawerTab(id) {
       });
   } else if (id === "rm") {
     const _r = SELECTED_ROW;
-    _content.innerHTML = `<p style="color:var(--muted,#6b7280);font-size:13px;padding:8px">Loading RM blockersâ€¦</p>`;
+    _content.innerHTML = `<p style="color:var(--muted,#6b7280);font-size:13px;padding:8px">Loading RM blockers…</p>`;
     loadRmBlockers(_r)
       .then((rows) => renderRmBlockers(_r, rows))
       .catch((err) => {
@@ -1466,6 +1685,13 @@ function renderDetailPanel(row) {
         <div class="peq-card-title">Execution Logic</div>
         <div style="font-size:13px;color:var(--erp-text,#0f172a);line-height:1.5">${execLogic}</div>
       </div>
+      <div class="peq-card">
+        <div class="peq-card-title">Product Classification</div>
+        <div class="peq-kv"><span class="peq-k">Category</span><span class="peq-v">${row.category_name || "—"}</span></div>
+        <div class="peq-kv"><span class="peq-k">Sub-category</span><span class="peq-v">${row.subcategory_name || "—"}</span></div>
+        <div class="peq-kv"><span class="peq-k">Group</span><span class="peq-v">${row.group_name || "—"}</span></div>
+        <div class="peq-kv"><span class="peq-k">Sub-group</span><span class="peq-v">${row.sub_group_name || "—"}</span></div>
+      </div>
       <div class="peq-action-card ${action.cls}">
         <div class="peq-action-label">Recommended Action</div>
         ${action.text}
@@ -1501,7 +1727,7 @@ function renderImpactTab(row) {
       </table>
     </div>
     <div class="peq-card-title" style="margin-bottom:8px">Risk Breakdown by Region &amp; SKU</div>
-    <div id="whyRiskTable"><p style="color:var(--muted,#6b7280);font-size:13px">Loading risk breakdownâ€¦</p></div>`;
+    <div id="whyRiskTable"><p style="color:var(--muted,#6b7280);font-size:13px">Loading risk breakdown…</p></div>`;
   loadWhyMatters(row);
 }
 
@@ -1599,7 +1825,7 @@ function copyReadyList() {
     })
     .catch((err) => {
       console.error("Copy to clipboard failed:", err);
-      showToast("Copy failed â€” check browser permissions", "error");
+      showToast("Copy failed — check browser permissions", "error");
     });
 }
 
@@ -1613,6 +1839,10 @@ function exportCsvForRows(rows, pageNumber) {
     "priority_rank_v4",
     "product_id",
     "product_name",
+    "category_name",
+    "subcategory_name",
+    "group_name",
+    "sub_group_name",
     "batch_number",
     "primary_state",
     "batch_size_declared",
@@ -1713,7 +1943,7 @@ async function loadQueue() {
       return;
     }
 
-    QUEUE = data || [];
+    QUEUE = (data || []).map(enrichRowWithClassification);
     console.debug("PEQ rows loaded:", QUEUE.length, QUEUE.slice(0, 5));
     if (!QUEUE.length) {
       setStatus("Snapshot not yet generated. Click Refresh.");
@@ -1728,6 +1958,7 @@ async function loadQueue() {
     LAST_REFRESH_TIME = new Date();
     updateFreshnessIndicator();
     renderLensPills();
+    _populateClassificationFilters();
     console.debug("DOM check", {
       tableWrap: !!tableWrap,
       tableBody: !!tableBody,
@@ -1797,7 +2028,7 @@ async function loadQueue() {
       const t = ev.target.closest(".tab");
       if (t) setDrawerTab(t.dataset.tab);
     });
-    // Pagination & export controls â€” registered once to avoid duplicate listeners on refresh
+    // Pagination & export controls — registered once to avoid duplicate listeners on refresh
     const pageSizeEl = document.getElementById("pageSize");
     if (pageSizeEl) {
       try {
@@ -1862,7 +2093,7 @@ async function loadQueue() {
         }, 120),
       );
     }
-    // Freshness indicator â€” click to expand/collapse detail, matching stock-checker
+    // Freshness indicator — click to expand/collapse detail, matching stock-checker
     if (lastRefreshed) {
       const margin = 8;
       const MIN_WIDTH = 160;
@@ -2001,6 +2232,7 @@ async function loadQueue() {
       window.addEventListener("scroll", _reposFreshness, { passive: true });
     }
     setInterval(updateFreshnessIndicator, 60000);
+    await loadProductDetails();
     await loadQueue();
   } catch (e) {
     console.error(e);
