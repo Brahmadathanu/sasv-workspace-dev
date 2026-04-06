@@ -29142,6 +29142,28 @@ export type Database = {
         Args: { p_company: string; p_date: string; p_days: number }
         Returns: undefined
       }
+      enqueue_vreg_recovery_range: {
+        Args: {
+          p_day_gap_seconds?: number
+          p_end_date: string
+          p_force_refetch_purchase_when_both_missing?: boolean
+          p_force_refetch_purchase_when_purchase_only?: boolean
+          p_force_refetch_sales_when_both_missing?: boolean
+          p_force_refetch_sales_when_sales_only?: boolean
+          p_mode?: string
+          p_pair_gap_seconds?: number
+          p_priority?: number
+          p_skip_if_job_already_exists?: boolean
+          p_start_date: string
+        }
+        Returns: {
+          mode_used: string
+          purchase_jobs_enqueued: number
+          range_end: string
+          range_start: string
+          sales_jobs_enqueued: number
+        }[]
+      }
       enqueue_vreg_sales_missing_fy: {
         Args: { p_company: string; p_date: string }
         Returns: undefined
@@ -31603,6 +31625,7 @@ export type Database = {
         Args: { p_alias: string; p_note?: string; p_sku_id: number }
         Returns: undefined
       }
+      vreg_company_for_date: { Args: { p_date: string }; Returns: string }
     }
     Enums: {
       approval_status: "pending" | "approved" | "rejected"

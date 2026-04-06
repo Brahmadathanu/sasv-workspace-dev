@@ -75,38 +75,103 @@ let CURRENT_ROWS = [];
 // ── Product classification cache ─────────────────────────────────────────────
 const PRODUCT_DETAILS_MAP = new Map();
 
-async function loadProductDetails() {
+async function loadProductDetails(force = false) {
+  if (!force && PRODUCT_DETAILS_MAP.size > 0) {
+    console.debug(
+      "[PEQ] loadProductDetails: using cached map (",
+      PRODUCT_DETAILS_MAP.size,
+      "entries)",
+    );
+    return true;
+  }
   try {
-    const { data, error } = await supabase
-      .from("v_product_details")
-      .select(
-        "product_id,category_name,subcategory_name,group_name,sub_group_name",
-      );
-    if (error) {
-      console.warn("[PEQ] loadProductDetails error:", error);
-      return;
+    PRODUCT_DETAILS_MAP.clear();
+
+    const PAGE_SIZE = 1000;
+    let from = 0;
+    let allRows = [];
+
+    while (true) {
+      const to = from + PAGE_SIZE - 1;
+      const { data, error } = await supabase
+        .from("v_product_details")
+        .select(
+          "product_id,category_name,subcategory_name,group_name,sub_group_name",
+        )
+        .range(from, to);
+
+      if (error) {
+        console.warn("[PEQ] loadProductDetails error:", error);
+        return false;
+      }
+
+      const rows = data || [];
+      allRows = allRows.concat(rows);
+      if (rows.length < PAGE_SIZE) break;
+      from += PAGE_SIZE;
     }
-    (data || []).forEach((r) => {
-      PRODUCT_DETAILS_MAP.set(r.product_id, {
+
+    allRows.forEach((r) => {
+      const key = String(r.product_id);
+      PRODUCT_DETAILS_MAP.set(key, {
         category_name: r.category_name || "—",
         subcategory_name: r.subcategory_name || "—",
         group_name: r.group_name || "—",
         sub_group_name: r.sub_group_name || "—",
       });
     });
+
     console.debug("[PEQ] product details loaded:", PRODUCT_DETAILS_MAP.size);
+    if (PRODUCT_DETAILS_MAP.size === 0) {
+      console.warn(
+        "[PEQ] loadProductDetails: map is empty after load — v_product_details may have returned no rows",
+      );
+    }
+    return true;
   } catch (e) {
     console.warn("[PEQ] loadProductDetails failed:", e);
+    return false;
   }
 }
 
 function enrichRowWithClassification(row) {
-  const det = PRODUCT_DETAILS_MAP.get(row.product_id);
+  if (row.product_id == null) {
+    return Object.assign({}, row, {
+      category_name: "—",
+      subcategory_name: "—",
+      group_name: "—",
+      sub_group_name: "—",
+      _classification_missing: true,
+    });
+  }
+  const key = String(row.product_id);
+  const det = PRODUCT_DETAILS_MAP.get(key);
   return Object.assign({}, row, {
     category_name: det?.category_name ?? "—",
     subcategory_name: det?.subcategory_name ?? "—",
     group_name: det?.group_name ?? "—",
     sub_group_name: det?.sub_group_name ?? "—",
+    _classification_missing: !det,
+  });
+}
+
+function reEnrichQueueRows() {
+  if (!QUEUE.length) return;
+  QUEUE = QUEUE.map(enrichRowWithClassification);
+  logMissingClassificationSummary(QUEUE);
+  applyLensFilter();
+}
+
+function logMissingClassificationSummary(rows) {
+  const missing = rows.filter((r) => r._classification_missing);
+  if (!missing.length) return;
+  const sampleProductIds = [...new Set(missing.map((r) => r.product_id))].slice(
+    0,
+    10,
+  );
+  console.warn("[PEQ] Missing classification rows:", {
+    count: missing.length,
+    sampleProductIds,
   });
 }
 
@@ -269,6 +334,55 @@ function _syncFilterDrawerUI() {
   });
 }
 
+// ── Master-driven classification option helpers ───────────────────────────
+function _masterValues(key) {
+  const vals = [];
+  PRODUCT_DETAILS_MAP.forEach((det) => {
+    const v = det[key];
+    if (v && v !== "—") vals.push(v);
+  });
+  return [...new Set(vals)].sort((a, b) => a.localeCompare(b));
+}
+function getAllCategoryOptions() {
+  return _masterValues("category_name");
+}
+function getAllSubcategoryOptions() {
+  return _masterValues("subcategory_name");
+}
+function getAllGroupOptions() {
+  return _masterValues("group_name");
+}
+function getAllSubgroupOptions() {
+  return _masterValues("sub_group_name");
+}
+
+// ── Per-dimension count helpers (count from full QUEUE, before any filter) ──
+function _countBy(key) {
+  const map = {};
+  QUEUE.forEach((r) => {
+    const v = r[key];
+    if (v && v !== "—") map[v] = (map[v] || 0) + 1;
+  });
+  return map;
+}
+function getCategoryCounts() {
+  return _countBy("category_name");
+}
+function getSubcategoryCounts() {
+  return _countBy("subcategory_name");
+}
+function getGroupCounts() {
+  return _countBy("group_name");
+}
+function getSubgroupCounts() {
+  return _countBy("sub_group_name");
+}
+
+// ── Label formatter with count ────────────────────────────────────────────
+function formatFilterOptionLabel(value, count) {
+  return `${value} (${count ?? 0})`;
+}
+
 function _populateClassificationFilters() {
   const drawer = document.getElementById("peqFilterDrawer");
   if (!drawer) return;
@@ -285,28 +399,37 @@ function _populateClassificationFilters() {
       dim: "categories",
       attr: "data-category",
       label: "Category",
-      key: "category_name",
+      getOptions: getAllCategoryOptions,
+      getCounts: getCategoryCounts,
     },
     {
       dim: "subcategories",
       attr: "data-subcategory",
       label: "Sub-category",
-      key: "subcategory_name",
+      getOptions: getAllSubcategoryOptions,
+      getCounts: getSubcategoryCounts,
     },
-    { dim: "groups", attr: "data-group", label: "Group", key: "group_name" },
+    {
+      dim: "groups",
+      attr: "data-group",
+      label: "Group",
+      getOptions: getAllGroupOptions,
+      getCounts: getGroupCounts,
+    },
     {
       dim: "subgroups",
       attr: "data-subgroup",
       label: "Sub-group",
-      key: "sub_group_name",
+      getOptions: getAllSubgroupOptions,
+      getCounts: getSubgroupCounts,
     },
   ];
 
-  dims.forEach(({ dim, attr, label, key }) => {
-    const unique = [...new Set(QUEUE.map((r) => r[key] || "—"))].sort((a, b) =>
-      a === "—" ? 1 : b === "—" ? -1 : a.localeCompare(b),
-    );
-    if (!unique.length) return;
+  dims.forEach(({ dim, attr, label, getOptions, getCounts }) => {
+    // options from master; counts from current full queue
+    const options = getOptions();
+    if (!options.length) return;
+    const counts = getCounts();
 
     const section = document.createElement("div");
     section.className = "peq-filter-section peq-filter-section--classification";
@@ -318,7 +441,7 @@ function _populateClassificationFilters() {
 
     const ul = document.createElement("ul");
     ul.className = "peq-filter-checklist";
-    unique.forEach((val) => {
+    options.forEach((val) => {
       const li = document.createElement("li");
       const lbl = document.createElement("label");
       const cb = document.createElement("input");
@@ -326,7 +449,11 @@ function _populateClassificationFilters() {
       cb.setAttribute(attr, val);
       cb.checked = QUEUE_FILTERS[dim].includes(val);
       lbl.appendChild(cb);
-      lbl.appendChild(document.createTextNode(" " + val));
+      lbl.appendChild(
+        document.createTextNode(
+          " " + formatFilterOptionLabel(val, counts[val] || 0),
+        ),
+      );
       li.appendChild(lbl);
       ul.appendChild(li);
     });
@@ -935,7 +1062,7 @@ function renderTable(rows) {
 
 function openDetails(row) {
   try {
-    SELECTED_ROW = row;
+    SELECTED_ROW = enrichRowWithClassification(row);
     const _modal = document.getElementById("detailsModal");
     const _title = document.getElementById("drawerTitle");
     const _subtitle = document.getElementById("drawerSubtitle");
@@ -1652,6 +1779,14 @@ function renderDetailPanel(row) {
     </div>
     <div class="peq-section-grid">
       <div class="peq-card">
+        <div class="peq-card-title">Product Classification</div>
+        <div class="peq-kv"><span class="peq-k">Category</span><span class="peq-v">${row.category_name || "—"}</span></div>
+        <div class="peq-kv"><span class="peq-k">Sub-category</span><span class="peq-v">${row.subcategory_name || "—"}</span></div>
+        <div class="peq-kv"><span class="peq-k">Group</span><span class="peq-v">${row.group_name || "—"}</span></div>
+        <div class="peq-kv"><span class="peq-k">Sub-group</span><span class="peq-v">${row.sub_group_name || "—"}</span></div>
+        ${row._classification_missing ? '<div class="peq-note" style="margin-top:6px;font-size:11px;color:var(--muted,#6b7280)">Classification not available in current client mapping.</div>' : ""}
+      </div>
+      <div class="peq-card">
         <div class="peq-card-title">Batch Identity</div>
         <div class="peq-kv"><span class="peq-k">Product ID</span><span class="peq-v">${row.product_id ?? "-"}</span></div>
         <div class="peq-kv"><span class="peq-k">Item</span><span class="peq-v">${row.product_name || "-"}</span></div>
@@ -1684,13 +1819,6 @@ function renderDetailPanel(row) {
       <div class="peq-card">
         <div class="peq-card-title">Execution Logic</div>
         <div style="font-size:13px;color:var(--erp-text,#0f172a);line-height:1.5">${execLogic}</div>
-      </div>
-      <div class="peq-card">
-        <div class="peq-card-title">Product Classification</div>
-        <div class="peq-kv"><span class="peq-k">Category</span><span class="peq-v">${row.category_name || "—"}</span></div>
-        <div class="peq-kv"><span class="peq-k">Sub-category</span><span class="peq-v">${row.subcategory_name || "—"}</span></div>
-        <div class="peq-kv"><span class="peq-k">Group</span><span class="peq-v">${row.group_name || "—"}</span></div>
-        <div class="peq-kv"><span class="peq-k">Sub-group</span><span class="peq-v">${row.sub_group_name || "—"}</span></div>
       </div>
       <div class="peq-action-card ${action.cls}">
         <div class="peq-action-label">Recommended Action</div>
@@ -1889,6 +2017,18 @@ function exportCsvForRows(rows, pageNumber) {
 async function loadQueue() {
   setStatus("Loading snapshot...");
   try {
+    if (PRODUCT_DETAILS_MAP.size === 0) {
+      console.warn(
+        "[PEQ] loadQueue: PRODUCT_DETAILS_MAP is empty — loading product details now",
+      );
+      await loadProductDetails();
+    }
+    if (PRODUCT_DETAILS_MAP.size < 1200) {
+      console.warn(
+        "[PEQ] product detail map looks smaller than expected:",
+        PRODUCT_DETAILS_MAP.size,
+      );
+    }
     // build month start as YYYY-MM-01 (avoid timezone issues)
     const now = new Date();
     const monthStart =
@@ -1944,6 +2084,7 @@ async function loadQueue() {
     }
 
     QUEUE = (data || []).map(enrichRowWithClassification);
+    logMissingClassificationSummary(QUEUE);
     console.debug("PEQ rows loaded:", QUEUE.length, QUEUE.slice(0, 5));
     if (!QUEUE.length) {
       setStatus("Snapshot not yet generated. Click Refresh.");
@@ -2269,4 +2410,5 @@ export {
   renderTable,
   openDetails,
   loadWhyMatters,
+  reEnrichQueueRows,
 };

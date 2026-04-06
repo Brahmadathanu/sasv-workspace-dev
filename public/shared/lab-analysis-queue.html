@@ -1,0 +1,1124 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Laboratory Analysis Work Queue</title>
+    <link rel="stylesheet" href="../shared/css/style.css" />
+    <style>
+      html,
+      body {
+        height: 100vh;
+        min-height: 100vh;
+        margin: 0;
+        overflow: hidden;
+        box-sizing: border-box;
+        font-family: system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        padding: 20px;
+        gap: 10px;
+      }
+      @media (max-width: 1080px) {
+        body {
+          padding: 10px;
+        }
+      }
+      @media (max-width: 520px) {
+        body {
+          padding: 6px;
+        }
+      }
+
+      /* ── Header ─────────────────────────────────────────────────── */
+      .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        flex-shrink: 0;
+      }
+      .page-header h1 {
+        margin: 0;
+        font-size: 1.3rem;
+        color: var(--primary, #2563eb);
+        line-height: 1.2;
+      }
+      .page-sub {
+        color: var(--muted, #6b7280);
+        font-size: 0.88rem;
+        margin-top: 3px;
+      }
+      .header-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-shrink: 0;
+      }
+      @media (max-width: 520px) {
+        .page-header h1 {
+          font-size: 15px;
+          line-height: 1.1;
+        }
+        .page-sub {
+          display: none;
+        }
+      }
+
+      /* ── Status message ─────────────────────────────────────────── */
+      #statusArea {
+        padding: 12px 14px;
+        border-radius: 7px;
+        font-size: 13.5px;
+        color: var(--muted, #6b7280);
+        display: none;
+        flex-shrink: 0;
+      }
+      #statusArea[data-type="error"] {
+        background: #fef2f2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
+        display: block;
+      }
+
+      /* ── KPI Strip ───────────────────────────────────────────────── */
+      .kpi-strip {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 6px;
+        align-items: stretch;
+        justify-content: space-between;
+        scrollbar-width: none;
+        flex-shrink: 0;
+      }
+      .kpi-strip::-webkit-scrollbar {
+        display: none;
+      }
+      .kpi {
+        background: var(--panel-bg, #fff);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        padding: 5px 10px;
+        border-radius: 7px;
+        min-width: fit-content;
+        flex-shrink: 0;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+      }
+      .kpi > .kpi-label {
+        font-weight: 600;
+        font-size: 10.5px;
+        color: var(--muted, #6b7280);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .kpi > .kpi-value {
+        font-size: 13px;
+        color: var(--text, #0f172a);
+        font-weight: 700;
+      }
+      .kpi.kpi-total {
+        border-left: 4px solid #2563eb;
+        background: linear-gradient(
+          135deg,
+          rgba(37, 99, 235, 0.06),
+          rgba(37, 99, 235, 0.02)
+        );
+      }
+      .kpi.kpi-inprogress {
+        border-left: 4px solid #3b82f6;
+        background: linear-gradient(
+          135deg,
+          rgba(59, 130, 246, 0.06),
+          rgba(59, 130, 246, 0.02)
+        );
+      }
+      .kpi.kpi-scrutiny {
+        border-left: 4px solid #f59e0b;
+        background: linear-gradient(
+          135deg,
+          rgba(245, 158, 11, 0.07),
+          rgba(245, 158, 11, 0.02)
+        );
+      }
+      .kpi.kpi-approved {
+        border-left: 4px solid #16a34a;
+        background: linear-gradient(
+          135deg,
+          rgba(22, 163, 74, 0.07),
+          rgba(22, 163, 74, 0.02)
+        );
+      }
+      .kpi.kpi-mixed {
+        border-left: 4px solid #7c3aed;
+        background: linear-gradient(
+          135deg,
+          rgba(124, 58, 237, 0.07),
+          rgba(124, 58, 237, 0.02)
+        );
+      }
+      .kpi.kpi-missing {
+        border-left: 4px solid #ef4444;
+        background: linear-gradient(
+          135deg,
+          rgba(239, 68, 68, 0.07),
+          rgba(239, 68, 68, 0.02)
+        );
+      }
+      @media (max-width: 800px) {
+        .kpi-strip {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          overflow-x: visible;
+          gap: 5px;
+        }
+        .kpi {
+          min-width: 0;
+          flex-shrink: unset;
+          white-space: normal;
+          padding: 5px 8px;
+        }
+      }
+      @media (max-width: 420px) {
+        .kpi > .kpi-label {
+          font-size: 9.5px;
+        }
+        .kpi > .kpi-value {
+          font-size: 12px;
+        }
+      }
+
+      /* ── Search card ─────────────────────────────────────────────── */
+      .search-card {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+      .search-wrap {
+        position: relative;
+        flex: 1;
+        min-width: 160px;
+      }
+      #labSearch {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px 36px 8px 10px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        font-size: 13.5px;
+        background: #e6f7ff;
+        border-color: rgba(14, 165, 233, 0.35);
+      }
+      #labSearch::placeholder {
+        color: var(--muted, #6b7280);
+        font-weight: 400;
+      }
+      #labSearch:focus {
+        outline: none;
+        border-color: #0ea5e9;
+        box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.08);
+      }
+      .input-clear-btn {
+        position: absolute;
+        right: 6px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        border: none;
+        background: transparent;
+        color: var(--muted, #6b7280);
+        cursor: pointer;
+        padding: 0;
+        border-radius: 5px;
+      }
+      .input-clear-btn:hover {
+        background: rgba(15, 23, 42, 0.06);
+        color: #0f172a;
+      }
+      .input-clear-btn.visible {
+        display: inline-flex;
+      }
+
+      /* ── Lens pills ───────────────────────────────────────────────── */
+      .lens-pills {
+        display: flex;
+        gap: 6px;
+        padding: 8px;
+        background: linear-gradient(
+          135deg,
+          rgba(37, 99, 235, 0.05),
+          rgba(37, 99, 235, 0.02)
+        );
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 10px;
+        align-items: center;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        flex-shrink: 0;
+        scrollbar-width: none;
+      }
+      .lens-pills::-webkit-scrollbar {
+        display: none;
+      }
+      .lens-pills .pill {
+        padding: 7px 15px;
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--muted, #6b7280);
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        border-radius: 8px;
+        transition: all 0.16s ease;
+        white-space: nowrap;
+        line-height: 1.2;
+      }
+      .lens-pills .pill:hover {
+        color: #0f172a;
+        background: rgba(37, 99, 235, 0.05);
+        border-color: rgba(37, 99, 235, 0.12);
+      }
+      .lens-pills .pill:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+      }
+      .lens-pills .pill.active {
+        color: #fff;
+        background: var(--primary, #2563eb);
+        border-color: var(--primary, #2563eb);
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.22);
+      }
+      @media (min-width: 521px) {
+        .tab-select-wrap {
+          display: none;
+        }
+      }
+      @media (max-width: 520px) {
+        .lens-pills {
+          display: none;
+        }
+        .tab-select-wrap {
+          position: relative;
+          display: block;
+          width: 100%;
+        }
+        .tab-select {
+          width: 100%;
+          padding: 8px 42px 8px 10px;
+          border-radius: 8px;
+          border: 1px solid var(--primary, #2563eb);
+          background: linear-gradient(
+            135deg,
+            rgba(37, 99, 235, 0.12),
+            rgba(37, 99, 235, 0.06)
+          );
+          color: #0f172a;
+          font-weight: 600;
+          font-size: 14px;
+          appearance: none;
+          -webkit-appearance: none;
+          cursor: pointer;
+        }
+        .tab-select-icon {
+          position: absolute;
+          right: 12px;
+          top: 50%;
+          transform: translateY(-50%);
+          pointer-events: none;
+          color: var(--primary, #2563eb);
+        }
+      }
+
+      /* ── Main area ─────────────────────────────────────────────────── */
+      .main {
+        display: flex;
+        flex: 1 1 auto;
+        gap: 12px;
+        min-height: 0;
+      }
+      .table-card {
+        flex: 1 1 0;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        padding: 8px;
+        background: var(--panel-bg, #fff);
+      }
+      .table-controls {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding-bottom: 6px;
+        flex-shrink: 0;
+      }
+      #labRowCount {
+        font-size: 12px;
+        color: var(--muted, #6b7280);
+        white-space: nowrap;
+      }
+      #tableWrap {
+        flex: 1 1 0;
+        min-height: 0;
+        overflow: auto;
+        display: none;
+      }
+      #tableWrap.tw-visible {
+        display: block;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      thead th {
+        position: sticky;
+        top: 0;
+        background: var(--table-header, #fafafa);
+        z-index: 3;
+        padding: 8px;
+        text-align: left;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+        font-size: 12px;
+        white-space: nowrap;
+        color: var(--muted, #6b7280);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      tbody td {
+        padding: 7px 8px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+        font-size: 13px;
+      }
+      tbody tr.lab-row {
+        cursor: pointer;
+        transition: background 0.12s ease;
+      }
+      tbody tr.lab-row:hover {
+        background: #eef4ff;
+      }
+      tbody tr.lab-row:active {
+        background: #e3edff;
+      }
+      tbody tr.lab-row:nth-child(even) {
+        background: var(--table-stripe, #fafbfc);
+      }
+      tbody tr.lab-row:nth-child(even):hover {
+        background: #eef4ff;
+      }
+      .c-center {
+        text-align: center;
+      }
+      .c-right {
+        text-align: right;
+      }
+
+      /* Subject cell */
+      .subject-chip {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .subject-fg {
+        background: #eff6ff;
+        color: #1e40af;
+      }
+      .subject-rm {
+        background: #fef3c7;
+        color: #92400e;
+      }
+      .subject-pm {
+        background: #f3e8ff;
+        color: #6b21a8;
+      }
+      .subject-other {
+        background: #f3f4f6;
+        color: #374151;
+      }
+
+      /* Item cell */
+      .item-primary {
+        font-weight: 600;
+        font-size: 13px;
+        line-height: 1.35;
+      }
+      .item-secondary {
+        display: block;
+        color: var(--muted, #7a8696);
+        font-size: 11px;
+        margin-top: 2px;
+      }
+
+      /* Status chips */
+      .lab-status-chip {
+        display: inline-block;
+        padding: 3px 9px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        white-space: nowrap;
+        letter-spacing: 0.02em;
+      }
+      .lsc-draft {
+        background: #f3f4f6;
+        color: #6b7280;
+      }
+      .lsc-in-progress {
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+      .lsc-pending-scrutiny {
+        background: #fffbeb;
+        color: #92400e;
+        border: 1px solid #fcd34d;
+      }
+      .lsc-scrutiny-passed {
+        background: #eef2ff;
+        color: #3730a3;
+      }
+      .lsc-approved-coa {
+        background: #f0fdf4;
+        color: #166534;
+      }
+      .lsc-coa-generated {
+        background: #14532d;
+        color: #fff;
+      }
+
+      /* Mode chips */
+      .lab-mode-chip {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .lmc-inhouse {
+        background: #f0fdf4;
+        color: #166534;
+      }
+      .lmc-mixed {
+        background: #fef3c7;
+        color: #92400e;
+      }
+      .lmc-outsourced {
+        background: #f3e8ff;
+        color: #6b21a8;
+      }
+
+      /* Count badges */
+      .count-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 22px;
+        height: 22px;
+        padding: 0 5px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .cb-zero {
+        background: #f3f4f6;
+        color: #9ca3af;
+      }
+      .cb-missing {
+        background: #fef2f2;
+        color: #b91c1c;
+      }
+      .cb-fail {
+        background: #fef2f2;
+        color: #b91c1c;
+      }
+
+      /* Hide on mobile */
+      @media (max-width: 800px) {
+        .col-hide-mobile {
+          display: none;
+        }
+      }
+
+      /* ── Modal overlay ─────────────────────────────────────────────── */
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+      }
+      .modal-overlay.hidden {
+        display: none;
+      }
+      .modal-window {
+        width: min(780px, 96vw);
+        height: 88vh;
+        max-height: 88vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        background: var(--panel-bg, #fff);
+        border-radius: 10px;
+        border: 1px solid var(--border, #e5e7eb);
+        padding: 18px;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+      }
+      @media (max-width: 800px) {
+        .modal-overlay {
+          align-items: flex-start;
+        }
+        .modal-window {
+          width: 100vw;
+          height: 100vh;
+          max-height: 100vh;
+          border-radius: 0;
+          border: none;
+          padding: 12px;
+        }
+      }
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 10px;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+      .modal-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #0f172a;
+        line-height: 1.3;
+      }
+      .modal-subtitle {
+        font-size: 12px;
+        color: var(--muted, #6b7280);
+        margin-top: 3px;
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .modal-close-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+        background: transparent;
+        cursor: pointer;
+        color: var(--muted, #6b7280);
+        flex-shrink: 0;
+      }
+      .modal-close-btn:hover {
+        background: #f3f4f6;
+        color: #111;
+      }
+      /* Tabs */
+      .modal-tabs {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        flex-shrink: 0;
+        margin-bottom: 12px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+      }
+      .modal-tab {
+        padding: 6px 14px;
+        border-radius: 7px;
+        border: 1px solid var(--border, #e5e7eb);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        background: transparent;
+        color: var(--muted, #6b7280);
+        transition: all 0.14s ease;
+      }
+      .modal-tab.active {
+        background: var(--primary, #2563eb);
+        color: #fff;
+        border-color: var(--primary, #2563eb);
+      }
+      .modal-tab:hover:not(.active) {
+        background: #f3f4f6;
+        color: #0f172a;
+      }
+      .modal-content {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+      }
+      .tab-panel {
+        display: none;
+      }
+      .tab-panel.active {
+        display: block;
+      }
+
+      /* Overview grid */
+      .detail-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+      @media (max-width: 520px) {
+        .detail-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .detail-card {
+        background: var(--panel-bg, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        padding: 10px 12px;
+      }
+      .detail-card-title {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--primary, #2563eb);
+        margin-bottom: 8px;
+        padding-bottom: 4px;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+      }
+      .kv-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 4px 0;
+        font-size: 12.5px;
+      }
+      .kv-row + .kv-row {
+        border-top: 1px solid rgba(0, 0, 0, 0.05);
+      }
+      .kv-key {
+        color: var(--muted, #6b7280);
+        flex-shrink: 0;
+      }
+      .kv-val {
+        font-weight: 500;
+        text-align: right;
+      }
+
+      /* Queue summary cards */
+      .queue-summary-strip {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+        margin-bottom: 16px;
+      }
+      @media (max-width: 520px) {
+        .queue-summary-strip {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      .qs-card {
+        background: var(--panel-bg, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        padding: 12px 14px;
+        text-align: center;
+      }
+      .qs-card .qs-label {
+        font-size: 10.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--muted, #6b7280);
+        margin-bottom: 6px;
+      }
+      .qs-card .qs-value {
+        font-size: 22px;
+        font-weight: 800;
+        color: #0f172a;
+        line-height: 1;
+      }
+      .qs-card.qs-missing .qs-value {
+        color: #b91c1c;
+      }
+      .qs-card.qs-fail .qs-value {
+        color: #b91c1c;
+      }
+      .qs-note {
+        font-size: 12px;
+        color: var(--muted, #6b7280);
+        padding: 8px 12px;
+        background: #fafbfc;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 7px;
+      }
+
+      /* Status history table */
+      .history-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12.5px;
+      }
+      .history-table th {
+        text-align: left;
+        padding: 7px 8px;
+        border-bottom: 2px solid var(--border, #e5e7eb);
+        color: var(--muted, #6b7280);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .history-table td {
+        padding: 7px 8px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+      }
+      .history-table tr:hover td {
+        background: #f9fafb;
+      }
+      #historyLoading {
+        font-size: 13px;
+        color: var(--muted, #6b7280);
+        padding: 12px 0;
+      }
+
+      /* ── Toast ─────────────────────────────────────────────────────── */
+      #labToastContainer {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-end;
+        pointer-events: none;
+      }
+      .lab-toast {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        font-size: 13px;
+        font-weight: 500;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+        pointer-events: auto;
+        animation: lab-toast-in 0.2s ease forwards;
+        max-width: 320px;
+        line-height: 1.4;
+      }
+      .lab-toast.toast-success {
+        background: #f0fdf4;
+        border-color: #86efac;
+        color: #166534;
+      }
+      .lab-toast.toast-info {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+        color: #1e40af;
+      }
+      .lab-toast.toast-error {
+        background: #fef2f2;
+        border-color: #fca5a5;
+        color: #991b1b;
+      }
+      .lab-toast.toast-fade-out {
+        animation: lab-toast-out 0.3s ease forwards;
+      }
+      @keyframes lab-toast-in {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes lab-toast-out {
+        from {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        to {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+      }
+
+      /* ── Home button label ─────────────────────────────────────────── */
+      @media (max-width: 520px) {
+        #homeBtn .home-label {
+          display: none;
+        }
+        #homeBtn {
+          padding-left: 8px;
+          padding-right: 8px;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- ── Header ─────────────────────────────────────────────────────── -->
+    <div class="page-header">
+      <div>
+        <h1>Laboratory Analysis Work Queue</h1>
+        <div class="page-sub">
+          Daily queue for analysis entry, scrutiny, approval, and COA readiness
+        </div>
+      </div>
+      <div class="header-actions">
+        <button
+          id="refreshBtn"
+          class="sc-btn sc-btn-secondary"
+          title="Refresh queue"
+        >
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            style="margin-right: 4px; vertical-align: -2px"
+          >
+            <polyline points="1 4 1 10 7 10" />
+            <path d="M3.51 15a9 9 0 1 0 .49-3.5" />
+          </svg>
+          Refresh
+        </button>
+        <button id="homeBtn" class="sc-btn sc-btn-secondary" title="Home">
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            style="margin-right: 4px; vertical-align: -2px"
+          >
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
+          </svg>
+          <span class="home-label">Home</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Status area ─────────────────────────────────────────────────── -->
+    <div id="statusArea" role="status" aria-live="polite">
+      Loading analysis work queue…
+    </div>
+
+    <!-- ── KPI Strip ──────────────────────────────────────────────────── -->
+    <div
+      id="kpiStrip"
+      class="kpi-strip"
+      aria-label="Queue summary metrics"
+    ></div>
+
+    <!-- ── Search bar ─────────────────────────────────────────────────── -->
+    <div class="search-card">
+      <div class="search-wrap">
+        <input
+          id="labSearch"
+          type="search"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="Search register no, item, batch, lot, or supplier…"
+          aria-label="Search queue"
+        />
+        <button
+          id="labSearchClear"
+          class="input-clear-btn"
+          aria-label="Clear search"
+          title="Clear"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+          >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Lens pills ─────────────────────────────────────────────────── -->
+    <div
+      id="lensPills"
+      class="lens-pills"
+      role="group"
+      aria-label="Queue filters"
+    ></div>
+
+    <!-- Mobile dropdown fallback -->
+    <div class="tab-select-wrap">
+      <select
+        id="lensSelect"
+        class="tab-select"
+        aria-label="Select queue filter"
+      ></select>
+      <svg
+        class="tab-select-icon"
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <polyline points="6 9 12 15 18 9" />
+      </svg>
+    </div>
+
+    <!-- ── Main area ─────────────────────────────────────────────────── -->
+    <div class="main">
+      <div class="table-card">
+        <div class="table-controls">
+          <span id="labRowCount" class="lab-row-count"></span>
+        </div>
+        <div id="tableWrap">
+          <table
+            id="labTable"
+            class="lab-table"
+            role="grid"
+            aria-label="Analysis work queue"
+          >
+            <thead>
+              <tr>
+                <th>Subject</th>
+                <th>Register No</th>
+                <th>Item</th>
+                <th class="col-hide-mobile">Sample Ref</th>
+                <th>Status</th>
+                <th class="col-hide-mobile">Mode</th>
+                <th class="c-center col-hide-mobile">Missing</th>
+                <th class="c-center col-hide-mobile">Fail</th>
+                <th class="col-hide-mobile">Date</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Details Modal ──────────────────────────────────────────────── -->
+    <div
+      id="detailsModal"
+      class="modal-overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modalTitle"
+    >
+      <div class="modal-window" role="document">
+        <div class="modal-header">
+          <div>
+            <div id="modalTitle" class="modal-title">Analysis Details</div>
+            <div id="modalSubtitle" class="modal-subtitle"></div>
+          </div>
+          <button
+            id="modalCloseBtn"
+            class="modal-close-btn"
+            aria-label="Close details"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal-tabs" role="tablist">
+          <button
+            class="modal-tab active"
+            role="tab"
+            aria-selected="true"
+            data-tab="overview"
+          >
+            Overview
+          </button>
+          <button
+            class="modal-tab"
+            role="tab"
+            aria-selected="false"
+            data-tab="queue-summary"
+          >
+            Queue Summary
+          </button>
+          <button
+            class="modal-tab"
+            role="tab"
+            aria-selected="false"
+            data-tab="status-history"
+          >
+            Status History
+          </button>
+        </div>
+        <div class="modal-content">
+          <!-- Overview tab -->
+          <div id="tabOverview" class="tab-panel active" role="tabpanel">
+            <div id="overviewContent"></div>
+          </div>
+          <!-- Queue Summary tab -->
+          <div id="tabQueueSummary" class="tab-panel" role="tabpanel">
+            <div id="queueSummaryContent"></div>
+          </div>
+          <!-- Status History tab -->
+          <div id="tabStatusHistory" class="tab-panel" role="tabpanel">
+            <div id="statusHistoryContent">
+              <p id="historyLoading">Select this tab to load status history.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Toast container ────────────────────────────────────────────── -->
+    <div id="labToastContainer" aria-live="polite" aria-atomic="true"></div>
+
+    <script type="module" src="./js/lab-analysis-queue.js"></script>
+  </body>
+</html>

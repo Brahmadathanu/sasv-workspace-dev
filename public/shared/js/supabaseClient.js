@@ -19,16 +19,30 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   },
 });
 
+// Client scoped to the `lab` schema (views: v_analysis_header, v_analysis_pending_scrutiny, etc.)
+export const labSupabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  db: { schema: "lab" },
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+  },
+  global: {
+    headers: {
+      "x-client-info": "daily-worklog-app@1.0.0",
+    },
+  },
+});
+
 // Enhanced error handler for CORS and network issues (if needed)
 export const handleSupabaseError = (error) => {
   if (error && typeof error === "object") {
     const message = error.message || String(error);
     if (message.includes("CORS") || message.includes("Failed to fetch")) {
       console.error(
-        "CORS/Network Error: The Supabase instance may need CORS configuration for localhost:3000"
+        "CORS/Network Error: The Supabase instance may need CORS configuration for localhost:3000",
       );
       console.error(
-        'To fix: Add "http://localhost:3000" to the Supabase project\'s CORS allowed origins in the dashboard'
+        'To fix: Add "http://localhost:3000" to the Supabase project\'s CORS allowed origins in the dashboard',
       );
       return {
         ...error,
