@@ -5,7 +5,7 @@
 import { supabase } from "../public/shared/js/supabaseClient.js";
 import { requireAuthAndPermission } from "../public/shared/js/appAuth.js";
 import { bootstrapApp } from "../public/shared/js/appBootstrap.js";
-/* global flatpickr, confirmDatePlugin, TomSelect */
+/* global flatpickr, confirmDatePlugin */
 
 /* ─────────────────────────────  DATE HELPERS  ────────────────────────── */
 const parseDMY = (s) => {
@@ -72,7 +72,6 @@ const plantSel = $("plant_or_machinery");
 const activitySel = $("activity");
 
 const itemInput = $("itemInput");
-const itemList = $("itemList");
 const batchSel = $("batch_number");
 const sizeInput = $("batch_size");
 const uomInput = $("batch_uom");
@@ -179,46 +178,6 @@ const getJuiceValue = (actNorm, formVal) => {
   return null;
 };
 
-// Wrap-around keyboard navigation for Tom Select dropdowns
-function bindWrapAround(ts) {
-  if (!ts || ts._wrapNavBound) return;
-  ts._wrapNavBound = true;
-
-  const onKeyDown = (e) => {
-    if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
-    // only act if dropdown is open
-    if (!ts.isOpen) return;
-
-    const options = Array.from(
-      ts.dropdown_content.querySelectorAll(".option:not(.disabled)"),
-    );
-    if (!options.length) return;
-
-    const active = ts.activeOption || options[0];
-    const first = options[0];
-    const last = options[options.length - 1];
-
-    // Up on first -> jump to last
-    if (e.key === "ArrowUp" && active === first) {
-      e.preventDefault();
-      ts.setActiveOption(last); // programmatically move highlight
-      ts.scrollToOption(last, true); // keep it in view
-      return;
-    }
-    // Down on last -> jump to first
-    if (e.key === "ArrowDown" && active === last) {
-      e.preventDefault();
-      ts.setActiveOption(first);
-      ts.scrollToOption(first, true);
-      return;
-    }
-    // otherwise, let Tom Select handle it
-  };
-
-  // bind once to the control input
-  ts.control_input.addEventListener("keydown", onKeyDown);
-}
-
 /* ───────────────────────────  OPEN-ROW FETCH  ────────────────────────── */
 async function fetchOpenLogs(item, bn) {
   if (!item || !bn) return [];
@@ -258,27 +217,6 @@ async function fetchOpenLogs(item, bn) {
 }
 
 /* ─────────────────────────────  MODALS  ──────────────────────────────── */
-const showAlert = (msg) =>
-  new Promise((res) => {
-    const prevFocusEl = document.activeElement; // remember focus
-    dialogMessage.textContent = msg;
-    btnYes.style.display = btnNo.style.display = "none";
-    btnOk.style.display = "inline-block";
-    form.setAttribute("inert", "");
-    document.body.classList.add("modal-open");
-    dialogOverlay.style.display = "flex";
-    btnOk.onclick = () => {
-      dialogOverlay.style.display = "none";
-      form.removeAttribute("inert");
-      document.body.classList.remove("modal-open");
-      // restore focus (safely)
-      if (prevFocusEl && typeof prevFocusEl.focus === "function") {
-        prevFocusEl.focus({ preventScroll: true });
-      }
-      res();
-    };
-  });
-
 const askConfirm = (msg) =>
   new Promise((res) => {
     const prevFocusEl = document.activeElement; // remember focus
@@ -308,14 +246,33 @@ const askConfirm = (msg) =>
     };
   });
 
+/* ─────────────────────────────  TOAST  ───────────────────────────────── */
+/**
+ * showToast(msg, type)
+ * type: 'success' | 'error' | 'warning' | 'info'
+ * Non-blocking; auto-dismisses after 4 s.
+ */
+function showToast(msg, type = "info") {
+  const container = document.getElementById("toastContainer");
+  if (!container) return;
+  const toast = document.createElement("div");
+  toast.className = `toast toast-${type}`;
+  toast.textContent = msg;
+  container.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add("toast-show"));
+  setTimeout(() => {
+    toast.classList.remove("toast-show");
+    toast.addEventListener("transitionend", () => toast.remove(), {
+      once: true,
+    });
+  }, 4000);
+}
+
 /* ────────────────────────────  UTIL POPULATE  ───────────────────────── */
 const populate = (sel, rows, vKey, tKey, ph) =>
   (sel.innerHTML =
     `<option value="">${ph}</option>` +
     rows.map((r) => `<option value="${r[vKey]}">${r[tKey]}</option>`).join(""));
-const populateDataList = (dl, items, key) =>
-  (dl.innerHTML = items.map((i) => `<option value="${i[key]}">`).join(""));
-
 /* duplicateMessage removed: server now handles duplicates via RPC */
 
 /* ────────────────────────────  LOAD ACTIVITIES  ─────────────────────── */
@@ -346,31 +303,18 @@ async function loadActivities() {
     (r) => (lastDurations[r.activity_name] = r.duration_days),
   );
 
-  // If Tom Select is active, feed it. Otherwise, fall back to native select.
-  if (actTS) {
-    actTS.clearOptions();
-    actTS.addOptions(data || []);
-    if (data && data.length) {
-      activitySel.disabled = false; // keep native in sync (for forms/validation)
-      actTS.enable();
-    } else {
-      activitySel.disabled = true;
-      actTS.disable();
-    }
+  if (data && data.length) {
+    populate(
+      activitySel,
+      data,
+      "activity_name",
+      "activity_name",
+      "-- Select Activity --",
+    );
+    activitySel.disabled = false;
   } else {
-    activitySel.innerHTML = "<option>-- Select Activity --</option>";
-    if (data && data.length) {
-      populate(
-        activitySel,
-        data,
-        "activity_name",
-        "activity_name",
-        "-- Select Activity --",
-      );
-      activitySel.disabled = false;
-    } else {
-      activitySel.disabled = true;
-    }
+    activitySel.innerHTML = "<option value=''>-- Select Activity --</option>";
+    activitySel.disabled = true;
   }
 }
 
@@ -448,7 +392,7 @@ function showOpenLogsModal(rows) {
       const picked = tbody.querySelector("input[name='openRowPick']:checked");
       if (!picked) {
         // Require a selection
-        alert("Please select a row to update.");
+        showToast("Please select a row to update.", "warning");
         return;
       }
       overlay.style.display = "none";
@@ -649,20 +593,8 @@ function clearForm() {
     el.innerHTML = "";
   });
 
-  // Keep Tom Selects in sync with disabled state
-  if (actTS) {
-    actTS.clear(true);
-    actTS.clearOptions();
-    actTS.disable();
-  }
-
-  // Clear Item (Tom Select or native)
-  if (itemTS) {
-    itemTS.clear(true); // remove current selection (silent)
-    // no need to clearOptions; it loads on demand as you type
-  } else {
-    itemInput.value = "";
-  }
+  // Clear Item
+  itemInput.value = "";
 
   sizeInput.value = "";
   uomInput.value = "";
@@ -690,15 +622,8 @@ function applyCarryForward() {
 
   // Prefill ITEM
   if (item) {
-    if (itemTS) {
-      // Make sure Tom Select knows about this option BEFORE selecting it
-      itemTS.addOption({ item }); // valueField = labelField = "item"
-      itemTS.refreshOptions(false);
-      itemTS.setValue(item); // not silent → fires 'change'
-    } else {
-      itemInput.value = item;
-      itemInput.dispatchEvent(new Event("change"));
-    }
+    itemInput.value = item;
+    itemInput.dispatchEvent(new Event("change"));
   }
 
   // Prefill BN (after the BN list is populated by the Item 'change' handler)
@@ -720,119 +645,6 @@ function applyCarryForward() {
       // safety stop after ~5s
       setTimeout(() => clearInterval(iv), 5000);
     }
-  }
-}
-
-/* ───────────────────────── Tom Select setup ─────────────────────────── */
-let itemTS = null; // Tom Select instance for Item
-let actTS = null; // Tom Select instance for Activity
-
-function initTomSelects() {
-  // 1) ITEM – attach to your existing input#itemInput
-  itemTS = new TomSelect("#itemInput", {
-    maxItems: 1,
-    create: false,
-    persist: false,
-    placeholder: "Type to search…",
-    valueField: "item",
-    labelField: "item",
-    searchField: ["item"],
-    loadThrottle: 300,
-    load: async (query, cb) => {
-      try {
-        if (!query.length) return cb();
-        // Query small set and dedupe client-side
-        const { data, error } = await supabase
-          .from("bmr_details")
-          .select("item")
-          .ilike("item", `%${query}%`)
-          .limit(100);
-
-        if (error) return cb();
-        const uniq = [
-          ...new Set((data || []).map((r) => r.item).filter(Boolean)),
-        ]
-          .slice(0, 100)
-          .map((item) => ({ item }));
-        cb(uniq);
-      } catch {
-        cb();
-      }
-    },
-    // keep look close to your inputs
-    wrapperClass: "ts-wrapper",
-    controlClass: "ts-control",
-    dropdownClass: "ts-dropdown",
-  });
-
-  // 2) ACTIVITY – attach to your existing select#activity
-  actTS = new TomSelect("#activity", {
-    maxItems: 1,
-    create: false,
-    persist: false,
-    placeholder: "-- Select Activity --",
-    valueField: "activity_name",
-    labelField: "activity_name",
-    searchField: ["activity_name"],
-    preload: "focus", // load when focused
-    loadThrottle: 300,
-    shouldLoad: () => !!(areaSel.value || subSel.value || sectionSel.value),
-    load: async (query, cb) => {
-      try {
-        // Mirror your loadActivities() filters
-        let qy = supabase
-          .from("activities")
-          .select("activity_name,duration_days");
-
-        if (areaSel.value) {
-          qy = qy.eq("area_id", areaSel.value);
-        } else if (subSel.value) {
-          qy = qy.eq("sub_section_id", subSel.value).is("area_id", null);
-        } else if (sectionSel.value) {
-          qy = qy
-            .eq("section_id", sectionSel.value)
-            .is("sub_section_id", null)
-            .is("area_id", null);
-        }
-
-        if (query && query.trim().length) {
-          qy = qy.ilike("activity_name", `%${query}%`);
-        }
-
-        const { data, error } = await qy.order("activity_name").limit(100);
-        if (error) return cb();
-        // update your durations map so due-date calc keeps working
-        lastDurations = {};
-        (data || []).forEach(
-          (r) => (lastDurations[r.activity_name] = r.duration_days),
-        );
-        cb(data || []);
-      } catch {
-        cb();
-      }
-    },
-    wrapperClass: "ts-wrapper",
-    controlClass: "ts-control",
-    dropdownClass: "ts-dropdown",
-  });
-
-  bindWrapAround(actTS);
-
-  // Note: Tom Select will still fire 'change' on the underlying elements,
-  // so all your existing listeners continue to work.
-  actTS.clearOptions();
-  actTS.disable();
-  activitySel.disabled = true;
-}
-
-/* ───────────────────── Activity helpers (Tom Select aware) ──────────── */
-
-function focusActivity() {
-  // put focus back on the visible control
-  if (actTS) {
-    actTS.focus(); // focuses Tom Select control
-  } else if (activitySel && activitySel.focus) {
-    activitySel.focus({ preventScroll: true });
   }
 }
 
@@ -859,8 +671,6 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   logDateInput.value = startInput.value = formatDMY(new Date());
   updateDueDate();
-
-  initTomSelects();
 
   // auth user info not required client-side for RPC payload
 
@@ -967,7 +777,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       const uniq = [...new Set(data.map((r) => r.item))].map((item) => ({
         item,
       }));
-      populateDataList(itemList, uniq, "item");
+      populate(itemInput, uniq, "item", "item", "-- Select Item --");
     }
   }
 
@@ -1001,11 +811,6 @@ sectionSel.addEventListener("change", async () => {
     el.disabled = true;
     el.innerHTML = "";
   });
-  if (actTS) {
-    actTS.clear(true);
-    actTS.clearOptions();
-    actTS.disable();
-  }
   activitySel.disabled = true;
   if (!sectionSel.value) return;
   const { data } = await supabase
@@ -1025,11 +830,6 @@ subSel.addEventListener("change", async () => {
     el.disabled = true;
     el.innerHTML = "";
   });
-  if (actTS) {
-    actTS.clear(true);
-    actTS.clearOptions();
-    actTS.disable();
-  }
   activitySel.disabled = true;
   if (!subSel.value) return;
   const { data } = await supabase
@@ -1046,12 +846,8 @@ subSel.addEventListener("change", async () => {
 });
 
 areaSel.addEventListener("change", async () => {
-  if (actTS) {
-    actTS.clear(true);
-    actTS.clearOptions();
-    actTS.disable();
-  }
   activitySel.disabled = true;
+  activitySel.innerHTML = "";
   plantSel.disabled = true;
   plantSel.innerHTML = "";
   if (!areaSel.value) return;
@@ -1083,34 +879,14 @@ areaSel.addEventListener("change", async () => {
 
 itemInput.addEventListener("change", async () => {
   openRowChecked = false;
-  const val = itemInput.value.trim();
+  const val = itemInput.value;
 
-  if (itemTS) {
-    // If Tom Select is active, treat any non-empty selection as valid.
-    // (Tom Select only lets the user pick an option we provided.)
-    if (!val) {
-      await showAlert("Please select a valid item.");
-      if (itemTS) itemTS.clear();
-      else itemInput.value = "";
-      batchSel.disabled = true;
-      batchSel.innerHTML =
-        '<option value="">-- Select Batch Number --</option>';
-      currentItemSkus = [];
-      updateSections();
-      return;
-    }
-  } else {
-    // Fallback to old datalist validation
-    if (!Array.from(itemList.options).some((o) => o.value === val)) {
-      await showAlert("Please select a valid item.");
-      itemInput.value = "";
-      batchSel.disabled = true;
-      batchSel.innerHTML =
-        '<option value="">-- Select Batch Number --</option>';
-      currentItemSkus = [];
-      updateSections();
-      return;
-    }
+  if (!val) {
+    batchSel.disabled = true;
+    batchSel.innerHTML = '<option value="">-- Select Batch Number --</option>';
+    currentItemSkus = [];
+    updateSections();
+    return;
   }
   // batches
   const { data: bns } = await supabase
@@ -1164,10 +940,10 @@ activitySel.addEventListener("change", async () => {
 
   // ─── SKU activity stock-impact warning ─────────────────────────────────
   if (skuActSet.has(actNorm) && lastWarnedSkuAct !== actNorm) {
-    await showAlert(
-      "This activity will affect Bottled SOH and the quantity available for “Transfer to FG Store”. Please make sure this log really needs to be saved.",
+    showToast(
+      "This activity will affect Bottled SOH and the quantity available for \u201cTransfer to FG Store\u201d. Please make sure this log really needs to be saved.",
+      "warning",
     );
-    focusActivity(); // Tom-Select aware refocus
     lastWarnedSkuAct = actNorm;
   } else if (!skuActSet.has(actNorm)) {
     // switched to a non-SKU activity → reset so next SKU act will warn again
@@ -1217,8 +993,9 @@ activitySel.addEventListener("change", async () => {
       .eq("status", "Done")
       .limit(1);
     if (!qa?.length) {
-      await showAlert(
+      showToast(
         "Finished Goods Quality Assessment not completed for this batch.",
+        "error",
       );
       activitySel.value = "";
     }
@@ -1300,15 +1077,15 @@ async function handleSubmit(isNew) {
   // 3) Juice/Decoction required (Doing or Done)
   if (needJuiceSubmit) {
     if (!form.juice_or_decoction.value) {
-      await showAlert("Please select Juice/Decoction type.");
+      showToast("Please select Juice/Decoction type.", "error");
       return;
     }
     if (!form.rm_juice_qty.value) {
-      await showAlert("Please enter RM Qty.");
+      showToast("Please enter RM Qty.", "error");
       return;
     }
     if (!form.rm_juice_uom.value) {
-      await showAlert("Please select RM UOM.");
+      showToast("Please select RM UOM.", "error");
       return;
     }
   }
@@ -1316,19 +1093,19 @@ async function handleSubmit(isNew) {
   // 4) Putam required when visible
   if (doing && /putam|gaja putam|seelamann/.test(actNorm)) {
     if (!form.count_of_saravam.value) {
-      await showAlert("Please enter Count of Saravam.");
+      showToast("Please enter Count of Saravam.", "error");
       return;
     }
     if (!form.fuel.value) {
-      await showAlert("Please select Fuel Type.");
+      showToast("Please select Fuel Type.", "error");
       return;
     }
     if (!form.fuel_under.value) {
-      await showAlert("Please enter Fuel Under.");
+      showToast("Please enter Fuel Under.", "error");
       return;
     }
     if (!form.fuel_over.value) {
-      await showAlert("Please enter Fuel Over.");
+      showToast("Please enter Fuel Over.", "error");
       return;
     }
   }
@@ -1336,7 +1113,7 @@ async function handleSubmit(isNew) {
   // 5) Completed On required whenever Done
   if (isDone) {
     if (!form.completed_on.value) {
-      await showAlert("Please enter Completed On date.");
+      showToast("Please enter Completed On date.", "error");
       return;
     }
   }
@@ -1344,7 +1121,7 @@ async function handleSubmit(isNew) {
   // 6) Lab Ref Number required for FG QA
   if (isDone && actNorm === "finished goods quality assessment") {
     if (!form.lab_ref_number.value) {
-      await showAlert("Please enter Lab Ref Number.");
+      showToast("Please enter Lab Ref Number.", "error");
       return;
     }
   }
@@ -1353,7 +1130,7 @@ async function handleSubmit(isNew) {
   if (isDone && skuActSet.has(actNorm)) {
     const skuInputs = Array.from(skuTableBody.querySelectorAll("input"));
     if (!skuInputs.some((i) => +i.value > 0)) {
-      await showAlert("Enter at least one SKU count greater than zero.");
+      showToast("Enter at least one SKU count greater than zero.", "error");
       return;
     }
   }
@@ -1361,8 +1138,9 @@ async function handleSubmit(isNew) {
   // 8) Storage Qty & UOM for FG bulk storage
   if (isStorage && actNorm === "fg bulk storage") {
     if (!storageQtyInput.value || !storageUomSel.value) {
-      await showAlert(
-        "Storage Qty and UOM are required when Activity is “FG bulk storage” and Status is “In Storage.”",
+      showToast(
+        "Storage Qty and UOM are required when Activity is \u201cFG bulk storage\u201d and Status is \u201cIn Storage.\u201d",
+        "error",
       );
       return;
     }
@@ -1371,7 +1149,10 @@ async function handleSubmit(isNew) {
   // 8b) Storage Qty & UOM for Stock transfer (Done)
   if (isDone && isStockTransfer) {
     if (!storageQtyInput.value || !storageUomSel.value) {
-      await showAlert("Storage Qty and UOM are required for Stock transfer.");
+      showToast(
+        "Storage Qty and UOM are required for Stock transfer.",
+        "error",
+      );
       return;
     }
   }
@@ -1529,9 +1310,10 @@ async function handleSubmit(isNew) {
     if (st && st.qty_on_hand != null) {
       const avail = st.qty_on_hand;
       if (totalBase > avail + 0.0001) {
-        await showAlert(
+        showToast(
           `Cannot package ${totalBase.toFixed(3)} ${baseUom}; ` +
             `only ${avail.toFixed(3)} ${baseUom} available.`,
+          "error",
         );
         return; // abort Submit
       }
@@ -1581,12 +1363,12 @@ async function handleSubmit(isNew) {
 
   if (error) {
     console.error("RPC error:", error);
-    await showAlert(`Save failed: ${error.message || "see console"}`);
+    showToast(`Save failed: ${error.message || "see console"}`, "error");
     return;
   }
 
   /* ---- SUCCESS -------------------------------------------------------- */
-  await showAlert("Log saved successfully!");
+  showToast("Log saved successfully!", "success");
 
   // ← RESET dirty flag so “unsaved changes” won’t fire after saving
   dirty = false;

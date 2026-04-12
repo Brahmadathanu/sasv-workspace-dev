@@ -1,0 +1,734 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Certificate of Analysis — Form 50</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <style>
+      /* ── Letterhead layout — text centered on page, logo pinned right ──── */
+      .lh-inner {
+        position: relative;
+        min-height: 58px;
+      }
+      .lh-text-col {
+        text-align: center;
+      }
+      .lh-logo-wrap {
+        position: absolute;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .lh-logo {
+        display: block;
+        max-height: 54px;
+        max-width: 60px;
+        object-fit: contain;
+      }
+      /* ── Base ─────────────────────────────────────────────────────────────── */
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: var(--bg-color, #f7f9fb);
+        font-family: system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+        color: var(--text-color, #111827);
+      }
+
+      /* ── Screen chrome ───────────────────────────────────────────────────── */
+      #screenChrome {
+        padding: 16px 20px 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      @media (max-width: 1080px) {
+        #screenChrome {
+          padding: 10px 10px 0;
+        }
+      }
+      @media (max-width: 520px) {
+        #screenChrome {
+          padding: 6px 6px 0;
+        }
+      }
+
+      /* ── Page header ─────────────────────────────────────────────────────── */
+      .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        flex-shrink: 0;
+      }
+      .page-header h1 {
+        margin: 0;
+        font-size: 1.3rem;
+        color: var(--primary, #005a8d);
+        line-height: 1.2;
+      }
+      .page-sub {
+        color: var(--muted, #6b7280);
+        font-size: 0.88rem;
+        margin-top: 3px;
+      }
+      @media (max-width: 520px) {
+        .page-header h1 {
+          font-size: 15px;
+          line-height: 1.1;
+        }
+        .page-sub {
+          display: none;
+        }
+      }
+
+      /* ── Icon button (header) ────────────────────────────────────────────── */
+      .icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        padding: 7px 12px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+        background: var(--panel-bg, #fff);
+        cursor: pointer;
+        font: inherit;
+        font-size: 13px;
+        color: inherit;
+        transition: background 0.14s;
+        white-space: nowrap;
+      }
+      .icon-btn:hover {
+        background: #f3f4f6;
+      }
+      .icon-btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .icon-btn.icon-btn-primary {
+        background: var(--primary, #005a8d);
+        color: #fff;
+        border-color: var(--primary, #005a8d);
+      }
+      .icon-btn.icon-btn-primary:hover {
+        background: #004a75;
+      }
+      /* ── Back/Home button — orange parity with shared #homeBtn style ────── */
+      #btnBack {
+        background: #fed7aa;
+        color: #9a3412;
+        border-color: #fdba74;
+        font-weight: 500;
+      }
+      #btnBack:hover {
+        background: #fdba74;
+        border-color: #fb923c;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      #btnBack .home-label {
+        display: inline;
+      }
+      @media (max-width: 520px) {
+        #btnBack .home-label {
+          display: none;
+        }
+        #btnBack {
+          padding-left: 8px;
+          padding-right: 8px;
+        }
+      }
+
+      /* ── Action bar ──────────────────────────────────────────────────────── */
+      .action-bar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+        flex-shrink: 0;
+        padding: 8px 14px;
+        background: var(--panel-bg, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+      }
+      .action-bar-spacer {
+        flex: 1;
+      }
+      .action-bar-hint {
+        font-size: 11.5px;
+        color: var(--muted, #6b7280);
+        font-style: italic;
+      }
+
+      /* ── Error state ─────────────────────────────────────────────────────── */
+      #errorState {
+        display: none;
+        margin: 32px auto;
+        max-width: 480px;
+        background: #fef2f2;
+        border: 1px solid #fca5a5;
+        border-radius: 10px;
+        padding: 28px 24px;
+        text-align: center;
+      }
+      #errorState .err-icon {
+        font-size: 2rem;
+        margin-bottom: 10px;
+      }
+      #errorState .err-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #991b1b;
+        margin-bottom: 4px;
+      }
+      #errorState .err-detail {
+        font-size: 0.83rem;
+        color: #b91c1c;
+      }
+
+      /* ── Page wrapper (screen view) ──────────────────────────────────────── */
+      #pageWrapper {
+        display: flex;
+        justify-content: center;
+        padding: 20px 16px 48px;
+      }
+
+      /* ── COA Sheet ────────────────────────────────────────────────────────── */
+      #coaSheet {
+        background: #fff;
+        width: 210mm;
+        min-height: 297mm;
+        padding: 14mm 16mm 20mm;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.18);
+        position: relative;
+        font-family: "Times New Roman", Times, serif;
+      }
+
+      /* ── Letterhead ───────────────────────────────────────────────────────── */
+      .lh-outer-border {
+        border: 1px solid #333;
+        padding: 8px 12px 6px;
+        margin-bottom: 12px;
+      }
+      .lh-blessing {
+        text-align: center;
+        font-size: 0.8rem;
+        font-style: italic;
+        letter-spacing: 0.04em;
+        margin-bottom: 6px;
+        color: #333;
+      }
+      .lh-org {
+        text-align: center;
+        font-size: 1.15rem;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        line-height: 1.2;
+        text-transform: uppercase;
+      }
+      .lh-address {
+        text-align: center;
+        font-size: 0.8rem;
+        color: #444;
+        margin-top: 3px;
+      }
+      .lh-license {
+        text-align: center;
+        font-size: 0.78rem;
+        color: #555;
+        margin-top: 2px;
+      }
+
+      /* ── Date / Report No strip (outside details table) ────────────────── */
+      .meta-strip {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.83rem;
+        padding: 4px 2px;
+        border-bottom: 1px solid #bbb;
+        margin-bottom: 5px;
+      }
+      .meta-strip .meta-report {
+        font-weight: 600;
+      }
+
+      /* ── Certificate title ────────────────────────────────────────────────── */
+      .coa-title-block {
+        text-align: center;
+        margin: 8px 0 4px;
+        border-top: 1px solid #333;
+        border-bottom: 1px solid #333;
+        padding: 5px 0;
+      }
+      .coa-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .coa-subtitle {
+        font-size: 0.72rem;
+        color: #444;
+        margin-top: 2px;
+        font-style: italic;
+      }
+
+      /* ── Detail table ─────────────────────────────────────────────────────── */
+      .detail-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 5px 0 8px;
+        font-size: 0.83rem;
+      }
+      .detail-table td {
+        border: 1px solid #bbb;
+        padding: 3px 7px;
+        vertical-align: top;
+      }
+      .detail-table .dt-lbl {
+        width: 23%;
+        font-weight: 600;
+      }
+      .detail-table .dt-val {
+        width: 27%;
+      }
+
+      /* ── Results table ────────────────────────────────────────────────────── */
+      .result-section-title {
+        font-size: 0.83rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-bottom: 1px solid #444;
+        padding-bottom: 2px;
+        margin: 16px 0 4px;
+      }
+      .results-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.81rem;
+      }
+      .results-table th {
+        background: #fff;
+        border: 1px solid #ccc;
+        padding: 4px 7px;
+        font-weight: 700;
+        text-align: left;
+      }
+      .results-table td {
+        border: 1px solid #ccc;
+        padding: 3px 7px;
+        vertical-align: top;
+      }
+
+      /* ── Opinion paragraph ────────────────────────────────────────────────── */
+      .opinion-block {
+        margin: 16px 0 12px;
+        font-size: 0.83rem;
+        font-style: italic;
+        border-top: 1px solid #bbb;
+        padding-top: 10px;
+        color: #222;
+        line-height: 1.55;
+      }
+
+      /* ── Signature block ──────────────────────────────────────────────────── */
+      .signature-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        margin-top: 24px;
+        page-break-inside: avoid;
+        gap: 20px;
+      }
+      .sig-block {
+        flex: 1;
+        border-top: 1px solid #444;
+        padding-top: 6px;
+        min-width: 0;
+      }
+      .sig-label {
+        font-size: 0.72rem;
+        color: #555;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        margin-bottom: 3px;
+      }
+      .sig-name {
+        font-size: 0.88rem;
+        font-weight: 700;
+      }
+      .sig-designation {
+        font-size: 0.78rem;
+        color: #444;
+        margin-top: 1px;
+        font-style: italic;
+      }
+
+      /* ── Toast notifications ─────────────────────────────────────────────── */
+      #toastContainer {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-end;
+        pointer-events: none;
+      }
+      .toast {
+        display: flex;
+        align-items: center;
+        padding: 10px 14px;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        font-size: 13px;
+        font-weight: 500;
+        max-width: 340px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+        pointer-events: auto;
+        animation: toastIn 0.2s ease forwards;
+        line-height: 1.4;
+      }
+      @keyframes toastIn {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .toast-success {
+        background: #f0fdf4;
+        border-color: #86efac;
+        color: #166534;
+      }
+      .toast-info {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+        color: #1e40af;
+      }
+      .toast-warn {
+        background: #fffbeb;
+        border-color: #fde68a;
+        color: #92400e;
+      }
+      .toast-error {
+        background: #fef2f2;
+        border-color: #fca5a5;
+        color: #991b1b;
+      }
+
+      /* ── Loading overlay ─────────────────────────────────────────────────── */
+      #loadingOverlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(2px);
+        z-index: 8888;
+        align-items: center;
+        justify-content: center;
+      }
+      #loadingOverlay.open {
+        display: flex;
+      }
+      .loading-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+        background: #fff;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 12px;
+        padding: 28px 40px;
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
+      }
+      .loading-spinner {
+        width: 34px;
+        height: 34px;
+        border: 3px solid #e5e7eb;
+        border-top-color: var(--primary, #005a8d);
+        border-radius: 50%;
+        animation: spin 0.75s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .loading-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--muted, #6b7280);
+        letter-spacing: 0.04em;
+      }
+
+      /* ── Print styles ─────────────────────────────────────────────────────── */
+      @page {
+        size: A4 portrait;
+        margin: 0;
+      }
+
+      @media print {
+        html,
+        body {
+          background: #fff;
+          margin: 0;
+          padding: 0;
+          font-family: "Times New Roman", Times, serif;
+        }
+
+        #screenChrome,
+        #toastContainer,
+        #loadingOverlay {
+          display: none !important;
+        }
+
+        #pageWrapper {
+          display: block;
+          padding: 0;
+          margin: 0;
+        }
+
+        #coaSheet {
+          width: 100%;
+          min-height: 297mm;
+          padding: 14mm 16mm 20mm;
+          box-shadow: none;
+          margin: 0;
+        }
+
+        .signature-row {
+          page-break-inside: avoid;
+        }
+
+        a {
+          text-decoration: none;
+          color: inherit;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ── Loading overlay ─────────────────────────────────────────────────── -->
+    <div id="loadingOverlay" aria-live="polite">
+      <div class="loading-card">
+        <div class="loading-spinner"></div>
+        <div class="loading-label">Loading COA&hellip;</div>
+      </div>
+    </div>
+
+    <!-- ── Toast mount ──────────────────────────────────────────────────────── -->
+    <div id="toastContainer" aria-live="polite"></div>
+
+    <!-- ── Screen chrome (hidden in print) ─────────────────────────────────── -->
+    <div id="screenChrome">
+      <!-- Page header -->
+      <div class="page-header">
+        <div>
+          <h1>Certificate of Analysis</h1>
+          <div class="page-sub" id="pageSubtitle">
+            Form 50 &mdash; Drugs &amp; Cosmetics Rules 1945
+          </div>
+        </div>
+        <div style="display: flex; align-items: stretch; gap: 8px">
+          <button
+            id="btnRefresh"
+            type="button"
+            class="icon-btn"
+            title="Reload data"
+            aria-label="Refresh"
+          >
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <polyline points="1 20 1 14 7 14"></polyline>
+              <path d="M3.51 9a9 9 0 0114.13-3.36L23 10"></path>
+              <path d="M20.49 15a9 9 0 01-14.13 3.36L1 14"></path>
+            </svg>
+          </button>
+          <button
+            id="btnBack"
+            type="button"
+            class="icon-btn"
+            title="Go back"
+            aria-label="Back"
+          >
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9,22 9,12 15,12 15,22" />
+            </svg>
+            <span class="home-label">HOME</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Action bar -->
+      <div class="action-bar">
+        <button
+          id="btnDownloadPdf"
+          type="button"
+          class="icon-btn icon-btn-primary"
+          title="Download as PDF file"
+        >
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Download PDF
+        </button>
+        <div class="action-bar-spacer"></div>
+        <span class="action-bar-hint" id="coaReportHint"></span>
+      </div>
+    </div>
+    <!-- /#screenChrome -->
+
+    <!-- ── Document area ─────────────────────────────────────────────────────── -->
+    <div id="pageWrapper">
+      <!-- Error state (shown when COA not found or load fails) -->
+      <div id="errorState">
+        <div class="err-icon">&#9888;&#65039;</div>
+        <div class="err-title" id="errTitle">Issued COA not found</div>
+        <div class="err-detail" id="errDetail">
+          The requested COA record could not be loaded.
+        </div>
+      </div>
+
+      <!-- COA document sheet -->
+      <div id="coaSheet" style="display: none">
+        <!-- Letterhead -->
+        <div class="lh-outer-border">
+          <div class="lh-inner">
+            <div class="lh-text-col">
+              <div class="lh-blessing">Gurucharanam Saranam</div>
+              <div class="lh-org">Santhigiri Ayurveda Siddha Vaidyasala</div>
+              <div class="lh-address">
+                Santhigiri P O, Thiruvananthapuram, Kerala, 695589
+              </div>
+              <div class="lh-license">
+                Mfg. Lic. No: 61/25D/89 &nbsp;&nbsp; GMP No: 41 Dated 13.08.2002
+              </div>
+            </div>
+            <div class="lh-logo-wrap">
+              <img
+                src="./assets/santhigiri-logo.png"
+                alt="Santhigiri Logo"
+                class="lh-logo"
+                onerror="this.style.display = 'none'"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- Certificate title -->
+        <div class="coa-title-block">
+          <div class="coa-title">Certificate of Analysis</div>
+          <div class="coa-subtitle">
+            Schedule A, Form 50, Drugs &amp; Cosmetics Rules 1945, Rule 160-D(f)
+          </div>
+        </div>
+
+        <!-- Date / Report No strip — outside the details table -->
+        <div class="meta-strip">
+          <span class="meta-field">Date: <span id="metaDate">—</span></span>
+          <span class="meta-field meta-report"
+            >Report No: <span id="metaReportNo">—</span></span
+          >
+        </div>
+
+        <!-- Detail table -->
+        <table class="detail-table" aria-label="Sample details">
+          <tbody id="detailBody"></tbody>
+        </table>
+
+        <!-- Results section -->
+        <div class="result-section-title">Test Results</div>
+        <!-- heading text-transform:uppercase renders this as TEST RESULTS -->
+        <table class="results-table" aria-label="Test results">
+          <thead>
+            <tr>
+              <th>Test</th>
+              <th>Result</th>
+              <th>Test Method</th>
+              <th>Reference Range</th>
+            </tr>
+          </thead>
+          <tbody id="resultsBody"></tbody>
+        </table>
+
+        <!-- Opinion -->
+        <div class="opinion-block">
+          In the opinion of the undersigned, the sample referred to above is of
+          standard quality as defined in the act or the rules made thereunder.
+        </div>
+
+        <!-- Signature row -->
+        <div class="signature-row">
+          <div class="sig-block" id="sigPrepared">
+            <div class="sig-label">Analysed By</div>
+            <div class="sig-name" id="sigPreparedName">—</div>
+            <div class="sig-designation" id="sigPreparedDes"></div>
+          </div>
+          <div class="sig-block" id="sigApproved">
+            <div class="sig-label">Person In-charge of Testing</div>
+            <div class="sig-name" id="sigApprovedName">—</div>
+            <div class="sig-designation" id="sigApprovedDes"></div>
+          </div>
+        </div>
+      </div>
+      <!-- /coaSheet -->
+    </div>
+    <!-- /pageWrapper -->
+
+    <script type="module" src="js/coa-print.js"></script>
+  </body>
+</html>

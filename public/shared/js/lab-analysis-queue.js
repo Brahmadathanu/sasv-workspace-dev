@@ -24,14 +24,20 @@ const modalSubtitle = $("modalSubtitle");
 const overviewContent = $("overviewContent");
 const queueSummaryContent = $("queueSummaryContent");
 const statusHistoryContent = $("statusHistoryContent");
+const lastRefreshed = $("lastRefreshed");
+const btnOpenWorkspace = $("btnOpenWorkspace");
+const btnViewCoa = $("btnViewCoa");
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let rows = []; // merged, full dataset
 let filteredRows = []; // after lens + search
 let currentLens = "open";
 let searchTerm = "";
+let searchDebounceTimer = null;
 let selectedRow = null;
 let historyLoaded = false;
+let LAST_REFRESH_TIME = null;
+let prevFocus = null;
 
 // ── Lens definitions ──────────────────────────────────────────────────────────
 const LENSES = [
@@ -40,7 +46,7 @@ const LENSES = [
   { id: "scrutiny", label: "Pending Scrutiny" },
   { id: "approved", label: "Approved for COA" },
   { id: "coa", label: "COA Generated" },
-  { id: "mixed", label: "Mixed Source" },
+  { id: "mixed", label: "Outsourced / Mixed" },
   { id: "all", label: "All" },
 ];
 
@@ -68,18 +74,19 @@ const MODE_LABELS = {
 
 // ── Helpers: formatters ───────────────────────────────────────────────────────
 function formatSubjectLabel(subject) {
-  return SUBJECT_LABELS[String(subject || "").toUpperCase()] || subject || "—";
+  const s = normalizeSubject(String(subject || ""));
+  return SUBJECT_LABELS[s] || subject || "—";
 }
 
 function formatSubjectChip(subject) {
-  const s = String(subject || "").toUpperCase();
-  const label = SUBJECT_LABELS[s] || subject || "—";
+  const norm = normalizeSubject(String(subject || ""));
+  const label = SUBJECT_LABELS[norm] || subject || "—";
   const cls =
-    s === "FG"
+    norm === "FG"
       ? "subject-fg"
-      : s === "RM"
+      : norm === "RM"
         ? "subject-rm"
-        : s === "PM"
+        : norm === "PM"
           ? "subject-pm"
           : "subject-other";
   return `<span class="subject-chip ${cls}">${escHtml(label)}</span>`;
@@ -123,11 +130,91 @@ function formatModeChip(mode) {
   return `<span class="lab-mode-chip ${cls}">${escHtml(label)}</span>`;
 }
 
+function formatModeLabel(mode) {
+  const m = String(mode || "")
+    .toUpperCase()
+    .replace(/ /g, "_");
+  return MODE_LABELS[m] || String(mode || "—").replace(/_/g, " ");
+}
+
+function formatStatusLabel(status) {
+  const s = String(status || "")
+    .toUpperCase()
+    .replace(/ /g, "_");
+  return STATUS_LABELS[s] || String(status || "—").replace(/_/g, " ");
+}
+
+function updateFreshnessIndicator() {
+  if (!lastRefreshed) return;
+  const lbl = lastRefreshed.querySelector(".sc-snapshot-label");
+  if (!LAST_REFRESH_TIME) {
+    lastRefreshed.className = lastRefreshed.className
+      .replace(/snapshot-\w+/g, "")
+      .trim();
+    if (lbl) lbl.textContent = "Not loaded";
+    lastRefreshed.setAttribute("aria-label", "Data not yet loaded");
+    return;
+  }
+  const elapsedMs = Date.now() - LAST_REFRESH_TIME.getTime();
+  const elapsedMin = Math.floor(elapsedMs / 60000);
+  let label, statusClass;
+  if (elapsedMin < 1) {
+    label = "Just now";
+    statusClass = "snapshot-fresh";
+  } else if (elapsedMin < 15) {
+    label = `${elapsedMin}m ago`;
+    statusClass = "snapshot-fresh";
+  } else if (elapsedMin < 60) {
+    label = `${elapsedMin}m ago`;
+    statusClass = "snapshot-warning";
+  } else {
+    const elapsedHr = Math.floor(elapsedMin / 60);
+    label = `${elapsedHr}h ago`;
+    statusClass = "snapshot-stale";
+  }
+  const detailText = `Last refreshed: ${LAST_REFRESH_TIME.toLocaleString()}`;
+  if (lbl) lbl.textContent = label;
+  lastRefreshed.className =
+    lastRefreshed.className.replace(/snapshot-\w+/g, "").trim() +
+    " " +
+    statusClass;
+  lastRefreshed.setAttribute("aria-label", detailText);
+}
+
 function formatSampleRef(row) {
-  const s = String(row?.analysis_subject_type || "").toUpperCase();
-  if (s === "FG") return row?.batch_no_snapshot || "—";
-  if (s === "RM") return row?.system_lot_no || "—";
+  const s = normalizeSubject(String(row?.analysis_subject_type || ""));
+  if (s === "FG") return row?.batch_no_snapshot || row?.system_lot_no || "—";
+  if (s === "RM") return row?.system_lot_no || row?.batch_no_snapshot || "—";
+  if (s === "PM") return row?.system_lot_no || row?.batch_no_snapshot || "—";
   return row?.batch_no_snapshot || row?.system_lot_no || "—";
+}
+
+function normalizeSubject(val) {
+  const s = String(val || "").toUpperCase();
+  if (s.startsWith("FG")) return "FG";
+  if (s.startsWith("RM")) return "RM";
+  if (s.startsWith("PM")) return "PM";
+  return s;
+}
+
+function formatTimestamp(val) {
+  if (!val) return "—";
+  try {
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return String(val);
+    return d
+      .toLocaleString(undefined, {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      })
+      .replace(/\u200E/g, "");
+  } catch {
+    return String(val);
+  }
 }
 
 function formatDate(val) {
@@ -242,10 +329,18 @@ async function loadQueue() {
         "Failed to load analysis header: " + headerRes.error.message,
       );
 
+    if (scrutinyRes.error)
+      throw new Error(
+        "Failed to load analysis pending scrutiny view: " +
+          scrutinyRes.error.message,
+      );
+
     rows = mergeQueueData(headerRes.data || [], scrutinyRes.data || []);
 
     applyLens();
     renderKpis();
+    LAST_REFRESH_TIME = new Date();
+    updateFreshnessIndicator();
     showToast("Queue refreshed", "success");
   } catch (err) {
     console.error("[LAQ] loadQueue error:", err);
@@ -263,9 +358,11 @@ function mergeQueueData(headers, scrutiny) {
   });
 
   return (headers || []).map((h) => {
-    const sc = scrutinyMap.get(String(h.analysis_id)) || {};
+    // v_analysis_header exposes `id`; normalize to analysis_id for internal use
+    const aid = h.analysis_id ?? h.id;
+    const sc = scrutinyMap.get(String(aid)) || {};
     return {
-      analysis_id: h.analysis_id,
+      analysis_id: aid,
       analysis_register_no: h.analysis_register_no,
       analysis_subject_type: h.analysis_subject_type,
       stream_code: h.stream_code,
@@ -292,7 +389,8 @@ function mergeQueueData(headers, scrutiny) {
 
 // ── KPI rendering ─────────────────────────────────────────────────────────────
 function renderKpis() {
-  const visible = filteredRows.length ? filteredRows : rows;
+  // KPIs reflect the overall queue (full dataset) to avoid confusion
+  const visible = rows;
   const totalOpen = rows.filter(
     (r) => String(r.status || "").toUpperCase() !== "COA_GENERATED",
   ).length;
@@ -362,10 +460,11 @@ function applyLens() {
 
   // Sort: open / in-progress first, then by received date desc
   filteredRows.sort((a, b) => {
+    // Prefer Draft before In Progress for a logical workflow order
     const order = [
+      "DRAFT",
       "IN_PROGRESS",
       "PENDING_SCRUTINY",
-      "DRAFT",
       "SCRUTINY_PASSED",
       "APPROVED_FOR_COA",
       "COA_GENERATED",
@@ -402,6 +501,10 @@ function applySearch() {
         r.supplier_name_snapshot,
         r.status,
         r.analysis_subject_type,
+        formatSubjectLabel(r.analysis_subject_type),
+        formatModeLabel(r.analysis_mode),
+        formatStatusLabel(r.status),
+        formatSampleRef(r),
       ]
         .filter(Boolean)
         .join(" ")
@@ -417,9 +520,9 @@ function applySearch() {
 function updateRowCount(shown, total) {
   if (!labRowCount) return;
   if (shown === total) {
-    labRowCount.textContent = `Showing ${total} analys${total !== 1 ? "es" : "is"}`;
+    labRowCount.textContent = `Showing ${total} records`;
   } else {
-    labRowCount.textContent = `Showing ${shown} of ${total} analys${total !== 1 ? "es" : "is"}`;
+    labRowCount.textContent = `Showing ${shown} of ${total} records`;
   }
 }
 
@@ -428,8 +531,18 @@ function renderTable(displayRows) {
   tableBody.innerHTML = "";
 
   if (!displayRows || displayRows.length === 0) {
-    setStatus("No analyses found for this queue.");
+    // show subtle empty-state card inside table instead of hiding the table
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="9">
+          <div class="empty-state-card" style="padding:18px;border:1px solid var(--border,#e5e7eb);border-radius:8px;background:var(--panel-bg,#fff);">
+            <div style="font-weight:700;font-size:15px;color:var(--muted,#374151);">No analyses found for this queue.</div>
+            <div style="margin-top:6px;color:var(--muted,#6b7280);">Try clearing filters or refreshing the queue.</div>
+          </div>
+        </td>
+      </tr>`;
     labRowCount.textContent = "";
+    clearStatus();
     return;
   }
 
@@ -437,7 +550,13 @@ function renderTable(displayRows) {
 
   displayRows.forEach((r) => {
     const tr = document.createElement("tr");
-    tr.className = "lab-row";
+    // Add priority classes for visual signals
+    const failCount = Number(r.fail_count) || 0;
+    const missingCount = Number(r.missing_result_count) || 0;
+    let extraCls = "";
+    if (failCount > 0) extraCls = " row-fail";
+    else if (missingCount > 0) extraCls = " row-missing";
+    tr.className = `lab-row${extraCls}`;
     tr.tabIndex = 0;
     tr.setAttribute("role", "row");
 
@@ -453,7 +572,7 @@ function renderTable(displayRows) {
     const secondaryParts = [];
     if (r.stream_code) secondaryParts.push(escHtml(r.stream_code));
     if (
-      String(r.analysis_subject_type || "").toUpperCase() === "RM" &&
+      normalizeSubject(r.analysis_subject_type) === "RM" &&
       r.supplier_name_snapshot
     ) {
       secondaryParts.push(escHtml(r.supplier_name_snapshot));
@@ -514,6 +633,12 @@ function renderLensPills() {
 function openDetails(row) {
   selectedRow = row;
   historyLoaded = false;
+  // store previous focus for restoration when modal closes
+  try {
+    prevFocus = document.activeElement;
+  } catch {
+    prevFocus = null;
+  }
 
   modalTitle.textContent = row.analysis_register_no || "Analysis Details";
   modalSubtitle.innerHTML = [
@@ -521,6 +646,13 @@ function openDetails(row) {
     formatStatusChip(row.status),
     formatModeChip(row.analysis_mode),
   ].join(" ");
+
+  // Show View COA button only when a COA has been generated
+  const isCoa = String(row.status || "").toUpperCase() === "COA_GENERATED";
+  if (btnViewCoa) {
+    btnViewCoa.style.display = isCoa ? "" : "none";
+    btnViewCoa.title = isCoa ? "View Issued COA" : "COA not yet generated";
+  }
 
   // Reset to Overview tab
   setDrawerTab("overview");
@@ -539,6 +671,82 @@ function closeDetails() {
   detailsModal.classList.add("hidden");
   document.body.style.overflow = "";
   selectedRow = null;
+  // restore previous focus if possible
+  try {
+    if (prevFocus && typeof prevFocus.focus === "function") prevFocus.focus();
+  } catch {
+    // ignore
+  }
+  prevFocus = null;
+}
+
+// ── Open issued COA print page ──────────────────────────────────────────────
+async function openIssuedCoaForAnalysis(analysisId) {
+  if (!analysisId) return;
+  try {
+    const { data, error } = await labSupabase
+      .from("coa_issue")
+      .select("id, analysis_id, coa_no, is_current")
+      .eq("analysis_id", analysisId)
+      .eq("is_current", true)
+      .order("id", { ascending: false })
+      .limit(1);
+
+    if (error) throw error;
+
+    const record = Array.isArray(data) ? data[0] : null;
+    if (!record) {
+      showToast("Issued COA not found for this analysis", "warn");
+      return;
+    }
+
+    const base = window.location.pathname.replace(/\/[^/]+$/, "/");
+    const url =
+      base + "coa-print.html?coa_issue_id=" + encodeURIComponent(record.id);
+
+    try {
+      if (typeof Platform?.open === "function") {
+        Platform.open(url);
+        return;
+      }
+      if (typeof Platform?.navigate === "function") {
+        Platform.navigate(url);
+        return;
+      }
+    } catch (e) {
+      console.debug("[LAQ] Platform navigation failed, falling back:", e);
+    }
+
+    window.location.href = url;
+  } catch (err) {
+    console.error("[LAQ] openIssuedCoaForAnalysis error:", err);
+    showToast("Failed to look up issued COA: " + err.message, "error");
+  }
+}
+
+// ── Open analysis workspace (navigation helper) ─────────────────────────────
+function openAnalysisWorkspace(row) {
+  const target = row || selectedRow;
+  if (!target || !target.analysis_id) return;
+
+  const aid = String(target.analysis_id);
+  const base = window.location.pathname.replace(/\/[^/]+$/, "/");
+  const url = base + "analysis-workspace.html?id=" + encodeURIComponent(aid);
+
+  try {
+    if (typeof Platform?.open === "function") {
+      Platform.open(url);
+      return;
+    }
+    if (typeof Platform?.navigate === "function") {
+      Platform.navigate(url);
+      return;
+    }
+  } catch (e) {
+    console.debug("[LAQ] Platform navigation failed, falling back:", e);
+  }
+
+  window.location.href = url;
 }
 
 function setDrawerTab(tabId) {
@@ -640,12 +848,17 @@ function renderQueueSummary(row) {
 async function renderStatusHistory(analysisId) {
   if (historyLoaded) return;
 
+  if (!analysisId) {
+    statusHistoryContent.innerHTML = `<p style="font-size:13px;color:#92400e;padding:12px 0;">Analysis history cannot be loaded because analysis_id is unavailable.</p>`;
+    return;
+  }
+
   statusHistoryContent.innerHTML = `<p style="font-size:13px;color:var(--muted,#6b7280);padding:12px 0;">Loading status history…</p>`;
 
   try {
     const { data, error } = await labSupabase
       .from("analysis_status_history")
-      .select("previous_status, new_status, changed_at")
+      .select("old_status, new_status, changed_at")
       .eq("analysis_id", analysisId)
       .order("changed_at", { ascending: false });
 
@@ -661,9 +874,9 @@ async function renderStatusHistory(analysisId) {
       .map(
         (h) =>
           `<tr>
-            <td>${formatStatusChip(h.previous_status)}</td>
+            <td>${formatStatusChip(h.old_status)}</td>
             <td>${formatStatusChip(h.new_status)}</td>
-            <td>${escHtml(formatDate(h.changed_at))}</td>
+            <td>${escHtml(formatTimestamp(h.changed_at))}</td>
           </tr>`,
       )
       .join("");
@@ -692,23 +905,37 @@ function wireEvents() {
   // Refresh
   refreshBtn.addEventListener("click", () => loadQueue());
 
-  // Home
-  homeBtn.addEventListener("click", () => {
-    const base = window.location.pathname.replace(/\/[^/]+$/, "/");
-    window.location.href = base + "index.html";
-  });
+  // Home — use Platform.goHome if available, otherwise fallback to index.html
+  if (homeBtn) {
+    homeBtn.addEventListener("click", () => {
+      if (typeof Platform?.goHome === "function") {
+        Platform.goHome();
+      } else {
+        const base = window.location.pathname.replace(/\/[^/]+$/, "/");
+        window.location.href = base + "index.html";
+      }
+    });
+  }
 
   // Search
   labSearch.addEventListener("input", () => {
     searchTerm = labSearch.value;
     labSearchClear.classList.toggle("visible", searchTerm.length > 0);
-    applySearch();
+    if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(() => {
+      applySearch();
+      searchDebounceTimer = null;
+    }, 250);
   });
 
   labSearchClear.addEventListener("click", () => {
     labSearch.value = "";
     searchTerm = "";
     labSearchClear.classList.remove("visible");
+    if (searchDebounceTimer) {
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = null;
+    }
     labSearch.focus();
     applySearch();
   });
@@ -727,6 +954,22 @@ function wireEvents() {
   detailsModal.addEventListener("click", (e) => {
     if (e.target === detailsModal) closeDetails();
   });
+
+  // Open workspace from modal
+  if (btnOpenWorkspace) {
+    btnOpenWorkspace.addEventListener("click", () =>
+      openAnalysisWorkspace(selectedRow),
+    );
+  }
+
+  // View COA from modal
+  if (btnViewCoa) {
+    btnViewCoa.addEventListener("click", () => {
+      if (selectedRow?.analysis_id) {
+        openIssuedCoaForAnalysis(selectedRow.analysis_id);
+      }
+    });
+  }
 
   // Escape key
   document.addEventListener("keydown", (e) => {
@@ -756,30 +999,48 @@ async function init() {
   // Platform / session
   let userId = null;
   try {
-    const session = await Platform.getSession?.();
-    userId = session?.user?.id ?? null;
+    const { data: sessionData } = await supabase.auth.getSession();
+    const session = sessionData?.session ?? null;
+    if (session && session.user) userId = session.user.id;
+    else {
+      // fallback to platform helper if present
+      const p = await Platform.getSession?.();
+      userId = p?.user?.id ?? null;
+    }
   } catch {
     /* no session helper — skip */
   }
 
-  // Permission check
-  if (userId) {
-    const canView = await checkPermissions(userId);
-    if (!canView) {
-      setStatus(
-        "Access denied. You do not have permission to view this module.",
-        "error",
-      );
-      return;
+  // Permission check and redirect if no session
+  if (!userId) {
+    // mirror app behavior: redirect to login.html
+    try {
+      location.href = "login.html";
+    } catch {
+      setStatus("Access denied. Please login to continue.", "error");
     }
+    return;
+  }
+
+  const canView = await checkPermissions(userId);
+  if (!canView) {
+    setStatus(
+      "Access denied. You do not have permission to view this module.",
+      "error",
+    );
+    return;
   }
 
   // Wire events first so buttons work during loading
   wireEvents();
   renderLensPills();
+  updateFreshnessIndicator();
 
   // Load data
   await loadQueue();
+
+  // Re-run freshness label every 60 seconds so elapsed time stays accurate
+  setInterval(updateFreshnessIndicator, 60_000);
 }
 
 init();

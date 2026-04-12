@@ -136,6 +136,169 @@
         font-size: 0.85em;
         text-align: center;
       }
+
+      /* ─── Option A: Status Morph (card stays in place) ─────── */
+
+      /* Fade out the form content before injecting the status panel */
+      .login-container.lsp-active > *:not(.lsp-wrap) {
+        display: none;
+      }
+
+      /* Spinner keyframe */
+      @keyframes lsp-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Progress bar fill */
+      @keyframes lsp-bar {
+        from {
+          width: 0%;
+        }
+        to {
+          width: 100%;
+        }
+      }
+
+      /* Wrapper inside the card */
+      .lsp-wrap {
+        padding: 4px 0 8px;
+        animation: lsp-fade-in 0.25s ease;
+      }
+      @keyframes lsp-fade-in {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* Mini brand header inside the card */
+      .lsp-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 24px;
+      }
+      .lsp-brand-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 7px;
+        background: var(--primary);
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .lsp-brand-icon svg {
+        display: block;
+      }
+      .lsp-brand-text {
+        font-size: 0.82em;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--primary);
+      }
+      .lsp-brand-sub {
+        font-size: 0.72em;
+        color: #6b7280;
+        letter-spacing: 0.04em;
+        margin-top: 1px;
+      }
+
+      /* Step list */
+      .lsp-steps {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 13px;
+      }
+      .lsp-step {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+      }
+
+      /* Icon circle */
+      .lsp-icon {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        box-sizing: border-box;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      /* Pending: empty ring */
+      .lsp-step[data-state="pending"] .lsp-icon {
+        border: 2px solid #dde3ec;
+      }
+
+      /* Active: spinning arc, primary colour */
+      .lsp-step[data-state="active"] .lsp-icon {
+        border: 2px solid #d6e4f0;
+        border-top-color: var(--primary);
+        border-right-color: var(--primary);
+        animation: lsp-spin 0.65s linear infinite;
+      }
+
+      /* Done: filled circle with checkmark */
+      .lsp-step[data-state="done"] .lsp-icon {
+        background: var(--primary);
+        border: 2px solid var(--primary);
+      }
+      .lsp-step[data-state="done"] .lsp-icon::after {
+        content: "";
+        width: 5px;
+        height: 9px;
+        border: 2px solid #fff;
+        border-top: none;
+        border-left: none;
+        transform: rotate(45deg) translate(-1px, -1px);
+        display: block;
+      }
+
+      /* Labels */
+      .lsp-label {
+        font-size: 0.875em;
+        transition: color 0.2s;
+      }
+      .lsp-step[data-state="pending"] .lsp-label {
+        color: #b0bac6;
+      }
+      .lsp-step[data-state="active"] .lsp-label {
+        color: var(--primary);
+        font-weight: 600;
+      }
+      .lsp-step[data-state="done"] .lsp-label {
+        color: #374151;
+      }
+
+      /* Progress bar */
+      .lsp-bar-track {
+        margin-top: 28px;
+        height: 3px;
+        background: #e8edf3;
+        border-radius: 2px;
+        overflow: hidden;
+      }
+      .lsp-bar-fill {
+        height: 100%;
+        width: 0%;
+        background: var(--primary);
+        border-radius: 2px;
+        animation: lsp-bar 1.85s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      }
     </style>
     <script src="public/shared/js/seasonal-banners.js" defer></script>
   </head>

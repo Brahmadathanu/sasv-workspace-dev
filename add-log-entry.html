@@ -12,9 +12,6 @@
     <!-- 2) Your app styles -->
     <link rel="stylesheet" href="public/shared/css/style.css" />
 
-    <!-- Tom Select CSS (local) -->
-    <link rel="stylesheet" href="public/vendor/tom-select/tom-select.css" />
-
     <style>
       /* Form controls */
       input,
@@ -155,6 +152,110 @@
         overflow: hidden;
       }
 
+      /* ── Toast notifications ─────────────────────────────────────── */
+      #toastContainer {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-end;
+        pointer-events: none;
+      }
+      .toast {
+        display: flex;
+        align-items: center;
+        min-width: 260px;
+        max-width: 360px;
+        padding: 10px 14px;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        font-size: 13px;
+        font-weight: 500;
+        line-height: 1.4;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+        pointer-events: auto;
+        word-break: break-word;
+        opacity: 0;
+        transform: translateY(8px);
+        transition:
+          opacity 0.2s ease,
+          transform 0.2s ease;
+      }
+      .toast.toast-show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .toast-success {
+        background: #f0fdf4;
+        border-color: #86efac;
+        color: #166534;
+      }
+      .toast-error {
+        background: #fef2f2;
+        border-color: #fca5a5;
+        color: #991b1b;
+      }
+      .toast-warning {
+        background: #fffbeb;
+        border-color: #fde68a;
+        color: #92400e;
+      }
+      .toast-info {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+        color: #1e40af;
+      }
+      /* Dark-theme variants */
+      [data-theme="dark"] .toast-success {
+        background: #052e16;
+        border-color: #166534;
+        color: #bbf7d0;
+      }
+      [data-theme="dark"] .toast-error {
+        background: #450a0a;
+        border-color: #991b1b;
+        color: #fecaca;
+      }
+      [data-theme="dark"] .toast-warning {
+        background: #451a03;
+        border-color: #92400e;
+        color: #fde68a;
+      }
+      [data-theme="dark"] .toast-info {
+        background: #0f1e3d;
+        border-color: #1e40af;
+        color: #bfdbfe;
+      }
+
+      /* HOME button */
+      #homeBtn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        border: 1px solid #fdba74 !important;
+        border-radius: 6px;
+        background: #fed7aa !important;
+        color: #9a3412 !important;
+        cursor: pointer;
+        font-size: 0.875rem;
+        font-family: inherit;
+        font-weight: 500;
+        transition: all 0.2s;
+      }
+      #homeBtn:hover {
+        background: #fdba74 !important;
+        border-color: #fb923c !important;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      #homeBtn svg {
+        flex-shrink: 0;
+      }
+
       /* Quick modules bar */
       .quick-bar {
         display: flex;
@@ -218,7 +319,20 @@
         aria-label="Quick modules"
       ></div>
 
-      <button id="homeBtn">HOME</button>
+      <button id="homeBtn" aria-label="Home">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+          <polyline points="9,22 9,12 15,12 15,22" />
+        </svg>
+        HOME
+      </button>
     </div>
 
     <form id="logForm">
@@ -269,15 +383,9 @@
         </label>
         <label
           >Item:
-          <input
-            id="itemInput"
-            name="item"
-            list="itemList"
-            autocomplete="off"
-            required
-            placeholder="Type to search…"
-          />
-          <datalist id="itemList"></datalist>
+          <select id="itemInput" name="item" required>
+            <option value="">-- Select Item --</option>
+          </select>
         </label>
       </div>
 
@@ -572,6 +680,9 @@
       </div>
     </form>
 
+    <!-- Toast container -->
+    <div id="toastContainer"></div>
+
     <!-- Dialog overlay -->
     <div id="dialogOverlay">
       <div id="dialogBox">
@@ -637,8 +748,5 @@
 
     <!-- 4) Your renderer JS (init Flatpickr + all existing logic) -->
     <script type="module" src="js/log-add.js"></script>
-
-    <!-- Tom Select JS (local) -->
-    <script src="public/vendor/tom-select/tom-select.complete.min.js"></script>
   </body>
 </html>

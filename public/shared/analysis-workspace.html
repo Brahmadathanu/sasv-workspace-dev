@@ -1,0 +1,1110 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Analysis Workspace</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <style>
+      /* ── Layout ─────────────────────────────────────────────────────────── */
+      html,
+      body {
+        height: 100vh;
+        min-height: 100vh;
+        margin: 0;
+        overflow: hidden;
+        box-sizing: border-box;
+        font-family: system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        padding: 20px;
+        gap: 10px;
+      }
+      @media (max-width: 1080px) {
+        body {
+          padding: 10px;
+        }
+      }
+      @media (max-width: 520px) {
+        body {
+          padding: 6px;
+        }
+      }
+
+      /* ── Page header ─────────────────────────────────────────────────────── */
+      .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        flex-shrink: 0;
+      }
+      .page-header h1 {
+        margin: 0;
+        font-size: 1.3rem;
+        color: var(--primary, #005a8d);
+        line-height: 1.2;
+      }
+      .page-sub {
+        color: var(--muted, #6b7280);
+        font-size: 0.88rem;
+        margin-top: 3px;
+      }
+      @media (max-width: 520px) {
+        .page-header h1 {
+          font-size: 15px;
+          line-height: 1.1;
+        }
+        .page-sub {
+          display: none;
+        }
+      }
+
+      /* ── Read-only banner ────────────────────────────────────────────────── */
+      #readonlyBanner {
+        display: none;
+        background: #fffbeb;
+        color: #92400e;
+        border: 1px solid #fcd34d;
+        padding: 8px 14px;
+        border-radius: 7px;
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        flex-shrink: 0;
+        text-align: center;
+      }
+
+      /* ── Analysis detail card ────────────────────────────────────────────── */
+      .analysis-header-card {
+        background: var(--panel-bg, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        padding: 12px 16px;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 10px 20px;
+        flex-shrink: 0;
+      }
+      .detail-cell {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .detail-cell .dc-label {
+        font-size: 10.5px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted, #6b7280);
+      }
+      .detail-cell .dc-value {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-color, #111827);
+      }
+      @media (max-width: 700px) {
+        .analysis-header-card {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+
+      /* ── Validation panel ────────────────────────────────────────────────── */
+      .validation-panel {
+        background: var(--panel-bg, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        padding: 8px 14px;
+        display: flex;
+        gap: 18px;
+        align-items: center;
+        flex-wrap: wrap;
+        flex-shrink: 0;
+      }
+      .vp-label {
+        font-size: 10.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted, #6b7280);
+        margin-right: 2px;
+      }
+      .vp-count {
+        font-size: 0.83rem;
+        font-weight: 700;
+      }
+      .vp-count.vp-ok {
+        color: #16a34a;
+      }
+      .vp-count.vp-warn {
+        color: #d97706;
+      }
+      .vp-count.vp-danger {
+        color: #b91c1c;
+      }
+
+      /* ── Workflow action bar ──────────────────────────────────────────────── */
+      .action-bar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+        flex-shrink: 0;
+        padding: 8px 14px;
+        background: var(--panel-bg, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+      }
+      .btn-workflow {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 16px;
+        border-radius: 7px;
+        border: none;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        transition:
+          background 0.15s,
+          opacity 0.15s;
+        letter-spacing: 0.02em;
+      }
+      .btn-workflow:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+      }
+      .btn-submit {
+        background: #2563eb;
+        color: #fff;
+      }
+      .btn-submit:not(:disabled):hover {
+        background: #1d4ed8;
+      }
+      .btn-scrutiny {
+        background: #0891b2;
+        color: #fff;
+      }
+      .btn-scrutiny:not(:disabled):hover {
+        background: #0e7490;
+      }
+      .btn-approve {
+        background: #16a34a;
+        color: #fff;
+      }
+      .btn-approve:not(:disabled):hover {
+        background: #15803d;
+      }
+      .btn-coa {
+        background: #7c3aed;
+        color: #fff;
+      }
+      .btn-coa:not(:disabled):hover {
+        background: #6d28d9;
+      }
+      .btn-return {
+        background: #ea580c;
+        color: #fff;
+      }
+      .btn-return:not(:disabled):hover {
+        background: #c2410c;
+      }
+      .btn-reopen {
+        background: #0f766e;
+        color: #fff;
+      }
+      .btn-reopen:not(:disabled):hover {
+        background: #0d5f58;
+      }
+      .btn-view-coa {
+        background: #f0f9ff;
+        color: #0369a1;
+        border: 1px solid #bae6fd;
+      }
+      .btn-view-coa:not(:disabled):hover {
+        background: #e0f2fe;
+        border-color: #7dd3fc;
+      }
+      .action-bar-spacer {
+        flex: 1;
+      }
+
+      /* ── Results table wrapper ───────────────────────────────────────────── */
+      .results-wrap {
+        flex: 1 1 0;
+        min-height: 0;
+        overflow: auto;
+        background: var(--panel-bg, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        padding: 8px;
+      }
+      .results-wrap table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 860px;
+      }
+      .results-wrap thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: var(--panel-bg, #fafafa);
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--muted, #6b7280);
+        padding: 8px 10px;
+        text-align: left;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+        white-space: nowrap;
+      }
+      .results-wrap tbody td {
+        font-size: 13px;
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--table-divider, rgba(0, 0, 0, 0.04));
+        vertical-align: middle;
+        white-space: nowrap;
+      }
+      .results-wrap tbody tr:last-child td {
+        border-bottom: none;
+      }
+      .results-wrap tbody tr:hover td {
+        background: #f5f8ff;
+      }
+
+      /* ── Inline result inputs ────────────────────────────────────────────── */
+      .result-input,
+      .result-select {
+        background: #fff;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+        color: var(--text-color, #111827);
+        font: inherit;
+        font-size: 13px;
+        padding: 5px 8px;
+        min-width: 120px;
+        max-width: 180px;
+        outline: none;
+        transition: border-color 0.15s;
+      }
+      .result-input:focus,
+      .result-select:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
+      .result-input:disabled,
+      .result-select:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        background: #f9fafb;
+      }
+
+      /* ── Compliance badges ───────────────────────────────────────────────── */
+      .badge {
+        display: inline-block;
+        padding: 2px 9px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+      }
+      .badge-pass {
+        background: #f0fdf4;
+        color: #166534;
+        border: 1px solid #bbf7d0;
+      }
+      .badge-fail {
+        background: #fef2f2;
+        color: #b91c1c;
+        border: 1px solid #fecaca;
+      }
+      .badge-not-eval {
+        background: #fffbeb;
+        color: #92400e;
+        border: 1px solid #fde68a;
+      }
+      .badge-outsourced {
+        background: #f3e8ff;
+        color: #6b21a8;
+        border: 1px solid #e9d5ff;
+      }
+      .badge-inhouse {
+        background: #f0f9ff;
+        color: #075985;
+        border: 1px solid #bae6fd;
+      }
+      .badge-temp {
+        background: #fef3c7;
+        color: #92400e;
+        border: 1px solid #fcd34d;
+      }
+
+      /* ── Status chip (analysis level) ────────────────────────────────────── */
+      .status-chip {
+        display: inline-block;
+        padding: 2px 9px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        white-space: nowrap;
+      }
+      .sc-draft {
+        background: #f3f4f6;
+        color: #6b7280;
+      }
+      .sc-in-progress {
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+      .sc-scrutiny {
+        background: #fffbeb;
+        color: #92400e;
+        border: 1px solid #fcd34d;
+      }
+      .sc-scrutiny-pass {
+        background: #eef2ff;
+        color: #3730a3;
+      }
+      .sc-approved {
+        background: #f0fdf4;
+        color: #166534;
+      }
+      .sc-coa {
+        background: #ccfbf1;
+        color: #0f766e;
+        border: 1px solid #99f6e4;
+      }
+
+      /* ── Row action buttons (small) ──────────────────────────────────────── */
+      .btn-sm {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius: 5px;
+        border: 1px solid transparent;
+        font: inherit;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.14s;
+        white-space: nowrap;
+      }
+      .btn-sm:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+      .btn-ref {
+        background: #fffbeb;
+        color: #92400e;
+        border-color: #fcd34d;
+      }
+      .btn-ref:not(:disabled):hover {
+        background: #fef3c7;
+      }
+      .btn-outsourced {
+        background: #f3e8ff;
+        color: #6b21a8;
+        border-color: #e9d5ff;
+      }
+      .btn-outsourced:not(:disabled):hover {
+        background: #ede9fe;
+      }
+
+      /* ── Outsourced snapshot display ─────────────────────────────────────── */
+      .outsourced-info {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        font-size: 12px;
+        color: var(--muted, #6b7280);
+      }
+      .outsourced-info strong {
+        color: #6b21a8;
+        font-weight: 600;
+      }
+
+      /* ── Header icon button (parity with lab-analysis-queue) ─────────────── */
+      .icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 7px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+        background: var(--panel-bg);
+        cursor: pointer;
+        color: inherit;
+      }
+      .icon-btn:hover {
+        background: #f3f4f6;
+      }
+      #homeBtn {
+        gap: 5px;
+        padding: 7px 10px;
+      }
+      #homeBtn .home-label {
+        display: inline;
+      }
+      @media (max-width: 520px) {
+        #homeBtn .home-label {
+          display: none;
+        }
+        #homeBtn {
+          padding-left: 8px;
+          padding-right: 8px;
+        }
+      }
+
+      /* ── Toast notifications ─────────────────────────────────────────────── */
+      #toastContainer {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-end;
+        pointer-events: none;
+      }
+      .toast {
+        display: flex;
+        align-items: center;
+        padding: 10px 14px;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        font-size: 13px;
+        font-weight: 500;
+        max-width: 340px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+        pointer-events: auto;
+        animation: toastIn 0.2s ease forwards;
+        line-height: 1.4;
+      }
+      @keyframes toastIn {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .toast-success {
+        background: #f0fdf4;
+        border-color: #86efac;
+        color: #166534;
+      }
+      .toast-info {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+        color: #1e40af;
+      }
+      .toast-warn {
+        background: #fffbeb;
+        border-color: #fde68a;
+        color: #92400e;
+      }
+      .toast-error {
+        background: #fef2f2;
+        border-color: #fca5a5;
+        color: #991b1b;
+      }
+
+      /* ── Modals ──────────────────────────────────────────────────────────── */
+      .modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+      }
+      .modal-overlay.open {
+        display: flex;
+      }
+      .modal-box {
+        background: var(--panel-bg, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 10px;
+        padding: 22px 26px;
+        width: min(480px, 94vw);
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+      }
+      .modal-overlay#outsourcedModal .modal-box {
+        width: min(520px, 94vw);
+      }
+      .modal-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--text-color, #111827);
+        margin: 0 0 4px;
+      }
+      .modal-sub {
+        font-size: 12px;
+        color: var(--muted, #6b7280);
+        margin-bottom: 16px;
+      }
+      .modal-field {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-bottom: 12px;
+      }
+      .modal-field label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--muted, #6b7280);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .modal-field input,
+      .modal-field select,
+      .modal-field textarea {
+        background: var(--bg-color, #f7f9fb);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+        color: var(--text-color, #111827);
+        font: inherit;
+        font-size: 13px;
+        padding: 7px 10px;
+        resize: vertical;
+        outline: none;
+        transition: border-color 0.15s;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .modal-field select {
+        resize: none;
+      }
+      .modal-field input:focus,
+      .modal-field select:focus,
+      .modal-field textarea:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
+      .modal-divider {
+        border: none;
+        border-top: 1px solid var(--border, #e5e7eb);
+        margin: 14px 0;
+      }
+      .modal-exception-section {
+        background: #fffbeb;
+        border: 1px solid #fcd34d;
+        border-radius: 7px;
+        padding: 11px 13px;
+        margin-bottom: 16px;
+      }
+      .modal-exception-section p {
+        margin: 0 0 10px;
+        font-size: 12.5px;
+        color: #92400e;
+      }
+      .modal-footer {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+      }
+      .btn-modal {
+        padding: 7px 16px;
+        border-radius: 6px;
+        border: 1px solid transparent;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background 0.15s;
+      }
+      .btn-modal-cancel {
+        background: var(--bg-color, #f3f4f6);
+        color: var(--muted, #6b7280);
+        border-color: var(--border, #e5e7eb);
+      }
+      .btn-modal-cancel:hover {
+        background: #e5e7eb;
+      }
+      .btn-modal-save {
+        background: #2563eb;
+        color: #fff;
+      }
+      .btn-modal-save:hover {
+        background: #1d4ed8;
+      }
+      .btn-modal-exception {
+        background: #fef3c7;
+        color: #92400e;
+        border-color: #fcd34d;
+      }
+      .btn-modal-exception:hover {
+        background: #fde68a;
+      }
+
+      /* ── Loading overlay ─────────────────────────────────────────────────── */
+      #loadingOverlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(2px);
+        z-index: 800;
+        align-items: center;
+        justify-content: center;
+      }
+      #loadingOverlay.open {
+        display: flex;
+      }
+      .loading-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+        background: #fff;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 12px;
+        padding: 28px 40px;
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
+      }
+      .loading-spinner {
+        width: 34px;
+        height: 34px;
+        border: 3px solid #e5e7eb;
+        border-top-color: var(--primary, #005a8d);
+        border-radius: 50%;
+        animation: spin 0.75s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .loading-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--muted, #6b7280);
+        letter-spacing: 0.04em;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ── Page header ──────────────────────────────────────────────────────── -->
+    <div class="page-header">
+      <div>
+        <h1>Analysis Workspace</h1>
+        <div class="page-sub" id="pageSubtitle">Loading analysis…</div>
+      </div>
+      <div style="display: flex; align-items: stretch; gap: 8px">
+        <button
+          id="refreshBtn"
+          type="button"
+          title="Refresh"
+          aria-label="Refresh"
+          class="icon-btn"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0114.13-3.36L23 10"></path>
+            <path d="M20.49 15a9 9 0 01-14.13 3.36L1 14"></path>
+          </svg>
+        </button>
+        <button
+          id="homeBtn"
+          type="button"
+          class="icon-btn"
+          title="Home"
+          aria-label="Home"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9,22 9,12 15,12 15,22" />
+          </svg>
+          <span class="home-label">HOME</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Read-only banner ─────────────────────────────────────────────────── -->
+    <div id="readonlyBanner">
+      &#128274; Read Only — COA has been generated. No further edits are
+      permitted.
+    </div>
+
+    <!-- ── Analysis detail card ─────────────────────────────────────────────── -->
+    <div class="analysis-header-card" id="analysisHeaderCard">
+      <div class="detail-cell">
+        <span class="dc-label">Register No</span>
+        <span class="dc-value" id="hdrRegisterNo">—</span>
+      </div>
+      <div class="detail-cell">
+        <span class="dc-label">Item</span>
+        <span class="dc-value" id="hdrItemName">—</span>
+      </div>
+      <div class="detail-cell">
+        <span class="dc-label">Batch / Lot</span>
+        <span class="dc-value" id="hdrBatch">—</span>
+      </div>
+      <div class="detail-cell">
+        <span class="dc-label">Status</span>
+        <span class="dc-value" id="hdrStatus">—</span>
+      </div>
+      <div class="detail-cell">
+        <span class="dc-label">Mode</span>
+        <span class="dc-value" id="hdrMode">—</span>
+      </div>
+      <div class="detail-cell">
+        <span class="dc-label">Sample Received</span>
+        <span class="dc-value" id="hdrSampleDate">—</span>
+      </div>
+    </div>
+
+    <!-- ── Validation panel ────────────────────────────────────────────────── -->
+    <div class="validation-panel" id="validationPanel">
+      <span class="vp-label">Validation</span>
+      <span>
+        <span class="vp-label">Missing</span>
+        <span class="vp-count" id="vpMissing">—</span>
+      </span>
+      <span>
+        <span class="vp-label">Failed</span>
+        <span class="vp-count" id="vpFailed">—</span>
+      </span>
+      <span>
+        <span class="vp-label">Not Evaluated</span>
+        <span class="vp-count" id="vpNotEval">—</span>
+      </span>
+      <span>
+        <span class="vp-label">Ref. Missing</span>
+        <span class="vp-count" id="vpRefMissing">—</span>
+      </span>
+    </div>
+
+    <!-- ── Workflow action bar ───────────────────────────────────────────────── -->
+    <div class="action-bar" id="actionBar">
+      <button class="btn-workflow btn-submit" id="btnSubmitScrutiny" disabled>
+        Submit for Scrutiny
+      </button>
+      <button class="btn-workflow btn-scrutiny" id="btnPassScrutiny" disabled>
+        Pass Scrutiny
+      </button>
+      <button class="btn-workflow btn-approve" id="btnApproveForCoa" disabled>
+        Approve for COA
+      </button>
+      <button class="btn-workflow btn-coa" id="btnIssueCoa" disabled>
+        Issue COA
+      </button>
+      <button
+        class="btn-workflow btn-return"
+        id="btnReturnForCorrection"
+        disabled
+      >
+        Return for Correction
+      </button>
+      <button
+        class="btn-workflow btn-reopen"
+        id="btnReopenAfterApproval"
+        disabled
+      >
+        Reopen After Approval
+      </button>
+      <div class="action-bar-spacer"></div>
+      <button
+        class="btn-workflow btn-view-coa"
+        id="btnViewCoa"
+        disabled
+        title="Open the issued Certificate of Analysis"
+      >
+        View COA
+      </button>
+      <span
+        id="actionBarStatus"
+        style="font-size: 12px; color: var(--muted)"
+      ></span>
+    </div>
+
+    <!-- ── Results table ─────────────────────────────────────────────────────── -->
+    <div class="results-wrap" id="resultsWrap">
+      <table id="resultsTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Test Name</th>
+            <th>Method</th>
+            <th>Specification</th>
+            <th>Result Input</th>
+            <th>Result Display</th>
+            <th>Compliance</th>
+            <th>Source</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="resultsBody">
+          <tr>
+            <td
+              colspan="9"
+              style="text-align: center; padding: 28px; color: var(--muted)"
+            >
+              Loading results…
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── Reference capture modal ──────────────────────────────────────────── -->
+    <div
+      class="modal-overlay"
+      id="referenceModal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="refModalTitle"
+    >
+      <div class="modal-box">
+        <p class="modal-title" id="refModalTitle">Add Reference</p>
+        <p class="modal-sub" id="refModalSub">
+          Enter the actual reference for this test.
+        </p>
+
+        <div class="modal-field">
+          <label for="refValueInput">Reference Value / Range</label>
+          <input
+            type="text"
+            id="refValueInput"
+            placeholder="e.g. 98.0 – 102.0% or Absent"
+            autocomplete="off"
+          />
+        </div>
+        <div class="modal-field">
+          <label for="refNoteInput">Note (optional)</label>
+          <textarea
+            id="refNoteInput"
+            rows="2"
+            placeholder="Additional context…"
+          ></textarea>
+        </div>
+
+        <hr class="modal-divider" />
+
+        <div class="modal-exception-section">
+          <p>
+            &#9888; Alternatively, allow a
+            <strong>one-time exception</strong> to proceed without a formal
+            reference. This will be flagged as TEMP.
+          </p>
+          <button class="btn-modal btn-modal-exception" id="btnAddException">
+            Allow One-Time Exception
+          </button>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-modal btn-modal-cancel" id="btnRefCancel">
+            Cancel
+          </button>
+          <button class="btn-modal btn-modal-save" id="btnRefSave">
+            Save Reference
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Outsourced edit modal ─────────────────────────────────────────────── -->
+    <div
+      class="modal-overlay"
+      id="outsourcedModal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="outModalTitle"
+    >
+      <div class="modal-box">
+        <p class="modal-title" id="outModalTitle">Edit Outsourced Source</p>
+        <p class="modal-sub">
+          Update laboratory and certificate details for this result.
+        </p>
+
+        <div class="modal-field">
+          <label for="outLabName">Laboratory Name</label>
+          <input
+            type="text"
+            id="outLabName"
+            placeholder="e.g. Eurofins Scientific"
+            autocomplete="off"
+          />
+        </div>
+        <div class="modal-field">
+          <label for="outCoaNumber">COA Number</label>
+          <input
+            type="text"
+            id="outCoaNumber"
+            placeholder="e.g. COA-20240412-001"
+            autocomplete="off"
+          />
+        </div>
+        <div class="modal-field">
+          <label for="outCoaDate">COA Date</label>
+          <input type="date" id="outCoaDate" />
+        </div>
+        <div class="modal-field">
+          <label for="outResultValue">Result Value (from COA)</label>
+          <input
+            type="text"
+            id="outResultValue"
+            placeholder="Enter the reported value"
+            autocomplete="off"
+          />
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-modal btn-modal-cancel" id="btnOutCancel">
+            Cancel
+          </button>
+          <button class="btn-modal btn-modal-save" id="btnOutSave">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Issue COA modal ───────────────────────────────────────────────────── -->
+    <div
+      class="modal-overlay"
+      id="issueCoaModal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="issueCoaModalTitle"
+    >
+      <div class="modal-box" style="width: min(520px, 94vw)">
+        <p class="modal-title" id="issueCoaModalTitle">
+          Issue Certificate of Analysis
+        </p>
+        <p class="modal-sub">
+          Complete all fields before issuing. This will lock the analysis
+          permanently.
+        </p>
+
+        <div class="modal-field">
+          <label for="coaIssueDate"
+            >Issue Date <span style="color: #b91c1c">*</span></label
+          >
+          <input type="date" id="coaIssueDate" />
+        </div>
+        <div class="modal-field">
+          <label for="coaPreparedBy"
+            >Prepared By <span style="color: #b91c1c">*</span></label
+          >
+          <select id="coaPreparedBy">
+            <option value="">— Select staff —</option>
+          </select>
+        </div>
+        <div class="modal-field">
+          <label for="coaCheckedBy"
+            >Checked By <span style="color: #b91c1c">*</span></label
+          >
+          <select id="coaCheckedBy">
+            <option value="">— Select staff —</option>
+          </select>
+        </div>
+        <div class="modal-field">
+          <label for="coaApprovedBy"
+            >Approved By <span style="color: #b91c1c">*</span></label
+          >
+          <select id="coaApprovedBy">
+            <option value="">— Select staff —</option>
+          </select>
+        </div>
+        <div class="modal-field">
+          <label for="coaRemarks">Remarks (optional)</label>
+          <textarea
+            id="coaRemarks"
+            rows="2"
+            placeholder="Any remarks for the COA record…"
+          ></textarea>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-modal btn-modal-cancel" id="btnIssueCoaCancel">
+            Cancel
+          </button>
+          <button
+            class="btn-modal btn-modal-save"
+            id="btnIssueCoaConfirm"
+            style="background: #7c3aed"
+          >
+            Final Issue COA
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Issue COA confirmation modal ─────────────────────────────────────── -->
+    <div
+      class="modal-overlay"
+      id="issueCoaConfirmModal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="issueCoaConfirmModalTitle"
+    >
+      <div class="modal-box" style="width: min(420px, 94vw)">
+        <p class="modal-title" id="issueCoaConfirmModalTitle">
+          Confirm COA Issuance
+        </p>
+        <p class="modal-sub">
+          This will generate and lock the COA for this analysis. Continue?
+        </p>
+        <div class="modal-footer" style="margin-top: 20px">
+          <button
+            class="btn-modal btn-modal-cancel"
+            id="btnIssueCoaConfirmCancel"
+          >
+            Cancel
+          </button>
+          <button
+            class="btn-modal btn-modal-save"
+            id="btnIssueCoaConfirmProceed"
+            style="background: #b91c1c"
+          >
+            Yes, Issue COA
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Loading overlay ──────────────────────────────────────────────────── -->
+    <div id="loadingOverlay">
+      <div class="loading-card">
+        <div class="loading-spinner"></div>
+        <span class="loading-label">Processing…</span>
+      </div>
+    </div>
+
+    <!-- ── Toast container ──────────────────────────────────────────────────── -->
+    <div id="toastContainer" aria-live="polite"></div>
+
+    <!-- ── Module script ────────────────────────────────────────────────────── -->
+    <script type="module" src="js/analysis-workspace.js"></script>
+  </body>
+</html>

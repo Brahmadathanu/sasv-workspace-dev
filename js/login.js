@@ -35,6 +35,92 @@ function setLoading(
   }
 }
 
+/**
+ * Option A — "Status Morph": the login card stays in place.
+ * The form fades out and is replaced by a step-by-step status list
+ * + a bottom progress bar, all within the same white card.
+ * Steps auto-advance on timers; no external HTML element needed.
+ */
+async function showLoadingTransition() {
+  const card = document.querySelector(".login-container");
+  if (!card) return;
+
+  // Resolve the app version dynamically so it always matches package.json
+  let appVersion = "";
+  try {
+    if (window?.electronAPI?.getAppVersion) {
+      appVersion = await window.electronAPI.getAppVersion();
+    }
+  } catch {
+    /* non-Electron context — leave blank */
+  }
+  const versionLabel = appVersion ? `v${appVersion}` : "";
+
+  const steps = [
+    { label: "Authenticated", delay: 0 },
+    { label: "Loading profile & roles", delay: 480 },
+    { label: "Syncing module permissions", delay: 960 },
+    { label: "Preparing workspace", delay: 1440 },
+  ];
+
+  // Brand icon: a minimal grid mark that matches the ERP feel
+  const iconSvg = `<svg width="17" height="17" viewBox="0 0 17 17" fill="none"
+      xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <rect x="1" y="1" width="6" height="6" rx="1.5" fill="rgba(255,255,255,0.9)"/>
+    <rect x="10" y="1" width="6" height="6" rx="1.5" fill="rgba(255,255,255,0.9)"/>
+    <rect x="1" y="10" width="6" height="6" rx="1.5" fill="rgba(255,255,255,0.9)"/>
+    <rect x="10" y="10" width="6" height="6" rx="1.5" fill="rgba(255,255,255,0.55)"/>
+  </svg>`;
+
+  const stepItems = steps
+    .map(
+      (s, i) => `
+    <li class="lsp-step" id="lsp-step-${i}" data-state="pending" aria-label="${s.label}">
+      <span class="lsp-icon" aria-hidden="true"></span>
+      <span class="lsp-label">${s.label}</span>
+    </li>`,
+    )
+    .join("");
+
+  card.classList.add("lsp-active");
+  card.insertAdjacentHTML(
+    "beforeend",
+    `<div class="lsp-wrap" role="status" aria-live="polite" aria-label="Signing in">
+      <div class="lsp-brand">
+        <div class="lsp-brand-icon">${iconSvg}</div>
+        <div>
+          <div class="lsp-brand-text">SASV Workspace</div>
+          <div class="lsp-brand-sub">${versionLabel}</div>
+        </div>
+      </div>
+      <ul class="lsp-steps">${stepItems}</ul>
+      <div class="lsp-bar-track" aria-hidden="true">
+        <div class="lsp-bar-fill"></div>
+      </div>
+    </div>`,
+  );
+
+  // Drive step state transitions via staggered timers
+  steps.forEach(({ delay }, i) => {
+    setTimeout(() => {
+      // Mark previous step done
+      if (i > 0) {
+        const prev = document.getElementById(`lsp-step-${i - 1}`);
+        if (prev) prev.dataset.state = "done";
+      }
+      // Activate current step
+      const el = document.getElementById(`lsp-step-${i}`);
+      if (el) el.dataset.state = "active";
+      // If last step, mark it done after a brief pause
+      if (i === steps.length - 1) {
+        setTimeout(() => {
+          if (el) el.dataset.state = "done";
+        }, 380);
+      }
+    }, delay);
+  });
+}
+
 function setEyeIcon(showing) {
   if (!togglePwdBtn) return;
   const eyeOpen =
@@ -65,6 +151,10 @@ async function signIn() {
       errorMsg.textContent = error.message;
       return;
     }
+
+    // Show the pharma-grade skeleton workspace immediately after auth.
+    await showLoadingTransition();
+    const _transitionStart = Date.now();
 
     // After successful sign-in, obtain the full user object and enrich
     // it with profile/roles and permissions so the main process can use
@@ -158,6 +248,12 @@ async function signIn() {
     } else {
       localStorage.removeItem("login_email");
     }
+    // Guarantee all status steps have finished animating before redirect.
+    // Last step fires at 1440 ms + 380 ms done-pause = ~1820 ms total.
+    const _elapsed = Date.now() - _transitionStart;
+    const _remaining = Math.max(0, 1900 - _elapsed);
+    if (_remaining > 0) await new Promise((r) => setTimeout(r, _remaining));
+
     window.location.href = "index.html";
   } finally {
     setLoading(false, { button: signInBtn });
