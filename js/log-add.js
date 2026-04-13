@@ -275,25 +275,59 @@ const populate = (sel, rows, vKey, tKey, ph) =>
     rows.map((r) => `<option value="${r[vKey]}">${r[tKey]}</option>`).join(""));
 /* duplicateMessage removed: server now handles duplicates via RPC */
 
+/* ───────────────────────  PAGINATION HELPER  ────────────────────────── */
+/**
+ * fetchAll(buildQuery)
+ * Repeatedly fetches pages of PAGE_SIZE until Supabase returns fewer rows
+ * than the page size, then returns the concatenated result.
+ * buildQuery must be a function that accepts (from, to) and returns a
+ * Supabase query builder with .range() applied:
+ *   (from, to) => supabase.from(...).select(...).order(...).range(from, to)
+ */
+const PAGE_SIZE = 1000;
+async function fetchAll(buildQuery) {
+  let all = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await buildQuery(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+    if (!data || !data.length) break;
+    all = all.concat(data);
+    if (data.length < PAGE_SIZE) break; // last page
+    from += PAGE_SIZE;
+  }
+  return all;
+}
+
 /* ────────────────────────────  LOAD ACTIVITIES  ─────────────────────── */
 async function loadActivities() {
   // Disable native select while fetching
   activitySel.disabled = true;
 
-  // Build the same query as before
-  let q = supabase.from("activities").select("activity_name,duration_days");
-  if (areaSel.value) q = q.eq("area_id", areaSel.value);
-  else if (subSel.value)
-    q = q.eq("sub_section_id", subSel.value).is("area_id", null);
-  else if (sectionSel.value)
-    q = q
-      .eq("section_id", sectionSel.value)
-      .is("sub_section_id", null)
-      .is("area_id", null);
+  // Build filter params
+  const areaId = areaSel.value || null;
+  const subId = subSel.value || null;
+  const secId = sectionSel.value || null;
 
-  const { data, error } = await q.order("activity_name");
-  if (error) {
-    console.error(error);
+  let data;
+  try {
+    data = await fetchAll((from, to) => {
+      let q = supabase
+        .from("activities")
+        .select("activity_name,duration_days")
+        .order("activity_name")
+        .range(from, to);
+      if (areaId) q = q.eq("area_id", areaId);
+      else if (subId) q = q.eq("sub_section_id", subId).is("area_id", null);
+      else if (secId)
+        q = q
+          .eq("section_id", secId)
+          .is("sub_section_id", null)
+          .is("area_id", null);
+      return q;
+    });
+  } catch (err) {
+    console.error("loadActivities error:", err);
     return;
   }
 
@@ -769,16 +803,23 @@ window.addEventListener("DOMContentLoaded", async () => {
       populate(sectionSel, data, "id", "section_name", "-- Select Section --");
   }
   {
-    const { data } = await supabase
-      .from("bmr_details")
-      .select("item")
-      .order("item");
-    if (data) {
-      const uniq = [...new Set(data.map((r) => r.item))].map((item) => ({
-        item,
-      }));
-      populate(itemInput, uniq, "item", "item", "-- Select Item --");
+    let items;
+    try {
+      items = await fetchAll((from, to) =>
+        supabase
+          .from("bmr_details")
+          .select("item")
+          .order("item")
+          .range(from, to),
+      );
+    } catch (err) {
+      console.error("Item list load error:", err);
+      items = [];
     }
+    const uniq = [...new Set(items.map((r) => r.item))].map((item) => ({
+      item,
+    }));
+    populate(itemInput, uniq, "item", "item", "-- Select Item --");
   }
 
   // ── Build skip list from event_type_lkp -------------------------------
