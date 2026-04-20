@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Manage BMR</title>
+    <link rel="stylesheet" href="./css/style.css" />
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        font-family: system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+      }
+      body {
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        background: var(--bg-color, #f8fafc);
+        color: var(--text-color, #0f172a);
+      }
+      .header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 1.15rem;
+        color: var(--primary, #2563eb);
+      }
+      .subtitle {
+        margin-top: 3px;
+        font-size: 12px;
+        color: var(--muted, #64748b);
+      }
+      .header-actions {
+        display: flex;
+        gap: 8px;
+      }
+      .btn {
+        border: 1px solid var(--border, #dbe2ea);
+        border-radius: 8px;
+        background: #fff;
+        color: #0f172a;
+        padding: 8px 12px;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      .btn.primary {
+        background: var(--primary, #2563eb);
+        color: #fff;
+        border-color: var(--primary, #2563eb);
+      }
+      .btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      #statusArea {
+        display: none;
+        font-size: 13px;
+        border-radius: 8px;
+        padding: 10px 12px;
+        border: 1px solid transparent;
+      }
+      #statusArea[data-type="error"] {
+        display: block;
+        color: #991b1b;
+        background: #fef2f2;
+        border-color: #fecaca;
+      }
+      #statusArea[data-type="warn"] {
+        display: block;
+        color: #92400e;
+        background: #fffbeb;
+        border-color: #fde68a;
+      }
+      .tabs {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+      }
+      .tab-btn {
+        border: 1px solid var(--border, #dbe2ea);
+        border-radius: 999px;
+        background: #fff;
+        padding: 7px 14px;
+        font-size: 12.5px;
+        font-weight: 700;
+        color: #475569;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .tab-btn.active {
+        background: var(--primary, #2563eb);
+        border-color: var(--primary, #2563eb);
+        color: #fff;
+      }
+      .layout {
+        min-height: 0;
+        flex: 1 1 auto;
+      }
+      .panel {
+        display: none;
+        background: #fff;
+        border: 1px solid var(--border, #e2e8f0);
+        border-radius: 10px;
+        padding: 12px;
+      }
+      .panel.active {
+        display: block;
+      }
+      .section-title {
+        margin: 0 0 10px;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--muted, #64748b);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .grid-3 {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+      label {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #334155;
+      }
+      input,
+      select {
+        border: 1px solid var(--border, #d1d9e6);
+        border-radius: 7px;
+        padding: 7px 9px;
+        font-size: 13px;
+        background: #fff;
+      }
+      .row-actions {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .ghost {
+        background: transparent;
+      }
+      .muted {
+        color: var(--muted, #64748b);
+        font-size: 12px;
+      }
+      .table-wrap {
+        margin-top: 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        overflow: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        padding: 8px;
+        border-bottom: 1px solid #edf2f7;
+        font-size: 12.5px;
+        text-align: left;
+      }
+      th {
+        background: #f8fafc;
+        color: #64748b;
+        text-transform: uppercase;
+        font-size: 11px;
+        letter-spacing: 0.03em;
+      }
+      .kpi-row {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .kpi {
+        border: 1px solid #e2e8f0;
+        border-left: 4px solid #2563eb;
+        border-radius: 8px;
+        background: #fff;
+        padding: 8px;
+      }
+      .kpi .k {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #64748b;
+      }
+      .kpi .v {
+        font-size: 20px;
+        font-weight: 800;
+        color: #0f172a;
+      }
+      .hidden {
+        display: none !important;
+      }
+      @media (max-width: 900px) {
+        .grid,
+        .grid-3,
+        .kpi-row {
+          grid-template-columns: 1fr;
+        }
+        body {
+          padding: 8px;
+        }
+        .subtitle {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <div>
+        <h1>Manage BMR</h1>
+        <div class="subtitle">
+          Unified Batch Manufacturing Record console for create, maintain and
+          explore
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="refreshBtn" class="btn" type="button">Refresh</button>
+        <button id="homeBtn" class="btn" type="button">Home</button>
+      </div>
+    </div>
+
+    <div id="statusArea" role="status" aria-live="polite"></div>
+
+    <div id="tabBar" class="tabs" role="tablist">
+      <button class="tab-btn" data-tab="add" type="button">Create BN</button>
+      <button class="tab-btn" data-tab="manage" type="button">Manage BMR</button>
+      <button class="tab-btn" data-tab="explore" type="button">
+        BMR Explorer
+      </button>
+    </div>
+
+    <div class="layout">
+      <section id="panel-add" class="panel">
+        <h2 class="section-title">Create BMR Entries</h2>
+        <div class="grid">
+          <label>
+            CSV File
+            <input id="csvFile" type="file" accept=".csv" />
+          </label>
+          <div class="row-actions" style="align-self: end">
+            <button id="downloadTemplate" class="btn ghost" type="button">
+              Download Template
+            </button>
+            <button id="uploadCsv" class="btn" type="button">Preview CSV</button>
+          </div>
+        </div>
+
+        <div class="table-wrap" style="margin-top: 12px">
+          <table id="createTable">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>BN</th>
+                <th>Batch Size</th>
+                <th>UOM</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="createTableBody"></tbody>
+          </table>
+        </div>
+        <datalist id="itemList"></datalist>
+        <div class="row-actions" style="margin-top: 10px">
+          <button id="addRowBtn" class="btn ghost" type="button">Add Row</button>
+          <button id="clearRowsBtn" class="btn ghost" type="button">Clear</button>
+          <button id="submitCreateBtn" class="btn primary" type="button">
+            Create Entries
+          </button>
+        </div>
+      </section>
+
+      <section id="panel-manage" class="panel">
+        <h2 class="section-title">Maintain Existing BMR</h2>
+        <div class="grid-3">
+          <label>
+            Item
+            <select id="manageFilterItem">
+              <option value="">All</option>
+            </select>
+          </label>
+          <label>
+            BN
+            <input id="manageFilterBn" type="text" placeholder="Exact BN" />
+          </label>
+          <div class="row-actions" style="align-self: end">
+            <button id="manageClearBtn" class="btn ghost" type="button">
+              Clear
+            </button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>BN</th>
+                <th>Batch Size</th>
+                <th>UOM</th>
+                <th>Mapped</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="manageTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="panel-explore" class="panel">
+        <h2 class="section-title">BMR Explorer</h2>
+        <div class="kpi-row">
+          <div class="kpi"><div class="k">Rows</div><div id="kpiRows" class="v">0</div></div>
+          <div class="kpi"><div class="k">Unique Items</div><div id="kpiItems" class="v">0</div></div>
+          <div class="kpi"><div class="k">Visible BN</div><div id="kpiBn" class="v">0</div></div>
+          <div class="kpi"><div class="k">Avg Batch Size</div><div id="kpiAvg" class="v">0</div></div>
+        </div>
+
+        <div class="grid-3">
+          <label>
+            Category
+            <select id="filterCategory"><option value="">Category</option></select>
+          </label>
+          <label>
+            Subcategory
+            <select id="filterSubCategory" disabled>
+              <option value="">Subcategory</option>
+            </select>
+          </label>
+          <label>
+            Group
+            <select id="filterGroup" disabled><option value="">Group</option></select>
+          </label>
+          <label>
+            Sub-group
+            <select id="filterSubGroup" disabled>
+              <option value="">Sub-group</option>
+            </select>
+          </label>
+          <label>
+            Item
+            <select id="filterItem"><option value="">Item</option></select>
+          </label>
+          <label>
+            BN
+            <select id="filterBn" disabled><option value="">BN</option></select>
+          </label>
+        </div>
+        <div class="row-actions" style="margin-top: 8px">
+          <button id="clearExploreBtn" class="btn ghost" type="button">Clear</button>
+          <span id="exploreCount" class="muted"></span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>BN</th>
+                <th>Batch Size</th>
+                <th>UOM</th>
+              </tr>
+            </thead>
+            <tbody id="exploreTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <script type="module" src="./js/manage-bmr.js"></script>
+  </body>
+</html>

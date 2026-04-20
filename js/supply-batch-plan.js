@@ -2739,7 +2739,7 @@ function renderBatches() {
       menuItems = [
         `<button class="kebab-item" data-batch="${r.batch_id}" onclick="onPickBmrForBatch(event)">Pick BN</button>`,
         `<button class="kebab-item" data-batch="${r.batch_id}" onclick="onMapByBN(event)">Map by BN</button>`,
-        `<button class="kebab-item" onclick="window.open('add-bmr-entry.html?item=${encodeURIComponent(
+        `<button class="kebab-item" onclick="window.open('public/shared/manage-bmr.html?item=${encodeURIComponent(
           productDisplay
         )}&size=${encodeURIComponent(
           String(formatExact(r.batch_size ?? 0))
@@ -2748,7 +2748,7 @@ function renderBatches() {
     } else {
       // mapped or WIP
       menuItems = [
-        `<button class="kebab-item" onclick="window.location.href='view-bmr-entry.html?item=${encodeURIComponent(
+        `<button class="kebab-item" onclick="window.location.href='public/shared/manage-bmr.html?item=${encodeURIComponent(
           productDisplay
         )}&bn=${encodeURIComponent(r.mapped_bn || "")}'">View BMR</button>`,
         `<button class="kebab-item" data-batch="${
