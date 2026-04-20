@@ -12,8 +12,23 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 // ---------------- Electron & deps ----------------
-const { app, BrowserWindow, ipcMain, dialog } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, nativeImage } = require("electron");
 const path = require("path");
+
+/** Windows/Linux window chrome; same asset as electron-builder `win.icon`. */
+const APP_ICON_PATH = path.join(__dirname, "public/shared/assets/favicon.ico");
+
+if (process.platform === "win32") {
+  app.setAppUserModelId("com.brahmadathanu.sasvworkspace");
+}
+
+function appIconForWindows() {
+  if (process.platform !== "win32") return APP_ICON_PATH;
+  const img = nativeImage.createFromPath(APP_ICON_PATH);
+  return img.isEmpty() ? APP_ICON_PATH : img;
+}
+
+const APP_ICON = appIconForWindows();
 const express = require("express");
 const htmlToDocx = require("html-to-docx");
 const {
@@ -183,6 +198,7 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 900,
     height: 700,
+    icon: APP_ICON,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       nodeIntegration: false,
@@ -216,6 +232,7 @@ ipcMain.on("open-module-url", (event, { absUrl, opts = {} }) => {
       modal: false,
       show: true,
       autoHideMenuBar: true,
+      icon: APP_ICON,
       webPreferences: {
         contextIsolation: true,
         preload: path.join(__dirname, "preload.js"),
@@ -348,6 +365,7 @@ async function pdfFromHtml({ title, html, options = {} }) {
   try {
     win = new BrowserWindow({
       show: false,
+      icon: APP_ICON,
       webPreferences: { offscreen: true },
     });
 

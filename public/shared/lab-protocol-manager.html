@@ -1,0 +1,1734 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Protocol Manager</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <style>
+      /* ── Utility ─────────────────────────────────────────────────── */
+      .hidden {
+        display: none !important;
+      }
+
+      /* ── Reset & Base ─────────────────────────────────────────────── */
+      html,
+      body {
+        height: 100vh;
+        min-height: 100vh;
+        margin: 0;
+        overflow: hidden;
+        box-sizing: border-box;
+        font-family: system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        padding: 20px;
+        gap: 10px;
+      }
+      @media (max-width: 1080px) {
+        body {
+          padding: 10px;
+        }
+      }
+      @media (max-width: 520px) {
+        body {
+          padding: 6px;
+        }
+      }
+
+      /* ── Page header ──────────────────────────────────────────────── */
+      .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        flex-shrink: 0;
+      }
+      .page-header h1 {
+        margin: 0;
+        font-size: 1.3rem;
+        color: var(--primary, #2563eb);
+        line-height: 1.2;
+      }
+      .page-sub {
+        color: var(--muted, #6b7280);
+        font-size: 0.88rem;
+        margin-top: 3px;
+      }
+      @media (max-width: 520px) {
+        .page-header h1 {
+          font-size: 15px;
+          line-height: 1.1;
+        }
+        .page-sub {
+          display: none;
+        }
+      }
+
+      /* ── Icon button ──────────────────────────────────────────────── */
+      .icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 7px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+        background: var(--panel-bg, #fff);
+        cursor: pointer;
+        color: inherit;
+      }
+      .icon-btn:hover {
+        background: #f3f4f6;
+      }
+      #homeBtn .home-label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-left: 4px;
+      }
+      @media (max-width: 520px) {
+        #homeBtn .home-label {
+          display: none;
+        }
+      }
+
+      /* ── Status area ──────────────────────────────────────────────── */
+      #statusArea {
+        padding: 12px 14px;
+        border-radius: 7px;
+        font-size: 13.5px;
+        color: var(--muted, #6b7280);
+        display: none;
+        flex-shrink: 0;
+      }
+      #statusArea[data-type="error"] {
+        background: #fef2f2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
+        display: block;
+      }
+      #statusArea[data-type="loading"] {
+        background: #eff6ff;
+        color: #1e40af;
+        border: 1px solid #bfdbfe;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      /* ── Scrollable area ──────────────────────────────────────────── */
+      .page-scroll {
+        flex: 1 1 0;
+        min-height: 0;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      /* ── Cards ────────────────────────────────────────────────────── */
+      .entry-card {
+        background: var(--panel-bg, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 10px;
+        padding: 20px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+      .entry-card.hidden {
+        display: none;
+      }
+      @media (max-width: 700px) {
+        .entry-card {
+          padding: 14px 16px;
+          gap: 14px;
+        }
+      }
+
+      /* ── Form section ─────────────────────────────────────────────── */
+      .form-section {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .form-section.hidden {
+        display: none;
+      }
+      .form-section-title {
+        font-size: 10.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--primary, #2563eb);
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+      }
+
+      /* ── Subject pills ────────────────────────────────────────────── */
+      .type-pills {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .type-pill {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+        padding: 14px 18px;
+        border: 2px solid var(--border, #e5e7eb);
+        border-radius: 10px;
+        background: var(--panel-bg, #fff);
+        cursor: pointer;
+        transition: all 0.15s ease;
+        min-width: 140px;
+        text-align: left;
+      }
+      .type-pill:hover {
+        border-color: var(--primary, #2563eb);
+        background: rgba(37, 99, 235, 0.03);
+      }
+      .type-pill.active {
+        border-color: var(--primary, #2563eb);
+        background: linear-gradient(
+          135deg,
+          rgba(37, 99, 235, 0.07),
+          rgba(37, 99, 235, 0.03)
+        );
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+      }
+      .type-pill-icon {
+        font-size: 20px;
+        line-height: 1;
+      }
+      .type-pill-label {
+        font-size: 14px;
+        font-weight: 700;
+        color: #0f172a;
+      }
+      .type-pill-sub {
+        font-size: 11.5px;
+        color: var(--muted, #6b7280);
+      }
+      .type-pill.active .type-pill-label {
+        color: var(--primary, #2563eb);
+      }
+      .type-pill.disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+        pointer-events: none;
+      }
+
+      /* FG */
+      .type-pill[data-type="FG"] {
+        border-color: rgba(37, 99, 235, 0.2);
+        background: linear-gradient(
+          135deg,
+          rgba(37, 99, 235, 0.04),
+          rgba(37, 99, 235, 0.01)
+        );
+      }
+      .type-pill[data-type="FG"]:hover {
+        border-color: rgba(37, 99, 235, 0.45);
+        background: rgba(37, 99, 235, 0.07);
+      }
+      .type-pill[data-type="FG"].active {
+        border-color: #2563eb;
+        background: linear-gradient(
+          135deg,
+          rgba(37, 99, 235, 0.1),
+          rgba(37, 99, 235, 0.04)
+        );
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+      }
+      .type-pill[data-type="FG"] .type-pill-icon svg {
+        stroke: #2563eb;
+      }
+      .type-pill[data-type="FG"] .type-pill-label {
+        color: #1e40af;
+      }
+      .type-pill[data-type="FG"].active .type-pill-label {
+        color: #1e40af;
+      }
+
+      /* RM */
+      .type-pill[data-type="RM"] {
+        border-color: rgba(217, 119, 6, 0.22);
+        background: linear-gradient(
+          135deg,
+          rgba(245, 158, 11, 0.05),
+          rgba(245, 158, 11, 0.01)
+        );
+      }
+      .type-pill[data-type="RM"]:hover {
+        border-color: rgba(217, 119, 6, 0.45);
+        background: rgba(245, 158, 11, 0.08);
+      }
+      .type-pill[data-type="RM"].active {
+        border-color: #d97706;
+        background: linear-gradient(
+          135deg,
+          rgba(245, 158, 11, 0.12),
+          rgba(245, 158, 11, 0.04)
+        );
+        box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+      }
+      .type-pill[data-type="RM"] .type-pill-icon svg {
+        stroke: #d97706;
+      }
+      .type-pill[data-type="RM"] .type-pill-label {
+        color: #92400e;
+      }
+      .type-pill[data-type="RM"].active .type-pill-label {
+        color: #92400e;
+      }
+
+      /* PM */
+      .type-pill[data-type="PM"] {
+        border-color: rgba(139, 92, 246, 0.2);
+        background: linear-gradient(
+          135deg,
+          rgba(139, 92, 246, 0.04),
+          rgba(139, 92, 246, 0.01)
+        );
+      }
+      .type-pill[data-type="PM"] .type-pill-icon svg {
+        stroke: #7c3aed;
+      }
+      .type-pill[data-type="PM"] .type-pill-label {
+        color: #5b21b6;
+      }
+
+      /* ── Tab strip ────────────────────────────────────────────────── */
+      .tab-strip {
+        display: flex;
+        gap: 0;
+        border-bottom: 2px solid var(--border, #e5e7eb);
+        background: var(--panel-bg, #fff);
+        border-radius: 10px 10px 0 0;
+        flex-shrink: 0;
+        padding: 0 16px;
+      }
+      .tab-btn {
+        padding: 11px 18px;
+        font-size: 13px;
+        font-weight: 600;
+        font-family: inherit;
+        color: var(--muted, #6b7280);
+        background: transparent;
+        border: none;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -2px;
+        cursor: pointer;
+        white-space: nowrap;
+        transition:
+          color 0.15s,
+          border-color 0.15s;
+      }
+      .tab-btn:hover {
+        color: #374151;
+      }
+      .tab-btn.active {
+        color: var(--primary, #2563eb);
+        border-bottom-color: var(--primary, #2563eb);
+      }
+      .tab-strip.hidden {
+        display: none;
+      }
+
+      /* ── Tab panels ───────────────────────────────────────────────── */
+      .tab-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .tab-panel.hidden {
+        display: none;
+      }
+
+      /* ── Form rows / groups ───────────────────────────────────────── */
+      .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      .form-row-3 {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 14px;
+      }
+      @media (max-width: 700px) {
+        .form-row,
+        .form-row-3 {
+          grid-template-columns: 1fr;
+          gap: 10px;
+        }
+      }
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .form-group-full {
+        grid-column: 1 / -1;
+      }
+      .form-group label {
+        font-size: 12.5px;
+        font-weight: 600;
+        color: #374151;
+      }
+      .req {
+        color: #dc2626;
+        margin-left: 2px;
+      }
+
+      .form-control {
+        padding: 8px 10px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 7px;
+        font-size: 13.5px;
+        font-family: inherit;
+        background: #fff;
+        color: #0f172a;
+        transition:
+          border-color 0.15s,
+          box-shadow 0.15s;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .form-control:focus {
+        outline: none;
+        border-color: var(--primary, #2563eb);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
+      .form-control:disabled {
+        background: #f9fafb;
+        color: #6b7280;
+        cursor: not-allowed;
+      }
+      .form-control[readonly] {
+        background: #f9fafb;
+        color: #374151;
+        cursor: default;
+      }
+      select.form-control {
+        appearance: none;
+        -webkit-appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        padding-right: 30px;
+      }
+      textarea.form-control {
+        resize: vertical;
+        min-height: 60px;
+      }
+
+      /* ── Split layout (list + form) ───────────────────────────────── */
+      .split-layout {
+        display: grid;
+        grid-template-columns: 340px 1fr;
+        gap: 12px;
+        align-items: start;
+      }
+      @media (max-width: 900px) {
+        .split-layout {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* ── Protocol list panel ──────────────────────────────────────── */
+      .protocol-list-panel {
+        background: var(--panel-bg, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 10px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        min-height: 320px;
+      }
+      .list-panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 14px 10px;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+        background: linear-gradient(
+          135deg,
+          rgba(37, 99, 235, 0.04),
+          rgba(37, 99, 235, 0.01)
+        );
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .list-panel-title {
+        font-size: 11.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--primary, #2563eb);
+      }
+      .list-scroll {
+        flex: 1;
+        overflow-y: auto;
+        max-height: 420px;
+      }
+      .protocol-list-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      .protocol-list-table thead th {
+        position: sticky;
+        top: 0;
+        background: #fafbfc;
+        z-index: 1;
+        text-align: left;
+        padding: 7px 10px;
+        border-bottom: 2px solid var(--border, #e5e7eb);
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--muted, #6b7280);
+        white-space: nowrap;
+      }
+      .protocol-list-table tbody td {
+        padding: 8px 10px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+        vertical-align: middle;
+      }
+      .protocol-list-table tbody tr:last-child td {
+        border-bottom: none;
+      }
+      .protocol-list-table tbody tr {
+        cursor: pointer;
+        transition: background 0.1s;
+      }
+      .protocol-list-table tbody tr:hover td {
+        background: #f3f4f6;
+      }
+      .protocol-list-table tbody tr.selected td {
+        background: rgba(37, 99, 235, 0.06);
+        font-weight: 600;
+      }
+      .protocol-list-table tbody tr.selected td:first-child {
+        border-left: 3px solid var(--primary, #2563eb);
+      }
+
+      /* ── Protocol form panel ──────────────────────────────────────── */
+      .protocol-form-panel {
+        background: var(--panel-bg, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 10px;
+        padding: 20px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .form-panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .form-panel-title {
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--primary, #2563eb);
+      }
+      .form-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      /* ── Buttons ──────────────────────────────────────────────────── */
+      .btn-primary {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 8px 16px;
+        background: var(--primary, #2563eb);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 700;
+        font-family: inherit;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        white-space: nowrap;
+      }
+      .btn-primary:hover:not(:disabled) {
+        background: var(--primary-hover, #1d4ed8);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+      }
+      .btn-primary:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      .btn-secondary {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 8px 16px;
+        background: #fff;
+        color: #374151;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        font-family: inherit;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        white-space: nowrap;
+      }
+      .btn-secondary:hover:not(:disabled) {
+        background: #f3f4f6;
+      }
+      .btn-secondary:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      .btn-danger {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 8px 16px;
+        background: #fff;
+        color: #b91c1c;
+        border: 1px solid #fca5a5;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        font-family: inherit;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        white-space: nowrap;
+      }
+      .btn-danger:hover:not(:disabled) {
+        background: #fef2f2;
+        border-color: #ef4444;
+      }
+      .btn-danger:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      .btn-sm {
+        padding: 5px 11px;
+        font-size: 12px;
+        border-radius: 6px;
+      }
+      .btn-spinner {
+        width: 13px;
+        height: 13px;
+        border: 2px solid rgba(255, 255, 255, 0.4);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        display: none;
+      }
+      .btn-primary.loading .btn-spinner {
+        display: inline-block;
+      }
+
+      /* ── Info / warn banners ──────────────────────────────────────── */
+      .info-banner {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        border: 1px solid transparent;
+      }
+      .info-banner.hidden {
+        display: none;
+      }
+      .info-banner.info {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+        color: #1e40af;
+      }
+      .info-banner.success {
+        background: #f0fdf4;
+        border-color: #86efac;
+        color: #166534;
+      }
+      .info-banner.warn {
+        background: #fffbeb;
+        border-color: #fcd34d;
+        color: #92400e;
+      }
+      .info-banner.error {
+        background: #fef2f2;
+        border-color: #fca5a5;
+        color: #991b1b;
+      }
+
+      /* ── Active badge ─────────────────────────────────────────────── */
+      .badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11.5px;
+        font-weight: 600;
+      }
+      .badge-active {
+        background: #dcfce7;
+        color: #166534;
+      }
+      .badge-inactive {
+        background: #f3f4f6;
+        color: #6b7280;
+      }
+
+      /* ── Test lines table ─────────────────────────────────────────── */
+      .lines-table-card {
+        background: var(--panel-bg, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .lines-table-card.hidden {
+        display: none;
+      }
+      .lines-table-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px 10px;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+        background: linear-gradient(
+          135deg,
+          rgba(37, 99, 235, 0.04),
+          rgba(37, 99, 235, 0.01)
+        );
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .lines-table-title {
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--primary, #2563eb);
+      }
+      .lines-count {
+        font-size: 13px;
+        color: var(--muted, #6b7280);
+        font-weight: 600;
+      }
+      .lines-table-scroll {
+        overflow-x: auto;
+      }
+      .lines-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      .lines-table thead th {
+        position: sticky;
+        top: 0;
+        background: #fafbfc;
+        z-index: 1;
+        text-align: left;
+        padding: 7px 8px;
+        border-bottom: 2px solid var(--border, #e5e7eb);
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--muted, #6b7280);
+        white-space: nowrap;
+      }
+      .lines-table thead th.th-center {
+        text-align: center;
+      }
+      .lines-table tbody td {
+        padding: 6px 8px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+        vertical-align: middle;
+      }
+      .lines-table tbody tr:last-child td {
+        border-bottom: none;
+      }
+      .lines-table tbody tr:hover td {
+        background: #f9fafb;
+      }
+      .td-center {
+        text-align: center;
+      }
+
+      /* Inline editable inputs in test lines */
+      .line-input {
+        width: 100%;
+        min-width: 70px;
+        padding: 4px 7px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 5px;
+        font-size: 13px;
+        font-family: inherit;
+        color: #374151;
+        background: #f9fafb;
+        box-sizing: border-box;
+        transition:
+          border-color 0.15s,
+          background 0.15s;
+      }
+      .line-input:focus {
+        outline: none;
+        border-color: var(--primary, #2563eb);
+        background: #fff;
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+      }
+      .line-input.edited {
+        border-color: #f59e0b;
+        background: #fffbeb;
+      }
+      .line-input.narrow {
+        min-width: 55px;
+        max-width: 90px;
+      }
+      .line-cb {
+        width: 15px;
+        height: 15px;
+        accent-color: var(--primary, #2563eb);
+        cursor: pointer;
+      }
+      .td-actions {
+        width: 40px;
+        text-align: center;
+      }
+      .del-line-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 3px 6px;
+        border: none;
+        background: transparent;
+        color: #9ca3af;
+        cursor: pointer;
+        border-radius: 4px;
+        transition:
+          color 0.12s,
+          background 0.12s;
+      }
+      .del-line-btn:hover {
+        color: #dc2626;
+        background: #fef2f2;
+      }
+
+      /* ── Mapping section ──────────────────────────────────────────── */
+      .mapping-form-card {
+        background: var(--panel-bg, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 10px;
+        padding: 18px 22px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .mapping-table-card {
+        background: var(--panel-bg, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .mapping-table-card.hidden {
+        display: none;
+      }
+      .mapping-table-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 11px 15px 9px;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+        background: linear-gradient(
+          135deg,
+          rgba(37, 99, 235, 0.04),
+          rgba(37, 99, 235, 0.01)
+        );
+        gap: 8px;
+      }
+      .mapping-table-title {
+        font-size: 11.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--primary, #2563eb);
+      }
+      .mapping-table-scroll {
+        overflow-x: auto;
+      }
+      .mapping-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      .mapping-table thead th {
+        position: sticky;
+        top: 0;
+        background: #fafbfc;
+        z-index: 1;
+        text-align: left;
+        padding: 7px 10px;
+        border-bottom: 2px solid var(--border, #e5e7eb);
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--muted, #6b7280);
+        white-space: nowrap;
+      }
+      .mapping-table tbody td {
+        padding: 8px 10px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+        vertical-align: middle;
+        font-size: 13px;
+        color: #374151;
+      }
+      .mapping-table tbody tr:last-child td {
+        border-bottom: none;
+      }
+      .mapping-table tbody tr:hover td {
+        background: #f9fafb;
+      }
+
+      /* ── Usage preview placeholder ────────────────────────────────── */
+      .placeholder-panel {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 48px 24px;
+        text-align: center;
+        background: var(--panel-bg, #fff);
+        border: 1px dashed var(--border, #e5e7eb);
+        border-radius: 10px;
+        gap: 10px;
+        color: var(--muted, #6b7280);
+      }
+      .placeholder-panel strong {
+        font-size: 15px;
+        color: #374151;
+      }
+      .placeholder-icon {
+        font-size: 36px;
+        opacity: 0.35;
+      }
+
+      /* ── Empty state ──────────────────────────────────────────────── */
+      .empty-state {
+        padding: 28px 16px;
+        text-align: center;
+        color: var(--muted, #6b7280);
+        font-size: 13.5px;
+      }
+      .empty-state strong {
+        display: block;
+        font-size: 15px;
+        font-weight: 700;
+        color: #374151;
+        margin-bottom: 6px;
+      }
+
+      /* ── Context strip ────────────────────────────────────────────── */
+      .context-strip {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+        padding: 10px 14px;
+        background: #f9fafb;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        font-size: 13px;
+      }
+      .context-strip.hidden {
+        display: none;
+      }
+      .context-strip-item {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .context-strip-label {
+        font-size: 10.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted, #6b7280);
+      }
+      .context-strip-value {
+        font-size: 13px;
+        color: #0f172a;
+        font-weight: 500;
+      }
+      .context-strip-value.not-set {
+        color: var(--muted, #6b7280);
+        font-style: italic;
+      }
+
+      /* ── Toggle switch ────────────────────────────────────────────── */
+      .toggle-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .toggle-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #374151;
+      }
+      .toggle-switch {
+        position: relative;
+        width: 38px;
+        height: 22px;
+        flex-shrink: 0;
+      }
+      .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+        position: absolute;
+      }
+      .toggle-track {
+        position: absolute;
+        inset: 0;
+        background: #d1d5db;
+        border-radius: 22px;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .toggle-track::after {
+        content: "";
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        left: 3px;
+        top: 3px;
+        background: #fff;
+        border-radius: 50%;
+        transition: transform 0.2s;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+      }
+      .toggle-switch input:checked + .toggle-track {
+        background: #2563eb;
+      }
+      .toggle-switch input:checked + .toggle-track::after {
+        transform: translateX(16px);
+      }
+
+      /* ── Spinner ──────────────────────────────────────────────────── */
+      .spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(37, 99, 235, 0.2);
+        border-top-color: var(--primary, #2563eb);
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        flex-shrink: 0;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* ── Toast ────────────────────────────────────────────────────── */
+      #toastContainer {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-end;
+        pointer-events: none;
+      }
+      .pm-toast {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        font-size: 13px;
+        font-weight: 500;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+        pointer-events: auto;
+        animation: toast-in 0.2s ease forwards;
+        max-width: 340px;
+        line-height: 1.4;
+      }
+      .pm-toast.toast-success {
+        background: #f0fdf4;
+        border-color: #86efac;
+        color: #166534;
+      }
+      .pm-toast.toast-info {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+        color: #1e40af;
+      }
+      .pm-toast.toast-warn {
+        background: #fffbeb;
+        border-color: #fcd34d;
+        color: #92400e;
+      }
+      .pm-toast.toast-error {
+        background: #fef2f2;
+        border-color: #fca5a5;
+        color: #991b1b;
+      }
+      .pm-toast.toast-fade-out {
+        animation: toast-out 0.3s ease forwards;
+      }
+      @keyframes toast-in {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes toast-out {
+        from {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        to {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- ── Page header ─────────────────────────────────────────────── -->
+    <div class="page-header">
+      <div>
+        <h1>Protocol Manager</h1>
+        <div class="page-sub">
+          Master-data setup for lab protocols — categories, test lines, and
+          family mappings
+        </div>
+      </div>
+      <div style="display: flex; align-items: stretch; gap: 8px">
+        <button
+          id="homeBtn"
+          type="button"
+          title="Home"
+          aria-label="Home"
+          class="icon-btn"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9,22 9,12 15,12 15,22" />
+          </svg>
+          <span class="home-label">HOME</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Status area ─────────────────────────────────────────────── -->
+    <div id="statusArea" role="status" aria-live="polite"></div>
+
+    <!-- ── Scrollable body ─────────────────────────────────────────── -->
+    <div class="page-scroll" id="pageScroll">
+      <!-- 1. Subject pill card -->
+      <div class="entry-card">
+        <div class="form-section">
+          <div class="form-section-title">Select Subject</div>
+          <div
+            class="type-pills"
+            id="subjectPills"
+            role="group"
+            aria-label="Subject type"
+          >
+            <!-- FG -->
+            <button
+              class="type-pill"
+              data-type="FG"
+              type="button"
+              aria-pressed="false"
+            >
+              <span class="type-pill-icon" aria-hidden="true">
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M9 3h6M9 3v7L4.5 17A2 2 0 0 0 6.3 20h11.4a2 2 0 0 0 1.8-3L15 10V3"
+                  />
+                  <line x1="6" y1="14" x2="18" y2="14" />
+                </svg>
+              </span>
+              <span class="type-pill-label">FG</span>
+              <span class="type-pill-sub">Finished Goods</span>
+            </button>
+
+            <!-- RM -->
+            <button
+              class="type-pill"
+              data-type="RM"
+              type="button"
+              aria-pressed="false"
+            >
+              <span class="type-pill-icon" aria-hidden="true">
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
+                  />
+                  <path d="m3.3 7 8.7 5 8.7-5" />
+                  <line x1="12" y1="22" x2="12" y2="12" />
+                </svg>
+              </span>
+              <span class="type-pill-label">RM</span>
+              <span class="type-pill-sub">Raw Material</span>
+            </button>
+
+            <!-- PM (placeholder) -->
+            <button
+              class="type-pill disabled"
+              data-type="PM"
+              type="button"
+              aria-pressed="false"
+              aria-disabled="true"
+              title="PM protocols — coming soon"
+            >
+              <span class="type-pill-icon" aria-hidden="true">
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="2" y="7" width="20" height="14" rx="2" />
+                  <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
+                </svg>
+              </span>
+              <span class="type-pill-label">PM</span>
+              <span class="type-pill-sub">Packing Material — soon</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Tab strip -->
+      <div class="tab-strip hidden" id="tabStrip">
+        <button
+          class="tab-btn active"
+          id="tabProtocolMaster"
+          data-tab="protocolMaster"
+          type="button"
+        >
+          Protocol Master
+        </button>
+        <button
+          class="tab-btn"
+          id="tabTestLines"
+          data-tab="testLines"
+          type="button"
+        >
+          Test Lines
+        </button>
+        <button
+          class="tab-btn"
+          id="tabFamilyMapping"
+          data-tab="familyMapping"
+          type="button"
+        >
+          Family Mapping
+        </button>
+        <button
+          class="tab-btn"
+          id="tabUsagePreview"
+          data-tab="usagePreview"
+          type="button"
+        >
+          Usage Preview
+        </button>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════
+           TAB 1 — PROTOCOL MASTER
+      ════════════════════════════════════════════════════════════ -->
+      <div class="tab-panel hidden" id="panelProtocolMaster">
+        <div class="split-layout">
+          <!-- Left: Protocol list -->
+          <div class="protocol-list-panel">
+            <div class="list-panel-header">
+              <span class="list-panel-title" id="pmListTitle">Protocols</span>
+              <span
+                id="pmListCount"
+                style="
+                  font-size: 12px;
+                  color: var(--muted, #6b7280);
+                  font-weight: 600;
+                "
+              ></span>
+            </div>
+            <div class="list-scroll">
+              <div id="pmListLoading" class="empty-state hidden">
+                <div class="spinner" style="margin: 0 auto 8px"></div>
+                Loading…
+              </div>
+              <table class="protocol-list-table" id="pmListTable">
+                <thead>
+                  <tr>
+                    <th>Code</th>
+                    <th>Name</th>
+                    <th style="text-align: center">Active</th>
+                  </tr>
+                </thead>
+                <tbody id="pmListBody">
+                  <tr>
+                    <td colspan="3" class="empty-state">
+                      <strong>Select a subject</strong>to load protocols
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Right: Protocol form -->
+          <div class="protocol-form-panel">
+            <div class="form-panel-header">
+              <span class="form-panel-title" id="pmFormTitle"
+                >Protocol Detail</span
+              >
+              <div class="form-actions">
+                <button
+                  id="pmNewBtn"
+                  type="button"
+                  class="btn-secondary btn-sm"
+                >
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.2"
+                  >
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  New Protocol
+                </button>
+                <button
+                  id="pmSaveBtn"
+                  type="button"
+                  class="btn-primary btn-sm"
+                  disabled
+                >
+                  <span class="btn-spinner"></span>
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.2"
+                  >
+                    <path
+                      d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
+                    />
+                    <polyline points="17 21 17 13 7 13 7 21" />
+                    <polyline points="7 3 7 8 15 8" />
+                  </svg>
+                  Save
+                </button>
+                <button
+                  id="pmDeactivateBtn"
+                  type="button"
+                  class="btn-danger btn-sm"
+                  disabled
+                >
+                  Deactivate
+                </button>
+              </div>
+            </div>
+
+            <div
+              id="pmFormBanner"
+              class="info-banner hidden"
+              role="status"
+              aria-live="polite"
+            ></div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="pmFieldSubjectType"
+                  >Subject Type <span class="req">*</span></label
+                >
+                <input
+                  id="pmFieldSubjectType"
+                  class="form-control"
+                  readonly
+                  tabindex="-1"
+                />
+              </div>
+              <div class="form-group">
+                <label for="pmFieldCategoryCode"
+                  >Category Code <span class="req">*</span></label
+                >
+                <input
+                  id="pmFieldCategoryCode"
+                  class="form-control"
+                  maxlength="50"
+                  placeholder="e.g. FG-TABLET-STD"
+                />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group form-group-full" style="grid-column: 1/-1">
+                <label for="pmFieldCategoryName"
+                  >Category Name <span class="req">*</span></label
+                >
+                <input
+                  id="pmFieldCategoryName"
+                  class="form-control"
+                  maxlength="200"
+                  placeholder="e.g. Tablet Finished Goods Standard Protocol"
+                />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group form-group-full" style="grid-column: 1/-1">
+                <label for="pmFieldSourceDocument">Source Document</label>
+                <input
+                  id="pmFieldSourceDocument"
+                  class="form-control"
+                  maxlength="200"
+                  placeholder="e.g. STP-FG-001 Rev 3"
+                />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group form-group-full" style="grid-column: 1/-1">
+                <label for="pmFieldRemarks">Remarks</label>
+                <textarea
+                  id="pmFieldRemarks"
+                  class="form-control"
+                  rows="2"
+                  placeholder="Optional notes…"
+                ></textarea>
+              </div>
+            </div>
+            <div class="toggle-row">
+              <label class="toggle-switch">
+                <input type="checkbox" id="pmFieldIsActive" checked />
+                <span class="toggle-track"></span>
+              </label>
+              <span class="toggle-label">Active</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════
+           TAB 2 — TEST LINES
+      ════════════════════════════════════════════════════════════ -->
+      <div class="tab-panel hidden" id="panelTestLines">
+        <!-- Protocol selector -->
+        <div class="entry-card">
+          <div class="form-section">
+            <div class="form-section-title" id="tlSectionTitle">
+              Select Protocol
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="tlProtocolSelect">Protocol</label>
+                <select id="tlProtocolSelect" class="form-control">
+                  <option value="">-- Select Protocol --</option>
+                </select>
+              </div>
+              <div
+                class="form-group"
+                style="justify-content: flex-end; align-items: flex-end"
+              >
+                <button
+                  id="tlAddLineBtn"
+                  type="button"
+                  class="btn-secondary btn-sm"
+                  disabled
+                >
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.2"
+                  >
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  Add Line
+                </button>
+              </div>
+            </div>
+            <div id="tlContextStrip" class="context-strip hidden">
+              <div class="context-strip-item">
+                <div class="context-strip-label">Protocol Code</div>
+                <div class="context-strip-value" id="tlCtxCode">—</div>
+              </div>
+              <div class="context-strip-item">
+                <div class="context-strip-label">Source Document</div>
+                <div class="context-strip-value" id="tlCtxDoc">—</div>
+              </div>
+              <div class="context-strip-item">
+                <div class="context-strip-label">Test Lines</div>
+                <div class="context-strip-value" id="tlCtxCount">—</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Test lines table -->
+        <div class="lines-table-card hidden" id="tlTableCard">
+          <div class="lines-table-header">
+            <span class="lines-table-title">Test Lines</span>
+            <div style="display: flex; gap: 8px; align-items: center">
+              <span class="lines-count" id="tlLineCount"></span>
+              <button
+                id="tlSaveLinesBtn"
+                type="button"
+                class="btn-primary btn-sm"
+                disabled
+              >
+                <span class="btn-spinner"></span>
+                Save Lines
+              </button>
+            </div>
+          </div>
+          <div
+            id="tlBanner"
+            class="info-banner hidden"
+            style="margin: 10px 14px"
+            role="status"
+            aria-live="polite"
+          ></div>
+          <div class="lines-table-scroll">
+            <table class="lines-table">
+              <thead>
+                <tr>
+                  <th style="width: 44px" class="th-center">Seq</th>
+                  <th>Test</th>
+                  <th>Method (Auto from Test)</th>
+                  <th>Display Note</th>
+                  <th class="th-center">Req</th>
+                  <th class="th-center">Active</th>
+                  <th class="th-center">Del</th>
+                </tr>
+              </thead>
+              <tbody id="tlTableBody">
+                <tr>
+                  <td colspan="7" class="empty-state">No test lines loaded.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="tlEmptyBanner" class="info-banner info hidden">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            style="flex-shrink: 0"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          Select a protocol above to manage its test lines.
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════
+           TAB 3 — FAMILY MAPPING
+      ════════════════════════════════════════════════════════════ -->
+      <div class="tab-panel hidden" id="panelFamilyMapping">
+        <!-- Mapping form -->
+        <div class="mapping-form-card">
+          <div class="form-panel-header">
+            <span class="form-panel-title" id="fmFormTitle"
+              >Map Protocol to Family</span
+            >
+          </div>
+          <div
+            id="fmFormBanner"
+            class="info-banner hidden"
+            role="status"
+            aria-live="polite"
+          ></div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="fmFamilySelect" id="fmFamilyLabel"
+                >Family / Group <span class="req">*</span></label
+              >
+              <select id="fmFamilySelect" class="form-control">
+                <option value="">-- Select --</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="fmProtocolSelect"
+                >Protocol <span class="req">*</span></label
+              >
+              <select id="fmProtocolSelect" class="form-control">
+                <option value="">-- Select Protocol --</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group form-group-full" style="grid-column: 1/-1">
+              <label for="fmRemarks">Remarks</label>
+              <input
+                id="fmRemarks"
+                class="form-control"
+                maxlength="300"
+                placeholder="Optional notes…"
+              />
+            </div>
+          </div>
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              flex-wrap: wrap;
+              gap: 10px;
+            "
+          >
+            <div class="toggle-row">
+              <label class="toggle-switch">
+                <input type="checkbox" id="fmIsActive" checked />
+                <span class="toggle-track"></span>
+              </label>
+              <span class="toggle-label">Active Mapping</span>
+            </div>
+            <button
+              id="fmSaveBtn"
+              type="button"
+              class="btn-primary btn-sm"
+              disabled
+            >
+              <span class="btn-spinner"></span>
+              Save Mapping
+            </button>
+          </div>
+        </div>
+
+        <!-- Existing mappings table -->
+        <div class="mapping-table-card hidden" id="fmTableCard">
+          <div class="mapping-table-header">
+            <span class="mapping-table-title" id="fmTableTitle"
+              >Current Mappings</span
+            >
+            <span
+              id="fmMappingCount"
+              style="
+                font-size: 12px;
+                color: var(--muted, #6b7280);
+                font-weight: 600;
+              "
+            ></span>
+          </div>
+          <div
+            id="fmTableBanner"
+            class="info-banner hidden"
+            style="margin: 10px 14px"
+            role="status"
+            aria-live="polite"
+          ></div>
+          <div class="mapping-table-scroll">
+            <table class="mapping-table">
+              <thead>
+                <tr>
+                  <th id="fmThFamily">Family / Group</th>
+                  <th>Protocol Code</th>
+                  <th>Protocol Name</th>
+                  <th style="text-align: center">Active</th>
+                  <th>Remarks</th>
+                  <th style="text-align: center">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="fmTableBody">
+                <tr>
+                  <td colspan="6" class="empty-state">No mappings loaded.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════
+           TAB 4 — USAGE PREVIEW (placeholder)
+      ════════════════════════════════════════════════════════════ -->
+      <div class="tab-panel hidden" id="panelUsagePreview">
+        <div class="placeholder-panel">
+          <div class="placeholder-icon">🔭</div>
+          <strong>Usage Preview — Coming Soon</strong>
+          <p style="max-width: 400px; font-size: 13px; margin: 0">
+            This view will show where the selected protocol is currently mapped
+            and which families, items, or products are covered downstream.
+          </p>
+        </div>
+      </div>
+    </div>
+    <!-- /page-scroll -->
+
+    <!-- Toast container -->
+    <div id="toastContainer" aria-live="assertive"></div>
+
+    <script type="module" src="js/lab-protocol-manager.js"></script>
+  </body>
+</html>

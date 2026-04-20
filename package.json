@@ -13,7 +13,7 @@
   "license": "ISC",
   "type": "commonjs",
   "build": {
-    "appId": "com.yourcompany.sasv",
+    "appId": "com.brahmadathanu.sasvworkspace",
     "productName": "SASV Workspace",
     "publish": [
       {
@@ -29,6 +29,7 @@
       "**/*"
     ],
     "win": {
+      "icon": "public/shared/assets/favicon.ico",
       "target": [
         "nsis",
         "zip"
@@ -38,7 +39,11 @@
       "oneClick": true,
       "perMachine": false,
       "allowElevation": true,
-      "allowToChangeInstallationDirectory": false
+      "allowToChangeInstallationDirectory": false,
+      "guid": "A3F5C8D2-14BE-4E7A-9B3C-6D0E2F1A4B87",
+      "createDesktopShortcut": "always",
+      "runAfterFinish": false,
+      "deleteAppDataOnUninstall": false
     }
   },
   "dependencies": {
@@ -64,6 +69,8 @@
     "eslint": "^9.33.0",
     "glob": "^11.0.3",
     "globals": "^16.3.0",
+    "png-to-ico": "^3.0.1",
+    "sharp": "^0.34.5",
     "supabase": "^2.72.0"
   },
   "repository": {

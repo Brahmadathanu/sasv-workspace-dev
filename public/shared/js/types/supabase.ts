@@ -12253,6 +12253,84 @@ export type Database = {
         }
         Relationships: []
       }
+      tally_fg_transfer_voucher_lines: {
+        Row: {
+          as_of_date: string
+          batch_code: string
+          batch_line_no: number
+          id: number
+          inserted_at: string
+          inventory_line_no: number
+          is_cancelled: boolean
+          is_optional: boolean
+          item_name: string
+          qty_unit_text: string | null
+          qty_value: number
+          raw_godown: string
+          remote_id: string | null
+          source_key: string | null
+          transfer_amount: number | null
+          transfer_store: string
+          vch_key: string | null
+          voucher_alterid: number | null
+          voucher_date: string
+          voucher_guid: string
+          voucher_masterid: string
+          voucher_number: string | null
+          voucher_type_name: string | null
+        }
+        Insert: {
+          as_of_date: string
+          batch_code: string
+          batch_line_no: number
+          id?: number
+          inserted_at?: string
+          inventory_line_no: number
+          is_cancelled?: boolean
+          is_optional?: boolean
+          item_name: string
+          qty_unit_text?: string | null
+          qty_value: number
+          raw_godown: string
+          remote_id?: string | null
+          source_key?: string | null
+          transfer_amount?: number | null
+          transfer_store: string
+          vch_key?: string | null
+          voucher_alterid?: number | null
+          voucher_date: string
+          voucher_guid: string
+          voucher_masterid: string
+          voucher_number?: string | null
+          voucher_type_name?: string | null
+        }
+        Update: {
+          as_of_date?: string
+          batch_code?: string
+          batch_line_no?: number
+          id?: number
+          inserted_at?: string
+          inventory_line_no?: number
+          is_cancelled?: boolean
+          is_optional?: boolean
+          item_name?: string
+          qty_unit_text?: string | null
+          qty_value?: number
+          raw_godown?: string
+          remote_id?: string | null
+          source_key?: string | null
+          transfer_amount?: number | null
+          transfer_store?: string
+          vch_key?: string | null
+          voucher_alterid?: number | null
+          voucher_date?: string
+          voucher_guid?: string
+          voucher_masterid?: string
+          voucher_number?: string | null
+          voucher_type_name?: string | null
+        }
+        Relationships: []
+      }
       tally_fuel_stock_snapshot: {
         Row: {
           as_of_date: string
@@ -12883,6 +12961,30 @@ export type Database = {
         Update: {
           email?: string
           last_seen?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_staff_map: {
+        Row: {
+          created_at: string
+          is_active: boolean
+          staff_id: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          is_active?: boolean
+          staff_id: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          is_active?: boolean
+          staff_id?: number
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
@@ -29049,6 +29151,10 @@ export type Database = {
         Args: { p_company: string; p_date: string }
         Returns: undefined
       }
+      enqueue_fg_transfer_recent_window: {
+        Args: { p_company: string; p_date: string; p_days: number }
+        Returns: undefined
+      }
       enqueue_forecast_job: {
         Args: {
           p_as_of_date?: string
@@ -29220,8 +29326,16 @@ export type Database = {
           uom_base: string
         }[]
       }
+      fg_transfer_all_chunks_present: {
+        Args: { p_as_of_date: string; p_expected_keys: Json; p_store: string }
+        Returns: boolean
+      }
       fill_batch_plan_header: {
         Args: { p_header_id: number }
+        Returns: undefined
+      }
+      finalize_fg_transfer_snapshot: {
+        Args: { p_as_of_date: string; p_expected_keys: Json; p_store: string }
         Returns: undefined
       }
       fn_assert_is_plm_item: { Args: { p_item_id: number }; Returns: undefined }
@@ -29349,6 +29463,7 @@ export type Database = {
         Returns: undefined
       }
       fn_fmt_group_suffix: { Args: { gid: number }; Returns: string }
+      fn_get_staff_id_for_user: { Args: { p_user_id: string }; Returns: number }
       fn_parse_sku_breakdown: {
         Args: { p_sku_breakdown: string }
         Returns: {
@@ -30252,6 +30367,10 @@ export type Database = {
           updated_lines: number
         }[]
       }
+      rebuild_fg_transfer_snapshot_window: {
+        Args: { p_as_of_date: string; p_store: string }
+        Returns: undefined
+      }
       rebuild_unmapped_only: { Args: { p_header_id: number }; Returns: number }
       recalc_batch_plan_for_product: {
         Args: { p_header_id: number; p_product_id: number }
@@ -30304,6 +30423,14 @@ export type Database = {
       refresh_supply_rollups: { Args: never; Returns: undefined }
       require_permission: {
         Args: { p_need_edit?: boolean; p_target: string }
+        Returns: undefined
+      }
+      rerun_fg_transfer_for_date: {
+        Args: { p_company: string; p_date: string }
+        Returns: undefined
+      }
+      rerun_fg_transfer_for_date_using_current_company: {
+        Args: { p_date: string }
         Returns: undefined
       }
       resolve_user_name: { Args: { p_uid: string }; Returns: string }

@@ -1,0 +1,1630 @@
+﻿<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Specification Profile Manager</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <style>
+      /* ── Reset & Base ─────────────────────────────────────────────── */
+      html,
+      body {
+        height: 100vh;
+        min-height: 100vh;
+        margin: 0;
+        overflow: hidden;
+        box-sizing: border-box;
+        font-family: system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        padding: 20px;
+        gap: 10px;
+      }
+      @media (max-width: 1080px) {
+        body {
+          padding: 10px;
+        }
+      }
+      @media (max-width: 520px) {
+        body {
+          padding: 6px;
+        }
+      }
+
+      /* ── Page header ──────────────────────────────────────────────── */
+      .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        flex-shrink: 0;
+      }
+      .page-header h1 {
+        margin: 0;
+        font-size: 1.3rem;
+        color: var(--primary, #2563eb);
+        line-height: 1.2;
+      }
+      .page-sub {
+        color: var(--muted, #6b7280);
+        font-size: 0.88rem;
+        margin-top: 3px;
+      }
+      @media (max-width: 520px) {
+        .page-header h1 {
+          font-size: 15px;
+          line-height: 1.1;
+        }
+        .page-sub {
+          display: none;
+        }
+      }
+
+      /* ── Icon button ──────────────────────────────────────────────── */
+      .icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 7px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+        background: var(--panel-bg, #fff);
+        cursor: pointer;
+        color: inherit;
+      }
+      .icon-btn:hover {
+        background: #f3f4f6;
+      }
+      #homeBtn .home-label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-left: 4px;
+      }
+      @media (max-width: 520px) {
+        #homeBtn .home-label {
+          display: none;
+        }
+      }
+
+      /* ── Status area ──────────────────────────────────────────────── */
+      #statusArea {
+        padding: 12px 14px;
+        border-radius: 7px;
+        font-size: 13.5px;
+        color: var(--muted, #6b7280);
+        display: none;
+        flex-shrink: 0;
+      }
+      #statusArea[data-type="error"] {
+        background: #fef2f2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
+        display: block;
+      }
+      #statusArea[data-type="loading"] {
+        background: #eff6ff;
+        color: #1e40af;
+        border: 1px solid #bfdbfe;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      /* ── Scrollable area ──────────────────────────────────────────── */
+      .page-scroll {
+        flex: 1 1 0;
+        min-height: 0;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      /* ── Cards ────────────────────────────────────────────────────── */
+      .entry-card {
+        background: var(--panel-bg, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 10px;
+        padding: 20px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+      .entry-card.hidden {
+        display: none;
+      }
+      @media (max-width: 700px) {
+        .entry-card {
+          padding: 14px 16px;
+          gap: 14px;
+        }
+      }
+
+      /* ── Form section ─────────────────────────────────────────────── */
+      .form-section {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .form-section.hidden {
+        display: none;
+      }
+      .form-section-title {
+        font-size: 10.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--primary, #2563eb);
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+      }
+
+      /* ── Subject pills ────────────────────────────────────────────── */
+      .type-pills {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .type-pill {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+        padding: 14px 18px;
+        border: 2px solid var(--border, #e5e7eb);
+        border-radius: 10px;
+        background: var(--panel-bg, #fff);
+        cursor: pointer;
+        transition: all 0.15s ease;
+        min-width: 140px;
+        text-align: left;
+      }
+      .type-pill:hover {
+        border-color: var(--primary, #2563eb);
+        background: rgba(37, 99, 235, 0.03);
+      }
+      .type-pill.active {
+        border-color: var(--primary, #2563eb);
+        background: linear-gradient(
+          135deg,
+          rgba(37, 99, 235, 0.07),
+          rgba(37, 99, 235, 0.03)
+        );
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+      }
+      .type-pill-icon {
+        font-size: 20px;
+        line-height: 1;
+      }
+      .type-pill-label {
+        font-size: 14px;
+        font-weight: 700;
+        color: #0f172a;
+      }
+      .type-pill-sub {
+        font-size: 11.5px;
+        color: var(--muted, #6b7280);
+      }
+      .type-pill.active .type-pill-label {
+        color: var(--primary, #2563eb);
+      }
+
+      /* Per-type tints - FG */
+      .type-pill[data-type="FG"] {
+        border-color: rgba(37, 99, 235, 0.2);
+        background: linear-gradient(
+          135deg,
+          rgba(37, 99, 235, 0.04),
+          rgba(37, 99, 235, 0.01)
+        );
+      }
+      .type-pill[data-type="FG"]:hover {
+        border-color: rgba(37, 99, 235, 0.45);
+        background: rgba(37, 99, 235, 0.07);
+      }
+      .type-pill[data-type="FG"].active {
+        border-color: #2563eb;
+        background: linear-gradient(
+          135deg,
+          rgba(37, 99, 235, 0.1),
+          rgba(37, 99, 235, 0.04)
+        );
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+      }
+      .type-pill[data-type="FG"] .type-pill-icon svg {
+        stroke: #2563eb;
+      }
+      .type-pill[data-type="FG"] .type-pill-label {
+        color: #1e40af;
+      }
+      .type-pill[data-type="FG"].active .type-pill-label {
+        color: #1e40af;
+      }
+
+      /* Per-type tints - RM */
+      .type-pill[data-type="RM"] {
+        border-color: rgba(217, 119, 6, 0.22);
+        background: linear-gradient(
+          135deg,
+          rgba(245, 158, 11, 0.05),
+          rgba(245, 158, 11, 0.01)
+        );
+      }
+      .type-pill[data-type="RM"]:hover {
+        border-color: rgba(217, 119, 6, 0.45);
+        background: rgba(245, 158, 11, 0.08);
+      }
+      .type-pill[data-type="RM"].active {
+        border-color: #d97706;
+        background: linear-gradient(
+          135deg,
+          rgba(245, 158, 11, 0.12),
+          rgba(245, 158, 11, 0.04)
+        );
+        box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+      }
+      .type-pill[data-type="RM"] .type-pill-icon svg {
+        stroke: #d97706;
+      }
+      .type-pill[data-type="RM"] .type-pill-label {
+        color: #92400e;
+      }
+      .type-pill[data-type="RM"].active .type-pill-label {
+        color: #92400e;
+      }
+
+      /* ── Tab strip ────────────────────────────────────────────────── */
+      .tab-strip {
+        display: flex;
+        gap: 0;
+        border-bottom: 2px solid var(--border, #e5e7eb);
+        background: var(--panel-bg, #fff);
+        border-radius: 10px 10px 0 0;
+        flex-shrink: 0;
+        padding: 0 16px;
+      }
+      .tab-btn {
+        padding: 11px 18px;
+        font-size: 13px;
+        font-weight: 600;
+        font-family: inherit;
+        color: var(--muted, #6b7280);
+        background: transparent;
+        border: none;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -2px;
+        cursor: pointer;
+        white-space: nowrap;
+        transition:
+          color 0.15s,
+          border-color 0.15s;
+      }
+      .tab-btn:hover {
+        color: #374151;
+      }
+      .tab-btn.active {
+        color: var(--primary, #2563eb);
+        border-bottom-color: var(--primary, #2563eb);
+      }
+      .tab-strip.hidden {
+        display: none;
+      }
+
+      /* ── Tab panels ───────────────────────────────────────────────── */
+      .tab-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .tab-panel.hidden {
+        display: none;
+      }
+
+      /* ── Form row / group ─────────────────────────────────────────── */
+      .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      @media (max-width: 700px) {
+        .form-row {
+          grid-template-columns: 1fr;
+          gap: 10px;
+        }
+      }
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .form-group label {
+        font-size: 12.5px;
+        font-weight: 600;
+        color: #374151;
+      }
+      .form-control {
+        padding: 8px 10px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 7px;
+        font-size: 13.5px;
+        font-family: inherit;
+        background: #fff;
+        color: #0f172a;
+        transition:
+          border-color 0.15s,
+          box-shadow 0.15s;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .form-control:focus {
+        outline: none;
+        border-color: var(--primary, #2563eb);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
+      .form-control[readonly] {
+        background: #f9fafb;
+        color: #374151;
+        cursor: default;
+        border-color: var(--border, #e5e7eb);
+      }
+      select.form-control {
+        appearance: none;
+        -webkit-appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        padding-right: 30px;
+      }
+
+      /* ── Context info strip ───────────────────────────────────────── */
+      .context-strip {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+        padding: 10px 14px;
+        background: #f9fafb;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        font-size: 13px;
+      }
+      .context-strip.hidden {
+        display: none;
+      }
+      .context-strip-item {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .context-strip-label {
+        font-size: 10.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted, #6b7280);
+      }
+      .context-strip-value {
+        font-size: 13px;
+        color: #0f172a;
+        font-weight: 500;
+      }
+      .context-strip-value.not-set {
+        color: var(--muted, #6b7280);
+        font-style: italic;
+      }
+
+      /* ── Spec meta strip ──────────────────────────────────────────── */
+      .spec-meta-strip {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .spec-meta-item {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .spec-meta-label {
+        font-size: 11.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted, #6b7280);
+      }
+      .spec-meta-value {
+        font-size: 13.5px;
+        font-weight: 700;
+        color: #0f172a;
+      }
+      .spec-meta-value.not-set {
+        color: var(--muted, #6b7280);
+        font-weight: 400;
+        font-style: italic;
+      }
+      .spec-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-left: auto;
+      }
+
+      /* ── Buttons ──────────────────────────────────────────────────── */
+      .btn-primary {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 9px 18px;
+        background: var(--primary, #2563eb);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: 13.5px;
+        font-weight: 700;
+        font-family: inherit;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        white-space: nowrap;
+      }
+      .btn-primary:hover:not(:disabled) {
+        background: var(--primary-hover, #1d4ed8);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+      }
+      .btn-primary:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .btn-primary.loading .btn-spinner {
+        display: inline-block;
+      }
+      .btn-spinner {
+        width: 13px;
+        height: 13px;
+        border: 2px solid rgba(255, 255, 255, 0.4);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        display: none;
+      }
+      .btn-secondary {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 9px 18px;
+        background: #fff;
+        color: #059669;
+        border: 1px solid #6ee7b7;
+        border-radius: 8px;
+        font-size: 13.5px;
+        font-weight: 700;
+        font-family: inherit;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        white-space: nowrap;
+      }
+      .btn-secondary:hover:not(:disabled) {
+        background: #f0fdf4;
+        border-color: #34d399;
+        box-shadow: 0 3px 10px rgba(5, 150, 105, 0.15);
+      }
+      .btn-secondary:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .btn-secondary.hidden {
+        display: none;
+      }
+
+      /* ── Info / warn banners ──────────────────────────────────────── */
+      .spec-info-banner {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        border: 1px solid transparent;
+      }
+      .spec-info-banner.hidden {
+        display: none;
+      }
+      .spec-info-banner.info {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+        color: #1e40af;
+      }
+      .spec-info-banner.success {
+        background: #f0fdf4;
+        border-color: #86efac;
+        color: #166534;
+      }
+      .spec-info-banner.warn {
+        background: #fffbeb;
+        border-color: #fcd34d;
+        color: #92400e;
+      }
+      .spec-info-banner.error {
+        background: #fef2f2;
+        border-color: #fca5a5;
+        color: #991b1b;
+      }
+
+      /* ── Spec table card ──────────────────────────────────────────── */
+      .spec-table-card {
+        background: var(--panel-bg, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 10px;
+        overflow: hidden;
+        flex-shrink: 0;
+      }
+      .spec-table-card.hidden {
+        display: none;
+      }
+      .spec-table-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px 10px;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+        background: linear-gradient(
+          135deg,
+          rgba(37, 99, 235, 0.04),
+          rgba(37, 99, 235, 0.01)
+        );
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .spec-table-title {
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--primary, #2563eb);
+      }
+      .spec-line-count {
+        font-size: 13px;
+        color: var(--muted, #6b7280);
+        font-weight: 600;
+      }
+      .spec-table-scroll {
+        overflow-x: auto;
+      }
+      .spec-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      .spec-table thead th {
+        position: sticky;
+        top: 0;
+        background: #fafbfc;
+        z-index: 1;
+        text-align: left;
+        padding: 8px 10px;
+        border-bottom: 2px solid var(--border, #e5e7eb);
+        font-size: 11.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--muted, #6b7280);
+        white-space: nowrap;
+      }
+      .spec-table tbody td {
+        padding: 8px 10px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+        vertical-align: top;
+      }
+      .spec-table tbody tr:last-child td {
+        border-bottom: none;
+      }
+      .spec-table tbody tr:hover td {
+        background: #f9fafb;
+      }
+      .td-seq {
+        width: 52px;
+        text-align: center;
+        font-weight: 700;
+        color: var(--muted, #6b7280);
+      }
+      .td-test {
+        font-weight: 600;
+        color: #0f172a;
+      }
+      .td-method {
+        color: var(--muted, #6b7280);
+      }
+      .td-spec {
+        max-width: 280px;
+        line-height: 1.45;
+        color: #374151;
+      }
+      .type-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+      .type-badge-numeric {
+        background: #f1f5f9;
+        color: #475569;
+      }
+      .type-badge-text {
+        background: #f3f4f6;
+        color: #6b7280;
+      }
+      .type-badge-passfail {
+        background: #f0f7f4;
+        color: #4a7a62;
+      }
+      .type-badge-other {
+        background: #f3f4f6;
+        color: #6b7280;
+      }
+
+      /* ── Editable spec inputs ─────────────────────────────────────── */
+      .spec-input {
+        width: 100%;
+        min-width: 120px;
+        padding: 4px 7px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 5px;
+        font-size: 14px;
+        color: #374151;
+        background: #f9fafb;
+        transition:
+          border-color 0.15s,
+          background 0.15s;
+        box-sizing: border-box;
+      }
+      .spec-input:focus {
+        outline: none;
+        border-color: var(--primary, #2563eb);
+        background: #fff;
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+      }
+      .spec-input.edited {
+        border-color: #f59e0b;
+        background: #fffbeb;
+      }
+      .td-active {
+        width: 64px;
+        text-align: center;
+      }
+      .spec-active {
+        width: 16px;
+        height: 16px;
+        accent-color: #6b7280;
+        cursor: pointer;
+      }
+
+      /* ── Master Active checkbox in thead ─────────────────────────── */
+      .bs-all-active-label {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 3px;
+        cursor: pointer;
+        user-select: none;
+        font-size: 11.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--muted, #6b7280);
+      }
+      .bs-all-active-label input[type="checkbox"] {
+        width: 14px;
+        height: 14px;
+        accent-color: var(--primary, #2563eb);
+        cursor: pointer;
+      }
+      .bs-all-active-label:hover input[type="checkbox"] {
+        outline: 2px solid rgba(37, 99, 235, 0.25);
+        border-radius: 2px;
+      }
+
+      /* ── Save button ──────────────────────────────────────────────── */
+      .save-spec-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        background: var(--primary, #2563eb);
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition:
+          background 0.15s,
+          opacity 0.15s;
+      }
+      .save-spec-btn:hover {
+        background: #1d4ed8;
+      }
+      .save-spec-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .save-spec-btn.loading {
+        opacity: 0.7;
+        cursor: wait;
+      }
+      .save-spec-btn.hidden {
+        display: none;
+      }
+
+      /* ── Override table ───────────────────────────────────────────── */
+      .override-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13.5px;
+      }
+      .override-table thead th {
+        position: sticky;
+        top: 0;
+        background: #fafbfc;
+        z-index: 1;
+        text-align: left;
+        padding: 8px 10px;
+        border-bottom: 2px solid var(--border, #e5e7eb);
+        font-size: 11.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--muted, #6b7280);
+        white-space: nowrap;
+      }
+      .override-table tbody td {
+        padding: 8px 10px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+        vertical-align: top;
+        font-size: 13px;
+        color: #374151;
+      }
+      .override-table tbody tr:last-child td {
+        border-bottom: none;
+      }
+      .override-table tbody tr:hover td {
+        background: #f9fafb;
+      }
+      .action-badge {
+        display: inline-block;
+        padding: 2px 7px;
+        border-radius: 4px;
+        font-size: 11.5px;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+      .action-badge-replace {
+        background: #eff6ff;
+        color: #1e40af;
+      }
+      .action-badge-append {
+        background: #f0fdf4;
+        color: #166534;
+      }
+      .action-badge-exclude {
+        background: #fef2f2;
+        color: #991b1b;
+      }
+      .action-badge-other {
+        background: #f3f4f6;
+        color: #6b7280;
+      }
+
+      /* ── Empty state ──────────────────────────────────────────────── */
+      .spec-empty-state {
+        padding: 28px 16px;
+        text-align: center;
+        color: var(--muted, #6b7280);
+        font-size: 13.5px;
+      }
+      .spec-empty-state strong {
+        display: block;
+        font-size: 15px;
+        font-weight: 700;
+        color: #374151;
+        margin-bottom: 6px;
+      }
+
+      /* ── Spinner ──────────────────────────────────────────────────── */
+      .spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(37, 99, 235, 0.2);
+        border-top-color: var(--primary, #2563eb);
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        flex-shrink: 0;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* ── Toast container ──────────────────────────────────────────── */
+      #labToastContainer {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-end;
+        pointer-events: none;
+      }
+      .lab-toast {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        font-size: 13px;
+        font-weight: 500;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+        pointer-events: auto;
+        animation: lab-toast-in 0.2s ease forwards;
+        max-width: 340px;
+        line-height: 1.4;
+      }
+      .lab-toast.toast-success {
+        background: #f0fdf4;
+        border-color: #86efac;
+        color: #166534;
+      }
+      .lab-toast.toast-info {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+        color: #1e40af;
+      }
+      .lab-toast.toast-warn {
+        background: #fffbeb;
+        border-color: #fcd34d;
+        color: #92400e;
+      }
+      .lab-toast.toast-error {
+        background: #fef2f2;
+        border-color: #fca5a5;
+        color: #991b1b;
+      }
+      .lab-toast.toast-fade-out {
+        animation: lab-toast-out 0.3s ease forwards;
+      }
+      @keyframes lab-toast-in {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes lab-toast-out {
+        from {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        to {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- Page header -->
+    <div class="page-header">
+      <div>
+        <h1>Specification Profile Manager</h1>
+        <div class="page-sub">
+          Manage base specs, product overrides, and preview effective specs for
+          FG and RM subjects
+        </div>
+      </div>
+      <div style="display: flex; align-items: stretch; gap: 8px">
+        <button
+          id="homeBtn"
+          type="button"
+          title="Home"
+          aria-label="Home"
+          class="icon-btn"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9,22 9,12 15,12 15,22" />
+          </svg>
+          <span class="home-label">HOME</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Status area -->
+    <div id="statusArea" role="status" aria-live="polite"></div>
+
+    <!-- Scrollable area -->
+    <div class="page-scroll" id="pageScroll">
+      <!-- 1. Subject Selection Card -->
+      <div class="entry-card">
+        <div class="form-section">
+          <div class="form-section-title">Select Subject Type</div>
+          <div
+            class="type-pills"
+            id="subjectPills"
+            role="group"
+            aria-label="Subject type"
+          >
+            <button
+              class="type-pill"
+              data-type="FG"
+              type="button"
+              aria-pressed="false"
+            >
+              <span class="type-pill-icon" aria-hidden="true">
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M9 3h6M9 3v7L4.5 17A2 2 0 0 0 6.3 20h11.4a2 2 0 0 0 1.8-3L15 10V3"
+                  />
+                  <line x1="6" y1="14" x2="18" y2="14" />
+                </svg>
+              </span>
+              <span class="type-pill-label">FG</span>
+              <span class="type-pill-sub">Finished Goods</span>
+            </button>
+            <button
+              class="type-pill"
+              data-type="RM"
+              type="button"
+              aria-pressed="false"
+            >
+              <span class="type-pill-icon" aria-hidden="true">
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
+                  />
+                  <path d="m3.3 7 8.7 5 8.7-5" />
+                  <line x1="12" y1="22" x2="12" y2="12" />
+                </svg>
+              </span>
+              <span class="type-pill-label">RM</span>
+              <span class="type-pill-sub">Raw Material</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Tab strip (shown after subject is selected) -->
+      <div class="tab-strip hidden" id="tabStrip">
+        <button
+          class="tab-btn active"
+          id="baseSpecTab"
+          data-tab="baseSpec"
+          type="button"
+        >
+          Base Spec
+        </button>
+        <button
+          class="tab-btn"
+          id="overridesTab"
+          data-tab="overrides"
+          type="button"
+        >
+          Overrides
+        </button>
+        <button
+          class="tab-btn"
+          id="effectivePreviewTab"
+          data-tab="effectivePreview"
+          type="button"
+        >
+          Effective Preview
+        </button>
+      </div>
+
+      <!-- TAB 1 - BASE SPEC -->
+      <div class="tab-panel hidden" id="baseSpecPanel">
+        <!-- FG: Product Group selector -->
+        <div class="entry-card hidden" id="bsFgCard">
+          <div class="form-section">
+            <div class="form-section-title">
+              Product Group (Base Spec Level)
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="productGroupSelect">Product Group</label>
+                <select
+                  id="productGroupSelect"
+                  class="form-control"
+                  aria-label="Select product group"
+                >
+                  <option value="">-- Select Product Group --</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <!-- Context strip: protocol + spec summary -->
+          <div class="context-strip hidden" id="bsContextStrip">
+            <div class="context-strip-item">
+              <div class="context-strip-label">Protocol</div>
+              <div class="context-strip-value not-set" id="bsProtocolName">
+                --
+              </div>
+            </div>
+            <div class="context-strip-item">
+              <div class="context-strip-label">Base Spec Profile</div>
+              <div class="context-strip-value not-set" id="bsBaseSpecName">
+                --
+              </div>
+            </div>
+            <div class="context-strip-item">
+              <div class="context-strip-label">Spec Version</div>
+              <div class="context-strip-value not-set" id="bsBaseSpecVersion">
+                --
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RM: Inventory Group selector -->
+        <div class="entry-card hidden" id="bsRmCard">
+          <div class="form-section">
+            <div class="form-section-title">
+              Inventory Group (Base Spec Level)
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="rmGroupSelect">Inventory Group</label>
+                <select
+                  id="rmGroupSelect"
+                  class="form-control"
+                  aria-label="Select inventory group"
+                >
+                  <option value="">-- Select Inventory Group --</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <!-- Context strip: protocol + spec summary -->
+          <div class="context-strip hidden" id="rmContextStrip">
+            <div class="context-strip-item">
+              <div class="context-strip-label">Protocol</div>
+              <div class="context-strip-value not-set" id="rmProtocolName">
+                --
+              </div>
+            </div>
+            <div class="context-strip-item">
+              <div class="context-strip-label">Base Spec Profile</div>
+              <div class="context-strip-value not-set" id="rmBaseSpecName">
+                --
+              </div>
+            </div>
+            <div class="context-strip-item">
+              <div class="context-strip-label">Spec Version</div>
+              <div class="context-strip-value not-set" id="rmBaseSpecVersion">
+                --
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RM: Spec control card -->
+        <div class="entry-card hidden" id="rmControlCard">
+          <div class="form-section">
+            <div class="form-section-title">Spec Profile</div>
+            <div class="spec-meta-strip">
+              <div class="spec-meta-item">
+                <div class="spec-meta-label">Profile ID</div>
+                <div class="spec-meta-value not-set" id="rmMetaProfileId">
+                  --
+                </div>
+              </div>
+              <div class="spec-meta-item">
+                <div class="spec-meta-label">Version</div>
+                <div class="spec-meta-value not-set" id="rmMetaVersion">--</div>
+              </div>
+              <div class="spec-meta-item">
+                <div class="spec-meta-label">Effective Date</div>
+                <div class="spec-meta-value not-set" id="rmMetaEffDate">--</div>
+              </div>
+              <div class="spec-actions">
+                <button
+                  id="rmGenerateSpecBtn"
+                  type="button"
+                  class="btn-secondary hidden"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="16" />
+                    <line x1="8" y1="12" x2="16" y2="12" />
+                  </svg>
+                  <span>Generate Spec</span>
+                </button>
+              </div>
+            </div>
+            <div
+              id="rmBanner"
+              class="spec-info-banner hidden"
+              role="status"
+              aria-live="polite"
+            ></div>
+          </div>
+        </div>
+
+        <!-- RM: Base spec lines table -->
+        <div class="spec-table-card hidden" id="rmTableCard">
+          <div class="spec-table-header">
+            <div class="spec-table-title">Base Specification Lines</div>
+            <div style="display: flex; align-items: center; gap: 10px">
+              <div class="spec-line-count" id="rmLineCount"></div>
+              <button class="save-spec-btn hidden" id="rmSaveSpecBtn">
+                Save Spec
+              </button>
+            </div>
+          </div>
+          <div class="spec-table-scroll">
+            <table class="spec-table" aria-label="RM base specification lines">
+              <thead>
+                <tr>
+                  <th class="td-seq">#</th>
+                  <th>Test</th>
+                  <th>Method</th>
+                  <th>Spec</th>
+                  <th>Type</th>
+                  <th class="td-active">
+                    <label
+                      class="bs-all-active-label"
+                      title="Checked = all active · Unchecked = all inactive · Click to toggle all"
+                    >
+                      <input
+                        type="checkbox"
+                        id="rmActiveAllChk"
+                        aria-label="Toggle all active lines"
+                      />
+                      Active
+                    </label>
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="rmTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Spec control card -->
+        <div class="entry-card hidden" id="bsControlCard">
+          <div class="form-section">
+            <div class="form-section-title">Spec Profile</div>
+            <div class="spec-meta-strip">
+              <div class="spec-meta-item">
+                <div class="spec-meta-label">Profile ID</div>
+                <div class="spec-meta-value not-set" id="bsMetaProfileId">
+                  --
+                </div>
+              </div>
+              <div class="spec-meta-item">
+                <div class="spec-meta-label">Version</div>
+                <div class="spec-meta-value not-set" id="bsMetaVersion">--</div>
+              </div>
+              <div class="spec-meta-item">
+                <div class="spec-meta-label">Effective Date</div>
+                <div class="spec-meta-value not-set" id="bsMetaEffDate">--</div>
+              </div>
+              <div class="spec-actions">
+                <button
+                  id="bsGenerateSpecBtn"
+                  type="button"
+                  class="btn-secondary hidden"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="16" />
+                    <line x1="8" y1="12" x2="16" y2="12" />
+                  </svg>
+                  <span>Generate Spec</span>
+                </button>
+              </div>
+            </div>
+            <div
+              id="bsBanner"
+              class="spec-info-banner hidden"
+              role="status"
+              aria-live="polite"
+            ></div>
+          </div>
+        </div>
+
+        <!-- Base spec lines table -->
+        <div class="spec-table-card hidden" id="bsTableCard">
+          <div class="spec-table-header">
+            <div class="spec-table-title">Base Specification Lines</div>
+            <div style="display: flex; align-items: center; gap: 10px">
+              <div class="spec-line-count" id="bsLineCount"></div>
+              <button class="save-spec-btn hidden" id="bsSaveSpecBtn">
+                Save Spec
+              </button>
+            </div>
+          </div>
+          <div class="spec-table-scroll">
+            <table class="spec-table" aria-label="Base specification lines">
+              <thead>
+                <tr>
+                  <th class="td-seq">#</th>
+                  <th>Test</th>
+                  <th>Method</th>
+                  <th>Spec</th>
+                  <th>Type</th>
+                  <th class="td-active">
+                    <label
+                      class="bs-all-active-label"
+                      title="Checked = all active · Unchecked = all inactive · Click to toggle all"
+                    >
+                      <input
+                        type="checkbox"
+                        id="bsActiveAllChk"
+                        aria-label="Toggle all active lines"
+                      />
+                      Active
+                    </label>
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="bsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <!-- /TAB 1 -->
+
+      <!-- TAB 2 - OVERRIDES -->
+      <div class="tab-panel hidden" id="overridesPanel">
+        <!-- FG: product selector -->
+        <div class="entry-card hidden" id="ovFgCard">
+          <div class="form-section">
+            <div class="form-section-title">
+              Select Product (Override Level)
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="ovProductSelect">Product</label>
+                <select
+                  id="ovProductSelect"
+                  class="form-control"
+                  aria-label="Select product for overrides"
+                >
+                  <option value="">-- Select Product --</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="context-strip hidden" id="ovFgContextStrip">
+            <div class="context-strip-item">
+              <div class="context-strip-label">Product Group</div>
+              <div class="context-strip-value not-set" id="ovFgGroupName">
+                --
+              </div>
+            </div>
+            <div class="context-strip-item">
+              <div class="context-strip-label">Base Spec Profile ID</div>
+              <div class="context-strip-value not-set" id="ovFgBaseSpecId">
+                --
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RM: stock item selector -->
+        <div class="entry-card hidden" id="ovRmCard">
+          <div class="form-section">
+            <div class="form-section-title">
+              Select Stock Item (Override Level)
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="ovRmItemSelect">Stock Item</label>
+                <select
+                  id="ovRmItemSelect"
+                  class="form-control"
+                  aria-label="Select stock item for overrides"
+                >
+                  <option value="">-- Select Stock Item --</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="context-strip hidden" id="ovRmContextStrip">
+            <div class="context-strip-item">
+              <div class="context-strip-label">Inventory Group</div>
+              <div class="context-strip-value not-set" id="ovRmGroupName">
+                --
+              </div>
+            </div>
+            <div class="context-strip-item">
+              <div class="context-strip-label">Base Spec Profile ID</div>
+              <div class="context-strip-value not-set" id="ovRmBaseSpecId">
+                --
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div
+          id="ovRmBanner"
+          class="spec-info-banner hidden"
+          role="status"
+          aria-live="polite"
+        ></div>
+
+        <!-- RM: Override lines table -->
+        <div class="spec-table-card hidden" id="ovRmTableCard">
+          <div class="spec-table-header">
+            <div class="spec-table-title">Stock Item Overrides (RM)</div>
+            <div class="spec-line-count" id="ovRmLineCount"></div>
+          </div>
+          <div class="spec-table-scroll">
+            <table class="override-table" aria-label="RM spec overrides">
+              <thead>
+                <tr>
+                  <th>Test</th>
+                  <th>Action</th>
+                  <th>Override Method</th>
+                  <th>Override Spec Type</th>
+                  <th>Override Display Text</th>
+                  <th>Required</th>
+                  <th>Active</th>
+                  <th>Reason</th>
+                </tr>
+              </thead>
+              <tbody id="ovRmTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div
+          id="ovBanner"
+          class="spec-info-banner hidden"
+          role="status"
+          aria-live="polite"
+        ></div>
+
+        <!-- Override lines table -->
+        <div class="spec-table-card hidden" id="ovTableCard">
+          <div class="spec-table-header">
+            <div class="spec-table-title">Product Overrides</div>
+            <div class="spec-line-count" id="ovLineCount"></div>
+          </div>
+          <div class="spec-table-scroll">
+            <table class="override-table" aria-label="Spec overrides">
+              <thead>
+                <tr>
+                  <th>Test</th>
+                  <th>Action</th>
+                  <th>Override Method</th>
+                  <th>Override Spec Type</th>
+                  <th>Override Display Text</th>
+                  <th>Required</th>
+                  <th>Active</th>
+                  <th>Reason</th>
+                </tr>
+              </thead>
+              <tbody id="ovTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <!-- /TAB 2 -->
+
+      <!-- TAB 3 - EFFECTIVE PREVIEW -->
+      <div class="tab-panel hidden" id="effectivePreviewPanel">
+        <!-- FG: product selector -->
+        <div class="entry-card hidden" id="epFgCard">
+          <div class="form-section">
+            <div class="form-section-title">
+              Select Product (Effective Spec Preview)
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="epProductSelect">Product</label>
+                <select
+                  id="epProductSelect"
+                  class="form-control"
+                  aria-label="Select product for effective preview"
+                >
+                  <option value="">-- Select Product --</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RM: stock item selector -->
+        <div class="entry-card hidden" id="epRmCard">
+          <div class="form-section">
+            <div class="form-section-title">
+              Select Stock Item (Effective Spec Preview)
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="epRmItemSelect">Stock Item</label>
+                <select
+                  id="epRmItemSelect"
+                  class="form-control"
+                  aria-label="Select stock item for effective preview"
+                >
+                  <option value="">-- Select Stock Item --</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div
+          id="epRmBanner"
+          class="spec-info-banner hidden"
+          role="status"
+          aria-live="polite"
+        ></div>
+
+        <!-- RM: Effective preview table -->
+        <div class="spec-table-card hidden" id="epRmTableCard">
+          <div class="spec-table-header">
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                flex-wrap: wrap;
+              "
+            >
+              <div class="spec-table-title">Effective Spec - Preview (RM)</div>
+              <span
+                style="
+                  display: inline-block;
+                  padding: 3px 10px;
+                  background: #fffbeb;
+                  border: 1px solid #fcd34d;
+                  border-radius: 6px;
+                  font-size: 11.5px;
+                  font-weight: 600;
+                  color: #92400e;
+                "
+              >
+                Preview Only - Read-only resolved spec
+              </span>
+            </div>
+            <div class="spec-line-count" id="epRmLineCount"></div>
+          </div>
+          <div class="spec-table-scroll">
+            <table class="spec-table" aria-label="RM effective spec preview">
+              <thead>
+                <tr>
+                  <th class="td-seq">#</th>
+                  <th>Test</th>
+                  <th>Method</th>
+                  <th>Spec</th>
+                  <th>Type</th>
+                  <th class="td-active">Active</th>
+                </tr>
+              </thead>
+              <tbody id="epRmTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div
+          id="epBanner"
+          class="spec-info-banner hidden"
+          role="status"
+          aria-live="polite"
+        ></div>
+
+        <!-- Effective preview table -->
+        <div class="spec-table-card hidden" id="epTableCard">
+          <div class="spec-table-header">
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                flex-wrap: wrap;
+              "
+            >
+              <div class="spec-table-title">Effective Spec - Preview</div>
+              <span
+                style="
+                  display: inline-block;
+                  padding: 3px 10px;
+                  background: #fffbeb;
+                  border: 1px solid #fcd34d;
+                  border-radius: 6px;
+                  font-size: 11.5px;
+                  font-weight: 600;
+                  color: #92400e;
+                "
+              >
+                Preview Only - Read-only resolved spec
+              </span>
+            </div>
+            <div class="spec-line-count" id="epLineCount"></div>
+          </div>
+          <div class="spec-table-scroll">
+            <table class="spec-table" aria-label="Effective spec preview">
+              <thead>
+                <tr>
+                  <th class="td-seq">#</th>
+                  <th>Test</th>
+                  <th>Method</th>
+                  <th>Spec</th>
+                  <th>Type</th>
+                  <th class="td-active">Active</th>
+                </tr>
+              </thead>
+              <tbody id="epTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <!-- /TAB 3 -->
+    </div>
+    <!-- /page-scroll -->
+
+    <!-- Toast container -->
+    <div id="labToastContainer" aria-live="polite" aria-atomic="false"></div>
+
+    <script type="module" src="js/lab-spec-profile-manager.js"></script>
+  </body>
+</html>

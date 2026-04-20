@@ -72,7 +72,7 @@ function confirmSeed({ setId, fromMonth, toMonth, setLabel }) {
         e.preventDefault();
         done(false);
       },
-      { once: true }
+      { once: true },
     );
 
     if (typeof dlg.showModal === "function") dlg.showModal();
@@ -191,7 +191,7 @@ function setLinesStatusTemp(msg, tone = "", ms = 1800) {
 function escapeHtml(value = "") {
   return String(value ?? "").replace(
     /[&<>"']/g,
-    (ch) => HTML_ESCAPE_MAP[ch] || ch
+    (ch) => HTML_ESCAPE_MAP[ch] || ch,
   );
 }
 
@@ -223,13 +223,13 @@ function parseRpcTriple(resp) {
         const [f1, f2, f3] = fields;
         if (f1 in resp || f2 in resp || f3 in resp) {
           const v1 = Number(
-            resp[f1] ?? resp[f1.toLowerCase()] ?? Object.values(resp)[0] ?? 0
+            resp[f1] ?? resp[f1.toLowerCase()] ?? Object.values(resp)[0] ?? 0,
           );
           const v2 = Number(
-            resp[f2] ?? resp[f2.toLowerCase()] ?? Object.values(resp)[1] ?? 0
+            resp[f2] ?? resp[f2.toLowerCase()] ?? Object.values(resp)[1] ?? 0,
           );
           const v3 = Number(
-            resp[f3] ?? resp[f3.toLowerCase()] ?? Object.values(resp)[2] ?? 0
+            resp[f3] ?? resp[f3.toLowerCase()] ?? Object.values(resp)[2] ?? 0,
           );
           return [
             Number.isFinite(v1) ? v1 : 0,
@@ -276,7 +276,7 @@ async function rollbackUnifiedOverrides() {
       else if (typeof data === "string") deactivated = Number(data || 0);
       else if (data && typeof data === "object") {
         const v = Object.values(data).find(
-          (x) => x !== undefined && x !== null
+          (x) => x !== undefined && x !== null,
         );
         deactivated = Number(v || 0);
       }
@@ -287,7 +287,7 @@ async function rollbackUnifiedOverrides() {
     showToast(
       `Undo complete: deactivated ${deactivated} override${
         deactivated === 1 ? "" : "s"
-      }.`
+      }.`,
     );
 
     // Refresh tables
@@ -380,7 +380,7 @@ function promptLineFields(defaults = {}) {
         from += batchSize;
       }
       deduped.sort((a, b) =>
-        (a.product_name || "").localeCompare(b.product_name || "")
+        (a.product_name || "").localeCompare(b.product_name || ""),
       );
       return deduped;
     }
@@ -398,11 +398,11 @@ function promptLineFields(defaults = {}) {
                       ? " selected"
                       : "";
                   return `<option value="${escapeHtml(
-                    pid
+                    pid,
                   )}" data-name="${escapeHtml(
-                    p.product_name
+                    p.product_name,
                   )}"${selected}>${escapeHtml(p.product_name)}</option>`;
-                })
+                }),
               )
               .join("");
 
@@ -427,19 +427,19 @@ function promptLineFields(defaults = {}) {
             <label class="field" style="display:flex;flex-direction:column;gap:6px;width:100%;">
               <span>Month</span>
               <input id="lineMonth" type="month" style="width:100%;padding:8px 6px;font-size:1em;" value="${escapeHtml(
-                monthValue
+                monthValue,
               )}" />
             </label>
             <label class="field" style="display:flex;flex-direction:column;gap:6px;width:100%;">
               <span>Proposed Qty</span>
               <input id="lineProposedQty" type="number" inputmode="decimal" step="any" style="width:100%;padding:8px 6px;font-size:1em;" value="${escapeHtml(
-                proposedValue
+                proposedValue,
               )}" />
             </label>
             <label class="field" style="display:flex;flex-direction:column;gap:6px;width:100%;">
               <span>Note</span>
               <input id="lineNote" type="text" style="width:100%;padding:8px 6px;font-size:1em;" value="${escapeHtml(
-                noteValue
+                noteValue,
               )}" />
             </label>
           </div>
@@ -678,7 +678,7 @@ function promptTwoInputs(
   aLabel = "Value A",
   bLabel = "Value B",
   aDefault = "",
-  bDefault = ""
+  bDefault = "",
 ) {
   return new Promise((resolve) => {
     const dlg = document.createElement("dialog");
@@ -709,7 +709,7 @@ function promptTwoInputs(
     }
 
     ok.addEventListener("click", () =>
-      cleanup({ name: a.value.trim(), notes: b.value.trim() })
+      cleanup({ name: a.value.trim(), notes: b.value.trim() }),
     );
     cancel.addEventListener("click", () => cleanup(null));
 
@@ -834,7 +834,7 @@ async function loadSets() {
   const { data, error } = await supabase
     .from("manual_plan_sets")
     .select(
-      "id,title,note,status,seeded_from_system,created_by,created_at,updated_at"
+      "id,title,note,status,seeded_from_system,created_by,created_at,updated_at",
     )
     .order("created_at", { ascending: false });
   if (error) {
@@ -984,7 +984,7 @@ async function promptCreateSetModal() {
       "Set name (optional):",
       "Notes (optional):",
       "",
-      ""
+      "",
     );
     return fallback;
   }
@@ -1053,7 +1053,7 @@ async function seedSet() {
 
     const inserted = Number(data || 0);
     showToast(
-      `Seeded ${inserted} line${inserted === 1 ? "" : "s"} into set #${setId}.`
+      `Seeded ${inserted} line${inserted === 1 ? "" : "s"} into set #${setId}.`,
     );
 
     // Refresh UI
@@ -1326,7 +1326,7 @@ async function loadLines() {
   // compute pages
   linesFilteredPages = Math.max(
     1,
-    Math.ceil(linesFilteredRows / linesPageSize)
+    Math.ceil(linesFilteredRows / linesPageSize),
   );
   // if the requested page is past the last page (filters changed), fetch the last page
   if (linesPage > linesFilteredPages) {
@@ -1344,7 +1344,7 @@ async function loadLines() {
           console.debug(
             "loadLines: aborting after retryRes because a newer call started",
             __thisCallId,
-            __linesLoadCallId
+            __linesLoadCallId,
           );
         return;
       }
@@ -1369,7 +1369,7 @@ async function loadLines() {
         } catch (e) {
           console.debug(
             "loadLines: client-side proposed filter after retry failed",
-            e
+            e,
           );
         }
       }
@@ -1392,7 +1392,7 @@ async function loadLines() {
       if (__linesLoadDebug)
         console.debug(
           "loadLines: aborting after notesRes (stale)",
-          __thisCallId
+          __thisCallId,
         );
       return;
     }
@@ -1401,7 +1401,7 @@ async function loadLines() {
       const noteSel = document.getElementById("filterNote");
       if (noteSel) {
         const uniq = Array.from(
-          new Set(notesRes.data.map((n) => n.note).filter(Boolean))
+          new Set(notesRes.data.map((n) => n.note).filter(Boolean)),
         );
         const selectedBefore = fNote || "";
         noteSel.replaceChildren(new Option("(all)", ""));
@@ -1437,13 +1437,13 @@ async function loadLines() {
       if (__linesLoadDebug)
         console.debug(
           "loadLines: product details returned for call",
-          __thisCallId
+          __thisCallId,
         );
       if (__thisCallId !== __linesLoadCallId) {
         if (__linesLoadDebug)
           console.debug(
             "loadLines: aborting after product fetch (stale)",
-            __thisCallId
+            __thisCallId,
           );
         return;
       }
@@ -1453,7 +1453,7 @@ async function loadLines() {
           prods.map((p) => [
             Number(p.product_id),
             { name: p.product_name, uom: p.uom_base },
-          ])
+          ]),
         );
     } catch (e) {
       console.error("Failed to load product names for page", e);
@@ -1487,7 +1487,7 @@ async function loadLines() {
       if (!ts) return "";
       try {
         const dt = DateTime.fromISO(ts, { zone: "utc" }).setZone(
-          "Asia/Kolkata"
+          "Asia/Kolkata",
         );
         return dt.toFormat("yyyy-LL-dd HH:mm");
       } catch {
@@ -1508,7 +1508,7 @@ async function loadLines() {
       <td data-col="product_id">${r.product_id ?? ""}</td>
       <td>${pd ? escapeHtml(pd.name) : ""}</td>
       <td contenteditable="true" data-col="proposed_qty">${escapeHtml(
-        proposedDisplay
+        proposedDisplay,
       )}</td>
       <td>${pd ? escapeHtml(pd.uom || "") : ""}</td>
       <td contenteditable="true" data-col="note">${escapeHtml(noteDisplay)}</td>
@@ -1611,7 +1611,7 @@ async function loadLines() {
   $("linesPagePrev")?.toggleAttribute("disabled", linesPage <= 1);
   $("linesPageNext")?.toggleAttribute(
     "disabled",
-    linesPage >= linesFilteredPages
+    linesPage >= linesFilteredPages,
   );
 }
 
@@ -1771,7 +1771,7 @@ async function saveLineEdit(tr) {
       row.month_start = parsed.set({ day: 1 }).toISODate();
     } else {
       showModal(
-        "month must be in 'Mon YYYY' (e.g. Oct 2025) or YYYY-MM-DD (YYYY-MM-01)."
+        "month must be in 'Mon YYYY' (e.g. Oct 2025) or YYYY-MM-DD (YYYY-MM-01).",
       );
       return;
     }
@@ -1814,11 +1814,11 @@ async function deleteSelectedLines() {
   const setId = getCurrentSetId();
   if (!setId) return showModal("Pick a set first.");
   const ids = [...document.querySelectorAll(".rowChk:checked")].map((ch) =>
-    Number(ch.closest("tr").dataset.id)
+    Number(ch.closest("tr").dataset.id),
   );
   if (!ids.length)
     return showModal(
-      "Select line(s) to delete by clicking the tickbox at their left."
+      "Select line(s) to delete by clicking the tickbox at their left.",
     );
 
   // Show confirmation using the dedicated Delete Confirmation modal
@@ -1855,11 +1855,10 @@ function confirmDeleteLines(count) {
     }
     // Set modal content
     $("deleteConfirmTitle").textContent = "Delete Confirmation";
-    $(
-      "deleteConfirmMessage"
-    ).innerHTML = `<div style='color:#b71c1c;font-weight:500;margin-bottom:10px;'>Warning: This action will permanently delete <b>${count}</b> selected line${
-      count > 1 ? "s" : ""
-    }.</div><div>Are you sure you want to proceed?</div>`;
+    $("deleteConfirmMessage").innerHTML =
+      `<div style='color:#b71c1c;font-weight:500;margin-bottom:10px;'>Warning: This action will permanently delete <b>${count}</b> selected line${
+        count > 1 ? "s" : ""
+      }.</div><div>Are you sure you want to proceed?</div>`;
     // Show modal
     if (typeof dlg.showModal === "function") dlg.showModal();
     else dlg.setAttribute("open", "");
@@ -1879,7 +1878,7 @@ function confirmDeleteLines(count) {
         e.preventDefault();
         cleanup(false);
       },
-      { once: true }
+      { once: true },
     );
     // Focus Cancel for accessibility
     setTimeout(() => cancelBtn?.focus(), 100);
@@ -1911,7 +1910,7 @@ function confirmApply() {
         e.preventDefault();
         done(false);
       },
-      { once: true }
+      { once: true },
     );
 
     if (typeof dlg.showModal === "function") dlg.showModal();
@@ -1928,9 +1927,8 @@ function confirmZeroSeeded(setId) {
     const dlg = $("deleteConfirmModal");
     if (!dlg) return resolve(false);
     $("deleteConfirmTitle").textContent = "Zero Seeded Lines";
-    $(
-      "deleteConfirmMessage"
-    ).innerHTML = `<div style='color:#b45309;font-weight:500;margin-bottom:10px;'>Set Proposed Qty = 0 for seeded lines in <b>#${setId}</b>.</div><div>This will also set Note = 'Manual Production Plan'. Proceed?</div>`;
+    $("deleteConfirmMessage").innerHTML =
+      `<div style='color:#b45309;font-weight:500;margin-bottom:10px;'>Set Proposed Qty = 0 for seeded lines in <b>#${setId}</b>.</div><div>This will also set Note = 'Manual Production Plan'. Proceed?</div>`;
 
     // show modal and temporarily change action button text to be appropriate
     const cancelBtn = document.getElementById("deleteConfirmCancelBtn");
@@ -1958,7 +1956,7 @@ function confirmZeroSeeded(setId) {
         e.preventDefault();
         cleanup(false);
       },
-      { once: true }
+      { once: true },
     );
     setTimeout(() => cancelBtn?.focus(), 100);
   });
@@ -2079,14 +2077,14 @@ async function loadUnifiedData() {
 
     const rows = (data || []).filter(
       (r) =>
-        !(Number(r.manual_qty || 0) === 0 && Number(r.system_qty || 0) === 0)
+        !(Number(r.manual_qty || 0) === 0 && Number(r.system_qty || 0) === 0),
     );
 
     // Summary pills: only Total + Needed
     if (sumEl) {
       const needed = rows.reduce(
         (acc, r) => acc + (r.is_manual_needed ? 1 : 0),
-        0
+        0,
       );
       sumEl.innerHTML =
         chip("Total rows: " + rows.length) +
@@ -2376,11 +2374,11 @@ async function applyUnifiedOverrides() {
       const status = opt?.dataset?.status || "";
       if (String(status).toLowerCase() === "applied") {
         console.debug(
-          "Plan already applied; performing rollback before re-apply"
+          "Plan already applied; performing rollback before re-apply",
         );
         const { data: rbResp, error: rbErr } = await supabase.rpc(
           "rollback_manual_plan_apply",
-          { p_set_id: setId }
+          { p_set_id: setId },
         );
         console.debug("rollback before apply resp:", rbResp, rbErr);
         // proceed even if rbErr; the subsequent apply will reconcile state
@@ -2391,14 +2389,14 @@ async function applyUnifiedOverrides() {
 
     let { data: resp1, error: e1 } = await supabase.rpc(
       "apply_manual_plan_set",
-      { p_set_id: setId, p_from: from, p_to: to, p_threshold: thr }
+      { p_set_id: setId, p_from: from, p_to: to, p_threshold: thr },
     );
     console.debug("apply_manual_plan_set resp:", resp1, e1);
     if (e1) throw e1;
     const [ins1, upd1, deact1] = parseRpcTriple(resp1);
     let { data: resp2, error: e2 } = await supabase.rpc(
       "apply_production_overrides",
-      { p_from: from, p_to: to }
+      { p_from: from, p_to: to },
     );
     console.debug("apply_production_overrides resp:", resp2, e2);
     if (e2) throw e2;
@@ -2420,13 +2418,13 @@ async function applyUnifiedOverrides() {
       console.error("manual_plan_sets update error:", updRes.error);
       showToast(
         "Failed to set plan status to applied: " +
-          (updRes.error.message || updRes.error.details || updRes.error)
+          (updRes.error.message || updRes.error.details || updRes.error),
       );
       // continue to refresh UI so user sees table changes, but rethrow to go to catch
       throw updRes.error;
     }
     showToast(
-      `Staging: +${ins1}/${upd1}/${deact1} | Overrides: +${ins2}/${upd2}/${deact2}`
+      `Staging: +${ins1}/${upd1}/${deact1} | Overrides: +${ins2}/${upd2}/${deact2}`,
     );
     await loadUnifiedData();
     // Refresh selected plan metadata from server so the header dataset/status
@@ -2568,7 +2566,7 @@ function reconToCSV(rows) {
           const s = typeof v === "string" ? v : String(v ?? "");
           return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
         })
-        .join(",")
+        .join(","),
     )
     .join("\n");
   return head + "\n" + body;
@@ -2832,7 +2830,7 @@ async function confirmDeletePlanModal(planTitle = "") {
   }
   if (!dialog || !form) {
     return confirm(
-      `Delete "${planTitle || "this plan"}"? This action cannot be undone.`
+      `Delete "${planTitle || "this plan"}"? This action cannot be undone.`,
     );
   }
   return new Promise((resolve) => {
@@ -2913,14 +2911,14 @@ async function deletePlan(id) {
   }
 }
 
-// Pretty number: max 2 decimals, no trailing zeros
+// Pretty number: max 3 decimals, no trailing zeros
 const nf2 = new Intl.NumberFormat(undefined, {
   minimumFractionDigits: 0,
-  maximumFractionDigits: 2,
+  maximumFractionDigits: 3,
 });
 function pretty(n) {
   const x = Number(n);
-  return Number.isFinite(x) ? nf2.format(x) : n ?? "";
+  return Number.isFinite(x) ? nf2.format(x) : (n ?? "");
 }
 
 function reasonWithDetails(r) {
@@ -3015,7 +3013,7 @@ async function loadActiveOverrides(fromParam = null, toParam = null) {
       } catch (e) {
         console.debug(
           "Item filter resolution failed; continuing without item filter",
-          e
+          e,
         );
       }
     }
@@ -3033,11 +3031,11 @@ async function loadActiveOverrides(fromParam = null, toParam = null) {
       // Treat NULL as active for backward compatibility with older rows
       q = q.or("is_active.is.null,is_active.eq.true");
       console.debug(
-        "Applied is_active in (true,NULL) filter for Active Overrides"
+        "Applied is_active in (true,NULL) filter for Active Overrides",
       );
     } else {
       console.debug(
-        "is_active column not present on production_qty_overrides; skipping filter"
+        "is_active column not present on production_qty_overrides; skipping filter",
       );
     }
   } catch (e) {
@@ -3073,8 +3071,8 @@ async function loadActiveOverrides(fromParam = null, toParam = null) {
           const pd = Array.isArray(nested) ? nested[0] || null : nested || null;
           return pd && pd.product_name ? null : Number(rr.product_id) || null;
         })
-        .filter(Boolean)
-    )
+        .filter(Boolean),
+    ),
   );
   if (pidsMissing.length) {
     try {
@@ -3421,7 +3419,7 @@ function wire() {
             const m = String(today.getMonth() + 1).padStart(2, "0");
             const m2 = String(((today.getMonth() + 1) % 12) + 1).padStart(
               2,
-              "0"
+              "0",
             );
             const y2 = today.getMonth() === 11 ? y + 1 : y;
             fromEl.value = `${y}-${m}`;

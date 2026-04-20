@@ -8,117 +8,181 @@
     <style>
       html,
       body {
-        height: 100%;
+        height: 100vh;
+        min-height: 100vh;
         margin: 0;
+        overflow: hidden;
+        box-sizing: border-box;
         font-family: system-ui, "Segoe UI", Roboto, Arial, sans-serif;
       }
       body {
-        padding: 14px;
         display: flex;
         flex-direction: column;
+        padding: 16px;
         gap: 10px;
         background: var(--bg-color, #f8fafc);
         color: var(--text-color, #0f172a);
       }
-      .header {
+      @media (max-width: 900px) {
+        body {
+          padding: 10px;
+          gap: 8px;
+        }
+      }
+      @media (max-width: 520px) {
+        body {
+          padding: 6px;
+        }
+      }
+
+      /* ── Header ─────────────────────────────────── */
+      .page-header {
         display: flex;
-        align-items: flex-start;
         justify-content: space-between;
-        gap: 10px;
+        align-items: flex-start;
+        gap: 12px;
+        flex-shrink: 0;
       }
-      .header h1 {
+      .page-header h1 {
         margin: 0;
-        font-size: 1.15rem;
+        font-size: 1.35rem;
         color: var(--primary, #2563eb);
+        line-height: 1.2;
       }
-      .subtitle {
-        margin-top: 3px;
-        font-size: 12px;
+      .page-sub {
         color: var(--muted, #64748b);
+        font-size: 0.84rem;
+        margin-top: 3px;
       }
       .header-actions {
         display: flex;
         gap: 8px;
+        align-items: center;
+        flex-shrink: 0;
       }
-      .btn {
-        border: 1px solid var(--border, #dbe2ea);
-        border-radius: 8px;
-        background: #fff;
-        color: #0f172a;
-        padding: 8px 12px;
-        font-size: 13px;
-        cursor: pointer;
+      @media (max-width: 520px) {
+        .page-header h1 {
+          font-size: 17px;
+        }
+        .page-sub {
+          display: none;
+        }
       }
-      .btn.primary {
-        background: var(--primary, #2563eb);
-        color: #fff;
-        border-color: var(--primary, #2563eb);
-      }
-      .btn:disabled {
-        opacity: 0.45;
-        cursor: not-allowed;
-      }
+
+      /* ── Status ──────────────────────────────────── */
       #statusArea {
         display: none;
-        font-size: 13px;
-        border-radius: 8px;
         padding: 10px 12px;
+        border-radius: 7px;
+        font-size: 13px;
+        flex-shrink: 0;
         border: 1px solid transparent;
       }
-      #statusArea[data-type="error"] {
+      #statusArea.sa-error {
         display: block;
-        color: #991b1b;
         background: #fef2f2;
+        color: #991b1b;
         border-color: #fecaca;
       }
-      #statusArea[data-type="warn"] {
+      #statusArea.sa-warn {
         display: block;
-        color: #92400e;
         background: #fffbeb;
+        color: #92400e;
         border-color: #fde68a;
       }
+      #statusArea.sa-success {
+        display: block;
+        background: #f0fdf4;
+        color: #166534;
+        border-color: #86efac;
+      }
+
+      /* ── Tabs ────────────────────────────────────── */
       .tabs {
         display: flex;
-        gap: 8px;
+        gap: 6px;
+        padding: 8px;
+        background: linear-gradient(
+          135deg,
+          rgba(37, 99, 235, 0.05),
+          rgba(37, 99, 235, 0.02)
+        );
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 10px;
+        align-items: center;
         overflow-x: auto;
+        flex-shrink: 0;
+        scrollbar-width: none;
+      }
+      .tabs::-webkit-scrollbar {
+        display: none;
       }
       .tab-btn {
-        border: 1px solid var(--border, #dbe2ea);
-        border-radius: 999px;
-        background: #fff;
-        padding: 7px 14px;
-        font-size: 12.5px;
+        padding: 7px 15px;
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--muted, #6b7280);
+        font-size: 13px;
         font-weight: 700;
-        color: #475569;
         cursor: pointer;
+        border-radius: 8px;
+        transition: all 0.16s ease;
         white-space: nowrap;
+        flex-shrink: 0;
+      }
+      .tab-btn:hover {
+        color: #0f172a;
+        background: rgba(37, 99, 235, 0.05);
+        border-color: rgba(37, 99, 235, 0.12);
+      }
+      .tab-btn:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
       }
       .tab-btn.active {
+        color: #fff;
         background: var(--primary, #2563eb);
         border-color: var(--primary, #2563eb);
-        color: #fff;
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.22);
       }
+      .tab-btn.hidden {
+        display: none;
+      }
+
+      /* ── Layout ──────────────────────────────────── */
       .layout {
-        min-height: 0;
         flex: 1 1 auto;
+        min-height: 0;
       }
       .panel {
         display: none;
+        height: 100%;
+        flex-direction: column;
+        gap: 10px;
+        overflow: hidden;
+      }
+      .panel.active {
+        display: flex;
+      }
+
+      /* ── Card ────────────────────────────────────── */
+      .card {
         background: #fff;
         border: 1px solid var(--border, #e2e8f0);
         border-radius: 10px;
         padding: 12px;
-      }
-      .panel.active {
-        display: block;
+        flex-shrink: 0;
       }
       .section-title {
-        margin: 0 0 10px;
-        font-size: 13px;
+        margin: 0 0 8px;
+        font-size: 11px;
+        font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.04em;
         color: var(--muted, #64748b);
       }
+
+      /* ── Form ────────────────────────────────────── */
       .grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -129,7 +193,7 @@
         grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 10px;
       }
-      label {
+      label.field {
         display: flex;
         flex-direction: column;
         gap: 4px;
@@ -144,21 +208,245 @@
         padding: 7px 9px;
         font-size: 13px;
         background: #fff;
+        box-sizing: border-box;
+        width: 100%;
+      }
+      input:focus,
+      select:focus {
+        outline: none;
+        border-color: var(--primary, #2563eb);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+      }
+      input:disabled,
+      select:disabled {
+        background: #f8fafc;
+        color: #94a3b8;
+        cursor: not-allowed;
+      }
+      .field-hint {
+        font-size: 11px;
+        font-weight: 400;
+        color: var(--muted, #64748b);
+        margin-top: 2px;
+      }
+      /* UOM auto-text in Create rows */
+      td.uom-cell {
+        text-align: center;
+      }
+      .c-uom-text {
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--primary, #2563eb);
+        letter-spacing: 0.02em;
+      }
+      .c-uom-text.c-uom-empty {
+        color: var(--muted, #94a3b8);
+        font-weight: 400;
+      }
+
+      /* ── Explore quick-filter row ─────────────────── */
+      .explore-quick-row {
+        display: flex;
+        align-items: flex-end;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .explore-quick-field {
+        flex: 1 1 160px;
+        min-width: 120px;
+      }
+      /* SVG icon-only buttons */
+      .icon-btn {
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        border: 1px solid var(--border, #dbe2ea);
+        background: #fff;
+        color: var(--muted, #64748b);
+        cursor: pointer;
+        transition:
+          background 0.15s,
+          color 0.15s,
+          border-color 0.15s;
+        padding: 0;
+        margin-bottom: 1px; /* align with input bottom border */
+      }
+      .icon-btn:hover {
+        background: var(--surface, #f1f5f9);
+        color: #0f172a;
+        border-color: #94a3b8;
+      }
+      .icon-btn--filter {
+        border-color: var(--primary, #2563eb);
+        color: var(--primary, #2563eb);
+        background: rgba(37, 99, 235, 0.06);
+      }
+      .icon-btn--filter:hover {
+        background: rgba(37, 99, 235, 0.14);
+        color: var(--primary, #2563eb);
+        border-color: var(--primary, #2563eb);
+      }
+      /* Dot badge on filter button when hierarchy is active */
+      .icon-btn--filter.has-filter {
+        background: var(--primary, #2563eb);
+        color: #fff;
+        border-color: var(--primary, #2563eb);
+      }
+
+      /* ── Pager controls ─────────────────────────────── */
+      .pager-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 6px 2px;
+        flex-wrap: wrap;
+      }
+      .pager-total {
+        font-size: 12px;
+        color: var(--primary, #2563eb);
+        font-weight: 600;
+      }
+      .pager-controls {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-left: auto;
+      }
+      .pager-size-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 12px;
+        color: var(--muted, #64748b);
+        font-family: inherit;
+      }
+      .pager-size-select {
+        font-size: 12px;
+        padding: 3px 6px;
+        border-radius: 6px;
+        border: 1px solid var(--border, #dbe2ea);
+        background: #fff;
+        font-family: inherit;
+        cursor: pointer;
+      }
+      .pager-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        padding: 0 !important;
+        border-radius: 6px;
+      }
+      .pager-btn svg {
+        display: block;
+      }
+      .pager-btn:disabled {
+        opacity: 0.35;
+      }
+      .pager-info {
+        font-size: 12px;
+        color: var(--muted, #64748b);
+        min-width: 48px;
+        text-align: center;
+      }
+
+      /* ── Buttons ─────────────────────────────────── */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid var(--border, #dbe2ea);
+        border-radius: 8px;
+        background: #fff;
+        color: #0f172a;
+        padding: 7px 12px;
+        font-size: 13px;
+        font-family: inherit;
+        cursor: pointer;
+        white-space: nowrap;
+        line-height: 1.4;
+      }
+      .btn:hover {
+        background: #f8fafc;
+      }
+      .btn.primary {
+        background: var(--primary, #2563eb);
+        color: #fff;
+        border-color: var(--primary, #2563eb);
+        font-weight: 600;
+      }
+      .btn.primary:hover {
+        background: #1d4ed8;
+        border-color: #1d4ed8;
+      }
+      .btn.danger {
+        background: #dc2626;
+        color: #fff;
+        border-color: #dc2626;
+        font-weight: 600;
+      }
+      .btn.danger:hover {
+        background: #b91c1c;
+        border-color: #b91c1c;
+      }
+      .btn.secondary {
+        background: #f1f5f9;
+        color: #334155;
+        border-color: #cbd5e1;
+        font-weight: 500;
+      }
+      .btn.secondary:hover {
+        background: #e2e8f0;
+        border-color: #94a3b8;
+      }
+      .btn.ghost {
+        background: transparent;
+        border-color: transparent;
+      }
+      .btn.ghost:hover {
+        background: #f1f5f9;
+        border-color: #e2e8f0;
+      }
+      .btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
       }
       .row-actions {
         display: flex;
         gap: 6px;
         align-items: center;
+        flex-wrap: wrap;
       }
-      .ghost {
-        background: transparent;
-      }
-      .muted {
-        color: var(--muted, #64748b);
+      .muted-label {
         font-size: 12px;
+        color: var(--muted, #64748b);
       }
+      .icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 7px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+        background: #fff;
+        cursor: pointer;
+        color: inherit;
+        flex-shrink: 0;
+      }
+      .icon-btn:hover {
+        background: #f3f4f6;
+      }
+
+      /* ── Table ───────────────────────────────────── */
       .table-wrap {
-        margin-top: 10px;
+        flex: 1 1 auto;
+        min-height: 0;
         border: 1px solid #e2e8f0;
         border-radius: 8px;
         overflow: auto;
@@ -167,104 +455,434 @@
         width: 100%;
         border-collapse: collapse;
       }
-      th,
-      td {
-        padding: 8px;
-        border-bottom: 1px solid #edf2f7;
-        font-size: 12.5px;
+      thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #f8fafc;
+        padding: 7px 8px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: #64748b;
+        border-bottom: 1px solid #e2e8f0;
+        white-space: nowrap;
         text-align: left;
       }
-      th {
-        background: #f8fafc;
-        color: #64748b;
-        text-transform: uppercase;
-        font-size: 11px;
-        letter-spacing: 0.03em;
+      tbody td {
+        padding: 7px 8px;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 12.5px;
       }
-      .kpi-row {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 8px;
-        margin-bottom: 10px;
+      tbody tr:last-child td {
+        border-bottom: none;
       }
-      .kpi {
-        border: 1px solid #e2e8f0;
-        border-left: 4px solid #2563eb;
-        border-radius: 8px;
+      tbody tr:hover td {
+        background: #f0f7ff;
+      }
+      .td-actions {
+        display: flex;
+        gap: 4px;
+      }
+      .empty-state {
+        padding: 24px;
+        text-align: center;
+        color: #94a3b8;
+        font-size: 13px;
+      }
+      #createTable input,
+      #createTable select {
+        min-width: 80px;
+        padding: 5px 7px;
+        font-size: 12.5px;
+      }
+
+      /* ── Badges ──────────────────────────────────── */
+      .badge-mapped {
+        display: inline-block;
+        padding: 2px 7px;
+        border-radius: 999px;
+        font-size: 10.5px;
+        font-weight: 700;
+        background: #fffbeb;
+        color: #92400e;
+        border: 1px solid #fde68a;
+      }
+      .badge-free {
+        display: inline-block;
+        padding: 2px 7px;
+        border-radius: 999px;
+        font-size: 10.5px;
+        font-weight: 700;
+        background: #f0fdf4;
+        color: #166534;
+        border: 1px solid #86efac;
+      }
+
+      /* ── Modal ───────────────────────────────────── */
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+      }
+      .modal-overlay.hidden {
+        display: none;
+      }
+      .modal-window {
         background: #fff;
-        padding: 8px;
+        border-radius: 12px;
+        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2);
+        width: min(440px, 94vw);
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
       }
-      .kpi .k {
-        font-size: 10px;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+      }
+      .modal-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin: 0;
+      }
+      .modal-close-btn {
+        width: 28px;
+        height: 28px;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        background: transparent;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         color: #64748b;
+        flex-shrink: 0;
       }
-      .kpi .v {
-        font-size: 20px;
-        font-weight: 800;
+      .modal-close-btn:hover {
+        background: #f3f4f6;
         color: #0f172a;
       }
+      .modal-body {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .modal-footer {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+      .modal-info {
+        font-size: 11.5px;
+        color: #92400e;
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        border-radius: 6px;
+        padding: 6px 10px;
+      }
+      .field-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      /* ── Row clickable ───────────────────────────── */
+      tbody tr.clickable-row {
+        cursor: pointer;
+      }
+      tbody tr.clickable-row:hover td {
+        background: #eff6ff;
+      }
+
+      /* ── Detail modal ────────────────────────────── */
+      .detail-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .detail-field {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 7px;
+        padding: 8px 10px;
+      }
+      .detail-label {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #64748b;
+      }
+      .detail-value {
+        font-size: 14px;
+        font-weight: 600;
+        color: #0f172a;
+        word-break: break-word;
+      }
+      .detail-muted {
+        font-weight: 500;
+        color: #475569;
+        font-size: 13px;
+      }
+      .detail-section-title {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #94a3b8;
+        margin: 4px 0 2px;
+      }
+      .detail-status-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 0;
+      }
+      #detailModal .modal-footer {
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .btn.copy {
+        background: #f0fdfa;
+        color: #0f766e;
+        border-color: #99f6e4;
+        font-weight: 600;
+      }
+      .btn.copy:hover {
+        background: #ccfbf1;
+        border-color: #2dd4bf;
+      }
+
+      /* ── Confirm modal ───────────────────────────── */
+      .confirm-message {
+        font-size: 14px;
+        color: #334155;
+        line-height: 1.55;
+      }
+      .confirm-item {
+        margin-top: 6px;
+        padding: 7px 10px;
+        border-radius: 6px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        font-size: 13px;
+        font-weight: 600;
+        color: #0f172a;
+        word-break: break-word;
+      }
+
+      /* ── Toast ───────────────────────────────────── */
+      #toastContainer {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-end;
+        pointer-events: none;
+      }
+      .toast {
+        pointer-events: auto;
+        padding: 10px 14px;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        font-size: 13px;
+        font-weight: 500;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+        max-width: 320px;
+        line-height: 1.4;
+        animation: toast-in 0.2s ease forwards;
+      }
+      .toast.toast-success {
+        background: #f0fdf4;
+        border-color: #86efac;
+        color: #166534;
+      }
+      .toast.toast-warn {
+        background: #fffbeb;
+        border-color: #fde68a;
+        color: #92400e;
+      }
+      .toast.toast-error {
+        background: #fef2f2;
+        border-color: #fca5a5;
+        color: #991b1b;
+      }
+      .toast.toast-out {
+        animation: toast-out 0.3s ease forwards;
+      }
+      @keyframes toast-in {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes toast-out {
+        from {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        to {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+      }
+
       .hidden {
         display: none !important;
       }
       @media (max-width: 900px) {
         .grid,
-        .grid-3,
-        .kpi-row {
-          grid-template-columns: 1fr;
+        .grid-3 {
+          grid-template-columns: 1fr 1fr;
         }
-        body {
-          padding: 8px;
-        }
-        .subtitle {
+      }
+      #homeBtn .home-label {
+        display: inline;
+      }
+      @media (max-width: 520px) {
+        #homeBtn .home-label {
           display: none;
+        }
+        #homeBtn svg {
+          margin-right: 0;
+        }
+        #homeBtn {
+          padding-left: 8px;
+          padding-right: 8px;
+        }
+        .grid,
+        .grid-3 {
+          grid-template-columns: 1fr;
         }
       }
     </style>
   </head>
   <body>
-    <div class="header">
+    <!-- ── Header ─────────────────────────────────────────────── -->
+    <div class="page-header">
       <div>
-        <h1>Manage BMR</h1>
-        <div class="subtitle">
-          Unified Batch Manufacturing Record console for create, maintain and
+        <h1>Manage Batch Manufacturing Record</h1>
+        <div class="page-sub">
+          Unified Batch Manufacturing Record console — create, maintain and
           explore
         </div>
       </div>
       <div class="header-actions">
-        <button id="refreshBtn" class="btn" type="button">Refresh</button>
-        <button id="homeBtn" class="btn" type="button">Home</button>
+        <button
+          id="refreshBtn"
+          class="icon-btn"
+          type="button"
+          title="Refresh"
+          aria-label="Refresh"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0114.13-3.36L23 10"></path>
+            <path d="M20.49 15a9 9 0 01-14.13 3.36L1 14"></path>
+          </svg>
+        </button>
+        <button id="homeBtn" type="button" title="Home" aria-label="Home">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9,22 9,12 15,12 15,22" />
+          </svg>
+          <span class="home-label">HOME</span>
+        </button>
       </div>
     </div>
 
+    <!-- ── Status ─────────────────────────────────────────────── -->
     <div id="statusArea" role="status" aria-live="polite"></div>
 
+    <!-- ── Tabs ───────────────────────────────────────────────── -->
     <div id="tabBar" class="tabs" role="tablist">
-      <button class="tab-btn" data-tab="add" type="button">Create BN</button>
-      <button class="tab-btn" data-tab="manage" type="button">Manage BMR</button>
-      <button class="tab-btn" data-tab="explore" type="button">
+      <button class="tab-btn" data-tab="explore" role="tab" type="button">
         BMR Explorer
+      </button>
+      <button class="tab-btn" data-tab="manage" role="tab" type="button">
+        Manage BMR
+      </button>
+      <button class="tab-btn" data-tab="add" role="tab" type="button">
+        Create BMR
       </button>
     </div>
 
+    <!-- ── Panels ─────────────────────────────────────────────── -->
     <div class="layout">
-      <section id="panel-add" class="panel">
-        <h2 class="section-title">Create BMR Entries</h2>
-        <div class="grid">
-          <label>
-            CSV File
-            <input id="csvFile" type="file" accept=".csv" />
-          </label>
-          <div class="row-actions" style="align-self: end">
-            <button id="downloadTemplate" class="btn ghost" type="button">
-              Download Template
-            </button>
-            <button id="uploadCsv" class="btn" type="button">Preview CSV</button>
+      <!-- CREATE tab ──────────────────────────────────── -->
+      <section id="panel-add" class="panel" role="tabpanel">
+        <div class="card">
+          <p class="section-title">Create BMR Entries</p>
+          <div
+            style="
+              display: grid;
+              grid-template-columns: 1fr auto;
+              gap: 10px;
+              align-items: end;
+            "
+          >
+            <label class="field"
+              >CSV File
+              <input
+                id="csvFile"
+                type="file"
+                accept=".csv"
+                style="width: auto"
+              />
+            </label>
+            <div class="row-actions" style="padding-bottom: 1px">
+              <button id="downloadTemplate" class="btn ghost" type="button">
+                Download Template
+              </button>
+              <button id="uploadCsv" class="btn" type="button">
+                Preview CSV
+              </button>
+            </div>
           </div>
         </div>
 
-        <div class="table-wrap" style="margin-top: 12px">
+        <div class="table-wrap">
           <table id="createTable">
             <thead>
               <tr>
@@ -272,51 +890,118 @@
                 <th>BN</th>
                 <th>Batch Size</th>
                 <th>UOM</th>
-                <th>Action</th>
+                <th style="width: 60px"></th>
               </tr>
             </thead>
             <tbody id="createTableBody"></tbody>
           </table>
+          <datalist id="itemList"></datalist>
         </div>
-        <datalist id="itemList"></datalist>
-        <div class="row-actions" style="margin-top: 10px">
-          <button id="addRowBtn" class="btn ghost" type="button">Add Row</button>
-          <button id="clearRowsBtn" class="btn ghost" type="button">Clear</button>
+
+        <div class="row-actions" style="flex-shrink: 0">
+          <button id="addRowBtn" class="btn ghost" type="button">
+            + Add Row
+          </button>
+          <button id="clearRowsBtn" class="btn ghost" type="button">
+            Clear All
+          </button>
           <button id="submitCreateBtn" class="btn primary" type="button">
             Create Entries
           </button>
+          <span id="createCount" class="muted-label"></span>
         </div>
       </section>
 
-      <section id="panel-manage" class="panel">
-        <h2 class="section-title">Maintain Existing BMR</h2>
-        <div class="grid-3">
-          <label>
-            Item
-            <select id="manageFilterItem">
-              <option value="">All</option>
-            </select>
-          </label>
-          <label>
-            BN
-            <input id="manageFilterBn" type="text" placeholder="Exact BN" />
-          </label>
-          <div class="row-actions" style="align-self: end">
-            <button id="manageClearBtn" class="btn ghost" type="button">
-              Clear
+      <!-- MANAGE tab ──────────────────────────────────── -->
+      <section id="panel-manage" class="panel" role="tabpanel">
+        <div class="card">
+          <p class="section-title">Maintain Existing BMR</p>
+          <div class="grid-3" style="align-items: end">
+            <label class="field"
+              >Item
+              <select id="manageFilterItem">
+                <option value="">All Items</option>
+              </select>
+            </label>
+            <label class="field"
+              >BN
+              <input
+                id="manageFilterBn"
+                type="text"
+                placeholder="Filter by exact BN…"
+              />
+            </label>
+            <div class="row-actions">
+              <button id="manageClearBtn" class="btn ghost" type="button">
+                Clear
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="pager-row" id="managePagerRow">
+          <span id="manageCount" class="pager-total"></span>
+          <div class="pager-controls">
+            <label class="pager-size-label"
+              >Rows
+              <select id="managePageSize" class="pager-size-select">
+                <option value="25">25</option>
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+                <option value="200">200</option>
+              </select>
+            </label>
+            <button
+              id="managePrevBtn"
+              class="btn ghost pager-btn"
+              type="button"
+              disabled
+              title="Previous page"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+            <span id="managePageInfo" class="pager-info">Page 1</span>
+            <button
+              id="manageNextBtn"
+              class="btn ghost pager-btn"
+              type="button"
+              disabled
+              title="Next page"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
             </button>
           </div>
         </div>
         <div class="table-wrap">
-          <table>
+          <table id="manageTable">
             <thead>
               <tr>
                 <th>Item</th>
                 <th>BN</th>
                 <th>Batch Size</th>
                 <th>UOM</th>
-                <th>Mapped</th>
-                <th>Actions</th>
               </tr>
             </thead>
             <tbody id="manageTableBody"></tbody>
@@ -324,53 +1009,132 @@
         </div>
       </section>
 
-      <section id="panel-explore" class="panel">
-        <h2 class="section-title">BMR Explorer</h2>
-        <div class="kpi-row">
-          <div class="kpi"><div class="k">Rows</div><div id="kpiRows" class="v">0</div></div>
-          <div class="kpi"><div class="k">Unique Items</div><div id="kpiItems" class="v">0</div></div>
-          <div class="kpi"><div class="k">Visible BN</div><div id="kpiBn" class="v">0</div></div>
-          <div class="kpi"><div class="k">Avg Batch Size</div><div id="kpiAvg" class="v">0</div></div>
+      <!-- EXPLORE tab ─────────────────────────────────── -->
+      <section id="panel-explore" class="panel" role="tabpanel">
+        <div class="card">
+          <!-- Inline quick-filter row: Item, BN, clear, advanced -->
+          <div class="explore-quick-row">
+            <label class="field explore-quick-field"
+              >Item
+              <select id="filterItem">
+                <option value="">All Items</option>
+              </select>
+            </label>
+            <label class="field explore-quick-field"
+              >BN
+              <input
+                type="text"
+                id="filterBn"
+                placeholder="Any BN"
+                autocomplete="off"
+              />
+            </label>
+            <!-- Clear Item+BN only -->
+            <button
+              id="clearItemBnBtn"
+              class="icon-btn"
+              type="button"
+              title="Clear Item &amp; BN"
+            >
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="15" y1="9" x2="9" y2="15" />
+                <line x1="9" y1="9" x2="15" y2="15" />
+              </svg>
+            </button>
+            <!-- Advanced hierarchy filter -->
+            <button
+              id="openHierarchyModalBtn"
+              class="icon-btn icon-btn--filter"
+              type="button"
+              title="Filter by Hierarchy"
+              aria-haspopup="dialog"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+              </svg>
+            </button>
+          </div>
         </div>
 
-        <div class="grid-3">
-          <label>
-            Category
-            <select id="filterCategory"><option value="">Category</option></select>
-          </label>
-          <label>
-            Subcategory
-            <select id="filterSubCategory" disabled>
-              <option value="">Subcategory</option>
-            </select>
-          </label>
-          <label>
-            Group
-            <select id="filterGroup" disabled><option value="">Group</option></select>
-          </label>
-          <label>
-            Sub-group
-            <select id="filterSubGroup" disabled>
-              <option value="">Sub-group</option>
-            </select>
-          </label>
-          <label>
-            Item
-            <select id="filterItem"><option value="">Item</option></select>
-          </label>
-          <label>
-            BN
-            <select id="filterBn" disabled><option value="">BN</option></select>
-          </label>
-        </div>
-        <div class="row-actions" style="margin-top: 8px">
-          <button id="clearExploreBtn" class="btn ghost" type="button">Clear</button>
-          <span id="exploreCount" class="muted"></span>
+        <div class="pager-row" id="explorePagerRow">
+          <span id="exploreCount" class="pager-total"></span>
+          <div class="pager-controls">
+            <label class="pager-size-label"
+              >Rows
+              <select id="explorePageSize" class="pager-size-select">
+                <option value="25">25</option>
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+                <option value="200">200</option>
+              </select>
+            </label>
+            <button
+              id="explorePrevBtn"
+              class="btn ghost pager-btn"
+              type="button"
+              disabled
+              title="Previous page"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+            <span id="explorePageInfo" class="pager-info">Page 1</span>
+            <button
+              id="exploreNextBtn"
+              class="btn ghost pager-btn"
+              type="button"
+              disabled
+              title="Next page"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+          </div>
         </div>
         <div class="table-wrap">
-          <table>
+          <table id="exploreTable">
             <thead>
               <tr>
+                <th>Date</th>
                 <th>Item</th>
                 <th>BN</th>
                 <th>Batch Size</th>
@@ -382,6 +1146,387 @@
         </div>
       </section>
     </div>
+    <!-- /.layout -->
+
+    <!-- ── Edit BMR Modal ─────────────────────────────────────── -->
+    <div
+      id="editModal"
+      class="modal-overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="editModalTitle"
+    >
+      <div class="modal-window">
+        <div class="modal-header">
+          <h2 id="editModalTitle" class="modal-title">Edit BMR Entry</h2>
+          <button
+            id="editModalClose"
+            class="modal-close-btn"
+            type="button"
+            aria-label="Close"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div id="editMappedNote" class="modal-info hidden">
+          &#9888; This BMR is mapped to a batch plan. BN and Batch Size are
+          locked and cannot be changed.
+        </div>
+        <div class="modal-body">
+          <label class="field"
+            >Item
+            <select id="editItem"></select>
+          </label>
+          <div class="field-row">
+            <label class="field"
+              >BN
+              <input id="editBn" type="text" placeholder="Batch Number" />
+            </label>
+            <label class="field"
+              >Batch Size
+              <input
+                id="editSize"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="e.g. 100"
+              />
+            </label>
+          </div>
+          <label class="field"
+            >UOM
+            <select
+              id="editUom"
+              title="UOM is determined by the product and cannot be changed"
+            >
+              <option value="">— Auto-set from product —</option>
+              <option>Kg</option>
+              <option>L</option>
+              <option>Nos</option>
+              <option>g</option>
+              <option>mL</option>
+            </select>
+            <span class="field-hint">Set by the product — not editable</span>
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button id="editCancelBtn" class="btn secondary" type="button">
+            Cancel
+          </button>
+          <button id="editSaveBtn" class="btn primary" type="button">
+            Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── BMR Detail Modal ──────────────────────────────────────── -->
+    <div
+      id="detailModal"
+      class="modal-overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="detailModalTitle"
+    >
+      <div class="modal-window" style="width: min(520px, 94vw)">
+        <div class="modal-header">
+          <h2 id="detailModalTitle" class="modal-title">BMR Details</h2>
+          <button
+            id="detailModalClose"
+            class="modal-close-btn"
+            type="button"
+            aria-label="Close"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <!-- Core fields -->
+          <div class="detail-grid">
+            <div class="detail-field">
+              <span class="detail-label">Item</span>
+              <span id="dtItem" class="detail-value"></span>
+            </div>
+            <div class="detail-field">
+              <span class="detail-label">Batch Number (BN)</span>
+              <span id="dtBn" class="detail-value"></span>
+            </div>
+            <div class="detail-field">
+              <span class="detail-label">Batch Size</span>
+              <span id="dtSize" class="detail-value"></span>
+            </div>
+            <div class="detail-field">
+              <span class="detail-label">UOM</span>
+              <span id="dtUom" class="detail-value"></span>
+            </div>
+          </div>
+
+          <!-- Hierarchy -->
+          <p class="detail-section-title">Product Hierarchy</p>
+          <div class="detail-grid">
+            <div class="detail-field">
+              <span class="detail-label">Category</span>
+              <span id="dtCategory" class="detail-value detail-muted"></span>
+            </div>
+            <div class="detail-field">
+              <span class="detail-label">Subcategory</span>
+              <span id="dtSubcategory" class="detail-value detail-muted"></span>
+            </div>
+            <div class="detail-field">
+              <span class="detail-label">Group</span>
+              <span id="dtGroup" class="detail-value detail-muted"></span>
+            </div>
+            <div class="detail-field">
+              <span class="detail-label">Sub-group</span>
+              <span id="dtSubGroup" class="detail-value detail-muted"></span>
+            </div>
+          </div>
+
+          <!-- Status (manage tab only) -->
+          <div id="dtStatusRow" class="detail-status-row hidden">
+            <span class="detail-label">Mapping Status</span>
+            <span id="dtStatus"></span>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="detailCopyBtn" class="btn copy" type="button">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+              <path
+                d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+              />
+            </svg>
+            Copy
+          </button>
+          <div style="display: flex; gap: 8px">
+            <button
+              id="detailDeleteBtn"
+              class="btn danger hidden"
+              type="button"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                <path d="M10 11v6" />
+                <path d="M14 11v6" />
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+              </svg>
+              Delete
+            </button>
+            <button id="detailEditBtn" class="btn primary hidden" type="button">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path
+                  d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+                />
+                <path
+                  d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+                />
+              </svg>
+              Edit
+            </button>
+            <button id="detailCloseBtn" class="btn secondary" type="button">
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Confirm modal ───────────────────────────────────────── -->
+    <div
+      id="confirmModal"
+      class="modal-overlay hidden"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="confirmModalTitle"
+      aria-describedby="confirmModalMsg"
+    >
+      <div class="modal-window" style="width: min(380px, 92vw)">
+        <div class="modal-header">
+          <h2 id="confirmModalTitle" class="modal-title">Confirm Action</h2>
+          <button
+            id="confirmModalClose"
+            class="modal-close-btn"
+            type="button"
+            aria-label="Close"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p id="confirmModalMsg" class="confirm-message"></p>
+          <div id="confirmModalItem" class="confirm-item hidden"></div>
+        </div>
+        <div class="modal-footer">
+          <button id="confirmCancelBtn" class="btn secondary" type="button">
+            Cancel
+          </button>
+          <button id="confirmOkBtn" class="btn danger" type="button">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+              <path d="M10 11v6" />
+              <path d="M14 11v6" />
+              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+            </svg>
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Hierarchy Filter Modal ──────────────────────────────── -->
+    <div
+      id="hierarchyModal"
+      class="modal-overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="hierarchyModalTitle"
+    >
+      <div class="modal-window" style="max-width: 480px">
+        <div class="modal-header">
+          <h2 id="hierarchyModalTitle" class="modal-title">
+            Filter by Hierarchy
+          </h2>
+          <button
+            id="hierarchyModalClose"
+            class="modal-close-btn"
+            type="button"
+            aria-label="Close"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div
+          class="modal-body"
+          style="display: flex; flex-direction: column; gap: 12px"
+        >
+          <label class="field"
+            >Category
+            <select id="filterCategory">
+              <option value="">All Categories</option>
+            </select>
+          </label>
+          <label class="field"
+            >Subcategory
+            <select id="filterSubCategory">
+              <option value="">All Subcategories</option>
+            </select>
+          </label>
+          <label class="field"
+            >Group
+            <select id="filterGroup">
+              <option value="">All Groups</option>
+            </select>
+          </label>
+          <label class="field"
+            >Sub-group
+            <select id="filterSubGroup">
+              <option value="">All Sub-groups</option>
+            </select>
+          </label>
+        </div>
+        <div
+          class="modal-footer"
+          style="
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            padding: 12px 20px 16px;
+          "
+        >
+          <button id="clearExploreBtn" class="btn ghost" type="button">
+            Clear Hierarchy
+          </button>
+          <button id="applyHierarchyBtn" class="btn primary" type="button">
+            Apply
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Toast container ─────────────────────────────────────── -->
+    <div id="toastContainer" aria-live="polite" aria-atomic="false"></div>
 
     <script type="module" src="./js/manage-bmr.js"></script>
   </body>
