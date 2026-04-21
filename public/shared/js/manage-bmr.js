@@ -68,6 +68,14 @@ const els = {
     submitCreateBtn: $("submitCreateBtn"),
     createCount: $("createCount"),
   },
+  createPreview: {
+    overlay: $("createPreviewModal"),
+    closeBtn: $("createPreviewClose"),
+    backBtn: $("createPreviewBack"),
+    confirmBtn: $("createPreviewConfirm"),
+    summary: $("createPreviewSummary"),
+    body: $("createPreviewBody"),
+  },
   manage: {
     filterItem: $("manageFilterItem"),
     filterBn: $("manageFilterBn"),
@@ -141,7 +149,8 @@ const els = {
 
 /* ── In-page confirm dialog ──────────────────────────────────── */
 // Returns a Promise<boolean>. Shows the confirm modal and resolves true on OK.
-function confirmDialog(message, itemLabel = "") {
+// okLabel defaults to 'Delete' (existing callers unchanged); pass e.g. 'Clear' as needed.
+function confirmDialog(message, itemLabel = "", okLabel = "Delete") {
   return new Promise((resolve) => {
     const cm = els.confirmModal;
     cm.msg.textContent = message;
@@ -151,6 +160,13 @@ function confirmDialog(message, itemLabel = "") {
     } else {
       cm.item.classList.add("hidden");
     }
+    // Swap OK button label (keep the SVG icon only for Delete)
+    const iconEl = cm.okBtn.querySelector("svg");
+    if (iconEl) iconEl.style.display = okLabel === "Delete" ? "" : "none";
+    const textNode = [...cm.okBtn.childNodes].find(
+      (n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim(),
+    );
+    if (textNode) textNode.textContent = `\n            ${okLabel}\n          `;
     cm.overlay.classList.remove("hidden");
     cm.okBtn.focus();
 
@@ -328,29 +344,65 @@ function fillRowUom(tr, itemName) {
   }
 }
 
-function addCreateRow(seed = {}) {
+function addCreateRow(seed = {}, focusItem = false) {
   const tr = document.createElement("tr");
   tr.innerHTML = `
     <td><input class="c-item" list="itemList" value="${escHtml(seed.item || "")}" autocomplete="off" /></td>
     <td><input class="c-bn"   value="${escHtml(seed.bn || "")}" /></td>
     <td><input class="c-size" type="number" step="0.01" min="0" value="${escHtml(seed.size ?? "")}" /></td>
     <td class="uom-cell"><span class="c-uom-text c-uom-empty" data-uom="">—</span></td>
-    <td><button class="btn ghost row-del" type="button" style="padding:4px 8px;font-size:12px">&#x2715;</button></td>
+    <td><button class="btn ghost row-del" type="button" tabindex="-1" style="padding:4px 8px;font-size:12px">&#x2715;</button></td>
   `;
+  const itemEl = tr.querySelector(".c-item");
+  const bnEl = tr.querySelector(".c-bn");
+  const sizeEl = tr.querySelector(".c-size");
+
   tr.querySelector(".row-del").addEventListener("click", () => {
     if (els.add.tableBody.children.length > 1) {
       tr.remove();
       updateCreateCount();
     }
   });
+
   // Auto-fill UOM from product on item input
-  tr.querySelector(".c-item").addEventListener("input", function () {
+  itemEl.addEventListener("input", function () {
     fillRowUom(tr, this.value);
   });
-  // If seeded with an item, try to auto-fill immediately
   if (seed.item) fillRowUom(tr, seed.item);
+
+  // ── ERP keyboard navigation ────────────────────────────────────
+  // Enter (without Ctrl) on Item → move to BN
+  itemEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.ctrlKey) {
+      e.preventDefault();
+      bnEl.focus();
+    }
+  });
+  // Enter (without Ctrl) on BN → move to Batch Size
+  bnEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.ctrlKey) {
+      e.preventDefault();
+      sizeEl.focus();
+    }
+  });
+  // Tab or Enter (without Ctrl) on Batch Size of the LAST row → add new row
+  sizeEl.addEventListener("keydown", (e) => {
+    const isTab = e.key === "Tab" && !e.shiftKey;
+    const isEnter = e.key === "Enter" && !e.ctrlKey;
+    if (!isTab && !isEnter) return;
+    const isLastRow = tr === els.add.tableBody.lastElementChild;
+    if (isLastRow) {
+      e.preventDefault();
+      addCreateRow({}, true);
+    }
+    // Non-last row + Tab: browser moves naturally to next row's Item
+    // (delete btn is tabindex=-1 so it is skipped automatically)
+  });
+  // ──────────────────────────────────────────────────────────────
+
   els.add.tableBody.appendChild(tr);
   updateCreateCount();
+  if (focusItem) itemEl.focus();
 }
 
 function clearCreateRows() {
@@ -410,6 +462,7 @@ async function insertBmrRow(entry) {
 }
 
 async function submitCreateEntries() {
+  // Step 1: validate rows and show preview modal
   let rows;
   try {
     rows = getCreateRowsFromTable();
@@ -422,6 +475,44 @@ async function submitCreateEntries() {
     return;
   }
 
+  // Populate preview modal
+  const cp = els.createPreview;
+  const n = rows.length;
+  cp.summary.textContent = `${n} entr${n === 1 ? "y" : "ies"} will be created. Please review before confirming.`;
+  cp.body.innerHTML = rows
+    .map(
+      (r, i) => `
+    <tr>
+      <td style="color:var(--muted,#64748b);font-size:11px">${i + 1}</td>
+      <td>${escHtml(r.item)}</td>
+      <td>${escHtml(r.bn)}</td>
+      <td>${r.size != null && r.size !== "" ? escHtml(String(r.size)) : '<span class="warn-cell">—</span>'}</td>
+      <td>${escHtml(r.uom)}</td>
+    </tr>`,
+    )
+    .join("");
+  cp.overlay.classList.remove("hidden");
+  cp.confirmBtn.focus();
+
+  // Step 2: wait for Confirm or Back/Close
+  const confirmed = await new Promise((resolve) => {
+    function finish(result) {
+      cp.overlay.classList.add("hidden");
+      cp.confirmBtn.removeEventListener("click", onConfirm);
+      cp.backBtn.removeEventListener("click", onBack);
+      cp.closeBtn.removeEventListener("click", onBack);
+      resolve(result);
+    }
+    const onConfirm = () => finish(true);
+    const onBack = () => finish(false);
+    cp.confirmBtn.addEventListener("click", onConfirm, { once: true });
+    cp.backBtn.addEventListener("click", onBack, { once: true });
+    cp.closeBtn.addEventListener("click", onBack, { once: true });
+  });
+
+  if (!confirmed) return;
+
+  // Step 3: execute inserts
   els.add.submitCreateBtn.disabled = true;
   clearStatus();
   let ok = 0,
@@ -1217,7 +1308,7 @@ function wireEvents() {
       showStatus(e.message, "warn");
     }
   });
-  els.add.addRowBtn.addEventListener("click", () => addCreateRow());
+  els.add.addRowBtn.addEventListener("click", () => addCreateRow({}, true));
   els.add.clearRowsBtn.addEventListener("click", clearCreateRows);
   els.add.submitCreateBtn.addEventListener("click", submitCreateEntries);
 
@@ -1292,12 +1383,47 @@ function wireEvents() {
   });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
-      if (!els.confirmModal.overlay.classList.contains("hidden"))
+      // Priority: close open modals first
+      if (!els.createPreview.overlay.classList.contains("hidden")) {
+        els.createPreview.backBtn.click();
+      } else if (!els.confirmModal.overlay.classList.contains("hidden")) {
         els.confirmModal.cancelBtn.click();
-      else if (!els.editModal.overlay.classList.contains("hidden"))
+      } else if (!els.editModal.overlay.classList.contains("hidden")) {
         closeEditModal();
-      else if (!els.detailModal.overlay.classList.contains("hidden"))
+      } else if (!els.detailModal.overlay.classList.contains("hidden")) {
         closeDetailModal();
+      } else if (state.activeTab === "add") {
+        // No modal open — Escape clears the create rows
+        e.preventDefault();
+        const n = els.add.tableBody.children.length;
+        const hasData = Array.from(
+          els.add.tableBody.querySelectorAll(".c-item,.c-bn"),
+        ).some((el) => el.value.trim() !== "");
+        if (!hasData) {
+          clearCreateRows();
+          return;
+        }
+        confirmDialog(
+          `Clear all ${n} row${n === 1 ? "" : "s"}?`,
+          "",
+          "Clear",
+        ).then((ok) => {
+          if (ok) clearCreateRows();
+        });
+      }
+    }
+    // Ctrl+Enter → Create Entries (when on the Create tab, no modal open)
+    if (
+      e.key === "Enter" &&
+      e.ctrlKey &&
+      state.activeTab === "add" &&
+      els.createPreview.overlay.classList.contains("hidden") &&
+      els.confirmModal.overlay.classList.contains("hidden") &&
+      els.editModal.overlay.classList.contains("hidden") &&
+      els.detailModal.overlay.classList.contains("hidden")
+    ) {
+      e.preventDefault();
+      if (!els.add.submitCreateBtn.disabled) submitCreateEntries();
     }
   });
 
@@ -1311,6 +1437,11 @@ function wireEvents() {
   els.confirmModal.overlay.addEventListener("click", (e) => {
     if (e.target === els.confirmModal.overlay)
       els.confirmModal.cancelBtn.click();
+  });
+  // Preview modal — backdrop click = Back
+  els.createPreview.overlay.addEventListener("click", (e) => {
+    if (e.target === els.createPreview.overlay)
+      els.createPreview.backBtn.click();
   });
   els.detailModal.copyBtn.addEventListener("click", copyBmrForWhatsApp);
   els.detailModal.editBtn.addEventListener("click", () => {

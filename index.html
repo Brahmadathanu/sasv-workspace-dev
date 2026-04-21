@@ -269,6 +269,10 @@
         input?.addEventListener("focus", () =>
           input.setAttribute("list", "module-list-datalist"),
         );
+
+        // Expose for permission-gating code to trigger a re-index after
+        // display:none is applied (attribute mutations are not observed).
+        window._rebuildModuleIndex = buildIndex;
       })();
     </script>
     <script type="module" src="public/shared/js/supabaseClient.js"></script>
@@ -587,6 +591,10 @@
                     !anchor.dataset.href);
                 anchor.style.display = isPlaceholder ? "inline-block" : "none";
               });
+              // Rebuild search index to reflect hidden modules
+              if (typeof window._rebuildModuleIndex === "function") {
+                window._rebuildModuleIndex();
+              }
             } else {
               const permissionMap = buildPermissionMap(perms);
               const moduleDecisions = [];
@@ -644,6 +652,12 @@
                 }
               });
 
+              // Rebuild search index now that display:none has been applied
+              // (MutationObserver only watches childList, not style attributes)
+              if (typeof window._rebuildModuleIndex === "function") {
+                window._rebuildModuleIndex();
+              }
+
               if (!window.__moduleClickGuard) {
                 document.addEventListener(
                   "click",
@@ -677,6 +691,10 @@
                   !anchor.dataset.href);
               anchor.style.display = isPlaceholder ? "inline-block" : "none";
             });
+            // Rebuild search index to reflect hidden modules
+            if (typeof window._rebuildModuleIndex === "function") {
+              window._rebuildModuleIndex();
+            }
           }
         } catch (err) {
           console.error("initApp error", err);
