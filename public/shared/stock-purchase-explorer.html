@@ -9,13 +9,17 @@
     <link rel="stylesheet" href="../vendor/tom-select/tom-select.css" />
     <style>
       :root {
-        --erp-bg: #f7f8fb;
+        --erp-bg: #f3f6fb;
         --erp-card: #ffffff;
-        --erp-border: rgba(15, 23, 42, 0.08);
+        --erp-panel-bg: #f8fafc;
+        --erp-border: rgba(15, 23, 42, 0.1);
         --erp-text: #0f172a;
-        --erp-muted: #6b7280;
+        --erp-muted: #64748b;
         --erp-accent: #2563eb;
         --erp-accent-2: #0ea5e9;
+        --erp-table-head: #f6f9fc;
+        --erp-shadow-soft: 0 8px 24px rgba(15, 23, 42, 0.06);
+        --erp-shadow-strong: 0 18px 44px rgba(2, 6, 23, 0.22);
       }
       html,
       body {
@@ -23,13 +27,17 @@
         height: 100%;
       }
       body {
-        background: var(--erp-bg);
+        background:
+          radial-gradient(
+            circle at 100% 0%,
+            rgba(37, 99, 235, 0.08),
+            transparent 38%
+          ),
+          linear-gradient(180deg, #f7f9fc 0%, var(--erp-bg) 100%);
         color: var(--erp-text);
-        font-family:
-          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
-          Cantarell, "Helvetica Neue", Arial, sans-serif;
+        font-family: system-ui, "Segoe UI", Roboto, Arial, sans-serif;
       }
-      /* Typography tweaks to improve legibility (align with stock-checker) */
+      /* Typography tweaks to improve legibility */
       body {
         font-size: 14px;
         line-height: 1.45;
@@ -99,11 +107,58 @@
         align-items: flex-start;
         justify-content: space-between;
         gap: 12px;
+        padding: 2px 2px 8px;
       }
+      .page-header h1,
       .page-header h2 {
         margin: 0;
-        color: var(--primary, var(--erp-accent));
+        color: var(--primary);
         letter-spacing: 0.01em;
+      }
+      .page-header .hint {
+        margin: 4px 0 0;
+        color: var(--erp-muted);
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .header-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: nowrap;
+        justify-content: flex-end;
+      }
+      .header-actions .icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 7px;
+        min-width: 32px;
+        min-height: 32px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+        background: var(--panel-bg, #fff);
+        color: inherit;
+        cursor: pointer;
+      }
+      .header-actions .icon-btn:hover {
+        background: #f3f4f6;
+      }
+      /* #homeBtn uses shared CSS amber/orange ERP style (style.css) */
+      #homeBtn .home-label {
+        display: inline;
+      }
+      @media (max-width: 520px) {
+        .sc-snapshot .sc-snapshot-label {
+          display: none;
+        }
+        #homeBtn .home-label {
+          display: none;
+        }
+        #homeBtn {
+          padding-left: 8px;
+          padding-right: 8px;
+        }
       }
       .eyebrow {
         color: var(--erp-muted);
@@ -123,7 +178,7 @@
         border: 1px solid var(--erp-border);
         border-radius: 10px;
         padding: 14px;
-        box-shadow: 0 10px 26px rgba(15, 23, 42, 0.05);
+        box-shadow: var(--erp-shadow-soft);
       }
       .filters-card {
         display: flex;
@@ -847,20 +902,34 @@
         background-repeat: no-repeat;
       }
       .tab-bar {
-        display: inline-flex;
+        display: flex;
         gap: 8px;
         margin-top: 2px;
-        border-bottom: 1px solid var(--erp-border);
-        padding-bottom: 4px;
+        padding: 8px;
+        border: 1px solid var(--erp-border);
+        border-radius: 10px;
+        background: linear-gradient(
+          135deg,
+          rgba(37, 99, 235, 0.06) 0%,
+          rgba(37, 99, 235, 0.02) 100%
+        );
+        align-items: center;
       }
       /* Ensure tab buttons never wrap to next line and remain adjacent
          to the compact selector. Use flex layout to keep consistent spacing. */
       .tab-buttons {
         display: flex;
-        gap: 8px;
+        gap: 6px;
         align-items: center;
         flex-wrap: nowrap;
         white-space: nowrap;
+        overflow-x: auto;
+        scrollbar-width: none;
+        flex: 1 1 0;
+        min-width: 0;
+      }
+      .tab-buttons::-webkit-scrollbar {
+        display: none;
       }
       /* Hide mobile-only controls on wider screens; shown in small-screen media query */
       @media (min-width: 521px) {
@@ -869,7 +938,6 @@
           display: none;
         }
       }
-      /* ERP-style tabs matching manage-plm-bom */
       .tabs-nav {
         display: flex;
         align-items: center;
@@ -882,26 +950,35 @@
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        padding: 10px 14px;
-        border: 1px solid var(--erp-border);
-        border-bottom: none;
-        border-top-left-radius: 8px;
-        border-top-right-radius: 8px;
-        background: #f8fafc;
-        color: var(--erp-text);
+        padding: 8px 14px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--erp-muted);
         cursor: pointer;
-        font-weight: 600;
+        font-weight: 700;
         font-size: 13px;
-        transition: all 0.18s ease;
-      }
-      /* Prevent individual tab labels from wrapping so they remain on one line */
-      .tab-btn {
+        transition: all 0.16s ease;
         white-space: nowrap;
+        line-height: 1.2;
       }
-      /* Compact select visible on small screens (wrapped with inline SVG icon) */
+      .tab-btn:hover:not([aria-selected="true"]) {
+        color: var(--erp-text);
+        background: rgba(37, 99, 235, 0.06);
+        border-color: rgba(37, 99, 235, 0.14);
+        box-shadow: 0 2px 8px rgba(37, 99, 235, 0.1);
+      }
+      .tab-btn.active,
+      .tab-btn[aria-selected="true"] {
+        color: #fff;
+        background: linear-gradient(135deg, var(--erp-accent) 0%, #1d4ed8 100%);
+        border-color: var(--erp-accent);
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.22);
+      }
+      /* Compact select visible only on small screens; hidden on wide viewports */
       .tab-select-wrap {
         position: relative;
-        display: inline-block;
+        display: none; /* hidden by default; shown in ≤520px media query */
         width: 100%;
       }
       .tab-select {
@@ -942,17 +1019,6 @@
         gap: 6px;
         align-items: flex-start;
       }
-      .tab-btn[aria-selected="true"] {
-        background: #ffffff;
-        font-weight: 700;
-        border-color: #cbd5e1;
-        box-shadow: 0 -1px 0 #ffffff inset;
-        color: var(--erp-accent);
-      }
-      .tab-btn:hover:not([aria-selected="true"]) {
-        background: #f1f5f9;
-        transform: translateY(-1px);
-      }
       .tab-panel {
         display: none;
       }
@@ -971,18 +1037,23 @@
         display: flex;
         flex-direction: column;
         gap: 10px;
-        /* Allow the card to expand horizontally to fill available space
-           while JS controls its height. `flex: 1 1 auto` lets it grow in the
-           main axis (row) so it fills the content area width. */
         flex: 1 1 auto;
         width: 100%;
         min-height: 0;
         box-sizing: border-box;
+        padding: 10px;
+        border-radius: 10px;
+        background: var(--erp-card);
+        border: 1px solid var(--erp-border);
       }
       /* Responsive: show compact select on small screens, hide tab buttons */
       @media (max-width: 520px) {
         .tab-buttons {
           display: none;
+        }
+        .tab-select-wrap {
+          display: inline-block;
+          width: 100%;
         }
         .tab-select {
           display: inline-block;
@@ -1004,54 +1075,99 @@
         align-items: center;
         justify-content: space-between;
         gap: 12px;
+        padding: 2px 2px 4px;
+      }
+      .table-title-group {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        min-width: 0;
+      }
+      .table-header h3 {
+        margin: 0;
+        font-size: 14px;
+        color: #334155;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .table-context-meta {
+        display: none;
+        padding: 3px 8px;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 999px;
+        background: #f8fafc;
+        color: #64748b;
+        font-size: 11.5px;
+        font-weight: 600;
+        line-height: 1.3;
       }
       .paginator {
         display: inline-flex;
         align-items: center;
-        gap: 8px;
-        font-size: 13px;
+        gap: 4px;
+        font-size: 12.5px;
         color: var(--erp-text);
       }
       .paginator button {
-        padding: 6px 10px;
+        padding: 6px;
         border-radius: 6px;
-        border: 1px solid #e2e8f0;
-        background: #fff;
+        border: none;
+        background: transparent;
         cursor: pointer;
         font-weight: 600;
+        font-size: inherit;
+        font-family: inherit;
+        color: inherit;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.14s ease;
+      }
+      .paginator button:hover:not(:disabled) {
+        background: rgba(15, 23, 42, 0.05);
       }
       .paginator button:disabled {
-        opacity: 0.5;
+        opacity: 0.45;
         cursor: default;
       }
       .paginator .page-info {
         color: var(--erp-muted);
         font-weight: 600;
+        padding: 0 4px;
       }
       .paginator .page-num {
         padding: 6px 8px;
         border-radius: 6px;
-        border: 1px solid transparent;
+        border: none;
         background: transparent;
         cursor: pointer;
         font-weight: 600;
+        font-size: inherit;
+        font-family: inherit;
+        color: inherit;
+        transition: background 0.14s ease;
+      }
+      .paginator .page-num:hover:not(.current):not(.dots) {
+        background: rgba(15, 23, 42, 0.05);
       }
       .paginator .page-num.current {
-        background: linear-gradient(135deg, var(--erp-accent) 0%, #1d4ed8 100%);
+        background: var(--erp-accent, #2563eb);
         color: #fff;
-        border-color: rgba(29, 78, 216, 0.16);
+        border-radius: 6px;
       }
       .paginator .page-num.dots {
         cursor: default;
         opacity: 0.7;
       }
       .paginator select#pageSizeSel {
-        padding: 6px 8px;
+        padding: 5px 8px;
         border-radius: 6px;
         border: 1px solid #e2e8f0;
-        background: #fff;
+        background: transparent;
         font-weight: 400;
         font-family: inherit;
+        font-size: inherit;
         color: var(--erp-text);
       }
       .paginator .p-left,
@@ -1059,7 +1175,7 @@
       .paginator .p-right {
         display: inline-flex;
         align-items: center;
-        gap: 8px;
+        gap: 4px;
       }
       /* Toast container + toast styles (ERP-style stacked toasts) */
       #statusToastContainer {
@@ -1074,11 +1190,12 @@
       }
       .toast {
         pointer-events: auto;
-        background: #111827;
+        background: #0f172a;
         color: #fff;
         padding: 10px 14px;
         border-radius: 8px;
-        box-shadow: 0 8px 20px rgba(2, 6, 23, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 0 8px 20px rgba(2, 6, 23, 0.24);
         font-size: 13px;
         min-width: 220px;
         transform-origin: 100% 100%;
@@ -1087,41 +1204,44 @@
         background: #b91c1c;
       }
       .toast.info {
-        background: #111827;
+        background: #0f172a;
       }
       .toast.success {
         background: #0f766e;
       }
       #tableArea {
         overflow: auto;
-        border: 1px solid #e2e8f0;
+        border: 1px solid #dbe4f0;
         border-radius: 8px;
         background: #fff;
         flex: 1 1 auto;
         min-height: 0; /* allow internal scrolling when content exceeds area */
-        /* Mobile table scrolling improvements */
         -webkit-overflow-scrolling: touch;
-        scrollbar-gutter: stable both-edges;
+        scrollbar-gutter: stable;
       }
       #tableArea table {
         width: 100%;
-        border-collapse: collapse;
-        min-width: 800px; /* Ensure table has minimum width for horizontal scroll */
+        border-collapse: separate;
+        border-spacing: 0;
+        min-width: 800px;
       }
       #tableArea th,
       #tableArea td {
-        border: 1px solid #e2e8f0;
+        border: 0;
+        border-bottom: 1px solid rgba(15, 23, 42, 0.06);
         padding: 10px 12px;
-        font-size: 14px;
-        white-space: nowrap; /* Prevent text wrapping that causes layout issues */
+        font-size: 13.5px;
+        white-space: nowrap;
       }
       #tableArea thead th {
         position: sticky;
         top: 0;
         z-index: 2;
-        background: #f1f5f9;
-        color: #1f2937;
-        font-weight: 600;
+        background: var(--erp-table-head);
+        color: #334155;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
         text-align: center;
       }
 
@@ -1188,15 +1308,15 @@
         margin-left: 0.12em;
       }
       #tableArea tbody tr:nth-child(even) {
-        background: #fafafa;
+        background: #fbfdff;
       }
       #tableArea tbody tr:hover {
-        background: #f1f5f9;
+        background: #f3f7fe;
         cursor: pointer;
       }
       #tableArea tbody tr.selected {
-        background: #e0e7ff;
-        box-shadow: inset 2px 0 0 #1d4ed8;
+        background: #e8f0ff;
+        box-shadow: inset 3px 0 0 #1d4ed8;
       }
       /* Side-panel no longer used; modal will show details in-page */
       .side-panel {
@@ -1357,7 +1477,8 @@
         display: none;
         align-items: center;
         justify-content: center;
-        background: rgba(2, 6, 23, 0.48);
+        background: rgba(2, 6, 23, 0.5);
+        backdrop-filter: blur(2px);
         z-index: 1400;
         padding: 20px;
         box-sizing: border-box;
@@ -1367,13 +1488,27 @@
       }
       .modal-box {
         background: #ffffff;
+        border: 1px solid rgba(148, 163, 184, 0.35);
         border-radius: 12px;
         max-width: 980px;
         width: 100%;
         max-height: calc(100vh - 80px);
         overflow: auto;
-        box-shadow: 0 20px 50px rgba(2, 6, 23, 0.4);
+        box-shadow: var(--erp-shadow-strong);
         position: relative;
+      }
+      .modal-box::before {
+        content: "";
+        position: sticky;
+        top: 0;
+        display: block;
+        height: 4px;
+        background: linear-gradient(
+          90deg,
+          var(--erp-accent),
+          var(--erp-accent-2)
+        );
+        z-index: 4;
       }
       /* Modal table styles: ERP-like bordered table for purchase history */
       .modal-box table {
@@ -1383,40 +1518,47 @@
       }
       .modal-box th,
       .modal-box td {
-        border: 1px solid #e2e8f0;
+        border: 0;
+        border-bottom: 1px solid rgba(15, 23, 42, 0.08);
         padding: 10px 12px;
-        font-size: 14px;
+        font-size: 13.5px;
       }
       .modal-box thead th {
-        background: #f1f5f9;
-        color: #1f2937;
+        background: var(--erp-table-head);
+        color: #334155;
         font-weight: 700;
         position: sticky;
-        top: 0;
+        top: 4px;
         z-index: 3;
         text-align: left;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
       }
       .modal-box td.numeric {
         text-align: right;
         font-variant-numeric: tabular-nums;
       }
       .modal-box tbody tr:nth-child(even) {
-        background: #fafafb;
+        background: #fbfdff;
       }
       .modal-box tbody tr:hover {
-        background: #f1f5f9;
+        background: #f2f7ff;
       }
       .modal-close {
         position: absolute;
         right: 10px;
         top: 10px;
-        border: none;
-        background: transparent;
-        font-size: 20px;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        background: #ffffff;
         line-height: 1;
-        padding: 6px 10px;
+        padding: 7px;
+        border-radius: 8px;
         cursor: pointer;
         color: #0f172a;
+        z-index: 5;
+      }
+      .modal-close:hover {
+        background: #f8fafc;
       }
       .modal-content {
         padding: 18px;
@@ -1522,13 +1664,192 @@
           gap: 8px;
         }
         .tab-btn {
-          padding: 8px 12px;
+          padding: 7px 11px;
           font-size: 12px;
         }
         .panel-header {
           flex-direction: column;
           align-items: stretch;
           gap: 8px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+          scroll-behavior: auto !important;
+        }
+      }
+      /* Hide table context meta on narrow screens (mobile) */
+      @media (max-width: 520px) {
+        #tableContextMeta,
+        .table-context-meta {
+          display: none !important;
+        }
+      }
+
+      /* ── Stock Value chip ─────────────────────────────────────── */
+      .stock-value-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 10px;
+        height: 32px;
+        box-sizing: border-box;
+        border: 1px solid #c7d2fe;
+        border-radius: 999px;
+        background: #eef2ff;
+        color: #3730a3;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        white-space: nowrap;
+        transition:
+          background 0.15s ease,
+          box-shadow 0.15s ease;
+      }
+      .stock-value-chip:hover {
+        background: #e0e7ff;
+        box-shadow: 0 2px 8px rgba(55, 48, 163, 0.12);
+      }
+      .stock-value-label {
+        color: #4338ca;
+        font-weight: 600;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .stock-value-amount {
+        color: #3730a3;
+        font-weight: 700;
+        font-size: 12.5px;
+      }
+      @media (max-width: 520px) {
+        .stock-value-label {
+          display: none;
+        }
+        .stock-value-amount {
+          display: none;
+        }
+        .stock-value-icon {
+          display: inline !important;
+        }
+        .stock-value-chip {
+          padding: 5px 9px;
+        }
+      }
+
+      /* Match freshness pill height to home button */
+      #lastRefreshed {
+        height: 32px;
+        box-sizing: border-box;
+      }
+
+      /* ── Stock Value modal ─────────────────────────────────────── */
+      .stock-value-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 1500;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+      }
+      .stock-value-modal.open {
+        display: flex;
+      }
+      .stock-value-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        background: rgba(2, 6, 23, 0.45);
+      }
+      .stock-value-modal-panel {
+        position: relative;
+        z-index: 1;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        box-shadow: 0 20px 60px rgba(2, 6, 23, 0.22);
+        width: 380px;
+        max-width: calc(100vw - 32px);
+        overflow: hidden;
+      }
+      .stock-value-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        border-bottom: 1px solid #f1f5f9;
+        background: linear-gradient(135deg, #f0fdf4 0%, #f8fafc 100%);
+      }
+      .stock-value-modal-header h3 {
+        margin: 0;
+        font-size: 13.5px;
+        font-weight: 700;
+        color: #0f172a;
+      }
+      .stock-value-modal-body {
+        padding: 10px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        max-height: 60vh;
+        overflow-y: auto;
+      }
+      .stock-value-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 7px 10px;
+        border-radius: 7px;
+        background: #f8fafc;
+        border: 1px solid #f1f5f9;
+      }
+      .stock-value-row-total {
+        background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+        border-color: #bbf7d0;
+        font-weight: 700;
+      }
+      .stock-value-row-label {
+        font-size: 12.5px;
+        font-weight: 600;
+        color: #1e293b;
+        line-height: 1.3;
+      }
+      .stock-value-row-total .stock-value-row-label {
+        color: #166534;
+      }
+      .stock-value-row-meta {
+        font-size: 11px;
+        color: #64748b;
+        margin-top: 1px;
+      }
+      .stock-value-row-amount {
+        font-size: 12.5px;
+        font-weight: 700;
+        color: #0f172a;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      .stock-value-row-total .stock-value-row-amount {
+        color: #166534;
+        font-size: 13px;
+      }
+      @media (max-width: 520px) {
+        .stock-value-modal {
+          align-items: flex-end;
+          justify-content: center;
+          padding: 0;
+        }
+        .stock-value-modal-panel {
+          width: 100%;
+          max-width: 100%;
+          border-radius: 14px 14px 0 0;
         }
       }
     </style>
@@ -1566,7 +1887,42 @@
           </p>
         </div>
         <div class="header-actions">
-          <button id="homeBtn" type="button">
+          <button
+            id="stockValueChip"
+            class="stock-value-chip"
+            type="button"
+            title="View stock value split-up"
+            aria-label="View stock value split-up"
+          >
+            <span class="stock-value-label">Stock Value</span>
+            <span id="stockValueAmount" class="stock-value-amount">—</span>
+            <span
+              class="stock-value-icon"
+              aria-hidden="true"
+              style="
+                display: none;
+                font-size: 14px;
+                font-weight: 700;
+                line-height: 1;
+              "
+              >₹</span
+            >
+          </button>
+          <button
+            id="lastRefreshed"
+            class="sc-snapshot"
+            type="button"
+            aria-label="Data not yet loaded"
+            title="Data not yet loaded"
+            tabindex="0"
+            role="button"
+            aria-haspopup="true"
+            aria-expanded="false"
+          >
+            <span class="sc-snapshot-dot" aria-hidden="true"></span>
+            <span class="sc-snapshot-label">Not loaded</span>
+          </button>
+          <button id="homeBtn" type="button" title="Home" aria-label="Home">
             <svg
               width="16"
               height="16"
@@ -1578,7 +1934,7 @@
               <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
               <polyline points="9,22 9,12 15,12 15,22" />
             </svg>
-            HOME
+            <span class="home-label">HOME</span>
           </button>
         </div>
       </header>
@@ -1608,7 +1964,7 @@
             <input
               id="mobileSearch"
               type="text"
-              placeholder="Item code or name"
+              placeholder="Search by code or name…"
             />
             <button
               id="mobileSearchClear"
@@ -1671,7 +2027,7 @@
             <label>
               <span class="label-text">Source Kind (Tally)</span>
               <select id="classification">
-                <option value="all">All</option>
+                <option value="all">(All)</option>
                 <option value="rm">RM</option>
                 <option value="plm">PLM</option>
                 <option value="consumable">Consumables</option>
@@ -1705,7 +2061,7 @@
                 <input
                   id="search"
                   type="text"
-                  placeholder="Item code or name"
+                  placeholder="Search by code or name…"
                 />
                 <button
                   id="searchClear"
@@ -1745,7 +2101,7 @@
               <input
                 id="dateRange"
                 type="text"
-                placeholder="dd-mm-yyyy — dd-mm-yyyy"
+                placeholder="Pick a date range"
               />
             </label>
           </div>
@@ -1754,10 +2110,19 @@
               <span class="label-text">Reset</span>
               <button
                 id="resetFiltersBtn"
-                class="btn ghost icon-btn"
                 type="button"
                 aria-label="Reset filters"
                 title="Reset filters"
+                style="
+                  background: none;
+                  border: none;
+                  padding: 4px;
+                  cursor: pointer;
+                  display: inline-flex;
+                  align-items: center;
+                  justify-content: center;
+                  color: var(--erp-muted);
+                "
               >
                 <!-- refresh / reset SVG (Edit Lines icon reused from supply-overrides) -->
                 <svg
@@ -1880,6 +2245,9 @@
               <button class="tab-btn" data-tab="consumption">
                 Consumption
               </button>
+              <button class="tab-btn" data-tab="rm-receiving-stock">
+                Raw Material – Receiving Stock
+              </button>
             </div>
             <!-- Compact tab selector for small screens (wrapped so we can place an inline SVG arrow) -->
             <div class="tab-select-wrap">
@@ -1888,6 +2256,9 @@
                 <option value="stock">Stock Snapshot</option>
                 <option value="purchase">Purchase History</option>
                 <option value="consumption">Consumption</option>
+                <option value="rm-receiving-stock">
+                  Raw Material – Receiving Stock
+                </option>
               </select>
               <svg
                 class="tab-select-icon"
@@ -1909,7 +2280,10 @@
             </div>
           </div>
           <div class="table-header">
-            <h3>Records</h3>
+            <div class="table-title-group">
+              <h3>Records</h3>
+              <div id="tableContextMeta" class="table-context-meta"></div>
+            </div>
             <div id="paginator" class="paginator" aria-live="polite"></div>
           </div>
           <div id="tableArea" class="mobile-scroll-container">
@@ -1992,6 +2366,32 @@
             Apply Filters
           </button>
         </div>
+      </div>
+    </div>
+    <!-- Stock Value split-up modal -->
+    <div id="stockValueModal" class="stock-value-modal" aria-hidden="true">
+      <div
+        class="stock-value-modal-backdrop"
+        data-close-stock-value-modal
+      ></div>
+      <div
+        class="stock-value-modal-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="stockValueModalTitle"
+      >
+        <div class="stock-value-modal-header">
+          <h3 id="stockValueModalTitle">Inventory Stock Value</h3>
+          <button
+            id="stockValueModalClose"
+            class="modal-close"
+            type="button"
+            aria-label="Close stock value details"
+          >
+            &times;
+          </button>
+        </div>
+        <div id="stockValueModalBody" class="stock-value-modal-body"></div>
       </div>
     </div>
     <!-- Toast container for transient status toasts (ERP-style) -->

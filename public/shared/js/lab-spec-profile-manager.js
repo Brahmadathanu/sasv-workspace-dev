@@ -3,6 +3,7 @@
  * Tabbed Spec Profile Manager: Base Spec | Overrides | Effective Preview
  * FG: group-level base specs, product-level overrides and effective preview
  * RM: inventory-group base specs, stock-item overrides, effective preview
+ * PM: inventory-group base specs, stock-item overrides, effective preview
  */
 
 import { labSupabase } from "./supabaseClient.js";
@@ -80,8 +81,30 @@ const epRmTableCard = document.getElementById("epRmTableCard");
 const epRmTableBody = document.getElementById("epRmTableBody");
 const epRmLineCount = document.getElementById("epRmLineCount");
 
+// PM Base Spec
+const bsPmCard = document.getElementById("bsPmCard");
+const pmControlCard = document.getElementById("pmControlCard");
+const pmTableCard = document.getElementById("pmTableCard");
+// PM Overrides
+const ovPmCard = document.getElementById("ovPmCard");
+const ovPmItemSelect = document.getElementById("ovPmItemSelect");
+const ovPmContextStrip = document.getElementById("ovPmContextStrip");
+const ovPmGroupName = document.getElementById("ovPmGroupName");
+const ovPmBaseSpecId = document.getElementById("ovPmBaseSpecId");
+const ovPmBanner = document.getElementById("ovPmBanner");
+const ovPmTableCard = document.getElementById("ovPmTableCard");
+const ovPmTableBody = document.getElementById("ovPmTableBody");
+const ovPmLineCount = document.getElementById("ovPmLineCount");
+// PM Effective Preview
+const epPmCard = document.getElementById("epPmCard");
+const epPmItemSelect = document.getElementById("epPmItemSelect");
+const epPmBanner = document.getElementById("epPmBanner");
+const epPmTableCard = document.getElementById("epPmTableCard");
+const epPmTableBody = document.getElementById("epPmTableBody");
+const epPmLineCount = document.getElementById("epPmLineCount");
+
 // ── Module state ──────────────────────────────────────────────────────────────
-let currentSubjectType = null; // "FG" | "RM"
+let currentSubjectType = null; // "FG" | "RM" | "PM"
 let currentTab = "baseSpec"; // "baseSpec" | "overrides" | "effectivePreview"
 
 // FG Base spec state
@@ -95,6 +118,12 @@ let rmCurrentProfileId = null;
 let rmCurrentGroupId = null;
 let rmCurrentGroupLabel = null;
 let rmEditedSpecLines = new Map(); // seqNo -> {display_text, is_active}
+
+// PM Base spec state
+let pmCurrentProfileId = null;
+let pmCurrentGroupId = null;
+let pmCurrentGroupLabel = null;
+let pmEditedSpecLines = new Map(); // seqNo -> {display_text, is_active}
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 init();
@@ -110,6 +139,9 @@ async function init() {
   wireOverridesRmEvents();
   wireEffectivePreviewEvents();
   wireEffectivePreviewRmEvents();
+  wireBaseSpecPmEvents();
+  wireOverridesPmEvents();
+  wireEffectivePreviewPmEvents();
   bsSaveSpecBtn.addEventListener("click", bsSaveSpec);
 }
 
@@ -142,6 +174,17 @@ function applyInitialHiddenState() {
   epRmCard.classList.add("hidden");
   epTableCard.classList.add("hidden");
   epRmTableCard.classList.add("hidden");
+
+  // Base Spec sub-cards (PM)
+  bsPmCard.classList.add("hidden");
+  pmControlCard.classList.add("hidden");
+  pmTableCard.classList.add("hidden");
+  // Overrides sub-cards (PM)
+  ovPmCard.classList.add("hidden");
+  ovPmTableCard.classList.add("hidden");
+  // Effective Preview sub-cards (PM)
+  epPmCard.classList.add("hidden");
+  epPmTableCard.classList.add("hidden");
 }
 
 // ── Subject pills ─────────────────────────────────────────────────────────────
@@ -168,38 +211,73 @@ function wireSubjectPills() {
 // Add a new branch here when PM (or other) subject types are introduced.
 function resetSubjectState(toSubjectType) {
   if (toSubjectType === "FG") {
-    // Run the RM base-spec reset first (clears state vars + resets context/table/control cards)
     rmResetState();
+    pmResetState();
 
-    // Reset RM pickers (value only; option list preserved so picker is not reloaded unnecessarily)
     const rmGroupSelect = document.getElementById("rmGroupSelect");
     if (rmGroupSelect) rmGroupSelect.value = "";
     ovRmItemSelect.value = "";
     epRmItemSelect.value = "";
-
-    // Hide RM overrides + EP secondary cards and clear banners
     ovRmContextStrip.classList.add("hidden");
     hideBanner(ovRmBanner);
     ovRmTableCard.classList.add("hidden");
     hideBanner(epRmBanner);
     epRmTableCard.classList.add("hidden");
-  } else if (toSubjectType === "RM") {
-    // Run the FG base-spec reset first (clears state vars + resets context/table/control cards)
-    bsResetState();
 
-    // Reset FG pickers (value only; option list preserved)
+    const pmGroupSelect = document.getElementById("pmGroupSelect");
+    if (pmGroupSelect) pmGroupSelect.value = "";
+    ovPmItemSelect.value = "";
+    epPmItemSelect.value = "";
+    ovPmContextStrip.classList.add("hidden");
+    hideBanner(ovPmBanner);
+    ovPmTableCard.classList.add("hidden");
+    hideBanner(epPmBanner);
+    epPmTableCard.classList.add("hidden");
+  } else if (toSubjectType === "RM") {
+    bsResetState();
+    pmResetState();
+
     productGroupSelect.value = "";
     ovProductSelect.value = "";
     epProductSelect.value = "";
-
-    // Hide FG overrides + EP secondary cards and clear banners
     ovFgContextStrip.classList.add("hidden");
     hideBanner(ovBanner);
     ovTableCard.classList.add("hidden");
     hideBanner(epBanner);
     epTableCard.classList.add("hidden");
+
+    const pmGroupSelect = document.getElementById("pmGroupSelect");
+    if (pmGroupSelect) pmGroupSelect.value = "";
+    ovPmItemSelect.value = "";
+    epPmItemSelect.value = "";
+    ovPmContextStrip.classList.add("hidden");
+    hideBanner(ovPmBanner);
+    ovPmTableCard.classList.add("hidden");
+    hideBanner(epPmBanner);
+    epPmTableCard.classList.add("hidden");
+  } else if (toSubjectType === "PM") {
+    bsResetState();
+    rmResetState();
+
+    productGroupSelect.value = "";
+    ovProductSelect.value = "";
+    epProductSelect.value = "";
+    ovFgContextStrip.classList.add("hidden");
+    hideBanner(ovBanner);
+    ovTableCard.classList.add("hidden");
+    hideBanner(epBanner);
+    epTableCard.classList.add("hidden");
+
+    const rmGroupSelect = document.getElementById("rmGroupSelect");
+    if (rmGroupSelect) rmGroupSelect.value = "";
+    ovRmItemSelect.value = "";
+    epRmItemSelect.value = "";
+    ovRmContextStrip.classList.add("hidden");
+    hideBanner(ovRmBanner);
+    ovRmTableCard.classList.add("hidden");
+    hideBanner(epRmBanner);
+    epRmTableCard.classList.add("hidden");
   }
-  // Future: add PM branch here
 }
 
 function handleSubjectTypeChange() {
@@ -243,6 +321,7 @@ function switchTab(tabId, forceRefresh = false) {
   // prevents the "card disappears on tab-switch and never comes back" problem.
   const isFG = currentSubjectType === "FG";
   const isRM = currentSubjectType === "RM";
+  const isPM = currentSubjectType === "PM";
   const isBS = tabId === "baseSpec";
   const isOV = tabId === "overrides";
   const isEP = tabId === "effectivePreview";
@@ -250,10 +329,13 @@ function switchTab(tabId, forceRefresh = false) {
   // ── Selector cards (fully deterministic) ─────────────────────────────────
   bsFgCard.classList.toggle("hidden", !(isBS && isFG));
   bsRmCard.classList.toggle("hidden", !(isBS && isRM));
+  bsPmCard.classList.toggle("hidden", !(isBS && isPM));
   ovFgCard.classList.toggle("hidden", !(isOV && isFG));
   ovRmCard.classList.toggle("hidden", !(isOV && isRM));
+  ovPmCard.classList.toggle("hidden", !(isOV && isPM));
   epFgCard.classList.toggle("hidden", !(isEP && isFG));
   epRmCard.classList.toggle("hidden", !(isEP && isRM));
+  epPmCard.classList.toggle("hidden", !(isEP && isPM));
 
   // ── Data cards (hide-only when wrong context) ─────────────────────────────
   if (!(isBS && isFG)) {
@@ -264,17 +346,27 @@ function switchTab(tabId, forceRefresh = false) {
     rmControlCard.classList.add("hidden");
     rmTableCard.classList.add("hidden");
   }
+  if (!(isBS && isPM)) {
+    pmControlCard.classList.add("hidden");
+    pmTableCard.classList.add("hidden");
+  }
   if (!(isOV && isFG)) {
     ovTableCard.classList.add("hidden");
   }
   if (!(isOV && isRM)) {
     ovRmTableCard.classList.add("hidden");
   }
+  if (!(isOV && isPM)) {
+    ovPmTableCard.classList.add("hidden");
+  }
   if (!(isEP && isFG)) {
     epTableCard.classList.add("hidden");
   }
   if (!(isEP && isRM)) {
     epRmTableCard.classList.add("hidden");
+  }
+  if (!(isEP && isPM)) {
+    epPmTableCard.classList.add("hidden");
   }
 
   // Lazy-load pickers for active tab (FG only)
@@ -301,6 +393,20 @@ function switchTab(tabId, forceRefresh = false) {
     }
     if (tabId === "effectivePreview" && epRmItemSelect.options.length <= 1) {
       loadRmItems(epRmItemSelect);
+    }
+  }
+
+  // Lazy-load pickers for active tab (PM only)
+  if (isPM) {
+    if (tabId === "baseSpec") {
+      const pmGroupSelect = document.getElementById("pmGroupSelect");
+      if (pmGroupSelect && pmGroupSelect.options.length <= 1) loadPmGroups();
+    }
+    if (tabId === "overrides" && ovPmItemSelect.options.length <= 1) {
+      loadPmItems(ovPmItemSelect);
+    }
+    if (tabId === "effectivePreview" && epPmItemSelect.options.length <= 1) {
+      loadPmItems(epPmItemSelect);
     }
   }
 }
@@ -1245,6 +1351,783 @@ function rmResetState() {
   if (rmGenerateSpecBtn) rmGenerateSpecBtn.classList.add("hidden");
 }
 
+// ── BASE SPEC — PM ────────────────────────────────────────────────────────────
+
+async function loadPmGroups() {
+  const pmGroupSelect = document.getElementById("pmGroupSelect");
+  if (!pmGroupSelect) return;
+  pmGroupSelect.disabled = true;
+  pmGroupSelect.innerHTML = '<option value="">Loading...</option>';
+
+  const { data, error } = await labSupabase
+    .from("v_rm_pm_item_with_group")
+    .select("subcategory_id, subcategory_label")
+    .eq("category_code", "PLM")
+    .order("subcategory_label");
+
+  if (error) {
+    toast("Failed to load PM inventory groups: " + error.message, "error");
+    pmGroupSelect.innerHTML = '<option value="">-- Error --</option>';
+    pmGroupSelect.disabled = false;
+    return;
+  }
+
+  const seen = new Map();
+  for (const row of data ?? []) {
+    const key = row.subcategory_id;
+    if (!seen.has(key)) {
+      seen.set(key, {
+        subcategory_id: row.subcategory_id,
+        subcategory_label: row.subcategory_label,
+      });
+    }
+  }
+  const deduped = [...seen.values()].sort((a, b) =>
+    (a.subcategory_label ?? "").localeCompare(b.subcategory_label ?? ""),
+  );
+
+  populateSelect(
+    pmGroupSelect,
+    deduped,
+    "subcategory_id",
+    "subcategory_label",
+    "-- Select Packing Material Subcategory --",
+  );
+  pmGroupSelect.disabled = false;
+}
+
+function wireBaseSpecPmEvents() {
+  const pmGroupSelect = document.getElementById("pmGroupSelect");
+  const pmGenerateSpecBtn = document.getElementById("pmGenerateSpecBtn");
+  const pmSaveSpecBtn = document.getElementById("pmSaveSpecBtn");
+  if (pmGroupSelect) pmGroupSelect.addEventListener("change", onPmGroupChange);
+  if (pmGenerateSpecBtn)
+    pmGenerateSpecBtn.addEventListener("click", pmGenerateSpec);
+  if (pmSaveSpecBtn) pmSaveSpecBtn.addEventListener("click", pmSaveSpec);
+}
+
+async function onPmGroupChange() {
+  const pmGroupSelect = document.getElementById("pmGroupSelect");
+  const groupId = pmGroupSelect?.value;
+  if (!groupId) {
+    pmResetState();
+    return;
+  }
+  pmCurrentGroupId = groupId;
+  pmCurrentGroupLabel = pmGroupSelect.options[pmGroupSelect.selectedIndex].text;
+
+  const pmBanner = document.getElementById("pmBanner");
+  const pmContextStrip = document.getElementById("pmContextStrip");
+  const pmGenerateSpecBtn = document.getElementById("pmGenerateSpecBtn");
+  const pmMetaProfileId = document.getElementById("pmMetaProfileId");
+  const pmMetaVersion = document.getElementById("pmMetaVersion");
+  const pmMetaEffDate = document.getElementById("pmMetaEffDate");
+
+  pmControlCard.classList.remove("hidden");
+  pmTableCard.classList.add("hidden");
+  hideBanner(pmBanner);
+  pmGenerateSpecBtn.classList.add("hidden");
+  pmContextStrip.classList.add("hidden");
+  pmEditedSpecLines.clear();
+  pmSyncSaveBtn();
+
+  setMetaValue(pmMetaProfileId, "--", true);
+  setMetaValue(pmMetaVersion, "--", true);
+  setMetaValue(pmMetaEffDate, "--", true);
+
+  await pmLoadGroupContext(groupId);
+}
+
+async function pmLoadGroupContext(groupId) {
+  const pmBanner = document.getElementById("pmBanner");
+  const pmContextStrip = document.getElementById("pmContextStrip");
+  const pmProtocolName = document.getElementById("pmProtocolName");
+  const pmBaseSpecName = document.getElementById("pmBaseSpecName");
+  const pmBaseSpecVersion = document.getElementById("pmBaseSpecVersion");
+  const pmGenerateSpecBtn = document.getElementById("pmGenerateSpecBtn");
+  const pmMetaProfileId = document.getElementById("pmMetaProfileId");
+  const pmMetaVersion = document.getElementById("pmMetaVersion");
+  const pmMetaEffDate = document.getElementById("pmMetaEffDate");
+
+  showBanner(pmBanner, "info", "Loading group protocol and spec info...");
+
+  // Step A: protocol via protocol_category_pm_subcategory_map
+  const { data: mapRows, error: mapErr } = await labSupabase
+    .from("protocol_category_pm_subcategory_map")
+    .select("protocol_category_id")
+    .eq("subcategory_id", groupId)
+    .eq("is_active", true)
+    .limit(1);
+
+  if (mapErr) {
+    showBanner(
+      pmBanner,
+      "error",
+      "Could not load protocol mapping: " + mapErr.message,
+    );
+    return;
+  }
+
+  const protocolCategoryId = mapRows?.[0]?.protocol_category_id ?? null;
+
+  // Step B: protocol name
+  let protocolName = null;
+  if (protocolCategoryId) {
+    const { data: catRows, error: catErr } = await labSupabase
+      .from("protocol_category")
+      .select("id, category_name")
+      .eq("id", protocolCategoryId)
+      .limit(1);
+    if (!catErr && catRows?.length) {
+      protocolName = catRows[0].category_name ?? null;
+    }
+  }
+
+  // Step C: spec profile via spec_profile_pm_subcategory_map
+  const { data: specMapRows, error: specMapErr } = await labSupabase
+    .from("spec_profile_pm_subcategory_map")
+    .select("spec_profile_id")
+    .eq("subcategory_id", groupId)
+    .eq("is_active", true)
+    .limit(1);
+
+  if (specMapErr) {
+    showBanner(
+      pmBanner,
+      "error",
+      "Could not load base spec mapping: " + specMapErr.message,
+    );
+    return;
+  }
+
+  const specProfileId = specMapRows?.[0]?.spec_profile_id ?? null;
+
+  // Step D: spec profile details
+  let specProfile = null;
+  if (specProfileId) {
+    const { data: spRows, error: spErr } = await labSupabase
+      .from("spec_profile")
+      .select("id, spec_name, version_no, effective_from, is_active")
+      .eq("id", specProfileId)
+      .limit(1);
+    if (!spErr && spRows?.length) {
+      specProfile = spRows[0];
+    }
+  }
+
+  pmProtocolName.textContent = protocolName ?? "None";
+  pmProtocolName.classList.toggle("not-set", !protocolName);
+  pmBaseSpecName.textContent = specProfile
+    ? (specProfile.spec_name ?? `Profile #${specProfile.id}`)
+    : "Not set";
+  pmBaseSpecName.classList.toggle("not-set", !specProfile);
+  pmBaseSpecVersion.textContent = specProfile
+    ? String(specProfile.version_no)
+    : "--";
+  pmBaseSpecVersion.classList.toggle("not-set", !specProfile);
+  pmContextStrip.classList.remove("hidden");
+
+  if (specProfile) {
+    pmCurrentProfileId = specProfile.id;
+    setMetaValue(pmMetaProfileId, String(specProfile.id), false);
+    setMetaValue(pmMetaVersion, `v${specProfile.version_no}`, false);
+    setMetaValue(pmMetaEffDate, formatDate(specProfile.effective_from), false);
+    hideBanner(pmBanner);
+    await pmLoadSpecLines(specProfile.id);
+  } else {
+    pmCurrentProfileId = null;
+    setMetaValue(pmMetaProfileId, "--", true);
+    setMetaValue(pmMetaVersion, "--", true);
+    setMetaValue(pmMetaEffDate, "--", true);
+    if (protocolName) {
+      pmGenerateSpecBtn.classList.remove("hidden");
+      showBanner(
+        pmBanner,
+        "warn",
+        "No base spec profile found for this packing material subcategory. Use Generate Spec to create one from the protocol.",
+      );
+    } else {
+      showBanner(
+        pmBanner,
+        "info",
+        "No protocol or base spec profile is configured for this packing material subcategory.",
+      );
+    }
+  }
+}
+
+async function pmLoadSpecLines(profileId) {
+  const pmBanner = document.getElementById("pmBanner");
+  const { data, error } = await labSupabase
+    .from("v_spec_profile_detail")
+    .select(
+      "spec_profile_id, seq_no, test_name, method_name, display_text, spec_type, spec_line_is_active",
+    )
+    .eq("spec_profile_id", profileId)
+    .order("seq_no");
+
+  if (error) {
+    showBanner(
+      pmBanner,
+      "error",
+      "Could not load spec lines: " + error.message,
+    );
+    return;
+  }
+  pmRenderSpecLines(data ?? []);
+}
+
+function pmRenderSpecLines(rows) {
+  const pmLineCount = document.getElementById("pmLineCount");
+  const pmTableBodyEl = document.getElementById("pmTableBody");
+
+  pmEditedSpecLines.clear();
+  pmTableCard.classList.remove("hidden");
+
+  const activeCount = rows.filter((r) => r.spec_line_is_active).length;
+  const totalCount = rows.length;
+  pmLineCount.textContent =
+    activeCount === totalCount
+      ? `${totalCount} line${totalCount !== 1 ? "s" : ""}`
+      : `${activeCount} active / ${totalCount} total`;
+
+  if (!rows.length) {
+    pmTableBodyEl.innerHTML = `<tr><td colspan="6">
+      <div class="spec-empty-state">
+        <strong>No specification lines</strong>
+        This profile has no lines yet.
+      </div></td></tr>`;
+    pmSyncSaveBtn();
+    return;
+  }
+
+  pmTableBodyEl.innerHTML = rows
+    .map((r) => {
+      const origText = r.display_text ?? "";
+      const origActive = !!r.spec_line_is_active;
+      const seqNo = r.seq_no;
+      return `<tr data-seq="${esc(String(seqNo))}">
+        <td class="td-seq">${esc(String(seqNo))}</td>
+        <td class="td-test">${esc(r.test_name ?? "")}</td>
+        <td class="td-method">${esc(r.method_name ?? "")}</td>
+        <td class="td-spec">
+          <input class="spec-input pm-spec-input"
+                 type="text"
+                 value="${esc(origText)}"
+                 data-orig="${esc(origText)}"
+                 data-orig-active="${origActive ? "1" : "0"}"
+                 aria-label="Spec for ${esc(r.test_name ?? "")}" />
+        </td>
+        <td>${typeBadge(r.spec_type)}</td>
+        <td class="td-active">
+          <input class="spec-active pm-active-chk"
+                 type="checkbox"
+                 ${origActive ? "checked" : ""}
+                 aria-label="Active" />
+        </td>
+      </tr>`;
+    })
+    .join("");
+
+  pmTableBodyEl.querySelectorAll("tr[data-seq]").forEach((tr) => {
+    const inp = tr.querySelector(".pm-spec-input");
+    const chk = tr.querySelector(".pm-active-chk");
+    const seqNo = Number(tr.dataset.seq);
+    const origText = inp.dataset.orig;
+    const origActive = inp.dataset.origActive === "1";
+
+    function syncRow() {
+      const newText = inp.value;
+      const newActive = chk.checked;
+      const changed = newText !== origText || newActive !== origActive;
+      inp.classList.toggle("edited", newText !== origText);
+      if (changed) {
+        pmEditedSpecLines.set(seqNo, {
+          seq_no: seqNo,
+          display_text: newText,
+          is_active: newActive,
+        });
+      } else {
+        pmEditedSpecLines.delete(seqNo);
+      }
+      pmSyncSaveBtn();
+      pmSyncActiveAllCheckbox();
+    }
+
+    inp.addEventListener("input", syncRow);
+    chk.addEventListener("change", syncRow);
+  });
+
+  pmWireActiveAllCheckbox();
+  pmSyncSaveBtn();
+}
+
+function pmSyncSaveBtn() {
+  const pmSaveSpecBtn = document.getElementById("pmSaveSpecBtn");
+  if (pmSaveSpecBtn)
+    pmSaveSpecBtn.classList.toggle("hidden", pmEditedSpecLines.size === 0);
+}
+
+function pmWireActiveAllCheckbox() {
+  const masterChk = document.getElementById("pmActiveAllChk");
+  const pmTableBodyEl = document.getElementById("pmTableBody");
+  if (!masterChk || !pmTableBodyEl) return;
+
+  pmSyncActiveAllCheckbox();
+
+  masterChk.addEventListener("change", () => {
+    const target = masterChk.checked;
+    pmTableBodyEl.querySelectorAll(".pm-active-chk").forEach((chk) => {
+      if (chk.checked !== target) {
+        chk.checked = target;
+        chk.dispatchEvent(new Event("change", { bubbles: false }));
+      }
+    });
+    masterChk.indeterminate = false;
+    masterChk.checked = target;
+  });
+}
+
+function pmSyncActiveAllCheckbox() {
+  const masterChk = document.getElementById("pmActiveAllChk");
+  const pmTableBodyEl = document.getElementById("pmTableBody");
+  if (!masterChk || !pmTableBodyEl) return;
+  const all = [...pmTableBodyEl.querySelectorAll(".pm-active-chk")];
+  if (!all.length) {
+    masterChk.indeterminate = false;
+    masterChk.checked = false;
+    return;
+  }
+  const checkedCount = all.filter((c) => c.checked).length;
+  if (checkedCount === 0) {
+    masterChk.indeterminate = false;
+    masterChk.checked = false;
+  } else if (checkedCount === all.length) {
+    masterChk.indeterminate = false;
+    masterChk.checked = true;
+  } else {
+    masterChk.indeterminate = true;
+  }
+}
+
+async function pmGenerateSpec() {
+  if (!pmCurrentGroupId) return;
+  const btn = document.getElementById("pmGenerateSpecBtn");
+  const pmBanner = document.getElementById("pmBanner");
+  btn.disabled = true;
+  btn.textContent = "Generating...";
+  showBanner(pmBanner, "info", "Generating base spec profile from protocol...");
+
+  const specName = `PM | Subcategory | ${pmCurrentGroupLabel} | v1`;
+  const { error } = await labSupabase.rpc(
+    "fn_generate_pm_subcategory_spec_profile",
+    {
+      p_subcategory_id: Number(pmCurrentGroupId),
+      p_spec_name: specName,
+      p_version_no: 1,
+      p_remarks: "Generated from protocol via Spec Profile Manager",
+    },
+  );
+
+  if (error) {
+    showBanner(pmBanner, "error", "Generation failed: " + error.message);
+    btn.disabled = false;
+    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="12" y1="8" x2="12" y2="16"/>
+      <line x1="8" y1="12" x2="16" y2="12"/>
+    </svg><span>Generate Spec</span>`;
+    return;
+  }
+
+  toast("PM base spec profile generated successfully.", "success");
+  btn.classList.add("hidden");
+  await pmLoadGroupContext(pmCurrentGroupId);
+}
+
+async function pmSaveSpec() {
+  if (!pmCurrentProfileId || pmEditedSpecLines.size === 0) return;
+  const btn = document.getElementById("pmSaveSpecBtn");
+  btn.disabled = true;
+  btn.classList.add("loading");
+  btn.textContent = "Saving...";
+
+  const edits = Array.from(pmEditedSpecLines.values());
+  const { data, error } = await labSupabase.rpc(
+    "fn_create_new_spec_version_from_edits",
+    {
+      p_source_spec_profile_id: pmCurrentProfileId,
+      p_edits: edits,
+      p_remarks: "Edited via Spec Profile Manager",
+    },
+  );
+
+  if (error) {
+    toast("Save failed: " + error.message, "error");
+    btn.disabled = false;
+    btn.classList.remove("loading");
+    btn.textContent = "Save Spec";
+    return;
+  }
+
+  const newProfileId = Number(data);
+  pmCurrentProfileId = newProfileId;
+
+  const { error: mapErr } = await labSupabase.rpc(
+    "fn_set_active_pm_subcategory_spec_profile",
+    {
+      p_subcategory_id: Number(pmCurrentGroupId),
+      p_spec_profile_id: newProfileId,
+      p_remarks: "Activated via Spec Profile Manager save",
+    },
+  );
+  if (mapErr) {
+    toast(
+      "Spec version saved but group mapping update failed: " + mapErr.message,
+      "warn",
+    );
+  } else {
+    toast(
+      "PM spec version saved and activated for packing material subcategory.",
+      "success",
+    );
+  }
+
+  pmEditedSpecLines.clear();
+  pmSyncSaveBtn();
+  btn.disabled = false;
+  btn.classList.remove("loading");
+  btn.textContent = "Save Spec";
+
+  const { data: meta, error: metaErr } = await labSupabase
+    .from("spec_profile")
+    .select("id, spec_name, version_no, effective_from")
+    .eq("id", newProfileId)
+    .single();
+
+  if (!metaErr && meta) {
+    const pmMetaProfileId = document.getElementById("pmMetaProfileId");
+    const pmMetaVersion = document.getElementById("pmMetaVersion");
+    const pmMetaEffDate = document.getElementById("pmMetaEffDate");
+    setMetaValue(pmMetaProfileId, String(meta.id), false);
+    setMetaValue(pmMetaVersion, `v${meta.version_no}`, false);
+    setMetaValue(pmMetaEffDate, formatDate(meta.effective_from), false);
+  }
+  await pmLoadSpecLines(newProfileId);
+}
+
+function pmResetState() {
+  pmCurrentProfileId = null;
+  pmCurrentGroupId = null;
+  pmCurrentGroupLabel = null;
+  pmEditedSpecLines.clear();
+  const pmContextStrip = document.getElementById("pmContextStrip");
+  const pmBanner = document.getElementById("pmBanner");
+  const pmGenerateSpecBtn = document.getElementById("pmGenerateSpecBtn");
+  pmControlCard.classList.add("hidden");
+  pmTableCard.classList.add("hidden");
+  if (pmContextStrip) pmContextStrip.classList.add("hidden");
+  if (pmBanner) hideBanner(pmBanner);
+  if (pmGenerateSpecBtn) pmGenerateSpecBtn.classList.add("hidden");
+}
+
+// ── OVERRIDES — PM ────────────────────────────────────────────────────────────
+
+async function loadPmItems(selectEl) {
+  selectEl.disabled = true;
+  selectEl.innerHTML = '<option value="">Loading...</option>';
+  const { data, error } = await labSupabase
+    .from("v_rm_pm_item_with_group")
+    .select("stock_item_id, stock_item_name")
+    .eq("category_code", "PLM")
+    .order("stock_item_name");
+
+  if (error) {
+    toast("Failed to load PM stock items: " + error.message, "error");
+    selectEl.innerHTML = '<option value="">-- Error --</option>';
+    selectEl.disabled = false;
+    return;
+  }
+  const seen = new Set();
+  const unique = [];
+  for (const row of data ?? []) {
+    if (!seen.has(row.stock_item_id)) {
+      seen.add(row.stock_item_id);
+      unique.push(row);
+    }
+  }
+  populateSelect(
+    selectEl,
+    unique,
+    "stock_item_id",
+    "stock_item_name",
+    "-- Select Packing Material --",
+  );
+  selectEl.disabled = false;
+}
+
+function wireOverridesPmEvents() {
+  ovPmItemSelect.addEventListener("change", onPmOverrideItemChange);
+}
+
+async function onPmOverrideItemChange() {
+  const stockItemId = ovPmItemSelect.value;
+  if (!stockItemId) {
+    ovPmContextStrip.classList.add("hidden");
+    ovPmTableCard.classList.add("hidden");
+    hideBanner(ovPmBanner);
+    return;
+  }
+
+  ovPmContextStrip.classList.add("hidden");
+  ovPmTableCard.classList.add("hidden");
+  hideBanner(ovPmBanner);
+  showBanner(ovPmBanner, "info", "Loading stock item context...");
+
+  const { data: grpData, error: grpErr } = await labSupabase
+    .from("v_rm_pm_item_with_group")
+    .select("subcategory_id, subcategory_label")
+    .eq("stock_item_id", stockItemId)
+    .eq("category_code", "PLM")
+    .limit(1);
+
+  if (grpErr) {
+    showBanner(
+      ovPmBanner,
+      "error",
+      "Could not resolve packing material subcategory: " + grpErr.message,
+    );
+    return;
+  }
+
+  const subcat = grpData?.[0];
+  if (!subcat) {
+    showBanner(
+      ovPmBanner,
+      "warn",
+      "Packing material subcategory mapping not found for this stock item.",
+    );
+    return;
+  }
+
+  ovPmGroupName.textContent = subcat.subcategory_label ?? "--";
+  ovPmGroupName.classList.toggle("not-set", !subcat.subcategory_label);
+
+  let baseSpecProfileId = null;
+  if (subcat.subcategory_id) {
+    const { data: smRows } = await labSupabase
+      .from("spec_profile_pm_subcategory_map")
+      .select("spec_profile_id")
+      .eq("subcategory_id", subcat.subcategory_id)
+      .eq("is_active", true)
+      .limit(1);
+    baseSpecProfileId = smRows?.[0]?.spec_profile_id ?? null;
+  }
+
+  ovPmBaseSpecId.textContent = baseSpecProfileId
+    ? String(baseSpecProfileId)
+    : "Not set";
+  ovPmBaseSpecId.classList.toggle("not-set", !baseSpecProfileId);
+  ovPmContextStrip.classList.remove("hidden");
+
+  const { data: overrides, error: ovErr } = await labSupabase
+    .from("spec_override")
+    .select(
+      "id, test_id, action_type, override_method_id, override_spec_type, override_display_text, override_is_required, is_active, reason",
+    )
+    .eq("subject_type", "PM")
+    .eq("stock_item_id", stockItemId);
+
+  if (ovErr) {
+    showBanner(
+      ovPmBanner,
+      "error",
+      "Could not load overrides: " + ovErr.message,
+    );
+    return;
+  }
+
+  if (!overrides?.length) {
+    hideBanner(ovPmBanner);
+    renderPmOverrides([]);
+    return;
+  }
+
+  const testIds = [...new Set(overrides.map((r) => r.test_id).filter(Boolean))];
+  const methodIds = [
+    ...new Set(overrides.map((r) => r.override_method_id).filter(Boolean)),
+  ];
+
+  const [testRes, methodRes] = await Promise.all([
+    testIds.length
+      ? labSupabase
+          .from("test_master")
+          .select("id, test_name")
+          .in("id", testIds)
+      : Promise.resolve({ data: [] }),
+    methodIds.length
+      ? labSupabase
+          .from("test_method")
+          .select("id, method_name")
+          .in("id", methodIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const testMap = Object.fromEntries(
+    (testRes.data ?? []).map((r) => [r.id, r.test_name]),
+  );
+  const methodMap = Object.fromEntries(
+    (methodRes.data ?? []).map((r) => [r.id, r.method_name]),
+  );
+
+  const enriched = overrides.map((r) => ({
+    ...r,
+    test_name: testMap[r.test_id] ?? `(test #${r.test_id})`,
+    override_method_name:
+      methodMap[r.override_method_id] ??
+      (r.override_method_id ? `(method #${r.override_method_id})` : ""),
+  }));
+  enriched.sort((a, b) => (a.test_name ?? "").localeCompare(b.test_name ?? ""));
+
+  hideBanner(ovPmBanner);
+  renderPmOverrides(enriched);
+}
+
+function renderPmOverrides(rows) {
+  ovPmTableCard.classList.remove("hidden");
+  ovPmLineCount.textContent = `${rows.length} override${rows.length !== 1 ? "s" : ""}`;
+
+  if (!rows.length) {
+    ovPmTableBody.innerHTML = `<tr><td colspan="8">
+      <div class="spec-empty-state">
+        <strong>No overrides found</strong>
+        This packing material has no spec overrides configured.
+      </div></td></tr>`;
+    return;
+  }
+
+  ovPmTableBody.innerHTML = rows
+    .map((r) => {
+      const actionClass =
+        {
+          modify: "action-badge-replace",
+          add: "action-badge-append",
+          disable: "action-badge-exclude",
+        }[String(r.action_type ?? "").toLowerCase()] ?? "action-badge-other";
+
+      return `<tr>
+        <td class="td-test">${esc(r.test_name ?? "")}</td>
+        <td><span class="action-badge ${actionClass}">${esc(r.action_type ?? "")}</span></td>
+        <td>${esc(r.override_method_name ?? "")}</td>
+        <td>${esc(r.override_spec_type ?? "")}</td>
+        <td>${esc(r.override_display_text ?? "")}</td>
+        <td style="text-align:center;">${r.override_is_required ? "Yes" : "No"}</td>
+        <td style="text-align:center;">${r.is_active ? "Yes" : "No"}</td>
+        <td style="color:var(--muted,#6b7280);font-style:italic;">${esc(r.reason ?? "")}</td>
+      </tr>`;
+    })
+    .join("");
+}
+
+// ── EFFECTIVE PREVIEW — PM ────────────────────────────────────────────────────
+
+function wireEffectivePreviewPmEvents() {
+  epPmItemSelect.addEventListener("change", onPmEffectivePreviewItemChange);
+}
+
+async function onPmEffectivePreviewItemChange() {
+  const stockItemId = epPmItemSelect.value;
+  if (!stockItemId) {
+    epPmTableCard.classList.add("hidden");
+    hideBanner(epPmBanner);
+    return;
+  }
+
+  epPmTableCard.classList.add("hidden");
+  hideBanner(epPmBanner);
+  showBanner(epPmBanner, "info", "Building effective PM spec preview...");
+
+  const { data, error } = await labSupabase.rpc(
+    "fn_build_effective_pm_spec_for_item",
+    {
+      p_stock_item_id: Number(stockItemId),
+      p_as_of_date: todayISO(),
+      p_remarks: "Preview build from Spec Profile Manager",
+    },
+  );
+
+  if (error) {
+    showBanner(
+      epPmBanner,
+      "error",
+      "Could not build effective spec: " + error.message,
+    );
+    return;
+  }
+
+  const newProfileId = Number(data);
+  if (!newProfileId) {
+    showBanner(
+      epPmBanner,
+      "warn",
+      "No effective spec could be resolved for this packing material.",
+    );
+    return;
+  }
+
+  hideBanner(epPmBanner);
+
+  const { data: lines, error: linesErr } = await labSupabase
+    .from("v_spec_profile_detail")
+    .select(
+      "spec_profile_id, seq_no, test_name, method_name, display_text, spec_type, spec_line_is_active",
+    )
+    .eq("spec_profile_id", newProfileId)
+    .eq("spec_line_is_active", true)
+    .order("seq_no");
+
+  if (linesErr) {
+    showBanner(
+      epPmBanner,
+      "error",
+      "Could not load effective spec lines: " + linesErr.message,
+    );
+    return;
+  }
+
+  renderPmEffectivePreview(lines ?? []);
+}
+
+function renderPmEffectivePreview(rows) {
+  epPmTableCard.classList.remove("hidden");
+  epPmLineCount.textContent = `${rows.length} line${rows.length !== 1 ? "s" : ""}`;
+
+  if (!rows.length) {
+    epPmTableBody.innerHTML = `<tr><td colspan="6">
+      <div class="spec-empty-state">
+        <strong>No lines found</strong>
+        The effective spec profile has no lines.
+      </div></td></tr>`;
+    return;
+  }
+
+  epPmTableBody.innerHTML = rows
+    .map(
+      (r) => `<tr>
+      <td class="td-seq">${esc(String(r.seq_no ?? ""))}</td>
+      <td class="td-test">${esc(r.test_name ?? "")}</td>
+      <td class="td-method">${esc(r.method_name ?? "")}</td>
+      <td class="td-spec">${esc(r.display_text ?? "")}</td>
+      <td>${typeBadge(r.spec_type)}</td>
+      <td class="td-active" style="text-align:center;color:var(--muted,#6b7280);">
+        ${r.spec_line_is_active ? "Yes" : "No"}
+      </td>
+    </tr>`,
+    )
+    .join("");
+}
+
 // FIX 2: use product_id / product_name
 async function loadFgProducts(selectEl) {
   selectEl.disabled = true;
@@ -1494,6 +2377,7 @@ async function onRmOverrideItemChange() {
     .from("v_rm_pm_item_with_group")
     .select("inv_group_id, inv_group_label")
     .eq("stock_item_id", stockItemId)
+    .eq("category_code", "RM")
     .limit(1);
 
   if (grpErr) {

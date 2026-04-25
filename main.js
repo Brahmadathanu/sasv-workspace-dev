@@ -12,7 +12,14 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 // ---------------- Electron & deps ----------------
-const { app, BrowserWindow, ipcMain, dialog, nativeImage } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  dialog,
+  nativeImage,
+  Menu,
+} = require("electron");
 const path = require("path");
 
 /** Windows/Linux window chrome; same asset as electron-builder `win.icon`. */
@@ -334,6 +341,102 @@ app.on("window-all-closed", () => {
   if (updateCheckTimer) clearInterval(updateCheckTimer);
   if (process.platform !== "darwin") app.quit();
 });
+
+/*
+  Application menu: create a minimal, platform-aware menu using Electron roles.
+  This is a professional, future-proof approach for ERP desktop apps because
+  - it preserves standard platform behavior (keyboard shortcuts, accessibility)
+  - uses roles so Electron/OS map them correctly
+  - exposes a small Help action for checking updates
+*/
+function setupAppMenu() {
+  const isMac = process.platform === "darwin";
+  const template = [
+    ...(isMac
+      ? [
+          {
+            label: app.name,
+            submenu: [
+              { role: "about" },
+              { type: "separator" },
+              { role: "services" },
+              { type: "separator" },
+              { role: "hide" },
+              { role: "hideothers" },
+              { role: "unhide" },
+              { type: "separator" },
+              { role: "quit" },
+            ],
+          },
+        ]
+      : []),
+    {
+      label: "File",
+      submenu: [isMac ? { role: "close" } : { role: "quit" }],
+    },
+    {
+      label: "Edit",
+      submenu: [
+        { role: "undo" },
+        { role: "redo" },
+        { type: "separator" },
+        { role: "cut" },
+        { role: "copy" },
+        { role: "paste" },
+        ...(isMac ? [{ role: "pasteAndMatchStyle" }] : []),
+        { role: "delete" },
+        { role: "selectAll" },
+      ],
+    },
+    {
+      label: "View",
+      submenu: [
+        { role: "reload" },
+        { role: "forcereload" },
+        { role: "toggledevtools" },
+        { type: "separator" },
+        { role: "togglefullscreen" },
+      ],
+    },
+    {
+      label: "Window",
+      submenu: [
+        { role: "minimize" },
+        { role: "zoom" },
+        ...(isMac
+          ? [{ type: "separator" }, { role: "front" }]
+          : [{ role: "close" }]),
+      ],
+    },
+    {
+      role: "help",
+      submenu: [
+        {
+          label: "Check for updates",
+          click: () => {
+            checkForAppUpdates("menu").catch(() => {});
+          },
+        },
+        {
+          label: "Learn More",
+          click: async () => {
+            const { shell } = require("electron");
+            await shell.openExternal(
+              "https://github.com/Brahmadathanu/sasv-workspace-dev",
+            );
+          },
+        },
+      ],
+    },
+  ];
+
+  try {
+    const menu = Menu.buildFromTemplate(template);
+    Menu.setApplicationMenu(menu);
+  } catch (e) {
+    console.warn("Failed to set application menu:", e && e.message);
+  }
+}
 
 // ======================================================================
 // ============== EXPORTS (PDF & DOCX) — unified, robust ================

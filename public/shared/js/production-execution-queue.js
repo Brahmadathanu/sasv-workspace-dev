@@ -191,6 +191,7 @@ function getDefaultQueueFilters() {
     subcategories: [],
     groups: [],
     subgroups: [],
+    rmIssueAllocationOnly: false,
   };
 }
 
@@ -216,7 +217,8 @@ function isAnyQueueFilterActive() {
     QUEUE_FILTERS.categories.length > 0 ||
     QUEUE_FILTERS.subcategories.length > 0 ||
     QUEUE_FILTERS.groups.length > 0 ||
-    QUEUE_FILTERS.subgroups.length > 0
+    QUEUE_FILTERS.subgroups.length > 0 ||
+    QUEUE_FILTERS.rmIssueAllocationOnly
   );
 }
 
@@ -292,13 +294,15 @@ function _updateFilterBtnState() {
   btn.classList.toggle("peq-filter-btn--active", active);
   const badge = btn.querySelector(".peq-filter-badge");
   if (badge) {
-    const count = [
-      QUEUE_FILTERS.states,
-      QUEUE_FILTERS.categories,
-      QUEUE_FILTERS.subcategories,
-      QUEUE_FILTERS.groups,
-      QUEUE_FILTERS.subgroups,
-    ].filter((arr) => arr.length > 0).length;
+    const count =
+      [
+        QUEUE_FILTERS.states,
+        QUEUE_FILTERS.categories,
+        QUEUE_FILTERS.subcategories,
+        QUEUE_FILTERS.groups,
+        QUEUE_FILTERS.subgroups,
+      ].filter((arr) => arr.length > 0).length +
+      (QUEUE_FILTERS.rmIssueAllocationOnly ? 1 : 0);
     badge.textContent = count || "";
     badge.style.display = count ? "" : "none";
   }
@@ -332,6 +336,9 @@ function _syncFilterDrawerUI() {
       cb.checked = QUEUE_FILTERS[dim].includes(cb.getAttribute(attr));
     });
   });
+  // sync RM issue allocation toggle
+  const cbAlloc = drawer.querySelector("#peqFilterRmIssueAllocation");
+  if (cbAlloc) cbAlloc.checked = QUEUE_FILTERS.rmIssueAllocationOnly;
 }
 
 // ── Master-driven classification option helpers ───────────────────────────
@@ -549,6 +556,12 @@ function _wireFilterDrawer() {
         cb.getAttribute("data-subgroup"),
         cb.checked,
       );
+    else if (cb.id === "peqFilterRmIssueAllocation") {
+      QUEUE_FILTERS.rmIssueAllocationOnly = cb.checked;
+      _updateFilterBtnState();
+      CURRENT_PAGE = 1;
+      applyLensFilter();
+    }
   });
 
   const selectAll = drawer.querySelector("#peqFilterSelectAll");
@@ -1029,6 +1042,14 @@ function renderTable(rows) {
           ? "RM gates are clear"
           : "Blocked after priority-based reservation of raw material";
     rmTd.appendChild(rmChip);
+    if (r.has_unassigned_rm_issues === true) {
+      const miniChip = document.createElement("span");
+      miniChip.className = "peq-mini-chip peq-mini-chip--allocation";
+      miniChip.textContent = "Issue Allocation";
+      miniChip.title =
+        "RM issue exists but is not assigned correctly to this batch.";
+      rmTd.appendChild(miniChip);
+    }
 
     tr.appendChild(laneTd);
     tr.appendChild(priorityTd);
@@ -1167,9 +1188,10 @@ function formatPmStatusClass(value) {
 
 function formatRmStatusClass(value) {
   const map = {
-    BLOCKING_SHORTAGE: "Blocking Shortage",
-    OPTIONAL_RM: "Optional RM",
-    JIT_NON_BLOCKING: "JIT Non-blocking",
+    BLOCKING_SHORTAGE: "Stock Shortage",
+    UNASSIGNED_ISSUE: "Issue Allocation",
+    OPTIONAL_RM: "Optional",
+    JIT_NON_BLOCKING: "JIT",
     SUFFICIENT_STOCK_REQUIRED: "Sufficient Stock",
   };
   const k = String(value || "").toUpperCase();
@@ -1216,28 +1238,53 @@ function _pmStatusChip(value) {
 function _rmStatusChip(value) {
   const k = String(value || "").toUpperCase();
   const isBlocking = k === "BLOCKING_SHORTAGE";
+  const isUnassigned = k === "UNASSIGNED_ISSUE";
   const isOptional = k === "OPTIONAL_RM";
   const isJit = k === "JIT_NON_BLOCKING";
   const isSufficient = k === "SUFFICIENT_STOCK_REQUIRED";
   const cls = isBlocking
     ? "blocking"
-    : isOptional
-      ? "optional"
-      : isJit
-        ? "jit"
-        : isSufficient
-          ? "sufficient"
-          : "optional";
+    : isUnassigned
+      ? "issue-allocation"
+      : isOptional
+        ? "optional"
+        : isJit
+          ? "jit"
+          : isSufficient
+            ? "sufficient"
+            : "optional";
   const label = isBlocking
-    ? "Blocking"
-    : isOptional
-      ? "Optional"
-      : isJit
-        ? "JIT"
-        : isSufficient
-          ? "Sufficient"
-          : formatRmStatusClass(value);
+    ? "Stock Shortage"
+    : isUnassigned
+      ? "Issue Allocation"
+      : isOptional
+        ? "Optional"
+        : isJit
+          ? "JIT"
+          : isSufficient
+            ? "Sufficient"
+            : formatRmStatusClass(value);
   return `<span class="peq-status-chip peq-status-chip--${cls}">${label}</span>`;
+}
+
+function getRmStatusReason(r) {
+  if (String(r.rm_status_class || "").toUpperCase() === "UNASSIGNED_ISSUE") {
+    return "RM issue exists but is not assigned to this batch. Assign or correct the issue allocation.";
+  }
+  return r.rm_status_reason || "-";
+}
+
+function openRmIssueAssignment(rmRow, batchContext) {
+  const url =
+    `rm-issue-allocation.html` +
+    `?rm_stock_item_id=${encodeURIComponent(rmRow.rm_stock_item_id ?? "")}` +
+    `&product_id=${encodeURIComponent(batchContext.product_id ?? "")}` +
+    `&batch_number=${encodeURIComponent(batchContext.batch_number ?? "")}` +
+    `&only_unassigned=1` +
+    `&q=${encodeURIComponent(batchContext.batch_number ?? "")}` +
+    `&return_to=${encodeURIComponent("production-execution-queue.html")}` +
+    `&return_label=${encodeURIComponent("Execution Queue")}`;
+  window.location.href = url;
 }
 
 // â”€â”€ Copy helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -1289,6 +1336,7 @@ function buildRmStatusCopyText(rows, row) {
     "Status",
     "Class",
     "Reason",
+    "Action",
   ].join("\t");
   const toRow = (r) =>
     [
@@ -1304,7 +1352,12 @@ function buildRmStatusCopyText(rows, row) {
       formatRmProcurementMode(r.rm_procurement_mode),
       r.is_blocking_line ? "BLOCKING" : "NON_BLOCKING",
       formatRmStatusClass(r.rm_status_class),
-      r.rm_status_reason || "",
+      getRmStatusReason(r),
+      String(r.rm_status_class || "").toUpperCase() === "UNASSIGNED_ISSUE"
+        ? "Assign Issue"
+        : String(r.rm_status_class || "").toUpperCase() === "BLOCKING_SHORTAGE"
+          ? "Replenish / reserve stock"
+          : "",
     ].join("\t");
   return [header, ...rows.map(toRow)].join("\n");
 }
@@ -1393,9 +1446,18 @@ function buildRmStatusShareableText(rows, row) {
       `Mode: ${formatRmProcurementMode(r.rm_procurement_mode)}`,
       `Class: ${formatRmStatusClass(r.rm_status_class)}`,
     );
-    return [parts.join(" | "), `   Reason: ${r.rm_status_reason || "-"}`].join(
-      "\n",
-    );
+    const _reasonLine = `   Reason: ${getRmStatusReason(r)}`;
+    const _actionLine =
+      String(r.rm_status_class || "").toUpperCase() === "UNASSIGNED_ISSUE"
+        ? "   Action: Assign issue voucher to this batch"
+        : String(r.rm_status_class || "").toUpperCase() === "BLOCKING_SHORTAGE"
+          ? "   Action: Replenish / reserve stock"
+          : null;
+    return [
+      parts.join(" | "),
+      _reasonLine,
+      ...(_actionLine ? [_actionLine] : []),
+    ].join("\n");
   };
   const lines = ["RM Status List", `Product: ${product} | Batch: ${batch}`];
   if (blocking.length) {
@@ -1413,7 +1475,7 @@ function buildRmStatusShareableText(rows, row) {
         `Mode: ${formatRmProcurementMode(r.rm_procurement_mode)}`,
         `Class: ${formatRmStatusClass(r.rm_status_class)}`,
       ];
-      lines.push(parts.join(" | "), `   Reason: ${r.rm_status_reason || "-"}`);
+      lines.push(parts.join(" | "), `   Reason: ${getRmStatusReason(r)}`);
     });
   }
   return lines.join("\n").trimEnd();
@@ -1572,8 +1634,51 @@ function _rmStatusRow(r, muted = false) {
     ${_td(shortage, "right")}
     ${_td(formatRmProcurementMode(r.rm_procurement_mode))}
     ${_td(_rmStatusChip(r.rm_status_class))}
-    ${_td(r.rm_status_reason || "-")}
+    ${_td(getRmStatusReason(r))}
   </tr>`;
+}
+
+function _rmStatusCard(r) {
+  const k = String(r.rm_status_class || "").toUpperCase();
+  const isUnassigned = k === "UNASSIGNED_ISSUE";
+  const cardCls = isUnassigned
+    ? "peq-rm-status-card--unassigned"
+    : k === "BLOCKING_SHORTAGE"
+      ? "peq-rm-status-card--shortage"
+      : "";
+  const shortage =
+    r.uncovered_qty != null && Number(r.uncovered_qty) !== 0
+      ? r.uncovered_qty
+      : null;
+  const assignBtn = isUnassigned
+    ? `<button
+        data-assign-issue
+        data-rm-stock-item-id="${r.rm_stock_item_id ?? ""}"
+        data-rm-name="${(r.rm_name || "").replace(/"/g, "&quot;")}"
+        type="button"
+        class="peq-rm-action-btn"
+      >Assign Issue</button>`
+    : "";
+  return `<div class="peq-rm-status-card ${cardCls}">
+    <div class="peq-rm-status-card-head">
+      <div class="peq-rm-status-title">
+        <span class="peq-rm-name">${r.rm_name || "-"}</span>
+        <span class="peq-rm-id-uom">ID: ${r.rm_stock_item_id ?? "-"}${r.rm_uom ? " \u00b7 " + r.rm_uom : ""}</span>
+      </div>
+      <div class="peq-rm-status-actions">
+        ${_rmStatusChip(r.rm_status_class)}
+        ${assignBtn}
+      </div>
+    </div>
+    <div class="peq-rm-status-metrics">
+      <span>Planned: <strong>${r.planned_rm_qty ?? "\u2014"}</strong></span>
+      <span>Issued: <strong>${r.issued_rm_qty ?? "\u2014"}</strong></span>
+      <span>Stock: <strong>${r.stock_qty ?? "\u2014"}</strong></span>
+      ${shortage != null ? `<span>Shortage: <strong style="color:#b91c1c">${shortage}</strong></span>` : ""}
+      <span>Mode: <strong>${formatRmProcurementMode(r.rm_procurement_mode)}</strong></span>
+    </div>
+    <div class="peq-rm-status-reason">${getRmStatusReason(r)}</div>
+  </div>`;
 }
 
 function renderRmBlockers(row, rows) {
@@ -1604,8 +1709,12 @@ function renderRmBlockers(row, rows) {
   }
 
   const { blocking, nonBlocking } = groupStatusRows(rows);
+  const sortedBlocking = [...blocking].sort((a, b) => {
+    const _ord = { UNASSIGNED_ISSUE: 0, BLOCKING_SHORTAGE: 1 };
+    return (_ord[a.rm_status_class] ?? 2) - (_ord[b.rm_status_class] ?? 2);
+  });
   const total = rows.length;
-  const colHeaders = `${_th("RM Item")}${_th("Planned", "right")}${_th("Issued", "right")}${_th("Stock", "right")}${_th("Shortage", "right")}${_th("Mode")}${_th("Class")}${_th("Reason")}`;
+  const nonBlockingColHeaders = `${_th("RM Item")}${_th("Planned", "right")}${_th("Issued", "right")}${_th("Stock", "right")}${_th("Shortage", "right")}${_th("Mode")}${_th("Class")}${_th("Reason")}`;
   const infoBox = `<div style="margin-bottom:12px;padding:8px 12px;background:rgba(37,99,235,0.04);border-left:3px solid var(--erp-accent,#2563eb);border-radius:4px;font-size:12.5px;color:var(--erp-text,#374151)">RM status is evaluated after allocating shared RM stock to higher-priority batches first.</div>`;
   const tabActionsHtml = `
     <div class="peq-tab-actions">
@@ -1626,11 +1735,8 @@ function renderRmBlockers(row, rows) {
   if (blocking.length) {
     html += `<div class="peq-status-section">
       <div class="peq-status-section-title peq-status-section-title--blocking">Blocking lines</div>
-      <div style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse">
-          <thead><tr>${colHeaders}</tr></thead>
-          <tbody>${blocking.map((r) => _rmStatusRow(r, false)).join("")}</tbody>
-        </table>
+      <div class="peq-rm-status-list">
+        ${sortedBlocking.map((r) => _rmStatusCard(r)).join("")}
       </div>
     </div>`;
   }
@@ -1641,7 +1747,7 @@ function renderRmBlockers(row, rows) {
       <p class="peq-status-note">These RM lines are visible for execution awareness but are not currently blocking this batch.</p>
       <div style="overflow-x:auto">
         <table style="width:100%;border-collapse:collapse">
-          <thead><tr>${colHeaders}</tr></thead>
+          <thead><tr>${nonBlockingColHeaders}</tr></thead>
           <tbody>${nonBlocking.map((r) => _rmStatusRow(r, true)).join("")}</tbody>
         </table>
       </div>
@@ -1649,6 +1755,18 @@ function renderRmBlockers(row, rows) {
   }
 
   _content.innerHTML = html;
+
+  _content.addEventListener("click", (e) => {
+    const _assignBtn = e.target.closest("[data-assign-issue]");
+    if (!_assignBtn) return;
+    openRmIssueAssignment(
+      {
+        rm_stock_item_id: _assignBtn.dataset.rmStockItemId,
+        rm_name: _assignBtn.dataset.rmName,
+      },
+      row,
+    );
+  });
 
   const _rmBtn = _content.querySelector("#peq-rm-copy-btn");
   const _rmMenu = _content.querySelector("#peq-rm-copy-menu");
@@ -2064,6 +2182,7 @@ async function loadQueue() {
       "priority_rank_v4",
       "time_sensitivity_score",
       "supply_continuity_score",
+      "has_unassigned_rm_issues",
     ].join(",");
 
     const { data, error } = await supabase

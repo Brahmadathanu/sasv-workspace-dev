@@ -84,7 +84,7 @@ function validateListPayload(payload, rawRows) {
     if (DEBUG)
       console.warn(
         "[rm-issue-allocation] expected list mode but got:",
-        payload.mode
+        payload.mode,
       );
   }
   if (!Array.isArray(rawRows)) {
@@ -222,7 +222,7 @@ async function fetchSummary(horizonStart) {
         if (DEBUG)
           console.warn(
             "[rm-issue-allocation] total_count < rows.length, clamping",
-            { totalCount, rows: rawRows.length }
+            { totalCount, rows: rawRows.length },
           );
         totalCount = rawRows.length;
       }
@@ -234,7 +234,7 @@ async function fetchSummary(horizonStart) {
         if (sample[0])
           console.debug(
             "[rm-issue-allocation] row keys:",
-            Object.keys(sample[0])
+            Object.keys(sample[0]),
           );
       }
 
@@ -537,7 +537,7 @@ function applySummaryFiltersAndRender() {
     });
   } else {
     filteredSummary.sort(
-      (a, b) => Number(b.issued_rm_qty || 0) - Number(a.issued_rm_qty || 0)
+      (a, b) => Number(b.issued_rm_qty || 0) - Number(a.issued_rm_qty || 0),
     );
   }
 
@@ -587,11 +587,11 @@ function renderSummaryTable() {
       const approx = formatNumber(r.approx_qty ?? 0);
       agingHtml = `
         <div>Oldest: ${escapeHtml(r.oldest_issue_date)} (${String(
-        r.max_age_days ?? ""
-      )}d)</div>
+          r.max_age_days ?? "",
+        )}d)</div>
         <div>Unassigned: ${escapeHtml(unassigned)} • Approx: ${escapeHtml(
-        approx
-      )}</div>`;
+          approx,
+        )}</div>`;
     } else if (hasMaxAge) {
       agingHtml = `Age: ${String(r.max_age_days)}d`;
     }
@@ -600,7 +600,7 @@ function renderSummaryTable() {
       <td>${escapeHtml(rmDisplay)}</td>
       <td>${escapeHtml(combo)}</td>
       <td style="text-align:right">${formatNumber(
-        r.issued_rm_qty
+        r.issued_rm_qty,
       )} ${escapeHtml(rowUom)}</td>
       <td>${agingHtml}</td>
       <td>${flagsHtml}</td>
@@ -627,7 +627,7 @@ function renderSummaryTable() {
       if (DEBUG)
         console.warn(
           "[rm-issue-allocation] renderSummaryTable: DOM rows mismatch",
-          { domCount, filtered: filteredSummary.length }
+          { domCount, filtered: filteredSummary.length },
         );
     }
   } catch {
@@ -675,7 +675,7 @@ function renderPaginator() {
   const pageCount = filteredSummary.length;
   const attentionCount = filteredSummary.reduce(
     (acc, r) => acc + (r?.needs_attention ? 1 : 0),
-    0
+    0,
   );
   info.textContent = `Showing ${start}-${end} of ${totalCount} • Page Attention: ${attentionCount} / ${pageCount}`;
 
@@ -704,9 +704,9 @@ function escapeHtml(s) {
   return String(s).replace(
     /[&<>"']/g,
     (c) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
         c
-      ])
+      ],
   );
 }
 
@@ -722,7 +722,7 @@ async function selectSummaryRow(idx) {
   const rmLabel = getRmLabel(selectedSummary);
   const comboLabel = getCombinationLabel(selectedSummary);
   header.textContent = `RM: ${rmLabel} • ${comboLabel} • ${monthDisplayFromHorizon(
-    selectedSummary.horizon_start
+    selectedSummary.horizon_start,
   )}`;
   await loadProductLookup();
   await loadAllSkus();
@@ -748,7 +748,7 @@ async function loadIssueLinesForSelected() {
 
     const { data, error } = await supabase.rpc(
       "mrp_rm_allocation_console",
-      params
+      params,
     );
     if (error) {
       console.error("Failed loading RM detail (RPC)", error);
@@ -775,8 +775,8 @@ async function loadIssueLinesForSelected() {
     issueLines = Array.isArray(payload.issued)
       ? payload.issued
       : Array.isArray(payload.rows)
-      ? payload.rows
-      : [];
+        ? payload.rows
+        : [];
     issueSummary = payload.issues || payload.issue_summary || {};
     editedRows.clear();
     renderIssueLines();
@@ -797,7 +797,7 @@ function renderIssueLines() {
   if (!selectedSummary) return;
 
   const onlyUnassigned = document.getElementById(
-    "detailShowUnassignedOnly"
+    "detailShowUnassignedOnly",
   ).checked;
   const onlyThis = document.getElementById("detailShowAllocatedOnly").checked;
   const q = (document.getElementById("detailTextSearch").value || "")
@@ -834,10 +834,10 @@ function renderIssueLines() {
     if (onlyThis && !matches) return false;
     if (q) {
       const voucher = String(
-        (l.voucher_number || "") + " " + (l.voucher_ref || "")
+        (l.voucher_number || "") + " " + (l.voucher_ref || ""),
       ).toLowerCase();
       const batch = String(
-        l.batch_number || l.raw_batch_number || ""
+        l.batch_number || l.raw_batch_number || "",
       ).toLowerCase();
       if (!voucher.includes(q) && !batch.includes(q)) return false;
     }
@@ -865,11 +865,11 @@ function renderIssueLines() {
   const totalDisplay = formatNumber(totalIssued);
   const unassignedDisplay = formatNumber(unassignedSum);
   metrics.textContent = `Month: ${monthDisplayFromHorizon(
-    selectedSummary.horizon_start
+    selectedSummary.horizon_start,
   )} • Total issued: ${totalDisplay} ${uom} • Allocated to this: ${formatNumber(
-    allocatedToThis
+    allocatedToThis,
   )} • Allocated to others: ${formatNumber(
-    allocatedOthers
+    allocatedOthers,
   )} • Unassigned: ${unassignedDisplay}`;
 
   linesToShow.forEach((l) => {
@@ -880,17 +880,17 @@ function renderIssueLines() {
     tr.innerHTML = `
       <td>${escapeHtml(l.issue_date)}</td>
       <td>${escapeHtml(
-        (l.voucher_type || "") + " " + (l.voucher_number || "")
+        (l.voucher_type || "") + " " + (l.voucher_number || ""),
       )}</td>
       <td style="text-align:right">${formatNumber(l.qty_issued)} ${escapeHtml(
-      lineUom
-    )}</td>
+        lineUom,
+      )}</td>
       <td>${escapeHtml(l.raw_batch_number || "")}</td>
       <td>${escapeHtml(l.batch_number || "")}</td>
       <td><select data-field="product_id" class="product-select"></select></td>
       <td><select data-field="sku_id" class="sku-select"></select></td>
       <td><input data-field="region_code" type="text" value="${escapeHtml(
-        l.region_code ?? ""
+        l.region_code ?? "",
       )}" /></td>
       <td>
         <select data-field="allocation_status">
@@ -912,7 +912,7 @@ function renderIssueLines() {
         </select>
       </td>
       <td><input data-field="allocation_note" type="text" value="${escapeHtml(
-        l.allocation_note || ""
+        l.allocation_note || "",
       )}" /></td>
     `;
 
@@ -976,7 +976,7 @@ function renderIssueLines() {
               sval,
               slabel,
               "for product",
-              productId
+              productId,
             );
         }
       }
@@ -1020,7 +1020,7 @@ function wireUp() {
   if (homeBtn)
     homeBtn.addEventListener(
       "click",
-      () => (window.location.href = "../../index.html")
+      () => (window.location.href = "../../index.html"),
     );
 
   const clearBtn = document.getElementById("clearFilters");
@@ -1262,7 +1262,7 @@ async function loadAndRenderSummary(opts = {}) {
     const sel = document.getElementById("rmFilter");
     if (sel) {
       const opt = Array.from(sel.options).find(
-        (o) => o.value === String(pendingRmIdFromUrl)
+        (o) => o.value === String(pendingRmIdFromUrl),
       );
       if (opt) sel.value = String(pendingRmIdFromUrl);
     }
@@ -1274,7 +1274,9 @@ async function loadAndRenderSummary(opts = {}) {
 async function initFromUrl() {
   const params = new URLSearchParams(window.location.search);
   const horizon = params.get("horizon_start");
-  const stock_item_id = params.get("stock_item_id");
+  // accept both stock_item_id (legacy) and rm_stock_item_id (from PEQ deep-link)
+  const stock_item_id =
+    params.get("rm_stock_item_id") || params.get("stock_item_id");
   const openFlag = params.get("open") === "1";
   if (horizon) {
     const mm = horizon.slice(0, 7);
@@ -1282,26 +1284,51 @@ async function initFromUrl() {
     currentHorizonStart = horizon;
   } else {
     const now = new Date();
-    document.getElementById(
-      "horizonMonth"
-    ).value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
-      2,
-      "0"
-    )}`;
+    document.getElementById("horizonMonth").value =
+      `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   }
   if (stock_item_id) {
     pendingRmIdFromUrl = stock_item_id;
+  }
+
+  // Apply deep-link filter params BEFORE fetchSummary so the RPC picks them up
+  const onlyUnassigned = params.get("only_unassigned");
+  if (onlyUnassigned === "1") {
+    const cb = document.getElementById("filterUnassigned");
+    if (cb) cb.checked = true;
+  }
+  const q = params.get("q") || params.get("batch_number") || "";
+  if (q) {
+    const ts = document.getElementById("textSearch");
+    if (ts) ts.value = q;
   }
 
   await loadAndRenderSummary();
 
   if (stock_item_id) {
     const idx = filteredSummary.findIndex(
-      (r) => String(r.rm_stock_item_id) === String(stock_item_id)
+      (r) => String(r.rm_stock_item_id) === String(stock_item_id),
     );
     if (idx >= 0) {
       selectSummaryRow(idx);
       if (openFlag) showDetailView();
+    }
+  }
+}
+
+async function refreshExecutionQueueSnapshotsAfterAllocation() {
+  const steps = [
+    "refresh_rm_reservation_snapshot_current_month",
+    "refresh_material_status_snapshots_current_month",
+    "refresh_mv_production_priority_queue_current_month",
+    "refresh_priority_queue_snapshot",
+    "refresh_blocker_snapshots_current_month",
+  ];
+  for (const fn of steps) {
+    const { error } = await supabase.rpc(fn);
+    if (error) {
+      console.warn(`[rm-issue-allocation] refresh step failed: ${fn}`, error);
+      throw error;
     }
   }
 }
@@ -1375,6 +1402,24 @@ async function saveChanges() {
     editedRows.clear();
     await loadAndRenderSummary({ preserveSelection: true });
     if (selectedSummary) await loadIssueLinesForSelected();
+
+    showToast("Allocation saved. Refreshing execution queue snapshots…", {
+      type: "info",
+      duration: 3000,
+    });
+    try {
+      await refreshExecutionQueueSnapshotsAfterAllocation();
+      showToast("Allocation saved and execution queue refreshed.", {
+        type: "success",
+        duration: 3500,
+      });
+    } catch (refreshErr) {
+      console.warn("[rm-issue-allocation] Queue refresh failed:", refreshErr);
+      showToast(
+        "Allocation saved, but queue refresh failed. Please use Refresh in Production Execution Queue.",
+        { type: "warning", duration: 6000 },
+      );
+    }
   } catch (err) {
     console.error("Bulk save failed", err);
     showToast("Save failed", { type: "error" });

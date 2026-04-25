@@ -7,7 +7,7 @@ const os = require("os");
 
 const SRC = path.resolve(
   __dirname,
-  "../public/shared/assets/ChatGPT Image Apr 13, 2026, 07_05_58 PM.png",
+  "../public/shared/assets/ChatGPT Image Apr 25, 2026, 10_28_07 PM.png",
 );
 const OUT = path.resolve(__dirname, "../public/shared/assets/favicon.ico");
 // Largest first: helps Windows pick a sharp bitmap for the taskbar/shell.

@@ -26,11 +26,19 @@ const state = {
   pagePurchase: 1,
   // NEW: consumption tab paging
   pageConsumption: 1,
+  // NEW: rm-receiving-stock tab paging
+  pageRmReceivingStock: 1,
   pageSize: 30,
 };
 
 // DOM references
 const homeBtn = document.getElementById("homeBtn");
+const lastRefreshed = document.getElementById("lastRefreshed");
+const stockValueChip = document.getElementById("stockValueChip");
+const stockValueAmount = document.getElementById("stockValueAmount");
+const stockValueModal = document.getElementById("stockValueModal");
+const stockValueModalClose = document.getElementById("stockValueModalClose");
+const stockValueModalBody = document.getElementById("stockValueModalBody");
 // JS SNIPPET 2: DOM references including new classification filters
 const classificationSelect = document.getElementById("classification"); // Tally source kind
 const categoryFilter = document.getElementById("categoryFilter");
@@ -47,6 +55,7 @@ const advancedDrawer = document.getElementById("advancedDrawer");
 const tabButtons = document.querySelectorAll(".tab-btn");
 const tabSelect = document.getElementById("tabSelect");
 const tableArea = document.getElementById("tableArea");
+const tableContextMeta = document.getElementById("tableContextMeta");
 const tableCard = document.querySelector(".table-card");
 const sidePanel = document.getElementById("sidePanel"); // preserved but hidden; modal used instead
 const modalOverlay = document.getElementById("detailModal");
@@ -62,6 +71,16 @@ let cacheSGrp = [];
 
 // Monotonically increasing counter for stale-result guard in reloadActiveTab
 let _requestSeq = 0;
+let LAST_REFRESH_TIME = null;
+let LAST_ACTIVE_ROWS = [];
+let LAST_RM_RECEIVING_ROWS = [];
+// reference to avoid 'assigned but never used' warnings in some linters
+void LAST_RM_RECEIVING_ROWS;
+let LAST_RM_RECEIVING_TOTAL = 0;
+let LAST_RM_RECEIVING_AS_OF_DATE = null;
+let LAST_RM_RECEIVING_INSERTED_AT = null;
+let STOCK_VALUE_SUMMARY = [];
+let STOCK_VALUE_TOTAL = null;
 
 // Pagination helpers: reset pages when filters change
 function resetPages() {
@@ -69,6 +88,7 @@ function resetPages() {
   state.pageStock = 1;
   state.pagePurchase = 1;
   state.pageConsumption = 1;
+  state.pageRmReceivingStock = 1;
 }
 
 // Track if user manually changed page-size (don't override their choice)
@@ -115,6 +135,186 @@ function showStatusToast(msg, type = "info", timeout = 3000) {
   }, timeout);
 }
 
+function updateTableContextMeta(text) {
+  if (!tableContextMeta) return;
+  tableContextMeta.textContent = text || "";
+  tableContextMeta.style.display = text ? "inline-flex" : "none";
+}
+
+function updateFreshnessIndicator() {
+  if (!lastRefreshed) return;
+  const labelEl = lastRefreshed.querySelector(".sc-snapshot-label");
+  if (!LAST_REFRESH_TIME) {
+    lastRefreshed.className = lastRefreshed.className
+      .replace(/snapshot-\w+/g, "")
+      .trim();
+    if (labelEl) labelEl.textContent = "Not loaded";
+    lastRefreshed.setAttribute("title", "Data not yet loaded");
+    lastRefreshed.setAttribute("aria-label", "Data not yet loaded");
+    return;
+  }
+
+  const elapsedMs = Date.now() - LAST_REFRESH_TIME.getTime();
+  const elapsedMin = Math.floor(elapsedMs / 60000);
+  let label = "Just now";
+  let statusClass = "snapshot-fresh";
+  if (elapsedMin < 1) {
+    label = "Just now";
+    statusClass = "snapshot-fresh";
+  } else if (elapsedMin < 15) {
+    label = `${elapsedMin}m ago`;
+    statusClass = "snapshot-fresh";
+  } else if (elapsedMin < 60) {
+    label = `${elapsedMin}m ago`;
+    statusClass = "snapshot-warning";
+  } else {
+    label = `${Math.floor(elapsedMin / 60)}h ago`;
+    statusClass = "snapshot-stale";
+  }
+
+  const detailParts = [`Last refreshed: ${LAST_REFRESH_TIME.toLocaleString()}`];
+  if (Array.isArray(LAST_ACTIVE_ROWS)) {
+    detailParts.push(`Visible rows: ${LAST_ACTIVE_ROWS.length}`);
+  }
+  if (state.currentTab === "rm-receiving-stock") {
+    detailParts.push(`Total mapped rows: ${LAST_RM_RECEIVING_TOTAL}`);
+    if (LAST_RM_RECEIVING_AS_OF_DATE)
+      detailParts.push(`As of: ${LAST_RM_RECEIVING_AS_OF_DATE}`);
+    if (LAST_RM_RECEIVING_INSERTED_AT)
+      detailParts.push(`Inserted at: ${LAST_RM_RECEIVING_INSERTED_AT}`);
+  }
+  const detailText = detailParts.join(" · ");
+
+  if (labelEl) labelEl.textContent = label;
+  lastRefreshed.className =
+    lastRefreshed.className.replace(/snapshot-\w+/g, "").trim() +
+    " " +
+    statusClass;
+  lastRefreshed.setAttribute("title", detailText);
+  lastRefreshed.setAttribute("aria-label", detailText);
+}
+
+// ── Stock Value chip & modal ──────────────────────────────────────────────────
+
+function escapeHtml(str) {
+  return String(str ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+async function loadStockValueSummary() {
+  const { data, error } = await supabase.rpc(
+    "fn_stock_purchase_value_summary",
+    {
+      p_source_kind: state.currentSourceKind || "all",
+      p_search: state.currentSearchText || null,
+      p_category_code: state.currentCategoryCode || "all",
+      p_subcategory_code: state.currentSubcategoryCode || "all",
+      p_group_code: state.currentGroupCode || "all",
+      p_subgroup_code: state.currentSubgroupCode || "all",
+    },
+  );
+  if (error) {
+    console.error("Stock value summary RPC failed:", error);
+    return { data: [], error: handleSupabaseError(error) };
+  }
+  return { data: data || [], error: null };
+}
+
+async function refreshStockValueChip() {
+  if (!stockValueChip || !stockValueAmount) return;
+
+  stockValueAmount.textContent = "…";
+
+  const res = await loadStockValueSummary();
+
+  if (res.error) {
+    stockValueAmount.textContent = "—";
+    stockValueChip.setAttribute("title", "Stock value unavailable");
+    stockValueChip.setAttribute("aria-label", "Stock value unavailable");
+    return;
+  }
+
+  STOCK_VALUE_SUMMARY = res.data || [];
+  STOCK_VALUE_TOTAL =
+    STOCK_VALUE_SUMMARY.find((r) => r.row_type === "total") || null;
+
+  const totalValue = STOCK_VALUE_TOTAL?.stock_value ?? null;
+  const formattedHtml = formatCurrencyINR(totalValue);
+  const formattedPlain = stripHtmlTags(formattedHtml);
+
+  stockValueAmount.innerHTML = formattedHtml;
+
+  const titleText = `Total Inventory Stock Value: ${formattedPlain}`;
+  stockValueChip.setAttribute("title", titleText);
+  stockValueChip.setAttribute("aria-label", titleText);
+}
+
+function openStockValueModal() {
+  if (!stockValueModal || !stockValueModalBody) return;
+  const SECTION_ORDER = [
+    "rm_ready_to_use",
+    "rm_receiving",
+    "plm",
+    "consumable",
+    "fuel",
+  ];
+  const splitRows = STOCK_VALUE_SUMMARY.filter((r) => r.row_type === "split");
+  // Sort by preferred section order, then alphabetically for unknown keys
+  splitRows.sort((a, b) => {
+    const ai = SECTION_ORDER.indexOf(a.section_key);
+    const bi = SECTION_ORDER.indexOf(b.section_key);
+    if (ai !== -1 && bi !== -1) return ai - bi;
+    if (ai !== -1) return -1;
+    if (bi !== -1) return 1;
+    return (a.section_label || "").localeCompare(b.section_label || "");
+  });
+
+  let html = "";
+  if (!splitRows.length && STOCK_VALUE_TOTAL === null) {
+    html =
+      '<div class="no-data" style="padding:12px 0;color:#64748b;font-size:12.5px">No data available</div>';
+  } else {
+    // Split rows
+    for (const row of splitRows) {
+      const itemLabel =
+        row.item_count != null
+          ? `${row.item_count} item${row.item_count !== 1 ? "s" : ""}`
+          : "";
+      html += `<div class="stock-value-row">
+        <div>
+          <div class="stock-value-row-label">${escapeHtml(row.section_label || row.section_key)}</div>
+          ${itemLabel ? `<div class="stock-value-row-meta">${escapeHtml(itemLabel)}</div>` : ""}
+        </div>
+        <div class="stock-value-row-amount">${formatCurrencyINR(row.stock_value ?? 0)}</div>
+      </div>`;
+    }
+    // Total row
+    if (STOCK_VALUE_TOTAL !== null) {
+      html += `<div class="stock-value-row stock-value-row-total">
+        <div class="stock-value-row-label">Total</div>
+        <div class="stock-value-row-amount">${formatCurrencyINR(STOCK_VALUE_TOTAL?.stock_value ?? 0)}</div>
+      </div>`;
+    }
+  }
+  stockValueModalBody.innerHTML = html;
+  stockValueModal.classList.add("open");
+  stockValueModal.setAttribute("aria-hidden", "false");
+  if (stockValueModalClose) stockValueModalClose.focus();
+}
+
+function closeStockValueModal() {
+  if (!stockValueModal) return;
+  stockValueModal.classList.remove("open");
+  stockValueModal.setAttribute("aria-hidden", "true");
+  if (stockValueChip) stockValueChip.focus();
+}
+
+// ── end Stock Value chip & modal ──────────────────────────────────────────────
+
 // thin wrapper for the previous API
 function showAutoSelectHint() {
   showStatusToast("Category auto-selected from Source Kind", "info", 3000);
@@ -154,6 +354,38 @@ if (dateRangeInput) {
 
 // Event listeners
 if (homeBtn) homeBtn.onclick = () => Platform.goHome();
+// Stock value chip events
+if (stockValueChip) {
+  stockValueChip.addEventListener("click", async () => {
+    if (stockValueModal && stockValueModal.classList.contains("open")) {
+      closeStockValueModal();
+      return;
+    }
+    if (!STOCK_VALUE_SUMMARY.length) {
+      await refreshStockValueChip();
+    }
+    openStockValueModal();
+  });
+}
+if (stockValueModalClose) {
+  stockValueModalClose.addEventListener("click", closeStockValueModal);
+}
+if (stockValueModal) {
+  stockValueModal.addEventListener("click", (e) => {
+    if (e.target.hasAttribute("data-close-stock-value-modal")) {
+      closeStockValueModal();
+    }
+  });
+}
+document.addEventListener("keydown", (e) => {
+  if (
+    e.key === "Escape" &&
+    stockValueModal &&
+    stockValueModal.classList.contains("open")
+  ) {
+    closeStockValueModal();
+  }
+});
 // JS SNIPPET 3: filter listeners (source kind + canonical classification)
 // Map Source Kind to canonical category codes and auto-select category
 function mapSourceKindToCategoryCode(kind) {
@@ -1833,6 +2065,79 @@ function formatCurrencyINR(v) {
   return `₹${formatted}`;
 }
 
+function stripHtmlTags(text) {
+  return String(text || "").replace(/<[^>]*>/g, "");
+}
+
+function copyRmReceivingRows() {
+  // Copy ALL mapped RM receiving rows (not just the currently loaded page)
+  // and include only the Name and Qty columns.
+  (async () => {
+    try {
+      const baseParams = {
+        p_as_of_date: null,
+        p_search: state.currentSearchText || null,
+        p_category_code: state.currentCategoryCode || "all",
+        p_subcategory_code: state.currentSubcategoryCode || "all",
+        p_group_code: state.currentGroupCode || "all",
+        p_subgroup_code: state.currentSubgroupCode || "all",
+        p_mapping_status: "mapped",
+      };
+
+      const { data, error } = await supabase.rpc("fn_rm_rms_stock_filtered", {
+        ...baseParams,
+        p_limit: 10000,
+        p_offset: 0,
+      });
+
+      if (error) {
+        showStatusToast("Failed to load rows for copy", "error");
+        return;
+      }
+
+      const allRows = Array.isArray(data) ? data : [];
+      if (!allRows.length) {
+        showStatusToast("No rows to copy", "info");
+        return;
+      }
+
+      // Filter to non-zero qty only
+      const nonZeroRows = allRows.filter((r) => {
+        const q = parseFloat(r.qty_value);
+        return !isNaN(q) && q !== 0;
+      });
+
+      if (!nonZeroRows.length) {
+        showStatusToast("No non-zero rows to copy", "info");
+        return;
+      }
+
+      // Derive the as-of date from the first row or today
+      const asOfDate =
+        nonZeroRows[0]?.as_of_date || new Date().toISOString().slice(0, 10);
+
+      const lines = [
+        "*RM Receiving Stock*",
+        `Godown: Warehouse No.2 (RMS) | As of: ${asOfDate}`,
+        "",
+        "*Item Name | Qty*",
+      ];
+
+      nonZeroRows.forEach((row) => {
+        const name = stripHtmlTags(row.name || row.tally_item_name || "—");
+        const qty = stripHtmlTags(formatIndianNumber(row.qty_value));
+        lines.push(`${name} | ${qty}`);
+      });
+
+      await navigator.clipboard.writeText(lines.join("\n"));
+      showStatusToast("Copied RM Receiving Stock", "success");
+    } catch (err) {
+      console.error(err);
+      showStatusToast("Copy failed — check clipboard permission", "error");
+    }
+  })();
+}
+
 // Rendering functions
 function renderLoading() {
   tableArea.innerHTML = "";
@@ -2202,6 +2507,159 @@ async function loadAndRenderConsumptionMonthly(invStockItemId) {
   modalContent.innerHTML = html;
 }
 
+// ── RM Receiving Stock tab ─────────────────────────────────────────────────
+async function loadRmReceivingStock({
+  searchText,
+  categoryCode,
+  subcategoryCode,
+  groupCode,
+  subgroupCode,
+  page = 1,
+  pageSize = 30,
+  mappingStatus = "mapped",
+}) {
+  const limit = pageSize;
+  const offset = (page - 1) * pageSize;
+  const baseParams = {
+    p_as_of_date: null,
+    p_search: searchText || null,
+    p_category_code: categoryCode || "all",
+    p_subcategory_code: subcategoryCode || "all",
+    p_group_code: groupCode || "all",
+    p_subgroup_code: subgroupCode || "all",
+    p_mapping_status: mappingStatus || "mapped",
+  };
+
+  const [dataRes, countRes] = await Promise.all([
+    supabase.rpc("fn_rm_rms_stock_filtered", {
+      ...baseParams,
+      p_limit: limit,
+      p_offset: offset,
+    }),
+    supabase.rpc("fn_rm_rms_stock_filtered_count", baseParams),
+  ]);
+
+  if (dataRes.error) return { error: handleSupabaseError(dataRes.error) };
+  if (countRes.error) return { error: handleSupabaseError(countRes.error) };
+
+  // count RPC may return [{count:N}] or a plain number
+  let count = 0;
+  const cd = countRes.data;
+  if (typeof cd === "number") {
+    count = cd;
+  } else if (Array.isArray(cd) && cd.length && cd[0].count !== undefined) {
+    count = Number(cd[0].count) || 0;
+  } else if (Array.isArray(cd) && cd.length && typeof cd[0] === "number") {
+    count = Number(cd[0]) || 0;
+  }
+
+  return { data: dataRes.data || [], count };
+}
+
+function renderRmReceivingStockTable(rows, totalCount) {
+  if (!rows || !rows.length) {
+    LAST_RM_RECEIVING_ROWS = [];
+    LAST_ACTIVE_ROWS = [];
+    LAST_RM_RECEIVING_TOTAL = 0;
+    LAST_RM_RECEIVING_AS_OF_DATE = null;
+    LAST_RM_RECEIVING_INSERTED_AT = null;
+    updateTableContextMeta(
+      "Stock Stage: Receiving · Godown: Warehouse No.2 (RMS)",
+    );
+    return renderNoData();
+  }
+
+  LAST_RM_RECEIVING_ROWS = rows || [];
+  LAST_ACTIVE_ROWS = rows || [];
+  LAST_RM_RECEIVING_TOTAL = totalCount || 0;
+  LAST_RM_RECEIVING_AS_OF_DATE = rows[0]?.as_of_date || null;
+  LAST_RM_RECEIVING_INSERTED_AT = rows[0]?.inserted_at || null;
+
+  updateTableContextMeta(
+    "Stock Stage: Receiving · Godown: Warehouse No.2 (RMS)",
+  );
+
+  let html = `<table><thead><tr>
+    <th style="vertical-align:middle;text-align:center">Date</th>
+    <th style="vertical-align:middle;text-align:left">Tally Item Name</th>
+    <th style="vertical-align:middle;text-align:center">Code</th>
+    <th style="vertical-align:middle;text-align:left">Name</th>
+    <th style="vertical-align:middle;text-align:center">Classification</th>
+    <th style="vertical-align:middle;text-align:right">Qty</th>
+    <th style="vertical-align:middle;text-align:right">Rate</th>
+    <th style="vertical-align:middle;text-align:right">Stock Value</th>
+  </tr></thead><tbody>`;
+
+  rows.forEach((row) => {
+    const classLabel = formatClassification(row);
+
+    html += `<tr>
+      <td style="vertical-align:middle;text-align:center;white-space:nowrap">${row.as_of_date ?? "\u2013"}</td>
+      <td style="vertical-align:middle;text-align:left">${row.tally_item_name ?? "\u2013"}</td>
+      <td style="vertical-align:middle;text-align:center">${row.code ?? "\u2013"}</td>
+      <td style="vertical-align:middle;text-align:left">${row.name ?? "\u2013"}</td>
+      <td style="vertical-align:middle;text-align:center">${classLabel}</td>
+      <td style="vertical-align:middle;text-align:right">${formatIndianNumber(row.qty_value)}</td>
+      <td style="vertical-align:middle;text-align:right">${formatCurrencyINR(row.rate_value)}</td>
+      <td style="vertical-align:middle;text-align:right">${formatCurrencyINR(row.stock_value)}</td>
+    </tr>`;
+  });
+
+  html += "</tbody></table>";
+  tableArea.innerHTML = html;
+  setBusy(false);
+  renderPaginator(
+    totalCount,
+    state.pageRmReceivingStock,
+    state.pageSize,
+    "rm-receiving-stock",
+  );
+
+  // Place the copy button into the paginator (left of page-size selector)
+  try {
+    const existing = document.getElementById("rmHeaderActions");
+    if (existing) existing.remove();
+    const paginatorEl = document.getElementById("paginator");
+    if (paginatorEl && paginatorEl.parentNode) {
+      const actionsDiv = document.createElement("div");
+      actionsDiv.id = "rmHeaderActions";
+      actionsDiv.style.display = "flex";
+      actionsDiv.style.alignItems = "center";
+      actionsDiv.style.gap = "8px";
+      actionsDiv.style.marginRight = "8px";
+
+      const btn = document.createElement("button");
+      btn.id = "copyRmReceivingRowsBtn";
+      btn.type = "button";
+      btn.className = "rm-copy-btn";
+      btn.title = "Copy RM Receiving Stock";
+      btn.setAttribute("aria-label", "Copy RM Receiving Stock");
+      btn.style.display = "inline-flex";
+      btn.style.alignItems = "center";
+      btn.style.justifyContent = "center";
+      btn.style.padding = "4px";
+      btn.style.border = "none";
+      btn.style.background = "transparent";
+      btn.style.cursor = "pointer";
+      btn.style.color = "#2563eb";
+      btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+
+      // Append to p-left of paginator (rendered after this block) so it sits left of the page-size selector
+      actionsDiv.appendChild(btn);
+      const pLeft = paginatorEl.querySelector(".p-left");
+      if (pLeft) {
+        pLeft.insertBefore(actionsDiv, pLeft.firstChild);
+      } else {
+        paginatorEl.parentNode.insertBefore(actionsDiv, paginatorEl);
+      }
+      btn.addEventListener("click", copyRmReceivingRows);
+    }
+  } catch (err) {
+    /* ignore header insert errors */
+    console.debug(err);
+  }
+}
+
 // Paginator renderer and navigation
 function renderPaginator(total, page, pageSize, tab) {
   const p = document.getElementById("paginator");
@@ -2374,6 +2832,7 @@ function goToPage(tab, newPage) {
   else if (tab === "stock") state.pageStock = newPage;
   else if (tab === "purchase") state.pagePurchase = newPage;
   else if (tab === "consumption") state.pageConsumption = newPage;
+  else if (tab === "rm-receiving-stock") state.pageRmReceivingStock = newPage;
   else return;
   reloadActiveTab();
 }
@@ -2432,6 +2891,9 @@ async function reloadActiveTab(preselectId) {
   state.selectedItemId = preselectId || null;
   // sync tab button UI with current state (does NOT reset currentTab)
   setActiveTab(state.currentTab);
+  if (state.currentTab !== "rm-receiving-stock") {
+    updateTableContextMeta("");
+  }
   if (state.currentTab === "overview") {
     const res = await loadOverviewItems({
       sourceKind: state.currentSourceKind,
@@ -2452,6 +2914,9 @@ async function reloadActiveTab(preselectId) {
       return renderError(res.error.userMessage || res.error.message);
     }
     renderOverviewTable(res.data, res.count || 0);
+    LAST_ACTIVE_ROWS = res.data || [];
+    LAST_REFRESH_TIME = new Date();
+    updateFreshnessIndicator();
     // Do not auto-open the overview item modal on reload. Selection/highlight
     // is preserved in `state.selectedItemId`, but the in-page modal will not
     // be shown for overview rows per user preference.
@@ -2475,6 +2940,9 @@ async function reloadActiveTab(preselectId) {
       return renderError(res.error.userMessage || res.error.message);
     }
     renderStockTable(res.data, res.count || 0);
+    LAST_ACTIVE_ROWS = res.data || [];
+    LAST_REFRESH_TIME = new Date();
+    updateFreshnessIndicator();
   } else if (state.currentTab === "purchase") {
     const res = await loadPurchaseSummary({
       sourceKind: state.currentSourceKind,
@@ -2497,6 +2965,9 @@ async function reloadActiveTab(preselectId) {
       return renderError(res.error.userMessage || res.error.message);
     }
     renderPurchaseSummaryTable(res.data, res.count || 0);
+    LAST_ACTIVE_ROWS = res.data || [];
+    LAST_REFRESH_TIME = new Date();
+    updateFreshnessIndicator();
   } else if (state.currentTab === "consumption") {
     const res = await loadConsumptionSummary({
       sourceKind: state.currentSourceKind,
@@ -2519,8 +2990,41 @@ async function reloadActiveTab(preselectId) {
       return renderError(res.error.userMessage || res.error.message);
     }
     renderConsumptionTable(res.data, res.count || 0);
+    LAST_ACTIVE_ROWS = res.data || [];
+    LAST_REFRESH_TIME = new Date();
+    updateFreshnessIndicator();
+  } else if (state.currentTab === "rm-receiving-stock") {
+    const res = await loadRmReceivingStock({
+      searchText: state.currentSearchText,
+      categoryCode: state.currentCategoryCode,
+      subcategoryCode: state.currentSubcategoryCode,
+      groupCode: state.currentGroupCode,
+      subgroupCode: state.currentSubgroupCode,
+      page: state.pageRmReceivingStock,
+      pageSize: state.pageSize,
+      mappingStatus: "mapped",
+    });
+    if (mySeq !== _requestSeq) {
+      setBusy(false);
+      return;
+    }
+    if (res.error) {
+      showStatusToast(
+        res.error.userMessage || res.error.message || "Error loading data",
+        "error",
+        4000,
+      );
+      return renderError(res.error.userMessage || res.error.message);
+    }
+    renderRmReceivingStockTable(res.data || [], res.count || 0);
+    LAST_REFRESH_TIME = new Date();
+    updateFreshnessIndicator();
   }
   // table area uses CSS flex + internal scrolling; pagination controlled by page-size selector
+  // Refresh stock value chip (fire-and-forget) respecting current filters
+  refreshStockValueChip().catch((err) =>
+    console.warn("Stock value chip refresh failed", err),
+  );
   try {
     adjustTableCardHeight();
   } catch {
@@ -2557,6 +3061,13 @@ loadClassificationOptions()
       }
     }, 120);
   });
+
+updateFreshnessIndicator();
+setInterval(updateFreshnessIndicator, 60000);
+
+refreshStockValueChip().catch((err) =>
+  console.warn("Initial stock value refresh failed", err),
+);
 
 // Comments:
 // - All data queries use Supabase and follow the same pattern as WIP Stock.

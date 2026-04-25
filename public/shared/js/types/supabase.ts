@@ -12655,6 +12655,36 @@ export type Database = {
         }
         Relationships: []
       }
+      tally_rm_rms_stock_snapshot: {
+        Row: {
+          as_of_date: string
+          id: number
+          inserted_at: string
+          qty_value: number | null
+          rate_value: number | null
+          source_key: string | null
+          tally_item_name: string
+        }
+        Insert: {
+          as_of_date: string
+          id?: number
+          inserted_at?: string
+          qty_value?: number | null
+          rate_value?: number | null
+          source_key?: string | null
+          tally_item_name: string
+        }
+        Update: {
+          as_of_date?: string
+          id?: number
+          inserted_at?: string
+          qty_value?: number | null
+          rate_value?: number | null
+          source_key?: string | null
+          tally_item_name?: string
+        }
+        Relationships: []
+      }
       tally_rm_stock_snapshot: {
         Row: {
           as_of_date: string
@@ -13660,6 +13690,23 @@ export type Database = {
           top_sku_label: string | null
           total_risk_reduction_units: number | null
           transferred_out_base_qty: number | null
+        }
+        Relationships: []
+      }
+      mv_stock_purchase_value_base: {
+        Row: {
+          category_code: string | null
+          code: string | null
+          group_code: string | null
+          inv_stock_item_id: number | null
+          name: string | null
+          section_key: string | null
+          section_label: string | null
+          source_kind: string | null
+          stock_stage: string | null
+          stock_value: number | null
+          subcategory_code: string | null
+          subgroup_code: string | null
         }
         Relationships: []
       }
@@ -23770,6 +23817,675 @@ export type Database = {
         }
         Relationships: []
       }
+      v_rm_rms_stock_current: {
+        Row: {
+          alias_id: number | null
+          alias_key: string | null
+          as_of_date: string | null
+          category_code: string | null
+          category_id: number | null
+          category_label: string | null
+          code: string | null
+          godown_name: string | null
+          group_code: string | null
+          group_id: number | null
+          group_label: string | null
+          inserted_at: string | null
+          inv_stock_item_id: number | null
+          mapping_status: string | null
+          name: string | null
+          qty_value: number | null
+          rate_value: number | null
+          source_key: string | null
+          source_kind: string | null
+          stock_stage: string | null
+          stock_value: number | null
+          subcategory_code: string | null
+          subcategory_id: number | null
+          subcategory_label: string | null
+          subgroup_code: string | null
+          subgroup_id: number | null
+          subgroup_label: string | null
+          tally_item_name: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "inv_stock_item"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_inv_stock_item_with_class"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_item_consumption_consumables_monthly"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_item_consumption_rm_pm_monthly"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_picker_sp_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_purchases_by_item"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_purchases_summary_by_item"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_rm_seasonal_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_rm_stock_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_semiprocess_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_item_picker"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_items_with_semiflag"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_class_map_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_class_map_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_group"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_class_map_subcategory_id_fkey"
+            columns: ["subcategory_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_subcategory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_class_map_subgroup_id_fkey"
+            columns: ["subgroup_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_subgroup"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_rm_rms_stock_snapshot_enriched: {
+        Row: {
+          alias_id: number | null
+          alias_key: string | null
+          as_of_date: string | null
+          category_code: string | null
+          category_id: number | null
+          category_label: string | null
+          code: string | null
+          godown_name: string | null
+          group_code: string | null
+          group_id: number | null
+          group_label: string | null
+          inserted_at: string | null
+          inv_stock_item_id: number | null
+          mapping_status: string | null
+          name: string | null
+          qty_value: number | null
+          rate_value: number | null
+          source_key: string | null
+          source_kind: string | null
+          stock_stage: string | null
+          stock_value: number | null
+          subcategory_code: string | null
+          subcategory_id: number | null
+          subcategory_label: string | null
+          subgroup_code: string | null
+          subgroup_id: number | null
+          subgroup_label: string | null
+          tally_item_name: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "inv_stock_item"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_inv_stock_item_with_class"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_item_consumption_consumables_monthly"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_item_consumption_rm_pm_monthly"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_picker_sp_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_purchases_by_item"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_purchases_summary_by_item"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_rm_seasonal_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_rm_stock_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_semiprocess_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_item_picker"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_items_with_semiflag"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_class_map_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_class_map_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_group"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_class_map_subcategory_id_fkey"
+            columns: ["subcategory_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_subcategory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_class_map_subgroup_id_fkey"
+            columns: ["subgroup_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_subgroup"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_rm_rms_stock_unmapped_current: {
+        Row: {
+          alias_id: number | null
+          alias_key: string | null
+          as_of_date: string | null
+          category_code: string | null
+          category_id: number | null
+          category_label: string | null
+          code: string | null
+          godown_name: string | null
+          group_code: string | null
+          group_id: number | null
+          group_label: string | null
+          inserted_at: string | null
+          inv_stock_item_id: number | null
+          mapping_status: string | null
+          name: string | null
+          qty_value: number | null
+          rate_value: number | null
+          source_key: string | null
+          source_kind: string | null
+          stock_stage: string | null
+          stock_value: number | null
+          subcategory_code: string | null
+          subcategory_id: number | null
+          subcategory_label: string | null
+          subgroup_code: string | null
+          subgroup_id: number | null
+          subgroup_label: string | null
+          tally_item_name: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "inv_stock_item"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_inv_stock_item_with_class"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_item_consumption_consumables_monthly"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_item_consumption_rm_pm_monthly"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_picker_sp_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_purchases_by_item"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_purchases_summary_by_item"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_rm_seasonal_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_rm_stock_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_semiprocess_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_item_picker"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_alias_inv_stock_item_id_fkey"
+            columns: ["inv_stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_items_with_semiflag"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_class_map_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_class_map_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_group"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_class_map_subcategory_id_fkey"
+            columns: ["subcategory_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_subcategory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_class_map_subgroup_id_fkey"
+            columns: ["subgroup_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_subgroup"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_rm_seasonal_items: {
         Row: {
           category_code: string | null
@@ -29598,6 +30314,57 @@ export type Database = {
         Args: { p_header: Json; p_lines: Json; p_product_id: number }
         Returns: number
       }
+      fn_rm_rms_stock_filtered: {
+        Args: {
+          p_as_of_date?: string
+          p_category_code?: string
+          p_group_code?: string
+          p_limit?: number
+          p_mapping_status?: string
+          p_offset?: number
+          p_search?: string
+          p_subcategory_code?: string
+          p_subgroup_code?: string
+        }
+        Returns: {
+          as_of_date: string
+          category_code: string
+          category_label: string
+          code: string
+          godown_name: string
+          group_code: string
+          group_label: string
+          inserted_at: string
+          inv_stock_item_id: number
+          mapping_status: string
+          name: string
+          qty_value: number
+          rate_value: number
+          source_key: string
+          source_kind: string
+          stock_stage: string
+          stock_value: number
+          subcategory_code: string
+          subcategory_label: string
+          subgroup_code: string
+          subgroup_label: string
+          tally_item_name: string
+        }[]
+      }
+      fn_rm_rms_stock_filtered_count: {
+        Args: {
+          p_as_of_date?: string
+          p_category_code?: string
+          p_group_code?: string
+          p_mapping_status?: string
+          p_search?: string
+          p_subcategory_code?: string
+          p_subgroup_code?: string
+        }
+        Returns: {
+          count: number
+        }[]
+      }
       fn_run_mrp_rm_plan: {
         Args: {
           p_month_end: string
@@ -29607,6 +30374,25 @@ export type Database = {
         Returns: undefined
       }
       fn_stock_item_id: { Args: { p_code_or_name: string }; Returns: number }
+      fn_stock_purchase_value_summary: {
+        Args: {
+          p_category_code?: string
+          p_group_code?: string
+          p_search?: string
+          p_source_kind?: string
+          p_subcategory_code?: string
+          p_subgroup_code?: string
+        }
+        Returns: {
+          item_count: number
+          row_type: string
+          section_key: string
+          section_label: string
+          source_kind: string
+          stock_stage: string
+          stock_value: number
+        }[]
+      }
       fn_uom_id: { Args: { p_code: string }; Returns: number }
       forecast_lock_acquire: { Args: never; Returns: boolean }
       forecast_lock_release: { Args: never; Returns: undefined }
@@ -31660,6 +32446,8 @@ export type Database = {
         }
         Returns: undefined
       }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       sop_approval_decide: {
         Args: {
           p_comments?: string

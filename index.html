@@ -5,70 +5,188 @@
     <title>SASV WORKSPACE</title>
     <link rel="stylesheet" href="public/shared/css/style.css" />
     <style>
-      /* Link-like logout button */
-      #logoutLink {
-        background: none;
-        border: none;
-        padding: 0;
-        font: inherit;
-        color: blue;
-        text-decoration: underline;
-        cursor: pointer;
-      }
-      #logoutLink:hover {
-        opacity: 0.8;
-      }
-      #logoutLink:focus {
-        outline: 2px solid #007cff;
-        outline-offset: 2px;
+      /* ── ERP Top Navigation Bar ── */
+      body {
+        overflow-x: hidden;
+        padding-top: 0 !important;
       }
 
-      /* Online bubbles */
+      /* Override shared header to become a sticky topbar — light theme */
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 500;
+        display: flex !important;
+        align-items: center;
+        gap: 16px;
+        padding: 0 20px;
+        height: 58px;
+        background: #fff !important;
+        border-bottom: 2px solid #005a8d;
+        box-shadow: 0 2px 8px rgba(0, 90, 141, 0.1);
+        text-align: left !important;
+        margin-bottom: 0 !important;
+      }
+
+      /* Brand zone — logo + name */
+      #brand-zone {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-shrink: 0;
+        text-decoration: none;
+      }
+      #app-logo {
+        height: 42px;
+        width: 42px;
+        border-radius: 10px;
+        object-fit: cover;
+        flex-shrink: 0;
+        box-shadow: 0 1px 4px rgba(0, 90, 141, 0.18);
+      }
+      #brand-text {
+        display: flex;
+        flex-direction: column;
+        line-height: 1;
+        gap: 2px;
+      }
+      #brand-name {
+        font-size: 17px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+        text-transform: uppercase;
+      }
+      #brand-name .brand-sasv {
+        color: #005a8d;
+      }
+      #brand-name .brand-workspace {
+        color: #1c3a58;
+        font-weight: 700;
+        opacity: 0.75;
+      }
+      #appVersion {
+        font-size: 11px;
+        color: #c47a00;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        background: #fff8e1;
+        border: 1px solid #f5d87a;
+        border-radius: 4px;
+        padding: 1px 6px;
+        display: inline-block;
+        width: fit-content;
+      }
+
+      /* Center search slot in the header */
+      #header-search-slot {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-width: 0;
+      }
+
+      /* User zone — right side */
+      #user-zone {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-shrink: 0;
+        margin-left: auto;
+      }
+
+      #user-chip {
+        display: flex;
+        align-items: center;
+        gap: 0;
+        background: #f0f7fb;
+        border: 1px solid #c8dde9;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      #userInfo {
+        padding: 5px 10px;
+        font-size: 12px;
+        color: #1c3a58;
+        white-space: nowrap;
+        max-width: 220px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      #logoutLink {
+        background: #005a8d;
+        border: none;
+        border-left: 1px solid #c8dde9;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #fff;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background 0.15s;
+        font-family: inherit;
+      }
+      #logoutLink:hover {
+        background: #004876;
+      }
+      #logoutLink:focus {
+        outline: 2px solid #005a8d;
+        outline-offset: -2px;
+      }
+
+      /* Online presence bubbles */
       .online-bubble {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 28px;
-        height: 28px;
+        width: 30px;
+        height: 30px;
         border-radius: 50%;
-        background: var(--bubble-bg);
+        background: var(--bubble-bg, #3b82f6);
         color: #fff;
         font-size: 12px;
-        margin-right: 4px;
+        font-weight: 700;
         position: relative;
         cursor: default;
         user-select: none;
+        border: 2px solid #fff;
+        margin-left: -6px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+      }
+      .online-bubble:first-child {
+        margin-left: 0;
       }
       .online-bubble .tooltip {
         position: absolute;
-        top: -32px;
+        top: calc(100% + 6px);
         left: 50%;
         transform: translateX(-50%);
-        background: #333;
+        background: #1e293b;
         color: #fff;
         padding: 4px 8px;
-        border-radius: 4px;
+        border-radius: 5px;
         white-space: nowrap;
         font-size: 11px;
         visibility: hidden;
         opacity: 0;
-        z-index: 10;
+        z-index: 600;
         transition: opacity 0.1s;
+        pointer-events: none;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
       }
       .online-bubble:hover .tooltip {
         visibility: visible;
         opacity: 1;
       }
-
-      body {
-        overflow-x: hidden;
-      }
-      #userBar {
+      #onlineUsersContainer {
         display: flex;
         align-items: center;
       }
-      #onlineUsersContainer {
-        margin-left: auto;
+
+      /* Page body padding to account for sticky header */
+      main#workspace-sections {
+        padding: 20px;
       }
 
       /* Section helper text */
@@ -97,44 +215,334 @@
         content: " 🔒";
       }
 
-      /* Module search — modern, compact pill */
-      #module-search-container {
-        margin: 12px 0 18px 0;
+      /* Module search — light theme inside header */
+      #module-search-wrapper {
+        width: 100%;
+        max-width: 400px;
         display: flex;
-        justify-content: center; /* center the search */
-        align-items: center;
+        flex-direction: column;
+        align-items: stretch;
         pointer-events: auto;
+        margin: 0;
+      }
+      #module-search-container {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        background: #f4f8fb;
+        border: 1px solid #c8dde9;
+        border-radius: 8px;
+        transition:
+          border-color 0.15s,
+          box-shadow 0.15s;
+        overflow: hidden;
+      }
+      #module-search-container:focus-within {
+        border-color: #005a8d;
+        background: #fff;
+        box-shadow: 0 0 0 3px rgba(0, 90, 141, 0.1);
+      }
+      #module-search-icon {
+        flex-shrink: 0;
+        width: 34px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #7eaabf;
+        height: 36px;
       }
       #moduleSearch {
-        width: 100%;
-        max-width: 760px;
-        padding: 10px 14px 10px 44px; /* room for icon */
-        /* clearer, slightly bluish border to differentiate the field */
-        border: 1px solid rgba(10, 100, 200, 0.12);
-        border-radius: 9999px; /* pill */
-        font-size: 15px;
-        /* distinct pale background for quick identification */
-        background: #f6fbff
-          url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7f88' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E")
-          no-repeat 14px center/18px;
-        /* subtle inner highlight to make the pill feel crisp */
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+        flex: 1;
+        padding: 8px 6px 8px 2px;
+        border: none;
         outline: none;
-        transition:
-          border-color 0.12s,
-          transform 0.06s,
-          background-color 0.12s;
-      }
-      #moduleSearch:focus {
-        border-color: rgba(10, 100, 200, 0.28);
-        background: #fff; /* inverse on focus for clarity */
-        box-shadow: none;
-        /* subtle focus ring for accessibility */
-        outline: 2px solid rgba(10, 100, 200, 0.06);
-        outline-offset: 2px;
+        font-size: 13px;
+        font-weight: 400;
+        color: #1c3a58;
+        background: transparent;
+        min-width: 0;
       }
       #moduleSearch::placeholder {
-        color: #98a6ad;
+        color: #aac0cd;
+      }
+      #module-search-kbd {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        padding: 0 10px;
+        flex-shrink: 0;
+        pointer-events: none;
+      }
+      .kbd-key {
+        display: inline-flex;
+        align-items: center;
+        padding: 1px 5px;
+        background: #eaf2f7;
+        border: 1px solid #c8dde9;
+        border-radius: 4px;
+        font-size: 10px;
+        font-weight: 600;
+        color: #5a8099;
+        font-family: ui-monospace, monospace;
+        line-height: 1.6;
+      }
+      @media (max-width: 640px) {
+        #module-search-wrapper {
+          display: none;
+        }
+      }
+
+      /* ── Command Palette Overlay ── */
+      #cmd-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.45);
+        backdrop-filter: blur(3px);
+        -webkit-backdrop-filter: blur(3px);
+        z-index: 9000;
+        align-items: flex-start;
+        justify-content: center;
+        padding-top: 12vh;
+      }
+      #cmd-backdrop.open {
+        display: flex;
+      }
+      #cmd-palette {
+        width: 92%;
+        max-width: 580px;
+        background: #fff;
+        border-radius: 14px;
+        box-shadow:
+          0 24px 60px rgba(0, 0, 0, 0.22),
+          0 4px 16px rgba(37, 99, 235, 0.12);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        animation: cmdSlideIn 0.15s ease;
+      }
+      @keyframes cmdSlideIn {
+        from {
+          opacity: 0;
+          transform: translateY(-12px) scale(0.98);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+      #cmd-search-row {
+        display: flex;
+        align-items: center;
+        border-bottom: 1.5px solid #e2e8f0;
+        padding: 0 16px;
+        gap: 12px;
+      }
+      #cmd-search-row svg {
+        flex-shrink: 0;
+        color: #2563eb;
+      }
+      #cmdPaletteInput {
+        flex: 1;
+        border: none;
+        outline: none;
+        font-size: 16px;
+        font-weight: 500;
+        color: #1e293b;
+        padding: 16px 0;
+        background: transparent;
+      }
+      #cmdPaletteInput::placeholder {
+        color: #94a3b8;
+        font-weight: 400;
+      }
+      #cmd-esc-hint {
+        font-size: 11px;
+        color: #94a3b8;
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      #cmd-results {
+        max-height: 360px;
+        overflow-y: auto;
+        padding: 6px 0;
+      }
+      #cmd-results:empty::after {
+        content: "No modules found";
+        display: block;
+        text-align: center;
+        padding: 24px;
+        color: #94a3b8;
+        font-size: 14px;
+      }
+      .cmd-result-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 18px;
+        cursor: pointer;
+        font-size: 14px;
+        color: #1e293b;
+        border-radius: 0;
+        transition: background 0.07s;
+      }
+      .cmd-result-item:hover,
+      .cmd-result-item.active {
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+      .cmd-result-item.active {
+        background: #dbeafe;
+      }
+      .cmd-result-item svg {
+        flex-shrink: 0;
+        opacity: 0.45;
+      }
+      #cmd-footer {
+        border-top: 1.5px solid #f1f5f9;
+        padding: 8px 18px;
+        display: flex;
+        gap: 16px;
+        font-size: 11px;
+        color: #94a3b8;
+      }
+      #cmd-footer span {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+
+      /* ── Module Cards (home page) ── */
+      /* Override the shared pill style for this page only */
+      #workspace-sections .module-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 8px;
+        margin-top: 6px;
+      }
+      #workspace-sections .module-link {
+        display: none; /* JS sets to flex when permitted */
+        align-items: center;
+        gap: 11px;
+        padding: 10px 13px;
+        background: #edf5fb;
+        border: 1px solid #c2dded;
+        border-left: 3px solid #005a8d;
+        border-radius: 8px;
+        color: #1c3a58;
+        text-decoration: none;
+        font-size: 0.855rem;
+        font-weight: 600;
+        line-height: 1.35;
+        transition:
+          box-shadow 0.14s,
+          transform 0.11s,
+          border-color 0.12s,
+          background 0.12s;
+        box-shadow: 0 1px 3px rgba(0, 90, 141, 0.08);
+        white-space: normal;
+      }
+      #workspace-sections .module-link:hover {
+        background: #daeef9;
+        border-color: #8bbdd6;
+        border-left-color: #004876;
+        box-shadow: 0 4px 12px rgba(0, 90, 141, 0.15);
+        transform: translateY(-2px);
+        color: #003d6e;
+        text-decoration: none;
+      }
+      #workspace-sections .module-link:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+      }
+      /* Initial avatar chip */
+      .ml-initial {
+        flex-shrink: 0;
+        width: 30px;
+        height: 30px;
+        border-radius: 7px;
+        background: #005a8d;
+        color: #fff;
+        font-size: 13px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        letter-spacing: 0;
+      }
+      .ml-label {
+        flex: 1;
+        min-width: 0;
+        word-break: break-word;
+        line-height: 1.35;
+      }
+      /* Locked (view-only) module */
+      #workspace-sections .module-link.locked-module {
+        border-left-color: #94a3b8;
+        color: #64748b;
+        opacity: 1;
+      }
+      #workspace-sections .module-link.locked-module .ml-initial {
+        background: rgba(148, 163, 184, 0.12);
+        color: #94a3b8;
+      }
+      #workspace-sections .module-link.locked-module::after {
+        content: "\1F512"; /* lock emoji */
+        font-size: 11px;
+        flex-shrink: 0;
+        margin-left: auto;
+      }
+      /* Disabled placeholder */
+      #workspace-sections
+        .module-link[aria-disabled="true"]:not(.locked-module) {
+        border-left-color: #d1d5db;
+        color: #9ca3af;
+        cursor: not-allowed;
+        opacity: 0.7;
+      }
+      #workspace-sections
+        .module-link[aria-disabled="true"]:not(.locked-module)
+        .ml-initial {
+        background: rgba(156, 163, 175, 0.1);
+        color: #cbd5e1;
+      }
+
+      /* ── Section panel overrides ── */
+      #workspace-sections .panel {
+        margin-bottom: 20px;
+        border-radius: 10px;
+        box-shadow: 0 1px 5px rgba(0, 0, 0, 0.06);
+        border: 1px solid #e8edf3;
+        padding: 16px 18px 18px;
+      }
+      #workspace-sections .panel h2 {
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: #005a8d;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        margin: 0 0 4px;
+        padding-bottom: 10px;
+        border-bottom: 1.5px solid #dde8f2;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      #workspace-sections .panel h2::before {
+        content: "";
+        display: inline-block;
+        width: 3px;
+        height: 14px;
+        background: #005a8d;
+        border-radius: 2px;
+        flex-shrink: 0;
+      }
+      #workspace-sections .section-hint {
+        margin: 0 0 10px;
+        font-size: 0.8rem;
+        color: var(--muted, #6b7280);
       }
     </style>
     <link rel="stylesheet" href="public/shared/css/seasonal-banners.css" />
@@ -143,25 +551,145 @@
   </head>
   <body data-theme="system">
     <header>
-      <h1>SASV WORKSPACE <small id="appVersion"></small></h1>
+      <!-- Brand: Logo + Name -->
+      <div id="brand-zone">
+        <img
+          src="public/shared/assets/ChatGPT Image Apr 25, 2026, 10_28_07 PM.png"
+          alt="SASV Workspace"
+          id="app-logo"
+        />
+        <div id="brand-text">
+          <span id="brand-name"
+            ><span class="brand-sasv">SASV</span>
+            <span class="brand-workspace">Workspace</span></span
+          >
+          <small id="appVersion"></small>
+        </div>
+      </div>
 
-      <div id="userBar">
-        <span id="userInfo">Loading…</span>
-        &nbsp;|&nbsp;
-        <button id="logoutLink" type="button">Log Out</button>
+      <!-- Centre: Module search (also triggered by Ctrl+K) -->
+      <div id="header-search-slot">
+        <div id="module-search-wrapper">
+          <div id="module-search-container">
+            <div id="module-search-icon">
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <circle cx="11" cy="11" r="7" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+            </div>
+            <input
+              id="moduleSearch"
+              list="module-list-datalist"
+              placeholder="Jump to module…"
+              autocomplete="off"
+              aria-label="Jump to module"
+            />
+            <div id="module-search-kbd">
+              <span class="kbd-key">Ctrl</span>
+              <span style="font-size: 10px; color: #aac0cd">+</span>
+              <span class="kbd-key">K</span>
+            </div>
+          </div>
+          <datalist id="module-list-datalist"></datalist>
+        </div>
+      </div>
+
+      <!-- Right: Online users + User chip -->
+      <div id="user-zone">
         <span id="onlineUsersContainer"></span>
+        <div id="user-chip">
+          <span id="userInfo">Loading…</span>
+          <button id="logoutLink" type="button">Log Out</button>
+        </div>
       </div>
     </header>
 
-    <!-- Module search (type-to-navigate) -->
-    <div id="module-search-container">
-      <input
-        id="moduleSearch"
-        list="module-list-datalist"
-        placeholder="Jump to module… (type to search)"
-        autocomplete="off"
-      />
-      <datalist id="module-list-datalist"></datalist>
+    <!-- Command Palette Overlay (Ctrl+K) -->
+    <div
+      id="cmd-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Jump to module"
+    >
+      <div id="cmd-palette">
+        <div id="cmd-search-row">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="11" cy="11" r="7" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            id="cmdPaletteInput"
+            placeholder="Type a module name…"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <div id="cmd-esc-hint"><span class="kbd-key">Esc</span></div>
+        </div>
+        <div id="cmd-results"></div>
+        <div id="cmd-footer">
+          <span>
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="18 15 12 9 6 15" />
+            </svg>
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+            Navigate
+          </span>
+          <span>
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="9 10 4 15 9 20" />
+              <path d="M20 4v7a4 4 0 0 1-4 4H4" />
+            </svg>
+            Open
+          </span>
+        </div>
+      </div>
     </div>
 
     <main id="workspace-sections" aria-live="polite"></main>
@@ -178,7 +706,12 @@
           const anchors = Array.from(document.querySelectorAll("a.module-link"))
             .filter((a) => a.style.display !== "none")
             .map((a) => ({
-              label: (a.textContent || a.innerText || "").trim(),
+              label: (
+                a.querySelector(".ml-label")?.textContent ||
+                a.textContent ||
+                a.innerText ||
+                ""
+              ).trim(),
               href: a.getAttribute("href"),
               id: a.dataset.moduleId || "",
               disabled: a.getAttribute("aria-disabled") === "true",
@@ -269,6 +802,106 @@
         input?.addEventListener("focus", () =>
           input.setAttribute("list", "module-list-datalist"),
         );
+
+        // ── Command Palette ──
+        const backdrop = document.getElementById("cmd-backdrop");
+        const palette = document.getElementById("cmd-palette");
+        const cmdInput = document.getElementById("cmdPaletteInput");
+        const cmdResults = document.getElementById("cmd-results");
+        let activeIdx = -1;
+
+        function openPalette() {
+          backdrop.classList.add("open");
+          cmdInput.value = "";
+          activeIdx = -1;
+          renderCmdResults("");
+          cmdInput.focus();
+        }
+        function closePalette() {
+          backdrop.classList.remove("open");
+          activeIdx = -1;
+        }
+
+        function renderCmdResults(q) {
+          const idx = input._moduleIndex || [];
+          const qLow = q.trim().toLowerCase();
+          const filtered = qLow
+            ? idx.filter(
+                (x) => !x.disabled && x.label.toLowerCase().includes(qLow),
+              )
+            : idx.filter((x) => !x.disabled).slice(0, 20);
+
+          cmdResults.innerHTML = "";
+          activeIdx = -1;
+          filtered.forEach((item, i) => {
+            const div = document.createElement("div");
+            div.className = "cmd-result-item";
+            div.dataset.href = item.href;
+            div.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>${item.label}`;
+            div.addEventListener("mousedown", (e) => {
+              e.preventDefault();
+              closePalette();
+              window.location.href = item.href;
+            });
+            div.addEventListener("mouseenter", () => setActive(i));
+            cmdResults.appendChild(div);
+          });
+        }
+
+        function setActive(i) {
+          const items = cmdResults.querySelectorAll(".cmd-result-item");
+          items.forEach((el) => el.classList.remove("active"));
+          if (i >= 0 && i < items.length) {
+            items[i].classList.add("active");
+            items[i].scrollIntoView({ block: "nearest" });
+            activeIdx = i;
+          }
+        }
+
+        cmdInput?.addEventListener("input", () => {
+          renderCmdResults(cmdInput.value);
+        });
+
+        cmdInput?.addEventListener("keydown", (e) => {
+          const items = cmdResults.querySelectorAll(".cmd-result-item");
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setActive(Math.min(activeIdx + 1, items.length - 1));
+          } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setActive(Math.max(activeIdx - 1, 0));
+          } else if (e.key === "Enter") {
+            e.preventDefault();
+            const active = cmdResults.querySelector(".cmd-result-item.active");
+            if (active) {
+              closePalette();
+              window.location.href = active.dataset.href;
+            } else if (items.length === 1) {
+              closePalette();
+              window.location.href = items[0].dataset.href;
+            }
+          } else if (e.key === "Escape") {
+            closePalette();
+          }
+        });
+
+        // Close on backdrop click (outside palette)
+        backdrop?.addEventListener("mousedown", (e) => {
+          if (!palette.contains(e.target)) closePalette();
+        });
+
+        // Global Ctrl+K shortcut — opens floating palette
+        document.addEventListener("keydown", (e) => {
+          if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+            e.preventDefault();
+            openPalette();
+          } else if (
+            e.key === "Escape" &&
+            backdrop.classList.contains("open")
+          ) {
+            closePalette();
+          }
+        });
 
         // Expose for permission-gating code to trigger a re-index after
         // display:none is applied (attribute mutations are not observed).
@@ -370,11 +1003,13 @@
             list.innerHTML = section.items
               .map((item) => {
                 const href = item.placeholder ? "#" : item.routePath || "#";
+                const initial = (item.label.trim()[0] || "?").toUpperCase();
                 const attrs = [
                   'class="module-link"',
                   `data-module-id="${escapeHtml(item.moduleKey)}"`,
                   `data-min-nav-mode="${escapeHtml(item.minNavMode || "view")}"`,
                   `data-placeholder="${item.placeholder ? "true" : "false"}"`,
+                  `data-initial="${escapeHtml(initial)}"`,
                 ];
                 if (!item.placeholder) {
                   attrs.push(
@@ -387,7 +1022,7 @@
                     attrs.push(`title="${escapeHtml(item.title)}"`);
                   }
                 }
-                return `<a ${attrs.join(" ")} href="${escapeHtml(href)}">${escapeHtml(item.label)}</a>`;
+                return `<a ${attrs.join(" ")} href="${escapeHtml(href)}"><span class="ml-initial" aria-hidden="true">${escapeHtml(initial)}</span><span class="ml-label">${escapeHtml(item.label)}</span></a>`;
               })
               .join("");
           }
@@ -589,7 +1224,7 @@
                   anchor.dataset.placeholder === "true" ||
                   (anchor.getAttribute("aria-disabled") === "true" &&
                     !anchor.dataset.href);
-                anchor.style.display = isPlaceholder ? "inline-block" : "none";
+                anchor.style.display = isPlaceholder ? "flex" : "none";
               });
               // Rebuild search index to reflect hidden modules
               if (typeof window._rebuildModuleIndex === "function") {
@@ -625,13 +1260,11 @@
                 });
 
                 if (accessLevel === "none") {
-                  anchor.style.display = isPlaceholder
-                    ? "inline-block"
-                    : "none";
+                  anchor.style.display = isPlaceholder ? "flex" : "none";
                   return;
                 }
 
-                anchor.style.display = "inline-block";
+                anchor.style.display = "flex";
                 if (isPlaceholder) return;
 
                 if (accessLevel === "use") {
@@ -689,7 +1322,7 @@
                 anchor.dataset.placeholder === "true" ||
                 (anchor.getAttribute("aria-disabled") === "true" &&
                   !anchor.dataset.href);
-              anchor.style.display = isPlaceholder ? "inline-block" : "none";
+              anchor.style.display = isPlaceholder ? "flex" : "none";
             });
             // Rebuild search index to reflect hidden modules
             if (typeof window._rebuildModuleIndex === "function") {

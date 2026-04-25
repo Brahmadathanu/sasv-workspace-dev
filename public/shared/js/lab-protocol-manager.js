@@ -8,7 +8,7 @@
  *   3. Family Mapping   – maps protocol → Product Group (FG) or Inv Group (RM)
  *   4. Usage Preview    – placeholder
  *
- * Subject types: FG | RM  (PM reserved, pill disabled until wired)
+ * Subject types: FG | RM | PM
  */
 
 import { labSupabase, supabase } from "./supabaseClient.js";
@@ -80,7 +80,7 @@ const fmTableBody = document.getElementById("fmTableBody");
 const fmThFamily = document.getElementById("fmThFamily");
 
 // ── Module state ──────────────────────────────────────────────────────────────
-let currentSubject = null; // "FG" | "RM"
+let currentSubject = null; // "FG" | "RM" | "PM"
 let currentTab = "protocolMaster";
 
 // Protocol Master state
@@ -174,6 +174,8 @@ function resetAllState() {
   tlLines = [];
   tlDirty = false;
   tlDeletedIds = [];
+  tlTestMaster = [];
+  tlTestMasterLoaded = false;
   fmProtocols = [];
   fmFamilies = [];
   clearPmForm();
@@ -233,28 +235,53 @@ function onTabActivated(tabId) {
 
 // ── Helpers: labels per subject ───────────────────────────────────────────────
 function updatePmLabels() {
-  pmListTitle.textContent =
-    currentSubject === "FG" ? "FG Protocols" : "RM / PM Protocols";
+  const pmTitleMap = {
+    FG: "FG Protocols",
+    RM: "RM Protocols",
+    PM: "PM Protocols",
+  };
+  pmListTitle.textContent = pmTitleMap[currentSubject] ?? "Protocols";
   pmFieldSubjectType.value = currentSubject;
 }
 
 function updateTlLabels() {
-  tlSectionTitle.textContent =
-    currentSubject === "FG" ? "Select FG Protocol" : "Select RM Protocol";
+  const tlTitleMap = {
+    FG: "Select FG Protocol",
+    RM: "Select RM Protocol",
+    PM: "Select PM Protocol",
+  };
+  tlSectionTitle.textContent = tlTitleMap[currentSubject] ?? "Select Protocol";
+  const tlTableTitleEl = document.querySelector(".lines-table-title");
+  if (tlTableTitleEl) {
+    const linesLabelMap = {
+      FG: "FG Test Lines",
+      RM: "RM Test Lines",
+      PM: "PM Test Lines",
+    };
+    tlTableTitleEl.textContent = linesLabelMap[currentSubject] ?? "Test Lines";
+  }
 }
 
 function updateFmLabels() {
   const isFG = currentSubject === "FG";
+  const isRM = currentSubject === "RM";
   fmFormTitle.textContent = isFG
     ? "Map Protocol → Product Group"
-    : "Map Protocol → Inventory Group";
-  fmFamilyLabel.innerHTML =
-    (isFG ? "Product Group" : "Inventory Group") +
-    ' <span class="req">*</span>';
-  fmThFamily.textContent = isFG ? "Product Group" : "Inventory Group";
+    : isRM
+      ? "Map Protocol → Raw Material Group"
+      : "Map Protocol → Packing Material Subcategory";
+  const familyLabel = isFG
+    ? "Product Group"
+    : isRM
+      ? "Raw Material Group"
+      : "Packing Material Subcategory";
+  fmFamilyLabel.innerHTML = familyLabel + ' <span class="req">*</span>';
+  fmThFamily.textContent = familyLabel;
   fmTableTitle.textContent = isFG
     ? "Product Group Mappings"
-    : "Inventory Group Mappings";
+    : isRM
+      ? "Raw Material Group Mappings"
+      : "Packing Material Subcategory Mappings";
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -290,7 +317,7 @@ async function loadProtocolList() {
 
 function renderPmList() {
   if (pmProtocols.length === 0) {
-    pmListBody.innerHTML = `<tr><td colspan="3" class="empty-state"><strong>No protocols found</strong>Click "New Protocol" to create one.</td></tr>`;
+    pmListBody.innerHTML = `<tr><td colspan="3" class="empty-state"><strong>No ${currentSubject} protocols found</strong>Click "New Protocol" to create one.</td></tr>`;
     return;
   }
   pmListBody.innerHTML = pmProtocols
@@ -384,61 +411,21 @@ async function saveProtocol() {
     return;
   }
 
-  // FIX 5 — block duplicate category codes within the same subject
-  {
-    const { data: dupRows, error: dupErr } = await labSupabase
-      .from("protocol_category")
-      .select("id")
-      .eq("subject_type", currentSubject)
-      .eq("category_code", code);
-    if (dupErr) {
-      showBanner(
-        pmFormBanner,
-        "error",
-        "Could not verify category code: " + dupErr.message,
-      );
-      return;
-    }
-    const conflicts = (dupRows ?? []).filter(
-      (r) => !pmSelectedId || r.id !== pmSelectedId,
-    );
-    if (conflicts.length > 0) {
-      showBanner(
-        pmFormBanner,
-        "error",
-        "Category Code already exists for this subject.",
-      );
-      return;
-    }
-  }
-
-  const payload = {
-    subject_type: currentSubject,
-    category_code: code,
-    category_name: name,
-    source_document: pmFieldSourceDocument.value.trim() || null,
-    remarks: pmFieldRemarks.value.trim() || null,
-    is_active: pmFieldIsActive.checked,
-  };
-
   setBtnLoading(pmSaveBtn, true);
   hideBanner(pmFormBanner);
 
-  let error;
-  if (pmSelectedId) {
-    ({ error } = await labSupabase
-      .from("protocol_category")
-      .update(payload)
-      .eq("id", pmSelectedId));
-  } else {
-    let data;
-    ({ data, error } = await labSupabase
-      .from("protocol_category")
-      .insert(payload)
-      .select("id")
-      .single());
-    if (!error && data) pmSelectedId = data.id;
-  }
+  const { data: savedId, error } = await labSupabase.rpc(
+    "fn_save_protocol_category",
+    {
+      p_id: pmSelectedId ?? null,
+      p_subject_type: currentSubject,
+      p_category_code: code,
+      p_category_name: name,
+      p_source_document: pmFieldSourceDocument.value.trim() || null,
+      p_remarks: pmFieldRemarks.value.trim() || null,
+      p_is_active: pmFieldIsActive.checked,
+    },
+  );
 
   setBtnLoading(pmSaveBtn, false);
 
@@ -446,6 +433,8 @@ async function saveProtocol() {
     showBanner(pmFormBanner, "error", "Save failed: " + error.message);
     return;
   }
+
+  if (savedId) pmSelectedId = savedId;
 
   toast("Protocol saved successfully.", "success");
   pmProtocols = []; // force reload
@@ -466,10 +455,9 @@ async function deactivateProtocol() {
   )
     return;
 
-  const { error } = await labSupabase
-    .from("protocol_category")
-    .update({ is_active: false })
-    .eq("id", pmSelectedId);
+  const { error } = await labSupabase.rpc("fn_deactivate_protocol_category", {
+    p_id: pmSelectedId,
+  });
 
   if (error) {
     toast("Deactivate failed: " + error.message, "error");
@@ -672,7 +660,7 @@ function renderTlTable() {
       const hasMethod = !!testEntry?.default_method_id;
       const methodDisplay =
         testEntry?.default_method_name ??
-        (line.test_id ? "(no method mapped)" : "—");
+        (line.test_id ? "(No default method assigned)" : "—");
       const methodCellColor = hasMethod ? "#374151" : "#9ca3af";
       const methodSelectHtml = `<select class="line-input" style="min-width:130px;color:${methodCellColor};background:#f9fafb" disabled>
         <option>${esc(methodDisplay)}</option>
@@ -827,12 +815,12 @@ async function saveTlLines() {
   setBtnLoading(tlSaveLinesBtn, true);
   hideBanner(tlBanner);
 
-  // FIX 2 — soft-deactivate deleted rows
-  if (tlDeletedIds.length > 0) {
-    const { error: delErr } = await labSupabase
-      .from("protocol_category_test")
-      .update({ is_active: false })
-      .in("id", tlDeletedIds);
+  // Soft-deactivate deleted rows via RPC
+  for (const id of tlDeletedIds) {
+    const { error: delErr } = await labSupabase.rpc(
+      "fn_deactivate_protocol_test_line",
+      { p_id: id },
+    );
     if (delErr) {
       showBanner(
         tlBanner,
@@ -844,36 +832,28 @@ async function saveTlLines() {
     }
   }
 
-  const buildRow = (l) => ({
-    protocol_category_id: tlProtocolId,
-    seq_no: l.seq_no,
-    test_id: l.test_id || null,
-    method_id: l.method_id || null,
-    display_text: l.display_text || null,
-    is_required: l.is_required !== false,
-    is_active: l.is_active !== false,
-  });
-
   let hasError = false;
 
-  if (toInsert.length > 0) {
-    const { error } = await labSupabase
-      .from("protocol_category_test")
-      .insert(toInsert.map(buildRow));
-    if (error) {
-      showBanner(tlBanner, "error", "Insert failed: " + error.message);
-      hasError = true;
-    }
-  }
+  // Save (insert or update) each dirty line via RPC
+  const toSave = [
+    ...tlLines.filter((l) => l._new && l._dirty && l.test_id),
+    ...tlLines.filter((l) => !l._new && l._dirty),
+  ];
 
-  for (const line of toUpdate) {
+  for (const l of toSave) {
     if (hasError) break;
-    const { error } = await labSupabase
-      .from("protocol_category_test")
-      .update(buildRow(line))
-      .eq("id", line.id);
+    const { error } = await labSupabase.rpc("fn_save_protocol_test_line", {
+      p_id: l.id ?? null,
+      p_protocol_category_id: tlProtocolId,
+      p_seq_no: l.seq_no,
+      p_test_id: l.test_id || null,
+      p_method_id: l.method_id || null,
+      p_display_text: l.display_text || null,
+      p_is_required: l.is_required !== false,
+      p_is_active: l.is_active !== false,
+    });
     if (error) {
-      showBanner(tlBanner, "error", "Update failed: " + error.message);
+      showBanner(tlBanner, "error", "Save failed: " + error.message);
       hasError = true;
     }
   }
@@ -983,12 +963,11 @@ async function loadFmFamilies() {
         (a.label ?? "").localeCompare(b.label ?? ""),
       );
     }
-  } else {
-    // RM (and PM later): use v_rm_pm_item_with_group distinct inv_group
+  } else if (currentSubject === "RM") {
     ({ data, error } = await labSupabase
       .from("v_rm_pm_item_with_group")
       .select("inv_group_id, inv_group_label")
-      .eq("subject_type", currentSubject)
+      .eq("category_code", "RM")
       .order("inv_group_label"));
 
     if (!error) {
@@ -1004,6 +983,27 @@ async function loadFmFamilies() {
         (a.label ?? "").localeCompare(b.label ?? ""),
       );
     }
+  } else {
+    // PM: canonicalized at subcategory level
+    ({ data, error } = await labSupabase
+      .from("v_rm_pm_item_with_group")
+      .select("subcategory_id, subcategory_label")
+      .eq("category_code", "PLM")
+      .order("subcategory_label"));
+
+    if (!error) {
+      const seen = new Map();
+      for (const row of data ?? []) {
+        if (!seen.has(row.subcategory_id))
+          seen.set(row.subcategory_id, {
+            id: row.subcategory_id,
+            label: row.subcategory_label,
+          });
+      }
+      fmFamilies = [...seen.values()].sort((a, b) =>
+        (a.label ?? "").localeCompare(b.label ?? ""),
+      );
+    }
   }
 
   if (error) {
@@ -1013,15 +1013,13 @@ async function loadFmFamilies() {
     return;
   }
 
-  populateSelect(
-    fmFamilySelect,
-    fmFamilies,
-    "id",
-    "label",
+  const placeholder =
     currentSubject === "FG"
       ? "-- Select Product Group --"
-      : "-- Select Inventory Group --",
-  );
+      : currentSubject === "RM"
+        ? "-- Select Inventory Group --"
+        : "-- Select Packing Material Subcategory --";
+  populateSelect(fmFamilySelect, fmFamilies, "id", "label", placeholder);
   fmFamilySelect.disabled = false;
 }
 
@@ -1042,7 +1040,7 @@ async function loadFmMappings() {
       )
       .order("product_group_id");
     if (familyId) query = query.eq("product_group_id", familyId);
-  } else {
+  } else if (currentSubject === "RM") {
     query = labSupabase
       .from("protocol_category_inv_group_map")
       .select(
@@ -1050,6 +1048,15 @@ async function loadFmMappings() {
       )
       .order("inv_group_id");
     if (familyId) query = query.eq("inv_group_id", familyId);
+  } else {
+    // PM: uses subcategory mapping table
+    query = labSupabase
+      .from("protocol_category_pm_subcategory_map")
+      .select(
+        "id, subcategory_id, protocol_category_id, is_active, remarks, protocol_category(category_code, category_name)",
+      )
+      .order("subcategory_id");
+    if (familyId) query = query.eq("subcategory_id", familyId);
   }
 
   const { data, error } = await query;
@@ -1076,7 +1083,11 @@ async function loadFmMappings() {
   fmTableBody.innerHTML = rows
     .map((r) => {
       const rawFamilyId =
-        currentSubject === "FG" ? r.product_group_id : r.inv_group_id;
+        currentSubject === "FG"
+          ? r.product_group_id
+          : currentSubject === "RM"
+            ? r.inv_group_id
+            : r.subcategory_id;
       const familyLabel =
         familyLookup.get(String(rawFamilyId)) ?? `#${rawFamilyId}`;
       const proto = r.protocol_category ?? {};
@@ -1135,78 +1146,45 @@ async function saveFmMapping() {
     }
   }
 
-  const payload = {
-    protocol_category_id: Number(protocolId),
-    is_active: fmIsActive.checked,
-    remarks: fmRemarks.value.trim() || null,
-  };
-
-  if (currentSubject === "FG") payload.product_group_id = Number(familyId);
-  else payload.inv_group_id = Number(familyId);
-
   setBtnLoading(fmSaveBtn, true);
   hideBanner(fmFormBanner);
 
-  const table =
-    currentSubject === "FG"
-      ? "protocol_category_product_group_map"
-      : "protocol_category_inv_group_map";
-  const matchCol =
-    currentSubject === "FG" ? "product_group_id" : "inv_group_id";
-
-  // GAP 2 — block if another active mapping already exists for this group
-  if (fmIsActive.checked) {
-    const { data: existingActive, error: activeChkErr } = await labSupabase
-      .from(table)
-      .select("id, protocol_category_id") // FIX 1 — need protocol_category_id for blocker comparison
-      .eq(matchCol, familyId)
-      .eq("is_active", true);
-    if (activeChkErr) {
-      setBtnLoading(fmSaveBtn, false);
-      showBanner(
-        fmFormBanner,
-        "error",
-        "Check failed: " + activeChkErr.message,
-      );
-      return;
-    }
-    // Allow update of the exact same row (same protocol), block a different one
-    const blockers = (existingActive ?? []).filter(
-      (r) => String(r.protocol_category_id ?? "") !== String(protocolId),
-    );
-    if (blockers.length > 0) {
-      setBtnLoading(fmSaveBtn, false);
-      showBanner(
-        fmFormBanner,
-        "error",
-        "An active protocol mapping already exists for this group. Deactivate it first before assigning a new one.",
-      );
-      return;
-    }
-  }
-
-  // Upsert: check if a row already exists for this exact family+protocol pair
-  const { data: existing, error: chkErr } = await labSupabase
-    .from(table)
-    .select("id, protocol_category_id")
-    .eq(matchCol, familyId)
-    .eq("protocol_category_id", protocolId)
-    .limit(1);
-
-  if (chkErr) {
-    setBtnLoading(fmSaveBtn, false);
-    showBanner(fmFormBanner, "error", "Check failed: " + chkErr.message);
-    return;
-  }
-
   let saveError;
-  if (existing?.length > 0) {
-    ({ error: saveError } = await labSupabase
-      .from(table)
-      .update({ is_active: payload.is_active, remarks: payload.remarks })
-      .eq("id", existing[0].id));
+  if (currentSubject === "FG") {
+    ({ error: saveError } = await labSupabase.rpc(
+      "fn_save_protocol_family_mapping",
+      {
+        p_subject_type: "FG",
+        p_protocol_category_id: Number(protocolId),
+        p_product_group_id: Number(familyId),
+        p_inv_group_id: null,
+        p_remarks: fmRemarks.value.trim() || null,
+        p_is_active: fmIsActive.checked,
+      },
+    ));
+  } else if (currentSubject === "RM") {
+    ({ error: saveError } = await labSupabase.rpc(
+      "fn_save_protocol_family_mapping",
+      {
+        p_subject_type: "RM",
+        p_protocol_category_id: Number(protocolId),
+        p_product_group_id: null,
+        p_inv_group_id: Number(familyId),
+        p_remarks: fmRemarks.value.trim() || null,
+        p_is_active: fmIsActive.checked,
+      },
+    ));
   } else {
-    ({ error: saveError } = await labSupabase.from(table).insert(payload));
+    // PM: uses dedicated subcategory mapping RPC
+    ({ error: saveError } = await labSupabase.rpc(
+      "fn_save_protocol_pm_subcategory_mapping",
+      {
+        p_protocol_category_id: Number(protocolId),
+        p_subcategory_id: Number(familyId),
+        p_remarks: fmRemarks.value.trim() || null,
+        p_is_active: fmIsActive.checked,
+      },
+    ));
   }
 
   setBtnLoading(fmSaveBtn, false);
@@ -1241,15 +1219,19 @@ async function checkProtocolHasTestLines(protocolId) {
 }
 
 async function toggleFmMapping(mapId, currentlyActive) {
-  const table =
-    currentSubject === "FG"
-      ? "protocol_category_product_group_map"
-      : "protocol_category_inv_group_map";
-
-  const { error } = await labSupabase
-    .from(table)
-    .update({ is_active: !currentlyActive })
-    .eq("id", mapId);
+  const rpcName =
+    currentSubject === "PM"
+      ? "fn_toggle_protocol_pm_subcategory_mapping"
+      : "fn_toggle_protocol_family_mapping";
+  const payload =
+    currentSubject === "PM"
+      ? { p_map_id: mapId, p_is_active: !currentlyActive }
+      : {
+          p_subject_type: currentSubject,
+          p_map_id: mapId,
+          p_is_active: !currentlyActive,
+        };
+  const { error } = await labSupabase.rpc(rpcName, payload);
 
   if (error) {
     toast("Update failed: " + error.message, "error");

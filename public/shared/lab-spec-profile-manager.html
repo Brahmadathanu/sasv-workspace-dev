@@ -275,6 +275,38 @@
         color: #92400e;
       }
 
+      /* Per-type tints - PM */
+      .type-pill[data-type="PM"] {
+        border-color: rgba(139, 92, 246, 0.2);
+        background: linear-gradient(
+          135deg,
+          rgba(139, 92, 246, 0.04),
+          rgba(139, 92, 246, 0.01)
+        );
+      }
+      .type-pill[data-type="PM"]:hover {
+        border-color: rgba(139, 92, 246, 0.45);
+        background: rgba(139, 92, 246, 0.08);
+      }
+      .type-pill[data-type="PM"].active {
+        border-color: #7c3aed;
+        background: linear-gradient(
+          135deg,
+          rgba(139, 92, 246, 0.12),
+          rgba(139, 92, 246, 0.04)
+        );
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+      }
+      .type-pill[data-type="PM"] .type-pill-icon svg {
+        stroke: #7c3aed;
+      }
+      .type-pill[data-type="PM"] .type-pill-label {
+        color: #5b21b6;
+      }
+      .type-pill[data-type="PM"].active .type-pill-label {
+        color: #7c3aed;
+      }
+
       /* ── Tab strip ────────────────────────────────────────────────── */
       .tab-strip {
         display: flex;
@@ -929,7 +961,7 @@
         <h1>Specification Profile Manager</h1>
         <div class="page-sub">
           Manage base specs, product overrides, and preview effective specs for
-          FG and RM subjects
+          FG, RM and PM subjects
         </div>
       </div>
       <div style="display: flex; align-items: stretch; gap: 8px">
@@ -1023,6 +1055,30 @@
               </span>
               <span class="type-pill-label">RM</span>
               <span class="type-pill-sub">Raw Material</span>
+            </button>
+            <button
+              class="type-pill"
+              data-type="PM"
+              type="button"
+              aria-pressed="false"
+            >
+              <span class="type-pill-icon" aria-hidden="true">
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="2" y="7" width="20" height="14" rx="2" />
+                  <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
+                </svg>
+              </span>
+              <span class="type-pill-label">PM</span>
+              <span class="type-pill-sub">Packing Material</span>
             </button>
           </div>
         </div>
@@ -1235,6 +1291,142 @@
           </div>
         </div>
 
+        <!-- PM: Inventory Subcategory selector -->
+        <div class="entry-card hidden" id="bsPmCard">
+          <div class="form-section">
+            <div class="form-section-title">
+              Packing Material Subcategory (Base Spec Level)
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="pmGroupSelect">Packing Material Subcategory</label>
+                <select
+                  id="pmGroupSelect"
+                  class="form-control"
+                  aria-label="Select packing material subcategory"
+                >
+                  <option value="">
+                    -- Select Packing Material Subcategory --
+                  </option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="context-strip hidden" id="pmContextStrip">
+            <div class="context-strip-item">
+              <div class="context-strip-label">Protocol</div>
+              <div class="context-strip-value not-set" id="pmProtocolName">
+                --
+              </div>
+            </div>
+            <div class="context-strip-item">
+              <div class="context-strip-label">Base Spec Profile</div>
+              <div class="context-strip-value not-set" id="pmBaseSpecName">
+                --
+              </div>
+            </div>
+            <div class="context-strip-item">
+              <div class="context-strip-label">Spec Version</div>
+              <div class="context-strip-value not-set" id="pmBaseSpecVersion">
+                --
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PM: Spec control card -->
+        <div class="entry-card hidden" id="pmControlCard">
+          <div class="form-section">
+            <div class="form-section-title">Spec Profile</div>
+            <div class="spec-meta-strip">
+              <div class="spec-meta-item">
+                <div class="spec-meta-label">Profile ID</div>
+                <div class="spec-meta-value not-set" id="pmMetaProfileId">
+                  --
+                </div>
+              </div>
+              <div class="spec-meta-item">
+                <div class="spec-meta-label">Version</div>
+                <div class="spec-meta-value not-set" id="pmMetaVersion">--</div>
+              </div>
+              <div class="spec-meta-item">
+                <div class="spec-meta-label">Effective Date</div>
+                <div class="spec-meta-value not-set" id="pmMetaEffDate">--</div>
+              </div>
+              <div class="spec-actions">
+                <button
+                  id="pmGenerateSpecBtn"
+                  type="button"
+                  class="btn-secondary hidden"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="16" />
+                    <line x1="8" y1="12" x2="16" y2="12" />
+                  </svg>
+                  <span>Generate Spec</span>
+                </button>
+              </div>
+            </div>
+            <div
+              id="pmBanner"
+              class="spec-info-banner hidden"
+              role="status"
+              aria-live="polite"
+            ></div>
+          </div>
+        </div>
+
+        <!-- PM: Base spec lines table -->
+        <div class="spec-table-card hidden" id="pmTableCard">
+          <div class="spec-table-header">
+            <div class="spec-table-title">Base Specification Lines</div>
+            <div style="display: flex; align-items: center; gap: 10px">
+              <div class="spec-line-count" id="pmLineCount"></div>
+              <button class="save-spec-btn hidden" id="pmSaveSpecBtn">
+                Save Spec
+              </button>
+            </div>
+          </div>
+          <div class="spec-table-scroll">
+            <table class="spec-table" aria-label="PM base specification lines">
+              <thead>
+                <tr>
+                  <th class="td-seq">#</th>
+                  <th>Test</th>
+                  <th>Method</th>
+                  <th>Spec</th>
+                  <th>Type</th>
+                  <th class="td-active">
+                    <label
+                      class="bs-all-active-label"
+                      title="Checked = all active · Unchecked = all inactive · Click to toggle all"
+                    >
+                      <input
+                        type="checkbox"
+                        id="pmActiveAllChk"
+                        aria-label="Toggle all active lines"
+                      />
+                      Active
+                    </label>
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="pmTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
         <!-- Spec control card -->
         <div class="entry-card hidden" id="bsControlCard">
           <div class="form-section">
@@ -1434,6 +1626,75 @@
           </div>
         </div>
 
+        <!-- PM: stock item selector -->
+        <div class="entry-card hidden" id="ovPmCard">
+          <div class="form-section">
+            <div class="form-section-title">
+              Select Packing Material (Override Level)
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="ovPmItemSelect">Packing Material</label>
+                <select
+                  id="ovPmItemSelect"
+                  class="form-control"
+                  aria-label="Select packing material for overrides"
+                >
+                  <option value="">-- Select Packing Material --</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="context-strip hidden" id="ovPmContextStrip">
+            <div class="context-strip-item">
+              <div class="context-strip-label">
+                Packing Material Subcategory
+              </div>
+              <div class="context-strip-value not-set" id="ovPmGroupName">
+                --
+              </div>
+            </div>
+            <div class="context-strip-item">
+              <div class="context-strip-label">Base Spec Profile ID</div>
+              <div class="context-strip-value not-set" id="ovPmBaseSpecId">
+                --
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div
+          id="ovPmBanner"
+          class="spec-info-banner hidden"
+          role="status"
+          aria-live="polite"
+        ></div>
+
+        <!-- PM: Override lines table -->
+        <div class="spec-table-card hidden" id="ovPmTableCard">
+          <div class="spec-table-header">
+            <div class="spec-table-title">Packing Material Overrides</div>
+            <div class="spec-line-count" id="ovPmLineCount"></div>
+          </div>
+          <div class="spec-table-scroll">
+            <table class="override-table" aria-label="PM spec overrides">
+              <thead>
+                <tr>
+                  <th>Test</th>
+                  <th>Action</th>
+                  <th>Override Method</th>
+                  <th>Override Spec Type</th>
+                  <th>Override Display Text</th>
+                  <th>Required</th>
+                  <th>Active</th>
+                  <th>Reason</th>
+                </tr>
+              </thead>
+              <tbody id="ovPmTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
         <div
           id="ovBanner"
           class="spec-info-banner hidden"
@@ -1561,6 +1822,80 @@
                 </tr>
               </thead>
               <tbody id="epRmTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- PM: stock item selector -->
+        <div class="entry-card hidden" id="epPmCard">
+          <div class="form-section">
+            <div class="form-section-title">
+              Select Packing Material (Effective Spec Preview)
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="epPmItemSelect">Packing Material</label>
+                <select
+                  id="epPmItemSelect"
+                  class="form-control"
+                  aria-label="Select packing material for effective preview"
+                >
+                  <option value="">-- Select Packing Material --</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div
+          id="epPmBanner"
+          class="spec-info-banner hidden"
+          role="status"
+          aria-live="polite"
+        ></div>
+
+        <!-- PM: Effective preview table -->
+        <div class="spec-table-card hidden" id="epPmTableCard">
+          <div class="spec-table-header">
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                flex-wrap: wrap;
+              "
+            >
+              <div class="spec-table-title">Effective Spec - Preview (PM)</div>
+              <span
+                style="
+                  display: inline-block;
+                  padding: 3px 10px;
+                  background: #fffbeb;
+                  border: 1px solid #fcd34d;
+                  border-radius: 6px;
+                  font-size: 11.5px;
+                  font-weight: 600;
+                  color: #92400e;
+                "
+              >
+                Preview Only - Read-only resolved spec
+              </span>
+            </div>
+            <div class="spec-line-count" id="epPmLineCount"></div>
+          </div>
+          <div class="spec-table-scroll">
+            <table class="spec-table" aria-label="PM effective spec preview">
+              <thead>
+                <tr>
+                  <th class="td-seq">#</th>
+                  <th>Test</th>
+                  <th>Method</th>
+                  <th>Spec</th>
+                  <th>Type</th>
+                  <th class="td-active">Active</th>
+                </tr>
+              </thead>
+              <tbody id="epPmTableBody"></tbody>
             </table>
           </div>
         </div>

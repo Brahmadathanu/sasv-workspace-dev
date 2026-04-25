@@ -294,11 +294,27 @@
           rgba(139, 92, 246, 0.01)
         );
       }
+      .type-pill[data-type="PM"]:hover {
+        border-color: rgba(139, 92, 246, 0.45);
+        background: rgba(139, 92, 246, 0.08);
+      }
+      .type-pill[data-type="PM"].active {
+        border-color: #7c3aed;
+        background: linear-gradient(
+          135deg,
+          rgba(139, 92, 246, 0.12),
+          rgba(139, 92, 246, 0.04)
+        );
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+      }
       .type-pill[data-type="PM"] .type-pill-icon svg {
         stroke: #7c3aed;
       }
       .type-pill[data-type="PM"] .type-pill-label {
         color: #5b21b6;
+      }
+      .type-pill[data-type="PM"].active .type-pill-label {
+        color: #7c3aed;
       }
 
       /* ── Tab strip ────────────────────────────────────────────────── */
@@ -1224,14 +1240,12 @@
               <span class="type-pill-sub">Raw Material</span>
             </button>
 
-            <!-- PM (placeholder) -->
+            <!-- PM -->
             <button
-              class="type-pill disabled"
+              class="type-pill"
               data-type="PM"
               type="button"
               aria-pressed="false"
-              aria-disabled="true"
-              title="PM protocols — coming soon"
             >
               <span class="type-pill-icon" aria-hidden="true">
                 <svg
@@ -1249,7 +1263,7 @@
                 </svg>
               </span>
               <span class="type-pill-label">PM</span>
-              <span class="type-pill-sub">Packing Material — soon</span>
+              <span class="type-pill-sub">Packing Material</span>
             </button>
           </div>
         </div>
