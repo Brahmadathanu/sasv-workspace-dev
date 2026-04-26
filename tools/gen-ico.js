@@ -5,10 +5,12 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 
-const SRC = path.resolve(
-  __dirname,
-  "../public/shared/assets/ChatGPT Image Apr 26, 2026, 10_36_10 AM.png",
-);
+const SRC = process.argv[2]
+  ? path.resolve(process.argv[2])
+  : path.resolve(
+      __dirname,
+      "../public/shared/assets/ChatGPT Image Apr 26, 2026, 10_36_10 AM.png",
+    );
 const OUT = path.resolve(__dirname, "../public/shared/assets/favicon.ico");
 // Largest first: helps Windows pick a sharp bitmap for the taskbar/shell.
 const SIZES = [256, 128, 64, 48, 32, 16];
