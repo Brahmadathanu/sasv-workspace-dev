@@ -86,6 +86,33 @@ export type Database = {
         }
         Relationships: []
       }
+      _ddl_backup_functions: {
+        Row: {
+          captured_at: string
+          ddl: string
+          id: number
+          obj_identity: string
+          obj_name: string
+          obj_schema: string
+        }
+        Insert: {
+          captured_at?: string
+          ddl: string
+          id?: never
+          obj_identity: string
+          obj_name: string
+          obj_schema: string
+        }
+        Update: {
+          captured_at?: string
+          ddl?: string
+          id?: never
+          obj_identity?: string
+          obj_name?: string
+          obj_schema?: string
+        }
+        Relationships: []
+      }
       _view_backups: {
         Row: {
           def: string | null
@@ -30779,13 +30806,16 @@ export type Database = {
       mrp_pm_issue_lines_save: { Args: { p_changes: Json }; Returns: Json }
       mrp_rm_allocation_console: {
         Args: {
+          p_batch_number?: string
           p_horizon_start: string
-          p_limit: number
-          p_offset: number
-          p_only_approx: boolean
-          p_only_unassigned: boolean
-          p_q: string
-          p_stock_item_id: number
+          p_limit?: number
+          p_mode?: string
+          p_offset?: number
+          p_only_approx?: boolean
+          p_only_unassigned?: boolean
+          p_product_id?: number
+          p_q?: string
+          p_stock_item_id?: number
         }
         Returns: Json
       }
@@ -31165,6 +31195,7 @@ export type Database = {
           updated_lines: number
         }[]
       }
+      refresh_after_rm_allocation: { Args: never; Returns: undefined }
       refresh_batch_plan: { Args: { p_header_id: number }; Returns: undefined }
       refresh_batch_plan_lines: {
         Args: { p_header_id: number; p_product_ids: number[] }
@@ -31204,9 +31235,17 @@ export type Database = {
         Args: never
         Returns: undefined
       }
+      refresh_rm_status_from_reservation_current_month: {
+        Args: never
+        Returns: undefined
+      }
       refresh_sales_monthly: { Args: never; Returns: undefined }
       refresh_sales_monthly_both: { Args: never; Returns: undefined }
       refresh_supply_rollups: { Args: never; Returns: undefined }
+      requeue_stale_in_progress_jobs: {
+        Args: { p_older_than?: string }
+        Returns: number
+      }
       require_permission: {
         Args: { p_need_edit?: boolean; p_target: string }
         Returns: undefined
@@ -31224,6 +31263,15 @@ export type Database = {
       revoke_user_access: {
         Args: { p_user_id: string; p_utility_key: string }
         Returns: undefined
+      }
+      rm_issue_actionable_exists: {
+        Args: {
+          p_batch_number: string
+          p_horizon_start: string
+          p_product_id: number
+          p_rm_stock_item_id: number
+        }
+        Returns: boolean
       }
       rollback_manual_plan_apply: {
         Args: { p_from?: string; p_set_id?: number; p_to?: string }

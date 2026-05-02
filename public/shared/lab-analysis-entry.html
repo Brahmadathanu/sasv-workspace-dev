@@ -352,6 +352,37 @@
         color: #92400e;
       }
 
+      .type-pill[data-type="PM_LOT"] {
+        border-color: rgba(5, 150, 105, 0.22);
+        background: linear-gradient(
+          135deg,
+          rgba(16, 185, 129, 0.05),
+          rgba(16, 185, 129, 0.01)
+        );
+      }
+      .type-pill[data-type="PM_LOT"]:hover {
+        border-color: rgba(5, 150, 105, 0.45);
+        background: rgba(16, 185, 129, 0.08);
+      }
+      .type-pill[data-type="PM_LOT"].active {
+        border-color: #059669;
+        background: linear-gradient(
+          135deg,
+          rgba(16, 185, 129, 0.12),
+          rgba(16, 185, 129, 0.04)
+        );
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+      }
+      .type-pill[data-type="PM_LOT"].active .type-pill-label {
+        color: #065f46;
+      }
+      .type-pill[data-type="PM_LOT"] .type-pill-icon svg {
+        stroke: #059669;
+      }
+      .type-pill[data-type="PM_LOT"] .type-pill-label {
+        color: #065f46;
+      }
+
       /* ── Form rows and groups ─────────────────────────────────────── */
       .form-row {
         display: grid;
@@ -1131,6 +1162,31 @@
               </span>
               <span class="type-pill-label">RM Lot</span>
               <span class="type-pill-sub">Raw Material</span>
+            </button>
+            <button
+              class="type-pill"
+              data-type="PM_LOT"
+              type="button"
+              aria-pressed="false"
+            >
+              <span class="type-pill-icon" aria-hidden="true">
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="21 8 21 21 3 21 3 8" />
+                  <rect x="1" y="3" width="22" height="5" rx="1" />
+                  <line x1="10" y1="12" x2="14" y2="12" />
+                </svg>
+              </span>
+              <span class="type-pill-label">PM Lot</span>
+              <span class="type-pill-sub">Packing Material</span>
             </button>
           </div>
         </div>

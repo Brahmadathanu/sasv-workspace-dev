@@ -130,6 +130,14 @@
           rgba(239, 68, 68, 0.02) 100%
         );
       }
+      .kpi.rm-receiving {
+        border-left: 4px solid #d97706;
+        background: linear-gradient(
+          135deg,
+          rgba(217, 119, 6, 0.07) 0%,
+          rgba(217, 119, 6, 0.02) 100%
+        );
+      }
       .kpi.fast-conv {
         border-left: 4px solid #7c3aed;
         background: linear-gradient(
@@ -871,6 +879,10 @@
         background: #f3f4f6;
         color: #6b7280;
       }
+      .rm-receiving {
+        background: #fff7ed;
+        color: #d97706;
+      }
 
       /* ── Modal overlay ─────────────────────────────────────── */
       .modal-overlay {
@@ -1239,6 +1251,274 @@
         color: #5b21b6;
         border: 1px solid #c4b5fd;
       }
+      /* ── Who consumed before me? button ────────────────────────── */
+      .peq-who-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius: 5px;
+        border: 1px solid var(--border, #e5e7eb);
+        background: var(--panel-bg, #fff);
+        color: var(--text, #111827);
+        font-size: 11.5px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        line-height: 1.4;
+      }
+      .peq-who-btn:hover {
+        background: #f3f4f6;
+        border-color: #d1d5db;
+      }
+      /* ── Reservation Chain Modal ─────────────────────────────────── */
+      .rcm-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.48);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 3000;
+      }
+      .rcm-overlay.hidden {
+        display: none;
+      }
+      .rcm-window {
+        width: min(960px, 96vw);
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        background: var(--panel-bg, #fff);
+        border-radius: 10px;
+        border: 1px solid var(--border, #e5e7eb);
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
+        overflow: hidden;
+      }
+      .rcm-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding: 16px 18px 12px;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+        flex-shrink: 0;
+      }
+      .rcm-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--text, #111827);
+        margin: 0 0 2px;
+      }
+      .rcm-subtitle {
+        font-size: 12.5px;
+        color: var(--muted, #6b7280);
+      }
+      .rcm-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+      .rcm-copy-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 10px;
+        border-radius: 5px;
+        border: 1px solid var(--border, #e5e7eb);
+        background: var(--panel-bg, #fff);
+        color: var(--muted, #6b7280);
+        font-size: 11.5px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .rcm-copy-btn:hover {
+        background: #f3f4f6;
+      }
+      .rcm-close-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+        background: transparent;
+        cursor: pointer;
+        color: var(--muted, #6b7280);
+      }
+      .rcm-close-btn:hover {
+        background: #f3f4f6;
+      }
+      .rcm-body {
+        overflow-y: auto;
+        padding: 16px 18px;
+        flex: 1 1 auto;
+      }
+      .rcm-context-block {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 6px 16px;
+        padding: 10px 14px;
+        background: rgba(37, 99, 235, 0.04);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+        margin-bottom: 12px;
+        font-size: 12.5px;
+      }
+      .rcm-context-row {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+      }
+      .rcm-context-label {
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--muted, #6b7280);
+        font-weight: 600;
+      }
+      .rcm-context-value {
+        color: var(--text, #111827);
+        font-weight: 500;
+      }
+      .rcm-explanation {
+        padding: 8px 12px;
+        background: #fefce8;
+        border-left: 3px solid #ca8a04;
+        border-radius: 4px;
+        font-size: 12.5px;
+        color: #713f12;
+        margin-bottom: 14px;
+        line-height: 1.55;
+      }
+      .rcm-warning-banner {
+        padding: 8px 12px;
+        background: #fff7ed;
+        border-left: 3px solid #f97316;
+        border-radius: 4px;
+        font-size: 12px;
+        color: #9a3412;
+        margin-bottom: 10px;
+      }
+      .rcm-empty {
+        padding: 24px;
+        text-align: center;
+        color: var(--muted, #6b7280);
+        font-size: 13px;
+      }
+      .rcm-table-wrap {
+        overflow-x: auto;
+        margin-top: 4px;
+      }
+      .rcm-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12.5px;
+      }
+      .rcm-th {
+        text-align: left;
+        padding: 5px 8px;
+        border-bottom: 2px solid var(--border, #e5e7eb);
+        font-size: 11px;
+        text-transform: uppercase;
+        color: var(--muted, #6b7280);
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .rcm-th.rcm-td--right,
+      .rcm-td.rcm-td--right {
+        text-align: right;
+      }
+      .rcm-th.rcm-td--center,
+      .rcm-td.rcm-td--center {
+        text-align: center;
+      }
+      .rcm-td {
+        padding: 6px 8px;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+        vertical-align: middle;
+      }
+      .rcm-td--pos {
+        width: 72px;
+      }
+      .rcm-pos-label {
+        display: inline-block;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 2px 6px;
+        border-radius: 3px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .rcm-pos--before-current {
+        background: #f1f5f9;
+        color: #475569;
+      }
+      .rcm-pos--current-batch {
+        background: #fef9c3;
+        color: #854d0e;
+      }
+      .rcm-pos--after-current {
+        background: #f0fdf4;
+        color: #166534;
+      }
+      .rcm-row--current td {
+        background: #fefce8;
+        font-weight: 600;
+      }
+      .rcm-row--after {
+        opacity: 0.7;
+      }
+      .rcm-separator-row .rcm-separator-cell {
+        padding: 4px 8px;
+        font-size: 11px;
+        font-weight: 600;
+        color: #854d0e;
+        background: #fef9c3;
+        letter-spacing: 0.02em;
+      }
+      .rcm-after-hidden {
+        display: none;
+      }
+      .rcm-after-toggle-wrap {
+        display: flex;
+        justify-content: center;
+        padding: 8px 0 4px;
+      }
+      .rcm-toggle-btn {
+        font-size: 12px;
+        padding: 4px 12px;
+        border-radius: 5px;
+        border: 1px solid var(--border, #e5e7eb);
+        background: var(--panel-bg, #fff);
+        color: var(--muted, #6b7280);
+        cursor: pointer;
+        font-weight: 600;
+      }
+      .rcm-toggle-btn:hover {
+        background: #f3f4f6;
+      }
+      @media (max-width: 640px) {
+        .rcm-window {
+          width: 100vw;
+          max-height: 100vh;
+          border-radius: 0;
+          border: none;
+        }
+        .peq-who-btn .rcm-btn-long {
+          display: none;
+        }
+        .peq-who-btn .rcm-btn-short {
+          display: inline;
+        }
+      }
+      @media (min-width: 641px) {
+        .peq-who-btn .rcm-btn-short {
+          display: none;
+        }
+      }
       /* ── Tab actions bar ────────────────────────────────────────── */
       .peq-tab-actions {
         display: flex;
@@ -1328,6 +1608,9 @@
       }
       .peq-status-section-title--blocking {
         color: #b91c1c;
+      }
+      .peq-status-section-title--receiving {
+        color: #d97706;
       }
       .peq-status-section-title--nonblocking {
         color: var(--muted, #6b7280);
@@ -1518,6 +1801,19 @@
             </ul>
             <div class="peq-filter-summary">All states</div>
           </div>
+          <div class="peq-filter-section">
+            <div class="peq-filter-section-title">RM Issue Type</div>
+            <ul class="peq-filter-checklist">
+              <li>
+                <label
+                  title="Shows batches blocked by RM issue lines that need assignment correction."
+                >
+                  <input type="checkbox" id="peqFilterRmIssueAllocation" />
+                  Issue allocation problems
+                </label>
+              </li>
+            </ul>
+          </div>
           <div class="peq-filter-actions">
             <button
               id="peqFilterSelectAll"
@@ -1533,19 +1829,6 @@
             >
               Clear
             </button>
-          </div>
-          <div class="peq-filter-section">
-            <div class="peq-filter-section-title">RM Issue Type</div>
-            <ul class="peq-filter-checklist">
-              <li>
-                <label
-                  title="Shows batches blocked by RM issue lines that need assignment correction."
-                >
-                  <input type="checkbox" id="peqFilterRmIssueAllocation" />
-                  Issue allocation problems
-                </label>
-              </li>
-            </ul>
           </div>
         </div>
       </div>
@@ -1788,6 +2071,74 @@
     </div>
 
     <div id="peqToastContainer"></div>
+
+    <!-- Reservation Chain Modal -->
+    <div
+      class="rcm-overlay hidden"
+      id="reservationChainModal"
+      aria-hidden="true"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="rcmTitle"
+    >
+      <div class="rcm-window">
+        <div class="rcm-header">
+          <div>
+            <p class="rcm-title" id="rcmTitle">Reservation Chain</p>
+            <p class="rcm-subtitle" id="rcmSubtitle">
+              Who consumed this item before this batch?
+            </p>
+          </div>
+          <div class="rcm-header-actions">
+            <button
+              id="rcmCopyBtn"
+              class="rcm-copy-btn"
+              type="button"
+              title="Copy chain as TSV"
+            >
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <rect x="9" y="9" width="13" height="13" rx="2" />
+                <path
+                  d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                />
+              </svg>
+              Copy chain
+            </button>
+            <button
+              id="rcmCloseBtn"
+              class="rcm-close-btn"
+              type="button"
+              title="Close"
+              aria-label="Close"
+            >
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="rcm-body" id="rcmBody">
+          <!-- dynamically populated -->
+        </div>
+      </div>
+    </div>
 
     <script type="module" src="js/production-execution-queue.js"></script>
   </body>

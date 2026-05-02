@@ -196,6 +196,10 @@ let PERM_CAN_VIEW = true;
 let SELECTED_ROW = null;
 let LAST_FETCH_TIME = null;
 let freshnessTimer = null;
+let IMPACT_BATCH_ROWS = [];
+let IMPACT_BATCH_LOADING = false;
+let IMPACT_BATCH_CONTEXT_KEY = null;
+const QUEUE_BATCH_META_CACHE = new Map();
 
 // ─────────────────────────────────────────────────────────────────
 // 3. Helper utilities
@@ -228,6 +232,286 @@ function timeAgoLabel(date) {
   if (s < 60) return `${s}s ago`;
   if (s < 3600) return `${Math.floor(s / 60)}m ago`;
   return `${Math.floor(s / 3600)}h ago`;
+}
+
+function buildBatchKey(productId, batchNumber) {
+  return `${productId}::${batchNumber}`;
+}
+
+function getImpactContextKey(row, lens, tabId) {
+  const cfg = getCurrentTabConfig();
+  return `${lens}:${tabId}:${row?.[cfg.idField] ?? ""}`;
+}
+
+async function loadQueueBatchMeta(monthStart) {
+  if (QUEUE_BATCH_META_CACHE.has(monthStart)) {
+    return QUEUE_BATCH_META_CACHE.get(monthStart);
+  }
+  const { data, error } = await supabase
+    .from("priority_queue_snapshot_current_month")
+    .select(
+      "product_id,batch_number,product_name,batch_size_declared,batch_uom,priority_rank_v4,primary_state",
+    )
+    .eq("month_start", monthStart)
+    .limit(2000);
+  if (error) throw error;
+
+  const lookup = new Map();
+  (data || []).forEach((r) => {
+    lookup.set(buildBatchKey(r.product_id, r.batch_number), r);
+  });
+  QUEUE_BATCH_META_CACHE.set(monthStart, lookup);
+  return lookup;
+}
+
+function consolidateImpactRows(rows) {
+  const map = new Map();
+  rows.forEach((r) => {
+    const key = buildBatchKey(r.product_id, r.batch_number);
+    if (!map.has(key)) {
+      map.set(key, { ...r });
+      return;
+    }
+    const existing = map.get(key);
+    existing.required_qty =
+      (Number(existing.required_qty) || 0) + (Number(r.required_qty) || 0);
+    existing.uncovered_qty =
+      (Number(existing.uncovered_qty) || 0) + (Number(r.uncovered_qty) || 0);
+  });
+  return [...map.values()];
+}
+
+function toImpactedBatchRows(statusRows, queueLookup) {
+  return statusRows
+    .map((s) => {
+      const q = queueLookup.get(buildBatchKey(s.product_id, s.batch_number));
+      return {
+        product_id: s.product_id,
+        batch_number: s.batch_number,
+        product_name: q?.product_name || "—",
+        batch_size_declared: q?.batch_size_declared,
+        batch_uom: q?.batch_uom,
+        priority_rank_v4: q?.priority_rank_v4,
+        primary_state: q?.primary_state,
+        required_qty: Number(s.required_qty) || 0,
+        uncovered_qty: Number(s.uncovered_qty) || 0,
+      };
+    })
+    .filter((r) => r.product_id != null && r.batch_number != null);
+}
+
+async function loadImpactedBatchesForRow(row, lens, tabId) {
+  const cfg = getCurrentTabConfig();
+  const itemId = row?.[cfg.idField];
+  const monthStart = currentMonthStart();
+  if (itemId == null) return [];
+
+  const queueLookup = await loadQueueBatchMeta(monthStart);
+  let statusRows = [];
+
+  if (lens === "action" && tabId === "pm") {
+    const { data, error } = await supabase
+      .from("pm_status_snapshot_current_month")
+      .select(
+        "product_id,batch_number,planned_pm_qty,issued_pm_qty,uncovered_qty,is_blocking_line,pm_status_class",
+      )
+      .eq("month_start", monthStart)
+      .eq("pm_stock_item_id", itemId)
+      .eq("is_blocking_line", true);
+    if (error) throw error;
+    statusRows = (data || []).map((r) => ({
+      product_id: r.product_id,
+      batch_number: r.batch_number,
+      required_qty: Math.max(
+        Number(r.planned_pm_qty || 0) - Number(r.issued_pm_qty || 0),
+        0,
+      ),
+      uncovered_qty: Number(r.uncovered_qty || 0),
+    }));
+  } else if (lens === "action" && tabId === "rm") {
+    const { data, error } = await supabase
+      .from("rm_status_snapshot_current_month")
+      .select(
+        "product_id,batch_number,planned_rm_qty,issued_rm_qty,uncovered_qty,is_blocking_line,rm_status_class",
+      )
+      .eq("month_start", monthStart)
+      .eq("rm_stock_item_id", itemId)
+      .eq("is_blocking_line", true)
+      .eq("rm_status_class", "BLOCKING_SHORTAGE");
+    if (error) throw error;
+    statusRows = (data || []).map((r) => ({
+      product_id: r.product_id,
+      batch_number: r.batch_number,
+      required_qty: Math.max(
+        Number(r.planned_rm_qty || 0) - Number(r.issued_rm_qty || 0),
+        0,
+      ),
+      uncovered_qty: Number(r.uncovered_qty || 0),
+    }));
+  } else if (lens === "action" && tabId === "unassigned") {
+    const { data, error } = await supabase
+      .from("rm_status_snapshot_current_month")
+      .select(
+        "product_id,batch_number,planned_rm_qty,issued_rm_qty,uncovered_qty,rm_status_class",
+      )
+      .eq("month_start", monthStart)
+      .eq("rm_stock_item_id", itemId)
+      .eq("rm_status_class", "UNASSIGNED_ISSUE");
+    if (error) throw error;
+    statusRows = (data || []).map((r) => ({
+      product_id: r.product_id,
+      batch_number: r.batch_number,
+      required_qty: Math.max(
+        Number(r.planned_rm_qty || 0) - Number(r.issued_rm_qty || 0),
+        0,
+      ),
+      uncovered_qty: Number(r.uncovered_qty || 0),
+    }));
+  } else if (lens === "leverage" && tabId === "pm_leverage") {
+    const { data, error } = await supabase
+      .from("pm_status_snapshot_current_month")
+      .select("product_id,batch_number,planned_pm_qty,issued_pm_qty")
+      .eq("month_start", monthStart)
+      .eq("pm_stock_item_id", itemId);
+    if (error) throw error;
+    const requiredRows = (data || [])
+      .map((r) => ({
+        product_id: r.product_id,
+        batch_number: r.batch_number,
+        required_qty: Math.max(
+          Number(r.planned_pm_qty || 0) - Number(r.issued_pm_qty || 0),
+          0,
+        ),
+      }))
+      .filter((r) => r.required_qty > 0);
+
+    const sorted = toImpactedBatchRows(requiredRows, queueLookup).sort(
+      (a, b) =>
+        Number(a.priority_rank_v4 || 0) - Number(b.priority_rank_v4 || 0),
+    );
+    let remaining = Number(row.stock_qty || 0);
+    statusRows = sorted
+      .map((r) => {
+        const alloc = Math.max(Math.min(remaining, r.required_qty), 0);
+        remaining = Math.max(remaining - alloc, 0);
+        const uncovered = Math.max(r.required_qty - alloc, 0);
+        return {
+          product_id: r.product_id,
+          batch_number: r.batch_number,
+          required_qty: r.required_qty,
+          uncovered_qty: uncovered,
+        };
+      })
+      .filter((r) => r.uncovered_qty > 0);
+  } else if (lens === "leverage" && tabId === "rm_leverage") {
+    const { data, error } = await supabase
+      .from("rm_status_snapshot_current_month")
+      .select(
+        "product_id,batch_number,planned_rm_qty,issued_rm_qty,rm_procurement_mode",
+      )
+      .eq("month_start", monthStart)
+      .eq("rm_stock_item_id", itemId)
+      .eq("rm_procurement_mode", "stock_required");
+    if (error) throw error;
+    const requiredRows = (data || [])
+      .map((r) => ({
+        product_id: r.product_id,
+        batch_number: r.batch_number,
+        required_qty: Math.max(
+          Number(r.planned_rm_qty || 0) - Number(r.issued_rm_qty || 0),
+          0,
+        ),
+      }))
+      .filter((r) => r.required_qty > 0);
+
+    const sorted = toImpactedBatchRows(requiredRows, queueLookup)
+      .filter(
+        (r) => r.primary_state !== "FG_BULK" && r.primary_state !== "BOTTLED",
+      )
+      .sort(
+        (a, b) =>
+          Number(a.priority_rank_v4 || 0) - Number(b.priority_rank_v4 || 0),
+      );
+    let remaining = Number(row.stock_qty || 0);
+    statusRows = sorted
+      .map((r) => {
+        const alloc = Math.max(Math.min(remaining, r.required_qty), 0);
+        remaining = Math.max(remaining - alloc, 0);
+        const uncovered = Math.max(r.required_qty - alloc, 0);
+        return {
+          product_id: r.product_id,
+          batch_number: r.batch_number,
+          required_qty: r.required_qty,
+          uncovered_qty: uncovered,
+        };
+      })
+      .filter((r) => r.uncovered_qty > 0);
+  }
+
+  const merged = toImpactedBatchRows(statusRows, queueLookup);
+  return consolidateImpactRows(merged).sort(
+    (a, b) => Number(a.priority_rank_v4 || 0) - Number(b.priority_rank_v4 || 0),
+  );
+}
+
+function renderImpactedBatchSection() {
+  if (IMPACT_BATCH_LOADING) {
+    return `
+      <div class="eg-card">
+        <div class="eg-card-title">Impacted Batches</div>
+        <div class="eg-note">Loading impacted batches…</div>
+      </div>`;
+  }
+
+  const rows = IMPACT_BATCH_ROWS || [];
+  if (!rows.length) {
+    return `
+      <div class="eg-card">
+        <div class="eg-card-title">Impacted Batches</div>
+        <div class="eg-note">No impacted batches found for this item in the current-month snapshots.</div>
+      </div>`;
+  }
+
+  const tableRows = rows
+    .map(
+      (r) => `<tr>
+        <td class="c-right">${r.priority_rank_v4 != null ? formatNumber(r.priority_rank_v4) : "—"}</td>
+        <td class="c-left">${r.product_name || "—"}</td>
+        <td class="c-center">${r.batch_number || "—"}</td>
+        <td class="c-center">${r.primary_state || "—"}</td>
+        <td class="c-right">${r.batch_size_declared != null ? formatNumber(r.batch_size_declared, 3) : "—"}</td>
+        <td class="c-center">${r.batch_uom || "—"}</td>
+        <td class="c-right">${formatNumber(r.required_qty || 0, 3)}</td>
+        <td class="c-right">${formatNumber(r.uncovered_qty || 0, 3)}</td>
+      </tr>`,
+    )
+    .join("");
+
+  const cfg = getCurrentTabConfig();
+  const itemUom = SELECTED_ROW?.[cfg.uomField] || "UOM";
+
+  return `
+    <div class="eg-card">
+      <div class="eg-card-title">Impacted Batches</div>
+      <div class="eg-note" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:8px">${formatNumber(rows.length)} batches · qty columns in ${itemUom}</div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr>
+              <th class="c-right">Priority</th>
+              <th class="c-left">Product</th>
+              <th class="c-center">BN</th>
+              <th class="c-center">State</th>
+              <th class="c-right">Batch Size</th>
+              <th class="c-center">UOM</th>
+              <th class="c-right">Required Qty</th>
+              <th class="c-right">Uncovered Qty</th>
+            </tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>
+    </div>`;
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -822,6 +1106,31 @@ function openModal(row) {
   updateModalTabs();
   renderModalContent(row, "overview");
 
+  const currentKey = getImpactContextKey(row, ACTIVE_LENS, ACTIVE_TAB);
+  IMPACT_BATCH_CONTEXT_KEY = currentKey;
+  IMPACT_BATCH_LOADING = true;
+  IMPACT_BATCH_ROWS = [];
+  renderModalContent(row, "overview");
+
+  loadImpactedBatchesForRow(row, ACTIVE_LENS, ACTIVE_TAB)
+    .then((rows) => {
+      if (IMPACT_BATCH_CONTEXT_KEY !== currentKey) return;
+      IMPACT_BATCH_ROWS = rows;
+    })
+    .catch((err) => {
+      console.error("[Execution Gate] impacted batch fetch failed", err);
+      if (IMPACT_BATCH_CONTEXT_KEY !== currentKey) return;
+      IMPACT_BATCH_ROWS = [];
+    })
+    .finally(() => {
+      if (IMPACT_BATCH_CONTEXT_KEY !== currentKey) return;
+      IMPACT_BATCH_LOADING = false;
+      const activeTab =
+        document.querySelector("#modalTabs .modal-tab.active")?.dataset.tab ||
+        "overview";
+      if (SELECTED_ROW) renderModalContent(SELECTED_ROW, activeTab);
+    });
+
   overlay.classList.remove("hidden");
   overlay.setAttribute("aria-hidden", "false");
 }
@@ -832,6 +1141,9 @@ function closeModal() {
   overlay.classList.add("hidden");
   overlay.setAttribute("aria-hidden", "true");
   SELECTED_ROW = null;
+  IMPACT_BATCH_CONTEXT_KEY = null;
+  IMPACT_BATCH_ROWS = [];
+  IMPACT_BATCH_LOADING = false;
 }
 
 function renderModalContent(row, tab) {
@@ -912,7 +1224,8 @@ function renderActionOverview(row) {
         ${stockLine}
         <div class="eg-kv"><span class="eg-k">${riskLabel}</span><span class="eg-v">${riskVal}</span></div>
       </div>
-    </div>`;
+    </div>
+    ${renderImpactedBatchSection()}`;
 }
 
 function renderLeverageOverview(row) {
@@ -938,7 +1251,8 @@ function renderLeverageOverview(row) {
         <div class="eg-kv"><span class="eg-k">Stock Qty</span><span class="eg-v">${formatNumber(row.stock_qty)}</span></div>
         <div class="eg-kv"><span class="eg-k">Shortage Qty</span><span class="eg-v">${formatNumber(row.shortage_qty)}</span></div>
       </div>
-    </div>`;
+    </div>
+    ${renderImpactedBatchSection()}`;
 }
 
 function renderWhyBlocking(row) {

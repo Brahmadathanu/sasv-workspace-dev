@@ -71,6 +71,82 @@ let CURRENT_PAGE = 1;
 let PAGE_SIZE = 25;
 let LAST_PAGE_ROWS = [];
 let CURRENT_ROWS = [];
+let ACTIVE_SNAPSHOT_MONTH_START = null;
+const PAGE_URL_PARAMS = new URLSearchParams(window.location.search);
+const RETURN_FROM_RM_CONTEXT = {
+  source: PAGE_URL_PARAMS.get("source"),
+  saved: PAGE_URL_PARAMS.get("rm_allocation_saved") === "1",
+  syncOk: PAGE_URL_PARAMS.get("rm_sync_ok") === "1",
+  productId: PAGE_URL_PARAMS.get("product_id"),
+  batchNumber: PAGE_URL_PARAMS.get("batch_number"),
+  rmStockItemId: PAGE_URL_PARAMS.get("rm_stock_item_id"),
+};
+
+function clearRmReturnParamsFromUrl() {
+  const isRmSource = RETURN_FROM_RM_CONTEXT.source === "rm-issue-allocation";
+  if (!isRmSource && !RETURN_FROM_RM_CONTEXT.saved) return;
+  const params = new URLSearchParams(window.location.search);
+  const keys = [
+    "source",
+    "rm_allocation_saved",
+    "rm_sync_ok",
+    "product_id",
+    "batch_number",
+    "rm_stock_item_id",
+  ];
+  let changed = false;
+  keys.forEach((k) => {
+    if (params.has(k)) {
+      params.delete(k);
+      changed = true;
+    }
+  });
+  if (!changed) return;
+  const next = params.toString();
+  const nextUrl = next
+    ? `${window.location.pathname}?${next}${window.location.hash || ""}`
+    : `${window.location.pathname}${window.location.hash || ""}`;
+  window.history.replaceState({}, "", nextUrl);
+}
+
+function applyRmReturnFocusContext() {
+  if (RETURN_FROM_RM_CONTEXT.source !== "rm-issue-allocation") return;
+  if (!RETURN_FROM_RM_CONTEXT.saved) return;
+
+  if (!RETURN_FROM_RM_CONTEXT.syncOk) {
+    showToast(
+      "Allocation saved, but background sync reported a warning. Queue is reloading latest snapshot.",
+      "info",
+      5200,
+    );
+  } else {
+    showToast(
+      "Allocation saved and synced. Returned to Execution Queue.",
+      "success",
+    );
+  }
+
+  if (!RETURN_FROM_RM_CONTEXT.productId || !RETURN_FROM_RM_CONTEXT.batchNumber)
+    return;
+
+  const match = QUEUE.find(
+    (r) =>
+      String(r.product_id) === String(RETURN_FROM_RM_CONTEXT.productId) &&
+      String(r.batch_number) === String(RETURN_FROM_RM_CONTEXT.batchNumber),
+  );
+
+  if (!match) {
+    showToast(
+      "Returned from RM allocation, but the batch is not visible in the current queue view.",
+      "info",
+      4200,
+    );
+    return;
+  }
+
+  openDetails(match);
+  setDrawerTab("rm");
+}
 
 // ── Product classification cache ─────────────────────────────────────────────
 const PRODUCT_DETAILS_MAP = new Map();
@@ -600,6 +676,7 @@ const LENSES = [
   { id: "fast_conversion", label: "Fast Conversion" },
   { id: "pm_blocked", label: "PM Blocked" },
   { id: "rm_blocked", label: "RM Blocked" },
+  { id: "rm_receiving", label: "RM Receiving" },
   { id: "all", label: "All Batches" },
 ];
 
@@ -735,6 +812,10 @@ function getRmDisplay(row) {
   if (state === "FG_BULK" || state === "BOTTLED") {
     return { text: "N/A", cls: "rm-na" };
   }
+  const gate = String(row?.rm_gate_status || "").toUpperCase();
+  if (gate === "RM_RECEIVING") {
+    return { text: "RM Receiving", cls: "rm-receiving" };
+  }
   return isRmClearForExecution(row)
     ? { text: "RM OK", cls: "rm-ok" }
     : { text: "RM Blocked", cls: "rm-block" };
@@ -845,6 +926,13 @@ function applyLensFilter() {
     case "rm_blocked":
       rows = rows.filter((r) => Number(r.queue_lane) === 3);
       break;
+    case "rm_receiving":
+      rows = rows.filter(
+        (r) =>
+          String(r.rm_gate_status || "").toUpperCase() === "RM_RECEIVING" ||
+          Number(r.rm_supply_tier) === 1,
+      );
+      break;
     case "all":
     default:
       break;
@@ -890,6 +978,9 @@ function renderSummaryStrip(rowsDisplayed) {
   const readyCount = QUEUE.filter((r) => Number(r.queue_lane) === 1).length;
   const pmBlocked = QUEUE.filter((r) => Number(r.queue_lane) === 2).length;
   const rmBlocked = QUEUE.filter((r) => Number(r.queue_lane) === 3).length;
+  const rmReceiving = QUEUE.filter(
+    (r) => String(r.rm_gate_status || "").toUpperCase() === "RM_RECEIVING",
+  ).length;
   const fastConv = QUEUE.filter((r) => isFastConversion(r)).length;
 
   const visibleRows = Array.isArray(rowsDisplayed) ? rowsDisplayed : VIEW;
@@ -911,6 +1002,7 @@ function renderSummaryStrip(rowsDisplayed) {
     { key: "ready", label: "Ready to Execute", value: readyCount },
     { key: "pm-blocked", label: "PM Blocked", value: pmBlocked },
     { key: "rm-blocked", label: "RM Blocked", value: rmBlocked },
+    { key: "rm-receiving", label: "RM Receiving", value: rmReceiving },
     { key: "fast-conv", label: "Fast Conversion", value: fastConv },
     {
       key: "visible-risk",
@@ -935,7 +1027,15 @@ function renderTable(rows) {
   tableBody.innerHTML = "";
   if (!rows || rows.length === 0) {
     setStatus("No rows match the current filter.");
-    document.getElementById("paginationInfo").textContent = "";
+    const pageInfoEl = document.getElementById("peqPage");
+    if (pageInfoEl) {
+      pageInfoEl.textContent = "";
+      pageInfoEl.title = "";
+    }
+    const prevBtn = document.getElementById("prevPage");
+    const nextBtn = document.getElementById("nextPage");
+    if (prevBtn) prevBtn.disabled = true;
+    if (nextBtn) nextBtn.disabled = true;
     CURRENT_ROWS = [];
     renderSummaryStrip([]);
     return;
@@ -1042,7 +1142,7 @@ function renderTable(rows) {
           ? "RM gates are clear"
           : "Blocked after priority-based reservation of raw material";
     rmTd.appendChild(rmChip);
-    if (r.has_unassigned_rm_issues === true) {
+    if (shouldShowIssueBadge(r)) {
       const miniChip = document.createElement("span");
       miniChip.className = "peq-mini-chip peq-mini-chip--allocation";
       miniChip.textContent = "Issue Allocation";
@@ -1122,6 +1222,7 @@ function closeDetails() {
 
 // â”€â”€ Blocker loaders (snapshot tables) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function _getMonthStart() {
+  if (ACTIVE_SNAPSHOT_MONTH_START) return ACTIVE_SNAPSHOT_MONTH_START;
   const now = new Date();
   return (
     now.getFullYear() +
@@ -1161,7 +1262,9 @@ async function loadRmBlockers(row) {
       "product_id,batch_number,rm_stock_item_id,rm_name,rm_uom," +
         "planned_rm_qty,issued_rm_qty,stock_qty,uncovered_qty," +
         "is_optional_rm,rm_procurement_mode,has_unassigned_issues," +
-        "is_blocking_line,rm_status_class,rm_status_reason",
+        "is_blocking_line,rm_status_class,rm_status_reason," +
+        "ready_stock_qty,receiving_stock_qty,effective_stock_qty," +
+        "shortage_after_ready_qty,shortage_after_receiving_qty",
     )
     .eq("month_start", _getMonthStart())
     .eq("product_id", row.product_id)
@@ -1189,6 +1292,7 @@ function formatPmStatusClass(value) {
 function formatRmStatusClass(value) {
   const map = {
     BLOCKING_SHORTAGE: "Stock Shortage",
+    RECEIVING_BACKED: "Receiving Backed",
     UNASSIGNED_ISSUE: "Issue Allocation",
     OPTIONAL_RM: "Optional",
     JIT_NON_BLOCKING: "JIT",
@@ -1274,17 +1378,47 @@ function getRmStatusReason(r) {
   return r.rm_status_reason || "-";
 }
 
+function shouldShowIssueBadge(row) {
+  const rmActive =
+    row.primary_state !== "FG_BULK" && row.primary_state !== "BOTTLED";
+  return row.has_unassigned_rm_issues === true && rmActive;
+}
+
 function openRmIssueAssignment(rmRow, batchContext) {
-  const url =
-    `rm-issue-allocation.html` +
-    `?rm_stock_item_id=${encodeURIComponent(rmRow.rm_stock_item_id ?? "")}` +
-    `&product_id=${encodeURIComponent(batchContext.product_id ?? "")}` +
-    `&batch_number=${encodeURIComponent(batchContext.batch_number ?? "")}` +
-    `&only_unassigned=1` +
-    `&q=${encodeURIComponent(batchContext.batch_number ?? "")}` +
-    `&return_to=${encodeURIComponent("production-execution-queue.html")}` +
-    `&return_label=${encodeURIComponent("Execution Queue")}`;
-  window.location.href = url;
+  const returnUrl = new URL(
+    "production-execution-queue.html",
+    window.location.href,
+  );
+  returnUrl.searchParams.set("source", "rm-issue-allocation");
+  returnUrl.searchParams.set(
+    "product_id",
+    String(batchContext.product_id ?? ""),
+  );
+  returnUrl.searchParams.set(
+    "batch_number",
+    String(batchContext.batch_number ?? ""),
+  );
+  returnUrl.searchParams.set(
+    "rm_stock_item_id",
+    String(rmRow.rm_stock_item_id ?? ""),
+  );
+
+  const params = new URLSearchParams({
+    product_id: batchContext.product_id ?? "",
+    batch_number: batchContext.batch_number ?? "",
+    rm_stock_item_id: rmRow.rm_stock_item_id ?? "",
+    horizon_start: _getMonthStart(),
+
+    // Preserve queue-specific context for focused navigation and return flow.
+    only_unassigned: "1",
+    focus: "unassigned",
+    open: "1",
+    return_to: `${returnUrl.pathname}${returnUrl.search}`,
+    return_label: "Execution Queue",
+    return_after_save: "1",
+    source: "production-execution-queue",
+  });
+  window.location.href = `rm-issue-allocation.html?${params.toString()}`;
 }
 
 // â”€â”€ Copy helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -1487,7 +1621,7 @@ const _th = (t, align = "left") =>
 const _td = (t, align = "left") =>
   `<td style="text-align:${align};padding:6px 8px;border-bottom:1px solid var(--border);font-size:12.5px">${t ?? "-"}</td>`;
 
-function _pmStatusRow(r, muted = false) {
+function _pmStatusRow(r, muted = false, showWhoBtn = false) {
   const rowStyle = muted ? ' style="opacity:0.72"' : "";
   const shortage =
     r.uncovered_qty != null && !muted
@@ -1495,6 +1629,21 @@ function _pmStatusRow(r, muted = false) {
       : r.uncovered_qty != null && Number(r.uncovered_qty) !== 0
         ? r.uncovered_qty
         : "\u2014";
+  const k = String(r.pm_status_class || "").toUpperCase();
+  const eligibleForChain =
+    k === "BLOCKING_SHORTAGE" || k === "LABEL_OR_OVERRIDE_BLOCKING";
+  const actionTd = showWhoBtn
+    ? `<td style="padding:6px 8px;border-bottom:1px solid var(--border);white-space:nowrap">${
+        eligibleForChain
+          ? `<button
+              data-who-consumed-pm="${r.pm_stock_item_id ?? ""}"
+              type="button"
+              class="peq-who-btn"
+              title="View batches that reserved this item before the current batch."
+            ><span class="rcm-btn-long">Who consumed before me?</span><span class="rcm-btn-short">Reservation chain</span></button>`
+          : ""
+      }</td>`
+    : "";
   return `<tr${rowStyle}>
     ${_td(r.pm_name || r.pm_stock_item_id)}
     ${_td(r.planned_pm_qty ?? "-", "right")}
@@ -1503,6 +1652,7 @@ function _pmStatusRow(r, muted = false) {
     ${_td(shortage, "right")}
     ${_td(_pmStatusChip(r.pm_status_class))}
     ${_td(r.pm_status_reason || "-")}
+    ${actionTd}
   </tr>`;
 }
 
@@ -1526,6 +1676,9 @@ function renderPmBlockers(row, rows) {
 
   const { blocking, nonBlocking } = groupStatusRows(rows);
   const total = rows.length;
+  const blockingColHeaders =
+    `${_th("PM Item")}${_th("Planned", "right")}${_th("Issued", "right")}${_th("Stock", "right")}${_th("Shortage", "right")}${_th("Class")}${_th("Reason")}` +
+    `<th style="padding:5px 8px;border-bottom:2px solid var(--border);font-size:11px;text-transform:uppercase;color:var(--muted,#6b7280);font-weight:600"></th>`;
   const colHeaders = `${_th("PM Item")}${_th("Planned", "right")}${_th("Issued", "right")}${_th("Stock", "right")}${_th("Shortage", "right")}${_th("Class")}${_th("Reason")}`;
   const infoBox = `<div style="margin-bottom:12px;padding:8px 12px;background:rgba(37,99,235,0.04);border-left:3px solid var(--erp-accent,#2563eb);border-radius:4px;font-size:12.5px;color:var(--erp-text,#374151)">PM status is evaluated after allocating shared PM stock to higher-priority batches first.</div>`;
   const tabActionsHtml = `
@@ -1549,8 +1702,8 @@ function renderPmBlockers(row, rows) {
       <div class="peq-status-section-title peq-status-section-title--blocking">Blocking lines</div>
       <div style="overflow-x:auto">
         <table style="width:100%;border-collapse:collapse">
-          <thead><tr>${colHeaders}</tr></thead>
-          <tbody>${blocking.map((r) => _pmStatusRow(r, false)).join("")}</tbody>
+          <thead><tr>${blockingColHeaders}</tr></thead>
+          <tbody>${blocking.map((r) => _pmStatusRow(r, false, true)).join("")}</tbody>
         </table>
       </div>
     </div>`;
@@ -1570,6 +1723,17 @@ function renderPmBlockers(row, rows) {
   }
 
   _content.innerHTML = html;
+
+  // "Who consumed before me?" delegation for PM blocking rows
+  _content.addEventListener("click", (e) => {
+    const _whoBtn = e.target.closest("[data-who-consumed-pm]");
+    if (!_whoBtn) return;
+    const sid = _whoBtn.dataset.whoConsumedPm;
+    const pmRow = rows.find(
+      (r) => String(r.pm_stock_item_id ?? "") === String(sid),
+    );
+    if (pmRow) openReservationChain("PM", pmRow, row);
+  });
 
   const _pmBtn = _content.querySelector("#peq-pm-copy-btn");
   const _pmMenu = _content.querySelector("#peq-pm-copy-menu");
@@ -1659,6 +1823,15 @@ function _rmStatusCard(r) {
         class="peq-rm-action-btn"
       >Assign Issue</button>`
     : "";
+  const whoBtn =
+    k === "BLOCKING_SHORTAGE"
+      ? `<button
+          data-who-consumed-rm="${r.rm_stock_item_id ?? ""}"
+          type="button"
+          class="peq-who-btn"
+          title="View batches that reserved this item before the current batch."
+        ><span class="rcm-btn-long">Who consumed before me?</span><span class="rcm-btn-short">Reservation chain</span></button>`
+      : "";
   return `<div class="peq-rm-status-card ${cardCls}">
     <div class="peq-rm-status-card-head">
       <div class="peq-rm-status-title">
@@ -1668,6 +1841,7 @@ function _rmStatusCard(r) {
       <div class="peq-rm-status-actions">
         ${_rmStatusChip(r.rm_status_class)}
         ${assignBtn}
+        ${whoBtn}
       </div>
     </div>
     <div class="peq-rm-status-metrics">
@@ -1686,7 +1860,13 @@ function renderRmBlockers(row, rows) {
   if (!_content) return;
   const rmD = getRmDisplay(row);
   const rmTypeKey =
-    rmD.cls === "rm-ok" ? "ok" : rmD.cls === "rm-block" ? "block" : "na";
+    rmD.cls === "rm-ok"
+      ? "ok"
+      : rmD.cls === "rm-block"
+        ? "block"
+        : rmD.cls === "rm-receiving"
+          ? "warn"
+          : "na";
   const headerHtml = `
     <div class="peq-card" style="margin-bottom:14px">
       <div class="peq-card-title">RM Gate</div>
@@ -1702,13 +1882,25 @@ function renderRmBlockers(row, rows) {
   }
 
   if (!rows.length) {
+    const _stage = row.primary_state || "";
+    const _isNaStage = _stage === "FG_BULK" || _stage === "BOTTLED";
     _content.innerHTML =
       headerHtml +
-      `<p style="color:var(--muted,#6b7280);font-size:13px">No RM status lines available for this batch.</p>`;
+      `<p style="color:var(--muted,#6b7280);font-size:13px">${_isNaStage ? "No RM actions required for this stage." : "No RM status lines available for this batch."}</p>`;
     return;
   }
 
-  const { blocking, nonBlocking } = groupStatusRows(rows);
+  const blocking = rows.filter((r) => r.is_blocking_line);
+  const receivingBacked = rows.filter(
+    (r) =>
+      !r.is_blocking_line &&
+      String(r.rm_status_class || "").toUpperCase() === "RECEIVING_BACKED",
+  );
+  const nonBlocking = rows.filter(
+    (r) =>
+      !r.is_blocking_line &&
+      String(r.rm_status_class || "").toUpperCase() !== "RECEIVING_BACKED",
+  );
   const sortedBlocking = [...blocking].sort((a, b) => {
     const _ord = { UNASSIGNED_ISSUE: 0, BLOCKING_SHORTAGE: 1 };
     return (_ord[a.rm_status_class] ?? 2) - (_ord[b.rm_status_class] ?? 2);
@@ -1716,9 +1908,12 @@ function renderRmBlockers(row, rows) {
   const total = rows.length;
   const nonBlockingColHeaders = `${_th("RM Item")}${_th("Planned", "right")}${_th("Issued", "right")}${_th("Stock", "right")}${_th("Shortage", "right")}${_th("Mode")}${_th("Class")}${_th("Reason")}`;
   const infoBox = `<div style="margin-bottom:12px;padding:8px 12px;background:rgba(37,99,235,0.04);border-left:3px solid var(--erp-accent,#2563eb);border-radius:4px;font-size:12.5px;color:var(--erp-text,#374151)">RM status is evaluated after allocating shared RM stock to higher-priority batches first.</div>`;
+  const receivingBackedSummary = receivingBacked.length
+    ? `, ${receivingBacked.length} receiving-backed`
+    : "";
   const tabActionsHtml = `
     <div class="peq-tab-actions">
-      <span class="peq-tab-actions-summary">${total} line${total !== 1 ? "s" : ""} &mdash; ${blocking.length} blocking, ${nonBlocking.length} non-blocking</span>
+      <span class="peq-tab-actions-summary">${total} line${total !== 1 ? "s" : ""} &mdash; ${blocking.length} blocking${receivingBackedSummary}, ${nonBlocking.length} non-blocking</span>
       <div class="peq-copy-wrapper">
         <button id="peq-rm-copy-btn" class="peq-copy-icon-btn" type="button" title="Copy list" aria-label="Copy list">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -1741,6 +1936,31 @@ function renderRmBlockers(row, rows) {
     </div>`;
   }
 
+  if (receivingBacked.length) {
+    html += `<div class="peq-status-section">
+      <div class="peq-status-section-title peq-status-section-title--receiving">Receiving-backed lines</div>
+      <p class="peq-status-note">Stock shortage exists at RMS ready stock but is covered by incoming stock at Warehouse No.2 (receiving). These lines are not blocking execution.</p>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr>${_th("RM Item")}${_th("Planned", "right")}${_th("Ready Stock", "right")}${_th("Receiving Stock", "right")}${_th("Effective", "right")}${_th("Mode")}${_th("Class")}</tr></thead>
+          <tbody>${receivingBacked
+            .map(
+              (r) => `<tr>
+            <td style="padding:6px 8px;font-size:12.5px">${r.rm_name || "-"}</td>
+            <td style="padding:6px 8px;font-size:12.5px;text-align:right">${r.planned_rm_qty ?? "-"}</td>
+            <td style="padding:6px 8px;font-size:12.5px;text-align:right">${r.ready_stock_qty != null ? Number(r.ready_stock_qty).toFixed(3) : "-"}</td>
+            <td style="padding:6px 8px;font-size:12.5px;text-align:right;color:#d97706">${r.receiving_stock_qty != null ? Number(r.receiving_stock_qty).toFixed(3) : "-"}</td>
+            <td style="padding:6px 8px;font-size:12.5px;text-align:right">${r.effective_stock_qty != null ? Number(r.effective_stock_qty).toFixed(3) : "-"}</td>
+            <td style="padding:6px 8px;font-size:12.5px">${formatRmProcurementMode(r.rm_procurement_mode)}</td>
+            <td style="padding:6px 8px;font-size:12.5px"><span class="peq-badge" style="background:#fff7ed;color:#d97706">Receiving Backed</span></td>
+          </tr>`,
+            )
+            .join("")}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+
   if (nonBlocking.length) {
     html += `<div class="peq-status-section">
       <div class="peq-status-section-title peq-status-section-title--nonblocking">Non-blocking dependencies</div>
@@ -1758,14 +1978,24 @@ function renderRmBlockers(row, rows) {
 
   _content.addEventListener("click", (e) => {
     const _assignBtn = e.target.closest("[data-assign-issue]");
-    if (!_assignBtn) return;
-    openRmIssueAssignment(
-      {
-        rm_stock_item_id: _assignBtn.dataset.rmStockItemId,
-        rm_name: _assignBtn.dataset.rmName,
-      },
-      row,
-    );
+    if (_assignBtn) {
+      openRmIssueAssignment(
+        {
+          rm_stock_item_id: _assignBtn.dataset.rmStockItemId,
+          rm_name: _assignBtn.dataset.rmName,
+        },
+        row,
+      );
+      return;
+    }
+    const _whoBtn = e.target.closest("[data-who-consumed-rm]");
+    if (_whoBtn) {
+      const sid = _whoBtn.dataset.whoConsumedRm;
+      const rmRow = rows.find(
+        (r) => String(r.rm_stock_item_id ?? "") === String(sid),
+      );
+      if (rmRow) openReservationChain("RM", rmRow, row);
+    }
   });
 
   const _rmBtn = _content.querySelector("#peq-rm-copy-btn");
@@ -2183,14 +2413,24 @@ async function loadQueue() {
       "time_sensitivity_score",
       "supply_continuity_score",
       "has_unassigned_rm_issues",
+      "rm_supply_tier",
+      "rm_ready_shortage_qty",
+      "rm_receiving_cover_qty",
+      "rm_shortage_after_receiving_qty",
     ].join(",");
 
-    const { data, error } = await supabase
-      .from("priority_queue_snapshot_current_month")
-      .select(cols)
-      .eq("month_start", monthStart)
-      .order("priority_rank_v4", { ascending: true })
-      .limit(1000);
+    async function fetchQueueRowsForMonth(targetMonthStart) {
+      const { data, error } = await supabase
+        .from("priority_queue_snapshot_current_month")
+        .select(cols)
+        .eq("month_start", targetMonthStart)
+        .order("priority_rank_v4", { ascending: true })
+        .limit(1000);
+      return { data: data || [], error };
+    }
+
+    let effectiveMonthStart = monthStart;
+    let { data, error } = await fetchQueueRowsForMonth(monthStart);
 
     if (error) {
       console.error(
@@ -2202,9 +2442,43 @@ async function loadQueue() {
       return;
     }
 
+    if (!data.length) {
+      // If current month is empty (common on month rollover), fall back to
+      // latest available snapshot month so users still see the queue.
+      const { data: latestRows, error: latestErr } = await supabase
+        .from("priority_queue_snapshot_current_month")
+        .select("month_start")
+        .order("month_start", { ascending: false })
+        .limit(1);
+
+      if (latestErr) {
+        console.warn("[PEQ] failed to lookup latest snapshot month", latestErr);
+      } else {
+        const latestMonthStart = latestRows?.[0]?.month_start || null;
+        if (latestMonthStart && latestMonthStart !== monthStart) {
+          const fallback = await fetchQueueRowsForMonth(latestMonthStart);
+          if (!fallback.error && fallback.data.length) {
+            data = fallback.data;
+            effectiveMonthStart = latestMonthStart;
+            showToast(
+              `Current-month snapshot not available yet. Loaded latest snapshot (${latestMonthStart}).`,
+              "info",
+              4200,
+            );
+          }
+        }
+      }
+    }
+
+    ACTIVE_SNAPSHOT_MONTH_START = effectiveMonthStart;
+
     QUEUE = (data || []).map(enrichRowWithClassification);
     logMissingClassificationSummary(QUEUE);
     console.debug("PEQ rows loaded:", QUEUE.length, QUEUE.slice(0, 5));
+    console.debug(
+      "[PEQ] effective snapshot month:",
+      ACTIVE_SNAPSHOT_MONTH_START,
+    );
     if (!QUEUE.length) {
       setStatus("Snapshot not yet generated. Click Refresh.");
       tableBody.innerHTML = "";
@@ -2253,6 +2527,7 @@ async function loadQueue() {
     }
     // wire UI
     _wireFilterDrawer();
+    _wireReservationChainModal();
     refreshBtn.addEventListener("click", refreshSnapshotAndReload);
     searchBox.addEventListener(
       "input",
@@ -2494,6 +2769,8 @@ async function loadQueue() {
     setInterval(updateFreshnessIndicator, 60000);
     await loadProductDetails();
     await loadQueue();
+    applyRmReturnFocusContext();
+    clearRmReturnParamsFromUrl();
   } catch (e) {
     console.error(e);
     setStatus("Initialization error. See console.");
@@ -2520,6 +2797,401 @@ function debounce(fn, wait) {
     clearTimeout(t);
     t = setTimeout(() => fn.apply(this, a), wait);
   };
+}
+
+// ── Reservation Chain — "Who consumed before me?" ─────────────────────────
+
+function formatReservationQty(value, uom) {
+  if (value == null || value === "") return "—";
+  const n = Number(value);
+  const formatted = isNaN(n)
+    ? String(value)
+    : n.toLocaleString(undefined, { maximumFractionDigits: 3 });
+  return uom ? `${formatted} ${uom}` : formatted;
+}
+
+function normKey(v) {
+  return String(v ?? "").trim();
+}
+
+function isCurrentRmReservationRow(row, statusRow, batchContext) {
+  return (
+    normKey(row.product_id) === normKey(batchContext.product_id) &&
+    normKey(row.batch_number) === normKey(batchContext.batch_number) &&
+    normKey(row.rm_stock_item_id) === normKey(statusRow.rm_stock_item_id)
+  );
+}
+
+function isCurrentPmReservationRow(row, statusRow, batchContext) {
+  return (
+    normKey(row.product_id) === normKey(batchContext.product_id) &&
+    normKey(row.batch_number) === normKey(batchContext.batch_number) &&
+    normKey(row.pm_stock_item_id) === normKey(statusRow.pm_stock_item_id)
+  );
+}
+
+function sortReservationChainRows(rows) {
+  return [...rows].sort((a, b) => {
+    const ah = Number(a.higher_priority_required_qty ?? 0);
+    const bh = Number(b.higher_priority_required_qty ?? 0);
+    if (ah !== bh) return ah - bh;
+    const al = Number(a.queue_lane ?? 9999);
+    const bl = Number(b.queue_lane ?? 9999);
+    if (al !== bl) return al - bl;
+    const ar = Number(a.priority_rank_v4 ?? 999999);
+    const br = Number(b.priority_rank_v4 ?? 999999);
+    if (ar !== br) return ar - br;
+    return (
+      normKey(a.product_id).localeCompare(normKey(b.product_id)) ||
+      normKey(a.batch_number).localeCompare(normKey(b.batch_number))
+    );
+  });
+}
+
+function getReservationPosition(index, currentIndex) {
+  if (currentIndex < 0) return "UNKNOWN";
+  if (index < currentIndex) return "BEFORE_CURRENT";
+  if (index === currentIndex) return "CURRENT_BATCH";
+  return "AFTER_CURRENT";
+}
+
+function findCurrentReservationIndex(rows, batchContext, statusRow, kind) {
+  // Primary: full match on product_id + batch_number + stock item id
+  const matchFn =
+    kind === "RM"
+      ? (r) => isCurrentRmReservationRow(r, statusRow, batchContext)
+      : (r) => isCurrentPmReservationRow(r, statusRow, batchContext);
+  const idx = rows.findIndex(matchFn);
+  if (idx !== -1) return idx;
+
+  // Fallback: batch_number + stock item id only (ignores product_id mismatch)
+  const stockKey = kind === "RM" ? "rm_stock_item_id" : "pm_stock_item_id";
+  const stockId = normKey(statusRow[stockKey]);
+  const bn = normKey(batchContext.batch_number);
+  return rows.findIndex(
+    (r) => normKey(r.batch_number) === bn && normKey(r[stockKey]) === stockId,
+  );
+}
+
+async function loadRmReservationChain(statusRow) {
+  const { data, error } = await supabase
+    .from("rm_reservation_snapshot_current_month")
+    .select(
+      "month_start,queue_lane,priority_rank_v4,product_id,product_name,batch_number,primary_state," +
+        "rm_stock_item_id,rm_name,rm_uom,required_from_stock_qty,stock_qty_current," +
+        "higher_priority_required_qty,available_before_reservation,reserved_qty,uncovered_qty,is_blocking_after_reservation",
+    )
+    .eq("month_start", _getMonthStart())
+    .eq("rm_stock_item_id", statusRow.rm_stock_item_id)
+    .order("queue_lane", { ascending: true })
+    .order("priority_rank_v4", { ascending: true })
+    .order("product_id", { ascending: true })
+    .order("batch_number", { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+async function loadPmReservationChain(statusRow) {
+  const { data, error } = await supabase
+    .from("pm_reservation_snapshot_current_month")
+    .select(
+      "month_start,queue_lane,priority_rank_v4,product_id,product_name,batch_number,primary_state," +
+        "pm_stock_item_id,pm_name,pm_uom,required_from_stock_qty,stock_qty_current," +
+        "higher_priority_required_qty,available_before_reservation,reserved_qty,uncovered_qty," +
+        "is_blocking_after_reservation,is_optional_pm,is_override_pm",
+    )
+    .eq("month_start", _getMonthStart())
+    .eq("pm_stock_item_id", statusRow.pm_stock_item_id)
+    .order("queue_lane", { ascending: true })
+    .order("priority_rank_v4", { ascending: true })
+    .order("product_id", { ascending: true })
+    .order("batch_number", { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+async function openReservationChain(kind, statusRow, batchContext) {
+  const modal = document.getElementById("reservationChainModal");
+  if (!modal) return;
+  const body = modal.querySelector("#rcmBody");
+  if (body) {
+    body.innerHTML = `<div style="padding:40px;text-align:center;color:var(--muted,#6b7280);font-size:13px">Loading reservation chain…</div>`;
+  }
+  modal.classList.remove("hidden");
+  modal.setAttribute("aria-hidden", "false");
+  try {
+    const rawRows =
+      kind === "RM"
+        ? await loadRmReservationChain(statusRow)
+        : await loadPmReservationChain(statusRow);
+    const rows = sortReservationChainRows(rawRows);
+    renderReservationChainModal(kind, rows, statusRow, batchContext);
+  } catch (err) {
+    console.error("[peq] Reservation chain load failed", err);
+    const b = modal.querySelector("#rcmBody");
+    if (b)
+      b.innerHTML = `<div style="padding:24px;color:#b91c1c;font-size:13px">Failed to load reservation chain. ${err?.message || ""}</div>`;
+  }
+}
+
+function renderReservationChainModal(kind, rows, statusRow, batchContext) {
+  const modal = document.getElementById("reservationChainModal");
+  if (!modal) return;
+
+  const stockItemIdKey =
+    kind === "RM" ? "rm_stock_item_id" : "pm_stock_item_id";
+  const nameKey = kind === "RM" ? "rm_name" : "pm_name";
+  const uomKey = kind === "RM" ? "rm_uom" : "pm_uom";
+  const itemName = statusRow[nameKey] || statusRow[stockItemIdKey] || "—";
+  const uom = statusRow[uomKey] || "";
+
+  const titleEl = modal.querySelector("#rcmTitle");
+  const subtitleEl = modal.querySelector("#rcmSubtitle");
+  if (titleEl) titleEl.textContent = "Reservation Chain";
+  if (subtitleEl)
+    subtitleEl.textContent = `Who consumed "${itemName}" before this batch?`;
+
+  const currentIdx = findCurrentReservationIndex(
+    rows,
+    batchContext,
+    statusRow,
+    kind,
+  );
+  const hasCurrentRow = currentIdx !== -1;
+  const currentRow = hasCurrentRow ? rows[currentIdx] : null;
+
+  const stockQty = currentRow?.stock_qty_current ?? statusRow.stock_qty ?? "—";
+  const requiredQty =
+    currentRow?.required_from_stock_qty ??
+    statusRow.planned_rm_qty ??
+    statusRow.planned_pm_qty ??
+    "—";
+  const reservedQty = currentRow?.reserved_qty ?? "—";
+  const shortageQty =
+    currentRow?.uncovered_qty ?? statusRow.uncovered_qty ?? "—";
+  const shortageNum = Number(shortageQty);
+  const shortageIsPositive = !isNaN(shortageNum) && shortageNum > 0;
+
+  const contextBlock = `
+    <div class="rcm-context-block">
+      <div class="rcm-context-row"><span class="rcm-context-label">Product</span><span class="rcm-context-value">${batchContext.product_name || batchContext.product_id || "—"}</span></div>
+      <div class="rcm-context-row"><span class="rcm-context-label">Batch</span><span class="rcm-context-value">${batchContext.batch_number || "—"}</span></div>
+      <div class="rcm-context-row"><span class="rcm-context-label">Item</span><span class="rcm-context-value">${itemName}</span></div>
+      <div class="rcm-context-row"><span class="rcm-context-label">Stock Qty</span><span class="rcm-context-value">${formatReservationQty(stockQty, uom)}</span></div>
+      <div class="rcm-context-row"><span class="rcm-context-label">Required Qty</span><span class="rcm-context-value">${formatReservationQty(requiredQty, uom)}</span></div>
+      <div class="rcm-context-row"><span class="rcm-context-label">Reserved Qty</span><span class="rcm-context-value">${formatReservationQty(reservedQty, uom)}</span></div>
+      <div class="rcm-context-row"><span class="rcm-context-label">Shortage Qty</span><span class="rcm-context-value${shortageIsPositive ? ' style="color:#b91c1c;font-weight:600"' : ""}">${formatReservationQty(shortageQty, uom)}</span></div>
+    </div>`;
+
+  const explanationNote = `
+    <div class="rcm-explanation">
+      This ${kind} is blocked because available stock has already been reserved by earlier / higher-priority batches in the reservation chain.${shortageIsPositive ? ` <strong>Current shortage: ${formatReservationQty(shortageQty, uom)}</strong>` : ""}
+    </div>`;
+
+  const warningBanner =
+    !hasCurrentRow && rows.length > 0
+      ? `<div class="rcm-warning-banner">Current batch was not found in the reservation snapshot. Showing available reservation rows for this item.</div>`
+      : "";
+
+  if (rows.length === 0) {
+    const body = modal.querySelector("#rcmBody");
+    if (body)
+      body.innerHTML =
+        contextBlock +
+        warningBanner +
+        `<div class="rcm-empty">No reservation chain found for this item.</div>`;
+    // store for copy
+    Object.assign(modal, {
+      _rcmKind: kind,
+      _rcmRows: rows,
+      _rcmStatusRow: statusRow,
+      _rcmBatchContext: batchContext,
+      _rcmCurrentIdx: -1,
+      _rcmUom: uom,
+      _rcmItemName: itemName,
+    });
+    return;
+  }
+
+  // Store for copy
+  Object.assign(modal, {
+    _rcmKind: kind,
+    _rcmRows: rows,
+    _rcmStatusRow: statusRow,
+    _rcmBatchContext: batchContext,
+    _rcmCurrentIdx: currentIdx,
+    _rcmUom: uom,
+    _rcmItemName: itemName,
+  });
+
+  // When currentIdx is -1, treat all rows as unclassified (no before/after split)
+  const beforeRows = hasCurrentRow ? rows.slice(0, currentIdx) : rows;
+  const afterRows = hasCurrentRow ? rows.slice(currentIdx + 1) : [];
+
+  function _rcmRow(r, position) {
+    const isCurrent = position === "CURRENT_BATCH";
+    const shortage = r.uncovered_qty;
+    const shortagePos = !isNaN(Number(shortage)) && Number(shortage) > 0;
+    return `<tr class="rcm-row${isCurrent ? " rcm-row--current" : ""}${position === "AFTER_CURRENT" ? " rcm-row--after" : ""}">
+      <td class="rcm-td rcm-td--pos">
+        <span class="rcm-pos-label rcm-pos--${position.toLowerCase().replace(/_/g, "-")}">${
+          position === "BEFORE_CURRENT"
+            ? "Before"
+            : position === "CURRENT_BATCH"
+              ? "Current"
+              : "After"
+        }</span>
+      </td>
+      <td class="rcm-td">${r.product_name || r.product_id || "—"}</td>
+      <td class="rcm-td">${r.batch_number || "—"}</td>
+      <td class="rcm-td">${r.primary_state || "—"}</td>
+      <td class="rcm-td rcm-td--center">${r.queue_lane || "—"}</td>
+      <td class="rcm-td rcm-td--right">${r.priority_rank_v4 ?? "—"}</td>
+      <td class="rcm-td rcm-td--right">${formatReservationQty(r.required_from_stock_qty, uom)}</td>
+      <td class="rcm-td rcm-td--right">${formatReservationQty(r.reserved_qty, uom)}</td>
+      <td class="rcm-td rcm-td--right${shortagePos ? '" style="color:#b91c1c;font-weight:600' : ""}">${formatReservationQty(shortage, uom)}</td>
+    </tr>`;
+  }
+
+  const colHead = `<tr class="rcm-thead-row">
+    <th class="rcm-th">Order</th>
+    <th class="rcm-th">Product</th>
+    <th class="rcm-th">Batch</th>
+    <th class="rcm-th">State</th>
+    <th class="rcm-th rcm-td--center">Lane</th>
+    <th class="rcm-th rcm-td--right">Rank</th>
+    <th class="rcm-th rcm-td--right">Required</th>
+    <th class="rcm-th rcm-td--right">Reserved</th>
+    <th class="rcm-th rcm-td--right">Shortage</th>
+  </tr>`;
+
+  const afterId = "rcmAfterRows_" + Date.now();
+  const toggleId = "rcmToggleAfter_" + Date.now();
+  const afterToggle = afterRows.length
+    ? `<tbody><tr><td colspan="9" style="padding:0">
+        <div class="rcm-after-toggle-wrap">
+          <button id="${toggleId}" class="rcm-toggle-btn" type="button">Show ${afterRows.length} later batch${afterRows.length !== 1 ? "es" : ""} ▾</button>
+        </div>
+      </td></tr></tbody>
+      <tbody id="${afterId}" class="rcm-after-hidden">
+        ${afterRows.map((r) => _rcmRow(r, "AFTER_CURRENT")).join("")}
+      </tbody>`
+    : "";
+
+  const tableHtml = `
+    <div class="rcm-table-wrap">
+      <table class="rcm-table">
+        <thead>${colHead}</thead>
+        <tbody>
+          ${beforeRows.map((r) => _rcmRow(r, "BEFORE_CURRENT")).join("")}
+        </tbody>
+        ${
+          hasCurrentRow
+            ? `<tbody>
+                <tr class="rcm-separator-row"><td colspan="9" class="rcm-separator-cell">▼ Current batch</td></tr>
+                ${_rcmRow(currentRow, "CURRENT_BATCH")}
+               </tbody>`
+            : ""
+        }
+        ${afterToggle}
+      </table>
+    </div>`;
+
+  const body = modal.querySelector("#rcmBody");
+  if (body)
+    body.innerHTML = contextBlock + warningBanner + explanationNote + tableHtml;
+
+  // Wire after-rows toggle
+  const toggleBtn = body?.querySelector(`#${toggleId}`);
+  const afterTbody = body?.querySelector(`#${afterId}`);
+  if (toggleBtn && afterTbody) {
+    let expanded = false;
+    toggleBtn.addEventListener("click", () => {
+      expanded = !expanded;
+      afterTbody.classList.toggle("rcm-after-hidden", !expanded);
+      toggleBtn.textContent = expanded
+        ? `Hide later batches ▴`
+        : `Show ${afterRows.length} later batch${afterRows.length !== 1 ? "es" : ""} ▾`;
+    });
+  }
+}
+
+function _buildReservationChainTsv(modal) {
+  const rows = modal._rcmRows || [];
+  const kind = modal._rcmKind || "RM";
+  const currentIdx = modal._rcmCurrentIdx ?? -1;
+  const itemName = modal._rcmItemName || "";
+  const stockItemKey = kind === "RM" ? "rm_stock_item_id" : "pm_stock_item_id";
+  const nameKey = kind === "RM" ? "rm_name" : "pm_name";
+  const header = [
+    "Type",
+    "Product",
+    "Batch",
+    "Item",
+    "Required",
+    "Reserved",
+    "Shortage",
+    "Lane",
+    "Rank",
+    "Position",
+  ].join("\t");
+  const dataRows = rows.map((r, i) => {
+    const pos = getReservationPosition(i, currentIdx);
+    return [
+      kind,
+      r.product_name || r.product_id || "",
+      r.batch_number || "",
+      r[nameKey] || r[stockItemKey] || itemName,
+      r.required_from_stock_qty ?? "",
+      r.reserved_qty ?? "",
+      r.uncovered_qty ?? "",
+      r.queue_lane || "",
+      r.priority_rank_v4 ?? "",
+      pos,
+    ].join("\t");
+  });
+  return [header, ...dataRows].join("\n");
+}
+
+function closeReservationChainModal() {
+  const modal = document.getElementById("reservationChainModal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+  modal.setAttribute("aria-hidden", "true");
+}
+
+function _wireReservationChainModal() {
+  const modal = document.getElementById("reservationChainModal");
+  if (!modal) return;
+
+  modal
+    .querySelector("#rcmCloseBtn")
+    ?.addEventListener("click", closeReservationChainModal);
+
+  // Close on overlay backdrop click
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) closeReservationChainModal();
+  });
+
+  // Close on Escape
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !modal.classList.contains("hidden"))
+      closeReservationChainModal();
+  });
+
+  modal.querySelector("#rcmCopyBtn")?.addEventListener("click", () => {
+    const tsv = _buildReservationChainTsv(modal);
+    if (!tsv || !modal._rcmRows?.length) {
+      showToast("No chain data to copy", "info");
+      return;
+    }
+    navigator.clipboard
+      .writeText(tsv)
+      .then(() => showToast("Reservation chain copied (TSV)", "success"))
+      .catch(() =>
+        showToast("Copy failed — check browser permissions", "error"),
+      );
+  });
 }
 
 export {

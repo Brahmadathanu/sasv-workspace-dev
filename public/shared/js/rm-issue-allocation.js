@@ -23,6 +23,154 @@ let productsList = [];
 let skusByProduct = new Map();
 let skuById = new Map();
 let currentPage = 0;
+
+const urlParams = new URLSearchParams(window.location.search);
+const navContext = {
+  product_id: urlParams.get("product_id"),
+  batch_number: urlParams.get("batch_number"),
+  rm_stock_item_id:
+    urlParams.get("rm_stock_item_id") || urlParams.get("stock_item_id"),
+};
+const isDirectNavigation =
+  !!navContext.product_id &&
+  !!navContext.batch_number &&
+  !!navContext.rm_stock_item_id;
+const RETURN_TO_RAW = urlParams.get("return_to");
+const AUTO_RETURN_AFTER_SAVE = urlParams.get("return_after_save") === "1";
+
+function getSummaryRmStockItemId(row) {
+  if (!row) return "";
+  const id = row.rm_stock_item_id ?? row.plm_stock_item_id ?? row.stock_item_id;
+  return id == null ? "" : String(id);
+}
+
+function getSafeReturnUrlFromParam(rawValue) {
+  if (!rawValue) return null;
+  try {
+    const url = new URL(rawValue, window.location.origin);
+    if (url.origin !== window.location.origin) return null;
+    if (!url.pathname || !url.pathname.endsWith(".html")) return null;
+    return url;
+  } catch {
+    return null;
+  }
+}
+
+function shouldAutoReturnToSource() {
+  return AUTO_RETURN_AFTER_SAVE && !!getSafeReturnUrlFromParam(RETURN_TO_RAW);
+}
+
+function navigateBackToSource(extraParams = {}) {
+  const returnUrl = getSafeReturnUrlFromParam(RETURN_TO_RAW);
+  if (!returnUrl) return false;
+  Object.entries(extraParams).forEach(([k, v]) => {
+    if (v == null || v === "") return;
+    returnUrl.searchParams.set(k, String(v));
+  });
+  window.location.href = `${returnUrl.pathname}${returnUrl.search}${returnUrl.hash || ""}`;
+  return true;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Deep link filters (from Production Execution Queue navigation)
+// ─────────────────────────────────────────────────────────────
+let DEEP_LINK_FILTERS = null;
+
+function getFiltersFromURL() {
+  return {
+    product_id: navContext.product_id,
+    batch_number: navContext.batch_number,
+    rm_stock_item_id: navContext.rm_stock_item_id,
+    horizon_start: urlParams.get("horizon_start"),
+    focus: urlParams.get("focus"),
+    only_unassigned: urlParams.get("only_unassigned"),
+  };
+}
+
+function isBatchDeepLink() {
+  return Boolean(
+    DEEP_LINK_FILTERS?.product_id && DEEP_LINK_FILTERS?.batch_number,
+  );
+}
+
+function isRmItemDeepLink() {
+  return Boolean(DEEP_LINK_FILTERS?.rm_stock_item_id);
+}
+
+async function tryDirectDeepLinkDetail(horizonStart, context) {
+  try {
+    const params = {
+      p_horizon_start: horizonStart,
+      p_stock_item_id: context?.rm_stock_item_id
+        ? Number(context.rm_stock_item_id)
+        : null,
+      p_product_id: context?.product_id ? Number(context.product_id) : null,
+      p_batch_number: context?.batch_number
+        ? String(context.batch_number)
+        : null,
+      p_mode: "detail",
+      p_q: null,
+      p_only_unassigned: false,
+      p_only_approx: false,
+      p_offset: 0,
+      p_limit: 500,
+    };
+
+    const { data, error } = await supabase.rpc(
+      "mrp_rm_allocation_console",
+      params,
+    );
+    if (error) {
+      console.warn("[RM ISSUE] Direct deep-link detail RPC failed", error);
+      return false;
+    }
+
+    const payload = normalizeRpcPayload(data);
+    const issued = Array.isArray(payload?.issued)
+      ? payload.issued
+      : Array.isArray(payload?.rows)
+        ? payload.rows
+        : [];
+
+    if (!issued.length) return false;
+
+    // Build a synthetic summary row so existing detail rendering/saving path works.
+    const sample = issued[0] || {};
+    selectedSummary = {
+      horizon_start: horizonStart,
+      rm_stock_item_id:
+        context?.rm_stock_item_id ??
+        sample.rm_stock_item_id ??
+        sample.stock_item_id,
+      rm_code: sample.rm_code || "",
+      rm_name: sample.rm_name || sample.stock_item_name || "",
+      rm_uom_code: sample.rm_uom || sample.uom || "",
+      product_id: context?.product_id ?? sample.product_id ?? null,
+      batch_number: context?.batch_number ?? sample.batch_number ?? null,
+      sku_id: sample.sku_id ?? null,
+      region_code: sample.region_code ?? null,
+    };
+
+    issueLines = issued;
+    issueSummary = payload?.issues || payload?.issue_summary || {};
+    editedRows.clear();
+    applyBatchDeepLinkDetailDefaults();
+    renderIssueLines();
+
+    const tabDetail = document.getElementById("tabDetail");
+    if (tabDetail) tabDetail.disabled = false;
+    showDetailView();
+
+    showToast(
+      "Loaded issue lines via direct deep-link fallback. Summary list could not be resolved for this batch.",
+      { type: "info", duration: 5000 },
+    );
+    return true;
+  } catch (err) {
+    console.warn("[RM ISSUE] Direct deep-link fallback failed", err);
+    return false;
+  }
+}
 let pageSize = 200;
 let totalCount = 0;
 let currentSortKey = null;
@@ -121,6 +269,20 @@ function hideLoading() {
   if (el) el.style.display = "none";
 }
 
+function safelyHidePanel(panelId) {
+  const panel = document.getElementById(panelId);
+  if (!panel) return;
+
+  const active = document.activeElement;
+  if (active && panel.contains(active) && typeof active.blur === "function") {
+    active.blur();
+  }
+
+  panel.setAttribute("aria-hidden", "true");
+  panel.setAttribute("inert", "");
+  panel.style.display = "none";
+}
+
 async function fetchSummary(horizonStart) {
   showLoading();
   try {
@@ -130,12 +292,34 @@ async function fetchSummary(horizonStart) {
     const onlyApprox = document.getElementById("filterApprox")
       ? document.getElementById("filterApprox").checked
       : false;
-    const q = (document.getElementById("textSearch").value || "").trim();
+    const qRaw = (document.getElementById("textSearch").value || "").trim();
+
+    const batchMode = isBatchDeepLink();
+    // In strict batch deep-link mode, avoid text-search coupling that can hide
+    // valid rows due to RPC-side q matching semantics.
+    const q = batchMode ? "" : qRaw;
 
     const params = {
       p_horizon_start: horizonStart,
-      p_stock_item_id: null,
-      p_only_unassigned: Boolean(onlyUnassigned),
+
+      // In batch mode, do NOT restrict by RM item.
+      // Issue allocation must show all RM issue rows belonging to the batch.
+      p_stock_item_id: isRmItemDeepLink()
+        ? Number(DEEP_LINK_FILTERS.rm_stock_item_id)
+        : null,
+
+      p_product_id: batchMode ? Number(DEEP_LINK_FILTERS.product_id) : null,
+
+      p_batch_number: batchMode ? String(DEEP_LINK_FILTERS.batch_number) : null,
+
+      p_mode: "list",
+
+      // ── Deep link: force unassigned mode if requested ───
+      p_only_unassigned:
+        DEEP_LINK_FILTERS?.focus === "unassigned"
+          ? true
+          : Boolean(onlyUnassigned),
+
       p_only_approx: Boolean(onlyApprox),
       p_q: q || null,
       p_offset: currentPage * pageSize,
@@ -196,6 +380,34 @@ async function fetchSummary(horizonStart) {
       filteredSummary = [];
       hideLoading();
       return;
+    }
+
+    // Fallback: in strict batch deep-link mode, if unassigned-only yields no rows,
+    // retry once without that toggle so users do not land on an empty page.
+    const shouldRetryBatchWithoutUnassigned =
+      batchMode &&
+      params.p_only_unassigned === true &&
+      !error &&
+      !!DEEP_LINK_FILTERS?.focus;
+
+    if (shouldRetryBatchWithoutUnassigned) {
+      const payload0 = normalizeRpcPayload(data);
+      const rows0 = Array.isArray(payload0?.rows)
+        ? payload0.rows
+        : Array.isArray(payload0)
+          ? payload0
+          : [];
+      if (rows0.length === 0) {
+        const retryParams = { ...params, p_only_unassigned: false };
+        const retryRes = await supabase.rpc(rpcName, retryParams);
+        if (!retryRes.error) {
+          data = retryRes.data;
+          showToast(
+            "No unassigned-only rows found for this batch. Showing all batch issue rows.",
+            { type: "info", duration: 4200 },
+          );
+        }
+      }
     }
 
     // Normalize payload: RPC may return [{ total_count, rows }] or direct { total_count, rows }
@@ -296,6 +508,17 @@ async function fetchSummary(horizonStart) {
           max_age_days,
         });
       });
+
+      // ─────────────────────────────────────────────────────────────
+      // Batch deep-link: server filters; log result only
+      // ─────────────────────────────────────────────────────────────
+      if (isBatchDeepLink()) {
+        console.log("[RM ISSUE ALLOCATION] Batch deep-link summary rows:", {
+          product_id: DEEP_LINK_FILTERS.product_id,
+          batch_number: DEEP_LINK_FILTERS.batch_number,
+          rows: summaryRows.length,
+        });
+      }
     }
   } catch (err) {
     console.error("Failed loading RM summary", err);
@@ -359,7 +582,7 @@ function buildRmDropdown() {
   if (first) sel.appendChild(first);
   const seen = new Set();
   summaryRows.forEach((r) => {
-    const rawId = r.rm_stock_item_id;
+    const rawId = getSummaryRmStockItemId(r);
     if (!rawId) return;
     const id = String(rawId);
     if (seen.has(id)) return;
@@ -409,7 +632,7 @@ async function loadAllSkus() {
 }
 
 function getRmLabel(row) {
-  const code = row.rm_code || String(row.rm_stock_item_id || "");
+  const code = row.rm_code || getSummaryRmStockItemId(row);
   const name = row.rm_name || "";
   if (code && name) return `${code} — ${name}`;
   if (name) return name;
@@ -478,6 +701,16 @@ function showDetailView() {
   }
 }
 
+function applyBatchDeepLinkDetailDefaults() {
+  if (!isBatchDeepLink()) return;
+  const unassignedOnly = document.getElementById("detailShowUnassignedOnly");
+  const allocatedOnly = document.getElementById("detailShowAllocatedOnly");
+  const textSearch = document.getElementById("detailTextSearch");
+  if (unassignedOnly) unassignedOnly.checked = true;
+  if (allocatedOnly) allocatedOnly.checked = false;
+  if (textSearch) textSearch.value = "";
+}
+
 function applySummaryFiltersAndRender() {
   const rmId = document.getElementById("rmFilter")?.value || "";
   const needsOnly =
@@ -485,7 +718,7 @@ function applySummaryFiltersAndRender() {
   const ageBucket = document.getElementById("ageBucket")?.value || "";
   filteredSummary = summaryRows.filter((r) => {
     if (needsOnly && !r.needs_attention) return false;
-    if (rmId && String(r.rm_stock_item_id) !== String(rmId)) return false;
+    if (rmId && getSummaryRmStockItemId(r) !== String(rmId)) return false;
     if (ageBucket) {
       const v = r.max_age_days;
       if (v == null) return false;
@@ -545,14 +778,62 @@ function applySummaryFiltersAndRender() {
   renderPaginator();
 }
 
+function renderEmptyState() {
+  const tbody = document.getElementById("summaryBody");
+  if (!tbody) return;
+  tbody.innerHTML = `
+    <tr>
+      <td colspan="6" style="text-align:center; padding:20px;">
+        No RM issues found for this selection.
+      </td>
+    </tr>
+  `;
+}
+
+async function highlightRow(context) {
+  const rows = Array.from(document.querySelectorAll("#summaryBody tr.rm-row"));
+  const exactMatchIndex = rows.findIndex((row) => {
+    return (
+      row.dataset.productId === String(context.product_id) &&
+      row.dataset.batchNumber === String(context.batch_number) &&
+      row.dataset.rmItemId === String(context.rm_stock_item_id)
+    );
+  });
+
+  const matchIndex =
+    exactMatchIndex >= 0
+      ? exactMatchIndex
+      : rows.findIndex(
+          (row) =>
+            row.dataset.productId === String(context.product_id) &&
+            row.dataset.batchNumber === String(context.batch_number),
+        );
+
+  if (matchIndex < 0) return false;
+
+  rows[matchIndex].classList.add("highlight");
+  await selectSummaryRow(matchIndex);
+  rows[matchIndex].scrollIntoView({ behavior: "smooth", block: "center" });
+  return true;
+}
+
 function renderSummaryTable() {
   const tbody = document.getElementById("summaryBody");
   tbody.innerHTML = "";
   document.getElementById("rowCount").textContent = totalCount;
 
+  if (!filteredSummary.length) {
+    renderEmptyState();
+    return;
+  }
+
   filteredSummary.forEach((r, idx) => {
     const tr = document.createElement("tr");
     tr.tabIndex = 0;
+    tr.classList.add("rm-row");
+    tr.dataset.productId = String(r.product_id ?? "");
+    tr.dataset.batchNumber = String(r.batch_number ?? "");
+    tr.dataset.rmItemId = getSummaryRmStockItemId(r);
     const rmDisplay = getRmLabel(r);
     const combo = getCombinationLabel(r);
     const rowUom = r.rm_uom_code || "";
@@ -716,6 +997,17 @@ async function selectSummaryRow(idx) {
   document
     .querySelectorAll("#summaryBody tr")
     .forEach((tr, i) => tr.classList.toggle("selected", i === idx));
+
+  // Scroll into view (ERP UX polish)
+  setTimeout(() => {
+    const selectedEl = document.querySelector("tr.selected");
+    if (selectedEl) {
+      selectedEl.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+  }, 100);
   const tabDetail = document.getElementById("tabDetail");
   if (tabDetail) tabDetail.disabled = false;
   const header = document.getElementById("detailHeader");
@@ -735,15 +1027,38 @@ async function loadIssueLinesForSelected() {
   await loadAllSkus();
   showLoading();
   try {
+    const batchMode = isBatchDeepLink();
+
     const params = {
       p_horizon_start: selectedSummary.horizon_start,
-      p_stock_item_id:
-        selectedSummary.rm_stock_item_id || selectedSummary.plm_stock_item_id,
+
+      // RM item detail mode for normal use.
+      // Batch detail mode for Production Execution Queue deep links.
+      p_stock_item_id: batchMode
+        ? selectedSummary.rm_stock_item_id ||
+          selectedSummary.plm_stock_item_id ||
+          (DEEP_LINK_FILTERS?.rm_stock_item_id
+            ? Number(DEEP_LINK_FILTERS.rm_stock_item_id)
+            : null)
+        : selectedSummary.rm_stock_item_id || selectedSummary.plm_stock_item_id,
+
+      p_product_id: batchMode
+        ? Number(DEEP_LINK_FILTERS.product_id)
+        : selectedSummary.product_id != null
+          ? Number(selectedSummary.product_id)
+          : null,
+
+      p_batch_number: batchMode
+        ? String(DEEP_LINK_FILTERS.batch_number)
+        : selectedSummary.batch_number || null,
+
+      p_mode: batchMode ? "detail" : "auto",
+
       p_q: null,
       p_only_unassigned: false,
       p_only_approx: false,
       p_offset: 0,
-      p_limit: 200,
+      p_limit: 500,
     };
 
     const { data, error } = await supabase.rpc(
@@ -779,6 +1094,7 @@ async function loadIssueLinesForSelected() {
         : [];
     issueSummary = payload.issues || payload.issue_summary || {};
     editedRows.clear();
+    applyBatchDeepLinkDetailDefaults();
     renderIssueLines();
   } catch (err) {
     console.error("Failed loading RM detail", err);
@@ -819,17 +1135,62 @@ function renderIssueLines() {
     });
   }
 
+  const batchMode = isBatchDeepLink();
+  const targetProductId = Number(DEEP_LINK_FILTERS?.product_id);
+  const targetBatch = String(DEEP_LINK_FILTERS?.batch_number || "");
+  const targetRmItemId = Number(
+    selectedSummary?.rm_stock_item_id || DEEP_LINK_FILTERS?.rm_stock_item_id,
+  );
+
+  const normBatch = (v) =>
+    String(v || "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
+  const targetBatchNorm = normBatch(targetBatch);
+
+  const isExactTargetLine = (l) =>
+    Number(l.product_id) === targetProductId &&
+    normBatch(l.batch_number || l.raw_batch_number) === targetBatchNorm &&
+    (Number.isNaN(targetRmItemId) ||
+      Number(l.rm_stock_item_id) === targetRmItemId);
+
+  const suggestionScore = (l) => {
+    if (!batchMode) return 0;
+    let s = 0;
+    if (isExactTargetLine(l)) s += 200;
+    if (
+      !Number.isNaN(targetProductId) &&
+      Number(l.product_id) === targetProductId
+    )
+      s += 80;
+    if (normBatch(l.raw_batch_number) === targetBatchNorm) s += 40;
+    if (l.allocation_status === "unassigned") s += 20;
+    return s;
+  };
+
+  const matchesTarget = (l) => {
+    if (!batchMode) {
+      return (
+        (selectedSummary.product_id == null
+          ? l.product_id == null
+          : Number(l.product_id) === Number(selectedSummary.product_id)) &&
+        (selectedSummary.sku_id == null
+          ? l.sku_id == null
+          : Number(l.sku_id) === Number(selectedSummary.sku_id)) &&
+        (selectedSummary.region_code == null
+          ? l.region_code == null
+          : String(l.region_code) === String(selectedSummary.region_code))
+      );
+    }
+    // Deep-link assignment is item-level; strict batch matching can hide
+    // actionable unassigned rows for the target product.
+    const targetProductId = Number(DEEP_LINK_FILTERS.product_id);
+    if (Number.isNaN(targetProductId)) return false;
+    return Number(l.product_id) === targetProductId;
+  };
+
   const linesToShow = issueLines.filter((l) => {
-    const matches =
-      (selectedSummary.product_id == null
-        ? l.product_id == null
-        : Number(l.product_id) === Number(selectedSummary.product_id)) &&
-      (selectedSummary.sku_id == null
-        ? l.sku_id == null
-        : Number(l.sku_id) === Number(selectedSummary.sku_id)) &&
-      (selectedSummary.region_code == null
-        ? l.region_code == null
-        : String(l.region_code) === String(selectedSummary.region_code));
+    const matches = matchesTarget(l);
     if (onlyUnassigned && l.allocation_status !== "unassigned") return false;
     if (onlyThis && !matches) return false;
     if (q) {
@@ -844,17 +1205,20 @@ function renderIssueLines() {
     return true;
   });
 
+  const rankedLines = batchMode
+    ? [...linesToShow].sort((a, b) => {
+        const sa = suggestionScore(a);
+        const sb = suggestionScore(b);
+        if (sa !== sb) return sb - sa;
+        const da = String(a.issue_date || "");
+        const db = String(b.issue_date || "");
+        if (da !== db) return db.localeCompare(da);
+        return Number(a.id || 0) - Number(b.id || 0);
+      })
+    : linesToShow;
+
   issueLines.forEach((l) => {
-    const matches =
-      (selectedSummary.product_id == null
-        ? l.product_id == null
-        : Number(l.product_id) === Number(selectedSummary.product_id)) &&
-      (selectedSummary.sku_id == null
-        ? l.sku_id == null
-        : Number(l.sku_id) === Number(selectedSummary.sku_id)) &&
-      (selectedSummary.region_code == null
-        ? l.region_code == null
-        : String(l.region_code) === String(selectedSummary.region_code));
+    const matches = matchesTarget(l);
     if (matches) allocatedToThis += Number(l.qty_issued || 0);
     else if (l.allocation_status !== "unassigned")
       allocatedOthers += Number(l.qty_issued || 0);
@@ -872,9 +1236,55 @@ function renderIssueLines() {
     allocatedOthers,
   )} • Unassigned: ${unassignedDisplay}`;
 
-  linesToShow.forEach((l) => {
+  const detailPanel = document.getElementById("detailPanel");
+  const issueLinesContainer = document.getElementById("issueLinesContainer");
+  let contextNote = document.getElementById("detailContextNote");
+  if (batchMode && detailPanel && issueLinesContainer) {
+    if (!contextNote) {
+      contextNote = document.createElement("div");
+      contextNote.id = "detailContextNote";
+      contextNote.style.marginBottom = "8px";
+      contextNote.style.padding = "8px 10px";
+      contextNote.style.borderRadius = "6px";
+      contextNote.style.fontSize = "12.5px";
+      contextNote.style.lineHeight = "1.45";
+      detailPanel.insertBefore(contextNote, issueLinesContainer);
+    }
+
+    const exactTargetCount = issueLines.filter(isExactTargetLine).length;
+    if (exactTargetCount > 0) {
+      contextNote.style.background = "#ecfeff";
+      contextNote.style.border = "1px solid #a5f3fc";
+      contextNote.style.color = "#155e75";
+      contextNote.textContent =
+        `Found ${exactTargetCount} direct line(s) for Product ${targetProductId} / Batch ${targetBatch}. ` +
+        "Rows are ranked with direct matches first.";
+    } else {
+      contextNote.style.background = "#fff7ed";
+      contextNote.style.border = "1px solid #fdba74";
+      contextNote.style.color = "#9a3412";
+      contextNote.textContent =
+        `No direct issue line is currently mapped to Product ${targetProductId} / Batch ${targetBatch} for this RM item. ` +
+        "Showing assignable unassigned voucher pool, ranked by likely relevance.";
+    }
+  } else if (contextNote) {
+    contextNote.remove();
+  }
+
+  if (!rankedLines.length) {
+    const tr = document.createElement("tr");
+    tr.innerHTML =
+      '<td colspan="10" style="text-align:center;color:#6b7280;padding:14px">No issue lines match the current Issue Lines filters.</td>';
+    tbody.appendChild(tr);
+    return;
+  }
+
+  rankedLines.forEach((l) => {
     const tr = document.createElement("tr");
     tr.dataset.id = l.id;
+    if (batchMode && suggestionScore(l) >= 80) {
+      tr.style.background = "#f0fdf4";
+    }
     const lineUom = selectedSummary?.rm_uom_code || "";
 
     tr.innerHTML = `
@@ -1143,6 +1553,8 @@ function wireUp() {
     pop.className = "help-popover";
     pop.setAttribute("role", "dialog");
     pop.setAttribute("aria-modal", "false");
+    pop.setAttribute("aria-hidden", "true");
+    pop.setAttribute("inert", "");
     const titleId = "allocHelpTitle";
     pop.innerHTML = `
       <button id="allocHelpCloseBtn" class="help-close" type="button" aria-label="Close allocation help">×</button>
@@ -1195,6 +1607,8 @@ function wireUp() {
 
     function openAllocPopover() {
       if (!allocPopover) return;
+      allocPopover.removeAttribute("inert");
+      allocPopover.setAttribute("aria-hidden", "false");
       allocPopover.style.display = "block";
       allocPopoverBtn.setAttribute("aria-expanded", "true");
       positionPopover(allocPopoverBtn, allocPopover);
@@ -1204,7 +1618,7 @@ function wireUp() {
 
     function closeAllocPopover() {
       if (!allocPopover) return;
-      allocPopover.style.display = "none";
+      safelyHidePanel("allocHelpPopover");
       allocPopoverBtn.setAttribute("aria-expanded", "false");
       allocPopoverOpen = false;
     }
@@ -1269,14 +1683,57 @@ async function loadAndRenderSummary(opts = {}) {
     pendingRmIdFromUrl = null;
   }
   applySummaryFiltersAndRender();
+
+  if (isDirectNavigation) {
+    const highlighted = await highlightRow(navContext);
+    if (!highlighted && filteredSummary.length === 0) {
+      const recovered = await tryDirectDeepLinkDetail(
+        currentHorizonStart,
+        navContext,
+      );
+      if (!recovered)
+        console.warn(
+          "[RM ISSUE] Direct navigation target not found",
+          navContext,
+        );
+    }
+    return;
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Auto-select row if deep-linked
+  // ─────────────────────────────────────────────────────────────
+  if (DEEP_LINK_FILTERS && filteredSummary.length >= 1) {
+    try {
+      await selectSummaryRow(0);
+
+      if (isBatchDeepLink()) {
+        showDetailView();
+      }
+
+      console.log("[RM ISSUE ALLOCATION] Auto-selected deep-linked row");
+    } catch (err) {
+      console.warn("[RM ISSUE ALLOCATION] Auto-select failed", err);
+    }
+  } else if (isBatchDeepLink() && filteredSummary.length === 0) {
+    console.warn("[RM ISSUE ALLOCATION] No batch issue rows found", {
+      product_id: DEEP_LINK_FILTERS?.product_id,
+      batch_number: DEEP_LINK_FILTERS?.batch_number,
+      horizon_start: currentHorizonStart,
+    });
+    showToast("No RM issue lines found for this batch in the selected month.", {
+      type: "warning",
+      duration: 5000,
+    });
+  }
 }
 
 async function initFromUrl() {
   const params = new URLSearchParams(window.location.search);
+  const urlFilters = getFiltersFromURL();
+  const batchMode = Boolean(urlFilters.product_id && urlFilters.batch_number);
   const horizon = params.get("horizon_start");
-  // accept both stock_item_id (legacy) and rm_stock_item_id (from PEQ deep-link)
-  const stock_item_id =
-    params.get("rm_stock_item_id") || params.get("stock_item_id");
+  const stock_item_id = urlFilters.rm_stock_item_id;
   const openFlag = params.get("open") === "1";
   if (horizon) {
     const mm = horizon.slice(0, 7);
@@ -1292,22 +1749,24 @@ async function initFromUrl() {
   }
 
   // Apply deep-link filter params BEFORE fetchSummary so the RPC picks them up
-  const onlyUnassigned = params.get("only_unassigned");
-  if (onlyUnassigned === "1") {
+  if (urlFilters.only_unassigned === "1" || urlFilters.focus === "unassigned") {
     const cb = document.getElementById("filterUnassigned");
     if (cb) cb.checked = true;
   }
-  const q = params.get("q") || params.get("batch_number") || "";
+  const q = batchMode ? "" : params.get("q") || urlFilters.batch_number || "";
   if (q) {
     const ts = document.getElementById("textSearch");
     if (ts) ts.value = q;
+  } else if (batchMode) {
+    const ts = document.getElementById("textSearch");
+    if (ts) ts.value = "";
   }
 
   await loadAndRenderSummary();
 
   if (stock_item_id) {
     const idx = filteredSummary.findIndex(
-      (r) => String(r.rm_stock_item_id) === String(stock_item_id),
+      (r) => getSummaryRmStockItemId(r) === String(stock_item_id),
     );
     if (idx >= 0) {
       selectSummaryRow(idx);
@@ -1316,21 +1775,66 @@ async function initFromUrl() {
   }
 }
 
-async function refreshExecutionQueueSnapshotsAfterAllocation() {
-  const steps = [
-    "refresh_rm_reservation_snapshot_current_month",
-    "refresh_material_status_snapshots_current_month",
-    "refresh_mv_production_priority_queue_current_month",
-    "refresh_priority_queue_snapshot",
-    "refresh_blocker_snapshots_current_month",
-  ];
-  for (const fn of steps) {
-    const { error } = await supabase.rpc(fn);
-    if (error) {
-      console.warn(`[rm-issue-allocation] refresh step failed: ${fn}`, error);
-      throw error;
+// ============================================================
+// RM → PRODUCTION QUEUE SYNC (POST-ALLOCATION)
+// ============================================================
+async function refreshExecutionQueueAfterAllocation() {
+  const client = window.supabase || supabase;
+
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      console.log(`[RM ISSUE] Sync attempt ${attempt}`);
+      const start = Date.now();
+      const { error } = await client.rpc("refresh_after_rm_allocation");
+      if (error) {
+        console.error("[RM ISSUE] refresh_after_rm_allocation FAILED", error);
+        throw error;
+      }
+      const duration = Date.now() - start;
+      console.log(
+        `[RM ISSUE] refresh_after_rm_allocation completed in ${duration} ms`,
+      );
+      return true;
+    } catch (err) {
+      console.warn(`[RM ISSUE] Sync attempt ${attempt} failed`, err);
+      if (attempt === 2) {
+        console.error("[RM ISSUE] Queue refresh failed:", err);
+        return false;
+      }
     }
   }
+
+  return false;
+}
+
+function clearLocalIssueState() {
+  try {
+    console.log("[RM ISSUE] Clearing local issue state");
+    window.currentRMAllocations = [];
+    window.selectedRMItem = null;
+    selectedSummary = null;
+    issueLines = [];
+    issueSummary = null;
+    editedRows.clear();
+    document
+      .querySelectorAll("#summaryBody tr.selected")
+      .forEach((tr) => tr.classList.remove("selected"));
+    const tabDetail = document.getElementById("tabDetail");
+    if (tabDetail) tabDetail.disabled = true;
+    const detailHeader = document.getElementById("detailHeader");
+    if (detailHeader) detailHeader.textContent = "";
+    const detailMetrics = document.getElementById("detailMetrics");
+    if (detailMetrics) detailMetrics.textContent = "";
+    renderIssueLines();
+  } catch (err) {
+    console.warn("[RM ISSUE] Failed to clear local state", err);
+  }
+}
+
+async function reloadCurrentRMTable() {
+  console.log("[RM ISSUE] Reloading RM table after allocation");
+  // This path always fetches fresh RPC data; there is no client cache layer here.
+  await loadAndRenderSummary({ preserveSelection: false });
 }
 
 async function saveChanges() {
@@ -1386,11 +1890,6 @@ async function saveChanges() {
 
     const updatedCount = data?.updated_count ?? 0;
     const failed = data?.failed || [];
-    if (updatedCount > 0)
-      showToast(`Saved ${updatedCount} changes`, {
-        type: "success",
-        duration: 2600,
-      });
     if (failed.length) {
       showToast(`Saved with ${failed.length} failures`, {
         type: "warning",
@@ -1399,36 +1898,79 @@ async function saveChanges() {
       console.table(failed);
     }
 
-    editedRows.clear();
-    await loadAndRenderSummary({ preserveSelection: true });
-    if (selectedSummary) await loadIssueLinesForSelected();
+    if (updatedCount <= 0 && failed.length > 0) {
+      showToast("Failed to save allocation", { type: "error" });
+      return;
+    }
 
-    showToast("Allocation saved. Refreshing execution queue snapshots…", {
+    showToast("Allocation saved. Syncing system...", {
       type: "info",
       duration: 3000,
     });
-    try {
-      await refreshExecutionQueueSnapshotsAfterAllocation();
-      showToast("Allocation saved and execution queue refreshed.", {
+
+    const syncOk = await refreshExecutionQueueAfterAllocation();
+
+    if (syncOk) {
+      showToast("Allocation saved and system synced successfully", {
         type: "success",
         duration: 3500,
       });
-    } catch (refreshErr) {
-      console.warn("[rm-issue-allocation] Queue refresh failed:", refreshErr);
+    } else {
       showToast(
-        "Allocation saved, but queue refresh failed. Please use Refresh in Production Execution Queue.",
+        "Allocation saved, but system sync failed. Please refresh Production Execution Queue.",
         { type: "warning", duration: 6000 },
       );
     }
+
+    clearLocalIssueState();
+    await reloadCurrentRMTable();
+
+    if (shouldAutoReturnToSource()) {
+      showToast("Returning to Execution Queue...", {
+        type: "info",
+        duration: 1800,
+      });
+      setTimeout(() => {
+        navigateBackToSource({
+          rm_allocation_saved: "1",
+          rm_sync_ok: syncOk ? "1" : "0",
+          product_id: navContext.product_id,
+          batch_number: navContext.batch_number,
+          rm_stock_item_id: navContext.rm_stock_item_id,
+        });
+      }, 220);
+    }
   } catch (err) {
-    console.error("Bulk save failed", err);
-    showToast("Save failed", { type: "error" });
+    console.error("[RM ISSUE] saveChanges failed:", err);
+    showToast("Error while saving allocation", { type: "error" });
   } finally {
     hideLoading();
   }
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
+  // ── Deep link: read URL filters immediately ───────────────────
+  try {
+    DEEP_LINK_FILTERS = getFiltersFromURL();
+
+    if (DEEP_LINK_FILTERS) {
+      console.log(
+        "[RM ISSUE ALLOCATION] Deep link filters detected:",
+        DEEP_LINK_FILTERS,
+      );
+
+      if (
+        DEEP_LINK_FILTERS.only_unassigned === "true" ||
+        DEEP_LINK_FILTERS.only_unassigned === "1"
+      ) {
+        const cb = document.getElementById("filterUnassigned");
+        if (cb) cb.checked = true;
+      }
+    }
+  } catch (err) {
+    console.warn("[RM ISSUE ALLOCATION] Failed to read URL filters", err);
+  }
+
   try {
     insertBackButtonFromUrl();
   } catch (err) {
@@ -1449,7 +1991,9 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   wireUp();
   await initFromUrl();
-  showSummaryView();
+  if (!isBatchDeepLink() && !isDirectNavigation) {
+    showSummaryView();
+  }
 
   // enforce simple client-side gating for edit actions
   try {
@@ -1463,8 +2007,8 @@ window.addEventListener("DOMContentLoaded", async () => {
 
 function insertBackButtonFromUrl() {
   const params = new URLSearchParams(window.location.search);
-  const returnTo = params.get("return_to");
-  if (!returnTo) return;
+  const returnToUrl = getSafeReturnUrlFromParam(params.get("return_to"));
+  if (!returnToUrl) return;
   if (document.getElementById("backToBtn")) return;
   const returnLabel = params.get("return_label") || "Back";
   const headerActions = document.querySelector(".header-actions");
@@ -1500,7 +2044,7 @@ function insertBackButtonFromUrl() {
   btn.textContent = `← ${returnLabel}`;
   btn.addEventListener("click", (ev) => {
     ev.preventDefault();
-    window.location.href = returnTo;
+    window.location.href = `${returnToUrl.pathname}${returnToUrl.search}${returnToUrl.hash || ""}`;
   });
 
   if (homeBtn && homeBtn.parentNode === headerActions) {

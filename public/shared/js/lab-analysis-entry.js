@@ -1,4 +1,4 @@
-﻿/* lab-analysis-entry.js
+/* lab-analysis-entry.js
  * Lab — Sample Receipt & Analysis Entry
  *
  * BACKEND DEPENDENCIES
@@ -31,9 +31,16 @@
  *   )
  *   Returns: scalar spec_profile_id (bigint)
  *
+ *   fn_build_effective_pm_spec_for_item(
+ *     p_stock_item_id,             -- uuid
+ *     p_as_of_date,                -- date  (ISO string YYYY-MM-DD)
+ *     p_remarks                    -- text
+ *   )
+ *   Returns: scalar spec_profile_id (bigint)
+ *
  *   fn_receive_sample_and_create_analysis(
  *     p_user_id,                   -- uuid
- *     p_analysis_subject_type,     -- 'FG_BATCH' | 'RM_LOT'
+ *     p_analysis_subject_type,     -- 'FG_BATCH' | 'RM_LOT' | 'PM_LOT'
  *     p_product_id,                -- uuid | null  (FG only)
  *     p_batch_no_snapshot,         -- text | null  (FG only)
  *     p_stock_item_id,             -- uuid | null  (RM only)
@@ -136,10 +143,12 @@ const labToastContainer = $("labToastContainer");
 const homeBtn = $("homeBtn");
 
 // ── Module state ──────────────────────────────────────────────────────────────
-let currentSampleType = null; // "FG_BATCH" | "RM_LOT"
+let currentSampleType = null; // "FG_BATCH" | "RM_LOT" | "PM_LOT"
 let createdAnalysis = null; // result from fn_receive_sample_and_create_analysis
 let currentUserId = null;
 let fgBatchRows = []; // rows from v_sample_receipt_fg_batch_picker
+let rmItems = []; // RM items from v_rm_pm_item_with_group (category_code = 'RM')
+let pmItems = []; // PM items from v_rm_pm_item_with_group (category_code = 'PLM')
 let mappingCheckDebounceTimer = null;
 let pendingSwitchType = null; // type pill click queued pending confirmation
 
@@ -199,8 +208,7 @@ async function loadPickers() {
         .order("product_name"),
       labSupabase
         .from("v_rm_pm_item_with_group")
-        .select("stock_item_id, stock_item_name")
-        .eq("category_code", "RM")
+        .select("stock_item_id, stock_item_name, category_code")
         .order("stock_item_name"),
       labSupabase
         .from("v_sample_receipt_staff_picker")
@@ -234,14 +242,10 @@ async function loadPickers() {
       "— Select Product —",
     );
 
-    // Populate RM raw material dropdown
-    populateSelect(
-      stockItemSelect,
-      rmRes.data ?? [],
-      (r) => r.stock_item_id,
-      (r) => r.stock_item_name,
-      "— Select Raw Material —",
-    );
+    // Cache RM and PM items separately — populated on type selection
+    const allItems = rmRes.data ?? [];
+    rmItems = allItems.filter((i) => i.category_code === "RM");
+    pmItems = allItems.filter((i) => i.category_code === "PLM");
 
     // Populate staff pickers
     const allStaff = staffRes.data ?? [];
@@ -497,6 +501,23 @@ function handleSampleTypeChange(type) {
   } else {
     rmFields.classList.remove("hidden");
     fgFields.classList.add("hidden");
+    // Update label and populate dropdown for chosen type
+    const isPM = type === "PM_LOT";
+    const stockItemLabel = document.querySelector(
+      "label[for='stockItemSelect']",
+    );
+    if (stockItemLabel) {
+      stockItemLabel.innerHTML = isPM
+        ? 'Packing Material <span class="req" aria-hidden="true">*</span>'
+        : 'Raw Material <span class="req" aria-hidden="true">*</span>';
+    }
+    populateSelect(
+      stockItemSelect,
+      isPM ? pmItems : rmItems,
+      (r) => r.stock_item_id,
+      (r) => r.stock_item_name,
+      isPM ? "— Select Packing Material —" : "— Select Raw Material —",
+    );
   }
 
   // Common fields always visible after type is chosen
@@ -546,7 +567,7 @@ async function checkReadiness() {
   if (currentSampleType === "FG_BATCH") {
     await checkFgReadiness(selectedId);
   } else {
-    await checkRmReadiness(selectedId);
+    await checkInventoryReadiness(selectedId);
   }
 
   updateStartButton();
@@ -691,8 +712,13 @@ function showFgNotReady(labelMsg, subMsg) {
 }
 
 // ── RM readiness check (inventory-group level) ────────────────────────────────
-// Validates: stock item → inventory group → active RM protocol → active RM base spec
-async function checkRmReadiness(stockItemId) {
+// Validates: stock item → inventory group → active protocol → active base spec
+async function checkInventoryReadiness(stockItemId) {
+  // PM uses subcategory-level resolution — delegate entirely
+  if (currentSampleType === "PM_LOT") {
+    return checkPmReadiness(stockItemId);
+  }
+
   rmReadiness = {
     ok: false,
     protocolOk: false,
@@ -709,6 +735,7 @@ async function checkRmReadiness(stockItemId) {
       .from("v_rm_pm_item_with_group")
       .select("inv_group_id, inv_group_label")
       .eq("stock_item_id", stockItemId)
+      .eq("category_code", "RM")
       .limit(1);
     if (grpErr) throw grpErr;
 
@@ -716,7 +743,7 @@ async function checkRmReadiness(stockItemId) {
 
     const grp = grpData?.[0];
     if (!grp?.inv_group_id) {
-      showRmNotReady(
+      showInventoryNotReady(
         "No inventory group is mapped for the selected stock item.",
         "An inventory-group mapping is required before an RM analysis can be started.",
       );
@@ -736,7 +763,7 @@ async function checkRmReadiness(stockItemId) {
 
     const protocolCategoryId = mapRows?.[0]?.protocol_category_id ?? null;
     if (!protocolCategoryId) {
-      showRmNotReady(
+      showInventoryNotReady(
         "No active RM protocol is mapped to this inventory group.",
         "Inventory group: " + (grp.inv_group_label ?? grp.inv_group_id),
       );
@@ -766,7 +793,7 @@ async function checkRmReadiness(stockItemId) {
 
     const specProfileId = smRows?.[0]?.spec_profile_id ?? null;
     if (!specProfileId) {
-      showRmNotReady(
+      showInventoryNotReady(
         "No active RM base specification exists for this inventory group.",
         "Please generate a base spec in the Spec Profile Manager before starting analysis.",
       );
@@ -793,16 +820,128 @@ async function checkRmReadiness(stockItemId) {
 
     readinessOk.classList.remove("hidden");
     testPreview.classList.remove("hidden");
-    await loadRmEffectiveSpecPreview(stockItemId);
+    await loadInventoryEffectiveSpecPreview(stockItemId);
   } catch (err) {
-    console.error("[lab-analysis-entry] checkRmReadiness error:", err);
+    console.error("[lab-analysis-entry] checkInventoryReadiness error:", err);
     mappingLoading.classList.add("hidden");
-    showRmNotReady("RM readiness check failed: " + err.message, "");
+    showInventoryNotReady("RM readiness check failed: " + err.message, "");
     toast("RM readiness check failed: " + err.message, "error");
   }
 }
 
-function showRmNotReady(labelMsg, subMsg) {
+async function checkPmReadiness(stockItemId) {
+  rmReadiness = {
+    ok: false,
+    protocolOk: false,
+    specOk: false,
+    invGroupId: null,
+    invGroupLabel: null,
+    protocolCategoryId: null,
+    protocolName: null,
+  };
+
+  try {
+    // Step 1: resolve packing material subcategory
+    const { data: subcatData, error: subcatErr } = await labSupabase
+      .from("v_rm_pm_item_with_group")
+      .select("subcategory_id, subcategory_label")
+      .eq("stock_item_id", stockItemId)
+      .eq("category_code", "PLM")
+      .limit(1);
+    if (subcatErr) throw subcatErr;
+
+    mappingLoading.classList.add("hidden");
+
+    const subcat = subcatData?.[0];
+    if (!subcat?.subcategory_id) {
+      showInventoryNotReady(
+        "No packing material subcategory is mapped for the selected stock item.",
+        "A subcategory mapping is required before a PM analysis can be started.",
+      );
+      return;
+    }
+
+    // Step 2: resolve active PM protocol via RPC
+    const { data: protocolCategoryId, error: mapErr } = await labSupabase.rpc(
+      "fn_get_active_protocol_category_id_for_pm_subcategory",
+      { p_subcategory_id: Number(subcat.subcategory_id) },
+    );
+    if (mapErr) throw mapErr;
+
+    if (!protocolCategoryId) {
+      showInventoryNotReady(
+        "No active PM protocol is mapped to this packing material subcategory.",
+        "Packing Material Subcategory: " +
+          (subcat.subcategory_label ?? subcat.subcategory_id),
+      );
+      return;
+    }
+
+    const { data: catRows, error: catErr } = await labSupabase
+      .from("protocol_category")
+      .select("id, category_name, category_code")
+      .eq("id", protocolCategoryId)
+      .limit(1);
+    if (catErr) throw catErr;
+
+    const cat = catRows?.[0];
+    rmReadiness.protocolOk = true;
+    rmReadiness.protocolCategoryId = protocolCategoryId;
+    rmReadiness.protocolName = cat?.category_name ?? null;
+
+    // Step 3: resolve active PM base spec via RPC
+    const { data: specProfileId, error: smErr } = await labSupabase.rpc(
+      "fn_get_active_spec_profile_id_for_pm_subcategory",
+      {
+        p_subcategory_id: Number(subcat.subcategory_id),
+        p_as_of_date: todayISO(),
+      },
+    );
+    if (smErr) throw smErr;
+
+    if (!specProfileId) {
+      showInventoryNotReady(
+        "No active PM base specification exists for this packing material subcategory.",
+        "Please generate a base spec in the Spec Profile Manager before starting analysis.",
+      );
+      return;
+    }
+
+    // All checks passed
+    rmReadiness.specOk = true;
+    rmReadiness.ok = true;
+    rmReadiness.invGroupId = subcat.subcategory_id;
+    rmReadiness.invGroupLabel = subcat.subcategory_label;
+
+    const foundLabel = readinessOk.querySelector(".mapping-found-label");
+    if (foundLabel) foundLabel.textContent = "PM readiness check passed";
+
+    const code = esc(cat?.category_code ?? "");
+    const name = esc(cat?.category_name ?? "—");
+    const subcatLabel = esc(subcat.subcategory_label ?? "—");
+    protocolInfoDisplay.innerHTML =
+      '<div class="mapping-group-line">Packing Material Subcategory: ' +
+      subcatLabel +
+      "</div>" +
+      (code ? '<span class="mapping-category-code">' + code + "</span>" : "") +
+      "PM protocol resolved at packing-material subcategory level. " +
+      name;
+
+    readinessOk.classList.remove("hidden");
+    testPreview.classList.remove("hidden");
+    await loadInventoryEffectiveSpecPreview(stockItemId);
+  } catch (err) {
+    console.error("[lab-analysis-entry] checkPmReadiness error:", err);
+    mappingLoading.classList.add("hidden");
+    showInventoryNotReady(
+      "PM readiness check has not passed. A protocol and base spec are required at packing-material subcategory level.",
+      err.message,
+    );
+    toast("PM readiness check failed: " + err.message, "error");
+  }
+}
+
+function showInventoryNotReady(labelMsg, subMsg) {
   const warnLabel = readinessMissing.querySelector(".mapping-warn-label");
   const warnSub = readinessMissing.querySelector(".mapping-warn-sub");
   if (warnLabel) warnLabel.textContent = labelMsg;
@@ -947,29 +1086,31 @@ async function loadFgEffectiveSpecPreview(productId) {
   }
 }
 
-// ── RM effective-spec preview ─────────────────────────────────────────────────
-// Calls fn_build_effective_rm_spec_for_item and shows active spec lines.
-async function loadRmEffectiveSpecPreview(stockItemId) {
+// ── Inventory effective-spec preview — handles RM and PM ──────────────────────────
+// Calls fn_build_effective_rm_spec_for_item or fn_build_effective_pm_spec_for_item.
+async function loadInventoryEffectiveSpecPreview(stockItemId) {
+  const isPM = currentSampleType === "PM_LOT";
+  const typeLabel = isPM ? "PM" : "RM";
+  const fnName = isPM
+    ? "fn_build_effective_pm_spec_for_item"
+    : "fn_build_effective_rm_spec_for_item";
+
   testPreviewLoading.classList.remove("hidden");
   testPreviewEmpty.classList.add("hidden");
   testPreviewTbody.innerHTML = "";
 
   try {
-    const { data: rpcData, error: rpcErr } = await labSupabase.rpc(
-      "fn_build_effective_rm_spec_for_item",
-      {
-        p_stock_item_id: stockItemId,
-        p_as_of_date: todayISO(),
-        p_remarks: "Preview from analysis entry",
-      },
-    );
+    const { data: rpcData, error: rpcErr } = await labSupabase.rpc(fnName, {
+      p_stock_item_id: stockItemId,
+      p_as_of_date: todayISO(),
+      p_remarks: "Preview from analysis entry",
+    });
     if (rpcErr) throw rpcErr;
 
     const resolvedProfileId = rpcData ? Number(rpcData) : null;
     if (!resolvedProfileId) {
       testPreviewLoading.classList.add("hidden");
-      testPreviewEmpty.textContent =
-        "No effective RM spec could be resolved for this stock item.";
+      testPreviewEmpty.textContent = `No effective ${typeLabel} spec could be resolved for this stock item.`;
       testPreviewEmpty.classList.remove("hidden");
       return;
     }
@@ -988,14 +1129,13 @@ async function loadRmEffectiveSpecPreview(stockItemId) {
 
     const rows = lines ?? [];
     if (rows.length === 0) {
-      testPreviewEmpty.textContent =
-        "Effective RM spec resolved but has no active lines.";
+      testPreviewEmpty.textContent = `Effective ${typeLabel} spec resolved but has no active lines.`;
       testPreviewEmpty.classList.remove("hidden");
       return;
     }
 
     testPreviewToggleLabel.textContent =
-      "Show Effective RM Spec (" + rows.length + " active lines)";
+      `Show Effective ${typeLabel} Spec (` + rows.length + " active lines)";
 
     const frag = document.createDocumentFragment();
     rows.forEach((r) => {
@@ -1018,12 +1158,12 @@ async function loadRmEffectiveSpecPreview(stockItemId) {
     testPreviewTbody.appendChild(frag);
   } catch (err) {
     console.error(
-      "[lab-analysis-entry] loadRmEffectiveSpecPreview error:",
+      "[lab-analysis-entry] loadInventoryEffectiveSpecPreview error:",
       err,
     );
     testPreviewLoading.classList.add("hidden");
     testPreviewEmpty.textContent =
-      "Could not load RM effective spec preview: " + err.message;
+      `Could not load ${typeLabel} effective spec preview: ` + err.message;
     testPreviewEmpty.classList.remove("hidden");
   }
 }
@@ -1050,10 +1190,12 @@ function validateForm() {
     }
   }
 
-  if (currentSampleType === "RM_LOT") {
+  if (currentSampleType === "RM_LOT" || currentSampleType === "PM_LOT") {
+    const itemLabel =
+      currentSampleType === "PM_LOT" ? "Packing Material" : "Raw Material";
     if (!stockItemSelect.value) {
-      setFieldError(stockItemSelect, stockItemMsg, "Raw Material is required");
-      errors.push("Raw Material is required");
+      setFieldError(stockItemSelect, stockItemMsg, `${itemLabel} is required`);
+      errors.push(`${itemLabel} is required`);
     }
     if (!systemLotNo.value.trim()) {
       setFieldError(systemLotNo, lotMsg, "System Lot No is required");
@@ -1091,9 +1233,13 @@ function validateForm() {
         "FG readiness check has not passed. A protocol and base spec are required at product-group level.",
       );
     }
-  } else if (currentSampleType === "RM_LOT" && !rmReadiness.ok) {
+  } else if (
+    (currentSampleType === "RM_LOT" || currentSampleType === "PM_LOT") &&
+    !rmReadiness.ok
+  ) {
+    const typePrefix = currentSampleType === "PM_LOT" ? "PM" : "RM";
     errors.push(
-      "RM readiness check has not passed. A protocol and base spec are required at inventory-group level.",
+      `${typePrefix} readiness check has not passed. A protocol and base spec are required at inventory-group level.`,
     );
   }
 
@@ -1276,7 +1422,12 @@ function buildRpcParams() {
   const isFG = currentSampleType === "FG_BATCH";
   return {
     p_user_id: currentUserId,
-    p_analysis_subject_type: isFG ? "FG_BATCH" : "RM_LOT",
+    p_analysis_subject_type:
+      currentSampleType === "FG_BATCH"
+        ? "FG_BATCH"
+        : currentSampleType === "PM_LOT"
+          ? "PM_LOT"
+          : "RM_LOT",
     p_product_id: isFG ? productSelect.value || null : null,
     p_batch_no_snapshot: isFG ? batchNoSelect.value || null : null,
     p_stock_item_id: !isFG ? stockItemSelect.value || null : null,
@@ -1294,7 +1445,12 @@ function showCreatedState(result) {
   const analysisId = result.analysis_id ?? "—";
   const analysisNo = result.analysis_register_no ?? "—";
   const status = result.status ?? "Draft";
-  const typeLabel = currentSampleType === "FG_BATCH" ? "FG Batch" : "RM Lot";
+  const typeLabel =
+    currentSampleType === "FG_BATCH"
+      ? "FG Batch"
+      : currentSampleType === "PM_LOT"
+        ? "PM Lot"
+        : "RM Lot";
   const itemLabel =
     currentSampleType === "FG_BATCH"
       ? selectedOptionText(productSelect)
@@ -1340,7 +1496,8 @@ function showCreatedState(result) {
         : ""
     }
     ${
-      currentSampleType === "RM_LOT" && rmReadiness.invGroupLabel
+      (currentSampleType === "RM_LOT" || currentSampleType === "PM_LOT") &&
+      rmReadiness.invGroupLabel
         ? `
     <div class="sd-card">
       <div class="sd-label">Inventory Group</div>

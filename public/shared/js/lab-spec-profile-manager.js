@@ -1451,14 +1451,13 @@ async function pmLoadGroupContext(groupId) {
 
   showBanner(pmBanner, "info", "Loading group protocol and spec info...");
 
-  // Step A: protocol via protocol_category_pm_subcategory_map
-  const { data: mapRows, error: mapErr } = await labSupabase
-    .from("protocol_category_pm_subcategory_map")
-    .select("protocol_category_id")
-    .eq("subcategory_id", groupId)
-    .eq("is_active", true)
-    .limit(1);
-
+  // Step A: protocol via RPC
+  const { data: protocolCategoryId, error: mapErr } = await labSupabase.rpc(
+    "fn_get_active_protocol_category_id_for_pm_subcategory",
+    {
+      p_subcategory_id: Number(groupId),
+    },
+  );
   if (mapErr) {
     showBanner(
       pmBanner,
@@ -1467,8 +1466,6 @@ async function pmLoadGroupContext(groupId) {
     );
     return;
   }
-
-  const protocolCategoryId = mapRows?.[0]?.protocol_category_id ?? null;
 
   // Step B: protocol name
   let protocolName = null;
@@ -1483,14 +1480,14 @@ async function pmLoadGroupContext(groupId) {
     }
   }
 
-  // Step C: spec profile via spec_profile_pm_subcategory_map
-  const { data: specMapRows, error: specMapErr } = await labSupabase
-    .from("spec_profile_pm_subcategory_map")
-    .select("spec_profile_id")
-    .eq("subcategory_id", groupId)
-    .eq("is_active", true)
-    .limit(1);
-
+  // Step C: spec profile via RPC
+  const { data: specProfileId, error: specMapErr } = await labSupabase.rpc(
+    "fn_get_active_spec_profile_id_for_pm_subcategory",
+    {
+      p_subcategory_id: Number(groupId),
+      p_as_of_date: new Date().toISOString().slice(0, 10),
+    },
+  );
   if (specMapErr) {
     showBanner(
       pmBanner,
@@ -1499,8 +1496,6 @@ async function pmLoadGroupContext(groupId) {
     );
     return;
   }
-
-  const specProfileId = specMapRows?.[0]?.spec_profile_id ?? null;
 
   // Step D: spec profile details
   let specProfile = null;
