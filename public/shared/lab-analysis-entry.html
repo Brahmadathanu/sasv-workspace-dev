@@ -1268,18 +1268,16 @@
               <div class="field-msg" id="stockItemMsg" role="alert"></div>
             </div>
             <div class="form-group">
-              <label for="systemLotNo"
-                >System Lot No
-                <span class="req" aria-hidden="true">*</span></label
-              >
+              <label for="systemLotNo">System Lot No</label>
               <input
                 type="text"
                 id="systemLotNo"
                 class="form-control"
-                placeholder="e.g. LOT-2024-001"
+                placeholder="Auto-generated after saving"
                 autocomplete="off"
                 spellcheck="false"
-                aria-required="true"
+                aria-required="false"
+                readonly
               />
               <div class="field-msg" id="lotMsg" role="alert"></div>
             </div>
@@ -1463,8 +1461,8 @@
                     <thead>
                       <tr>
                         <th class="pt-seq">#</th>
-                        <th>Test ID</th>
-                        <th>Method ID</th>
+                        <th>Test Name</th>
+                        <th>Method Name</th>
                         <th>Display Text</th>
                       </tr>
                     </thead>

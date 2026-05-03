@@ -20,11 +20,71 @@ import { Platform } from "./platform.js";
 const MODULE_ID = "analysis-workspace";
 const DEBOUNCE_MS = 300;
 
-/** Dropdown choices for PASS_FAIL result kind */
-const PASS_FAIL_CHOICES = ["Absent", "Present", "Complies", "Does Not Comply"];
+// ── Result-choice helpers ──────────────────────────────────────────────────────
 
-/** Base dropdown choices for TEXT result kind (text_value_snapshot prepended if present) */
-const TEXT_BASE_CHOICES = ["Characteristic", "Complies", "Does Not Comply"];
+function normText(value) {
+  return String(value ?? "").trim();
+}
+
+function pushUnique(list, value) {
+  const v = normText(value);
+  if (!v) return;
+  const exists = list.some((x) => x.toLowerCase() === v.toLowerCase());
+  if (!exists) list.push(v);
+}
+
+function getExpectedText(row) {
+  return (
+    normText(row.text_value_snapshot) || normText(row.spec_display_snapshot)
+  );
+}
+
+/**
+ * Build the ordered choice list for a dropdown result input.
+ * Uses result_kind_snapshot (and spec_type_snapshot for future use) to
+ * determine which standard options to include, always deduplicating.
+ * @param {object} row  A v_analysis_result_entry row
+ * @returns {string[]}  Ordered unique choice labels
+ */
+function buildChoiceList(row) {
+  const kind = String(row.result_kind_snapshot || "").toUpperCase();
+  // spec_type informs preferred input mode (numeric vs text); retained here
+  // for future per-specType option customisation (see requirement §5).
+  const specType = String(row.spec_type_snapshot || "").toUpperCase(); // eslint-disable-line no-unused-vars
+  const current = normText(row.result_text);
+  const expected = getExpectedText(row);
+  const choices = [];
+
+  pushUnique(choices, expected);
+
+  if (kind === "PASS_FAIL") {
+    [
+      "Absent",
+      "Present",
+      "Pass",
+      "Fail",
+      "Complies",
+      "Does Not Comply",
+    ].forEach((v) => pushUnique(choices, v));
+  } else if (kind === "BOOLEAN") {
+    ["Yes", "No", "Pass", "Fail", "Complies", "Does Not Comply"].forEach((v) =>
+      pushUnique(choices, v),
+    );
+  } else {
+    // TEXT and everything else
+    [
+      "Complies",
+      "Does Not Comply",
+      "Characteristic",
+      "Other / Manual Entry",
+    ].forEach((v) => pushUnique(choices, v));
+  }
+
+  // Ensure any previously-saved value that isn't in the generated list is still selectable
+  pushUnique(choices, current);
+
+  return choices;
+}
 
 /** Workflow action codes that map to DB function parameter values */
 const ACTION_CODES = {
@@ -316,23 +376,13 @@ function buildResultRow(row) {
         aria-label="Numeric result for ${esc(row.test_name)}"
       />`;
   } else {
-    // TEXT or PASS_FAIL — kind-specific choices
-    const currentText = row.result_text ?? "";
-    let choices;
-    if (kind === "PASS_FAIL") {
-      choices = PASS_FAIL_CHOICES;
-    } else {
-      // TEXT — prepend text_value_snapshot if it's present and not already in the base list
-      const snap = row.text_value_snapshot;
-      choices =
-        snap && !TEXT_BASE_CHOICES.includes(snap)
-          ? [snap, ...TEXT_BASE_CHOICES]
-          : [...TEXT_BASE_CHOICES];
-    }
+    // TEXT, PASS_FAIL, BOOLEAN — choices driven by row snapshots via buildChoiceList
+    const currentText = normText(row.result_text);
+    const choices = buildChoiceList(row);
     const options = choices
       .map(
         (c) =>
-          `<option value="${esc(c)}" ${currentText === c ? "selected" : ""}>${esc(c)}</option>`,
+          `<option value="${esc(c)}" ${currentText.toLowerCase() === c.toLowerCase() && currentText !== "" ? "selected" : ""}>${esc(c)}</option>`,
       )
       .join("");
     inputCell = `
@@ -1098,6 +1148,26 @@ function wireEvents() {
     const rid = el.dataset.rid;
     const kind = el.dataset.kind;
     if (!rid || !kind) return;
+
+    // Handle "Other / Manual Entry" — prompt user and inject a custom option
+    if (el.tagName === "SELECT" && el.value === "Other / Manual Entry") {
+      const custom = (window.prompt("Enter result value") ?? "").trim();
+      if (!custom) {
+        // User cancelled or left blank — revert selection
+        el.value = "";
+        return;
+      }
+      // Insert the custom value as an option just before "Other / Manual Entry"
+      const otherOpt = el.querySelector('option[value="Other / Manual Entry"]');
+      const newOpt = document.createElement("option");
+      newOpt.value = custom;
+      newOpt.textContent = custom;
+      el.insertBefore(newOpt, otherOpt);
+      el.value = custom;
+      onResultChange(rid, "TEXT", custom);
+      return;
+    }
+
     onResultChange(rid, kind, el.value);
   });
 

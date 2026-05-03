@@ -24,15 +24,26 @@
  *                                        is_active }  (RM readiness)
  *
  * labSupabase RPC  (schema: lab)
+ *   fn_get_active_protocol_category_id_for_pm_subcategory(
+ *     p_subcategory_id             -- integer
+ *   )
+ *   Returns: protocol_category_id (bigint) or null
+ *
+ *   fn_get_active_spec_profile_id_for_pm_subcategory(
+ *     p_subcategory_id,            -- integer
+ *     p_as_of_date                 -- date  (ISO string YYYY-MM-DD)
+ *   )
+ *   Returns: spec_profile_id (bigint) or null
+ *
  *   fn_build_effective_rm_spec_for_item(
- *     p_stock_item_id,             -- uuid
+ *     p_stock_item_id,             -- bigint
  *     p_as_of_date,                -- date  (ISO string YYYY-MM-DD)
  *     p_remarks                    -- text
  *   )
  *   Returns: scalar spec_profile_id (bigint)
  *
  *   fn_build_effective_pm_spec_for_item(
- *     p_stock_item_id,             -- uuid
+ *     p_stock_item_id,             -- bigint
  *     p_as_of_date,                -- date  (ISO string YYYY-MM-DD)
  *     p_remarks                    -- text
  *   )
@@ -170,6 +181,17 @@ let rmReadiness = {
   specOk: false,
   invGroupId: null,
   invGroupLabel: null,
+  protocolCategoryId: null,
+  protocolName: null,
+};
+
+// PM readiness: resolved at packing-material subcategory level
+let pmReadiness = {
+  ok: false,
+  protocolOk: false,
+  specOk: false,
+  subcategoryId: null,
+  subcategoryLabel: null,
   protocolCategoryId: null,
   protocolName: null,
 };
@@ -393,9 +415,6 @@ function wireEvents() {
   });
 
   // Blur-validate required fields
-  systemLotNo.addEventListener("blur", () =>
-    validateField(systemLotNo, lotMsg, "System Lot No is required"),
-  );
   sampleDate.addEventListener("blur", () =>
     validateField(sampleDate, dateMsg, "Sample Received Date is required"),
   );
@@ -501,6 +520,10 @@ function handleSampleTypeChange(type) {
   } else {
     rmFields.classList.remove("hidden");
     fgFields.classList.add("hidden");
+    // System Lot No is backend-generated for RM/PM
+    systemLotNo.value = "";
+    systemLotNo.readOnly = true;
+    systemLotNo.placeholder = "Auto-generated after saving";
     // Update label and populate dropdown for chosen type
     const isPM = type === "PM_LOT";
     const stockItemLabel = document.querySelector(
@@ -566,6 +589,8 @@ async function checkReadiness() {
 
   if (currentSampleType === "FG_BATCH") {
     await checkFgReadiness(selectedId);
+  } else if (currentSampleType === "PM_LOT") {
+    await checkPmReadiness(selectedId);
   } else {
     await checkInventoryReadiness(selectedId);
   }
@@ -712,13 +737,9 @@ function showFgNotReady(labelMsg, subMsg) {
 }
 
 // ── RM readiness check (inventory-group level) ────────────────────────────────
-// Validates: stock item → inventory group → active protocol → active base spec
+// Validates: stock item → inventory group → active RM protocol → active RM base spec
+// PM_LOT is handled separately by checkPmReadiness(); never call this for PM.
 async function checkInventoryReadiness(stockItemId) {
-  // PM uses subcategory-level resolution — delegate entirely
-  if (currentSampleType === "PM_LOT") {
-    return checkPmReadiness(stockItemId);
-  }
-
   rmReadiness = {
     ok: false,
     protocolOk: false,
@@ -829,19 +850,21 @@ async function checkInventoryReadiness(stockItemId) {
   }
 }
 
+// ── PM readiness check (packing-material subcategory level) ──────────────────
+// Validates: stock item → subcategory → active PM protocol (RPC) → active PM base spec (RPC)
 async function checkPmReadiness(stockItemId) {
-  rmReadiness = {
+  pmReadiness = {
     ok: false,
     protocolOk: false,
     specOk: false,
-    invGroupId: null,
-    invGroupLabel: null,
+    subcategoryId: null,
+    subcategoryLabel: null,
     protocolCategoryId: null,
     protocolName: null,
   };
 
   try {
-    // Step 1: resolve packing material subcategory
+    // Step 1: resolve packing material subcategory from v_rm_pm_item_with_group
     const { data: subcatData, error: subcatErr } = await labSupabase
       .from("v_rm_pm_item_with_group")
       .select("subcategory_id, subcategory_label")
@@ -855,11 +878,14 @@ async function checkPmReadiness(stockItemId) {
     const subcat = subcatData?.[0];
     if (!subcat?.subcategory_id) {
       showInventoryNotReady(
-        "No packing material subcategory is mapped for the selected stock item.",
+        "No packing material subcategory is mapped for the selected packing material.",
         "A subcategory mapping is required before a PM analysis can be started.",
       );
       return;
     }
+
+    pmReadiness.subcategoryId = subcat.subcategory_id;
+    pmReadiness.subcategoryLabel = subcat.subcategory_label;
 
     // Step 2: resolve active PM protocol via RPC
     const { data: protocolCategoryId, error: mapErr } = await labSupabase.rpc(
@@ -877,6 +903,7 @@ async function checkPmReadiness(stockItemId) {
       return;
     }
 
+    // Step 3: fetch protocol category details
     const { data: catRows, error: catErr } = await labSupabase
       .from("protocol_category")
       .select("id, category_name, category_code")
@@ -885,11 +912,11 @@ async function checkPmReadiness(stockItemId) {
     if (catErr) throw catErr;
 
     const cat = catRows?.[0];
-    rmReadiness.protocolOk = true;
-    rmReadiness.protocolCategoryId = protocolCategoryId;
-    rmReadiness.protocolName = cat?.category_name ?? null;
+    pmReadiness.protocolOk = true;
+    pmReadiness.protocolCategoryId = protocolCategoryId;
+    pmReadiness.protocolName = cat?.category_name ?? null;
 
-    // Step 3: resolve active PM base spec via RPC
+    // Step 4: resolve active PM base spec via RPC
     const { data: specProfileId, error: smErr } = await labSupabase.rpc(
       "fn_get_active_spec_profile_id_for_pm_subcategory",
       {
@@ -908,10 +935,8 @@ async function checkPmReadiness(stockItemId) {
     }
 
     // All checks passed
-    rmReadiness.specOk = true;
-    rmReadiness.ok = true;
-    rmReadiness.invGroupId = subcat.subcategory_id;
-    rmReadiness.invGroupLabel = subcat.subcategory_label;
+    pmReadiness.specOk = true;
+    pmReadiness.ok = true;
 
     const foundLabel = readinessOk.querySelector(".mapping-found-label");
     if (foundLabel) foundLabel.textContent = "PM readiness check passed";
@@ -934,8 +959,8 @@ async function checkPmReadiness(stockItemId) {
     console.error("[lab-analysis-entry] checkPmReadiness error:", err);
     mappingLoading.classList.add("hidden");
     showInventoryNotReady(
-      "PM readiness check has not passed. A protocol and base spec are required at packing-material subcategory level.",
-      err.message,
+      "PM readiness check failed: " + err.message,
+      "A protocol and base spec are required at packing-material subcategory level.",
     );
     toast("PM readiness check failed: " + err.message, "error");
   }
@@ -965,6 +990,15 @@ function clearMappingState() {
     specOk: false,
     invGroupId: null,
     invGroupLabel: null,
+    protocolCategoryId: null,
+    protocolName: null,
+  };
+  pmReadiness = {
+    ok: false,
+    protocolOk: false,
+    specOk: false,
+    subcategoryId: null,
+    subcategoryLabel: null,
     protocolCategoryId: null,
     protocolName: null,
   };
@@ -1197,10 +1231,6 @@ function validateForm() {
       setFieldError(stockItemSelect, stockItemMsg, `${itemLabel} is required`);
       errors.push(`${itemLabel} is required`);
     }
-    if (!systemLotNo.value.trim()) {
-      setFieldError(systemLotNo, lotMsg, "System Lot No is required");
-      errors.push("System Lot No is required");
-    }
   }
 
   if (!sampleDate.value) {
@@ -1233,14 +1263,18 @@ function validateForm() {
         "FG readiness check has not passed. A protocol and base spec are required at product-group level.",
       );
     }
-  } else if (
-    (currentSampleType === "RM_LOT" || currentSampleType === "PM_LOT") &&
-    !rmReadiness.ok
-  ) {
-    const typePrefix = currentSampleType === "PM_LOT" ? "PM" : "RM";
-    errors.push(
-      `${typePrefix} readiness check has not passed. A protocol and base spec are required at inventory-group level.`,
-    );
+  } else if (currentSampleType === "PM_LOT") {
+    if (!pmReadiness.ok) {
+      errors.push(
+        "PM readiness check has not passed. A protocol and base spec are required at packing-material subcategory level.",
+      );
+    }
+  } else if (currentSampleType === "RM_LOT") {
+    if (!rmReadiness.ok) {
+      errors.push(
+        "RM readiness check has not passed. A protocol and base spec are required at inventory-group level.",
+      );
+    }
   }
 
   return { valid: errors.length === 0, errors };
@@ -1287,14 +1321,19 @@ function clearAllFieldErrors() {
 // ── Update Start button state ─────────────────────────────────────────────────
 function updateStartButton() {
   const isFG = currentSampleType === "FG_BATCH";
-  const mappingReady = isFG ? fgReadiness.ok : rmReadiness.ok;
+  const isPM = currentSampleType === "PM_LOT";
+  const mappingReady = isFG
+    ? fgReadiness.ok
+    : isPM
+      ? pmReadiness.ok
+      : rmReadiness.ok;
 
   const canStart = !!(
     currentSampleType &&
     mappingReady &&
     (isFG
       ? productSelect.value && batchNoSelect.value
-      : stockItemSelect.value && systemLotNo.value.trim()) &&
+      : stockItemSelect.value) &&
     sampleDate.value &&
     physRegRef.value.trim() &&
     analysedBy.value &&
@@ -1372,11 +1411,18 @@ async function startAnalysis() {
 
   // Revalidate readiness before submitting
   const isFGSubmit = currentSampleType === "FG_BATCH";
-  const readinessOk = isFGSubmit ? fgReadiness.ok : rmReadiness.ok;
-  if (!readinessOk) {
+  const isPMSubmit = currentSampleType === "PM_LOT";
+  const readinessOkFlag = isFGSubmit
+    ? fgReadiness.ok
+    : isPMSubmit
+      ? pmReadiness.ok
+      : rmReadiness.ok;
+  if (!readinessOkFlag) {
     const msg = isFGSubmit
       ? "FG readiness not validated. Please recheck product-group protocol and base spec."
-      : "Protocol mapping not validated. Please recheck.";
+      : isPMSubmit
+        ? "PM readiness not validated. Please recheck packing-material subcategory protocol and base spec."
+        : "RM readiness not validated. Please recheck inventory-group protocol and base spec.";
     startError.textContent = msg;
     startError.classList.remove("hidden");
     toast(msg, "warn");
@@ -1431,7 +1477,7 @@ function buildRpcParams() {
     p_product_id: isFG ? productSelect.value || null : null,
     p_batch_no_snapshot: isFG ? batchNoSelect.value || null : null,
     p_stock_item_id: !isFG ? stockItemSelect.value || null : null,
-    p_system_lot_no: !isFG ? systemLotNo.value.trim() || null : null,
+    p_system_lot_no: null,
     p_sample_received_date: sampleDate.value || null,
     p_physical_register_ref: physRegRef.value.trim() || null,
     p_analysed_by_staff_id: analysedBy.value || null,
@@ -1455,11 +1501,6 @@ function showCreatedState(result) {
     currentSampleType === "FG_BATCH"
       ? selectedOptionText(productSelect)
       : selectedOptionText(stockItemSelect);
-  const refNo =
-    currentSampleType === "FG_BATCH"
-      ? batchNoSelect.value
-      : systemLotNo.value.trim();
-
   // Build detail cards
   successDetails.innerHTML = `
     <div class="sd-card">
@@ -1475,16 +1516,31 @@ function showCreatedState(result) {
       <div class="sd-value">${esc(typeLabel)}</div>
     </div>
     <div class="sd-card">
-      <div class="sd-label">Item / Ref No</div>
-      <div class="sd-value">${esc(itemLabel)} &mdash; ${esc(refNo)}</div>
+      <div class="sd-label">${currentSampleType === "FG_BATCH" ? "Item / Ref No" : "Item"}</div>
+      <div class="sd-value">${currentSampleType === "FG_BATCH" ? `${esc(itemLabel)} &mdash; ${esc(batchNoSelect.value)}` : esc(itemLabel)}</div>
     </div>
+    ${
+      currentSampleType !== "FG_BATCH"
+        ? `
+    <div class="sd-card">
+      <div class="sd-label">Lot No</div>
+      <div class="sd-value" style="font-style:italic;color:var(--color-text-muted,#666);">Auto-generated</div>
+    </div>`
+        : ""
+    }
     <div class="sd-card">
       <div class="sd-label">Status</div>
       <div class="sd-value">${esc(formatStatus(status))}</div>
     </div>
     <div class="sd-card">
       <div class="sd-label">Protocol Category</div>
-      <div class="sd-value">${esc(currentSampleType === "FG_BATCH" ? (fgReadiness.protocolName ?? "—") : (rmReadiness.protocolName ?? "—"))}</div>
+      <div class="sd-value">${esc(
+        currentSampleType === "FG_BATCH"
+          ? (fgReadiness.protocolName ?? "—")
+          : currentSampleType === "PM_LOT"
+            ? (pmReadiness.protocolName ?? "—")
+            : (rmReadiness.protocolName ?? "—"),
+      )}</div>
     </div>
     ${
       currentSampleType === "FG_BATCH" && fgReadiness.productGroupName
@@ -1496,8 +1552,16 @@ function showCreatedState(result) {
         : ""
     }
     ${
-      (currentSampleType === "RM_LOT" || currentSampleType === "PM_LOT") &&
-      rmReadiness.invGroupLabel
+      currentSampleType === "PM_LOT" && pmReadiness.subcategoryLabel
+        ? `
+    <div class="sd-card">
+      <div class="sd-label">Packing Material Subcategory</div>
+      <div class="sd-value">${esc(pmReadiness.subcategoryLabel)}</div>
+    </div>`
+        : ""
+    }
+    ${
+      currentSampleType === "RM_LOT" && rmReadiness.invGroupLabel
         ? `
     <div class="sd-card">
       <div class="sd-label">Inventory Group</div>

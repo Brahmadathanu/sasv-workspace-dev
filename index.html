@@ -285,6 +285,427 @@
         padding: 24px 28px 40px;
       }
 
+      #workspace-activity-band {
+        max-width: 1320px;
+        margin: 0 auto;
+        padding: 14px 28px 0;
+      }
+
+      #workspace-activity-band {
+        font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      }
+
+      .workspace-stat {
+        background: transparent;
+        border: none;
+        border-radius: 0;
+        padding: 2px 18px 2px 0;
+        box-shadow: none;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-height: 0;
+        min-width: 0;
+      }
+
+      .workspace-stat + .workspace-stat {
+        margin-left: 18px;
+        padding-left: 18px;
+        border-left: 1px solid rgba(15, 23, 42, 0.08);
+      }
+
+      .workspace-stat-label {
+        font-size: 0.66rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #6b7b8c;
+      }
+
+      .workspace-stat-value {
+        font-size: 1rem;
+        font-weight: 800;
+        line-height: 1.1;
+        color: var(--sasv-text);
+      }
+
+      .workspace-stat-note {
+        font-size: 0.72rem;
+        color: var(--sasv-muted);
+        line-height: 1.25;
+      }
+
+      #workspace-quick-access {
+        position: relative;
+        overflow: hidden;
+        background: #e6f0f7;
+        border: 1px solid rgba(73, 114, 146, 0.3);
+        border-radius: 14px;
+        box-shadow:
+          0 8px 18px rgba(15, 23, 42, 0.08),
+          inset 0 1px 0 rgba(255, 255, 255, 0.55);
+        padding: 12px;
+      }
+
+      #workspace-quick-access::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #2f6f98, #5a8fb4);
+      }
+
+      .workspace-band-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 10px;
+        padding: 2px 2px 10px;
+        border-bottom: 1px solid rgba(73, 114, 146, 0.22);
+      }
+
+      .workspace-band-title {
+        margin: 0;
+        font-size: 0.9rem;
+        font-weight: 800;
+        color: #153e5b;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      .workspace-band-note {
+        margin: 3px 0 0;
+        font-size: 0.74rem;
+        color: #4d6579;
+      }
+
+      .workspace-band-meta {
+        font-size: 0.67rem;
+        font-weight: 600;
+        color: #325874;
+        background: rgba(255, 255, 255, 0.72);
+        border: 1px solid rgba(73, 114, 146, 0.24);
+        border-radius: 999px;
+        padding: 3px 8px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .workspace-suggestion {
+        display: none;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin: 0 0 10px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.78);
+        border: 1px dashed rgba(49, 96, 127, 0.28);
+      }
+
+      .workspace-suggestion.show {
+        display: flex;
+      }
+
+      .workspace-suggestion-copy {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .workspace-suggestion-label {
+        font-size: 0.69rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: #0f5d85;
+      }
+
+      .workspace-suggestion-text {
+        font-size: 0.77rem;
+        color: var(--sasv-text-soft);
+        line-height: 1.25;
+      }
+
+      .workspace-suggestion-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+      }
+
+      .workspace-suggestion-btn {
+        min-height: 30px;
+        padding: 0 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(0, 90, 141, 0.18);
+        background: rgba(255, 255, 255, 0.88);
+        color: #0f5d85;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+
+      .workspace-suggestion-btn:hover {
+        background: rgba(0, 90, 141, 0.08);
+      }
+
+      .workspace-suggestion-btn.subtle {
+        border-color: rgba(15, 23, 42, 0.08);
+        color: #697b8d;
+      }
+
+      #workspace-quick-links {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 8px;
+      }
+
+      .workspace-shortcut-wrap {
+        display: block;
+        position: relative;
+        min-width: 0;
+      }
+
+      .workspace-shortcut {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        position: relative;
+        overflow: hidden;
+        min-height: 48px;
+        padding: 9px 40px 9px 11px;
+        border-radius: 10px;
+        border: 1px solid var(--identity-border, rgba(15, 23, 42, 0.1));
+        background: rgba(255, 255, 255, 0.92);
+        text-decoration: none;
+        color: var(--sasv-text-soft);
+        box-shadow: 0 1px 5px rgba(15, 23, 42, 0.05);
+        transition:
+          transform 0.12s ease,
+          box-shadow 0.14s ease,
+          background 0.14s ease,
+          border-color 0.14s ease,
+          color 0.14s ease;
+        flex: 1;
+        min-width: 0;
+      }
+
+      .workspace-shortcut::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background: var(--identity-color, var(--sasv-primary));
+        opacity: 0.7;
+      }
+
+      .workspace-shortcut:hover {
+        transform: translateY(-1px);
+        background: #ffffff;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.1);
+        border-color: var(--identity-hover-border, rgba(0, 90, 141, 0.32));
+        color: var(--identity-color, var(--sasv-primary));
+        text-decoration: none;
+      }
+
+      .workspace-shortcut:focus-visible {
+        outline: 3px solid rgba(0, 90, 141, 0.18);
+        outline-offset: 2px;
+      }
+
+      .workspace-shortcut-initial {
+        flex-shrink: 0;
+        width: 28px;
+        height: 28px;
+        border-radius: 9px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 800;
+        background: var(--identity-bg, rgba(0, 90, 141, 0.12));
+        color: var(--identity-color, var(--sasv-primary));
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.45);
+      }
+
+      .workspace-shortcut-copy {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        max-width: 220px;
+      }
+
+      .workspace-shortcut-title {
+        font-size: 0.81rem;
+        font-weight: 700;
+        color: inherit;
+        line-height: 1.15;
+      }
+
+      .workspace-shortcut-meta {
+        font-size: 0.68rem;
+        color: #5f7283;
+        line-height: 1.2;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+
+      .workspace-shortcut-pin {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        border-radius: 999px;
+        border: 1px solid rgba(49, 96, 127, 0.2);
+        background: rgba(255, 255, 255, 0.82);
+        color: #56728a;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transform: translateY(-50%);
+        z-index: 2;
+        transition:
+          border-color 0.14s ease,
+          background 0.14s ease,
+          color 0.14s ease,
+          box-shadow 0.14s ease,
+          transform 0.12s ease;
+      }
+
+      .workspace-shortcut-pin svg {
+        width: 12px;
+        height: 12px;
+        stroke-width: 2;
+        fill: currentColor;
+      }
+
+      .workspace-shortcut-pin:hover {
+        border-color: rgba(0, 90, 141, 0.3);
+        background: rgba(0, 90, 141, 0.1);
+        color: #0f5d85;
+        transform: translateY(calc(-50% - 1px));
+      }
+
+      .workspace-shortcut-pin[aria-pressed="true"] {
+        border-color: rgba(0, 90, 141, 0.3);
+        background: rgba(0, 90, 141, 0.1);
+        color: #0f5d85;
+      }
+
+      .workspace-shortcut-pin:focus-visible {
+        outline: 3px solid rgba(0, 90, 141, 0.18);
+        outline-offset: 1px;
+      }
+
+      .workspace-quick-empty {
+        border: 1px dashed rgba(49, 96, 127, 0.28);
+        background: rgba(255, 255, 255, 0.62);
+        border-radius: 10px;
+        padding: 10px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+
+      .workspace-quick-empty-title {
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: #1d4663;
+      }
+
+      .workspace-quick-empty-value {
+        font-size: 0.95rem;
+        font-weight: 800;
+        color: #173d59;
+      }
+
+      .workspace-quick-empty-note {
+        font-size: 0.74rem;
+        color: #5d7385;
+      }
+
+      .cmd-result-main {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+        flex: 1;
+      }
+
+      .cmd-result-copy {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .cmd-result-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        line-height: 1.2;
+        color: inherit;
+      }
+
+      .cmd-result-meta {
+        font-size: 0.71rem;
+        color: #7b8ea0;
+        line-height: 1.2;
+      }
+
+      .cmd-result-pin {
+        min-height: 28px;
+        width: 28px;
+        padding: 0;
+        border-radius: 999px;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        background: rgba(255, 255, 255, 0.9);
+        color: #60788c;
+        cursor: pointer;
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .cmd-result-pin svg {
+        width: 13px;
+        height: 13px;
+        stroke-width: 2;
+        fill: transparent;
+      }
+
+      .cmd-result-pin:hover {
+        border-color: rgba(0, 90, 141, 0.22);
+        background: rgba(0, 90, 141, 0.06);
+        color: var(--sasv-primary);
+      }
+
+      .cmd-result-pin[aria-pressed="true"] {
+        border-color: rgba(0, 90, 141, 0.28);
+        background: rgba(0, 90, 141, 0.08);
+        color: var(--sasv-primary);
+      }
+
+      .cmd-result-pin[aria-pressed="true"] svg {
+        fill: currentColor;
+      }
+
       .section-hint {
         margin: 0 0 14px;
         font-size: 0.82rem;
@@ -572,79 +993,98 @@
       #workspace-sections .module-list {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-        gap: 12px;
+        gap: 10px;
         margin-top: 12px;
       }
       #workspace-sections .module-link {
         display: none; /* JS sets to flex when permitted */
         align-items: center;
-        gap: 12px;
-        min-height: 62px;
-        padding: 13px 15px;
-        background: var(--sasv-surface);
-        border: 1px solid var(--sasv-border);
-        border-radius: 14px;
+        gap: 11px;
+        position: relative;
+        overflow: hidden;
+        min-height: 58px;
+        padding: 11px 13px;
+        background: #ffffff;
+        border: 1px solid rgba(15, 23, 42, 0.11);
+        border-radius: 10px;
         color: var(--sasv-text-soft);
         text-decoration: none;
-        font-size: 0.88rem;
-        font-weight: 600;
-        line-height: 1.35;
+        font-size: 0.84rem;
+        font-weight: 700;
+        letter-spacing: 0.008em;
+        line-height: 1.25;
         transition:
           background 0.14s ease,
           border-color 0.14s ease,
           box-shadow 0.14s ease,
           transform 0.1s ease,
           color 0.14s ease;
-        box-shadow: var(--sasv-shadow-sm);
+        box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
         white-space: normal;
         will-change: transform, box-shadow;
       }
+
+      #workspace-sections .module-link::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 4px;
+        background: var(--identity-color, var(--sasv-primary));
+        opacity: 0.34;
+      }
+
       #workspace-sections .module-link:not(.locked-module)::after {
         content: "›";
         font-size: 18px;
-        font-weight: 700;
+        font-weight: 800;
         color: var(--identity-color, var(--sasv-primary));
         margin-left: auto;
-        opacity: 0;
-        transform: translateX(-4px);
+        opacity: 0.55;
+        transform: translateX(-1px);
         transition:
           opacity 0.14s ease,
           transform 0.14s ease;
       }
       #workspace-sections .module-link:hover {
-        background: var(--sasv-surface);
-        border-color: var(--identity-hover-border, rgba(0, 90, 141, 0.38));
-        box-shadow: var(--sasv-shadow-md);
+        background: #f8fbfe;
+        border-color: var(--identity-hover-border, rgba(0, 90, 141, 0.4));
+        box-shadow: 0 6px 16px rgba(15, 23, 42, 0.09);
         transform: translateY(-1px);
-        color: var(--sasv-primary);
+        color: #113e5f;
         text-decoration: none;
       }
       #workspace-sections .module-link:not(.locked-module):hover::after {
-        opacity: 0.55;
-        transform: translateX(0);
+        opacity: 1;
+        transform: translateX(1px);
       }
       #workspace-sections .module-link:focus-visible {
-        outline: 3px solid rgba(0, 90, 141, 0.14);
-        outline-offset: 3px;
+        outline: 3px solid rgba(0, 90, 141, 0.18);
+        outline-offset: 2px;
+        border-color: rgba(0, 90, 141, 0.32);
       }
       #workspace-sections .module-link:active {
         transform: translateY(0);
-        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+        background: #f1f7fc;
       }
       .ml-initial {
         flex-shrink: 0;
         width: 34px;
         height: 34px;
-        border-radius: 11px;
+        border-radius: 9px;
         background: var(--identity-bg, rgba(66, 101, 122, 0.11));
         color: var(--identity-color, #42657a);
-        font-size: 13px;
-        font-weight: 700;
+        font-size: 11px;
+        font-weight: 800;
         display: flex;
         align-items: center;
         justify-content: center;
-        letter-spacing: 0;
-        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.45);
+        letter-spacing: 0.05em;
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.45),
+          inset 0 -8px 16px rgba(255, 255, 255, 0.16);
       }
       #workspace-sections .module-link:hover .ml-initial {
         background: var(--identity-color, var(--sasv-primary));
@@ -654,13 +1094,23 @@
         flex: 1;
         min-width: 0;
         word-break: break-word;
-        line-height: 1.35;
+        line-height: 1.2;
+        color: inherit;
+        display: -webkit-box;
+        line-clamp: 2;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
       }
       #workspace-sections .module-link.locked-module {
         border-color: rgba(148, 163, 184, 0.22);
         color: var(--sasv-muted);
         opacity: 1;
-        background: var(--sasv-surface-soft);
+        background: linear-gradient(
+          180deg,
+          rgba(248, 250, 252, 0.95),
+          rgba(241, 245, 249, 0.95)
+        );
         box-shadow: var(--sasv-shadow-sm);
       }
       #workspace-sections .module-link.locked-module .ml-initial {
@@ -693,7 +1143,13 @@
         color: #9ca3af;
         cursor: not-allowed;
         opacity: 1;
-        background: var(--sasv-surface-soft);
+        background: repeating-linear-gradient(
+          -35deg,
+          rgba(248, 250, 252, 0.86),
+          rgba(248, 250, 252, 0.86) 8px,
+          rgba(241, 245, 249, 0.86) 8px,
+          rgba(241, 245, 249, 0.86) 16px
+        );
         box-shadow: var(--sasv-shadow-sm);
       }
       #workspace-sections
@@ -811,16 +1267,19 @@
         --identity-hover-border: rgba(186, 230, 253, 0.3);
       }
       [data-theme="dark"] #workspace-sections .module-link {
-        background: rgba(255, 255, 255, 0.045);
-        border-color: rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.04);
+        border-color: rgba(255, 255, 255, 0.1);
         color: #e5e7eb;
-        box-shadow: var(--sasv-shadow-sm);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.26);
       }
       [data-theme="dark"] #workspace-sections .module-link:hover {
-        background: rgba(255, 255, 255, 0.075);
+        background: rgba(255, 255, 255, 0.1);
         border-color: var(--identity-hover-border, rgba(125, 211, 252, 0.28));
-        color: #93c5fd;
+        color: #b5ddff;
         box-shadow: var(--sasv-shadow-md);
+      }
+      [data-theme="dark"] #workspace-sections .module-link::before {
+        opacity: 0.5;
       }
       [data-theme="dark"] .ml-initial {
         background: var(--identity-bg, rgba(125, 211, 252, 0.12));
@@ -837,6 +1296,118 @@
       [data-theme="dark"] #workspace-sections .module-link:hover .ml-initial {
         background: var(--identity-color, #0ea5e9);
         color: #fff;
+      }
+      [data-theme="dark"] #workspace-sections .module-link:focus-visible {
+        outline-color: rgba(125, 211, 252, 0.35);
+        border-color: rgba(125, 211, 252, 0.38);
+      }
+      [data-theme="dark"]
+        #workspace-sections
+        .module-link[aria-disabled="true"]:not(.locked-module) {
+        background: repeating-linear-gradient(
+          -35deg,
+          rgba(51, 65, 85, 0.55),
+          rgba(51, 65, 85, 0.55) 8px,
+          rgba(30, 41, 59, 0.52) 8px,
+          rgba(30, 41, 59, 0.52) 16px
+        );
+      }
+      [data-theme="dark"] #workspace-activity-band {
+        color: #d9e4ee;
+      }
+      [data-theme="dark"] .workspace-stat + .workspace-stat {
+        border-left-color: rgba(255, 255, 255, 0.08);
+      }
+      [data-theme="dark"] .workspace-stat-label,
+      [data-theme="dark"] .workspace-band-meta {
+        color: #9fb0c2;
+      }
+      [data-theme="dark"] .workspace-stat-value,
+      [data-theme="dark"] .workspace-band-title {
+        color: var(--sasv-text);
+      }
+      [data-theme="dark"] .workspace-stat-note,
+      [data-theme="dark"] .workspace-band-note,
+      [data-theme="dark"] .workspace-shortcut-meta {
+        color: var(--sasv-muted);
+      }
+      [data-theme="dark"] #workspace-quick-access {
+        background: rgba(39, 57, 71, 0.9);
+        border-color: rgba(125, 211, 252, 0.3);
+      }
+      [data-theme="dark"] .workspace-suggestion {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(125, 211, 252, 0.24);
+      }
+      [data-theme="dark"] .workspace-suggestion-label {
+        color: #93c5fd;
+      }
+      [data-theme="dark"] .workspace-suggestion-btn {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(125, 211, 252, 0.16);
+        color: #93c5fd;
+      }
+      [data-theme="dark"] .workspace-suggestion-btn.subtle {
+        border-color: rgba(255, 255, 255, 0.08);
+        color: #cbd5e1;
+      }
+      [data-theme="dark"] .workspace-band-head {
+        border-bottom-color: rgba(125, 211, 252, 0.2);
+      }
+      [data-theme="dark"] .workspace-band-meta {
+        background: rgba(15, 23, 42, 0.35);
+        border-color: rgba(125, 211, 252, 0.24);
+      }
+      [data-theme="dark"] .workspace-shortcut {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: var(--identity-border, rgba(255, 255, 255, 0.14));
+        color: #e5e7eb;
+      }
+      [data-theme="dark"] .workspace-shortcut:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--identity-color, #93c5fd);
+      }
+      [data-theme="dark"] .workspace-shortcut-initial {
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+      }
+      [data-theme="dark"] .workspace-shortcut-pin {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: rgba(125, 211, 252, 0.18);
+        color: #9fc7e3;
+      }
+      [data-theme="dark"] .workspace-shortcut-pin:hover,
+      [data-theme="dark"] .workspace-shortcut-pin[aria-pressed="true"] {
+        background: rgba(125, 211, 252, 0.12);
+        border-color: rgba(125, 211, 252, 0.25);
+        color: #cde9ff;
+      }
+      [data-theme="dark"] .workspace-quick-empty {
+        border-color: rgba(125, 211, 252, 0.24);
+        background: rgba(255, 255, 255, 0.04);
+      }
+      [data-theme="dark"] .workspace-quick-empty-title,
+      [data-theme="dark"] .workspace-quick-empty-value {
+        color: #d6ebfb;
+      }
+      [data-theme="dark"] .workspace-quick-empty-note {
+        color: #9fb5c7;
+      }
+      [data-theme="dark"] .cmd-result-pin {
+        background: rgba(255, 255, 255, 0.04);
+        border-color: rgba(255, 255, 255, 0.08);
+        color: #cbd5e1;
+      }
+      [data-theme="dark"] .cmd-result-pin:hover,
+      [data-theme="dark"] .cmd-result-pin[aria-pressed="true"] {
+        background: rgba(125, 211, 252, 0.12);
+        border-color: rgba(125, 211, 252, 0.2);
+        color: #93c5fd;
+      }
+      [data-theme="dark"] .cmd-result-pin[aria-pressed="true"] svg {
+        fill: currentColor;
+      }
+      [data-theme="dark"] .cmd-result-meta {
+        color: #93a7bb;
       }
       [data-theme="dark"]
         #workspace-sections
@@ -870,8 +1441,44 @@
       }
 
       @media (max-width: 768px) {
+        #workspace-activity-band,
         main#workspace-sections {
           padding: 14px 14px 28px;
+        }
+
+        #workspace-sections .module-list {
+          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+          gap: 9px;
+        }
+
+        #workspace-sections .module-link {
+          min-height: 54px;
+          padding: 10px 12px;
+        }
+
+        .ml-initial {
+          width: 30px;
+          height: 30px;
+          font-size: 10px;
+        }
+
+        .workspace-stat {
+          width: calc(50% - 9px);
+          padding-right: 0;
+          margin-bottom: 8px;
+        }
+
+        .workspace-stat + .workspace-stat {
+          margin-left: 0;
+          padding-left: 0;
+          border-left: none;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        #workspace-sections .module-link,
+        #workspace-sections .module-link::after {
+          transition: none;
         }
       }
 
@@ -896,9 +1503,53 @@
         #user-zone {
           margin-left: auto;
         }
+
+        .workspace-band-head {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        .workspace-shortcut-copy {
+          max-width: 170px;
+        }
+
+        .workspace-suggestion {
+          flex-direction: column;
+          align-items: flex-start;
+        }
       }
 
       @media (max-width: 480px) {
+        .workspace-stat {
+          width: 100%;
+          margin-bottom: 6px;
+        }
+
+        .workspace-shortcut-wrap {
+          width: 100%;
+        }
+
+        .workspace-shortcut {
+          flex: 1;
+          min-width: 0;
+          padding-right: 34px;
+        }
+
+        .workspace-shortcut-pin {
+          width: 22px;
+          height: 22px;
+          right: 6px;
+        }
+
+        .workspace-shortcut-copy {
+          max-width: none;
+        }
+
+        .workspace-band-meta {
+          white-space: normal;
+          max-width: 100%;
+        }
+
         #brand-text {
           display: none;
         }
@@ -921,7 +1572,7 @@
       <!-- Brand: Logo + Name -->
       <div id="brand-zone">
         <img
-          src="public/shared/assets/ChatGPT Image Apr 26, 2026, 10_38_12 PM.png"
+          src="public/shared/assets/sasv_workspace_sw_transparent_512.png"
           alt="SASV Workspace"
           id="app-logo"
         />
@@ -979,6 +1630,27 @@
         </div>
       </div>
     </header>
+
+    <section
+      id="workspace-activity-band"
+      aria-label="Quick access workspace panel"
+    >
+      <section id="workspace-quick-access">
+        <div class="workspace-band-head">
+          <div>
+            <h2 class="workspace-band-title">Quick Access</h2>
+            <p class="workspace-band-note" id="workspace-band-note">
+              Modules you explicitly pin from Ctrl + K.
+            </p>
+          </div>
+          <div class="workspace-band-meta" id="workspace-band-meta">
+            Waiting for workspace modules...
+          </div>
+        </div>
+        <div class="workspace-suggestion" id="workspace-suggestion"></div>
+        <div id="workspace-quick-links"></div>
+      </section>
+    </section>
 
     <!-- Command Palette Overlay (Ctrl+K) -->
     <div
@@ -1177,6 +1849,36 @@
         const cmdResults = document.getElementById("cmd-results");
         let activeIdx = -1;
 
+        const getPinnedModulesSafe = () => {
+          if (typeof window.__getPinnedModules === "function") {
+            const list = window.__getPinnedModules();
+            return Array.isArray(list) ? list : [];
+          }
+          return [];
+        };
+
+        const normalizeModuleKeySafe = (value) => {
+          if (typeof window.__normalizeModuleKey === "function") {
+            return window.__normalizeModuleKey(value || "");
+          }
+          return String(value || "")
+            .trim()
+            .toLowerCase();
+        };
+
+        const togglePinnedModuleSafe = (value) => {
+          if (typeof window.__togglePinnedModule === "function") {
+            return window.__togglePinnedModule(value);
+          }
+          return false;
+        };
+
+        const refreshWorkspaceChromeSafe = () => {
+          if (typeof window.__refreshWorkspaceChrome === "function") {
+            window.__refreshWorkspaceChrome();
+          }
+        };
+
         function openPalette() {
           backdrop.classList.add("open");
           cmdInput.value = "";
@@ -1197,6 +1899,7 @@
                 (x) => !x.disabled && x.label.toLowerCase().includes(qLow),
               )
             : idx.filter((x) => !x.disabled).slice(0, 20);
+          const pinnedSet = new Set(getPinnedModulesSafe());
 
           cmdResults.innerHTML = "";
           activeIdx = -1;
@@ -1204,11 +1907,41 @@
             const div = document.createElement("div");
             div.className = "cmd-result-item";
             div.dataset.href = item.href;
-            div.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>${item.label}`;
+            const isPinned = pinnedSet.has(
+              normalizeModuleKeySafe(item.id || item.label),
+            );
+            const anchor = document.querySelector(
+              `#workspace-sections a.module-link[data-module-id="${CSS.escape(item.id || "")}"]`,
+            );
+            const sectionTitle =
+              anchor?.closest(".panel")?.querySelector("h2")?.textContent ||
+              "Workspace";
+            div.innerHTML = `<div class="cmd-result-main"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><div class="cmd-result-copy"><span class="cmd-result-title">${item.label}</span><span class="cmd-result-meta">${sectionTitle}</span></div></div><button type="button" class="cmd-result-pin" data-module-id="${item.id}" aria-pressed="${isPinned ? "true" : "false"}" title="${isPinned ? "Unpin from Quick Access" : "Pin to Quick Access"}" aria-label="${isPinned ? "Unpin from Quick Access" : "Pin to Quick Access"}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l3.2 4.8 5.6 1.5-3.6 4.6.3 6-5.5-2.2-5.5 2.2.3-6-3.6-4.6 5.6-1.5z"/></svg></button>`;
             div.addEventListener("mousedown", (e) => {
+              if (e.target.closest(".cmd-result-pin")) return;
               e.preventDefault();
               closePalette();
               window.location.href = item.href;
+            });
+            const pinButton = div.querySelector(".cmd-result-pin");
+            pinButton?.addEventListener("mousedown", (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            });
+            pinButton?.addEventListener("click", (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const nextState = togglePinnedModuleSafe(item.id || item.label);
+              pinButton.setAttribute(
+                "aria-pressed",
+                nextState ? "true" : "false",
+              );
+              const title = nextState
+                ? "Unpin from Quick Access"
+                : "Pin to Quick Access";
+              pinButton.setAttribute("title", title);
+              pinButton.setAttribute("aria-label", title);
+              refreshWorkspaceChromeSafe();
             });
             div.addEventListener("mouseenter", () => setActive(i));
             cmdResults.appendChild(div);
@@ -1297,6 +2030,285 @@
       }
 
       const workspaceRoot = document.getElementById("workspace-sections");
+      const quickLinksRoot = document.getElementById("workspace-quick-links");
+      const workspaceBandMeta = document.getElementById("workspace-band-meta");
+      const workspaceBandNote = document.getElementById("workspace-band-note");
+      const workspaceSuggestion = document.getElementById(
+        "workspace-suggestion",
+      );
+      let workspaceStorageScope = "guest";
+      let workspaceUserLabel = "your";
+
+      function buildWorkspaceStorageKey(suffix) {
+        return `sasv-workspace:${workspaceStorageScope}:${suffix}`;
+      }
+
+      function setWorkspaceUserScope(user) {
+        const rawScope =
+          normalizeModuleKey(user?.id || user?.email || "guest") || "guest";
+        workspaceStorageScope = rawScope;
+        workspaceUserLabel = user?.email || "your";
+      }
+
+      function readStoredModuleList(suffix) {
+        try {
+          const parsed = JSON.parse(
+            window.localStorage.getItem(buildWorkspaceStorageKey(suffix)) ||
+              "[]",
+          );
+          return Array.isArray(parsed)
+            ? parsed.filter(Boolean).map((value) => String(value))
+            : [];
+        } catch {
+          return [];
+        }
+      }
+
+      function readRecentModules() {
+        return readStoredModuleList("recent-modules");
+      }
+
+      function readPinnedModules() {
+        return readStoredModuleList("pinned-modules");
+      }
+
+      function readUsageStats() {
+        try {
+          return JSON.parse(
+            window.localStorage.getItem(
+              buildWorkspaceStorageKey("usage-stats"),
+            ) || "{}",
+          );
+        } catch {
+          return {};
+        }
+      }
+
+      function writeUsageStats(stats) {
+        try {
+          window.localStorage.setItem(
+            buildWorkspaceStorageKey("usage-stats"),
+            JSON.stringify(stats),
+          );
+        } catch {
+          // ignore storage failures
+        }
+      }
+
+      function readDismissedSuggestion() {
+        try {
+          return String(
+            window.localStorage.getItem(
+              buildWorkspaceStorageKey("dismissed-suggestion"),
+            ) || "",
+          );
+        } catch {
+          return "";
+        }
+      }
+
+      function writeDismissedSuggestion(moduleKey) {
+        try {
+          window.localStorage.setItem(
+            buildWorkspaceStorageKey("dismissed-suggestion"),
+            moduleKey || "",
+          );
+        } catch {
+          // ignore storage failures
+        }
+      }
+
+      function writeStoredModuleList(suffix, items, limit = 8) {
+        try {
+          window.localStorage.setItem(
+            buildWorkspaceStorageKey(suffix),
+            JSON.stringify(items.slice(0, limit)),
+          );
+        } catch {
+          // ignore storage failures
+        }
+      }
+
+      function writeRecentModules(items) {
+        writeStoredModuleList("recent-modules", items, 8);
+      }
+
+      function writePinnedModules(items) {
+        writeStoredModuleList("pinned-modules", items, 10);
+      }
+
+      function rememberRecentModule(moduleKey) {
+        const normalized = normalizeModuleKey(moduleKey || "");
+        if (!normalized) return;
+        const next = [
+          normalized,
+          ...readRecentModules().filter((item) => item !== normalized),
+        ];
+        writeRecentModules(next);
+      }
+
+      function trackModuleUsage(moduleKey) {
+        const normalized = normalizeModuleKey(moduleKey || "");
+        if (!normalized) return;
+        const stats = readUsageStats();
+        const current = stats[normalized] || { count: 0, lastUsedAt: 0 };
+        stats[normalized] = {
+          count: Number(current.count || 0) + 1,
+          lastUsedAt: Date.now(),
+        };
+        writeUsageStats(stats);
+      }
+
+      function togglePinnedModule(moduleKey) {
+        const normalized = normalizeModuleKey(moduleKey || "");
+        if (!normalized) return false;
+        const current = readPinnedModules();
+        if (current.includes(normalized)) {
+          writePinnedModules(current.filter((item) => item !== normalized));
+          return false;
+        }
+        writePinnedModules([
+          normalized,
+          ...current.filter((item) => item !== normalized),
+        ]);
+        return true;
+      }
+
+      // Bridge helpers for the non-module Ctrl+K script.
+      window.__getPinnedModules = readPinnedModules;
+      window.__togglePinnedModule = togglePinnedModule;
+      window.__normalizeModuleKey = normalizeModuleKey;
+
+      function getVisibleWorkspaceAnchors() {
+        return Array.from(
+          document.querySelectorAll("#workspace-sections a.module-link"),
+        ).filter((anchor) => anchor.style.display !== "none");
+      }
+
+      function syncWorkspacePanels() {
+        document
+          .querySelectorAll("#workspace-sections .panel")
+          .forEach((panel) => {
+            if (panel.dataset.statusPanel === "true") {
+              panel.style.display = "";
+              return;
+            }
+            const hasVisibleLinks = Array.from(
+              panel.querySelectorAll("a.module-link"),
+            ).some((anchor) => anchor.style.display !== "none");
+            panel.style.display = hasVisibleLinks ? "" : "none";
+          });
+      }
+
+      function getSuggestionCandidate(candidates) {
+        const pinnedKeys = new Set(readPinnedModules());
+        const dismissed = readDismissedSuggestion();
+        const stats = readUsageStats();
+        const scored = candidates
+          .map((anchor) => {
+            const moduleKey = normalizeModuleKey(anchor.dataset.moduleId || "");
+            const usage = stats[moduleKey] || { count: 0, lastUsedAt: 0 };
+            return {
+              anchor,
+              moduleKey,
+              score:
+                Number(usage.count || 0) * 10 +
+                Number(usage.lastUsedAt || 0) / 1_000_000_000_000,
+              count: Number(usage.count || 0),
+            };
+          })
+          .filter((item) => item.moduleKey && !pinnedKeys.has(item.moduleKey))
+          .filter((item) => item.moduleKey !== dismissed)
+          .sort((left, right) => right.score - left.score);
+        return scored.find((item) => item.count > 0) || null;
+      }
+
+      function renderWorkspaceSuggestion(candidates) {
+        if (!workspaceSuggestion) return;
+        const suggestion = getSuggestionCandidate(candidates);
+        if (!suggestion) {
+          workspaceSuggestion.classList.remove("show");
+          workspaceSuggestion.innerHTML = "";
+          return;
+        }
+        const label =
+          suggestion.anchor.dataset.moduleLabel ||
+          suggestion.anchor.querySelector(".ml-label")?.textContent ||
+          suggestion.moduleKey;
+        workspaceSuggestion.classList.add("show");
+        workspaceSuggestion.innerHTML = `<div class="workspace-suggestion-copy"><span class="workspace-suggestion-label">Suggested Shortcut</span><span class="workspace-suggestion-text">You use ${escapeHtml(label.trim())} often. Add it to Quick Access only if you want it there.</span></div><div class="workspace-suggestion-actions"><button type="button" class="workspace-suggestion-btn" data-action="add" data-module-id="${escapeHtml(suggestion.moduleKey)}">Add</button><button type="button" class="workspace-suggestion-btn subtle" data-action="dismiss" data-module-id="${escapeHtml(suggestion.moduleKey)}">Not Now</button></div>`;
+      }
+
+      function renderQuickAccess() {
+        if (!quickLinksRoot) return;
+        const candidates = getVisibleWorkspaceAnchors().filter((anchor) => {
+          const href =
+            anchor.dataset.href || anchor.getAttribute("href") || "#";
+          return (
+            anchor.getAttribute("aria-disabled") !== "true" && href !== "#"
+          );
+        });
+        const lookup = new Map(
+          candidates.map((anchor) => [
+            normalizeModuleKey(anchor.dataset.moduleId || ""),
+            anchor,
+          ]),
+        );
+        const pinnedKeys = readPinnedModules();
+        const pinnedItems = pinnedKeys
+          .map((moduleKey) => lookup.get(moduleKey))
+          .filter(Boolean);
+        const shortcuts = pinnedItems.slice(0, 8);
+
+        workspaceBandMeta.textContent = shortcuts.length
+          ? `${pinnedItems.length} pinned in your panel`
+          : "Pin modules from Ctrl + K to build this panel";
+
+        if (workspaceBandNote) {
+          workspaceBandNote.textContent = `Quick Access is personal to ${workspaceUserLabel} and only shows modules you pin.`;
+        }
+
+        renderWorkspaceSuggestion(candidates);
+
+        if (!shortcuts.length) {
+          quickLinksRoot.innerHTML =
+            '<div class="workspace-quick-empty"><span class="workspace-quick-empty-title">Quick Access</span><strong class="workspace-quick-empty-value">No pinned modules</strong><span class="workspace-quick-empty-note">Use Ctrl + K and pin the modules you want to keep close.</span></div>';
+          return;
+        }
+
+        quickLinksRoot.innerHTML = shortcuts
+          .map((anchor) => {
+            const computed = window.getComputedStyle(anchor);
+            const label =
+              anchor.dataset.moduleLabel ||
+              anchor.querySelector(".ml-label")?.textContent ||
+              anchor.textContent ||
+              "Module";
+            const sectionTitle =
+              anchor.closest(".panel")?.querySelector("h2")?.textContent ||
+              "Workspace";
+            const href =
+              anchor.dataset.href || anchor.getAttribute("href") || "#";
+            const initial =
+              anchor.dataset.initial || label.trim().charAt(0).toUpperCase();
+            const moduleId = normalizeModuleKey(
+              anchor.dataset.moduleId || label,
+            );
+
+            return `<div class="workspace-shortcut-wrap" style="--identity-color:${escapeHtml(computed.getPropertyValue("--identity-color").trim() || "#005a8d")};--identity-bg:${escapeHtml(computed.getPropertyValue("--identity-bg").trim() || "rgba(0, 90, 141, 0.12)")};--identity-border:${escapeHtml(computed.getPropertyValue("--identity-border").trim() || "rgba(0, 90, 141, 0.28)")};--identity-hover-border:${escapeHtml(computed.getPropertyValue("--identity-hover-border").trim() || "rgba(0, 90, 141, 0.4)")};"><a class="workspace-shortcut" href="${escapeHtml(href)}" data-module-id="${escapeHtml(moduleId)}"><span class="workspace-shortcut-initial" aria-hidden="true">${escapeHtml(initial)}</span><span class="workspace-shortcut-copy"><span class="workspace-shortcut-title">${escapeHtml(label.trim())}</span><span class="workspace-shortcut-meta">${escapeHtml(sectionTitle)} section</span></span></a><button type="button" class="workspace-shortcut-pin" data-action="unpin" data-module-id="${escapeHtml(moduleId)}" aria-label="Unpin ${escapeHtml(label.trim())} from Quick Access" title="Unpin from Quick Access"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l3.2 4.8 5.6 1.5-3.6 4.6.3 6-5.5-2.2-5.5 2.2.3-6-3.6-4.6 5.6-1.5z"/></svg></button></div>`;
+          })
+          .join("");
+      }
+
+      function refreshWorkspaceChrome() {
+        syncWorkspacePanels();
+        renderQuickAccess();
+        if (typeof window._rebuildModuleIndex === "function") {
+          window._rebuildModuleIndex();
+        }
+      }
+
+      window.__refreshWorkspaceChrome = refreshWorkspaceChrome;
 
       function buildSectionCatalogMap(sectionRows) {
         const map = new Map();
@@ -1437,6 +2449,7 @@
                 const attrs = [
                   `class="module-link ${identityClass}"`,
                   `data-module-id="${escapeHtml(item.moduleKey)}"`,
+                  `data-module-label="${escapeHtml(item.label)}"`,
                   `data-min-nav-mode="${escapeHtml(item.minNavMode || "view")}"`,
                   `data-placeholder="${item.placeholder ? "true" : "false"}"`,
                   `data-initial="${escapeHtml(initial)}"`,
@@ -1466,6 +2479,7 @@
 
         const panel = document.createElement("section");
         panel.className = "panel";
+        panel.dataset.statusPanel = "true";
         panel.innerHTML =
           '<h2></h2><p class="section-hint"></p><div class="module-list"></div>';
 
@@ -1578,6 +2592,8 @@
               container.appendChild(bubble);
               fitTooltip(tooltip);
             });
+            window.__workspaceOnlineCount = users.length;
+            refreshWorkspaceChrome();
           }
 
           function fitTooltip(tooltip) {
@@ -1596,6 +2612,7 @@
           const userInfoEl = document.getElementById("userInfo");
           const logoutEl = document.getElementById("logoutLink");
           if (!userInfoEl || !logoutEl) return;
+          setWorkspaceUserScope(user);
           userInfoEl.textContent = `Logged in as ${user.email}`;
 
           await sendHeartbeat(user);
@@ -1608,6 +2625,44 @@
 
           refreshOnlineDisplay();
           setInterval(refreshOnlineDisplay, 30_000);
+
+          if (quickLinksRoot && !quickLinksRoot.dataset.pinBindingReady) {
+            quickLinksRoot.addEventListener("click", (event) => {
+              const unpinButton = event.target.closest(
+                ".workspace-shortcut-pin[data-action='unpin']",
+              );
+              if (unpinButton) {
+                event.preventDefault();
+                event.stopPropagation();
+                const moduleId = unpinButton.dataset.moduleId || "";
+                const moduleKey = normalizeModuleKey(moduleId);
+                if (moduleKey && readPinnedModules().includes(moduleKey)) {
+                  togglePinnedModule(moduleId);
+                }
+                refreshWorkspaceChrome();
+                return;
+              }
+
+              const actionButton = event.target.closest(
+                ".workspace-suggestion-btn",
+              );
+              if (!actionButton) return;
+              event.preventDefault();
+              event.stopPropagation();
+              const moduleId = actionButton.dataset.moduleId || "";
+              if (actionButton.dataset.action === "add") {
+                const isPinned = readPinnedModules().includes(
+                  normalizeModuleKey(moduleId),
+                );
+                if (!isPinned) togglePinnedModule(moduleId);
+                writeDismissedSuggestion("");
+              } else {
+                writeDismissedSuggestion(normalizeModuleKey(moduleId));
+              }
+              renderQuickAccess();
+            });
+            quickLinksRoot.dataset.pinBindingReady = "true";
+          }
 
           window.addEventListener("beforeunload", () => {
             supabase.from("user_presence").delete().eq("user_id", user.id);
@@ -1656,10 +2711,7 @@
                     !anchor.dataset.href);
                 anchor.style.display = isPlaceholder ? "flex" : "none";
               });
-              // Rebuild search index to reflect hidden modules
-              if (typeof window._rebuildModuleIndex === "function") {
-                window._rebuildModuleIndex();
-              }
+              refreshWorkspaceChrome();
             } else {
               const permissionMap = buildPermissionMap(perms);
               const moduleDecisions = [];
@@ -1715,11 +2767,7 @@
                 }
               });
 
-              // Rebuild search index now that display:none has been applied
-              // (MutationObserver only watches childList, not style attributes)
-              if (typeof window._rebuildModuleIndex === "function") {
-                window._rebuildModuleIndex();
-              }
+              refreshWorkspaceChrome();
 
               if (!window.__moduleClickGuard) {
                 document.addEventListener(
@@ -1744,6 +2792,28 @@
                 );
                 window.__moduleClickGuard = true;
               }
+
+              if (!window.__recentModuleTracker) {
+                document.addEventListener(
+                  "click",
+                  (event) => {
+                    const link =
+                      event.target.closest &&
+                      event.target.closest(
+                        "a.module-link, a.workspace-shortcut",
+                      );
+                    if (!link) return;
+                    if (link.getAttribute("aria-disabled") === "true") return;
+                    const href =
+                      link.getAttribute("href") || link.dataset.href || "#";
+                    if (!href || href === "#") return;
+                    rememberRecentModule(link.dataset.moduleId || "");
+                    trackModuleUsage(link.dataset.moduleId || "");
+                  },
+                  true,
+                );
+                window.__recentModuleTracker = true;
+              }
             }
           } catch (e) {
             console.warn("Permission fetch error", e);
@@ -1754,10 +2824,7 @@
                   !anchor.dataset.href);
               anchor.style.display = isPlaceholder ? "flex" : "none";
             });
-            // Rebuild search index to reflect hidden modules
-            if (typeof window._rebuildModuleIndex === "function") {
-              window._rebuildModuleIndex();
-            }
+            refreshWorkspaceChrome();
           }
         } catch (err) {
           console.error("initApp error", err);

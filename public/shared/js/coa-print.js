@@ -82,6 +82,37 @@ function formatBatchSize(size, uom) {
   return parts.join(" ");
 }
 
+function getSubjectDisplayConfig(header) {
+  const subject = String(header.analysis_subject_type || "").toUpperCase();
+  const isFG = subject === "FG_BATCH";
+  const isRM = subject === "RM_LOT";
+  const isPM = subject === "PM_LOT";
+
+  return {
+    subject,
+    isFG,
+    isRM,
+    isPM,
+    idLabel: isFG ? "Batch No" : "Lot No",
+    idValue: isFG ? header.batch_no_snapshot : header.system_lot_no,
+    showBatchSize: isFG,
+    showMfgExp: isFG,
+  };
+}
+
+function cleanCoaNo(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "—";
+
+  const tupleMatch = raw.match(/^\((.*)\)$/);
+  if (tupleMatch) {
+    const parts = tupleMatch[1].split(",").map((p) => p.trim());
+    return parts[parts.length - 1] || raw;
+  }
+
+  return raw;
+}
+
 // ── Toast notifications ────────────────────────────────────────────────────────
 function toast(message, kind = "info", duration = 3500) {
   const el = document.createElement("div");
@@ -158,8 +189,9 @@ async function loadLines() {
  * Populate the meta (date / report no) strip and update subtitle hint.
  */
 function renderMeta(header) {
+  const cleanNo = cleanCoaNo(header.coa_no);
   metaDate.textContent = formatDate(header.issue_date);
-  metaReportNo.textContent = header.coa_no ?? "—";
+  metaReportNo.textContent = cleanNo;
 
   // Update subtitle and action bar hint with COA identity
   if (pageSubtitle) {
@@ -168,24 +200,29 @@ function renderMeta(header) {
       : "Form 50 — Drugs & Cosmetics Rules 1945";
   }
   if (coaReportHint) {
-    coaReportHint.textContent = header.coa_no
-      ? `Report: ${header.coa_no} • Issued ${formatDate(header.issue_date)}`
-      : "";
+    coaReportHint.textContent =
+      cleanNo !== "—"
+        ? `Report: ${cleanNo} • Issued ${formatDate(header.issue_date)}`
+        : "";
   }
 
   // Update browser/tab title
-  document.title = header.coa_no
-    ? `COA Preview \u2014 ${header.coa_no}`
-    : "Certificate of Analysis \u2014 Form 50";
+  document.title =
+    cleanNo !== "—"
+      ? `COA Preview \u2014 ${cleanNo}`
+      : "Certificate of Analysis \u2014 Form 50";
 }
 
 // ── Build safe PDF filename ────────────────────────────────────────────────────
 function buildPdfFileName(header) {
+  const cfg = getSubjectDisplayConfig(header);
+  const refNo = cfg.isFG ? header.batch_no_snapshot : header.system_lot_no;
+
   const parts = [
     "COA",
-    header.coa_no ?? "",
+    cleanCoaNo(header.coa_no),
     header.item_name ?? "",
-    header.batch_no_snapshot ?? header.system_lot_no ?? "NA",
+    refNo ?? "NA",
   ]
     .map((p) => String(p).trim())
     .filter(Boolean);
@@ -201,14 +238,24 @@ function loadImageAsDataUrl(src) {
     img.crossOrigin = "anonymous";
     img.onload = () => {
       try {
+        const MAX_DIM = 300;
+        const scale = Math.min(
+          1,
+          MAX_DIM / img.naturalWidth,
+          MAX_DIM / img.naturalHeight,
+        );
         const canvas = document.createElement("canvas");
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        canvas.getContext("2d").drawImage(img, 0, 0);
+        canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+        const ctx = canvas.getContext("2d");
+        // White matte background prevents jsPDF transparency turning black
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         resolve({
-          dataUrl: canvas.toDataURL("image/png"),
-          nw: img.naturalWidth,
-          nh: img.naturalHeight,
+          dataUrl: canvas.toDataURL("image/jpeg", 0.92),
+          nw: canvas.width,
+          nh: canvas.height,
         });
       } catch (e) {
         console.warn("[COA PDF] Canvas draw failed for logo:", e);
@@ -277,7 +324,7 @@ async function generatePdf() {
       orientation: "portrait",
     });
 
-    const coaNo = currentHeader.coa_no ?? "\u2014";
+    const coaNo = cleanCoaNo(currentHeader.coa_no);
     const issueDate = formatDate(currentHeader.issue_date);
 
     // Load logo (failure is non-fatal)
@@ -333,7 +380,7 @@ async function generatePdf() {
       const logoAreaX = ML + CW - LOGO_COL_W;
       const logoImgX = logoAreaX + (LOGO_COL_W - lW) / 2;
       const logoImgY = y + (LH_H - lH) / 2;
-      doc.addImage(logoInfo.dataUrl, "PNG", logoImgX, logoImgY, lW, lH);
+      doc.addImage(logoInfo.dataUrl, "JPEG", logoImgX, logoImgY, lW, lH);
     }
 
     y += LH_H + 5; // clear gap below letterhead border
@@ -432,6 +479,7 @@ async function generatePdf() {
     };
 
     const ch = currentHeader;
+    const cfg = getSubjectDisplayConfig(ch);
 
     // Row 1: Name of the Sample (full width, 2-col)
     drawDetailRow([
@@ -439,25 +487,41 @@ async function generatePdf() {
       { w: C_FVAL, text: ch.item_name ?? "\u2014", bold: false },
     ]);
 
-    // Row 2: Batch No | Batch Size (4-col, aligned with HTML 23/27/23/27)
-    drawDetailRow([
-      { w: C_LBL, text: "Batch No", bold: true },
-      { w: C_VAL, text: ch.batch_no_snapshot ?? "\u2014", bold: false },
-      { w: C_LBL, text: "Batch Size", bold: true },
-      {
-        w: C_VAL,
-        text: batchSizePdf(ch.batch_size_snapshot, ch.batch_uom_code),
-        bold: false,
-      },
-    ]);
+    if (cfg.isFG) {
+      // Row 2: Batch No | Batch Size (FG)
+      drawDetailRow([
+        { w: C_LBL, text: "Batch No", bold: true },
+        { w: C_VAL, text: ch.batch_no_snapshot ?? "\u2014", bold: false },
+        { w: C_LBL, text: "Batch Size", bold: true },
+        {
+          w: C_VAL,
+          text: batchSizePdf(ch.batch_size_snapshot, ch.batch_uom_code),
+          bold: false,
+        },
+      ]);
 
-    // Row 3: Date of Mfg | Date of Exp
-    drawDetailRow([
-      { w: C_LBL, text: "Date of Mfg", bold: true },
-      { w: C_VAL, text: formatDate(ch.mfg_date), bold: false },
-      { w: C_LBL, text: "Date of Exp", bold: true },
-      { w: C_VAL, text: formatDate(ch.exp_date), bold: false },
-    ]);
+      // Row 3: Date of Mfg | Date of Exp (FG)
+      drawDetailRow([
+        { w: C_LBL, text: "Date of Mfg", bold: true },
+        { w: C_VAL, text: formatDate(ch.mfg_date), bold: false },
+        { w: C_LBL, text: "Date of Exp", bold: true },
+        { w: C_VAL, text: formatDate(ch.exp_date), bold: false },
+      ]);
+    } else {
+      // Row 2: Lot No | Supplier Lot No (RM/PM)
+      drawDetailRow([
+        { w: C_LBL, text: "Lot No", bold: true },
+        { w: C_VAL, text: ch.system_lot_no ?? "\u2014", bold: false },
+        { w: C_LBL, text: "Supplier Lot No", bold: true },
+        { w: C_VAL, text: ch.supplier_lot_no ?? "\u2014", bold: false },
+      ]);
+
+      // Row 3: Supplier (RM/PM)
+      drawDetailRow([
+        { w: C_LBL, text: "Supplier", bold: true },
+        { w: C_FVAL, text: ch.supplier_name_snapshot ?? "\u2014", bold: false },
+      ]);
+    }
 
     // Row 4: Sample Submitted By (full width, 2-col)
     drawDetailRow([
@@ -620,7 +684,42 @@ async function generatePdf() {
  */
 function renderDetailTable(header) {
   const h = header;
-  const batchSz = esc(formatBatchSize(h.batch_size_snapshot, h.batch_uom_code));
+  const cfg = getSubjectDisplayConfig(h);
+
+  if (cfg.isFG) {
+    const batchSz = esc(
+      formatBatchSize(h.batch_size_snapshot, h.batch_uom_code),
+    );
+
+    detailBody.innerHTML = `
+      <tr>
+        <td class="dt-lbl">Name of the Sample</td>
+        <td class="dt-val" colspan="3">${esc(h.item_name ?? "—")}</td>
+      </tr>
+      <tr>
+        <td class="dt-lbl">Batch No</td>
+        <td class="dt-val">${esc(h.batch_no_snapshot ?? "—")}</td>
+        <td class="dt-lbl">Batch Size</td>
+        <td class="dt-val">${batchSz}</td>
+      </tr>
+      <tr>
+        <td class="dt-lbl">Date of Mfg</td>
+        <td class="dt-val">${formatDate(h.mfg_date)}</td>
+        <td class="dt-lbl">Date of Exp</td>
+        <td class="dt-val">${formatDate(h.exp_date)}</td>
+      </tr>
+      <tr>
+        <td class="dt-lbl">Sample Submitted By</td>
+        <td class="dt-val" colspan="3">${esc(h.sample_submitted_by ?? "—")}</td>
+      </tr>
+      <tr>
+        <td class="dt-lbl">Date of Sample Submitted</td>
+        <td class="dt-val">${formatDate(h.sample_submitted_date)}</td>
+        <td class="dt-lbl">Date of Analysis Completed</td>
+        <td class="dt-val">${formatDate(h.analysis_completed_date)}</td>
+      </tr>`;
+    return;
+  }
 
   detailBody.innerHTML = `
     <tr>
@@ -628,16 +727,14 @@ function renderDetailTable(header) {
       <td class="dt-val" colspan="3">${esc(h.item_name ?? "—")}</td>
     </tr>
     <tr>
-      <td class="dt-lbl">Batch No</td>
-      <td class="dt-val">${esc(h.batch_no_snapshot ?? "—")}</td>
-      <td class="dt-lbl">Batch Size</td>
-      <td class="dt-val">${batchSz}</td>
+      <td class="dt-lbl">Lot No</td>
+      <td class="dt-val">${esc(h.system_lot_no ?? "—")}</td>
+      <td class="dt-lbl">Supplier Lot No</td>
+      <td class="dt-val">${esc(h.supplier_lot_no ?? "—")}</td>
     </tr>
     <tr>
-      <td class="dt-lbl">Date of Mfg</td>
-      <td class="dt-val">${formatDate(h.mfg_date)}</td>
-      <td class="dt-lbl">Date of Exp</td>
-      <td class="dt-val">${formatDate(h.exp_date)}</td>
+      <td class="dt-lbl">Supplier</td>
+      <td class="dt-val" colspan="3">${esc(h.supplier_name_snapshot ?? "—")}</td>
     </tr>
     <tr>
       <td class="dt-lbl">Sample Submitted By</td>
