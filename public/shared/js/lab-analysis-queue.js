@@ -38,6 +38,19 @@ let selectedRow = null;
 let historyLoaded = false;
 let LAST_REFRESH_TIME = null;
 let prevFocus = null;
+let currentUserId = null;
+let queueAnalysisActionPermissions = new Map();
+let queuePermissionsVerified = false;
+
+const QUEUE_ACTION_CODES = [
+  "ENTER_RESULT",
+  "SUBMIT_FOR_SCRUTINY",
+  "PASS_SCRUTINY",
+  "RETURN_FOR_CORRECTION",
+  "APPROVE_FOR_COA",
+  "REOPEN_AFTER_APPROVAL",
+  "ISSUE_COA",
+];
 
 // ── Lens definitions ──────────────────────────────────────────────────────────
 const LENSES = [
@@ -336,6 +349,7 @@ async function loadQueue() {
       );
 
     rows = mergeQueueData(headerRes.data || [], scrutinyRes.data || []);
+    await loadQueueActionPermissions(rows);
 
     applyLens();
     renderKpis();
@@ -347,6 +361,56 @@ async function loadQueue() {
     setStatus("Error loading queue: " + (err.message || String(err)), "error");
   } finally {
     refreshBtn.disabled = false;
+  }
+}
+
+function makeQueuePermissionKey(analysisId, actionCode) {
+  return `${Number(analysisId)}:${String(actionCode || "").toUpperCase()}`;
+}
+
+function mayQueueAnalysisAction(analysisId, actionCode) {
+  if (!queuePermissionsVerified) return false;
+  const key = makeQueuePermissionKey(analysisId, actionCode);
+  return queueAnalysisActionPermissions.get(key) === true;
+}
+
+async function loadQueueActionPermissions(queueRows) {
+  queueAnalysisActionPermissions = new Map();
+  queuePermissionsVerified = false;
+
+  if (!currentUserId) return;
+
+  const analysisIds = (Array.isArray(queueRows) ? queueRows : [])
+    .map((r) => Number(r?.analysis_id || r?.id))
+    .filter((v) => Number.isFinite(v));
+
+  if (!analysisIds.length) {
+    queuePermissionsVerified = true;
+    return;
+  }
+
+  try {
+    const { data, error } = await labSupabase.rpc(
+      "fn_get_user_analysis_action_permissions",
+      {
+        p_user_id: currentUserId,
+        p_analysis_ids: analysisIds,
+        p_action_codes: QUEUE_ACTION_CODES,
+      },
+    );
+
+    if (error) throw error;
+
+    (Array.isArray(data) ? data : []).forEach((row) => {
+      const key = makeQueuePermissionKey(row?.analysis_id, row?.action_code);
+      queueAnalysisActionPermissions.set(key, row?.is_allowed === true);
+    });
+
+    queuePermissionsVerified = true;
+  } catch (err) {
+    queuePermissionsVerified = false;
+    queueAnalysisActionPermissions.clear();
+    console.warn("[LAQ] analysis action permission fetch failed:", err);
   }
 }
 
@@ -550,6 +614,10 @@ function renderTable(displayRows) {
 
   displayRows.forEach((r) => {
     const tr = document.createElement("tr");
+    const canEnterResult = mayQueueAnalysisAction(
+      r.analysis_id,
+      "ENTER_RESULT",
+    );
     // Add priority classes for visual signals
     const failCount = Number(r.fail_count) || 0;
     const missingCount = Number(r.missing_result_count) || 0;
@@ -557,6 +625,7 @@ function renderTable(displayRows) {
     if (failCount > 0) extraCls = " row-fail";
     else if (missingCount > 0) extraCls = " row-missing";
     tr.className = `lab-row${extraCls}`;
+    tr.dataset.canEnterResult = canEnterResult ? "1" : "0";
     tr.tabIndex = 0;
     tr.setAttribute("role", "row");
 
@@ -1021,6 +1090,8 @@ async function init() {
     }
     return;
   }
+
+  currentUserId = userId;
 
   const canView = await checkPermissions(userId);
   if (!canView) {

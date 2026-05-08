@@ -125,6 +125,18 @@ let pmCurrentGroupId = null;
 let pmCurrentGroupLabel = null;
 let pmEditedSpecLines = new Map(); // seqNo -> {display_text, is_active}
 
+// Override editor modal state
+let ovModalMode = "add"; // "add" | "edit"
+let ovCachedTests = null; // test_master rows (lazy-loaded, shared)
+let ovModalPrefill = {}; // pre-fill values for edit mode
+// Item currently selected in the overrides tab per subject:
+let ovFgProductId = null;
+let ovRmItemId = null;
+let ovPmItemId = null;
+// Override base spec tracking (populated by each override context loader)
+let ovBaseSpecProfileId = null; // numeric profile id or null
+let ovBaseTestIds = new Set(); // Set of test_id numbers in the active base spec
+
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 init();
 
@@ -142,6 +154,7 @@ async function init() {
   wireBaseSpecPmEvents();
   wireOverridesPmEvents();
   wireEffectivePreviewPmEvents();
+  wireOverrideModal();
   bsSaveSpecBtn.addEventListener("click", bsSaveSpec);
 }
 
@@ -1869,12 +1882,13 @@ function wireOverridesPmEvents() {
 async function onPmOverrideItemChange() {
   const stockItemId = ovPmItemSelect.value;
   if (!stockItemId) {
+    ovPmItemId = null;
     ovPmContextStrip.classList.add("hidden");
     ovPmTableCard.classList.add("hidden");
     hideBanner(ovPmBanner);
     return;
   }
-
+  ovPmItemId = stockItemId;
   ovPmContextStrip.classList.add("hidden");
   ovPmTableCard.classList.add("hidden");
   hideBanner(ovPmBanner);
@@ -1911,13 +1925,27 @@ async function onPmOverrideItemChange() {
 
   let baseSpecProfileId = null;
   if (subcat.subcategory_id) {
-    const { data: smRows } = await labSupabase
-      .from("spec_profile_pm_subcategory_map")
-      .select("spec_profile_id")
-      .eq("subcategory_id", subcat.subcategory_id)
-      .eq("is_active", true)
-      .limit(1);
-    baseSpecProfileId = smRows?.[0]?.spec_profile_id ?? null;
+    const { data: resolvedSpecId, error: specErr } = await labSupabase.rpc(
+      "fn_get_active_spec_profile_id_for_pm_subcategory",
+      {
+        p_subcategory_id: Number(subcat.subcategory_id),
+        p_as_of_date: todayISO(),
+      },
+    );
+
+    if (specErr) {
+      showBanner(
+        ovPmBanner,
+        "error",
+        "Could not resolve PM base spec profile: " + specErr.message,
+      );
+      setOverrideAddButtonState("PM", false);
+      ovBaseSpecProfileId = null;
+      ovBaseTestIds = new Set();
+      return;
+    }
+
+    baseSpecProfileId = resolvedSpecId ? Number(resolvedSpecId) : null;
   }
 
   ovPmBaseSpecId.textContent = baseSpecProfileId
@@ -1926,10 +1954,15 @@ async function onPmOverrideItemChange() {
   ovPmBaseSpecId.classList.toggle("not-set", !baseSpecProfileId);
   ovPmContextStrip.classList.remove("hidden");
 
+  ovBaseSpecProfileId = baseSpecProfileId ? Number(baseSpecProfileId) : null;
+  await loadOverrideBaseTestIds(baseSpecProfileId);
+  const canAddOverride = !!baseSpecProfileId;
+  setOverrideAddButtonState("PM", canAddOverride);
+
   const { data: overrides, error: ovErr } = await labSupabase
     .from("spec_override")
     .select(
-      "id, test_id, action_type, override_method_id, override_spec_type, override_display_text, override_is_required, is_active, reason",
+      "id, test_id, action_type, override_method_id, override_spec_type, override_min_value, override_max_value, override_text_value, override_display_text, override_is_required, is_active, reason",
     )
     .eq("subject_type", "PM")
     .eq("stock_item_id", stockItemId);
@@ -1944,7 +1977,13 @@ async function onPmOverrideItemChange() {
   }
 
   if (!overrides?.length) {
-    hideBanner(ovPmBanner);
+    if (!canAddOverride)
+      showBanner(
+        ovPmBanner,
+        "warn",
+        "No active base spec profile is configured. Overrides cannot be added until base spec is generated and mapped.",
+      );
+    else hideBanner(ovPmBanner);
     renderPmOverrides([]);
     return;
   }
@@ -1983,9 +2022,18 @@ async function onPmOverrideItemChange() {
       methodMap[r.override_method_id] ??
       (r.override_method_id ? `(method #${r.override_method_id})` : ""),
   }));
-  enriched.sort((a, b) => (a.test_name ?? "").localeCompare(b.test_name ?? ""));
+  enriched.sort((a, b) => {
+    if (b.is_active !== a.is_active) return b.is_active ? 1 : -1;
+    return (a.test_name ?? "").localeCompare(b.test_name ?? "");
+  });
 
-  hideBanner(ovPmBanner);
+  if (!canAddOverride)
+    showBanner(
+      ovPmBanner,
+      "warn",
+      "No active base spec profile is configured. Overrides cannot be added until base spec is generated and mapped.",
+    );
+  else hideBanner(ovPmBanner);
   renderPmOverrides(enriched);
 }
 
@@ -1994,7 +2042,7 @@ function renderPmOverrides(rows) {
   ovPmLineCount.textContent = `${rows.length} override${rows.length !== 1 ? "s" : ""}`;
 
   if (!rows.length) {
-    ovPmTableBody.innerHTML = `<tr><td colspan="8">
+    ovPmTableBody.innerHTML = `<tr><td colspan="6">
       <div class="spec-empty-state">
         <strong>No overrides found</strong>
         This packing material has no spec overrides configured.
@@ -2002,27 +2050,8 @@ function renderPmOverrides(rows) {
     return;
   }
 
-  ovPmTableBody.innerHTML = rows
-    .map((r) => {
-      const actionClass =
-        {
-          modify: "action-badge-replace",
-          add: "action-badge-append",
-          disable: "action-badge-exclude",
-        }[String(r.action_type ?? "").toLowerCase()] ?? "action-badge-other";
-
-      return `<tr>
-        <td class="td-test">${esc(r.test_name ?? "")}</td>
-        <td><span class="action-badge ${actionClass}">${esc(r.action_type ?? "")}</span></td>
-        <td>${esc(r.override_method_name ?? "")}</td>
-        <td>${esc(r.override_spec_type ?? "")}</td>
-        <td>${esc(r.override_display_text ?? "")}</td>
-        <td style="text-align:center;">${r.override_is_required ? "Yes" : "No"}</td>
-        <td style="text-align:center;">${r.is_active ? "Yes" : "No"}</td>
-        <td style="color:var(--muted,#6b7280);font-style:italic;">${esc(r.reason ?? "")}</td>
-      </tr>`;
-    })
-    .join("");
+  ovPmTableBody.innerHTML = rows.map((r) => renderOverrideRow(r)).join("");
+  wireOverrideTableEvents(ovPmTableBody);
 }
 
 // ── EFFECTIVE PREVIEW — PM ────────────────────────────────────────────────────
@@ -2155,12 +2184,13 @@ function wireOverridesEvents() {
 async function onOvProductChange() {
   const productId = ovProductSelect.value;
   if (!productId) {
+    ovFgProductId = null;
     ovFgContextStrip.classList.add("hidden");
     ovTableCard.classList.add("hidden");
     hideBanner(ovBanner);
     return;
   }
-
+  ovFgProductId = productId;
   ovFgContextStrip.classList.add("hidden");
   ovTableCard.classList.add("hidden");
   hideBanner(ovBanner);
@@ -2213,11 +2243,16 @@ async function onOvProductChange() {
   ovFgBaseSpecId.classList.toggle("not-set", !baseSpecProfileId);
   ovFgContextStrip.classList.remove("hidden");
 
+  ovBaseSpecProfileId = baseSpecProfileId ? Number(baseSpecProfileId) : null;
+  await loadOverrideBaseTestIds(baseSpecProfileId);
+  const canAddOverride = !!baseSpecProfileId;
+  setOverrideAddButtonState("FG", canAddOverride);
+
   // FIX 5: load overrides, then join test_master + test_method in memory
   const { data: overrides, error: ovErr } = await labSupabase
     .from("spec_override")
     .select(
-      "id, test_id, action_type, override_method_id, override_spec_type, override_display_text, override_is_required, is_active, reason",
+      "id, test_id, action_type, override_method_id, override_spec_type, override_min_value, override_max_value, override_text_value, override_display_text, override_is_required, is_active, reason",
     )
     .eq("subject_type", "FG")
     .eq("product_id", productId);
@@ -2228,7 +2263,13 @@ async function onOvProductChange() {
   }
 
   if (!overrides?.length) {
-    hideBanner(ovBanner);
+    if (!canAddOverride)
+      showBanner(
+        ovBanner,
+        "warn",
+        "No active base spec profile is configured. Overrides cannot be added until base spec is generated and mapped.",
+      );
+    else hideBanner(ovBanner);
     renderOverrides([]);
     return;
   }
@@ -2269,10 +2310,19 @@ async function onOvProductChange() {
       (r.override_method_id ? `(method #${r.override_method_id})` : ""),
   }));
 
-  // Sort by test name client-side
-  enriched.sort((a, b) => (a.test_name ?? "").localeCompare(b.test_name ?? ""));
+  // Sort: active first, then by test name
+  enriched.sort((a, b) => {
+    if (b.is_active !== a.is_active) return b.is_active ? 1 : -1;
+    return (a.test_name ?? "").localeCompare(b.test_name ?? "");
+  });
 
-  hideBanner(ovBanner);
+  if (!canAddOverride)
+    showBanner(
+      ovBanner,
+      "warn",
+      "No active base spec profile is configured. Overrides cannot be added until base spec is generated and mapped.",
+    );
+  else hideBanner(ovBanner);
   renderOverrides(enriched);
 }
 
@@ -2281,7 +2331,7 @@ function renderOverrides(rows) {
   ovLineCount.textContent = `${rows.length} override${rows.length !== 1 ? "s" : ""}`;
 
   if (!rows.length) {
-    ovTableBody.innerHTML = `<tr><td colspan="8">
+    ovTableBody.innerHTML = `<tr><td colspan="6">
       <div class="spec-empty-state">
         <strong>No overrides found</strong>
         This product has no spec overrides configured.
@@ -2289,27 +2339,8 @@ function renderOverrides(rows) {
     return;
   }
 
-  ovTableBody.innerHTML = rows
-    .map((r) => {
-      const actionClass =
-        {
-          modify: "action-badge-replace",
-          add: "action-badge-append",
-          disable: "action-badge-exclude",
-        }[String(r.action_type ?? "").toLowerCase()] ?? "action-badge-other";
-
-      return `<tr>
-        <td class="td-test">${esc(r.test_name ?? "")}</td>
-        <td><span class="action-badge ${actionClass}">${esc(r.action_type ?? "")}</span></td>
-        <td>${esc(r.override_method_name ?? "")}</td>
-        <td>${esc(r.override_spec_type ?? "")}</td>
-        <td>${esc(r.override_display_text ?? "")}</td>
-        <td style="text-align:center;">${r.override_is_required ? "Yes" : "No"}</td>
-        <td style="text-align:center;">${r.is_active ? "Yes" : "No"}</td>
-        <td style="color:var(--muted,#6b7280);font-style:italic;">${esc(r.reason ?? "")}</td>
-      </tr>`;
-    })
-    .join("");
+  ovTableBody.innerHTML = rows.map((r) => renderOverrideRow(r)).join("");
+  wireOverrideTableEvents(ovTableBody);
 }
 
 // ── OVERRIDES — RM ────────────────────────────────────────────────────────────
@@ -2356,12 +2387,13 @@ function wireOverridesRmEvents() {
 async function onRmOverrideItemChange() {
   const stockItemId = ovRmItemSelect.value;
   if (!stockItemId) {
+    ovRmItemId = null;
     ovRmContextStrip.classList.add("hidden");
     ovRmTableCard.classList.add("hidden");
     hideBanner(ovRmBanner);
     return;
   }
-
+  ovRmItemId = stockItemId;
   ovRmContextStrip.classList.add("hidden");
   ovRmTableCard.classList.add("hidden");
   hideBanner(ovRmBanner);
@@ -2416,11 +2448,16 @@ async function onRmOverrideItemChange() {
   ovRmBaseSpecId.classList.toggle("not-set", !baseSpecProfileId);
   ovRmContextStrip.classList.remove("hidden");
 
+  ovBaseSpecProfileId = baseSpecProfileId ? Number(baseSpecProfileId) : null;
+  await loadOverrideBaseTestIds(baseSpecProfileId);
+  const canAddOverride = !!baseSpecProfileId;
+  setOverrideAddButtonState("RM", canAddOverride);
+
   // Load overrides
   const { data: overrides, error: ovErr } = await labSupabase
     .from("spec_override")
     .select(
-      "id, test_id, action_type, override_method_id, override_spec_type, override_display_text, override_is_required, is_active, reason",
+      "id, test_id, action_type, override_method_id, override_spec_type, override_min_value, override_max_value, override_text_value, override_display_text, override_is_required, is_active, reason",
     )
     .eq("subject_type", "RM")
     .eq("stock_item_id", stockItemId);
@@ -2435,7 +2472,13 @@ async function onRmOverrideItemChange() {
   }
 
   if (!overrides?.length) {
-    hideBanner(ovRmBanner);
+    if (!canAddOverride)
+      showBanner(
+        ovRmBanner,
+        "warn",
+        "No active base spec profile is configured. Overrides cannot be added until base spec is generated and mapped.",
+      );
+    else hideBanner(ovRmBanner);
     renderRmOverrides([]);
     return;
   }
@@ -2474,9 +2517,18 @@ async function onRmOverrideItemChange() {
       methodMap[r.override_method_id] ??
       (r.override_method_id ? `(method #${r.override_method_id})` : ""),
   }));
-  enriched.sort((a, b) => (a.test_name ?? "").localeCompare(b.test_name ?? ""));
+  enriched.sort((a, b) => {
+    if (b.is_active !== a.is_active) return b.is_active ? 1 : -1;
+    return (a.test_name ?? "").localeCompare(b.test_name ?? "");
+  });
 
-  hideBanner(ovRmBanner);
+  if (!canAddOverride)
+    showBanner(
+      ovRmBanner,
+      "warn",
+      "No active base spec profile is configured. Overrides cannot be added until base spec is generated and mapped.",
+    );
+  else hideBanner(ovRmBanner);
   renderRmOverrides(enriched);
 }
 
@@ -2485,7 +2537,7 @@ function renderRmOverrides(rows) {
   ovRmLineCount.textContent = `${rows.length} override${rows.length !== 1 ? "s" : ""}`;
 
   if (!rows.length) {
-    ovRmTableBody.innerHTML = `<tr><td colspan="8">
+    ovRmTableBody.innerHTML = `<tr><td colspan="6">
       <div class="spec-empty-state">
         <strong>No overrides found</strong>
         This stock item has no spec overrides configured.
@@ -2493,27 +2545,8 @@ function renderRmOverrides(rows) {
     return;
   }
 
-  ovRmTableBody.innerHTML = rows
-    .map((r) => {
-      const actionClass =
-        {
-          modify: "action-badge-replace",
-          add: "action-badge-append",
-          disable: "action-badge-exclude",
-        }[String(r.action_type ?? "").toLowerCase()] ?? "action-badge-other";
-
-      return `<tr>
-        <td class="td-test">${esc(r.test_name ?? "")}</td>
-        <td><span class="action-badge ${actionClass}">${esc(r.action_type ?? "")}</span></td>
-        <td>${esc(r.override_method_name ?? "")}</td>
-        <td>${esc(r.override_spec_type ?? "")}</td>
-        <td>${esc(r.override_display_text ?? "")}</td>
-        <td style="text-align:center;">${r.override_is_required ? "Yes" : "No"}</td>
-        <td style="text-align:center;">${r.is_active ? "Yes" : "No"}</td>
-        <td style="color:var(--muted,#6b7280);font-style:italic;">${esc(r.reason ?? "")}</td>
-      </tr>`;
-    })
-    .join("");
+  ovRmTableBody.innerHTML = rows.map((r) => renderOverrideRow(r)).join("");
+  wireOverrideTableEvents(ovRmTableBody);
 }
 
 // ── EFFECTIVE PREVIEW — FG ────────────────────────────────────────────────────
@@ -2709,6 +2742,621 @@ function renderRmEffectivePreview(rows) {
     </tr>`,
     )
     .join("");
+}
+
+// ── OVERRIDE EDITOR MODAL ─────────────────────────────────────────────────────
+
+// Loads the set of active test_ids from the base spec profile into ovBaseTestIds.
+async function loadOverrideBaseTestIds(profileId) {
+  ovBaseTestIds = new Set();
+  if (!profileId) return;
+
+  const { data, error } = await labSupabase
+    .from("spec_line")
+    .select("test_id")
+    .eq("spec_profile_id", profileId)
+    .eq("is_active", true);
+
+  if (error) {
+    toast("Could not load base spec test list: " + error.message, "error");
+    return;
+  }
+  ovBaseTestIds = new Set((data ?? []).map((r) => Number(r.test_id)));
+}
+
+// Enables/disables the Add Override button for the given subject.
+function setOverrideAddButtonState(subject, enabled) {
+  const btn =
+    subject === "FG"
+      ? document.getElementById("ovAddBtn")
+      : subject === "RM"
+        ? document.getElementById("ovRmAddBtn")
+        : document.getElementById("ovPmAddBtn");
+
+  if (!btn) return;
+  btn.disabled = !enabled;
+  btn.title = enabled
+    ? "Add item-level override"
+    : "Base spec profile must be configured before adding overrides";
+}
+
+// Restricts Action Type options based on whether the selected test is in the base spec.
+function applyActionOptionsForSelectedTest() {
+  const actionSel = document.getElementById("ovModalAction");
+  const testId = Number(document.getElementById("ovModalTest")?.value);
+
+  if (!actionSel) return;
+
+  if (!testId) {
+    actionSel.innerHTML = `<option value="">-- Select test first --</option>`;
+    actionSel.disabled = true;
+    return;
+  }
+
+  const existsInBase = ovBaseTestIds.has(testId);
+
+  if (existsInBase) {
+    actionSel.innerHTML = `
+      <option value="modify">Modify — change spec values for this inherited test</option>
+      <option value="disable">Disable — exclude this inherited test from effective spec</option>
+    `;
+  } else {
+    actionSel.innerHTML = `
+      <option value="add">Add — inject this new test into effective spec</option>
+    `;
+  }
+
+  actionSel.disabled = false;
+}
+
+// Sets a select's value only if that value exists among its options.
+function setSelectValueIfExists(selectEl, value) {
+  if (!selectEl) return false;
+  const exists = [...selectEl.options].some((o) => o.value === value);
+  if (exists) {
+    selectEl.value = value;
+    return true;
+  }
+  return false;
+}
+
+function getSelectedTestResultKind() {
+  const testId = document.getElementById("ovModalTest")?.value;
+  const test = (ovCachedTests ?? []).find(
+    (t) => String(t.id) === String(testId),
+  );
+  return String(test?.result_kind ?? "").toUpperCase();
+}
+
+function applySpecTypeOptionsForSelectedTest() {
+  const specSel = document.getElementById("ovModalSpecType");
+  const resultKind = getSelectedTestResultKind();
+
+  let options = [];
+
+  if (resultKind === "NUMERIC") {
+    options = [
+      ["RANGE", "RANGE — min to max"],
+      ["NMT", "NMT — Not More Than"],
+      ["NLT", "NLT — Not Less Than"],
+      ["EXACT_NUMERIC", "EXACT NUMERIC — equals value"],
+    ];
+  } else if (resultKind === "TEXT") {
+    options = [["TEXT", "TEXT — expected text"]];
+  } else if (resultKind === "PASS_FAIL") {
+    options = [["PASS_FAIL", "PASS / FAIL"]];
+  } else {
+    options = [];
+  }
+
+  if (!options.length) {
+    specSel.innerHTML = `<option value="">-- Select test first --</option>`;
+    specSel.disabled = true;
+    return;
+  }
+
+  const oldValue = specSel.value;
+  specSel.innerHTML = options
+    .map(
+      ([value, label]) =>
+        `<option value="${esc(value)}">${esc(label)}</option>`,
+    )
+    .join("");
+
+  if (options.some(([value]) => value === oldValue)) {
+    specSel.value = oldValue;
+  }
+
+  specSel.disabled = options.length === 1;
+}
+
+function wireOverrideModal() {
+  document
+    .getElementById("ovModalClose")
+    .addEventListener("click", closeOverrideModal);
+  document
+    .getElementById("ovModalCancel")
+    .addEventListener("click", closeOverrideModal);
+  document.getElementById("ovModal").addEventListener("click", (e) => {
+    if (e.target === document.getElementById("ovModal")) closeOverrideModal();
+  });
+  document
+    .getElementById("ovModalSave")
+    .addEventListener("click", saveOverrideModal);
+  document
+    .getElementById("ovModalAction")
+    .addEventListener("change", updateModalDynamics);
+  document.getElementById("ovModalSpecType").addEventListener("change", () => {
+    renderDynamicInputs();
+    updateDisplayText();
+  });
+  document.getElementById("ovModalTest").addEventListener("change", () => {
+    applyActionOptionsForSelectedTest();
+    applySpecTypeOptionsForSelectedTest();
+    updateModalDynamics();
+  });
+
+  // Add Override buttons — wired here; item context is read at open time
+  document.getElementById("ovAddBtn")?.addEventListener("click", () => {
+    if (!ovFgProductId) return;
+    if (!ovBaseSpecProfileId) {
+      toast(
+        "Base spec profile must be configured before adding overrides.",
+        "warn",
+      );
+      return;
+    }
+    openOverrideModal("add", null);
+  });
+  document.getElementById("ovRmAddBtn")?.addEventListener("click", () => {
+    if (!ovRmItemId) return;
+    if (!ovBaseSpecProfileId) {
+      toast(
+        "Base spec profile must be configured before adding overrides.",
+        "warn",
+      );
+      return;
+    }
+    openOverrideModal("add", null);
+  });
+  document.getElementById("ovPmAddBtn")?.addEventListener("click", () => {
+    if (!ovPmItemId) return;
+    if (!ovBaseSpecProfileId) {
+      toast(
+        "Base spec profile must be configured before adding overrides.",
+        "warn",
+      );
+      return;
+    }
+    openOverrideModal("add", null);
+  });
+}
+
+// Opens the modal. mode = "add" | "edit". row = existing override row (edit only).
+async function openOverrideModal(mode, row) {
+  ovModalMode = mode;
+
+  const modal = document.getElementById("ovModal");
+  const titleEl = document.getElementById("ovModalTitle");
+  const saveLabel = document.getElementById("ovModalSaveLabel");
+  const ctxBar = document.getElementById("ovModalContextBar");
+  const testSel = document.getElementById("ovModalTest");
+  const actionSel = document.getElementById("ovModalAction");
+  const specSel = document.getElementById("ovModalSpecType");
+  const reasonEl = document.getElementById("ovModalReason");
+  const banner = document.getElementById("ovModalBanner");
+
+  titleEl.textContent = mode === "add" ? "Add Override" : "Edit Override";
+  saveLabel.textContent = mode === "add" ? "Save Override" : "Update Override";
+  hideBanner(banner);
+
+  // Build context label
+  const subj = currentSubjectType;
+  let itemLabel;
+  if (subj === "FG") {
+    itemLabel =
+      ovProductSelect.options[ovProductSelect.selectedIndex]?.text ??
+      ovFgProductId;
+  } else if (subj === "RM") {
+    itemLabel =
+      ovRmItemSelect.options[ovRmItemSelect.selectedIndex]?.text ?? ovRmItemId;
+  } else {
+    itemLabel =
+      ovPmItemSelect.options[ovPmItemSelect.selectedIndex]?.text ?? ovPmItemId;
+  }
+  ctxBar.textContent = `${subj} — ${itemLabel}`;
+
+  // Lazy-load tests (fetch result_kind so spec type options can be restricted)
+  if (!ovCachedTests) {
+    testSel.innerHTML = '<option value="">Loading tests…</option>';
+    testSel.disabled = true;
+    const { data, error } = await labSupabase
+      .from("test_master")
+      .select("id, test_name, result_kind")
+      .eq("is_active", true)
+      .order("test_name");
+    ovCachedTests = error ? [] : (data ?? []);
+    testSel.disabled = false;
+  }
+  populateSelect(
+    testSel,
+    ovCachedTests,
+    "id",
+    "test_name",
+    "-- Select Test --",
+  );
+
+  // Pre-fill form
+  if (mode === "edit" && row) {
+    testSel.value = String(row.test_id ?? "");
+    reasonEl.value = row.reason ?? "";
+    ovModalPrefill = {
+      min: String(row.override_min_value ?? ""),
+      max: String(row.override_max_value ?? ""),
+      text: row.override_text_value ?? "",
+      exact: String(row.override_min_value ?? ""), // EXACT_NUMERIC stores in min_value
+    };
+    // Restrict action options first, then restore saved action if valid
+    applyActionOptionsForSelectedTest();
+    setSelectValueIfExists(
+      actionSel,
+      String(row.action_type ?? "").toLowerCase(),
+    );
+    // Restrict spec type options, then restore saved spec type
+    applySpecTypeOptionsForSelectedTest();
+    specSel.value = row.override_spec_type ?? specSel.options[0]?.value ?? "";
+  } else {
+    testSel.value = "";
+    reasonEl.value = "";
+    ovModalPrefill = { min: "", max: "", text: "", exact: "" };
+    applyActionOptionsForSelectedTest(); // will show "-- Select test first --"
+    applySpecTypeOptionsForSelectedTest(); // will show "-- Select test first --"
+  }
+
+  updateModalDynamics();
+  modal.classList.remove("hidden");
+  testSel.focus();
+}
+
+function closeOverrideModal() {
+  document.getElementById("ovModal").classList.add("hidden");
+  ovModalMode = "add";
+  ovModalPrefill = {};
+}
+
+function updateModalDynamics() {
+  const action = document.getElementById("ovModalAction").value;
+  const specSection = document.getElementById("ovModalSpecSection");
+  const isDisable = action === "disable";
+  specSection.classList.toggle("hidden", isDisable);
+  if (!isDisable) {
+    renderDynamicInputs();
+    updateDisplayText();
+  }
+}
+
+function renderDynamicInputs() {
+  const specType = document.getElementById("ovModalSpecType").value;
+  const dyn = document.getElementById("ovModalDyn");
+  const { min, max, text, exact } = ovModalPrefill;
+
+  let html = "";
+  if (specType === "RANGE") {
+    html = `
+      <div class="form-group">
+        <label for="ovModalMin">Min Value <span style="color:#ef4444">*</span></label>
+        <input type="number" id="ovModalMin" class="form-control" step="any" placeholder="e.g. 95" value="${esc(min)}">
+      </div>
+      <div class="form-group">
+        <label for="ovModalMax">Max Value <span style="color:#ef4444">*</span></label>
+        <input type="number" id="ovModalMax" class="form-control" step="any" placeholder="e.g. 105" value="${esc(max)}">
+      </div>`;
+  } else if (specType === "NMT") {
+    html = `
+      <div class="form-group">
+        <label for="ovModalMax">Max Value (NMT) <span style="color:#ef4444">*</span></label>
+        <input type="number" id="ovModalMax" class="form-control" step="any" placeholder="e.g. 5" value="${esc(max)}">
+      </div>`;
+  } else if (specType === "NLT") {
+    html = `
+      <div class="form-group">
+        <label for="ovModalMin">Min Value (NLT) <span style="color:#ef4444">*</span></label>
+        <input type="number" id="ovModalMin" class="form-control" step="any" placeholder="e.g. 98" value="${esc(min)}">
+      </div>`;
+  } else if (specType === "EXACT_NUMERIC") {
+    html = `
+      <div class="form-group">
+        <label for="ovModalExact">Exact Value <span style="color:#ef4444">*</span></label>
+        <input type="number" id="ovModalExact" class="form-control" step="any" placeholder="e.g. 100" value="${esc(exact)}">
+      </div>`;
+  } else if (specType === "TEXT") {
+    html = `
+      <div class="form-group" style="grid-column:1/-1;">
+        <label for="ovModalText">Spec Text <span style="color:#ef4444">*</span></label>
+        <input type="text" id="ovModalText" class="form-control" placeholder="e.g. Clear, colourless liquid" value="${esc(text)}">
+      </div>`;
+  } else if (specType === "PASS_FAIL") {
+    html = `<p style="grid-column:1/-1;color:var(--muted,#6b7280);font-size:13px;margin:0;">
+      No value input required — result will be recorded as Pass or Fail.</p>`;
+  }
+  dyn.innerHTML = html;
+
+  // Wire value inputs for live display-text preview
+  ["ovModalMin", "ovModalMax", "ovModalText", "ovModalExact"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("input", updateDisplayText);
+  });
+  updateDisplayText();
+}
+
+function updateDisplayText() {
+  const specType = document.getElementById("ovModalSpecType").value;
+  const preview = document.getElementById("ovModalDisplayPreview");
+  let text = "—";
+
+  if (specType === "RANGE") {
+    const minV = document.getElementById("ovModalMin")?.value.trim();
+    const maxV = document.getElementById("ovModalMax")?.value.trim();
+    if (minV && maxV) text = `${minV} – ${maxV}`;
+    else if (minV) text = `≥ ${minV}`;
+    else if (maxV) text = `≤ ${maxV}`;
+  } else if (specType === "NMT") {
+    const maxV = document.getElementById("ovModalMax")?.value.trim();
+    if (maxV) text = `NMT ${maxV}`;
+  } else if (specType === "NLT") {
+    const minV = document.getElementById("ovModalMin")?.value.trim();
+    if (minV) text = `NLT ${minV}`;
+  } else if (specType === "EXACT_NUMERIC") {
+    const val = document.getElementById("ovModalExact")?.value.trim();
+    if (val) text = `= ${val}`;
+  } else if (specType === "TEXT") {
+    text = document.getElementById("ovModalText")?.value.trim() || "—";
+  } else if (specType === "PASS_FAIL") {
+    text = "Passes";
+  }
+
+  preview.textContent = text;
+}
+
+async function saveOverrideModal() {
+  const banner = document.getElementById("ovModalBanner");
+  const saveBtn = document.getElementById("ovModalSave");
+  const saveLabel = document.getElementById("ovModalSaveLabel");
+  hideBanner(banner);
+
+  const testId = document.getElementById("ovModalTest").value;
+  const actionType = document.getElementById("ovModalAction").value;
+  const reason = document.getElementById("ovModalReason").value.trim();
+
+  if (!testId) {
+    showBanner(banner, "error", "Please select a test.");
+    return;
+  }
+
+  if (!ovBaseSpecProfileId) {
+    showBanner(
+      banner,
+      "error",
+      "Cannot save override because no active base spec profile is configured.",
+    );
+    return;
+  }
+
+  const existsInBase = ovBaseTestIds.has(Number(testId));
+  if ((actionType === "modify" || actionType === "disable") && !existsInBase) {
+    showBanner(
+      banner,
+      "error",
+      "This test is not present in base spec. Use ADD.",
+    );
+    return;
+  }
+  if (actionType === "add" && existsInBase) {
+    showBanner(
+      banner,
+      "error",
+      "This test already exists in base spec. Use MODIFY or DISABLE.",
+    );
+    return;
+  }
+
+  // Collect spec values
+  let specType = null,
+    minVal = null,
+    maxVal = null,
+    textVal = null,
+    displayText = null;
+
+  if (actionType !== "disable") {
+    specType = document.getElementById("ovModalSpecType").value;
+
+    if (specType === "RANGE") {
+      minVal = document.getElementById("ovModalMin")?.value.trim() || null;
+      maxVal = document.getElementById("ovModalMax")?.value.trim() || null;
+      if (!minVal || !maxVal) {
+        showBanner(
+          banner,
+          "error",
+          "Both min and max values are required for RANGE.",
+        );
+        return;
+      }
+      displayText = `${minVal} – ${maxVal}`;
+    } else if (specType === "NMT") {
+      maxVal = document.getElementById("ovModalMax")?.value.trim() || null;
+      if (!maxVal) {
+        showBanner(banner, "error", "Max value is required for NMT.");
+        return;
+      }
+      displayText = `NMT ${maxVal}`;
+    } else if (specType === "NLT") {
+      minVal = document.getElementById("ovModalMin")?.value.trim() || null;
+      if (!minVal) {
+        showBanner(banner, "error", "Min value is required for NLT.");
+        return;
+      }
+      displayText = `NLT ${minVal}`;
+    } else if (specType === "EXACT_NUMERIC") {
+      minVal = document.getElementById("ovModalExact")?.value.trim() || null;
+      if (!minVal) {
+        showBanner(banner, "error", "Value is required for EXACT NUMERIC.");
+        return;
+      }
+      displayText = `= ${minVal}`;
+    } else if (specType === "TEXT") {
+      textVal = document.getElementById("ovModalText")?.value.trim() || null;
+      if (!textVal) {
+        showBanner(banner, "error", "Spec text is required for TEXT type.");
+        return;
+      }
+      displayText = textVal;
+    } else if (specType === "PASS_FAIL") {
+      displayText = "Passes";
+    }
+  }
+
+  saveBtn.disabled = true;
+  saveLabel.textContent = "Saving…";
+
+  const subj = currentSubjectType;
+  const itemId =
+    subj === "FG" ? ovFgProductId : subj === "RM" ? ovRmItemId : ovPmItemId;
+
+  const { data: userData, error: userErr } = await labSupabase.auth.getUser();
+  if (userErr || !userData?.user?.id) {
+    showBanner(banner, "error", "Login session not found. Please reload.");
+    saveBtn.disabled = false;
+    saveLabel.textContent =
+      ovModalMode === "add" ? "Save Override" : "Update Override";
+    return;
+  }
+
+  const { error } = await labSupabase.rpc("fn_save_spec_override_direct", {
+    p_user_id: userData.user.id,
+    p_subject_type: subj,
+    p_product_id: subj === "FG" ? Number(itemId) : null,
+    p_stock_item_id: subj === "FG" ? null : Number(itemId),
+    p_test_id: Number(testId),
+    p_action_type: actionType,
+    p_spec_type: specType,
+    p_min_value: minVal !== null ? Number(minVal) : null,
+    p_max_value: maxVal !== null ? Number(maxVal) : null,
+    p_text_value: textVal ?? null,
+    p_display_text: displayText ?? null,
+    p_reason: reason || null,
+  });
+
+  saveBtn.disabled = false;
+  saveLabel.textContent =
+    ovModalMode === "add" ? "Save Override" : "Update Override";
+
+  if (error) {
+    showBanner(banner, "error", "Failed to save override: " + error.message);
+    return;
+  }
+
+  toast(
+    ovModalMode === "add"
+      ? "Override saved successfully."
+      : "New override version saved successfully.",
+    "success",
+  );
+  closeOverrideModal();
+
+  // Reload the current subject's overrides
+  if (subj === "FG") await onOvProductChange();
+  else if (subj === "RM") await onRmOverrideItemChange();
+  else await onPmOverrideItemChange();
+}
+
+// Render a single override row (shared across FG/RM/PM tables)
+function renderOverrideRow(r) {
+  const actionClass =
+    {
+      modify: "action-badge-replace",
+      add: "action-badge-append",
+      disable: "action-badge-exclude",
+    }[String(r.action_type ?? "").toLowerCase()] ?? "action-badge-other";
+
+  const inactiveStyle = r.is_active
+    ? ""
+    : 'style="opacity:0.55;background:#f9fafb;"';
+
+  return `<tr ${inactiveStyle} data-ov-id="${esc(String(r.id))}">
+    <td class="td-test">${esc(r.test_name ?? "")}${!r.is_active ? ` <span style="font-size:10px;color:#9ca3af;font-weight:600;text-transform:uppercase;">(inactive)</span>` : ""}</td>
+    <td><span class="action-badge ${actionClass}">${esc(r.action_type ?? "")}</span></td>
+    <td style="color:var(--muted,#6b7280);">${esc(r.override_spec_type ?? "—")}</td>
+    <td>${esc(r.override_display_text ?? "—")}</td>
+    <td class="td-active">
+      <input type="checkbox" class="ov-active-chk" data-ov-id="${esc(String(r.id))}"
+        ${r.is_active ? "checked" : ""} aria-label="Active">
+    </td>
+    <td>
+      <button type="button" class="edit-ov-btn"
+        data-ov-id="${esc(String(r.id))}"
+        data-test-id="${esc(String(r.test_id ?? ""))}"
+        data-action="${esc(r.action_type ?? "")}"
+        data-spec-type="${esc(r.override_spec_type ?? "")}"
+        data-min="${esc(String(r.override_min_value ?? ""))}"
+        data-max="${esc(String(r.override_max_value ?? ""))}"
+        data-text="${esc(r.override_text_value ?? "")}"
+        data-display="${esc(r.override_display_text ?? "")}"
+        data-reason="${esc(r.reason ?? "")}"
+        aria-label="Edit override for ${esc(r.test_name ?? "")}">Edit</button>
+    </td>
+  </tr>`;
+}
+
+// Wire active-toggle and edit-button events on an override tbody after innerHTML render
+function wireOverrideTableEvents(tbody) {
+  tbody.querySelectorAll(".ov-active-chk").forEach((chk) => {
+    chk.addEventListener("change", async () => {
+      const newActive = chk.checked;
+
+      const { data: userData, error: userErr } =
+        await labSupabase.auth.getUser();
+      if (userErr || !userData?.user?.id) {
+        toast("Login session not found.", "error");
+        chk.checked = !newActive;
+        return;
+      }
+
+      const { error } = await labSupabase.rpc("fn_toggle_spec_override", {
+        p_user_id: userData.user.id,
+        p_override_id: Number(chk.dataset.ovId),
+        p_is_active: newActive,
+      });
+      if (error) {
+        toast("Failed to update active status: " + error.message, "error");
+        chk.checked = !newActive; // revert
+      } else {
+        toast(
+          newActive ? "Override activated." : "Override deactivated.",
+          "success",
+        );
+        // Reload override table to reflect updated active state
+        if (currentSubjectType === "FG") await onOvProductChange();
+        else if (currentSubjectType === "RM") await onRmOverrideItemChange();
+        else if (currentSubjectType === "PM") await onPmOverrideItemChange();
+      }
+    });
+  });
+
+  tbody.querySelectorAll(".edit-ov-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const d = btn.dataset;
+      openOverrideModal("edit", {
+        id: d.ovId,
+        test_id: d.testId || null,
+        action_type: d.action,
+        override_spec_type: d.specType || null,
+        override_min_value: d.min !== "" ? d.min : null,
+        override_max_value: d.max !== "" ? d.max : null,
+        override_text_value: d.text || null,
+        override_display_text: d.display,
+        reason: d.reason,
+      });
+    });
+  });
 }
 
 // ── Shared utilities ──────────────────────────────────────────────────────────

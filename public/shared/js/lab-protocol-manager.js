@@ -63,6 +63,12 @@ const tlSaveLinesBtn = document.getElementById("tlSaveLinesBtn");
 const tlBanner = document.getElementById("tlBanner");
 const tlEmptyBanner = document.getElementById("tlEmptyBanner");
 
+// ── Confirm-delete modal
+const tlConfirmModal = document.getElementById("tlConfirmModal");
+const tlConfirmMsg = document.getElementById("tlConfirmMsg");
+const tlConfirmOk = document.getElementById("tlConfirmOk");
+const tlConfirmCancel = document.getElementById("tlConfirmCancel");
+
 // ── Family Mapping tab
 const fmFormTitle = document.getElementById("fmFormTitle");
 const fmFormBanner = document.getElementById("fmFormBanner");
@@ -79,6 +85,36 @@ const fmTableBanner = document.getElementById("fmTableBanner");
 const fmTableBody = document.getElementById("fmTableBody");
 const fmThFamily = document.getElementById("fmThFamily");
 
+// ── Confirm-delete modal helper ──────────────────────────────────────────────
+/**
+ * Shows the in-page confirm modal and resolves true (OK) or false (Cancel).
+ */
+function showConfirmModal(message) {
+  return new Promise((resolve) => {
+    tlConfirmMsg.textContent = message;
+    tlConfirmModal.classList.remove("hidden");
+    tlConfirmOk.focus();
+
+    const finish = (result) => {
+      tlConfirmModal.classList.add("hidden");
+      tlConfirmOk.removeEventListener("click", onOk);
+      tlConfirmCancel.removeEventListener("click", onCancel);
+      tlConfirmModal.removeEventListener("click", onBackdrop);
+      resolve(result);
+    };
+
+    const onOk = () => finish(true);
+    const onCancel = () => finish(false);
+    const onBackdrop = (e) => {
+      if (e.target === tlConfirmModal) finish(false);
+    };
+
+    tlConfirmOk.addEventListener("click", onOk);
+    tlConfirmCancel.addEventListener("click", onCancel);
+    tlConfirmModal.addEventListener("click", onBackdrop);
+  });
+}
+
 // ── Module state ──────────────────────────────────────────────────────────────
 let currentSubject = null; // "FG" | "RM" | "PM"
 let currentTab = "protocolMaster";
@@ -91,7 +127,6 @@ let pmSelectedId = null; // currently selected row id (null = new)
 let tlProtocolId = null;
 let tlLines = []; // [{id, seq_no, test_id, ...}, ...]  (null id = new row)
 let tlDirty = false;
-let tlDeletedIds = []; // ids of existing rows that were deleted in the UI
 /**
  * tlTestMaster — canonical test list with default method info.
  * Shape: { id, test_name, default_method_id, default_method_name }
@@ -173,7 +208,6 @@ function resetAllState() {
   tlProtocolId = null;
   tlLines = [];
   tlDirty = false;
-  tlDeletedIds = [];
   tlTestMaster = [];
   tlTestMasterLoaded = false;
   fmProtocols = [];
@@ -482,7 +516,6 @@ function clearTlTab() {
   tlSaveLinesBtn.disabled = true;
   tlTableBody.innerHTML = "";
   tlLines = [];
-  tlDeletedIds = []; // FIX 2
   tlProtocolId = null;
   tlDirty = false;
 }
@@ -610,6 +643,7 @@ async function loadTlLines(protocolId) {
       "id, seq_no, test_id, method_id, display_text, is_required, is_active",
     )
     .eq("protocol_category_id", protocolId)
+    .eq("is_active", true)
     .order("seq_no");
 
   hideBanner(tlBanner);
@@ -725,15 +759,41 @@ function renderTlTable() {
 
   // Delete button
   tlTableBody.querySelectorAll(".del-line-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", async () => {
       const idx = Number(btn.dataset.idx);
       const removed = tlLines[idx];
-      // FIX 2 — track existing rows for soft-delete on save
-      if (removed.id) tlDeletedIds.push(removed.id);
+
+      if (removed.id) {
+        // Persisted row — confirm before deactivating
+        const testName =
+          tlTestMaster.find((t) => String(t.id) === String(removed.test_id))
+            ?.test_name ?? `row #${removed.id}`;
+        const confirmed = await showConfirmModal(
+          `Remove test line "${testName}" (Seq ${removed.seq_no})? This will permanently deactivate the line and cannot be undone from this screen.`,
+        );
+        if (!confirmed) return;
+
+        btn.disabled = true;
+        const { error: delErr } = await labSupabase.rpc(
+          "fn_deactivate_protocol_test_line",
+          { p_id: removed.id },
+        );
+        if (delErr) {
+          btn.disabled = false;
+          showBanner(
+            tlBanner,
+            "error",
+            "Could not remove line: " + delErr.message,
+          );
+          return;
+        }
+      }
+
+      // Remove from local array and re-render (works for both saved and unsaved rows)
       tlLines.splice(idx, 1);
-      tlDirty = true;
+      tlDirty = tlLines.some((l) => l._dirty);
       renderTlTable();
-      tlSaveLinesBtn.disabled = false;
+      tlSaveLinesBtn.disabled = !tlDirty;
     });
   });
 
@@ -803,34 +863,13 @@ async function saveTlLines() {
   const toInsert = tlLines.filter((l) => l._new && l._dirty && l.test_id);
   const toUpdate = tlLines.filter((l) => !l._new && l._dirty);
 
-  if (
-    toInsert.length === 0 &&
-    toUpdate.length === 0 &&
-    tlDeletedIds.length === 0
-  ) {
+  if (toInsert.length === 0 && toUpdate.length === 0) {
     toast("No changes to save.", "info");
     return;
   }
 
   setBtnLoading(tlSaveLinesBtn, true);
   hideBanner(tlBanner);
-
-  // Soft-deactivate deleted rows via RPC
-  for (const id of tlDeletedIds) {
-    const { error: delErr } = await labSupabase.rpc(
-      "fn_deactivate_protocol_test_line",
-      { p_id: id },
-    );
-    if (delErr) {
-      showBanner(
-        tlBanner,
-        "error",
-        "Delete (deactivate) failed: " + delErr.message,
-      );
-      setBtnLoading(tlSaveLinesBtn, false);
-      return;
-    }
-  }
 
   let hasError = false;
 
@@ -863,7 +902,6 @@ async function saveTlLines() {
   if (!hasError) {
     toast("Test lines saved.", "success");
     tlDirty = false;
-    tlDeletedIds = []; // FIX 2 — clear after successful persist
     await loadTlLines(tlProtocolId);
   }
 }

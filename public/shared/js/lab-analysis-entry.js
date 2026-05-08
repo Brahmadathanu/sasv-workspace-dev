@@ -157,11 +157,19 @@ const homeBtn = $("homeBtn");
 let currentSampleType = null; // "FG_BATCH" | "RM_LOT" | "PM_LOT"
 let createdAnalysis = null; // result from fn_receive_sample_and_create_analysis
 let currentUserId = null;
+let workflowActionPermissions = new Map();
+let receivePermissionVerified = false;
 let fgBatchRows = []; // rows from v_sample_receipt_fg_batch_picker
 let rmItems = []; // RM items from v_rm_pm_item_with_group (category_code = 'RM')
 let pmItems = []; // PM items from v_rm_pm_item_with_group (category_code = 'PLM')
 let mappingCheckDebounceTimer = null;
 let pendingSwitchType = null; // type pill click queued pending confirmation
+
+const RECEIVE_SAMPLE_ACTION = "RECEIVE_SAMPLE";
+const RECEIVE_DENIED_MSG =
+  "You do not have permission to receive/register samples.";
+const PERMISSION_VERIFY_FAILED_MSG =
+  "Could not verify workflow permissions. Actions are disabled for safety.";
 
 // FG readiness: resolved at product-group level
 let fgReadiness = {
@@ -198,9 +206,7 @@ let pmReadiness = {
 
 // ── Entry point ───────────────────────────────────────────────────────────────
 async function init() {
-  // Get current session
-  const { data: sessionData } = await supabase.auth.getSession();
-  currentUserId = sessionData?.session?.user?.id ?? null;
+  currentUserId = await resolveUserId();
 
   if (!currentUserId) {
     setStatusError("Session expired. Please log in again.");
@@ -214,8 +220,71 @@ async function init() {
   // Wire all events first (so UI responds even while pickers are loading)
   wireEvents();
 
+  await loadReceiveSamplePermission();
+
   // Load pickers
   await loadPickers();
+}
+
+async function resolveUserId() {
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const session = sessionData?.session;
+    if (session?.user?.id) return session.user.id;
+  } catch {
+    /* session unavailable */
+  }
+
+  try {
+    const sess = await Platform.getSession?.();
+    return sess?.user?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function mayWorkflowAction(actionCode) {
+  return workflowActionPermissions.get(String(actionCode || "")) === true;
+}
+
+async function loadReceiveSamplePermission() {
+  workflowActionPermissions = new Map();
+  receivePermissionVerified = false;
+
+  try {
+    const { data, error } = await labSupabase.rpc(
+      "fn_get_user_workflow_action_permissions",
+      {
+        p_user_id: currentUserId,
+        p_action_codes: [RECEIVE_SAMPLE_ACTION],
+      },
+    );
+
+    if (error) throw error;
+
+    (Array.isArray(data) ? data : []).forEach((row) => {
+      const code = String(row?.action_code || "").toUpperCase();
+      if (code) workflowActionPermissions.set(code, row?.is_allowed === true);
+    });
+
+    receivePermissionVerified = true;
+    if (!mayWorkflowAction(RECEIVE_SAMPLE_ACTION)) {
+      startAnalysisBtn.disabled = true;
+      startAnalysisBtn.title = RECEIVE_DENIED_MSG;
+      startError.textContent = RECEIVE_DENIED_MSG;
+      startError.classList.remove("hidden");
+    } else {
+      startAnalysisBtn.title = "";
+    }
+  } catch (err) {
+    console.error("[lab-analysis-entry] permission check failed:", err);
+    receivePermissionVerified = false;
+    startAnalysisBtn.disabled = true;
+    startAnalysisBtn.title = PERMISSION_VERIFY_FAILED_MSG;
+    setStatusError(PERMISSION_VERIFY_FAILED_MSG);
+    startError.textContent = PERMISSION_VERIFY_FAILED_MSG;
+    startError.classList.remove("hidden");
+  }
 }
 
 // ── Pickers ───────────────────────────────────────────────────────────────────
@@ -1328,9 +1397,13 @@ function updateStartButton() {
       ? pmReadiness.ok
       : rmReadiness.ok;
 
+  const permissionAllows =
+    receivePermissionVerified && mayWorkflowAction(RECEIVE_SAMPLE_ACTION);
+
   const canStart = !!(
     currentSampleType &&
     mappingReady &&
+    permissionAllows &&
     (isFG
       ? productSelect.value && batchNoSelect.value
       : stockItemSelect.value) &&
@@ -1340,6 +1413,13 @@ function updateStartButton() {
     personInCharge.value
   );
   startAnalysisBtn.disabled = !canStart;
+  if (!permissionAllows) {
+    startAnalysisBtn.title = receivePermissionVerified
+      ? RECEIVE_DENIED_MSG
+      : PERMISSION_VERIFY_FAILED_MSG;
+  } else {
+    startAnalysisBtn.title = "";
+  }
 
   if (canStart) {
     setStepActive(3);
@@ -1399,6 +1479,20 @@ function setStepActive(activeStep) {
 async function startAnalysis() {
   startError.classList.add("hidden");
   startError.textContent = "";
+
+  if (!receivePermissionVerified) {
+    startError.textContent = PERMISSION_VERIFY_FAILED_MSG;
+    startError.classList.remove("hidden");
+    toast(PERMISSION_VERIFY_FAILED_MSG, "error");
+    return;
+  }
+
+  if (!mayWorkflowAction(RECEIVE_SAMPLE_ACTION)) {
+    startError.textContent = RECEIVE_DENIED_MSG;
+    startError.classList.remove("hidden");
+    toast(RECEIVE_DENIED_MSG, "warn");
+    return;
+  }
 
   const { valid, errors } = validateForm();
   if (!valid) {

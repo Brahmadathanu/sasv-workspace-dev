@@ -96,6 +96,22 @@ const ACTION_CODES = {
   reopenAfterApproval: "REOPEN_AFTER_APPROVAL",
 };
 
+const ANALYSIS_ACTION_CODES = [
+  "ENTER_RESULT",
+  "CREATE_REFERENCE_EXCEPTION",
+  "SUBMIT_FOR_SCRUTINY",
+  "PASS_SCRUTINY",
+  "RETURN_FOR_CORRECTION",
+  "APPROVE_FOR_COA",
+  "REOPEN_AFTER_APPROVAL",
+  "ISSUE_COA",
+];
+
+const PERMISSION_DENIED_MESSAGE =
+  "You do not have permission to perform this action at the current workflow stage.";
+const PERMISSION_VERIFY_FAILED_MESSAGE =
+  "Could not verify workflow permissions. Actions are disabled for safety.";
+
 // ── DOM refs ───────────────────────────────────────────────────────────────────
 const $ = (id) => document.getElementById(id);
 
@@ -166,6 +182,8 @@ let isReadOnly = false; // true when status = COA_GENERATED
 let rows = []; // Current result rows (from view)
 let analysisInfo = null; // Analysis-level metadata (first row)
 let debounceTimers = {}; // { [analysis_result_id]: timeoutId }
+let analysisActionPermissions = new Map(); // key: `${analysisId}:${actionCode}`
+let analysisPermissionVerified = false;
 
 // Staff data for Issue COA modal (role-filtered from lab.v_coa_signatory_picker)
 let preparedByList = []; // action_code = 'ENTER_RESULT'
@@ -342,6 +360,11 @@ function buildResultRow(row) {
   const refRequired = row.reference_capture_required === true;
   const hasTempException = row.has_active_reference_exception === true;
   const isOutsourced = src === "OUTSOURCED";
+  const canEnterResult = mayPerformAnalysisAction(analysisId, "ENTER_RESULT");
+  const canCreateRefException = mayPerformAnalysisAction(
+    analysisId,
+    "CREATE_REFERENCE_EXCEPTION",
+  );
 
   // Use reference_range_display if available, fall back to spec_display_snapshot
   const specDisplay =
@@ -372,7 +395,8 @@ function buildResultRow(row) {
         data-rid="${rid}"
         data-kind="NUMERIC"
         value="${esc(String(currentVal))}"
-        ${isReadOnly ? "disabled" : ""}
+        ${isReadOnly || !canEnterResult ? "disabled" : ""}
+        ${!canEnterResult ? `title="${esc(PERMISSION_DENIED_MESSAGE)}"` : ""}
         aria-label="Numeric result for ${esc(row.test_name)}"
       />`;
   } else {
@@ -390,7 +414,8 @@ function buildResultRow(row) {
         class="result-select"
         data-rid="${rid}"
         data-kind="TEXT"
-        ${isReadOnly ? "disabled" : ""}
+        ${isReadOnly || !canEnterResult ? "disabled" : ""}
+        ${!canEnterResult ? `title="${esc(PERMISSION_DENIED_MESSAGE)}"` : ""}
         aria-label="Text result for ${esc(row.test_name)}"
       >
         <option value="">— Select —</option>
@@ -419,7 +444,8 @@ function buildResultRow(row) {
         class="btn-sm btn-ref"
         data-action="add-reference"
         data-rid="${rid}"
-        title="Add or review reference for this test"
+        ${!canCreateRefException ? "disabled" : ""}
+        title="${esc(canCreateRefException ? "Add or review reference for this test" : PERMISSION_DENIED_MESSAGE)}"
       >
         ${tempBadge}
         + Add Reference
@@ -473,44 +499,141 @@ function updateValidationPanel(data) {
 }
 
 // ── Permission check for workflow buttons ───────────────────────────────────────
-/**
- * Calls lab.fn_user_may_perform_analysis_action for each action code.
- * Returns a map { actionCode: boolean }.
- */
-async function fetchPermissions() {
-  const checks = Object.entries(ACTION_CODES);
-  const results = await Promise.all(
-    checks.map(async ([key, code]) => {
-      try {
-        const { data, error } = await labSupabase.rpc(
-          "fn_user_may_perform_analysis_action",
-          {
-            p_user_id: userId,
-            p_analysis_id: analysisId,
-            p_action_code: code,
-          },
-        );
-        if (error) return [key, false];
-        return [key, !!data];
-      } catch {
-        return [key, false];
-      }
-    }),
+function makeAnalysisPermissionKey(id, actionCode) {
+  return `${Number(id)}:${String(actionCode || "").toUpperCase()}`;
+}
+
+function getAnalysisStatus() {
+  return String(analysisInfo?.status || "").toUpperCase();
+}
+
+function statusAllowsAnalysisAction(actionCode) {
+  const status = getAnalysisStatus();
+
+  if (isReadOnly) return false;
+
+  switch (String(actionCode || "").toUpperCase()) {
+    case "ENTER_RESULT":
+      return status === "DRAFT" || status === "IN_PROGRESS";
+
+    case "CREATE_REFERENCE_EXCEPTION":
+      return status === "DRAFT" || status === "IN_PROGRESS";
+
+    case "SUBMIT_FOR_SCRUTINY":
+      return status === "DRAFT" || status === "IN_PROGRESS";
+
+    case "PASS_SCRUTINY":
+      return status === "PENDING_SCRUTINY";
+
+    case "RETURN_FOR_CORRECTION":
+      return status === "PENDING_SCRUTINY";
+
+    case "APPROVE_FOR_COA":
+      return status === "SCRUTINY_PASSED";
+
+    case "REOPEN_AFTER_APPROVAL":
+      return status === "APPROVED_FOR_COA";
+
+    case "ISSUE_COA":
+      return status === "APPROVED_FOR_COA";
+
+    default:
+      return false;
+  }
+}
+
+function mayPerformAnalysisAction(id, actionCode) {
+  if (!analysisPermissionVerified) return false;
+  return (
+    analysisActionPermissions.get(makeAnalysisPermissionKey(id, actionCode)) ===
+    true
   );
-  return Object.fromEntries(results);
+}
+
+async function fetchAnalysisPermissions() {
+  analysisActionPermissions = new Map();
+  analysisPermissionVerified = false;
+
+  try {
+    const { data, error } = await labSupabase.rpc(
+      "fn_get_user_analysis_action_permissions",
+      {
+        p_user_id: userId,
+        p_analysis_ids: [Number(analysisId)],
+        p_action_codes: ANALYSIS_ACTION_CODES,
+      },
+    );
+
+    if (error) throw error;
+
+    (Array.isArray(data) ? data : []).forEach((row) => {
+      const key = makeAnalysisPermissionKey(row?.analysis_id, row?.action_code);
+      analysisActionPermissions.set(key, row?.is_allowed === true);
+    });
+
+    analysisPermissionVerified = true;
+    return true;
+  } catch (err) {
+    console.error("[AW] permission fetch failed:", err);
+    analysisPermissionVerified = false;
+    analysisActionPermissions.clear();
+    return false;
+  }
+}
+
+function applyPermissionToButton(btn, statusAllows, permissionAllows, message) {
+  if (!btn) return;
+  btn.disabled = !(statusAllows && permissionAllows);
+  if (!permissionAllows) btn.title = message || PERMISSION_DENIED_MESSAGE;
+  else if (btn.title === message || btn.title === PERMISSION_DENIED_MESSAGE)
+    btn.title = "";
 }
 
 // ── Apply permissions to workflow buttons ───────────────────────────────────────
-function applyPermissions(perms) {
-  btnSubmitScrutiny.disabled = !perms.submitScrutiny || isReadOnly;
-  btnPassScrutiny.disabled = !perms.passScrutiny || isReadOnly;
-  btnApproveForCoa.disabled = !perms.approveCoa || isReadOnly;
-  btnIssueCoa.disabled = !perms.issueCoa || isReadOnly;
-  btnReturnForCorrection.disabled = !perms.returnForCorrection || isReadOnly;
-  btnReopenAfterApproval.disabled = !perms.reopenAfterApproval || isReadOnly;
-  // View COA: enabled only when status is COA_GENERATED (available in read-only mode)
+function applyPermissions() {
+  const denyMsg = analysisPermissionVerified
+    ? PERMISSION_DENIED_MESSAGE
+    : PERMISSION_VERIFY_FAILED_MESSAGE;
+
+  applyPermissionToButton(
+    btnSubmitScrutiny,
+    statusAllowsAnalysisAction(ACTION_CODES.submitScrutiny),
+    mayPerformAnalysisAction(analysisId, ACTION_CODES.submitScrutiny),
+    denyMsg,
+  );
+  applyPermissionToButton(
+    btnPassScrutiny,
+    statusAllowsAnalysisAction(ACTION_CODES.passScrutiny),
+    mayPerformAnalysisAction(analysisId, ACTION_CODES.passScrutiny),
+    denyMsg,
+  );
+  applyPermissionToButton(
+    btnApproveForCoa,
+    statusAllowsAnalysisAction(ACTION_CODES.approveCoa),
+    mayPerformAnalysisAction(analysisId, ACTION_CODES.approveCoa),
+    denyMsg,
+  );
+  applyPermissionToButton(
+    btnIssueCoa,
+    statusAllowsAnalysisAction(ACTION_CODES.issueCoa),
+    mayPerformAnalysisAction(analysisId, ACTION_CODES.issueCoa),
+    denyMsg,
+  );
+  applyPermissionToButton(
+    btnReturnForCorrection,
+    statusAllowsAnalysisAction(ACTION_CODES.returnForCorrection),
+    mayPerformAnalysisAction(analysisId, ACTION_CODES.returnForCorrection),
+    denyMsg,
+  );
+  applyPermissionToButton(
+    btnReopenAfterApproval,
+    statusAllowsAnalysisAction(ACTION_CODES.reopenAfterApproval),
+    mayPerformAnalysisAction(analysisId, ACTION_CODES.reopenAfterApproval),
+    denyMsg,
+  );
+
   if (btnViewCoa) {
-    btnViewCoa.disabled = !isReadOnly; // isReadOnly is true only when COA_GENERATED
+    btnViewCoa.disabled = !isReadOnly;
   }
 }
 
@@ -523,6 +646,22 @@ function applyPermissions(perms) {
  */
 async function saveResult(resultId, kind, value) {
   if (isReadOnly) return;
+  if (!statusAllowsAnalysisAction("ENTER_RESULT")) {
+    toast(
+      "Result entry is not allowed at the current workflow stage.",
+      "warn",
+      4000,
+    );
+    return;
+  }
+  if (!analysisPermissionVerified) {
+    toast(PERMISSION_VERIFY_FAILED_MESSAGE, "error", 5000);
+    return;
+  }
+  if (!mayPerformAnalysisAction(analysisId, "ENTER_RESULT")) {
+    toast(PERMISSION_DENIED_MESSAGE, "warn", 4000);
+    return;
+  }
 
   const { error } = await labSupabase.rpc("fn_save_analysis_result", {
     p_user_id: userId,
@@ -606,6 +745,22 @@ function closeReferenceModal() {
 
 async function saveReference() {
   if (!pendingRefRow) return;
+  if (!statusAllowsAnalysisAction("CREATE_REFERENCE_EXCEPTION")) {
+    toast(
+      "Reference changes are not allowed at the current workflow stage.",
+      "warn",
+      4000,
+    );
+    return;
+  }
+  if (!analysisPermissionVerified) {
+    toast(PERMISSION_VERIFY_FAILED_MESSAGE, "error", 5000);
+    return;
+  }
+  if (!mayPerformAnalysisAction(analysisId, "CREATE_REFERENCE_EXCEPTION")) {
+    toast(PERMISSION_DENIED_MESSAGE, "warn", 4000);
+    return;
+  }
   const val = refValueInput.value.trim();
   if (!val) {
     toast("Please enter a reference value.", "warn");
@@ -666,6 +821,22 @@ async function saveReference() {
 
 async function grantException() {
   if (!pendingRefRow) return;
+  if (!statusAllowsAnalysisAction("CREATE_REFERENCE_EXCEPTION")) {
+    toast(
+      "Reference changes are not allowed at the current workflow stage.",
+      "warn",
+      4000,
+    );
+    return;
+  }
+  if (!analysisPermissionVerified) {
+    toast(PERMISSION_VERIFY_FAILED_MESSAGE, "error", 5000);
+    return;
+  }
+  if (!mayPerformAnalysisAction(analysisId, "CREATE_REFERENCE_EXCEPTION")) {
+    toast(PERMISSION_DENIED_MESSAGE, "warn", 4000);
+    return;
+  }
   const note = refNoteInput.value.trim() || null;
   btnAddException.disabled = true;
   showLoading();
@@ -718,6 +889,14 @@ function closeOutsourcedModal() {
 
 async function saveOutsourcedSource() {
   if (!pendingOutRow) return;
+  if (!analysisPermissionVerified) {
+    toast(PERMISSION_VERIFY_FAILED_MESSAGE, "error", 5000);
+    return;
+  }
+  if (!mayPerformAnalysisAction(analysisId, "ENTER_RESULT")) {
+    toast(PERMISSION_DENIED_MESSAGE, "warn", 4000);
+    return;
+  }
   const labName = outLabName.value.trim();
   const coaNo = outCoaNumber.value.trim();
   const coaDate = outCoaDate.value || null;
@@ -970,6 +1149,22 @@ function closeIssueCoaConfirmModal() {
 
 async function proceedIssueCoa() {
   if (!_pendingCoa) return;
+  if (!statusAllowsAnalysisAction("ISSUE_COA")) {
+    toast(
+      "COA issue is not allowed at the current workflow stage.",
+      "warn",
+      4000,
+    );
+    return;
+  }
+  if (!analysisPermissionVerified) {
+    toast(PERMISSION_VERIFY_FAILED_MESSAGE, "error", 5000);
+    return;
+  }
+  if (!mayPerformAnalysisAction(analysisId, "ISSUE_COA")) {
+    toast(PERMISSION_DENIED_MESSAGE, "warn", 4000);
+    return;
+  }
   const { issueDate, preparedBy, checkedBy, approvedBy, remarks } = _pendingCoa;
 
   closeIssueCoaConfirmModal();
@@ -1005,6 +1200,22 @@ async function proceedIssueCoa() {
  */
 async function performWorkflowAction(actionCode, label, btn) {
   if (isReadOnly) return;
+  if (!statusAllowsAnalysisAction(actionCode)) {
+    toast(
+      "This action is not allowed at the current workflow stage.",
+      "warn",
+      4000,
+    );
+    return;
+  }
+  if (!analysisPermissionVerified) {
+    toast(PERMISSION_VERIFY_FAILED_MESSAGE, "error", 5000);
+    return;
+  }
+  if (!mayPerformAnalysisAction(analysisId, actionCode)) {
+    toast(PERMISSION_DENIED_MESSAGE, "warn", 4000);
+    return;
+  }
 
   // Issue COA requires modal input — open modal and exit this function
   if (actionCode === "ISSUE_COA") {
@@ -1084,6 +1295,13 @@ async function reloadAndRender() {
   const status = String(analysisInfo.status || "").toUpperCase();
   isReadOnly = status === "COA_GENERATED";
 
+  if (userId) {
+    await fetchAnalysisPermissions();
+  } else {
+    analysisPermissionVerified = false;
+    analysisActionPermissions.clear();
+  }
+
   // Render header
   renderHeader(analysisInfo);
 
@@ -1097,24 +1315,33 @@ async function reloadAndRender() {
   updateValidationPanel(rows);
 
   // Permission-gated workflow buttons
-  if (userId) {
-    const perms = await fetchPermissions();
-    applyPermissions(perms);
-  } else {
-    applyPermissions({
-      submitScrutiny: false,
-      passScrutiny: false,
-      approveCoa: false,
-      issueCoa: false,
-      returnForCorrection: false,
-      reopenAfterApproval: false,
-    });
-  }
+  applyPermissions();
+
+  btnRefSave.disabled = !(
+    statusAllowsAnalysisAction("CREATE_REFERENCE_EXCEPTION") &&
+    mayPerformAnalysisAction(analysisId, "CREATE_REFERENCE_EXCEPTION")
+  );
+  btnAddException.disabled = !(
+    statusAllowsAnalysisAction("CREATE_REFERENCE_EXCEPTION") &&
+    mayPerformAnalysisAction(analysisId, "CREATE_REFERENCE_EXCEPTION")
+  );
+  btnOutSave.disabled = !(
+    statusAllowsAnalysisAction("ENTER_RESULT") &&
+    mayPerformAnalysisAction(analysisId, "ENTER_RESULT")
+  );
+  btnIssueCoaConfirmProceed.disabled = !(
+    statusAllowsAnalysisAction("ISSUE_COA") &&
+    mayPerformAnalysisAction(analysisId, "ISSUE_COA")
+  );
 
   // Status hint in action bar
-  actionBarStatus.textContent = isReadOnly
-    ? "Read only — no further actions permitted."
-    : "";
+  if (!analysisPermissionVerified) {
+    actionBarStatus.textContent = PERMISSION_VERIFY_FAILED_MESSAGE;
+  } else {
+    actionBarStatus.textContent = isReadOnly
+      ? "Read only — no further actions permitted."
+      : "";
+  }
 }
 
 // ── Event wiring ────────────────────────────────────────────────────────────────
@@ -1180,8 +1407,28 @@ function wireEvents() {
     const row = rows.find((r) => String(r.analysis_result_id) === String(rid));
     if (!row) return;
 
-    if (action === "add-reference") openReferenceModal(row);
-    if (action === "edit-outsourced") openOutsourcedModal(row);
+    if (action === "add-reference") {
+      if (!analysisPermissionVerified) {
+        toast(PERMISSION_VERIFY_FAILED_MESSAGE, "error", 5000);
+        return;
+      }
+      if (!mayPerformAnalysisAction(analysisId, "CREATE_REFERENCE_EXCEPTION")) {
+        toast(PERMISSION_DENIED_MESSAGE, "warn", 4000);
+        return;
+      }
+      openReferenceModal(row);
+    }
+    if (action === "edit-outsourced") {
+      if (!analysisPermissionVerified) {
+        toast(PERMISSION_VERIFY_FAILED_MESSAGE, "error", 5000);
+        return;
+      }
+      if (!mayPerformAnalysisAction(analysisId, "ENTER_RESULT")) {
+        toast(PERMISSION_DENIED_MESSAGE, "warn", 4000);
+        return;
+      }
+      openOutsourcedModal(row);
+    }
   });
 
   // Reference modal

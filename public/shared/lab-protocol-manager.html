@@ -67,6 +67,76 @@
         }
       }
 
+      /* ── Confirm-delete modal ────────────────────────────────────── */
+      .tl-modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      }
+      .tl-modal-overlay.hidden {
+        display: none !important;
+      }
+      .tl-modal-card {
+        background: var(--panel-bg, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 12px;
+        padding: 28px 32px 24px;
+        max-width: 420px;
+        width: 90%;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .tl-modal-icon {
+        font-size: 2rem;
+        color: #ef4444;
+        line-height: 1;
+      }
+      .tl-modal-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--text, #111827);
+      }
+      .tl-modal-msg {
+        font-size: 0.875rem;
+        color: var(--muted, #6b7280);
+        line-height: 1.6;
+      }
+      .tl-modal-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        margin-top: 6px;
+      }
+      .tl-modal-btn {
+        padding: 8px 22px;
+        border-radius: 7px;
+        border: none;
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .tl-modal-btn-cancel {
+        background: var(--border, #e5e7eb);
+        color: var(--text, #111827);
+      }
+      .tl-modal-btn-cancel:hover {
+        background: #d1d5db;
+      }
+      .tl-modal-btn-danger {
+        background: #ef4444;
+        color: #fff;
+      }
+      .tl-modal-btn-danger:hover {
+        background: #dc2626;
+      }
+
       /* ── Icon button ──────────────────────────────────────────────── */
       .icon-btn {
         display: inline-flex;
@@ -1742,6 +1812,29 @@
 
     <!-- Toast container -->
     <div id="toastContainer" aria-live="assertive"></div>
+
+    <!-- Confirm-delete modal -->
+    <div
+      id="tlConfirmModal"
+      class="tl-modal-overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="tlConfirmTitle"
+    >
+      <div class="tl-modal-card">
+        <div class="tl-modal-icon" aria-hidden="true">&#9888;</div>
+        <div class="tl-modal-title" id="tlConfirmTitle">Remove Test Line</div>
+        <div class="tl-modal-msg" id="tlConfirmMsg"></div>
+        <div class="tl-modal-actions">
+          <button id="tlConfirmCancel" class="tl-modal-btn tl-modal-btn-cancel">
+            Cancel
+          </button>
+          <button id="tlConfirmOk" class="tl-modal-btn tl-modal-btn-danger">
+            Remove Line
+          </button>
+        </div>
+      </div>
+    </div>
 
     <script type="module" src="js/lab-protocol-manager.js"></script>
   </body>

@@ -1,0 +1,1313 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lab Workflow Access Control Manager</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <style>
+      html,
+      body {
+        height: 100vh;
+        min-height: 100vh;
+        margin: 0;
+        overflow: hidden;
+        box-sizing: border-box;
+        font-family: system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        padding: 20px;
+        gap: 10px;
+      }
+      @media (max-width: 1080px) {
+        body {
+          padding: 10px;
+        }
+      }
+      @media (max-width: 520px) {
+        body {
+          padding: 6px;
+        }
+      }
+
+      /* ── Header ─────────────────────────────────────────────────────── */
+      .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        flex-shrink: 0;
+      }
+      .page-header h1 {
+        margin: 0;
+        font-size: 1.3rem;
+        color: var(--primary, #005a8d);
+        line-height: 1.2;
+      }
+      .page-sub {
+        color: var(--muted, #6b7280);
+        font-size: 0.88rem;
+        margin-top: 3px;
+      }
+      .header-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-shrink: 0;
+      }
+      @media (max-width: 520px) {
+        .page-header h1 {
+          font-size: 15px;
+          line-height: 1.1;
+        }
+        .page-sub {
+          display: none;
+        }
+        #homeBtn .home-label {
+          display: none;
+        }
+      }
+
+      /* ── Icon button ─────────────────────────────────────────────────── */
+      .icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 7px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+        background: var(--panel-bg, #fff);
+        cursor: pointer;
+        color: inherit;
+      }
+      .icon-btn:hover {
+        background: #f3f4f6;
+      }
+
+      /* ── Status ─────────────────────────────────────────────────────── */
+      #statusArea {
+        padding: 12px 14px;
+        border-radius: 7px;
+        font-size: 13.5px;
+        color: var(--muted, #6b7280);
+        display: none;
+        flex-shrink: 0;
+      }
+      #statusArea[data-type="error"] {
+        background: #fef2f2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
+        display: block;
+      }
+      #statusArea[data-type="loading"] {
+        background: #eff6ff;
+        color: #1e40af;
+        border: 1px solid #bfdbfe;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      /* ── KPI Strip ───────────────────────────────────────────────────── */
+      .kpi-strip {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 6px;
+        align-items: stretch;
+        justify-content: space-between;
+        scrollbar-width: none;
+        flex-shrink: 0;
+      }
+      .kpi-strip::-webkit-scrollbar {
+        display: none;
+      }
+      .kpi {
+        background: var(--panel-bg, #fff);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        padding: 5px 10px;
+        border-radius: 7px;
+        min-width: fit-content;
+        flex-shrink: 0;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+      }
+      .kpi > .kpi-label {
+        font-weight: 600;
+        font-size: 10.5px;
+        color: var(--muted, #6b7280);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .kpi > .kpi-value {
+        font-size: 13px;
+        color: var(--text, #0f172a);
+        font-weight: 700;
+      }
+      .kpi-staff {
+        border-left: 4px solid #2563eb;
+        background: linear-gradient(
+          135deg,
+          rgba(37, 99, 235, 0.06),
+          rgba(37, 99, 235, 0.02)
+        );
+      }
+      .kpi-roles {
+        border-left: 4px solid #0ea5e9;
+        background: linear-gradient(
+          135deg,
+          rgba(14, 165, 233, 0.06),
+          rgba(14, 165, 233, 0.02)
+        );
+      }
+      .kpi-actions {
+        border-left: 4px solid #f59e0b;
+        background: linear-gradient(
+          135deg,
+          rgba(245, 158, 11, 0.07),
+          rgba(245, 158, 11, 0.02)
+        );
+      }
+      .kpi-assignments {
+        border-left: 4px solid #8b5cf6;
+        background: linear-gradient(
+          135deg,
+          rgba(139, 92, 246, 0.06),
+          rgba(139, 92, 246, 0.02)
+        );
+      }
+      .kpi-permissions {
+        border-left: 4px solid #10b981;
+        background: linear-gradient(
+          135deg,
+          rgba(16, 185, 129, 0.06),
+          rgba(16, 185, 129, 0.02)
+        );
+      }
+      @media (max-width: 800px) {
+        .kpi-strip {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          overflow-x: visible;
+          gap: 5px;
+        }
+        .kpi {
+          min-width: 0;
+          flex-shrink: unset;
+          white-space: normal;
+          padding: 5px 8px;
+        }
+      }
+      @media (max-width: 420px) {
+        .kpi > .kpi-label {
+          font-size: 9.5px;
+        }
+        .kpi > .kpi-value {
+          font-size: 12px;
+        }
+      }
+
+      /* ── Search card ─────────────────────────────────────────────────── */
+      .search-card {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+      .search-wrap {
+        position: relative;
+        flex: 1;
+        min-width: 160px;
+      }
+      #lwacSearch {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px 36px 8px 10px;
+        border: 1px solid rgba(14, 165, 233, 0.35);
+        border-radius: 8px;
+        font-size: 13.5px;
+        background: #e6f7ff;
+        font-family: inherit;
+      }
+      #lwacSearch::placeholder {
+        color: var(--muted, #6b7280);
+      }
+      #lwacSearch:focus {
+        outline: none;
+        border-color: #0ea5e9;
+        box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.08);
+      }
+      .input-clear-btn {
+        position: absolute;
+        right: 6px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        border: none;
+        background: transparent;
+        color: var(--muted, #6b7280);
+        cursor: pointer;
+        padding: 0;
+        border-radius: 5px;
+      }
+      .input-clear-btn:hover {
+        background: rgba(15, 23, 42, 0.06);
+        color: #0f172a;
+      }
+      .input-clear-btn.visible {
+        display: inline-flex;
+      }
+
+      /* ── Lens pills ───────────────────────────────────────────────────── */
+      .lens-pills {
+        display: flex;
+        gap: 6px;
+        padding: 8px;
+        background: linear-gradient(
+          135deg,
+          rgba(37, 99, 235, 0.05),
+          rgba(37, 99, 235, 0.02)
+        );
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 10px;
+        align-items: center;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        flex-shrink: 0;
+        scrollbar-width: none;
+      }
+      .lens-pills::-webkit-scrollbar {
+        display: none;
+      }
+      .lens-pills .pill {
+        padding: 7px 15px;
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--muted, #6b7280);
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        border-radius: 8px;
+        transition: all 0.16s ease;
+        white-space: nowrap;
+        line-height: 1.2;
+        font-family: inherit;
+      }
+      .lens-pills .pill:hover {
+        color: #0f172a;
+        background: rgba(37, 99, 235, 0.05);
+        border-color: rgba(37, 99, 235, 0.12);
+      }
+      .lens-pills .pill.active {
+        color: #fff;
+        background: var(--primary, #005a8d);
+        border-color: var(--primary, #005a8d);
+        box-shadow: 0 4px 14px rgba(0, 90, 141, 0.22);
+      }
+      @media (min-width: 521px) {
+        .tab-select-wrap {
+          display: none;
+        }
+      }
+      @media (max-width: 520px) {
+        .lens-pills {
+          display: none;
+        }
+        .tab-select-wrap {
+          position: relative;
+          display: block;
+          width: 100%;
+        }
+        .tab-select {
+          width: 100%;
+          padding: 8px 42px 8px 10px;
+          border-radius: 8px;
+          border: 1px solid var(--primary, #005a8d);
+          background: linear-gradient(
+            135deg,
+            rgba(0, 90, 141, 0.12),
+            rgba(0, 90, 141, 0.06)
+          );
+          color: #0f172a;
+          font-weight: 600;
+          font-size: 14px;
+          appearance: none;
+          -webkit-appearance: none;
+          cursor: pointer;
+          font-family: inherit;
+        }
+        .tab-select-icon {
+          position: absolute;
+          right: 12px;
+          top: 50%;
+          transform: translateY(-50%);
+          pointer-events: none;
+          color: var(--primary, #005a8d);
+        }
+      }
+
+      /* ── Main area ─────────────────────────────────────────────────────── */
+      .main {
+        display: flex;
+        flex: 1 1 auto;
+        gap: 12px;
+        min-height: 0;
+      }
+      .table-card {
+        flex: 1 1 0;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        padding: 8px;
+        background: var(--panel-bg, #fff);
+      }
+      .table-controls {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding-bottom: 6px;
+        flex-shrink: 0;
+      }
+      #lwacRowCount {
+        font-size: 12px;
+        color: var(--muted, #6b7280);
+        white-space: nowrap;
+      }
+      .table-action-group {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      #tableWrap {
+        flex: 1 1 0;
+        min-height: 0;
+        overflow: auto;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      thead th {
+        position: sticky;
+        top: 0;
+        background: #fafafa;
+        z-index: 3;
+        padding: 8px;
+        text-align: left;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+        font-size: 12px;
+        white-space: nowrap;
+        color: var(--muted, #6b7280);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      tbody td {
+        padding: 7px 8px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+        font-size: 13px;
+      }
+      tbody tr.lwac-row {
+        cursor: pointer;
+        transition: background 0.12s ease;
+      }
+      tbody tr.lwac-row:hover {
+        background: #eef4ff;
+      }
+      tbody tr.lwac-row:nth-child(even) {
+        background: #fafbfc;
+      }
+      tbody tr.lwac-row:nth-child(even):hover {
+        background: #eef4ff;
+      }
+      @media (max-width: 800px) {
+        .col-hide-mobile {
+          display: none;
+        }
+      }
+
+      /* ── Item cells ─────────────────────────────────────────────────── */
+      .item-primary {
+        font-weight: 600;
+        font-size: 13px;
+        line-height: 1.35;
+      }
+      .item-secondary {
+        display: block;
+        color: var(--muted, #7a8696);
+        font-size: 11px;
+        margin-top: 2px;
+      }
+
+      /* ── Badges ─────────────────────────────────────────────────────── */
+      .badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .badge-active {
+        background: #dcfce7;
+        color: #166534;
+      }
+      .badge-inactive {
+        background: #f3f4f6;
+        color: #6b7280;
+      }
+      .badge-allowed {
+        background: #dcfce7;
+        color: #166534;
+      }
+      .badge-not-allowed {
+        background: #fef3c7;
+        color: #92400e;
+      }
+      .badge-role {
+        background: #ede9fe;
+        color: #6d28d9;
+      }
+      .badge-action {
+        background: #e0f2fe;
+        color: #0c4a6e;
+      }
+
+      /* ── Filter button badge ─────────────────────────────────────────── */
+      .filter-btn-wrap {
+        position: relative;
+        display: inline-flex;
+      }
+      .filter-badge {
+        position: absolute;
+        top: -6px;
+        right: -6px;
+        background: #ef4444;
+        color: #fff;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 700;
+        min-width: 16px;
+        height: 16px;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 0 3px;
+      }
+      .filter-badge.visible {
+        display: flex;
+      }
+
+      /* ── Filter panel ────────────────────────────────────────────────── */
+      #filterPanel {
+        position: fixed;
+        z-index: 1500;
+        background: #fff;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 10px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+        padding: 14px 16px;
+        min-width: 260px;
+        max-width: 320px;
+        display: none;
+        flex-direction: column;
+        gap: 10px;
+      }
+      #filterPanel.open {
+        display: flex;
+      }
+      @media (max-width: 520px) {
+        #filterPanel {
+          max-height: 70vh;
+          overflow-y: auto;
+        }
+      }
+      .filter-panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .filter-panel-title {
+        font-size: 12.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--primary, #005a8d);
+      }
+      .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .filter-group label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #374151;
+      }
+      .filter-group select {
+        padding: 6px 10px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+        font-size: 13px;
+        font-family: inherit;
+        background: #fff;
+        color: #0f172a;
+      }
+      .filter-actions {
+        display: flex;
+        gap: 8px;
+        padding-top: 4px;
+      }
+
+      /* ── Buttons ─────────────────────────────────────────────────────── */
+      .btn-primary,
+      .btn-secondary,
+      .btn-danger {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-family: inherit;
+        white-space: nowrap;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+      .btn-primary {
+        background: var(--primary, #005a8d);
+        color: #fff;
+        border: none;
+        font-weight: 700;
+      }
+      .btn-primary:hover:not(:disabled) {
+        background: var(--primary-hover, #004876);
+        box-shadow: 0 4px 12px rgba(0, 90, 141, 0.25);
+      }
+      .btn-secondary {
+        background: #fff;
+        color: #374151;
+        border: 1px solid var(--border, #e5e7eb);
+        font-weight: 600;
+      }
+      .btn-secondary:hover:not(:disabled) {
+        background: #f3f4f6;
+      }
+      .btn-danger {
+        background: #fff;
+        color: #b91c1c;
+        border: 1px solid #fca5a5;
+        font-weight: 600;
+      }
+      .btn-danger:hover:not(:disabled) {
+        background: #fef2f2;
+      }
+      .btn-sm {
+        padding: 5px 12px;
+        font-size: 12px;
+      }
+      .btn-xs {
+        padding: 4px 8px;
+        font-size: 11px;
+      }
+      .btn-primary:disabled,
+      .btn-secondary:disabled,
+      .btn-danger:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      /* ── Modal ───────────────────────────────────────────────────────── */
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+      }
+      .modal-overlay.hidden {
+        display: none;
+      }
+      .modal-window {
+        width: min(780px, 96vw);
+        max-height: 88vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        background: var(--panel-bg, #fff);
+        border-radius: 10px;
+        border: 1px solid var(--border, #e5e7eb);
+        padding: 18px;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+      }
+      @media (max-width: 800px) {
+        .modal-overlay {
+          align-items: flex-start;
+        }
+        .modal-window {
+          width: 100vw;
+          height: 100vh;
+          max-height: 100vh;
+          border-radius: 0;
+          border: none;
+          padding: 12px;
+        }
+      }
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 12px;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+      .modal-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #0f172a;
+        line-height: 1.3;
+      }
+      .modal-subtitle {
+        font-size: 12px;
+        color: var(--muted, #6b7280);
+        margin-top: 3px;
+      }
+      .modal-header-actions {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        flex-shrink: 0;
+      }
+      .modal-close-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+        background: transparent;
+        cursor: pointer;
+        color: var(--muted, #6b7280);
+      }
+      .modal-close-btn:hover {
+        background: #f3f4f6;
+        color: #111;
+      }
+      .modal-content {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+      }
+
+      /* ── Form inside modal ─────────────────────────────────────────── */
+      .form-section {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      @media (max-width: 520px) {
+        .form-row {
+          grid-template-columns: 1fr;
+        }
+      }
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .form-group-full {
+        grid-column: 1 / -1;
+      }
+      .form-group label {
+        font-size: 12.5px;
+        font-weight: 600;
+        color: #374151;
+      }
+      .req {
+        color: #dc2626;
+        margin-left: 2px;
+      }
+      .form-control {
+        padding: 8px 10px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 7px;
+        font-size: 13.5px;
+        font-family: inherit;
+        background: #fff;
+        color: #0f172a;
+        transition:
+          border-color 0.15s,
+          box-shadow 0.15s;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .form-control:focus {
+        outline: none;
+        border-color: var(--primary, #005a8d);
+        box-shadow: 0 0 0 3px rgba(0, 90, 141, 0.1);
+      }
+      .form-control:disabled,
+      .form-control[readonly] {
+        background: #f9fafb;
+        color: #6b7280;
+      }
+      select.form-control {
+        appearance: none;
+        -webkit-appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        padding-right: 30px;
+      }
+      .form-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+        padding-top: 4px;
+      }
+      .modal-divider {
+        border: none;
+        border-top: 1px solid var(--border, #e5e7eb);
+        margin: 14px 0 10px;
+      }
+
+      /* ── Read-only field display ─────────────────────────────────────── */
+      .ro-field {
+        padding: 8px 10px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 7px;
+        font-size: 13.5px;
+        background: #f9fafb;
+        color: #374151;
+        min-height: 38px;
+        display: flex;
+        align-items: center;
+      }
+
+      /* ── Modal banner ─────────────────────────────────────────────── */
+      .modal-banner {
+        padding: 10px 12px;
+        border-radius: 7px;
+        font-size: 12.5px;
+        display: none;
+        margin-bottom: 10px;
+        border-left: 4px solid;
+      }
+      .modal-banner[data-type="error"] {
+        background: #fef2f2;
+        color: #991b1b;
+        border-color: #fca5a5;
+        display: block;
+      }
+      .modal-banner[data-type="success"] {
+        background: #f0fdf4;
+        color: #166534;
+        border-color: #86efac;
+        display: block;
+      }
+
+      /* ── Modal inner table ─────────────────────────────────────────── */
+      .modal-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12.5px;
+      }
+      .modal-table th {
+        text-align: left;
+        padding: 7px 8px;
+        border-bottom: 2px solid var(--border, #e5e7eb);
+        color: var(--muted, #6b7280);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        font-weight: 600;
+      }
+      .modal-table td {
+        padding: 7px 8px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+      }
+      .modal-table tr:hover td {
+        background: #f9fafb;
+      }
+
+      /* ── Empty state ─────────────────────────────────────────────────── */
+      .empty-state {
+        padding: 28px 16px;
+        text-align: center;
+        color: var(--muted, #6b7280);
+        font-size: 13.5px;
+      }
+
+      /* ── Toast ───────────────────────────────────────────────────────── */
+      #labToastContainer {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-end;
+        pointer-events: none;
+      }
+      .lab-toast {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        font-size: 13px;
+        font-weight: 500;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+        pointer-events: auto;
+        animation: lab-toast-in 0.2s ease forwards;
+        max-width: 320px;
+        line-height: 1.4;
+      }
+      .lab-toast.toast-success {
+        background: #f0fdf4;
+        border-color: #86efac;
+        color: #166534;
+      }
+      .lab-toast.toast-info {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+        color: #1e40af;
+      }
+      .lab-toast.toast-error {
+        background: #fef2f2;
+        border-color: #fca5a5;
+        color: #991b1b;
+      }
+      .lab-toast.toast-warn {
+        background: #fffbeb;
+        border-color: #fcd34d;
+        color: #92400e;
+      }
+      .lab-toast.toast-fade-out {
+        animation: lab-toast-out 0.3s ease forwards;
+      }
+      @keyframes lab-toast-in {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes lab-toast-out {
+        from {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        to {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ── Header ─────────────────────────────────────────────────────── -->
+    <div class="page-header">
+      <div>
+        <h1>Lab Workflow Access Control Manager</h1>
+        <div class="page-sub">
+          Manage laboratory staff roles and workflow action permissions.
+        </div>
+      </div>
+      <div class="header-actions">
+        <button
+          id="refreshBtn"
+          type="button"
+          title="Refresh data"
+          aria-label="Refresh data"
+          class="icon-btn"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0114.13-3.36L23 10"></path>
+            <path d="M20.49 15a9 9 0 01-14.13 3.36L1 14"></path>
+          </svg>
+        </button>
+        <button
+          id="homeBtn"
+          type="button"
+          title="Home"
+          aria-label="Home"
+          class="icon-btn"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9,22 9,12 15,12 15,22" />
+          </svg>
+          <span class="home-label">HOME</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Status area ─────────────────────────────────────────────────── -->
+    <div id="statusArea" role="status" aria-live="polite"></div>
+
+    <!-- ── KPI Strip ──────────────────────────────────────────────────── -->
+    <div class="kpi-strip" aria-label="Summary metrics">
+      <div class="kpi kpi-staff">
+        <span class="kpi-label">Active Staff With Roles</span>
+        <span id="kpiStaffWithRoles" class="kpi-value">—</span>
+      </div>
+      <div class="kpi kpi-roles">
+        <span class="kpi-label">Active Roles</span>
+        <span id="kpiActiveRoles" class="kpi-value">—</span>
+      </div>
+      <div class="kpi kpi-actions">
+        <span class="kpi-label">Workflow Actions</span>
+        <span id="kpiActions" class="kpi-value">—</span>
+      </div>
+      <div class="kpi kpi-assignments">
+        <span class="kpi-label">Active Assignments</span>
+        <span id="kpiAssignments" class="kpi-value">—</span>
+      </div>
+      <div class="kpi kpi-permissions">
+        <span class="kpi-label">Allowed Permissions</span>
+        <span id="kpiPermissions" class="kpi-value">—</span>
+      </div>
+    </div>
+
+    <!-- ── Search bar row ─────────────────────────────────────────────── -->
+    <div class="search-card">
+      <div class="search-wrap">
+        <input
+          id="lwacSearch"
+          type="search"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="Search staff, employee code, designation, or role…"
+          aria-label="Search"
+        />
+        <button
+          id="lwacSearchClear"
+          class="input-clear-btn"
+          aria-label="Clear search"
+          title="Clear"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+          >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+      <div class="filter-btn-wrap">
+        <button
+          id="filterBtn"
+          type="button"
+          class="icon-btn"
+          title="Filters"
+          aria-label="Open filters"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <line x1="4" y1="6" x2="20" y2="6" />
+            <line x1="8" y1="12" x2="16" y2="12" />
+            <line x1="11" y1="18" x2="13" y2="18" />
+          </svg>
+        </button>
+        <span id="filterBadge" class="filter-badge" aria-label="Active filters"
+          >0</span
+        >
+      </div>
+    </div>
+
+    <!-- ── Lens pills ─────────────────────────────────────────────────── -->
+    <div
+      id="lensPills"
+      class="lens-pills"
+      role="group"
+      aria-label="Tab selection"
+    ></div>
+
+    <!-- Mobile select fallback -->
+    <div class="tab-select-wrap">
+      <select id="lensSelect" class="tab-select" aria-label="Select tab">
+        <option value="staffRoleAssignment">Staff Role Assignment</option>
+        <option value="roleActionMatrix">Role Action Matrix</option>
+        <option value="staffPermissionPreview">Staff Permission Preview</option>
+        <option value="workflowActionMaster">Workflow Action Master</option>
+      </select>
+      <svg
+        class="tab-select-icon"
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <polyline points="6 9 12 15 18 9" />
+      </svg>
+    </div>
+
+    <!-- ── Main table area ────────────────────────────────────────────── -->
+    <div class="main">
+      <div class="table-card">
+        <div class="table-controls">
+          <span id="lwacRowCount" class="lab-row-count"></span>
+        </div>
+        <div id="tableWrap">
+          <table id="lwacTable" role="grid">
+            <thead id="lwacThead">
+              <tr></tr>
+            </thead>
+            <tbody id="lwacTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Filter Panel ───────────────────────────────────────────────── -->
+    <div id="filterPanel" role="dialog" aria-label="Filter options">
+      <div class="filter-panel-header">
+        <span class="filter-panel-title">Filters</span>
+        <button
+          id="filterPanelClose"
+          class="modal-close-btn"
+          aria-label="Close filters"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+          >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+      <div id="filterPanelBody" class="filter-group"></div>
+      <div class="filter-actions">
+        <button id="filterApply" type="button" class="btn-primary btn-sm">
+          Apply
+        </button>
+        <button id="filterClear" type="button" class="btn-secondary btn-sm">
+          Clear All
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Staff Role Assignment Modal ─────────────────────────────── -->
+    <div
+      id="staffRoleModal"
+      class="modal-overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="staffRoleModalTitle"
+    >
+      <div class="modal-window" role="document">
+        <div class="modal-header">
+          <div>
+            <div id="staffRoleModalTitle" class="modal-title">
+              Staff Role Assignment
+            </div>
+            <div id="staffRoleModalSubtitle" class="modal-subtitle"></div>
+          </div>
+          <div class="modal-header-actions">
+            <button
+              id="staffRoleModalClose"
+              class="modal-close-btn"
+              aria-label="Close"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="modal-content">
+          <div id="staffRoleModalBanner" class="modal-banner"></div>
+          <div class="form-section">
+            <div>
+              <h3 style="margin: 0 0 10px; font-size: 0.9rem; color: #374151">
+                Current Role Assignments
+              </h3>
+              <div id="staffRoleCurrentAssignments" style="font-size: 12.5px">
+                <p style="color: #6b7280; margin: 0">Loading...</p>
+              </div>
+            </div>
+            <hr class="modal-divider" />
+            <div>
+              <h3 style="margin: 0 0 10px; font-size: 0.9rem; color: #374151">
+                Assign New Role
+              </h3>
+              <div class="form-row">
+                <div class="form-group">
+                  <label> Role <span class="req">*</span> </label>
+                  <select id="staffRoleSelect" class="form-control">
+                    <option value="">Select role...</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Effective From</label>
+                  <input
+                    id="staffRoleEffectiveFrom"
+                    type="date"
+                    class="form-control"
+                  />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Effective To (optional)</label>
+                  <input
+                    id="staffRoleEffectiveTo"
+                    type="date"
+                    class="form-control"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
+          class="form-actions"
+          style="
+            border-top: 1px solid #e5e7eb;
+            padding-top: 12px;
+            margin-top: 12px;
+          "
+        >
+          <button id="staffRoleAssignBtn" class="btn-primary">
+            Assign / Reactivate Role
+          </button>
+          <button id="staffRoleModalCancel" class="btn-secondary" type="button">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Staff Permission Preview Modal ────────────────────────────– -->
+    <div
+      id="previewModal"
+      class="modal-overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="previewModalTitle"
+    >
+      <div class="modal-window" role="document">
+        <div class="modal-header">
+          <div>
+            <div id="previewModalTitle" class="modal-title">
+              Staff Permission Preview
+            </div>
+            <div id="previewModalSubtitle" class="modal-subtitle"></div>
+          </div>
+          <div class="modal-header-actions">
+            <button
+              id="previewModalClose"
+              class="modal-close-btn"
+              aria-label="Close"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div id="previewModalContent" class="modal-content"></div>
+      </div>
+    </div>
+
+    <!-- ── Toast Container ─────────────────────────────────────────── -->
+    <div id="labToastContainer"></div>
+
+    <script type="module">
+      import("./js/lab-workflow-access-control.js").catch((err) => {
+        console.error("Failed to load module:", err);
+      });
+    </script>
+  </body>
+</html>

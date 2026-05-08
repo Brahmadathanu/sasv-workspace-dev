@@ -2321,6 +2321,51 @@
         return map;
       }
 
+      function injectLocalFallbackModules(registryRows, sectionRows) {
+        const rows = Array.isArray(registryRows) ? [...registryRows] : [];
+        const hasProductShelfLife = rows.some(
+          (row) =>
+            String(row?.moduleKey || "").toLowerCase() ===
+            "product-shelf-life-manager",
+        );
+        if (hasProductShelfLife) return rows;
+
+        const sections = Array.isArray(sectionRows) ? sectionRows : [];
+        const preferredSection =
+          sections.find((section) =>
+            /lims|laboratory|lab\s*master/i.test(
+              `${section?.label || ""} ${section?.key || ""}`,
+            ),
+          ) ||
+          sections.find((section) =>
+            /product|reference|master/i.test(
+              `${section?.label || ""} ${section?.key || ""}`,
+            ),
+          ) ||
+          sections.find((section) =>
+            /quality|qc|lab/i.test(
+              `${section?.label || ""} ${section?.key || ""}`,
+            ),
+          ) ||
+          null;
+
+        rows.push({
+          moduleKey: "product-shelf-life-manager",
+          targetKey: "module:product-shelf-life-manager",
+          label: "Product Shelf Life",
+          description:
+            "Manage product shelf-life versions used by LIMS / COA expiry logic.",
+          sectionKey: preferredSection?.key || "laboratory-masters",
+          sectionLabel: preferredSection?.label || "Laboratory Masters",
+          sortOrder: 9998,
+          minNavMode: "view",
+          routePath: "public/shared/product-shelf-life-manager.html",
+          clientKey: "electron",
+        });
+
+        return rows;
+      }
+
       function buildWorkspaceSections(registryRows, sectionCatalog) {
         const sections = new Map();
 
@@ -2497,7 +2542,12 @@
           loadClientModuleRegistry("electron"),
           loadNavigationSections(),
         ]);
-        if (!registryRows.length) {
+        const mergedRegistryRows = injectLocalFallbackModules(
+          registryRows,
+          sectionRows,
+        );
+
+        if (!mergedRegistryRows.length) {
           renderWorkspaceStatus(
             "No workspace modules",
             "No Electron modules are currently registered for this client.",
@@ -2506,7 +2556,7 @@
         }
 
         const sections = buildWorkspaceSections(
-          registryRows,
+          mergedRegistryRows,
           buildSectionCatalogMap(sectionRows),
         );
         renderWorkspaceSections(sections);
