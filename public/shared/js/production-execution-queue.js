@@ -2305,12 +2305,45 @@ function copyReadyList() {
     });
 }
 
-function exportCsvForRows(rows, pageNumber) {
+function _sanitizeFileToken(value) {
+  return String(value || "")
+    .trim()
+    .replace(/[^a-zA-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .toUpperCase();
+}
+
+function _getCurrentLensExportToken() {
+  const lens = LENSES.find((l) => l.id === CURRENT_LENS);
+  const raw = lens?.label || CURRENT_LENS || "all";
+  return _sanitizeFileToken(raw) || "ALL_BATCHES";
+}
+
+function _getActiveFilterDimensionCount() {
+  return (
+    [
+      QUEUE_FILTERS.states,
+      QUEUE_FILTERS.categories,
+      QUEUE_FILTERS.subcategories,
+      QUEUE_FILTERS.groups,
+      QUEUE_FILTERS.subgroups,
+    ].filter((arr) => arr.length > 0).length +
+    (QUEUE_FILTERS.rmIssueAllocationOnly ? 1 : 0)
+  );
+}
+
+function exportCsvForRows(rows) {
   if (!Array.isArray(rows)) rows = [];
   const now = new Date();
-  const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const ts = now.toISOString().replace(/[:.]/g, "-");
-  const fileName = `production_execution_queue_${ym}_page${pageNumber}_${ts}.csv`;
+  const tsDate = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+  const tsTime = `${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
+  const lensToken = _getCurrentLensExportToken();
+  const filterDims = _getActiveFilterDimensionCount();
+  const hasSearch = (searchBox?.value || "").trim().length > 0 ? 1 : 0;
+  const snapshotYm = ACTIVE_SNAPSHOT_MONTH_START
+    ? String(ACTIVE_SNAPSHOT_MONTH_START).slice(0, 7).replace("-", "")
+    : `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const fileName = `ERP_PEQ_TAB_${lensToken}_SNAP_${snapshotYm}_ROWS_${rows.length}_FDIM_${filterDims}_SEARCH_${hasSearch}_TS_${tsDate}_${tsTime}.csv`;
   const headers = [
     "priority_rank_v4",
     "product_id",
@@ -2359,7 +2392,7 @@ function exportCsvForRows(rows, pageNumber) {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
-  showToast("CSV exported", "info");
+  showToast(`CSV exported (${rows.length} rows)`, "info");
 }
 
 async function loadQueue() {
@@ -2588,7 +2621,7 @@ async function loadQueue() {
       applySearch();
     });
     document.getElementById("exportCsv").addEventListener("click", () => {
-      exportCsvForRows(LAST_PAGE_ROWS, CURRENT_PAGE);
+      exportCsvForRows(VIEW.length ? VIEW : LAST_PAGE_ROWS);
     });
     const _copyReadyBtn = document.getElementById("copyReadyBtn");
     if (_copyReadyBtn) {
