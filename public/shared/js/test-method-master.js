@@ -889,7 +889,7 @@ function openEditTestModal(testId) {
   testModalTitle.textContent = "Edit Test";
   testModalSubtitle.textContent = escHtml(row.test_name || "");
   testModalId.value = String(row.id);
-  testModalCode.value = row.test_code || "";
+  testModalCode.value = (row.test_code || "").toUpperCase();
   testModalName.value = row.test_name || "";
   testModalKind.value = row.result_kind || "";
   testModalUom.value =
@@ -1089,7 +1089,9 @@ function closeMethodModal() {
 async function saveMethodFromModal() {
   const cleanCode = String(methodModalCode.value || "")
     .trim()
-    .toUpperCase();
+    .toLowerCase()
+    .replace(/\s/g, "_")
+    .replace(/[^a-z0-9_]/g, "");
   const cleanName = String(methodModalName.value || "").trim();
   const cleanDesc = String(methodModalDesc.value || "").trim();
   const editId = methodModalId.value ? Number(methodModalId.value) : null;

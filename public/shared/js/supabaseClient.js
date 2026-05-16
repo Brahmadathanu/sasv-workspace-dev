@@ -19,19 +19,10 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   },
 });
 
-// Client scoped to the `lab` schema (views: v_analysis_header, v_analysis_pending_scrutiny, etc.)
-export const labSupabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  db: { schema: "lab" },
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-  },
-  global: {
-    headers: {
-      "x-client-info": "daily-worklog-app@1.0.0",
-    },
-  },
-});
+// Schema-scoped query clients derived from the single auth client.
+// This avoids multiple GoTrueClient instances under the same storage key.
+export const labSupabase = supabase.schema("lab");
+export const hrSupabase = supabase.schema("hr");
 
 // Enhanced error handler for CORS and network issues (if needed)
 export const handleSupabaseError = (error) => {

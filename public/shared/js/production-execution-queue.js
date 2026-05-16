@@ -1114,6 +1114,10 @@ function renderTable(rows) {
     // Batch
     const batchTd = make(r.batch_number || "-", "c-center");
 
+    // Batch size and storage qty (same values as details modal)
+    const batchSizeTd = make(formatBatchSize(r), "c-right");
+    const storageQtyTd = make(formatStorageQty(r), "c-right");
+
     // State
     const stateTd = make(r.primary_state || "-", "c-center");
 
@@ -1155,6 +1159,8 @@ function renderTable(rows) {
     tr.appendChild(priorityTd);
     tr.appendChild(productTd);
     tr.appendChild(batchTd);
+    tr.appendChild(batchSizeTd);
+    tr.appendChild(storageQtyTd);
     tr.appendChild(stateTd);
     tr.appendChild(pmTd);
     tr.appendChild(rmTd);

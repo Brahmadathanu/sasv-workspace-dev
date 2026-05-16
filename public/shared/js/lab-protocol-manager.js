@@ -47,6 +47,9 @@ const pmFieldCategoryName = document.getElementById("pmFieldCategoryName");
 const pmFieldSourceDocument = document.getElementById("pmFieldSourceDocument");
 const pmFieldRemarks = document.getElementById("pmFieldRemarks");
 const pmFieldIsActive = document.getElementById("pmFieldIsActive");
+const pmEditModal = document.getElementById("pmEditModal");
+const pmModalCloseBtn = document.getElementById("pmModalCloseBtn");
+const pmModalCancelBtn = document.getElementById("pmModalCancelBtn");
 
 // ── Test Lines tab
 const tlSectionTitle = document.getElementById("tlSectionTitle");
@@ -85,6 +88,18 @@ const fmTableBanner = document.getElementById("fmTableBanner");
 const fmTableBody = document.getElementById("fmTableBody");
 const fmThFamily = document.getElementById("fmThFamily");
 
+// ── Usage Preview tab
+const upProtocolSelect = document.getElementById("upProtocolSelect");
+const upSummaryStrip = document.getElementById("upSummaryStrip");
+const upMappedCount = document.getElementById("upMappedCount");
+const upCoveredCount = document.getElementById("upCoveredCount");
+const upTestLineCount = document.getElementById("upTestLineCount");
+const upReadyCount = document.getElementById("upReadyCount");
+const upBanner = document.getElementById("upBanner");
+const upTableCard = document.getElementById("upTableCard");
+const upTableBody = document.getElementById("upTableBody");
+const upEmptyBanner = document.getElementById("upEmptyBanner");
+
 // ── Confirm-delete modal helper ──────────────────────────────────────────────
 /**
  * Shows the in-page confirm modal and resolves true (OK) or false (Cancel).
@@ -115,6 +130,16 @@ function showConfirmModal(message) {
   });
 }
 
+function openPmEditModal() {
+  pmEditModal?.classList.remove("hidden");
+  pmFieldCategoryCode.focus();
+}
+
+function closePmEditModal() {
+  pmEditModal?.classList.add("hidden");
+  hideBanner(pmFormBanner);
+}
+
 // ── Module state ──────────────────────────────────────────────────────────────
 let currentSubject = null; // "FG" | "RM" | "PM"
 let currentTab = "protocolMaster";
@@ -140,6 +165,9 @@ let tlTestMasterLoaded = false;
 let fmProtocols = [];
 let fmFamilies = [];
 
+// Usage Preview state
+let upRows = [];
+
 // Cross-tab shared selection
 let currentProtocolId = null; // set when a protocol is selected in Protocol Master
 
@@ -153,6 +181,7 @@ function init() {
   wirePmForm();
   wireTlTab();
   wireFmTab();
+  wireUpTab();
   applyInitialHidden();
 }
 
@@ -199,6 +228,10 @@ function onSubjectChange() {
 function applySubjectVisibility() {
   resetSelect(fmFamilySelect, "-- Select --");
   resetSelect(fmProtocolSelect, "-- Select Protocol --");
+  resetSelect(upProtocolSelect, "-- Select Protocol --");
+  upSummaryStrip.classList.add("hidden");
+  upTableCard.classList.add("hidden");
+  upEmptyBanner.classList.add("hidden");
 }
 
 function resetAllState() {
@@ -212,6 +245,7 @@ function resetAllState() {
   tlTestMasterLoaded = false;
   fmProtocols = [];
   fmFamilies = [];
+  upRows = [];
   clearPmForm();
   clearTlTab();
   clearFmTab();
@@ -264,6 +298,10 @@ function onTabActivated(tabId) {
     } else {
       loadFmMappings();
     }
+  }
+  if (tabId === "usagePreview") {
+    updateUsagePreviewLabels();
+    if (upProtocolSelect.options.length <= 1) populateUpProtocolSelect();
   }
 }
 
@@ -380,6 +418,7 @@ function selectProtocol(id) {
   currentProtocolId = id; // FIX 4 — shared state; synced into other tabs when they load
   renderPmList();
   populatePmForm(proto);
+  openPmEditModal();
   // Sync immediately into already-populated selects (no-op if not yet loaded)
   _syncProtocolSelectValue(tlProtocolSelect);
   _syncProtocolSelectValue(fmProtocolSelect);
@@ -423,10 +462,24 @@ function clearPmForm() {
 function wirePmForm() {
   pmNewBtn.addEventListener("click", () => {
     pmSelectedId = null;
-    clearPmForm();
+    pmFieldSubjectType.value = currentSubject ?? "";
+    pmFieldCategoryCode.value = "";
+    pmFieldCategoryName.value = "";
+    pmFieldSourceDocument.value = "";
+    pmFieldRemarks.value = "";
+    pmFieldIsActive.checked = true;
     pmFormTitle.textContent = "New Protocol";
     pmSaveBtn.disabled = false;
+    pmDeactivateBtn.disabled = true;
+    hideBanner(pmFormBanner);
+    openPmEditModal();
     pmFieldCategoryCode.focus();
+  });
+
+  pmModalCloseBtn?.addEventListener("click", closePmEditModal);
+  pmModalCancelBtn?.addEventListener("click", closePmEditModal);
+  pmEditModal?.addEventListener("click", (e) => {
+    if (e.target === pmEditModal) closePmEditModal();
   });
 
   pmSaveBtn.addEventListener("click", saveProtocol);
@@ -474,6 +527,7 @@ async function saveProtocol() {
   pmProtocols = []; // force reload
   await loadProtocolList();
   if (pmSelectedId) selectProtocol(pmSelectedId);
+  closePmEditModal();
 
   // Invalidate TL + FM pickers so they reload on next visit
   resetSelect(tlProtocolSelect, "-- Select Protocol --");
@@ -501,6 +555,7 @@ async function deactivateProtocol() {
   pmProtocols = [];
   await loadProtocolList();
   selectProtocol(pmSelectedId);
+  closePmEditModal();
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -635,7 +690,7 @@ async function onTlProtocolChange() {
 async function loadTlLines(protocolId) {
   showBanner(tlBanner, "info", "Loading test lines…");
   tlTableCard.classList.remove("hidden");
-  tlTableBody.innerHTML = `<tr><td colspan="7" class="empty-state"><div class="spinner" style="margin:0 auto 6px;"></div>Loading…</td></tr>`;
+  tlTableBody.innerHTML = `<tr><td colspan="6" class="empty-state"><div class="spinner" style="margin:0 auto 6px;"></div>Loading…</td></tr>`;
 
   const { data, error } = await labSupabase
     .from("protocol_category_test")
@@ -654,7 +709,7 @@ async function loadTlLines(protocolId) {
       "error",
       "Failed to load test lines: " + error.message,
     );
-    tlTableBody.innerHTML = `<tr><td colspan="7" class="empty-state">Error loading lines.</td></tr>`;
+    tlTableBody.innerHTML = `<tr><td colspan="6" class="empty-state">Error loading lines.</td></tr>`;
     return;
   }
 
@@ -669,7 +724,7 @@ function renderTlTable() {
   tlLineCount.textContent = `${tlLines.length} line${tlLines.length !== 1 ? "s" : ""}`;
 
   if (tlLines.length === 0) {
-    tlTableBody.innerHTML = `<tr><td colspan="7" class="empty-state">No test lines yet. Click <strong>Add Line</strong> to begin.</td></tr>`;
+    tlTableBody.innerHTML = `<tr><td colspan="6" class="empty-state">No test lines yet. Click <strong>Add Line</strong> to begin.</td></tr>`;
     tlSaveLinesBtn.disabled = true;
     return;
   }
@@ -709,7 +764,6 @@ function renderTlTable() {
       <td>${methodSelectHtml}</td>
       <td><input class="line-input" type="text" data-field="display_text" value="${esc(line.display_text ?? "")}" placeholder="Optional display note" /></td>
       <td class="td-center"><input class="line-cb" type="checkbox" data-field="is_required" ${line.is_required ? "checked" : ""} /></td>
-      <td class="td-center"><input class="line-cb" type="checkbox" data-field="is_active"   ${line.is_active !== false ? "checked" : ""} /></td>
       <td class="td-actions">
         <button class="del-line-btn" data-idx="${idx}" title="Remove line" type="button">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -889,10 +943,17 @@ async function saveTlLines() {
       p_method_id: l.method_id || null,
       p_display_text: l.display_text || null,
       p_is_required: l.is_required !== false,
-      p_is_active: l.is_active !== false,
+      p_is_active: true,
     });
     if (error) {
-      showBanner(tlBanner, "error", "Save failed: " + error.message);
+      const isDupe = /unique|duplicate/i.test(error.message ?? "");
+      showBanner(
+        tlBanner,
+        "error",
+        isDupe
+          ? "Duplicate active test or sequence number. Reload protocol lines and try again."
+          : "Save failed: " + error.message,
+      );
       hasError = true;
     }
   }
@@ -1187,40 +1248,67 @@ async function saveFmMapping() {
   setBtnLoading(fmSaveBtn, true);
   hideBanner(fmFormBanner);
 
+  const remarks =
+    fmRemarks.value.trim() ||
+    "Activated via Protocol Manager family-aware mapping";
+
+  const getAffectedCount = (val) => {
+    if (typeof val === "number" && Number.isFinite(val)) return val;
+    if (
+      typeof val === "string" &&
+      val.trim() !== "" &&
+      !Number.isNaN(Number(val))
+    ) {
+      return Number(val);
+    }
+    if (Array.isArray(val) && val.length > 0) {
+      const first = val[0];
+      if (typeof first === "number") return first;
+      if (first && typeof first === "object") {
+        for (const k of ["count", "affected_count", "affected", "result"]) {
+          if (first[k] !== undefined && !Number.isNaN(Number(first[k]))) {
+            return Number(first[k]);
+          }
+        }
+      }
+    }
+    if (val && typeof val === "object") {
+      for (const k of ["count", "affected_count", "affected", "result"]) {
+        if (val[k] !== undefined && !Number.isNaN(Number(val[k]))) {
+          return Number(val[k]);
+        }
+      }
+    }
+    return null;
+  };
+
   let saveError;
+  let saveData;
   if (currentSubject === "FG") {
-    ({ error: saveError } = await labSupabase.rpc(
-      "fn_save_protocol_family_mapping",
+    ({ data: saveData, error: saveError } = await labSupabase.rpc(
+      "fn_set_active_fg_protocol_for_group_family",
       {
-        p_subject_type: "FG",
-        p_protocol_category_id: Number(protocolId),
         p_product_group_id: Number(familyId),
-        p_inv_group_id: null,
-        p_remarks: fmRemarks.value.trim() || null,
-        p_is_active: fmIsActive.checked,
+        p_protocol_category_id: Number(protocolId),
+        p_remarks: remarks,
       },
     ));
   } else if (currentSubject === "RM") {
-    ({ error: saveError } = await labSupabase.rpc(
-      "fn_save_protocol_family_mapping",
+    ({ data: saveData, error: saveError } = await labSupabase.rpc(
+      "fn_set_active_rm_protocol_for_group_family",
       {
-        p_subject_type: "RM",
-        p_protocol_category_id: Number(protocolId),
-        p_product_group_id: null,
         p_inv_group_id: Number(familyId),
-        p_remarks: fmRemarks.value.trim() || null,
-        p_is_active: fmIsActive.checked,
+        p_protocol_category_id: Number(protocolId),
+        p_remarks: remarks,
       },
     ));
   } else {
-    // PM: uses dedicated subcategory mapping RPC
-    ({ error: saveError } = await labSupabase.rpc(
-      "fn_save_protocol_pm_subcategory_mapping",
+    ({ data: saveData, error: saveError } = await labSupabase.rpc(
+      "fn_set_active_pm_protocol_for_subcategory_family",
       {
-        p_protocol_category_id: Number(protocolId),
         p_subcategory_id: Number(familyId),
-        p_remarks: fmRemarks.value.trim() || null,
-        p_is_active: fmIsActive.checked,
+        p_protocol_category_id: Number(protocolId),
+        p_remarks: remarks,
       },
     ));
   }
@@ -1232,9 +1320,20 @@ async function saveFmMapping() {
     return;
   }
 
-  toast("Mapping saved.", "success");
+  const affectedCount = getAffectedCount(saveData);
+  if (affectedCount === null) {
+    toast("Protocol mapping saved successfully.", "success");
+  } else {
+    toast(
+      `Protocol mapped successfully to ${affectedCount} equivalent family record(s).`,
+      "success",
+    );
+  }
   hideBanner(fmFormBanner);
   await loadFmMappings();
+  if (currentTab === "usagePreview" && upProtocolSelect?.value) {
+    await loadUsagePreview();
+  }
   // GAP 1 — warn if the mapped protocol has no active test lines
   await checkProtocolHasTestLines(Number(protocolId));
 }
@@ -1280,6 +1379,160 @@ async function toggleFmMapping(mapId, currentlyActive) {
     "success",
   );
   await loadFmMappings();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// TAB 4 — USAGE PREVIEW
+// ══════════════════════════════════════════════════════════════════════════════
+
+function wireUpTab() {
+  upProtocolSelect.addEventListener("change", loadUsagePreview);
+}
+
+function updateUsagePreviewLabels() {
+  const titleMap = {
+    FG: "FG Usage Preview",
+    RM: "RM Usage Preview",
+    PM: "PM Usage Preview",
+  };
+  const titleEl = document.getElementById("upFormTitle");
+  if (titleEl)
+    titleEl.textContent = titleMap[currentSubject] ?? "Usage Preview";
+}
+
+async function populateUpProtocolSelect() {
+  upProtocolSelect.disabled = true;
+  upProtocolSelect.innerHTML = '<option value="">Loading…</option>';
+
+  const { data, error } = await labSupabase
+    .from("protocol_category")
+    .select("id, category_code, category_name")
+    .eq("subject_type", currentSubject)
+    .eq("is_active", true)
+    .order("category_code");
+
+  if (error) {
+    upProtocolSelect.innerHTML =
+      '<option value="">-- Error loading --</option>';
+    upProtocolSelect.disabled = false;
+    toast("Failed to load protocols: " + error.message, "error");
+    return;
+  }
+
+  populateSelect(
+    upProtocolSelect,
+    data ?? [],
+    "id",
+    (r) => `${r.category_code} — ${r.category_name}`,
+    "-- Select Protocol --",
+  );
+  upProtocolSelect.disabled = false;
+
+  // Auto-select if protocol was already chosen in another tab
+  if (currentProtocolId) {
+    const opt = upProtocolSelect.querySelector(
+      `option[value="${currentProtocolId}"]`,
+    );
+    if (opt) {
+      upProtocolSelect.value = String(currentProtocolId);
+      await loadUsagePreview();
+      return;
+    }
+  }
+
+  // Show idle hint
+  upEmptyBanner.classList.remove("hidden");
+}
+
+async function loadUsagePreview() {
+  const id = upProtocolSelect.value;
+
+  // Reset UI
+  upSummaryStrip.classList.add("hidden");
+  upTableCard.classList.add("hidden");
+  upEmptyBanner.classList.add("hidden");
+  hideBanner(upBanner);
+  upRows = [];
+
+  if (!id) {
+    upEmptyBanner.classList.remove("hidden");
+    return;
+  }
+
+  showBanner(upBanner, "info", "Loading coverage data…");
+  upTableCard.classList.remove("hidden");
+  upTableBody.innerHTML = `<tr><td colspan="7" class="empty-state"><div class="spinner" style="margin:0 auto 6px;"></div>Loading…</td></tr>`;
+
+  const { data, error } = await labSupabase
+    .from("v_protocol_usage_preview")
+    .select("*")
+    .eq("protocol_id", Number(id))
+    .order("mapped_family_name");
+
+  hideBanner(upBanner);
+
+  if (error) {
+    showBanner(
+      upBanner,
+      "error",
+      "Failed to load usage preview: " + error.message,
+    );
+    upTableBody.innerHTML = `<tr><td colspan="7" class="empty-state">Error loading data.</td></tr>`;
+    return;
+  }
+
+  upRows = data ?? [];
+
+  if (upRows.length === 0) {
+    upTableCard.classList.remove("hidden");
+    upTableBody.innerHTML = `<tr><td colspan="7" class="empty-state">No active family mappings found for this protocol.</td></tr>`;
+    return;
+  }
+
+  // Summary
+  const totalMapped = upRows.length;
+  const covered = upRows.reduce(
+    (sum, r) => sum + Number(r.covered_item_count || 0),
+    0,
+  );
+  const testLines = upRows.length
+    ? Number(upRows[0].active_test_line_count || 0)
+    : 0;
+  const ready = upRows.filter((r) => r.status === "READY").length;
+
+  upMappedCount.textContent = String(totalMapped);
+  upCoveredCount.textContent = String(covered);
+  upTestLineCount.textContent = String(testLines);
+  upReadyCount.textContent = String(ready);
+  upSummaryStrip.classList.remove("hidden");
+
+  // Table
+  upTableBody.innerHTML = upRows
+    .map((r) => {
+      const statusBadge =
+        r.status === "READY"
+          ? `<span class="badge badge-active">Ready</span>`
+          : r.status === "BASE_SPEC_PENDING"
+            ? `<span class="badge" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a">Base Spec Pending</span>`
+            : `<span class="badge badge-inactive">${esc(r.status ?? "—")}</span>`;
+
+      const version = r.base_spec_version ? `v${r.base_spec_version}` : "—";
+
+      return `
+        <tr>
+          <td style="font-weight:600">${esc(r.mapped_family_name || "—")}</td>
+          <td>${esc(r.mapped_family_type || "—")}</td>
+          <td>${esc(r.base_spec_name || "Not configured")}</td>
+          <td style="text-align:center">${esc(version)}</td>
+          <td style="text-align:center">${Number(r.covered_item_count || 0)}</td>
+          <td style="text-align:center">${Number(r.active_test_line_count || 0)}</td>
+          <td style="text-align:center">${statusBadge}</td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  upTableCard.classList.remove("hidden");
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

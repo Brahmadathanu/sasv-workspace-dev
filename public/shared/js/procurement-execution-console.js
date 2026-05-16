@@ -37,8 +37,48 @@ const state = {
   vendorList: [],
 };
 
+const EXPORT_HEADERS = [
+  "Doc Type",
+  "Indent Number",
+  "Indent Date",
+  "Material Class",
+  "Category",
+  "Item Code",
+  "Material Description",
+  "UOM",
+  "Qty Requested",
+  "Qty Allocated",
+  "Qty Remaining / To Purchase",
+  "Unit Price",
+  "Preferred Supplier",
+  "Vendor Decision Status",
+  "Remarks",
+];
+
+// Column headers for the PDF/CSV/TSV requisition form (single source of truth)
+const INDENT_REQUISITION_HEADERS = [
+  "SN",
+  "Category",
+  "Material Description",
+  "Brand / Part No",
+  "UOM",
+  "Qty. Requested",
+  "Qty. in Stock",
+  "Qty. to be Purchased",
+  "Unit Price",
+  "Preferred Supplier Name",
+  "Remarks",
+];
+
 function qs(id) {
   return document.getElementById(id);
+}
+
+function ensureIconBtnA11y(id, label) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (!el.getAttribute("aria-label")) el.setAttribute("aria-label", label);
+  if (!el.getAttribute("title")) el.setAttribute("title", label);
 }
 
 // ─── Icon helper ─────────────────────────────────────────────────────────────
@@ -53,11 +93,40 @@ const _svgPaths = {
   x: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
   document:
     '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/>',
+  download:
+    '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
 };
 
 function iconSvg(name, size = 14) {
   const paths = _svgPaths[name] ?? "";
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="vertical-align:-2px;margin-right:4px">${paths}</svg>`;
+}
+
+function svgIcon(name, size = 16) {
+  const paths = _svgPaths[name] ?? "";
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+}
+
+function toIconBtn(btn, variant, label, iconName) {
+  if (!btn) return;
+  btn.type = "button";
+  btn.classList.add("icon-btn", variant);
+  btn.setAttribute("title", label);
+  btn.setAttribute("aria-label", label);
+  btn.innerHTML = svgIcon(iconName);
+}
+
+function upgradePrModalButtons(row) {
+  const isDraft = row?.status === "draft";
+  toIconBtn(qs("btnPrActivate"), "primary", "Activate PR", "arrowRight");
+  toIconBtn(
+    qs("btnPrClosePr"),
+    "danger",
+    isDraft ? "Cancel PR" : "Close PR",
+    "x",
+  );
+  toIconBtn(qs("btnPrCreateIndent"), "primary", "Create Indent", "arrowRight");
+  toIconBtn(qs("btnPrExportForm"), "primary", "Export Form", "download");
 }
 
 async function requireSession() {
@@ -91,6 +160,207 @@ function fmt(n) {
   const x = Number(n);
   if (Number.isNaN(x)) return String(n);
   return x.toLocaleString(undefined, { maximumFractionDigits: 6 });
+}
+
+function formatQty(n) {
+  if (n === null || n === undefined || n === "") return "";
+  const x = Number(n);
+  if (Number.isNaN(x)) return String(n);
+  return x
+    .toFixed(3)
+    .replace(/\.0+$/, "")
+    .replace(/(\.\d*?)0+$/, "$1");
+}
+
+function formatMoney(n, withCurrency = false) {
+  if (n === null || n === undefined || n === "") return "";
+  const x = Number(n);
+  if (Number.isNaN(x)) return String(n);
+  const val = x.toFixed(2);
+  return withCurrency ? `₹${val}` : val;
+}
+
+function escapeCsv(value) {
+  const s = String(value ?? "");
+  if (!/[",\n]/.test(s)) return s;
+  return `"${s.replace(/"/g, '""')}"`;
+}
+
+function sanitizeTsvValue(value) {
+  return String(value ?? "")
+    .replace(/[\t\r\n]+/g, " ")
+    .trim();
+}
+
+function toCsv(rows, headers) {
+  const out = [headers.join(",")];
+  rows.forEach((row) => {
+    out.push(headers.map((h) => escapeCsv(row[h] ?? "")).join(","));
+  });
+  return out.join("\n");
+}
+
+function toTsv(rows, headers) {
+  const out = [headers.join("\t")];
+  rows.forEach((row) => {
+    out.push(headers.map((h) => sanitizeTsvValue(row[h] ?? "")).join("\t"));
+  });
+  return out.join("\n");
+}
+
+function downloadText(filename, content, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function makeExportTimestamp() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${y}${m}${day}_${hh}${mm}`;
+}
+
+function materialClassLabel(row) {
+  return row.material_class_label || row.material_class_code || "";
+}
+
+function getVendorDecisionStatus(rowLike) {
+  const hasSelected =
+    !!rowLike.selected_vendor_id ||
+    !!rowLike.selected_vendor_name ||
+    rowLike.selected_rate != null;
+  if (hasSelected) return "Selected";
+  const hasRecommended =
+    !!rowLike.recommended_vendor_id ||
+    !!rowLike.recommended_vendor_name ||
+    rowLike.recommended_rate != null ||
+    !!rowLike.l1_vendor_name ||
+    rowLike.l1_rate_value != null;
+  return hasRecommended ? "Recommended" : "None";
+}
+
+function mergeRemarks(...parts) {
+  return parts
+    .map((p) => String(p ?? "").trim())
+    .filter(Boolean)
+    .join(" | ");
+}
+
+async function fetchStockMetaByItemIds(stockItemIds) {
+  const ids = [...new Set((stockItemIds || []).filter(Boolean))];
+  const out = {};
+  if (!ids.length) return out;
+  const { data, error } = await supabase
+    .from("v_inv_stock_item_with_class")
+    .select("stock_item_id,code,subcategory_label,category_label")
+    .in("stock_item_id", ids);
+  if (error) {
+    console.warn("Stock metadata fetch failed:", error);
+    return out;
+  }
+  (data || []).forEach((r) => {
+    out[r.stock_item_id] = {
+      code: r.code || "",
+      category: r.subcategory_label || r.category_label || "",
+    };
+  });
+  return out;
+}
+
+async function buildActionQueueExportRows() {
+  const rows = state.rows || [];
+  if (!rows.length) return [];
+  const stockMeta = await fetchStockMetaByItemIds(
+    rows.map((r) => r.stock_item_id),
+  );
+
+  return rows.map((r) => {
+    const meta = stockMeta[r.stock_item_id] || {};
+    const unitPrice = r.selected_rate ?? r.recommended_rate ?? r.l1_rate_value;
+    const preferredSupplier =
+      r.selected_vendor_name ||
+      r.recommended_vendor_name ||
+      r.l1_vendor_name ||
+      "";
+    const remaining = r.remaining_qty;
+    const qtyRequested = r.requested_qty ?? remaining ?? "";
+    return {
+      "Doc Type": "ActionQueue",
+      "Indent Number": r.indent_number || "",
+      "Indent Date": r.approved_date || r.indent_date || "",
+      "Material Class": materialClassLabel(r),
+      Category: r.subcategory_label || r.category_label || meta.category || "",
+      "Item Code": r.item_code || r.stock_item_code || meta.code || "",
+      "Material Description": r.stock_item_name || "",
+      UOM: r.uom_code || "",
+      "Qty Requested": formatQty(qtyRequested),
+      "Qty Allocated": formatQty(r.allocated_qty),
+      "Qty Remaining / To Purchase": formatQty(remaining),
+      "Unit Price": formatMoney(unitPrice),
+      "Preferred Supplier": preferredSupplier,
+      "Vendor Decision Status": getVendorDecisionStatus(r),
+      Remarks: mergeRemarks(r.manual_reason, r.selection_reason),
+    };
+  });
+}
+
+function exportRowsAsFile(rows, format, baseName) {
+  if (!rows.length) {
+    toast("No rows available to export.", "error");
+    return;
+  }
+  const stamp = makeExportTimestamp();
+  const ext = format.toLowerCase();
+  const fileName = `${baseName}_${stamp}.${ext}`;
+  if (ext === "csv") {
+    const csv = toCsv(rows, EXPORT_HEADERS);
+    downloadText(fileName, csv, "text/csv;charset=utf-8;");
+    toast(`CSV exported (${rows.length} rows).`, "success");
+    return;
+  }
+  const tsv = toTsv(rows, EXPORT_HEADERS);
+  downloadText(fileName, tsv, "text/tab-separated-values;charset=utf-8;");
+  toast(`TSV exported (${rows.length} rows).`, "success");
+}
+
+function updateExportButtonStates() {
+  // AQ export button lives in the detail modal — enable when rows are loaded
+  const aqBtn = qs("btnAqExportMenu");
+  if (aqBtn) aqBtn.disabled = (state.rows || []).length === 0;
+
+  // Indent export button lives in the indent view modal — keep enabled once an indent is selected.
+  // Individual export actions already validate whether lines are available.
+  const iBtn = qs("btnIExportMenu");
+  if (iBtn) iBtn.disabled = !state.selectedIndent;
+}
+
+function closeAllExportMenus() {
+  document.querySelectorAll(".export-menu.open").forEach((m) => {
+    m.classList.remove("open");
+    const btn = m.querySelector("[aria-expanded]");
+    if (btn) btn.setAttribute("aria-expanded", "false");
+  });
+}
+
+function toggleExportMenu(menuId, btnEl) {
+  const menu = qs(menuId);
+  if (!menu) return;
+  const isOpen = menu.classList.contains("open");
+  closeAllExportMenus();
+  if (!isOpen) {
+    menu.classList.add("open");
+    btnEl.setAttribute("aria-expanded", "true");
+  }
 }
 
 function esc(s) {
@@ -249,6 +519,7 @@ function closeDetailModal() {
   const backdrop = qs("detailModalBackdrop");
   backdrop.classList.remove("show");
   backdrop.setAttribute("aria-hidden", "true");
+  closeAllExportMenus();
 }
 
 // Keep renderDetail as alias so any future callers still work
@@ -368,6 +639,7 @@ function renderRows() {
   qs("aqMeta").textContent = `Showing ${state.rows.length} lines`;
   qs("aqPaging").textContent = `Page ${state.page + 1}`;
   updateTabCount("tabCountAction", state.rows.length);
+  updateExportButtonStates();
 }
 
 function buildActionQueueQuery() {
@@ -547,10 +819,6 @@ function wireTabs() {
 }
 
 function wireActionQueueControls() {
-  qs("btnRefresh").addEventListener("click", () => {
-    state.page = 0;
-    loadActionQueue();
-  });
   qs("btnPrev").addEventListener("click", () => {
     state.page = Math.max(0, state.page - 1);
     loadActionQueue();
@@ -573,6 +841,22 @@ function wireActionQueueControls() {
     }
   });
 
+  // Action Queue export dropdown (lives in detail modal header)
+  qs("btnAqExportMenu").addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleExportMenu("aqExportMenu", qs("btnAqExportMenu"));
+  });
+  qs("btnAqExportDropdownCsv").addEventListener("click", async () => {
+    closeAllExportMenus();
+    const rows = await buildActionQueueExportRows();
+    exportRowsAsFile(rows, "csv", "procurement_action_queue");
+  });
+  qs("btnAqExportDropdownTsv").addEventListener("click", async () => {
+    closeAllExportMenus();
+    const rows = await buildActionQueueExportRows();
+    exportRowsAsFile(rows, "tsv", "procurement_action_queue");
+  });
+
   qs("btnVendorCancel").addEventListener("click", closeVendorModal);
   qs("btnVendorSave").addEventListener("click", saveVendorSelection);
 
@@ -583,14 +867,20 @@ function wireActionQueueControls() {
 
   // detail modal close
   qs("btnDetailClose").addEventListener("click", closeDetailModal);
-  qs("btnDetailClose2").addEventListener("click", closeDetailModal);
+  qs("btnDetailClose2")?.addEventListener("click", closeDetailModal);
   qs("detailModalBackdrop").addEventListener("click", (e) => {
     if (e.target.id === "detailModalBackdrop") closeDetailModal();
+  });
+  // Close export dropdowns when clicking outside them
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".export-menu")) closeAllExportMenus();
   });
   // ESC key closes detail modal (and vendor modal)
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
+    closeAllExportMenus();
     const modals = [
+      { id: "workflowGuideModalBackdrop", close: closeWorkflowGuideModal },
       { id: "detailModalBackdrop", close: closeDetailModal },
       { id: "vendorModalBackdrop", close: closeVendorModal },
       { id: "indentViewModalBackdrop", close: closeIndentViewModal },
@@ -620,6 +910,8 @@ function wireActionQueueControls() {
 function openIndentViewModal(row) {
   state.selectedIndent = row;
   state.selectedIndentLine = null;
+  state.indentLinesRows = [];
+  updateExportButtonStates();
   qs("iLinesTitle").textContent = `Lines — ${row.indent_number}`;
   qs("indentViewStatus").textContent = row.status ?? "";
   const metaParts = [];
@@ -654,6 +946,7 @@ function openIndentViewModal(row) {
 function closeIndentViewModal() {
   qs("indentViewModalBackdrop").classList.remove("show");
   qs("indentViewModalBackdrop").setAttribute("aria-hidden", "true");
+  closeAllExportMenus();
 }
 
 function renderIndentLinesActions(indent) {
@@ -801,6 +1094,7 @@ async function loadIndentLines(indentId) {
   }
   state.indentLinesRows = data || [];
   renderIndentLines(state.indentLinesRows);
+  updateExportButtonStates();
 }
 
 function renderIndents() {
@@ -828,6 +1122,7 @@ function renderIndents() {
   qs("iMeta").textContent = `Showing ${state.indentsRows.length}`;
   qs("iPaging").textContent = `Page ${state.indentsPage + 1}`;
   updateTabCount("tabCountIndents", state.indentsRows.length);
+  updateExportButtonStates();
 }
 
 async function loadIndents() {
@@ -947,10 +1242,6 @@ async function confirmIndentAction() {
 }
 
 function wireIndentControls() {
-  qs("iBtnRefresh").addEventListener("click", () => {
-    state.indentsPage = 0;
-    loadIndents();
-  });
   qs("iBtnPrev").addEventListener("click", () => {
     state.indentsPage = Math.max(0, state.indentsPage - 1);
     loadIndents();
@@ -973,6 +1264,7 @@ function wireIndentControls() {
       loadIndents();
     }
   });
+
   qs("btnIndentActionCancel").addEventListener("click", closeIndentActionModal);
   qs("btnIndentActionConfirm").addEventListener("click", confirmIndentAction);
   qs("indentActionModalBackdrop").addEventListener("click", (e) => {
@@ -998,29 +1290,279 @@ function wireIndentControls() {
     openIndentAddLineModal(null);
   });
   // Edit Line Qty
-  qs("iBtnEditLineQty").addEventListener("click", () => {
-    if (!state.selectedIndentLine) {
-      toast("Select a line first.", "error");
-      return;
-    }
-    openIndentAddLineModal(state.selectedIndentLine);
+  const btnEditLineQty = qs("iBtnEditLineQty");
+  if (btnEditLineQty) {
+    btnEditLineQty.addEventListener("click", () => {
+      if (!state.selectedIndentLine) {
+        toast("Select a line first.", "error");
+        return;
+      }
+      openIndentAddLineModal(state.selectedIndentLine);
+    });
+  }
+  // Indent view export dropdown (PDF / CSV / TSV)
+  qs("btnIExportMenu").addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleExportMenu("iExportMenu", qs("btnIExportMenu"));
   });
-  // Export PR Form
-  qs("iBtnExportIndent").addEventListener("click", () => {
+  qs("btnIExportDropdownPdf").addEventListener("click", () => {
+    closeAllExportMenus();
     if (!state.selectedIndent) {
       toast("Select an indent first.", "error");
       return;
     }
     openExportIndentModal();
   });
+  qs("btnIExportDropdownCsv").addEventListener("click", async () => {
+    closeAllExportMenus();
+    if (!state.selectedIndent || !state.indentLinesRows.length) {
+      toast("No indent lines loaded.", "error");
+      return;
+    }
+    try {
+      const { rows } = await buildIndentRequisitionRows(
+        state.selectedIndent.indent_id,
+      );
+      if (!rows.length) {
+        toast("No lines to export.", "error");
+        return;
+      }
+      const stamp = makeExportTimestamp();
+      const base = `indent_${state.selectedIndent.indent_number || "lines"}_${stamp}`;
+      downloadText(
+        `${base}.csv`,
+        toCsv(rows, INDENT_REQUISITION_HEADERS),
+        "text/csv;charset=utf-8;",
+      );
+      toast(`CSV exported (${rows.length} rows).`, "success");
+    } catch (err) {
+      toast(`CSV export failed: ${err.message}`, "error");
+    }
+  });
+  qs("btnIExportDropdownTsv").addEventListener("click", async () => {
+    closeAllExportMenus();
+    if (!state.selectedIndent || !state.indentLinesRows.length) {
+      toast("No indent lines loaded.", "error");
+      return;
+    }
+    try {
+      const { rows } = await buildIndentRequisitionRows(
+        state.selectedIndent.indent_id,
+      );
+      if (!rows.length) {
+        toast("No lines to export.", "error");
+        return;
+      }
+      const stamp = makeExportTimestamp();
+      const base = `indent_${state.selectedIndent.indent_number || "lines"}_${stamp}`;
+      downloadText(
+        `${base}.tsv`,
+        toTsv(rows, INDENT_REQUISITION_HEADERS),
+        "text/tab-separated-values;charset=utf-8;",
+      );
+      toast(`TSV exported (${rows.length} rows).`, "success");
+    } catch (err) {
+      toast(`TSV export failed: ${err.message}`, "error");
+    }
+  });
   qs("btnExpCancel").addEventListener("click", closeExportIndentModal);
   qs("exportIndentModalBackdrop").addEventListener("click", (e) => {
     if (e.target.id === "exportIndentModalBackdrop") closeExportIndentModal();
   });
-  qs("btnExpOpenPrint").addEventListener("click", generateIndentPrintView);
+  qs("btnExpExportPdf").addEventListener("click", exportIndentToPdf);
+}
+
+function openWorkflowGuideModal() {
+  const bd = qs("workflowGuideModalBackdrop");
+  if (!bd) return;
+  bd.classList.add("show");
+  bd.setAttribute("aria-hidden", "false");
+}
+
+function closeWorkflowGuideModal() {
+  const bd = qs("workflowGuideModalBackdrop");
+  if (!bd) return;
+  bd.classList.remove("show");
+  bd.setAttribute("aria-hidden", "true");
+}
+
+async function refreshAllTabsData() {
+  const btn = qs("globalRefreshBtn");
+  if (btn) btn.disabled = true;
+  try {
+    await loadActionQueue();
+    await loadPrHeaders();
+    await loadIndents();
+    await loadExcess();
+    await loadExcessAudit();
+    await loadUnmappedAliases();
+
+    if (state.selectedIndent?.indent_id) {
+      await loadIndentLines(state.selectedIndent.indent_id);
+    }
+    if (
+      state.selectedPr?.pr_id &&
+      qs("prViewModalBackdrop")?.classList.contains("show")
+    ) {
+      await loadPrLines(state.selectedPr.pr_id);
+    }
+
+    await refreshAllTabCounts();
+    updateExportButtonStates();
+    toast("All tabs refreshed.", "success");
+  } catch (err) {
+    console.error("Global refresh failed:", err);
+    toast("Global refresh failed. Check console/logs.", "error");
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function wireGlobalHeaderControls() {
+  qs("globalRefreshBtn")?.addEventListener("click", refreshAllTabsData);
+  qs("workflowGuideBtn")?.addEventListener("click", openWorkflowGuideModal);
+  qs("btnWorkflowGuideClose")?.addEventListener(
+    "click",
+    closeWorkflowGuideModal,
+  );
+  qs("workflowGuideModalBackdrop")?.addEventListener("click", (e) => {
+    if (e.target.id === "workflowGuideModalBackdrop") closeWorkflowGuideModal();
+  });
 }
 
 // ─── EXPORT / PRINT INDENT ───────────────────────────────────────────────────
+
+/**
+ * Shared data-fetch for the requisition table (PDF, CSV, TSV).
+ * Returns { pdfLines, rows } where:
+ *   pdfLines – named-prop objects used by the PDF renderer
+ *   rows     – object-keyed rows aligned to INDENT_REQUISITION_HEADERS (for CSV/TSV)
+ */
+async function buildIndentRequisitionRows(indentId) {
+  // 1. Indent lines
+  const { data: lines, error: lErr } = await supabase
+    .from("v_proc_indent_lines_console")
+    .select("*")
+    .eq("indent_id", indentId)
+    .order("indent_line_id");
+  if (lErr) throw lErr;
+
+  if (!lines || lines.length === 0) return { pdfLines: [], rows: [] };
+
+  // 2. Sourcing decisions
+  const lineIds = lines.map((l) => l.indent_line_id);
+  let decisionMap = {};
+  if (lineIds.length) {
+    const { data: decisions, error: dErr } = await supabase
+      .from("proc_indent_line_sourcing_decision")
+      .select("*")
+      .in("indent_line_id", lineIds);
+    if (dErr) throw dErr;
+    (decisions ?? []).forEach((d) => (decisionMap[d.indent_line_id] = d));
+  }
+
+  // 3. Vendor names
+  const vendorIds = [
+    ...new Set(
+      Object.values(decisionMap).flatMap((d) =>
+        [d.selected_vendor_id, d.recommended_vendor_id].filter(Boolean),
+      ),
+    ),
+  ];
+  let vendorMap = {};
+  if (vendorIds.length) {
+    const { data: vendors } = await supabase
+      .from("proc_vendor")
+      .select("vendor_id,display_name")
+      .in("vendor_id", vendorIds);
+    (vendors ?? []).forEach((v) => (vendorMap[v.vendor_id] = v.display_name));
+  }
+
+  // 4. Item category labels
+  const itemIds = [...new Set(lines.map((l) => l.stock_item_id))];
+  let itemCatMap = {};
+  if (itemIds.length) {
+    const { data: items } = await supabase
+      .from("v_inv_stock_item_with_class")
+      .select("stock_item_id,code,category_label,subcategory_label,group_label")
+      .in("stock_item_id", itemIds);
+    (items ?? []).forEach(
+      (i) =>
+        (itemCatMap[i.stock_item_id] = {
+          code: i.code,
+          category:
+            i.subcategory_label || i.group_label || i.category_label || "",
+        }),
+    );
+  }
+
+  // 5. Current stock
+  let stockMap = {};
+  if (itemIds.length) {
+    const { data: stocks } = await supabase
+      .from("v_stock_current_by_item")
+      .select("inv_stock_item_id,qty_on_hand,source_kind")
+      .in("inv_stock_item_id", itemIds);
+    const ORDER = ["rm", "plm", "consumables"];
+    (stocks ?? []).forEach((s) => {
+      const cur = stockMap[s.inv_stock_item_id];
+      if (!cur) {
+        stockMap[s.inv_stock_item_id] = s;
+      } else {
+        const curIdx = ORDER.indexOf(cur.source_kind ?? "");
+        const newIdx = ORDER.indexOf(s.source_kind ?? "");
+        if (newIdx !== -1 && (curIdx === -1 || newIdx < curIdx)) {
+          stockMap[s.inv_stock_item_id] = s;
+        }
+      }
+    });
+  }
+
+  // Build canonical pdfLines (named props, fmt() for PDF renderer)
+  const pdfLines = lines.map((l) => {
+    const dec = decisionMap[l.indent_line_id] ?? {};
+    const vendorId = dec.selected_vendor_id ?? dec.recommended_vendor_id;
+    const unitPriceRaw = dec.selected_rate ?? dec.recommended_rate;
+    const cat = itemCatMap[l.stock_item_id] ?? {};
+    const qtyInStock = stockMap[l.stock_item_id]?.qty_on_hand ?? 0;
+    return {
+      category: cat.category || l.material_class_label || "",
+      materialDescription: l.stock_item_name ?? "",
+      uom: l.uom_code ?? String(l.uom_id ?? ""),
+      qtyRequested: fmt(l.requested_qty ?? ""),
+      qtyInStock: fmt(qtyInStock),
+      qtyToPurchase: fmt(l.remaining_qty ?? l.requested_qty ?? ""),
+      // fmt() for PDF display; formatMoney() (2dp, no symbol) for CSV/TSV
+      unitPrice:
+        unitPriceRaw !== null && unitPriceRaw !== undefined
+          ? fmt(unitPriceRaw)
+          : "",
+      unitPriceCsv:
+        unitPriceRaw !== null && unitPriceRaw !== undefined
+          ? formatMoney(unitPriceRaw)
+          : "",
+      preferredSupplier: vendorId ? (vendorMap[vendorId] ?? "") : "",
+      remarks: l.manual_reason || "",
+    };
+  });
+
+  // Build object rows keyed by INDENT_REQUISITION_HEADERS (for CSV/TSV)
+  const rows = pdfLines.map((line, idx) => ({
+    SN: String(idx + 1),
+    Category: line.category || "",
+    "Material Description": line.materialDescription || "",
+    "Brand / Part No": "-",
+    UOM: line.uom || "",
+    "Qty. Requested": line.qtyRequested || "",
+    "Qty. in Stock": line.qtyInStock || "0",
+    "Qty. to be Purchased": line.qtyToPurchase || "",
+    "Unit Price": line.unitPriceCsv || "",
+    "Preferred Supplier Name": line.preferredSupplier || "",
+    Remarks: line.remarks || "",
+  }));
+
+  return { pdfLines, rows };
+}
 
 function openExportIndentModal() {
   if (!state.selectedIndent) return;
@@ -1044,250 +1586,418 @@ function closeExportIndentModal() {
   qs("exportIndentModalBackdrop").setAttribute("aria-hidden", "true");
 }
 
-async function generateIndentPrintView() {
+async function exportIndentToPdf() {
   if (!state.selectedIndent) return;
+
+  /* global jspdf */
+  if (typeof jspdf === "undefined") {
+    toast("PDF library not available. Please reload the page.", "error");
+    return;
+  }
+
   const indentId = state.selectedIndent.indent_id;
   const deptUnit = qs("expDeptUnit").value.trim();
   const location = qs("expLocation").value.trim();
-  const reqNo = qs("expReqNo").value.trim();
+  const indentNumber = qs("expReqNo").value.trim();
   const reqDate = qs("expReqDate").value;
   const reqType = qs("expReqType").value.trim();
   const requestedBy = qs("expRequestedBy").value.trim();
   const contactDetails = qs("expContactDetails").value.trim();
 
-  const btn = qs("btnExpOpenPrint");
+  const btn = qs("btnExpExportPdf");
   btn.disabled = true;
-  btn.textContent = "Loading\u2026";
+  btn.textContent = "Generating\u2026";
 
   try {
-    // 1. Indent lines
-    const { data: lines, error: lErr } = await supabase
-      .from("v_proc_indent_lines_console")
-      .select("*")
-      .eq("indent_id", indentId)
-      .order("indent_line_id");
-    if (lErr) throw lErr;
+    // Fetch all requisition data via shared function (same source as CSV/TSV)
+    const { pdfLines } = await buildIndentRequisitionRows(indentId);
 
-    // 2. Sourcing decisions
-    const lineIds = lines.map((l) => l.indent_line_id);
-    let decisionMap = {};
-    if (lineIds.length) {
-      const { data: decisions, error: dErr } = await supabase
-        .from("proc_indent_line_sourcing_decision")
-        .select("*")
-        .in("indent_line_id", lineIds);
-      if (dErr) throw dErr;
-      (decisions ?? []).forEach((d) => (decisionMap[d.indent_line_id] = d));
+    if (!pdfLines.length) {
+      toast("No lines in this indent. Cannot export.", "error");
+      return;
     }
 
-    // 3. Vendor names
-    const vendorIds = [
-      ...new Set(
-        Object.values(decisionMap).flatMap((d) =>
-          [d.selected_vendor_id, d.recommended_vendor_id].filter(Boolean),
-        ),
-      ),
-    ];
-    let vendorMap = {};
-    if (vendorIds.length) {
-      const { data: vendors } = await supabase
-        .from("proc_vendor")
-        .select("vendor_id,display_name")
-        .in("vendor_id", vendorIds);
-      (vendors ?? []).forEach((v) => (vendorMap[v.vendor_id] = v.display_name));
-    }
-
-    // 4. Item category labels
-    const itemIds = [...new Set(lines.map((l) => l.stock_item_id))];
-    let itemCatMap = {};
-    if (itemIds.length) {
-      const { data: items } = await supabase
-        .from("v_inv_stock_item_with_class")
-        .select(
-          "stock_item_id,code,category_label,subcategory_label,group_label",
-        )
-        .in("stock_item_id", itemIds);
-      (items ?? []).forEach(
-        (i) =>
-          (itemCatMap[i.stock_item_id] = {
-            code: i.code,
-            category:
-              i.subcategory_label || i.group_label || i.category_label || "",
-          }),
-      );
-    }
-
-    // 5. Current stock
-    let stockMap = {};
-    if (itemIds.length) {
-      const { data: stocks } = await supabase
-        .from("v_stock_current_by_item")
-        .select("inv_stock_item_id,qty_on_hand,source_kind")
-        .in("inv_stock_item_id", itemIds);
-      const ORDER = ["rm", "plm", "consumables"];
-      (stocks ?? []).forEach((s) => {
-        const cur = stockMap[s.inv_stock_item_id];
-        if (!cur) {
-          stockMap[s.inv_stock_item_id] = s;
-        } else {
-          const curIdx = ORDER.indexOf(cur.source_kind ?? "");
-          const newIdx = ORDER.indexOf(s.source_kind ?? "");
-          if (newIdx !== -1 && (curIdx === -1 || newIdx < curIdx)) {
-            stockMap[s.inv_stock_item_id] = s;
-          }
-        }
-      });
-    }
-
-    // Build row data
-    const rows = lines.map((l, idx) => {
-      const dec = decisionMap[l.indent_line_id] ?? {};
-      const vendorId = dec.selected_vendor_id ?? dec.recommended_vendor_id;
-      const unitPrice = dec.selected_rate ?? dec.recommended_rate;
-      const cat = itemCatMap[l.stock_item_id] ?? {};
-      const qtyInStock = stockMap[l.stock_item_id]?.qty_on_hand ?? null;
-      return {
-        sl: idx + 1,
-        code: cat.code ?? "",
-        name: l.stock_item_name ?? "",
-        category: cat.category || l.material_class_label || "",
-        uom: l.uom_code ?? "",
-        qtyInStock: qtyInStock !== null ? fmt(qtyInStock) : "",
-        qtyToPurchase: fmt(l.remaining_qty ?? l.requested_qty ?? ""),
-        unitPrice:
-          unitPrice !== null && unitPrice !== undefined ? fmt(unitPrice) : "",
-        supplier: vendorId ? (vendorMap[vendorId] ?? "") : "",
-      };
+    // Generate PDF using jsPDF
+    const { jsPDF } = jspdf;
+    const doc = new jsPDF({
+      unit: "mm",
+      format: "a4",
+      orientation: "landscape",
     });
 
-    const printHtml = buildPrintHtml({
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 10;
+    const FOOTER_H = 12;
+    const contact = contactDetails;
+
+    // Context for header/footer drawing
+    const ctx = {
+      margin,
+      pageWidth: doc.internal.pageSize.getWidth(),
       deptUnit,
       location,
-      reqNo,
+      indentNumber,
       reqDate,
       reqType,
       requestedBy,
-      contactDetails,
-      rows,
+      contact,
+    };
+
+    function buildHeaderLayoutEngine(doc, ctx) {
+      const margin = ctx.margin;
+      const pageW = ctx.pageWidth;
+
+      // Two columns on the page
+      const colGap = 10;
+      const colW = (pageW - margin * 2 - colGap) / 2;
+      const leftX = margin;
+      const rightX = margin + colW + colGap;
+
+      // Inside each column: label | : | value (tab stop)
+      const labelW = 30;
+      const colonX = labelW + 2;
+      const valueX = colonX + 4;
+      const valueW = colW - valueX;
+
+      const metaFont = 9;
+      const metaLH = 5.2;
+      const rowGap = 1.2;
+
+      function wrap(text, maxW) {
+        const s = String(text ?? "").trim();
+        if (!s) return ["-"];
+        return doc.splitTextToSize(s, maxW);
+      }
+
+      function drawKV(x, y, label, value) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(metaFont);
+        doc.text(String(label), x, y, { align: "left" });
+
+        // Colon aligned in a fixed vertical line
+        doc.text(":", x + colonX, y, { align: "left" });
+
+        doc.setFont("helvetica", "normal");
+        const lines = wrap(value, valueW);
+        doc.text(lines, x + valueX, y);
+
+        return lines.length * metaLH;
+      }
+
+      function measureKV(value) {
+        const lines = wrap(value, valueW);
+        return lines.length * metaLH;
+      }
+
+      function drawRow(y, leftLabel, leftVal, rightLabel, rightVal) {
+        const hL = drawKV(leftX, y, leftLabel, leftVal);
+        const hR = rightLabel
+          ? drawKV(rightX, y, rightLabel, rightVal)
+          : metaLH;
+        return y + Math.max(hL, hR) + rowGap;
+      }
+
+      function drawRightOnlyRow(y, rightLabel, rightVal) {
+        const hR = drawKV(rightX, y, rightLabel, rightVal);
+        return y + hR + rowGap;
+      }
+
+      function measureRow(y, leftVal, rightVal, hasRight) {
+        const hL = measureKV(leftVal);
+        const hR = hasRight ? measureKV(rightVal) : metaLH;
+        return y + Math.max(hL, hR) + rowGap;
+      }
+
+      function measureRightOnlyRow(y, rightVal) {
+        const hR = measureKV(rightVal);
+        return y + hR + rowGap;
+      }
+
+      function drawTitleBlock(y) {
+        function centered(text, yPos, font, size) {
+          doc.setFont("times", font);
+          doc.setFontSize(size);
+          const w = doc.getTextWidth(text);
+          doc.text(text, (pageW - w) / 2, yPos);
+        }
+
+        centered("Gurucharanam Saranam", y, "italic", 11);
+        y += 7.0;
+        centered("Santhigiri Ashram", y, "bold", 11);
+        y += 9.0;
+        centered("PURCHASE REQUISITION FORM", y, "bold", 17);
+        y += 11.0;
+
+        // Subtle divider under title block
+        doc.setDrawColor(0);
+        doc.setLineWidth(0.15);
+        doc.line(ctx.margin, y - 4, ctx.pageWidth - ctx.margin, y - 4);
+
+        // Breathing room after the divider before metadata grid
+        y += 2;
+
+        return y;
+      }
+
+      function measureTitleBlock(y) {
+        y += 7.0;
+        y += 9.0;
+        y += 11.0;
+        y += 2;
+        return y;
+      }
+
+      function drawHeader(_doc = doc, _ctx = ctx) {
+        let y = _ctx.margin;
+
+        y = drawTitleBlock(y);
+        y = drawRow(y, "Dept/Unit", _ctx.deptUnit, "Date", _ctx.reqDate);
+        y = drawRow(y, "Location", _ctx.location, "Req No", _ctx.indentNumber);
+        y = drawRow(y, "Type", _ctx.reqType, "Requested By", _ctx.requestedBy);
+        y = drawRightOnlyRow(y, "Contact", _ctx.contact);
+
+        _doc.setFont("helvetica", "bold");
+        _doc.setFontSize(11);
+        _doc.text("MATERIAL DETAILS", _ctx.margin, y + 2);
+
+        // Keep table close to section heading (no large white gap)
+        return y + 2;
+      }
+
+      function measureHeader(_doc = doc, _ctx = ctx) {
+        void _doc;
+        let y = _ctx.margin;
+
+        y = measureTitleBlock(y);
+        y = measureRow(y, _ctx.deptUnit, _ctx.reqDate, true);
+        y = measureRow(y, _ctx.location, _ctx.indentNumber, true);
+        y = measureRow(y, _ctx.reqType, _ctx.requestedBy, true);
+        y = measureRightOnlyRow(y, _ctx.contact);
+
+        // MATERIAL DETAILS + tight gap
+        return y + 2;
+      }
+
+      return { drawHeader, measureHeader };
+    }
+
+    const headerEngine = buildHeaderLayoutEngine(doc, ctx);
+
+    // Exact header bottom (no extra whitespace above table)
+    const HEADER_H = headerEngine.measureHeader(doc, ctx);
+
+    // Helper: Draw footer with page numbers
+    const drawPageFooter = (doc, ctx, pageNo, totalPages) => {
+      const { margin, pageWidth } = ctx;
+      const ph = doc.internal.pageSize.getHeight();
+      doc.setFontSize(7).setFont("helvetica", "normal").setTextColor(100);
+      doc.text(
+        `Page ${pageNo} of ${totalPages}`,
+        pageWidth - margin - 10,
+        ph - 5,
+        {
+          align: "right",
+        },
+      );
+      if (ctx.indentNumber) {
+        doc.text(`PR: ${ctx.indentNumber}`, margin, ph - 5);
+      }
+    };
+
+    function formatHeaderLabel(label, maxWidthMm) {
+      const text = String(label || "").trim();
+      if (!text) return "";
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      const usableWidth = Math.max(4, maxWidthMm - 2.5);
+      if (doc.getTextWidth(text) <= usableWidth) return text;
+
+      const preferredBreaks = {
+        "Brand / Part No": ["Brand /", "Part No"],
+        "Qty. Requested": ["Qty.", "Requested"],
+        "Qty. in Stock": ["Qty. in", "Stock"],
+        "Qty. to Purchase": ["Qty. to", "Purchase"],
+        "Unit Price": ["Unit", "Price"],
+        "Preferred Supplier": ["Preferred", "Supplier"],
+        "Material Description": ["Material", "Description"],
+      };
+      if (preferredBreaks[text]) return preferredBreaks[text].join("\n");
+
+      const words = text.split(/\s+/).filter(Boolean);
+      if (words.length <= 1) return text;
+      let best = text;
+      let bestScore = Number.POSITIVE_INFINITY;
+      for (let i = 1; i < words.length; i += 1) {
+        const left = words.slice(0, i).join(" ");
+        const right = words.slice(i).join(" ");
+        const leftW = doc.getTextWidth(left);
+        const rightW = doc.getTextWidth(right);
+        if (leftW <= usableWidth && rightW <= usableWidth) {
+          const score = Math.abs(leftW - rightW);
+          if (score < bestScore) {
+            bestScore = score;
+            best = `${left}\n${right}`;
+          }
+        }
+      }
+      return best;
+    }
+
+    // Build table data
+    const tableHead = [
+      [
+        "SN",
+        "Category",
+        "Material Description",
+        "Brand / Part No",
+        "UOM",
+        "Qty. Requested",
+        "Qty. in Stock",
+        "Qty. to Purchase",
+        "Unit Price",
+        "Preferred Supplier",
+        "Remarks",
+      ],
+    ];
+
+    const tableBody = pdfLines.map((line, idx) => [
+      String(idx + 1),
+      line.category || "",
+      line.materialDescription || "",
+      "-",
+      line.uom || "",
+      line.qtyRequested || "",
+      line.qtyInStock || "0",
+      line.qtyToPurchase || "",
+      line.unitPrice || "",
+      line.preferredSupplier || "",
+      line.remarks || "",
+    ]);
+
+    // Fill table across printable width using relative column weights
+    const availableWidth = ctx.pageWidth - ctx.margin * 2;
+    const weights = [
+      0.7, // SN
+      2.2, // Category
+      6.6, // Material Description
+      1.4, // Brand/Part No
+      1.0, // UOM
+      1.6, // Qty Requested
+      1.6, // Qty in Stock
+      1.8, // Qty to Purchase
+      1.6, // Unit Price
+      3.8, // Preferred Supplier
+      2.3, // Remarks
+    ];
+    const weightSum = weights.reduce((a, b) => a + b, 0);
+    const colW = weights.map((w) => (availableWidth * w) / weightSum);
+
+    const columnStyles = {
+      0: { cellWidth: colW[0], halign: "center" },
+      1: { cellWidth: colW[1] },
+      2: { cellWidth: colW[2] },
+      3: { cellWidth: colW[3], halign: "center" },
+      4: { cellWidth: colW[4], halign: "center" },
+      5: { cellWidth: colW[5], halign: "right" },
+      6: { cellWidth: colW[6], halign: "right" },
+      7: { cellWidth: colW[7], halign: "right" },
+      8: { cellWidth: colW[8], halign: "right" },
+      9: { cellWidth: colW[9] },
+      10: { cellWidth: colW[10] },
+    };
+
+    tableHead[0] = tableHead[0].map((label, index) =>
+      formatHeaderLabel(label, colW[index]),
+    );
+
+    // Draw table — didDrawPage fires for every page including page 1
+    doc.autoTable({
+      theme: "grid",
+      showHead: "everyPage",
+      head: tableHead,
+      body: tableBody,
+      margin: { top: HEADER_H, left: margin, right: margin, bottom: FOOTER_H },
+      styles: {
+        fontSize: 8,
+        cellPadding: 1.8,
+        overflow: "linebreak",
+        valign: "middle",
+        lineWidth: 0.2,
+        lineColor: 0,
+        textColor: 0,
+      },
+      headStyles: {
+        fillColor: [245, 245, 245],
+        textColor: 0,
+        fontStyle: "bold",
+        lineWidth: 0.2,
+        lineColor: 0,
+        fontSize: 8,
+        halign: "center",
+        valign: "middle",
+      },
+      columnStyles,
+      didDrawPage: () => {
+        headerEngine.drawHeader(doc, ctx);
+      },
     });
 
-    const printWin = window.open("", "_blank");
-    if (!printWin) {
-      toast(
-        "Pop-up blocked \u2014 please allow pop-ups for this page.",
-        "error",
-      );
-      return;
+    // Stamp accurate page numbers on every page after table is complete
+    const totalPages = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      drawPageFooter(doc, ctx, i, totalPages);
     }
-    printWin.document.write(printHtml);
-    printWin.document.close();
+
+    // Signature block on last page; add new page if insufficient space
+    doc.setPage(totalPages);
+    const pageHeight = doc.internal.pageSize.getHeight();
+    let sigY = doc.lastAutoTable.finalY + 16;
+    if (sigY + 20 > pageHeight - FOOTER_H) {
+      doc.addPage("a4", "landscape");
+      sigY = margin + 20;
+    }
+
+    const colWidth = (pageWidth - 2 * margin) / 3;
+    doc.setDrawColor(0).setLineWidth(0.2);
+    doc.line(margin, sigY, margin + colWidth - 5, sigY);
+    doc.line(margin + colWidth + 5, sigY, margin + 2 * colWidth, sigY);
+    doc.line(margin + 2 * colWidth + 5, sigY, pageWidth - margin, sigY);
+
+    doc.setFont("helvetica", "normal").setFontSize(8).setTextColor(0);
+    doc.text("Requested By", margin + colWidth / 2, sigY + 4, {
+      align: "center",
+    });
+    doc.text("Approved By", margin + colWidth + colWidth / 2, sigY + 4, {
+      align: "center",
+    });
+    doc.text(
+      "Procurement Officer",
+      margin + 2 * colWidth + colWidth / 2,
+      sigY + 4,
+      { align: "center" },
+    );
+
+    // If a new page was added for signatures, re-stamp page numbers with updated total
+    const finalTotalPages = doc.internal.getNumberOfPages();
+    if (finalTotalPages > totalPages) {
+      for (let i = 1; i <= finalTotalPages; i++) {
+        doc.setPage(i);
+        drawPageFooter(doc, ctx, i, finalTotalPages);
+      }
+    }
+
+    // Save PDF
+    doc.save(`${indentNumber || "PR"}.pdf`);
+
+    toast("PDF exported successfully", "success");
     closeExportIndentModal();
   } catch (err) {
-    toast(`Export failed: ${err.message}`, "error");
+    toast(`Export error: ${err.message}`, "error");
   } finally {
     btn.disabled = false;
-    btn.innerHTML = `${iconSvg("document")}Open Print View`;
+    btn.innerHTML = `${iconSvg("document")}Export PDF`;
   }
-}
-
-function buildPrintHtml({
-  deptUnit,
-  location,
-  reqNo,
-  reqDate,
-  reqType,
-  requestedBy,
-  contactDetails,
-  rows,
-}) {
-  const escH = (s) =>
-    String(s ?? "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
-  const fmtDate = (d) => {
-    if (!d) return "";
-    const [y, m, day] = d.split("-");
-    return `${day}/${m}/${y}`;
-  };
-  const tableRows = rows
-    .map(
-      (r) => `
-    <tr>
-      <td>${r.sl}</td>
-      <td>${escH(r.code)}</td>
-      <td>${escH(r.name)}</td>
-      <td>${escH(r.category)}</td>
-      <td>${escH(r.uom)}</td>
-      <td class="num">${escH(r.qtyInStock)}</td>
-      <td class="num">${escH(r.qtyToPurchase)}</td>
-      <td class="num">${escH(r.unitPrice)}</td>
-      <td>${escH(r.supplier)}</td>
-      <td></td>
-    </tr>`,
-    )
-    .join("");
-  return `<!DOCTYPE html>
-<html><head><meta charset="UTF-8">
-<title>Purchase Requisition \u2014 ${escH(reqNo)}</title>
-<style>
-  @page { size: A4; margin: 18mm 14mm; }
-  * { box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; }
-  body { font-size: 11px; color: #111; }
-  .org-header { text-align: center; margin-bottom: 14px; }
-  .org-header h1 { font-size: 15px; margin: 0; font-weight: 700; }
-  .org-header h2 { font-size: 13px; margin: 4px 0 0; font-weight: 500; letter-spacing: .5px; }
-  .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; margin-bottom: 14px; border: 1px solid #ccc; border-radius: 4px; padding: 10px 12px; }
-  .meta-item { display: flex; gap: 6px; font-size: 11px; align-items: baseline; }
-  .meta-item .lbl { font-weight: 600; min-width: 130px; color: #444; white-space: nowrap; }
-  table { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 10.5px; }
-  th { background: #f0f0f0; font-weight: 600; padding: 5px 6px; border: 1px solid #ccc; text-align: left; }
-  td { padding: 4px 6px; border: 1px solid #ddd; vertical-align: top; }
-  td.num { text-align: right; }
-  .sig-block { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 30px; margin-top: 28px; }
-  .sig-box { border-top: 1px solid #999; padding-top: 6px; font-size: 10.5px; color: #444; }
-  @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-</style>
-</head>
-<body>
-<div class="org-header">
-  <h1>Gurucharanam Saranam / Santhigiri Ashram</h1>
-  <h2>PURCHASE REQUISITION FORM</h2>
-</div>
-<div class="meta-grid">
-  <div class="meta-item"><span class="lbl">Department / Unit:</span><span>${escH(deptUnit)}</span></div>
-  <div class="meta-item"><span class="lbl">Requisition No.:</span><span>${escH(reqNo)}</span></div>
-  <div class="meta-item" style="grid-column:1/-1"><span class="lbl">Location:</span><span>${escH(location)}</span></div>
-  <div class="meta-item"><span class="lbl">Date:</span><span>${fmtDate(reqDate)}</span></div>
-  <div class="meta-item"><span class="lbl">Requisition Type:</span><span>${escH(reqType)}</span></div>
-  <div class="meta-item"><span class="lbl">Requested By:</span><span>${escH(requestedBy)}</span></div>
-  <div class="meta-item"><span class="lbl">Contact Details:</span><span>${escH(contactDetails)}</span></div>
-</div>
-<table>
-  <thead>
-    <tr>
-      <th>#</th>
-      <th>Item Code</th>
-      <th>Item Description</th>
-      <th>Category</th>
-      <th>UOM</th>
-      <th>Qty in Stock</th>
-      <th>Qty to Purchase</th>
-      <th>Unit Price</th>
-      <th>Preferred Supplier</th>
-      <th>Remarks</th>
-    </tr>
-  </thead>
-  <tbody>${tableRows}
-  </tbody>
-</table>
-<div class="sig-block">
-  <div class="sig-box">Requested By</div>
-  <div class="sig-box">Approved By</div>
-  <div class="sig-box">Procurement Officer</div>
-</div>
-</body></html>`;
 }
 
 // ─── INDENT CREATION ─────────────────────────────────────────────────────────
@@ -1822,6 +2532,7 @@ async function loadPrLines(prId) {
 
 function openPrViewModal(row) {
   state.selectedPr = row;
+  upgradePrModalButtons(row);
   qs("prLinesTitle").textContent = row.pr_number ?? "";
   qs("prDetailStatus").textContent = row.status ?? "";
   const horizonStr = row.horizon_start_month
@@ -1843,7 +2554,9 @@ function openPrViewModal(row) {
   if (btnActivate) btnActivate.style.display = isDraft ? "" : "none";
   if (btnClose) {
     btnClose.style.display = isTerminal ? "none" : "";
-    btnClose.textContent = isDraft ? "Cancel PR" : "Close PR";
+    const closeLabel = isDraft ? "Cancel PR" : "Close PR";
+    btnClose.setAttribute("title", closeLabel);
+    btnClose.setAttribute("aria-label", closeLabel);
   }
   if (btnAddLine) btnAddLine.style.display = isDraft ? "" : "none";
   if (btnCreateIndent) btnCreateIndent.style.display = isActive ? "" : "none";
@@ -2258,10 +2971,6 @@ function wirePrControls() {
   qs("generatePrModalBackdrop").addEventListener("click", (e) => {
     if (e.target.id === "generatePrModalBackdrop") closeGeneratePrModal();
   });
-  qs("prBtnRefresh").addEventListener("click", () => {
-    state.prPage = 0;
-    loadPrHeaders();
-  });
   qs("prBtnPrev").addEventListener("click", () => {
     state.prPage = Math.max(0, state.prPage - 1);
     loadPrHeaders();
@@ -2490,11 +3199,6 @@ async function saveAcceptExcess() {
 }
 
 function wireExcessControls() {
-  qs("eBtnRefresh").addEventListener("click", () => {
-    state.excessPage = 0;
-    loadExcess();
-    loadExcessAudit();
-  });
   qs("eBtnPrev").addEventListener("click", () => {
     state.excessPage = Math.max(0, state.excessPage - 1);
     loadExcess();
@@ -2673,10 +3377,6 @@ async function saveMapVendor() {
 }
 
 function wireVendorControls() {
-  qs("vBtnRefresh").addEventListener("click", () => {
-    state.vendorsPage = 0;
-    loadUnmappedAliases();
-  });
   qs("vBtnPrev").addEventListener("click", () => {
     state.vendorsPage = Math.max(0, state.vendorsPage - 1);
     loadUnmappedAliases();
@@ -2711,6 +3411,30 @@ function wireVendorControls() {
   document
     .getElementById("homeBtn")
     ?.addEventListener("click", () => Platform.goHome());
+
+  // Safety pass: ensure key icon buttons expose tooltip + label
+  ensureIconBtnA11y("btnRefresh", "Refresh");
+  ensureIconBtnA11y("btnPrev", "Previous page");
+  ensureIconBtnA11y("btnNext", "Next page");
+  ensureIconBtnA11y("iBtnRefresh", "Refresh");
+  ensureIconBtnA11y("iBtnNewDraft", "New draft indent");
+  ensureIconBtnA11y("iBtnFromPR", "Create indent from PR");
+  ensureIconBtnA11y("btnExportPdf", "Export PDF");
+  ensureIconBtnA11y("btnExportTsv", "Export TSV");
+  ensureIconBtnA11y("btnExportCsv", "Export CSV");
+  ensureIconBtnA11y("globalRefreshBtn", "Refresh All Tabs");
+  ensureIconBtnA11y("prBtnPrev", "Previous page");
+  ensureIconBtnA11y("prBtnNext", "Next page");
+  ensureIconBtnA11y("iBtnPrev", "Previous page");
+  ensureIconBtnA11y("iBtnNext", "Next page");
+  ensureIconBtnA11y("eBtnPrev", "Previous page");
+  ensureIconBtnA11y("eBtnNext", "Next page");
+  ensureIconBtnA11y("vBtnPrev", "Previous page");
+  ensureIconBtnA11y("vBtnNext", "Next page");
+  ensureIconBtnA11y("btnAqExportMenu", "Export options");
+  ensureIconBtnA11y("btnIExportMenu", "Export options");
+
+  wireGlobalHeaderControls();
   wireTabs();
   wireStockItemPicker();
   wireActionQueueControls();
@@ -2719,5 +3443,6 @@ function wireVendorControls() {
   wireVendorControls();
   wirePrControls();
   await loadActionQueue();
+  updateExportButtonStates();
   refreshAllTabCounts();
 })();

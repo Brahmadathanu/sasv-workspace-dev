@@ -137,6 +137,60 @@
         background: #dc2626;
       }
 
+      /* ── Protocol edit modal ─────────────────────────────────────── */
+      .pm-modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        padding: 14px;
+      }
+      .pm-modal-overlay.hidden {
+        display: none !important;
+      }
+      .pm-modal-card {
+        background: var(--panel-bg, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 12px;
+        width: min(820px, 100%);
+        max-height: 90vh;
+        overflow: auto;
+        padding: 20px 24px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .pm-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .pm-modal-close {
+        border: 1px solid var(--border, #e5e7eb);
+        background: #fff;
+        border-radius: 8px;
+        width: 32px;
+        height: 32px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+      .pm-modal-close:hover {
+        background: #f3f4f6;
+      }
+      .pm-modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
       /* ── Icon button ──────────────────────────────────────────────── */
       .icon-btn {
         display: inline-flex;
@@ -1379,11 +1433,10 @@
            TAB 1 — PROTOCOL MASTER
       ════════════════════════════════════════════════════════════ -->
       <div class="tab-panel hidden" id="panelProtocolMaster">
-        <div class="split-layout">
-          <!-- Left: Protocol list -->
-          <div class="protocol-list-panel">
-            <div class="list-panel-header">
-              <span class="list-panel-title" id="pmListTitle">Protocols</span>
+        <div class="protocol-list-panel">
+          <div class="list-panel-header">
+            <span class="list-panel-title" id="pmListTitle">Protocols</span>
+            <div style="display: flex; align-items: center; gap: 8px">
               <span
                 id="pmListCount"
                 style="
@@ -1392,163 +1445,43 @@
                   font-weight: 600;
                 "
               ></span>
-            </div>
-            <div class="list-scroll">
-              <div id="pmListLoading" class="empty-state hidden">
-                <div class="spinner" style="margin: 0 auto 8px"></div>
-                Loading…
-              </div>
-              <table class="protocol-list-table" id="pmListTable">
-                <thead>
-                  <tr>
-                    <th>Code</th>
-                    <th>Name</th>
-                    <th style="text-align: center">Active</th>
-                  </tr>
-                </thead>
-                <tbody id="pmListBody">
-                  <tr>
-                    <td colspan="3" class="empty-state">
-                      <strong>Select a subject</strong>to load protocols
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              <button id="pmNewBtn" type="button" class="btn-secondary btn-sm">
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.2"
+                >
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                New Protocol
+              </button>
             </div>
           </div>
-
-          <!-- Right: Protocol form -->
-          <div class="protocol-form-panel">
-            <div class="form-panel-header">
-              <span class="form-panel-title" id="pmFormTitle"
-                >Protocol Detail</span
-              >
-              <div class="form-actions">
-                <button
-                  id="pmNewBtn"
-                  type="button"
-                  class="btn-secondary btn-sm"
-                >
-                  <svg
-                    width="13"
-                    height="13"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.2"
-                  >
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                  New Protocol
-                </button>
-                <button
-                  id="pmSaveBtn"
-                  type="button"
-                  class="btn-primary btn-sm"
-                  disabled
-                >
-                  <span class="btn-spinner"></span>
-                  <svg
-                    width="13"
-                    height="13"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.2"
-                  >
-                    <path
-                      d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
-                    />
-                    <polyline points="17 21 17 13 7 13 7 21" />
-                    <polyline points="7 3 7 8 15 8" />
-                  </svg>
-                  Save
-                </button>
-                <button
-                  id="pmDeactivateBtn"
-                  type="button"
-                  class="btn-danger btn-sm"
-                  disabled
-                >
-                  Deactivate
-                </button>
-              </div>
+          <div class="list-scroll">
+            <div id="pmListLoading" class="empty-state hidden">
+              <div class="spinner" style="margin: 0 auto 8px"></div>
+              Loading…
             </div>
-
-            <div
-              id="pmFormBanner"
-              class="info-banner hidden"
-              role="status"
-              aria-live="polite"
-            ></div>
-
-            <div class="form-row">
-              <div class="form-group">
-                <label for="pmFieldSubjectType"
-                  >Subject Type <span class="req">*</span></label
-                >
-                <input
-                  id="pmFieldSubjectType"
-                  class="form-control"
-                  readonly
-                  tabindex="-1"
-                />
-              </div>
-              <div class="form-group">
-                <label for="pmFieldCategoryCode"
-                  >Category Code <span class="req">*</span></label
-                >
-                <input
-                  id="pmFieldCategoryCode"
-                  class="form-control"
-                  maxlength="50"
-                  placeholder="e.g. FG-TABLET-STD"
-                />
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group form-group-full" style="grid-column: 1/-1">
-                <label for="pmFieldCategoryName"
-                  >Category Name <span class="req">*</span></label
-                >
-                <input
-                  id="pmFieldCategoryName"
-                  class="form-control"
-                  maxlength="200"
-                  placeholder="e.g. Tablet Finished Goods Standard Protocol"
-                />
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group form-group-full" style="grid-column: 1/-1">
-                <label for="pmFieldSourceDocument">Source Document</label>
-                <input
-                  id="pmFieldSourceDocument"
-                  class="form-control"
-                  maxlength="200"
-                  placeholder="e.g. STP-FG-001 Rev 3"
-                />
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group form-group-full" style="grid-column: 1/-1">
-                <label for="pmFieldRemarks">Remarks</label>
-                <textarea
-                  id="pmFieldRemarks"
-                  class="form-control"
-                  rows="2"
-                  placeholder="Optional notes…"
-                ></textarea>
-              </div>
-            </div>
-            <div class="toggle-row">
-              <label class="toggle-switch">
-                <input type="checkbox" id="pmFieldIsActive" checked />
-                <span class="toggle-track"></span>
-              </label>
-              <span class="toggle-label">Active</span>
-            </div>
+            <table class="protocol-list-table" id="pmListTable">
+              <thead>
+                <tr>
+                  <th>Code</th>
+                  <th>Name</th>
+                  <th style="text-align: center">Active</th>
+                </tr>
+              </thead>
+              <tbody id="pmListBody">
+                <tr>
+                  <td colspan="3" class="empty-state">
+                    <strong>Select a subject</strong>to load protocols
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -1645,13 +1578,12 @@
                   <th>Method (Auto from Test)</th>
                   <th>Display Note</th>
                   <th class="th-center">Req</th>
-                  <th class="th-center">Active</th>
                   <th class="th-center">Del</th>
                 </tr>
               </thead>
               <tbody id="tlTableBody">
                 <tr>
-                  <td colspan="7" class="empty-state">No test lines loaded.</td>
+                  <td colspan="6" class="empty-state">No test lines loaded.</td>
                 </tr>
               </tbody>
             </table>
@@ -1795,16 +1727,96 @@
       </div>
 
       <!-- ══════════════════════════════════════════════════════════
-           TAB 4 — USAGE PREVIEW (placeholder)
+           TAB 4 — USAGE PREVIEW
       ════════════════════════════════════════════════════════════ -->
       <div class="tab-panel hidden" id="panelUsagePreview">
-        <div class="placeholder-panel">
-          <div class="placeholder-icon">🔭</div>
-          <strong>Usage Preview — Coming Soon</strong>
-          <p style="max-width: 400px; font-size: 13px; margin: 0">
-            This view will show where the selected protocol is currently mapped
-            and which families, items, or products are covered downstream.
-          </p>
+        <!-- Protocol selector -->
+        <div class="mapping-form-card">
+          <div class="form-panel-header">
+            <span class="form-panel-title" id="upFormTitle">Usage Preview</span>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="upProtocolSelect">Protocol</label>
+              <select id="upProtocolSelect" class="form-control">
+                <option value="">-- Select Protocol --</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Summary strip -->
+        <div class="context-strip hidden" id="upSummaryStrip">
+          <div class="context-strip-item">
+            <div class="context-strip-label">Family Mappings</div>
+            <div class="context-strip-value" id="upMappedCount">—</div>
+          </div>
+          <div class="context-strip-item">
+            <div class="context-strip-label">Families Covered</div>
+            <div class="context-strip-value" id="upCoveredCount">—</div>
+          </div>
+          <div class="context-strip-item">
+            <div class="context-strip-label">Test Lines</div>
+            <div class="context-strip-value" id="upTestLineCount">—</div>
+          </div>
+          <div class="context-strip-item">
+            <div class="context-strip-label">Ready</div>
+            <div class="context-strip-value" id="upReadyCount">—</div>
+          </div>
+        </div>
+
+        <!-- Table card -->
+        <div class="mapping-table-card hidden" id="upTableCard">
+          <div class="mapping-table-header">
+            <span class="mapping-table-title">Family Coverage</span>
+          </div>
+          <div
+            id="upBanner"
+            class="info-banner hidden"
+            style="margin: 10px 14px"
+            role="status"
+            aria-live="polite"
+          ></div>
+          <div class="mapping-table-scroll">
+            <table class="mapping-table">
+              <thead>
+                <tr>
+                  <th>Family / Group</th>
+                  <th>Family Type</th>
+                  <th>Base Spec</th>
+                  <th style="text-align: center">Version</th>
+                  <th style="text-align: center">Covered Items</th>
+                  <th style="text-align: center">Test Lines</th>
+                  <th style="text-align: center">Status</th>
+                </tr>
+              </thead>
+              <tbody id="upTableBody">
+                <tr>
+                  <td colspan="7" class="empty-state">
+                    Select a protocol above to view coverage.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Empty / idle banner -->
+        <div id="upEmptyBanner" class="info-banner info hidden">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            style="flex-shrink: 0"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          Select a protocol above to view its usage coverage.
         </div>
       </div>
     </div>
@@ -1812,6 +1824,158 @@
 
     <!-- Toast container -->
     <div id="toastContainer" aria-live="assertive"></div>
+
+    <!-- Protocol detail modal -->
+    <div
+      id="pmEditModal"
+      class="pm-modal-overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pmFormTitle"
+    >
+      <div class="pm-modal-card">
+        <div class="pm-modal-header">
+          <span class="form-panel-title" id="pmFormTitle">Protocol Detail</span>
+          <button
+            id="pmModalCloseBtn"
+            class="pm-modal-close"
+            type="button"
+            aria-label="Close protocol detail"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        <div
+          id="pmFormBanner"
+          class="info-banner hidden"
+          role="status"
+          aria-live="polite"
+        ></div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="pmFieldSubjectType"
+              >Subject Type <span class="req">*</span></label
+            >
+            <input
+              id="pmFieldSubjectType"
+              class="form-control"
+              readonly
+              tabindex="-1"
+            />
+          </div>
+          <div class="form-group">
+            <label for="pmFieldCategoryCode"
+              >Category Code <span class="req">*</span></label
+            >
+            <input
+              id="pmFieldCategoryCode"
+              class="form-control"
+              maxlength="50"
+              placeholder="e.g. FG-TABLET-STD"
+            />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group form-group-full" style="grid-column: 1/-1">
+            <label for="pmFieldCategoryName"
+              >Category Name <span class="req">*</span></label
+            >
+            <input
+              id="pmFieldCategoryName"
+              class="form-control"
+              maxlength="200"
+              placeholder="e.g. Tablet Finished Goods Standard Protocol"
+            />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group form-group-full" style="grid-column: 1/-1">
+            <label for="pmFieldSourceDocument">Source Document</label>
+            <input
+              id="pmFieldSourceDocument"
+              class="form-control"
+              maxlength="200"
+              placeholder="e.g. STP-FG-001 Rev 3"
+            />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group form-group-full" style="grid-column: 1/-1">
+            <label for="pmFieldRemarks">Remarks</label>
+            <textarea
+              id="pmFieldRemarks"
+              class="form-control"
+              rows="2"
+              placeholder="Optional notes…"
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="toggle-row">
+          <label class="toggle-switch">
+            <input type="checkbox" id="pmFieldIsActive" checked />
+            <span class="toggle-track"></span>
+          </label>
+          <span class="toggle-label">Active</span>
+        </div>
+
+        <div class="pm-modal-footer">
+          <button
+            id="pmModalCancelBtn"
+            type="button"
+            class="btn-secondary btn-sm"
+          >
+            Cancel
+          </button>
+          <button
+            id="pmDeactivateBtn"
+            type="button"
+            class="btn-danger btn-sm"
+            disabled
+          >
+            Deactivate
+          </button>
+          <button
+            id="pmSaveBtn"
+            type="button"
+            class="btn-primary btn-sm"
+            disabled
+          >
+            <span class="btn-spinner"></span>
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+            >
+              <path
+                d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
+              />
+              <polyline points="17 21 17 13 7 13 7 21" />
+              <polyline points="7 3 7 8 15 8" />
+            </svg>
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- Confirm-delete modal -->
     <div

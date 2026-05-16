@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Product Shelf Life Manager</title>
+    <title>Staff Directory Manager</title>
     <link rel="stylesheet" href="css/style.css" />
     <style>
       html,
@@ -147,7 +147,7 @@
         color: var(--text, #0f172a);
         font-weight: 700;
       }
-      .kpi-products {
+      .kpi-total {
         border-left: 4px solid #2563eb;
         background: linear-gradient(
           135deg,
@@ -155,7 +155,7 @@
           rgba(37, 99, 235, 0.02)
         );
       }
-      .kpi-with {
+      .kpi-active {
         border-left: 4px solid #16a34a;
         background: linear-gradient(
           135deg,
@@ -163,7 +163,7 @@
           rgba(22, 163, 74, 0.02)
         );
       }
-      .kpi-without {
+      .kpi-inactive {
         border-left: 4px solid #ef4444;
         background: linear-gradient(
           135deg,
@@ -171,20 +171,20 @@
           rgba(239, 68, 68, 0.02)
         );
       }
-      .kpi-active {
-        border-left: 4px solid #0ea5e9;
-        background: linear-gradient(
-          135deg,
-          rgba(14, 165, 233, 0.06),
-          rgba(14, 165, 233, 0.02)
-        );
-      }
-      .kpi-history {
+      .kpi-categories {
         border-left: 4px solid #8b5cf6;
         background: linear-gradient(
           135deg,
           rgba(139, 92, 246, 0.06),
           rgba(139, 92, 246, 0.02)
+        );
+      }
+      .kpi-units {
+        border-left: 4px solid #0ea5e9;
+        background: linear-gradient(
+          135deg,
+          rgba(14, 165, 233, 0.06),
+          rgba(14, 165, 233, 0.02)
         );
       }
       @media (max-width: 800px) {
@@ -208,12 +208,138 @@
         gap: 8px;
         flex-shrink: 0;
       }
+      .lens-pills {
+        display: flex;
+        gap: 6px;
+        padding: 8px;
+        background: linear-gradient(
+          135deg,
+          rgba(37, 99, 235, 0.05) 0%,
+          rgba(37, 99, 235, 0.02) 100%
+        );
+        border: 1px solid var(--erp-border, var(--border, #e5e7eb));
+        border-radius: 10px;
+        align-items: center;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        flex: 0 0 auto;
+      }
+
+      .lens-pills .pill {
+        padding: 8px 16px;
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--erp-muted, var(--muted, #6b7280));
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        border-radius: 8px;
+        transition: all 0.16s ease;
+        white-space: nowrap;
+        box-shadow: none;
+        line-height: 1.2;
+      }
+
+      .lens-pills .pill:hover {
+        color: var(--erp-text, #0f172a);
+        background: rgba(37, 99, 235, 0.05);
+        border-color: rgba(37, 99, 235, 0.12);
+      }
+
+      .lens-pills .pill:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+      }
+
+      .lens-pills .pill.active,
+      .lens-pills .pill[aria-selected="true"] {
+        color: #fff;
+        background: var(--erp-accent, var(--primary, #2563eb));
+        border-color: var(--erp-accent, var(--primary, #2563eb));
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.22);
+      }
+
+      @media (max-width: 640px) {
+        .lens-pills {
+          padding: 6px;
+          gap: 4px;
+        }
+        .lens-pills .pill {
+          padding: 6px 11px;
+          font-size: 12.5px;
+        }
+      }
+
+      .tab-select-wrap {
+        display: none;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      .tab-select {
+        display: inline-block;
+        width: 100%;
+        padding: 8px 10px 8px 10px;
+        padding-right: 42px;
+        border-radius: 8px;
+        border: 1px solid var(--erp-accent, #2563eb);
+        background: linear-gradient(
+          135deg,
+          rgba(37, 99, 235, 0.12) 0%,
+          rgba(37, 99, 235, 0.06) 100%
+        );
+        color: #0f172a;
+        font-weight: 600;
+        font-size: 14px;
+        font-family: inherit;
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        cursor: pointer;
+      }
+      .tab-select-icon {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 18px;
+        height: 18px;
+        pointer-events: none;
+        display: block;
+        color: var(--erp-accent, #2563eb);
+      }
+      @media (max-width: 520px) {
+        .lens-pills {
+          display: none;
+        }
+        .tab-select-wrap {
+          position: relative;
+          display: inline-block;
+          width: 100%;
+          margin: 8px 0;
+        }
+      }
+      @media (min-width: 521px) {
+        .tab-select,
+        .tab-select-wrap,
+        .tab-select-icon {
+          display: none;
+        }
+      }
       .search-wrap {
         position: relative;
         flex: 1;
         min-width: 160px;
       }
-      #pslmSearch {
+      #staffSearch {
         width: 100%;
         box-sizing: border-box;
         padding: 8px 36px 8px 10px;
@@ -223,10 +349,10 @@
         background: #e6f7ff;
         font-family: inherit;
       }
-      #pslmSearch::placeholder {
+      #staffSearch::placeholder {
         color: var(--muted, #6b7280);
       }
-      #pslmSearch:focus {
+      #staffSearch:focus {
         outline: none;
         border-color: #0ea5e9;
         box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.08);
@@ -320,17 +446,17 @@
         border-bottom: 1px solid rgba(0, 0, 0, 0.04);
         font-size: 13px;
       }
-      tbody tr.pslm-row {
+      tbody tr.staff-row {
         cursor: pointer;
         transition: background 0.12s ease;
       }
-      tbody tr.pslm-row:hover {
+      tbody tr.staff-row:hover {
         background: #eef4ff;
       }
-      tbody tr.pslm-row:nth-child(even) {
+      tbody tr.staff-row:nth-child(even) {
         background: #fafbfc;
       }
-      tbody tr.pslm-row:nth-child(even):hover {
+      tbody tr.staff-row:nth-child(even):hover {
         background: #eef4ff;
       }
       @media (max-width: 800px) {
@@ -366,17 +492,9 @@
         background: #f3f4f6;
         color: #6b7280;
       }
-      .badge-current {
+      .badge-category {
         background: #dbeafe;
         color: #1d4ed8;
-      }
-      .badge-missing {
-        background: #fef2f2;
-        color: #b91c1c;
-      }
-      .badge-flag {
-        background: #e0f2fe;
-        color: #0c4a6e;
       }
 
       .filter-btn-wrap {
@@ -524,8 +642,11 @@
       .modal-overlay.hidden {
         display: none;
       }
+      .hidden {
+        display: none !important;
+      }
       .modal-window {
-        width: min(980px, 96vw);
+        width: min(900px, 96vw);
         max-height: 88vh;
         display: flex;
         flex-direction: column;
@@ -597,16 +718,12 @@
         overflow-y: auto;
       }
 
-      .form-section {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-      }
       .modal-banner {
         display: none;
         padding: 10px 12px;
         border-radius: 7px;
         font-size: 13px;
+        margin-bottom: 10px;
       }
       .modal-banner[data-type="error"] {
         display: block;
@@ -614,40 +731,29 @@
         border: 1px solid #fecaca;
         color: #991b1b;
       }
-      .product-summary {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 8px;
-        border: 1px solid var(--border, #e5e7eb);
-        border-radius: 8px;
-        padding: 10px;
-        background: #fafcff;
-      }
-      .summary-cell {
+
+      .form-section {
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: 12px;
       }
-      .summary-label {
-        font-size: 11px;
-        color: var(--muted, #6b7280);
+      .form-section-title {
+        font-size: 12px;
+        font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.04em;
-      }
-      .summary-value {
-        font-size: 13px;
-        color: #0f172a;
-        font-weight: 600;
+        letter-spacing: 0.05em;
+        color: var(--primary, #005a8d);
+        margin-bottom: 4px;
       }
       .form-row {
-        display: flex;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 10px;
       }
       .form-group {
         display: flex;
         flex-direction: column;
         gap: 4px;
-        flex: 1;
       }
       .form-group label {
         font-size: 12px;
@@ -674,52 +780,61 @@
         box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
       }
       textarea.form-control {
-        min-height: 70px;
+        min-height: 72px;
         resize: vertical;
       }
-      @media (max-width: 700px) {
-        .form-row {
-          flex-direction: column;
-          gap: 8px;
-        }
-      }
-      .form-actions {
+      .modal-actions {
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
+        margin-top: 8px;
       }
+      .meta-note {
+        color: var(--muted, #6b7280);
+        font-size: 12px;
+      }
+
+      .detail-section {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      .detail-section-title {
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--primary, #005a8d);
+        margin-bottom: 4px;
+      }
+      .detail-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 8px;
+      }
+      .detail-cell {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .detail-label {
+        font-size: 11px;
+        color: var(--muted, #6b7280);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .detail-value {
+        font-size: 13px;
+        color: #0f172a;
+        font-weight: 600;
+        word-break: break-word;
+      }
+
       .modal-divider {
         border: 0;
         border-top: 1px solid var(--border, #e5e7eb);
         margin: 2px 0;
-      }
-
-      .history-wrap {
-        border: 1px solid var(--border, #e5e7eb);
-        border-radius: 8px;
-        overflow: auto;
-      }
-      .history-table {
-        width: 100%;
-        border-collapse: collapse;
-        min-width: 720px;
-      }
-      .history-table th,
-      .history-table td {
-        padding: 7px 8px;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.04);
-        font-size: 12px;
-        text-align: left;
-        vertical-align: top;
-      }
-      .history-table thead th {
-        position: sticky;
-        top: 0;
-        background: #fafafa;
-        z-index: 1;
-        color: var(--muted, #6b7280);
-        text-transform: uppercase;
-        letter-spacing: 0.03em;
       }
 
       #labToastContainer {
@@ -736,15 +851,22 @@
         .search-card {
           flex-wrap: wrap;
         }
+        .form-row {
+          grid-template-columns: 1fr;
+        }
+        .detail-grid {
+          grid-template-columns: 1fr;
+        }
       }
     </style>
   </head>
   <body>
     <div class="page-header">
       <div>
-        <h1>Product Shelf Life Manager</h1>
+        <h1>Staff Directory Manager</h1>
         <div class="page-sub">
-          Maintain product-wise shelf life used for expiry and COA logic.
+          View staff details used across workflow access, laboratory operations,
+          and ERP modules.
         </div>
       </div>
       <div class="header-actions">
@@ -799,40 +921,38 @@
     <div id="statusArea" role="status" aria-live="polite"></div>
 
     <div id="kpiStrip" class="kpi-strip" aria-label="Summary KPIs">
-      <div class="kpi kpi-products">
-        <span class="kpi-label">Products</span>
-        <span id="kpiProducts" class="kpi-value">0</span>
-      </div>
-      <div class="kpi kpi-with">
-        <span class="kpi-label">Products With Current Shelf Life</span>
-        <span id="kpiWithCurrent" class="kpi-value">0</span>
-      </div>
-      <div class="kpi kpi-without">
-        <span class="kpi-label">Products Without Current Shelf Life</span>
-        <span id="kpiWithoutCurrent" class="kpi-value">0</span>
+      <div class="kpi kpi-total">
+        <span id="kpiLabelTotal" class="kpi-label">Total Staff</span>
+        <span id="kpiTotal" class="kpi-value">0</span>
       </div>
       <div class="kpi kpi-active">
-        <span class="kpi-label">Active Shelf-Life Rules</span>
-        <span id="kpiActiveRules" class="kpi-value">0</span>
+        <span id="kpiLabelActive" class="kpi-label">Active Staff</span>
+        <span id="kpiActive" class="kpi-value">0</span>
       </div>
-      <div class="kpi kpi-history">
-        <span class="kpi-label">Historical / Inactive Rules</span>
-        <span id="kpiHistoricalRules" class="kpi-value">0</span>
+      <div class="kpi kpi-inactive">
+        <span id="kpiLabelInactive" class="kpi-label">Inactive Staff</span>
+        <span id="kpiInactive" class="kpi-value">0</span>
+      </div>
+      <div class="kpi kpi-categories">
+        <span id="kpiLabelFourth" class="kpi-label">Categories</span>
+        <span id="kpiCategories" class="kpi-value">0</span>
+      </div>
+      <div class="kpi kpi-units">
+        <span id="kpiLabelFifth" class="kpi-label">Units</span>
+        <span id="kpiUnits" class="kpi-value">0</span>
       </div>
     </div>
-
-    <input id="asOfDate" type="hidden" />
 
     <div class="search-card">
       <div class="search-wrap">
         <input
-          id="pslmSearch"
+          id="staffSearch"
           type="text"
-          placeholder="Search product name, Malayalam name, status, or shelf-life remarks..."
-          aria-label="Search products"
+          placeholder="Search staff name, employee code, designation, unit, section, or contact…"
+          aria-label="Search staff"
         />
         <button
-          id="pslmSearchClear"
+          id="staffSearchClear"
           class="input-clear-btn"
           type="button"
           title="Clear search"
@@ -882,11 +1002,11 @@
       </div>
 
       <button
-        id="addBtn"
+        id="addStaffBtn"
         type="button"
         class="icon-btn"
-        title="Add New Shelf Life Rule"
-        aria-label="Add new shelf life rule"
+        title="Add Staff"
+        aria-label="Add Staff"
       >
         <svg
           width="16"
@@ -905,25 +1025,70 @@
       </button>
     </div>
 
+    <div
+      class="card tabs-card"
+      style="
+        margin-top: 6px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        background: var(--panel-bg);
+        border: 1px solid var(--border);
+      "
+    >
+      <div class="tab-select-wrap">
+        <label class="sr-only" for="tabSelect">Select section</label>
+        <select id="tabSelect" class="tab-select" aria-label="Select section">
+          <option value="staff">Staff Directory</option>
+          <option value="categories">Categories</option>
+          <option value="statuses">Statuses</option>
+          <option value="units">Units</option>
+        </select>
+        <svg
+          class="tab-select-icon"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <polyline
+            points="6 9 12 15 18 9"
+            stroke="currentColor"
+            stroke-width="2"
+            fill="none"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </div>
+      <div
+        id="lensPills"
+        class="lens-pills"
+        role="tablist"
+        aria-label="Staff manager sections"
+      ></div>
+    </div>
+
     <div class="main">
       <div class="table-card">
         <div class="table-controls">
           <span id="rowCount"></span>
         </div>
         <div id="tableWrap">
-          <table id="pslmTable" role="grid">
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th class="col-hide-mobile">Malayalam Name</th>
-                <th>Product Status</th>
-                <th>Current Shelf Life</th>
-                <th class="col-hide-mobile">Effective From</th>
-                <th>Active Rule</th>
+          <table id="staffTable" role="grid">
+            <thead id="staffThead">
+              <tr id="tableHeadRow">
+                <th>Staff</th>
+                <th>Designation</th>
+                <th class="col-hide-mobile">Category</th>
+                <th>HR Status</th>
+                <th class="col-hide-mobile">Unit</th>
+                <th class="col-hide-mobile">Section</th>
+                <th>Active</th>
                 <th class="col-hide-mobile">Updated</th>
               </tr>
             </thead>
-            <tbody id="pslmTbody"></tbody>
+            <tbody id="staffTbody"></tbody>
           </table>
         </div>
       </div>
@@ -963,23 +1128,195 @@
     </div>
 
     <div
-      id="shelfLifeModal"
+      id="staffModal"
       class="modal-overlay hidden"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="shelfLifeModalTitle"
+      aria-labelledby="staffModalTitle"
     >
       <div class="modal-window" role="document">
         <div class="modal-header">
           <div>
-            <div id="shelfLifeModalTitle" class="modal-title">
-              Product Shelf Life
-            </div>
-            <div id="shelfLifeModalSubtitle" class="modal-subtitle"></div>
+            <div id="staffModalTitle" class="modal-title">Add Staff</div>
+            <div id="staffModalSubtitle" class="modal-subtitle"></div>
           </div>
           <div class="modal-header-actions">
             <button
-              id="shelfLifeModalClose"
+              id="staffModalClose"
+              class="modal-close-btn"
+              aria-label="Close"
+              type="button"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="modal-content" id="staffDetailsContent">
+          <div id="staffModalBanner" class="modal-banner"></div>
+
+          <div class="form-section">
+            <div class="form-section-title">Basic Details</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="staffEmployeeCode"
+                  >Employee Code <span class="req">*</span></label
+                >
+                <input
+                  id="staffEmployeeCode"
+                  class="form-control"
+                  type="text"
+                />
+              </div>
+              <div class="form-group">
+                <label for="staffFullName"
+                  >Full Name <span class="req">*</span></label
+                >
+                <input id="staffFullName" class="form-control" type="text" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="staffDesignation"
+                  >Designation <span class="req">*</span></label
+                >
+                <input id="staffDesignation" class="form-control" type="text" />
+              </div>
+              <div class="form-group">
+                <label for="staffIsActive">Active</label>
+                <select id="staffIsActive" class="form-control">
+                  <option value="true">Active</option>
+                  <option value="false">Inactive</option>
+                </select>
+              </div>
+            </div>
+
+            <hr class="modal-divider" />
+
+            <div class="form-section-title">HR Classification</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="staffCategoryId">Category</label>
+                <select id="staffCategoryId" class="form-control"></select>
+              </div>
+              <div class="form-group">
+                <label for="staffStatusId">HR Status</label>
+                <select id="staffStatusId" class="form-control"></select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="staffUnitId">Unit</label>
+                <select id="staffUnitId" class="form-control"></select>
+              </div>
+              <div class="form-group">
+                <label for="staffSectionId">Section</label>
+                <select id="staffSectionId" class="form-control"></select>
+              </div>
+            </div>
+
+            <hr class="modal-divider" />
+
+            <div class="form-section-title">Location / Work Area</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="staffSubsectionId">Subsection</label>
+                <select id="staffSubsectionId" class="form-control"></select>
+              </div>
+              <div class="form-group">
+                <label for="staffAreaId">Area</label>
+                <select id="staffAreaId" class="form-control"></select>
+              </div>
+            </div>
+
+            <hr class="modal-divider" />
+
+            <div class="form-section-title">Contact / Service</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="staffContactNo">Contact No</label>
+                <input id="staffContactNo" class="form-control" type="text" />
+              </div>
+              <div class="form-group">
+                <label for="staffWorkExpYears">Work Experience Years</label>
+                <input
+                  id="staffWorkExpYears"
+                  class="form-control"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="staffDob">DOB</label>
+                <input id="staffDob" class="form-control" type="date" />
+              </div>
+              <div class="form-group">
+                <label for="staffJoiningDate">Joining Date</label>
+                <input id="staffJoiningDate" class="form-control" type="date" />
+              </div>
+            </div>
+
+            <hr class="modal-divider" />
+
+            <div class="form-section-title">Remarks / Status</div>
+            <div class="form-group">
+              <label for="staffRemarks">Remarks</label>
+              <textarea id="staffRemarks" class="form-control"></textarea>
+              <div class="meta-note">
+                Remarks can be used as save notes or deactivation reason.
+              </div>
+            </div>
+
+            <div class="modal-actions">
+              <button id="staffSaveBtn" type="button" class="btn-primary">
+                Save
+              </button>
+              <button
+                id="staffDeactivateBtn"
+                type="button"
+                class="btn-danger"
+                style="display: none"
+              >
+                Deactivate
+              </button>
+              <button id="staffCancelBtn" type="button" class="btn-secondary">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="masterModal"
+      class="modal-overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="masterModalTitle"
+    >
+      <div class="modal-window" role="document" style="width: min(560px, 96vw)">
+        <div class="modal-header">
+          <div>
+            <div id="masterModalTitle" class="modal-title">Add Category</div>
+            <div id="masterModalSubtitle" class="modal-subtitle"></div>
+          </div>
+          <div class="modal-header-actions">
+            <button
+              id="masterModalClose"
               class="modal-close-btn"
               aria-label="Close"
               type="button"
@@ -1000,77 +1337,113 @@
         </div>
 
         <div class="modal-content">
-          <div class="form-section">
-            <div id="modalBanner" class="modal-banner"></div>
+          <div id="masterModalBanner" class="modal-banner"></div>
 
-            <div id="productSummary" class="product-summary"></div>
-
+          <div id="categoryFields" class="form-section hidden">
+            <div class="form-section-title">Category Details</div>
             <div class="form-row">
               <div class="form-group">
-                <label for="modalProductSelect"
-                  >Product <span class="req">*</span></label
+                <label for="categoryCode"
+                  >Category Code <span class="req">*</span></label
                 >
-                <select id="modalProductSelect" class="form-control"></select>
+                <input id="categoryCode" class="form-control" type="text" />
               </div>
               <div class="form-group">
-                <label for="modalShelfLifeMonths"
-                  >Shelf Life Months <span class="req">*</span></label
+                <label for="categoryLabel"
+                  >Category Label <span class="req">*</span></label
                 >
+                <input id="categoryLabel" class="form-control" type="text" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="categoryIsActive">Active</label>
+                <select id="categoryIsActive" class="form-control">
+                  <option value="true">Active</option>
+                  <option value="false">Inactive</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div id="statusFields" class="form-section hidden">
+            <div class="form-section-title">Status Details</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="statusCode"
+                  >Status Code <span class="req">*</span></label
+                >
+                <input id="statusCode" class="form-control" type="text" />
+              </div>
+              <div class="form-group">
+                <label for="statusLabel"
+                  >Status Label <span class="req">*</span></label
+                >
+                <input id="statusLabel" class="form-control" type="text" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="statusSortOrder">Sort Order</label>
                 <input
-                  id="modalShelfLifeMonths"
+                  id="statusSortOrder"
                   class="form-control"
                   type="number"
-                  min="1"
                   step="1"
-                  placeholder="e.g. 120"
                 />
               </div>
+              <div class="form-group">
+                <label for="statusIsActive">Active</label>
+                <select id="statusIsActive" class="form-control">
+                  <option value="true">Active</option>
+                  <option value="false">Inactive</option>
+                </select>
+              </div>
             </div>
+          </div>
 
+          <div id="unitFields" class="form-section hidden">
+            <div class="form-section-title">Unit Details</div>
             <div class="form-row">
               <div class="form-group">
-                <label for="modalEffectiveFrom"
-                  >Effective From <span class="req">*</span></label
+                <label for="unitCode"
+                  >Unit Code <span class="req">*</span></label
                 >
-                <input
-                  id="modalEffectiveFrom"
-                  class="form-control"
-                  type="date"
-                />
+                <input id="unitCode" class="form-control" type="text" />
               </div>
               <div class="form-group">
-                <label for="modalEffectiveTo">Effective To</label>
-                <input id="modalEffectiveTo" class="form-control" type="date" />
+                <label for="unitLabel"
+                  >Unit Label <span class="req">*</span></label
+                >
+                <input id="unitLabel" class="form-control" type="text" />
               </div>
             </div>
-
-            <div class="form-group">
-              <label for="modalRemarks">Remarks</label>
-              <textarea
-                id="modalRemarks"
-                class="form-control"
-                placeholder="Reason / notes..."
-              ></textarea>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="unitIsActive">Active</label>
+                <select id="unitIsActive" class="form-control">
+                  <option value="true">Active</option>
+                  <option value="false">Inactive</option>
+                </select>
+              </div>
             </div>
+          </div>
 
-            <div class="form-actions">
-              <button id="modalSave" type="button" class="btn-primary">
-                Save New Version
-              </button>
-              <button id="modalDeactivate" type="button" class="btn-danger">
-                Deactivate Current Rule
-              </button>
-              <button id="modalCancel" type="button" class="btn-secondary">
-                Close
-              </button>
-            </div>
-
-            <hr class="modal-divider" />
-
-            <div class="form-group">
-              <label>History</label>
-              <div class="history-wrap" id="historyWrap"></div>
-            </div>
+          <div class="modal-actions">
+            <button id="masterSaveBtn" type="button" class="btn-primary">
+              Save
+            </button>
+            <button
+              id="masterDeactivateBtn"
+              type="button"
+              class="btn-danger"
+              style="display: none"
+            >
+              Deactivate
+            </button>
+            <button id="masterCancelBtn" type="button" class="btn-secondary">
+              Close
+            </button>
           </div>
         </div>
       </div>
@@ -1078,6 +1451,6 @@
 
     <div id="labToastContainer" aria-live="polite" aria-atomic="true"></div>
 
-    <script type="module" src="js/product-shelf-life-manager.js"></script>
+    <script type="module" src="js/staff-directory-manager.js"></script>
   </body>
 </html>

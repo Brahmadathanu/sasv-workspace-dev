@@ -1037,9 +1037,9 @@ function toggleChip(btn, stateKey) {
   let scSel_pointerDown = false;
   let scSel_abort = null;
   let scSel_gridInitDone = false;
-  // Movement threshold for switching from tap -> drag on touch
-  const SC_DRAG_TOL_PX = 8;
-  let scSel_touchStart = null; // { x, y, pointerId, td, coord }
+  // scSel_touchStart: unused since touch threshold logic was removed (selection is now
+  // strictly gated by mobileSelectEnabled and initiated only in pointerdown).
+  let scSel_touchStart = null; // kept for pointerup/cancel reset compatibility
 
   function scSel_cancelLongPress() {
     // no-op: long-press heuristics removed in favor of explicit mobile toggle
@@ -1086,31 +1086,21 @@ function toggleChip(btn, stateKey) {
     // Modifier-aware selection behaviour
     const clicked = { r: coord.r, cidx: coord.cidx };
 
-    // Decide behavior by pointer type. On touch, behave differently based on
-    // whether mobile Select mode is enabled. When mobile Select is ON, we
-    // become the authoritative grid owner and start selection immediately.
+    // ── TOUCH GATING ──────────────────────────────────────────────────────────
+    // Touch selection is strictly gated behind the mobile Select toggle.
+    // When Select mode is OFF, do nothing at all — let native browser scrolling
+    // and pan-x pan-y handle the touch event. Do NOT capture the pointer,
+    // do NOT store touchStart, do NOT call preventDefault/stopPropagation.
+    // This is essential for normal PWA/iPhone table scrolling to work.
     const sc_pt = ev.pointerType || (ev.touches ? "touch" : "mouse");
     if (sc_pt === "touch") {
       if (!selectionController.mobileSelectEnabled) {
-        // Not in mobile-select mode: do not start selection here — allow normal scrolling/taps
-        scSel_touchStart = {
-          x: ev.clientX,
-          y: ev.clientY,
-          pointerId: ev.pointerId,
-          td,
-          coord,
-        };
-        try {
-          if (td && typeof td.setPointerCapture === "function")
-            td.setPointerCapture(ev.pointerId);
-        } catch {
-          /* ignore */
-        }
+        // Select mode OFF: return immediately, preserve native scroll.
         return;
       }
 
-      // Mobile Select mode is enabled: become authoritative — start selection
-      // immediately and suppress row handlers.
+      // Select mode ON: become authoritative — start selection immediately
+      // and suppress row tap/click handlers for this gesture.
       try {
         ev.preventDefault();
         ev.stopPropagation();
@@ -1135,9 +1125,10 @@ function toggleChip(btn, stateKey) {
         try {
           __sc_ignoreNextClick = false;
         } catch {}
-      }, 250);
+      }, 350);
       return;
     }
+    // ── END TOUCH GATING ──────────────────────────────────────────────────────
 
     // For mouse/pen treat as immediate selection; prevent row handlers.
     scSel_setSelectingMode(true);
@@ -1219,10 +1210,22 @@ function toggleChip(btn, stateKey) {
   }
 
   function scSel_onPointerMove(ev) {
+    // ── TOUCH MOVE GATING ─────────────────────────────────────────────────────
+    // For touch events when Select mode is OFF: do nothing — let native scroll
+    // continue. scSel_touchStart is never set when mode is OFF (see pointerdown),
+    // so the old threshold-based path cannot fire either.
+    const sc_pt_mv = ev.pointerType || "mouse";
+    if (sc_pt_mv === "touch" && !selectionController.mobileSelectEnabled) {
+      return;
+    }
+    // ── END TOUCH MOVE GATING ─────────────────────────────────────────────────
+
     // If selection is active, expand range
     if (scSel_pointerDown) {
+      // Only prevent default for touch when Select mode is ON (already gated above)
+      // Always prevent for mouse drags to stop text-selection
       try {
-        ev.preventDefault(); // suppress scrolling while actively dragging
+        ev.preventDefault();
       } catch {
         /* ignore */
       }
@@ -1239,39 +1242,8 @@ function toggleChip(btn, stateKey) {
       });
       return;
     }
-
-    // If we have a touchStart recorded and mobile mode is enabled, check for movement threshold to begin drag
-    try {
-      if (scSel_touchStart && ev.pointerType !== "mouse") {
-        const dx = ev.clientX - scSel_touchStart.x;
-        const dy = ev.clientY - scSel_touchStart.y;
-        if (Math.hypot(dx, dy) > SC_DRAG_TOL_PX) {
-          scSel_dbg("touch threshold exceeded — begin drag", { dx, dy });
-          // Begin active drag-selection
-          scSel_pointerDown = true;
-          scSel_setSelectingMode(true);
-          document.body.style.userSelect = "none";
-          // Anchor is the start cell
-          selectionController.anchor = scSel_touchStart.coord;
-          selectionController.focusCell = scSel_touchStart.coord;
-          selectionController.range = scSel_normRange(
-            selectionController.anchor,
-          );
-          // Update selection to current pointer location
-          const td = document
-            .elementFromPoint(ev.clientX, ev.clientY)
-            ?.closest?.("td");
-          const coord = td ? scSel_getCoordFromTd(td) : null;
-          if (coord)
-            scSel_selectRect(selectionController.anchor, {
-              r: coord.r,
-              cidx: coord.cidx,
-            });
-        }
-      }
-    } catch {
-      /* ignore */
-    }
+    // scSel_touchStart threshold path removed — selection only starts in pointerdown
+    // when Select mode is ON, making that path obsolete and safe to omit.
   }
 
   function scSel_onPointerUp(ev) {
@@ -1326,8 +1298,15 @@ function toggleChip(btn, stateKey) {
     } catch {
       /* ignore */
     }
-    // Restore scrolling/selection handling
-    scSel_setSelectingMode(false);
+    // Restore body userSelect; only restore touch-action when Select mode is OFF
+    document.body.style.userSelect = "";
+    if (!selectionController.mobileSelectEnabled) {
+      scSel_setSelectingMode(false);
+    } else {
+      // Keep __sc_selectingCells false between gestures so row handlers work,
+      // but leave touch-action as "none" so the next drag is still captured.
+      window.__sc_selectingCells = false;
+    }
     // Allow row handlers to work again on next tick
     setTimeout(() => {
       window.__sc_selectingCells = false;
@@ -1339,7 +1318,24 @@ function toggleChip(btn, stateKey) {
     scSel_pointerDown = false;
     scSel_touchStart = null;
     scSel_cancelLongPress();
-    scSel_setSelectingMode(false);
+    document.body.style.userSelect = "";
+    // When Select mode is still ON (e.g. iOS fires pointercancel mid-drag),
+    // keep touch-action: none so the next gesture is still captured.
+    // Only fully restore scrolling when Select mode is OFF.
+    if (selectionController.mobileSelectEnabled) {
+      // Stay in select-mode — just reset the drag state.
+      window.__sc_selectingCells = false;
+      try {
+        const wrap =
+          document.querySelector(".table-wrap") ||
+          document.getElementById("sc-body");
+        if (wrap && wrap.style) wrap.style.touchAction = "none";
+      } catch {
+        /* ignore */
+      }
+    } else {
+      scSel_setSelectingMode(false);
+    }
   }
 
   function scSel_onDocPointerDown(ev) {
@@ -1795,16 +1791,24 @@ let __advExInitDone = false;
 function renderRowModal(row) {
   if (!row) return;
 
-  // Header: item name + pack size + UOM on one line (matches original design)
+  // ── Product summary card (header area) ──────────────────────────────────────
   if (elRowHeader) {
+    const pillHtml =
+      row.pack_size || row.uom
+        ? `<span class="sc-row-pill">${escapeHtml(String(row.pack_size ?? ""))}${row.uom ? " " + escapeHtml(row.uom) : ""}</span>`
+        : "";
+    const skuHtml = row.sku_id
+      ? `<span class="sc-row-muted">SKU: ${escapeHtml(String(row.sku_id))}</span>`
+      : "";
     elRowHeader.innerHTML =
-      `<strong>${escapeHtml(row.item || row.item_name || "")}</strong>` +
-      (row.pack_size || row.uom
-        ? ` &nbsp; ${escapeHtml(String(row.pack_size ?? ""))} ${escapeHtml(row.uom || "")}`
+      `<span class="sc-row-title">${escapeHtml(row.item || row.item_name || "")}</span>` +
+      (pillHtml ? ` ${pillHtml}` : "") +
+      (skuHtml
+        ? `<br><small class="sc-row-muted">${skuHtml.replace(/<[^>]+>/g, "")}</small>`
         : "");
   }
 
-  // Classification breadcrumb
+  // ── Classification chips ────────────────────────────────────────────────────
   if (elRowClassif) {
     const parts = [
       row.category_name,
@@ -1812,10 +1816,19 @@ function renderRowModal(row) {
       row.product_group_name,
       row.sub_group_name,
     ].filter(Boolean);
-    elRowClassif.textContent = parts.length ? parts.join(" › ") : "";
+    if (parts.length) {
+      elRowClassif.innerHTML =
+        `<span class="sc-row-chip-list">` +
+        parts
+          .map((p) => `<span class="sc-row-chip">${escapeHtml(p)}</span>`)
+          .join("") +
+        `</span>`;
+    } else {
+      elRowClassif.innerHTML = "";
+    }
   }
 
-  // Left card: Stock (IK/KKD/OK + Overall) ── hr ── Demand (IK/KKD/OK + Overall)
+  // ── Left card: Stock + Demand ────────────────────────────────────────────────
   if (elRowQty) {
     const stIK = Number(row.stock_ik) || 0;
     const stKKD = Number(row.stock_kkd) || 0;
@@ -1825,37 +1838,63 @@ function renderRowModal(row) {
     const fKKD = Number(row.forecast_kkd) || 0;
     const fOK = Number(row.forecast_ok) || 0;
     const forecastOverall = fIK + fKKD + fOK;
+    const mosIk = fmt3(row.mos_ik);
+    const mosKkd = fmt3(row.mos_kkd);
+    const mosOk = fmt3(row.mos_ok);
+    const mosOv = fmt3(row.mos_overall);
+    function metricRow(label, val) {
+      return `<div class="sc-row-metric"><span class="sc-row-metric-label">${label}</span><span class="sc-row-metric-value">${val}</span></div>`;
+    }
     elRowQty.innerHTML =
-      `<div><strong>Stock</strong></div>` +
-      `<div><span>IK</span><span class="num">${fmtInt(stIK)}</span></div>` +
-      `<div><span>KKD</span><span class="num">${fmtInt(stKKD)}</span></div>` +
-      `<div><span>OK</span><span class="num">${fmtInt(stOK)}</span></div>` +
-      `<div style="margin-top:8px"><strong>Overall: ${fmtInt(stockOverall)}</strong></div>` +
-      `<hr style="border:none;border-top:1px solid var(--border);margin:8px 0"/>` +
-      `<div><strong>Demand</strong></div>` +
-      `<div><span>IK</span><span class="num">${fmtInt(fIK)}</span></div>` +
-      `<div><span>KKD</span><span class="num">${fmtInt(fKKD)}</span></div>` +
-      `<div><span>OK</span><span class="num">${fmtInt(fOK)}</span></div>` +
-      `<div style="margin-top:8px"><strong>Overall: ${fmtInt(forecastOverall)}</strong></div>`;
+      `<div class="sc-row-card-title">Stock</div>` +
+      `<div class="sc-row-card-grid">` +
+      metricRow("IK", fmtInt(stIK)) +
+      metricRow("KKD", fmtInt(stKKD)) +
+      metricRow("OK", fmtInt(stOK)) +
+      `</div>` +
+      `<div class="sc-row-metric sc-row-metric--total"><span class="sc-row-metric-label">Overall</span><span class="sc-row-metric-value">${fmtInt(stockOverall)}</span></div>` +
+      `<div class="sc-row-card-sep"></div>` +
+      `<div class="sc-row-card-title">Demand</div>` +
+      `<div class="sc-row-card-grid">` +
+      metricRow("IK", fmtInt(fIK)) +
+      metricRow("KKD", fmtInt(fKKD)) +
+      metricRow("OK", fmtInt(fOK)) +
+      `</div>` +
+      `<div class="sc-row-metric sc-row-metric--total"><span class="sc-row-metric-label">Overall</span><span class="sc-row-metric-value">${fmtInt(forecastOverall)}</span></div>` +
+      `<div class="sc-row-card-sep"></div>` +
+      `<div class="sc-row-card-title">MOS</div>` +
+      `<div class="sc-row-card-grid">` +
+      metricRow("IK", mosIk) +
+      metricRow("KKD", mosKkd) +
+      metricRow("OK", mosOk) +
+      `</div>` +
+      `<div class="sc-row-metric sc-row-metric--total"><span class="sc-row-metric-label">Overall</span><span class="sc-row-metric-value">${mosOv}</span></div>`;
   }
 
-  // Right card: Value (IK/KKD/OK + Overall) ── hr ── Rate (IK/KKD/OK + Overall)
+  // ── Right card: Value + Rate ─────────────────────────────────────────────────
   if (elRowValue) {
+    function metricRow2(label, val) {
+      return `<div class="sc-row-metric"><span class="sc-row-metric-label">${label}</span><span class="sc-row-metric-value">${val}</span></div>`;
+    }
     elRowValue.innerHTML =
-      `<div><strong>Value</strong></div>` +
-      `<div><span>IK</span><span class="num">${fmtINR(row.stock_value_ik)}</span></div>` +
-      `<div><span>KKD</span><span class="num">${fmtINR(row.stock_value_kkd)}</span></div>` +
-      `<div><span>OK</span><span class="num">${fmtINR(row.stock_value_ok)}</span></div>` +
-      `<div style="margin-top:8px"><strong>Overall: ${fmtINR(row.stock_value_overall)}</strong></div>` +
-      `<hr style="border:none;border-top:1px solid var(--border);margin:8px 0"/>` +
-      `<div><strong>Rate</strong></div>` +
-      `<div><span>IK</span><span class="num">${fmtRate(row.rate_ik)}</span></div>` +
-      `<div><span>KKD</span><span class="num">${fmtRate(row.rate_kkd)}</span></div>` +
-      `<div><span>OK</span><span class="num">${fmtRate(row.rate_ok)}</span></div>` +
-      `<div style="margin-top:8px"><strong>Overall: ${fmtRate(row.rate_overall)}</strong></div>`;
+      `<div class="sc-row-card-title">Value</div>` +
+      `<div class="sc-row-card-grid">` +
+      metricRow2("IK", fmtINR(row.stock_value_ik)) +
+      metricRow2("KKD", fmtINR(row.stock_value_kkd)) +
+      metricRow2("OK", fmtINR(row.stock_value_ok)) +
+      `</div>` +
+      `<div class="sc-row-metric sc-row-metric--total"><span class="sc-row-metric-label">Overall</span><span class="sc-row-metric-value">${fmtINR(row.stock_value_overall)}</span></div>` +
+      `<div class="sc-row-card-sep"></div>` +
+      `<div class="sc-row-card-title">Rate</div>` +
+      `<div class="sc-row-card-grid">` +
+      metricRow2("IK", fmtRate(row.rate_ik)) +
+      metricRow2("KKD", fmtRate(row.rate_kkd)) +
+      metricRow2("OK", fmtRate(row.rate_ok)) +
+      `</div>` +
+      `<div class="sc-row-metric sc-row-metric--total"><span class="sc-row-metric-label">Overall</span><span class="sc-row-metric-value">${fmtRate(row.rate_overall)}</span></div>`;
   }
 
-  // Footer: MRP IK / MRP OK + shade flag (null-safe — show only when field exists)
+  // ── Footer: MRP + shade flag (null-safe) ─────────────────────────────────────
   if (elRowFooter) {
     const mrpParts = [];
     if (row.mrp_ik != null) mrpParts.push(`MRP IK: ${fmtRate(row.mrp_ik)}`);
@@ -3287,12 +3326,27 @@ async function init() {
       } catch {
         /* ignore */
       }
-      // Update button state
+      // Update button state and text
       if (btnMobileSelect) {
         btnMobileSelect.setAttribute("aria-pressed", String(on));
         btnMobileSelect.classList.toggle("is-active", on);
+        btnMobileSelect.textContent = on ? "Selecting" : "Select";
       }
-      // When disabling, cancel any active drag and restore normal scroll behavior
+      // Toggle visual class on table wrapper for optional CSS targeting
+      try {
+        const wrap =
+          document.querySelector(".table-wrap") ||
+          document.getElementById("sc-body");
+        if (wrap) {
+          wrap.classList.toggle("sc-mobile-select-active", on);
+          // touch-action: none only when Select mode is ON so native scroll
+          // works normally when Select mode is OFF (critical for iPhone PWA).
+          wrap.style.touchAction = on ? "none" : "pan-x pan-y";
+        }
+      } catch {
+        /* ignore */
+      }
+      // When disabling, cancel any active drag, clear selection, restore scroll
       if (!on) {
         try {
           if (
@@ -3304,12 +3358,14 @@ async function init() {
         } catch {
           /* ignore */
         }
-        // Re-enable touch scrolling on the table wrapper
+        // Clear the selection so the user exits Select mode cleanly
         try {
-          const wrap =
-            document.querySelector(".table-wrap") ||
-            document.getElementById("sc-body");
-          if (wrap && wrap.style) wrap.style.touchAction = "pan-x pan-y";
+          if (
+            window.scSelection &&
+            typeof window.scSelection.clear === "function"
+          ) {
+            window.scSelection.clear();
+          }
         } catch {
           /* ignore */
         }

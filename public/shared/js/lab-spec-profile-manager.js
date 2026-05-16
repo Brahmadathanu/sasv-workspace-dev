@@ -48,6 +48,10 @@ const bsSaveSpecBtn = document.getElementById("bsSaveSpecBtn");
 // OVERRIDES tab
 const ovFgCard = document.getElementById("ovFgCard");
 const ovRmCard = document.getElementById("ovRmCard");
+const ovProductSearchInput = document.getElementById("ovProductSearchInput");
+const ovProductSearchResults = document.getElementById(
+  "ovProductSearchResults",
+);
 const ovProductSelect = document.getElementById("ovProductSelect");
 const ovFgContextStrip = document.getElementById("ovFgContextStrip");
 const ovFgGroupName = document.getElementById("ovFgGroupName");
@@ -69,6 +73,10 @@ const ovRmLineCount = document.getElementById("ovRmLineCount");
 // EFFECTIVE PREVIEW tab
 const epFgCard = document.getElementById("epFgCard");
 const epRmCard = document.getElementById("epRmCard");
+const epProductSearchInput = document.getElementById("epProductSearchInput");
+const epProductSearchResults = document.getElementById(
+  "epProductSearchResults",
+);
 const epProductSelect = document.getElementById("epProductSelect");
 const epBanner = document.getElementById("epBanner");
 const epTableCard = document.getElementById("epTableCard");
@@ -111,19 +119,27 @@ let currentTab = "baseSpec"; // "baseSpec" | "overrides" | "effectivePreview"
 let bsCurrentProfileId = null;
 let bsCurrentGroupId = null;
 let bsCurrentGroupName = null;
-let bsEditedSpecLines = new Map(); // seqNo -> {display_text, is_active}
+let bsEditedSpecLines = new Map(); // seqNo -> {seq_no, spec_type, min_value, max_value, text_value, display_text, is_active}
+let bsLoadedRows = []; // cached rows from last bsLoadSpecLines (for re-render after modal edit)
 
 // RM Base spec state
 let rmCurrentProfileId = null;
 let rmCurrentGroupId = null;
 let rmCurrentGroupLabel = null;
-let rmEditedSpecLines = new Map(); // seqNo -> {display_text, is_active}
+let rmEditedSpecLines = new Map(); // seqNo -> {seq_no, spec_type, min_value, max_value, text_value, display_text, is_active}
+let rmLoadedRows = [];
 
 // PM Base spec state
 let pmCurrentProfileId = null;
 let pmCurrentGroupId = null;
 let pmCurrentGroupLabel = null;
-let pmEditedSpecLines = new Map(); // seqNo -> {display_text, is_active}
+let pmEditedSpecLines = new Map(); // seqNo -> {seq_no, spec_type, min_value, max_value, text_value, display_text, is_active}
+let pmLoadedRows = [];
+
+// Base Spec Line edit modal state
+let bsLineCurrentSubject = null; // "FG" | "RM" | "PM"
+let bsLineCurrentSeqNo = null;
+let bsLineDisplayTextManual = false; // true when user has manually edited display text
 
 // Override editor modal state
 let ovModalMode = "add"; // "add" | "edit"
@@ -136,6 +152,9 @@ let ovPmItemId = null;
 // Override base spec tracking (populated by each override context loader)
 let ovBaseSpecProfileId = null; // numeric profile id or null
 let ovBaseTestIds = new Set(); // Set of test_id numbers in the active base spec
+
+// FG product picker cache (used by searchable combobox in OV + EP tabs)
+let fgProductPickerRows = [];
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 init();
@@ -155,6 +174,8 @@ async function init() {
   wireOverridesPmEvents();
   wireEffectivePreviewPmEvents();
   wireOverrideModal();
+  wireFgProductSearchComboboxes();
+  wireBsLineModal();
   bsSaveSpecBtn.addEventListener("click", bsSaveSpec);
 }
 
@@ -253,6 +274,8 @@ function resetSubjectState(toSubjectType) {
     productGroupSelect.value = "";
     ovProductSelect.value = "";
     epProductSelect.value = "";
+    syncFgProductSearchInputFromSelect(ovProductSelect);
+    syncFgProductSearchInputFromSelect(epProductSelect);
     ovFgContextStrip.classList.add("hidden");
     hideBanner(ovBanner);
     ovTableCard.classList.add("hidden");
@@ -275,6 +298,8 @@ function resetSubjectState(toSubjectType) {
     productGroupSelect.value = "";
     ovProductSelect.value = "";
     epProductSelect.value = "";
+    syncFgProductSearchInputFromSelect(ovProductSelect);
+    syncFgProductSearchInputFromSelect(epProductSelect);
     ovFgContextStrip.classList.add("hidden");
     hideBanner(ovBanner);
     ovTableCard.classList.add("hidden");
@@ -618,7 +643,7 @@ async function bsLoadSpecLines(profileId) {
   const { data, error } = await labSupabase
     .from("v_spec_profile_detail")
     .select(
-      "spec_profile_id, seq_no, test_name, method_name, display_text, spec_type, spec_line_is_active",
+      "spec_profile_id, seq_no, test_id, test_name, method_name, display_text, spec_type, min_value, max_value, text_value, spec_line_is_active",
     )
     .eq("spec_profile_id", profileId)
     .order("seq_no");
@@ -636,18 +661,23 @@ async function bsLoadSpecLines(profileId) {
 }
 
 function bsRenderSpecLines(rows) {
-  bsEditedSpecLines.clear();
+  // Cache rows for re-render after modal edits (do NOT clear bsEditedSpecLines here)
+  bsLoadedRows = rows;
   bsTableCard.classList.remove("hidden");
 
-  const activeCount = rows.filter((r) => r.spec_line_is_active).length;
+  // Line count accounts for pending active-state edits
+  const countActive = rows.filter((r) => {
+    const p = bsEditedSpecLines.get(r.seq_no);
+    return p ? p.is_active : !!r.spec_line_is_active;
+  }).length;
   const totalCount = rows.length;
   bsLineCount.textContent =
-    activeCount === totalCount
+    countActive === totalCount
       ? `${totalCount} line${totalCount !== 1 ? "s" : ""}`
-      : `${activeCount} active / ${totalCount} total`;
+      : `${countActive} active / ${totalCount} total`;
 
   if (!rows.length) {
-    bsTableBody.innerHTML = `<tr><td colspan="6">
+    bsTableBody.innerHTML = `<tr><td colspan="7">
       <div class="spec-empty-state">
         <strong>No specification lines</strong>
         This profile has no lines yet.
@@ -658,60 +688,79 @@ function bsRenderSpecLines(rows) {
 
   bsTableBody.innerHTML = rows
     .map((r) => {
-      const origText = r.display_text ?? "";
-      const origActive = !!r.spec_line_is_active;
       const seqNo = r.seq_no;
-      return `<tr data-seq="${esc(String(seqNo))}">
+      const pending = bsEditedSpecLines.get(seqNo);
+      const dispType = pending ? pending.spec_type : (r.spec_type ?? "");
+      const dispText = pending
+        ? (pending.display_text ?? "")
+        : (r.display_text ?? "");
+      const isActive = pending ? pending.is_active : !!r.spec_line_is_active;
+      const origActive = !!r.spec_line_is_active;
+      return `<tr data-seq="${esc(String(seqNo))}"
+          data-test-id="${esc(String(r.test_id ?? ""))}"
+          data-test-name="${esc(r.test_name ?? "")}"
+          data-method-name="${esc(r.method_name ?? "")}"
+          data-orig-spec-type="${esc(r.spec_type ?? "")}"
+          data-orig-min="${esc(String(r.min_value ?? ""))}"
+          data-orig-max="${esc(String(r.max_value ?? ""))}"
+          data-orig-text="${esc(r.text_value ?? "")}"
+          data-orig-display="${esc(r.display_text ?? "")}"
+          data-orig-active="${origActive ? "1" : "0"}"
+          class="${isActive ? "" : "bs-row-inactive"}">
         <td class="td-seq">${esc(String(seqNo))}</td>
         <td class="td-test">${esc(r.test_name ?? "")}</td>
         <td class="td-method">${esc(r.method_name ?? "")}</td>
-        <td class="td-spec">
-          <input class="spec-input bs-spec-input"
-                 type="text"
-                 value="${esc(origText)}"
-                 data-orig="${esc(origText)}"
-                 data-orig-active="${origActive ? "1" : "0"}"
-                 aria-label="Spec for ${esc(r.test_name ?? "")}" />
-        </td>
-        <td>${typeBadge(r.spec_type)}</td>
+        <td>${typeBadge(dispType)}</td>
+        <td class="bs-display-text-cell${pending ? " pending" : ""}">${esc(dispText)}</td>
         <td class="td-active">
-          <input class="spec-active bs-active-chk"
-                 type="checkbox"
-                 ${origActive ? "checked" : ""}
-                 aria-label="Active" />
+          <input class="spec-active bs-active-chk" type="checkbox"
+                 ${isActive ? "checked" : ""} aria-label="Active" />
+        </td>
+        <td class="td-edit-col">
+          <button class="bs-edit-btn" aria-label="Edit spec line" title="Edit specification values">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </button>
         </td>
       </tr>`;
     })
     .join("");
 
-  // Wire row events after DOM insertion
   bsTableBody.querySelectorAll("tr[data-seq]").forEach((tr) => {
-    const inp = tr.querySelector(".bs-spec-input");
     const chk = tr.querySelector(".bs-active-chk");
+    const editBtn = tr.querySelector(".bs-edit-btn");
     const seqNo = Number(tr.dataset.seq);
-    const origText = inp.dataset.orig;
-    const origActive = inp.dataset.origActive === "1";
+    const origActive = tr.dataset.origActive === "1";
 
-    function syncRow() {
-      const newText = inp.value;
+    chk.addEventListener("change", () => {
       const newActive = chk.checked;
-      const changed = newText !== origText || newActive !== origActive;
-      inp.classList.toggle("edited", newText !== origText);
-      if (changed) {
+      const existing = bsEditedSpecLines.get(seqNo);
+      if (existing) {
+        bsEditedSpecLines.set(seqNo, { ...existing, is_active: newActive });
+      } else if (newActive !== origActive) {
         bsEditedSpecLines.set(seqNo, {
           seq_no: seqNo,
-          display_text: newText,
+          spec_type: tr.dataset.origSpecType || null,
+          min_value:
+            tr.dataset.origMin !== "" ? Number(tr.dataset.origMin) : null,
+          max_value:
+            tr.dataset.origMax !== "" ? Number(tr.dataset.origMax) : null,
+          text_value: tr.dataset.origText || null,
+          display_text: tr.dataset.origDisplay || null,
           is_active: newActive,
         });
       } else {
         bsEditedSpecLines.delete(seqNo);
       }
+      tr.classList.toggle("bs-row-inactive", !newActive);
       bsSyncSaveBtn();
       bsSyncActiveAllCheckbox();
-    }
+    });
 
-    inp.addEventListener("input", syncRow);
-    chk.addEventListener("change", syncRow);
+    editBtn.addEventListener("click", () => openBsLineModal("FG", seqNo));
   });
 
   bsWireActiveAllCheckbox();
@@ -828,22 +877,61 @@ async function bsSaveSpec() {
   const newProfileId = Number(data);
   bsCurrentProfileId = newProfileId;
 
+  const getAffectedCount = (val) => {
+    if (typeof val === "number" && Number.isFinite(val)) return val;
+    if (
+      typeof val === "string" &&
+      val.trim() !== "" &&
+      !Number.isNaN(Number(val))
+    ) {
+      return Number(val);
+    }
+    if (Array.isArray(val) && val.length > 0) {
+      const first = val[0];
+      if (typeof first === "number") return first;
+      if (first && typeof first === "object") {
+        for (const k of ["count", "affected_count", "affected", "result"]) {
+          if (first[k] !== undefined && !Number.isNaN(Number(first[k]))) {
+            return Number(first[k]);
+          }
+        }
+      }
+    }
+    if (val && typeof val === "object") {
+      for (const k of ["count", "affected_count", "affected", "result"]) {
+        if (val[k] !== undefined && !Number.isNaN(Number(val[k]))) {
+          return Number(val[k]);
+        }
+      }
+    }
+    return null;
+  };
+
   // Point the product-group mapping to the newly created spec version
-  const { error: mapErr } = await labSupabase.rpc(
-    "fn_set_active_fg_group_spec_profile",
+  const { data: mapData, error: mapErr } = await labSupabase.rpc(
+    "fn_set_active_fg_group_spec_profile_family",
     {
       p_product_group_id: Number(bsCurrentGroupId),
       p_spec_profile_id: newProfileId,
-      p_remarks: "Activated via Spec Profile Manager save",
+      p_remarks: "Activated via Spec Profile Manager family-aware save",
     },
   );
   if (mapErr) {
     toast(
-      "Spec version saved but group mapping update failed: " + mapErr.message,
+      "Spec version saved but family-aware mapping update failed: " +
+        mapErr.message,
       "warn",
     );
   } else {
-    toast("Spec version saved and activated for product group.", "success");
+    const affectedCount = getAffectedCount(mapData);
+    if (affectedCount === null) {
+      toast("Spec version saved and activated for product group.", "success");
+    } else {
+      toast(
+        `Spec version saved and activated for ${affectedCount} equivalent product group record(s).`,
+        "success",
+      );
+    }
   }
   bsEditedSpecLines.clear();
   bsSyncSaveBtn();
@@ -1090,7 +1178,7 @@ async function rmLoadSpecLines(profileId) {
   const { data, error } = await labSupabase
     .from("v_spec_profile_detail")
     .select(
-      "spec_profile_id, seq_no, test_name, method_name, display_text, spec_type, spec_line_is_active",
+      "spec_profile_id, seq_no, test_id, test_name, method_name, display_text, spec_type, min_value, max_value, text_value, spec_line_is_active",
     )
     .eq("spec_profile_id", profileId)
     .order("seq_no");
@@ -1112,18 +1200,22 @@ function rmRenderSpecLines(rows) {
   const rmLineCount = document.getElementById("rmLineCount");
   const rmTableBody = document.getElementById("rmTableBody");
 
-  rmEditedSpecLines.clear();
+  // Cache rows for re-render after modal edits (do NOT clear rmEditedSpecLines here)
+  rmLoadedRows = rows;
   rmTableCard.classList.remove("hidden");
 
-  const activeCount = rows.filter((r) => r.spec_line_is_active).length;
+  const countActive = rows.filter((r) => {
+    const p = rmEditedSpecLines.get(r.seq_no);
+    return p ? p.is_active : !!r.spec_line_is_active;
+  }).length;
   const totalCount = rows.length;
   rmLineCount.textContent =
-    activeCount === totalCount
+    countActive === totalCount
       ? `${totalCount} line${totalCount !== 1 ? "s" : ""}`
-      : `${activeCount} active / ${totalCount} total`;
+      : `${countActive} active / ${totalCount} total`;
 
   if (!rows.length) {
-    rmTableBody.innerHTML = `<tr><td colspan="6">
+    rmTableBody.innerHTML = `<tr><td colspan="7">
       <div class="spec-empty-state">
         <strong>No specification lines</strong>
         This profile has no lines yet.
@@ -1134,59 +1226,79 @@ function rmRenderSpecLines(rows) {
 
   rmTableBody.innerHTML = rows
     .map((r) => {
-      const origText = r.display_text ?? "";
-      const origActive = !!r.spec_line_is_active;
       const seqNo = r.seq_no;
-      return `<tr data-seq="${esc(String(seqNo))}">
+      const pending = rmEditedSpecLines.get(seqNo);
+      const dispType = pending ? pending.spec_type : (r.spec_type ?? "");
+      const dispText = pending
+        ? (pending.display_text ?? "")
+        : (r.display_text ?? "");
+      const isActive = pending ? pending.is_active : !!r.spec_line_is_active;
+      const origActive = !!r.spec_line_is_active;
+      return `<tr data-seq="${esc(String(seqNo))}"
+          data-test-id="${esc(String(r.test_id ?? ""))}"
+          data-test-name="${esc(r.test_name ?? "")}"
+          data-method-name="${esc(r.method_name ?? "")}"
+          data-orig-spec-type="${esc(r.spec_type ?? "")}"
+          data-orig-min="${esc(String(r.min_value ?? ""))}"
+          data-orig-max="${esc(String(r.max_value ?? ""))}"
+          data-orig-text="${esc(r.text_value ?? "")}"
+          data-orig-display="${esc(r.display_text ?? "")}"
+          data-orig-active="${origActive ? "1" : "0"}"
+          class="${isActive ? "" : "bs-row-inactive"}">
         <td class="td-seq">${esc(String(seqNo))}</td>
         <td class="td-test">${esc(r.test_name ?? "")}</td>
         <td class="td-method">${esc(r.method_name ?? "")}</td>
-        <td class="td-spec">
-          <input class="spec-input rm-spec-input"
-                 type="text"
-                 value="${esc(origText)}"
-                 data-orig="${esc(origText)}"
-                 data-orig-active="${origActive ? "1" : "0"}"
-                 aria-label="Spec for ${esc(r.test_name ?? "")}" />
-        </td>
-        <td>${typeBadge(r.spec_type)}</td>
+        <td>${typeBadge(dispType)}</td>
+        <td class="bs-display-text-cell${pending ? " pending" : ""}">${esc(dispText)}</td>
         <td class="td-active">
-          <input class="spec-active rm-active-chk"
-                 type="checkbox"
-                 ${origActive ? "checked" : ""}
-                 aria-label="Active" />
+          <input class="spec-active rm-active-chk" type="checkbox"
+                 ${isActive ? "checked" : ""} aria-label="Active" />
+        </td>
+        <td class="td-edit-col">
+          <button class="bs-edit-btn" aria-label="Edit spec line" title="Edit specification values">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </button>
         </td>
       </tr>`;
     })
     .join("");
 
   rmTableBody.querySelectorAll("tr[data-seq]").forEach((tr) => {
-    const inp = tr.querySelector(".rm-spec-input");
     const chk = tr.querySelector(".rm-active-chk");
+    const editBtn = tr.querySelector(".bs-edit-btn");
     const seqNo = Number(tr.dataset.seq);
-    const origText = inp.dataset.orig;
-    const origActive = inp.dataset.origActive === "1";
+    const origActive = tr.dataset.origActive === "1";
 
-    function syncRow() {
-      const newText = inp.value;
+    chk.addEventListener("change", () => {
       const newActive = chk.checked;
-      const changed = newText !== origText || newActive !== origActive;
-      inp.classList.toggle("edited", newText !== origText);
-      if (changed) {
+      const existing = rmEditedSpecLines.get(seqNo);
+      if (existing) {
+        rmEditedSpecLines.set(seqNo, { ...existing, is_active: newActive });
+      } else if (newActive !== origActive) {
         rmEditedSpecLines.set(seqNo, {
           seq_no: seqNo,
-          display_text: newText,
+          spec_type: tr.dataset.origSpecType || null,
+          min_value:
+            tr.dataset.origMin !== "" ? Number(tr.dataset.origMin) : null,
+          max_value:
+            tr.dataset.origMax !== "" ? Number(tr.dataset.origMax) : null,
+          text_value: tr.dataset.origText || null,
+          display_text: tr.dataset.origDisplay || null,
           is_active: newActive,
         });
       } else {
         rmEditedSpecLines.delete(seqNo);
       }
+      tr.classList.toggle("bs-row-inactive", !newActive);
       rmSyncSaveBtn();
       rmSyncActiveAllCheckbox();
-    }
+    });
 
-    inp.addEventListener("input", syncRow);
-    chk.addEventListener("change", syncRow);
+    editBtn.addEventListener("click", () => openBsLineModal("RM", seqNo));
   });
 
   rmWireActiveAllCheckbox();
@@ -1306,24 +1418,63 @@ async function rmSaveSpec() {
   const newProfileId = Number(data);
   rmCurrentProfileId = newProfileId;
 
-  const { error: mapErr } = await labSupabase.rpc(
-    "fn_set_active_rm_group_spec_profile",
+  const getAffectedCount = (val) => {
+    if (typeof val === "number" && Number.isFinite(val)) return val;
+    if (
+      typeof val === "string" &&
+      val.trim() !== "" &&
+      !Number.isNaN(Number(val))
+    ) {
+      return Number(val);
+    }
+    if (Array.isArray(val) && val.length > 0) {
+      const first = val[0];
+      if (typeof first === "number") return first;
+      if (first && typeof first === "object") {
+        for (const k of ["count", "affected_count", "affected", "result"]) {
+          if (first[k] !== undefined && !Number.isNaN(Number(first[k]))) {
+            return Number(first[k]);
+          }
+        }
+      }
+    }
+    if (val && typeof val === "object") {
+      for (const k of ["count", "affected_count", "affected", "result"]) {
+        if (val[k] !== undefined && !Number.isNaN(Number(val[k]))) {
+          return Number(val[k]);
+        }
+      }
+    }
+    return null;
+  };
+
+  const { data: mapData, error: mapErr } = await labSupabase.rpc(
+    "fn_set_active_rm_group_spec_profile_family",
     {
       p_inv_group_id: Number(rmCurrentGroupId),
       p_spec_profile_id: newProfileId,
-      p_remarks: "Activated via Spec Profile Manager save",
+      p_remarks: "Activated via Spec Profile Manager family-aware save",
     },
   );
   if (mapErr) {
     toast(
-      "Spec version saved but group mapping update failed: " + mapErr.message,
+      "Spec version saved but family-aware mapping update failed: " +
+        mapErr.message,
       "warn",
     );
   } else {
-    toast(
-      "RM spec version saved and activated for inventory group.",
-      "success",
-    );
+    const affectedCount = getAffectedCount(mapData);
+    if (affectedCount === null) {
+      toast(
+        "RM spec version saved and activated for inventory group.",
+        "success",
+      );
+    } else {
+      toast(
+        `Spec version saved and activated for ${affectedCount} equivalent raw material group record(s).`,
+        "success",
+      );
+    }
   }
 
   rmEditedSpecLines.clear();
@@ -1569,7 +1720,7 @@ async function pmLoadSpecLines(profileId) {
   const { data, error } = await labSupabase
     .from("v_spec_profile_detail")
     .select(
-      "spec_profile_id, seq_no, test_name, method_name, display_text, spec_type, spec_line_is_active",
+      "spec_profile_id, seq_no, test_id, test_name, method_name, display_text, spec_type, min_value, max_value, text_value, spec_line_is_active",
     )
     .eq("spec_profile_id", profileId)
     .order("seq_no");
@@ -1589,18 +1740,22 @@ function pmRenderSpecLines(rows) {
   const pmLineCount = document.getElementById("pmLineCount");
   const pmTableBodyEl = document.getElementById("pmTableBody");
 
-  pmEditedSpecLines.clear();
+  // Cache rows for re-render after modal edits (do NOT clear pmEditedSpecLines here)
+  pmLoadedRows = rows;
   pmTableCard.classList.remove("hidden");
 
-  const activeCount = rows.filter((r) => r.spec_line_is_active).length;
+  const countActive = rows.filter((r) => {
+    const p = pmEditedSpecLines.get(r.seq_no);
+    return p ? p.is_active : !!r.spec_line_is_active;
+  }).length;
   const totalCount = rows.length;
   pmLineCount.textContent =
-    activeCount === totalCount
+    countActive === totalCount
       ? `${totalCount} line${totalCount !== 1 ? "s" : ""}`
-      : `${activeCount} active / ${totalCount} total`;
+      : `${countActive} active / ${totalCount} total`;
 
   if (!rows.length) {
-    pmTableBodyEl.innerHTML = `<tr><td colspan="6">
+    pmTableBodyEl.innerHTML = `<tr><td colspan="7">
       <div class="spec-empty-state">
         <strong>No specification lines</strong>
         This profile has no lines yet.
@@ -1611,59 +1766,79 @@ function pmRenderSpecLines(rows) {
 
   pmTableBodyEl.innerHTML = rows
     .map((r) => {
-      const origText = r.display_text ?? "";
-      const origActive = !!r.spec_line_is_active;
       const seqNo = r.seq_no;
-      return `<tr data-seq="${esc(String(seqNo))}">
+      const pending = pmEditedSpecLines.get(seqNo);
+      const dispType = pending ? pending.spec_type : (r.spec_type ?? "");
+      const dispText = pending
+        ? (pending.display_text ?? "")
+        : (r.display_text ?? "");
+      const isActive = pending ? pending.is_active : !!r.spec_line_is_active;
+      const origActive = !!r.spec_line_is_active;
+      return `<tr data-seq="${esc(String(seqNo))}"
+          data-test-id="${esc(String(r.test_id ?? ""))}"
+          data-test-name="${esc(r.test_name ?? "")}"
+          data-method-name="${esc(r.method_name ?? "")}"
+          data-orig-spec-type="${esc(r.spec_type ?? "")}"
+          data-orig-min="${esc(String(r.min_value ?? ""))}"
+          data-orig-max="${esc(String(r.max_value ?? ""))}"
+          data-orig-text="${esc(r.text_value ?? "")}"
+          data-orig-display="${esc(r.display_text ?? "")}"
+          data-orig-active="${origActive ? "1" : "0"}"
+          class="${isActive ? "" : "bs-row-inactive"}">
         <td class="td-seq">${esc(String(seqNo))}</td>
         <td class="td-test">${esc(r.test_name ?? "")}</td>
         <td class="td-method">${esc(r.method_name ?? "")}</td>
-        <td class="td-spec">
-          <input class="spec-input pm-spec-input"
-                 type="text"
-                 value="${esc(origText)}"
-                 data-orig="${esc(origText)}"
-                 data-orig-active="${origActive ? "1" : "0"}"
-                 aria-label="Spec for ${esc(r.test_name ?? "")}" />
-        </td>
-        <td>${typeBadge(r.spec_type)}</td>
+        <td>${typeBadge(dispType)}</td>
+        <td class="bs-display-text-cell${pending ? " pending" : ""}">${esc(dispText)}</td>
         <td class="td-active">
-          <input class="spec-active pm-active-chk"
-                 type="checkbox"
-                 ${origActive ? "checked" : ""}
-                 aria-label="Active" />
+          <input class="spec-active pm-active-chk" type="checkbox"
+                 ${isActive ? "checked" : ""} aria-label="Active" />
+        </td>
+        <td class="td-edit-col">
+          <button class="bs-edit-btn" aria-label="Edit spec line" title="Edit specification values">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </button>
         </td>
       </tr>`;
     })
     .join("");
 
   pmTableBodyEl.querySelectorAll("tr[data-seq]").forEach((tr) => {
-    const inp = tr.querySelector(".pm-spec-input");
     const chk = tr.querySelector(".pm-active-chk");
+    const editBtn = tr.querySelector(".bs-edit-btn");
     const seqNo = Number(tr.dataset.seq);
-    const origText = inp.dataset.orig;
-    const origActive = inp.dataset.origActive === "1";
+    const origActive = tr.dataset.origActive === "1";
 
-    function syncRow() {
-      const newText = inp.value;
+    chk.addEventListener("change", () => {
       const newActive = chk.checked;
-      const changed = newText !== origText || newActive !== origActive;
-      inp.classList.toggle("edited", newText !== origText);
-      if (changed) {
+      const existing = pmEditedSpecLines.get(seqNo);
+      if (existing) {
+        pmEditedSpecLines.set(seqNo, { ...existing, is_active: newActive });
+      } else if (newActive !== origActive) {
         pmEditedSpecLines.set(seqNo, {
           seq_no: seqNo,
-          display_text: newText,
+          spec_type: tr.dataset.origSpecType || null,
+          min_value:
+            tr.dataset.origMin !== "" ? Number(tr.dataset.origMin) : null,
+          max_value:
+            tr.dataset.origMax !== "" ? Number(tr.dataset.origMax) : null,
+          text_value: tr.dataset.origText || null,
+          display_text: tr.dataset.origDisplay || null,
           is_active: newActive,
         });
       } else {
         pmEditedSpecLines.delete(seqNo);
       }
+      tr.classList.toggle("bs-row-inactive", !newActive);
       pmSyncSaveBtn();
       pmSyncActiveAllCheckbox();
-    }
+    });
 
-    inp.addEventListener("input", syncRow);
-    chk.addEventListener("change", syncRow);
+    editBtn.addEventListener("click", () => openBsLineModal("PM", seqNo));
   });
 
   pmWireActiveAllCheckbox();
@@ -1782,24 +1957,63 @@ async function pmSaveSpec() {
   const newProfileId = Number(data);
   pmCurrentProfileId = newProfileId;
 
-  const { error: mapErr } = await labSupabase.rpc(
-    "fn_set_active_pm_subcategory_spec_profile",
+  const getAffectedCount = (val) => {
+    if (typeof val === "number" && Number.isFinite(val)) return val;
+    if (
+      typeof val === "string" &&
+      val.trim() !== "" &&
+      !Number.isNaN(Number(val))
+    ) {
+      return Number(val);
+    }
+    if (Array.isArray(val) && val.length > 0) {
+      const first = val[0];
+      if (typeof first === "number") return first;
+      if (first && typeof first === "object") {
+        for (const k of ["count", "affected_count", "affected", "result"]) {
+          if (first[k] !== undefined && !Number.isNaN(Number(first[k]))) {
+            return Number(first[k]);
+          }
+        }
+      }
+    }
+    if (val && typeof val === "object") {
+      for (const k of ["count", "affected_count", "affected", "result"]) {
+        if (val[k] !== undefined && !Number.isNaN(Number(val[k]))) {
+          return Number(val[k]);
+        }
+      }
+    }
+    return null;
+  };
+
+  const { data: mapData, error: mapErr } = await labSupabase.rpc(
+    "fn_set_active_pm_subcategory_spec_profile_family",
     {
       p_subcategory_id: Number(pmCurrentGroupId),
       p_spec_profile_id: newProfileId,
-      p_remarks: "Activated via Spec Profile Manager save",
+      p_remarks: "Activated via Spec Profile Manager family-aware save",
     },
   );
   if (mapErr) {
     toast(
-      "Spec version saved but group mapping update failed: " + mapErr.message,
+      "Spec version saved but family-aware mapping update failed: " +
+        mapErr.message,
       "warn",
     );
   } else {
-    toast(
-      "PM spec version saved and activated for packing material subcategory.",
-      "success",
-    );
+    const affectedCount = getAffectedCount(mapData);
+    if (affectedCount === null) {
+      toast(
+        "PM spec version saved and activated for packing material subcategory.",
+        "success",
+      );
+    } else {
+      toast(
+        `Spec version saved and activated for ${affectedCount} equivalent packing material subcategory record(s).`,
+        "success",
+      );
+    }
   }
 
   pmEditedSpecLines.clear();
@@ -2154,31 +2368,75 @@ function renderPmEffectivePreview(rows) {
 
 // FIX 2: use product_id / product_name
 async function loadFgProducts(selectEl) {
+  const searchInput =
+    selectEl === ovProductSelect
+      ? ovProductSearchInput
+      : selectEl === epProductSelect
+        ? epProductSearchInput
+        : null;
+
   selectEl.disabled = true;
   selectEl.innerHTML = '<option value="">Loading...</option>';
-  const { data, error } = await labSupabase
-    .from("v_sample_receipt_fg_picker")
-    .select("product_id, product_name")
-    .order("product_name");
-
-  if (error) {
-    toast("Failed to load products: " + error.message, "error");
-    selectEl.innerHTML = '<option value="">-- Error --</option>';
-    selectEl.disabled = false;
-    return;
+  if (searchInput) {
+    searchInput.disabled = true;
+    searchInput.placeholder = "Loading products...";
   }
+  const pageSize = 1000;
+  let from = 0;
+  let allRows = [];
+  while (true) {
+    const to = from + pageSize - 1;
+    const { data, error } = await labSupabase
+      .from("v_sample_receipt_fg_picker")
+      .select("product_id, product_name")
+      .order("product_name", { ascending: true })
+      .range(from, to);
+    if (error) {
+      toast("Failed to load products: " + error.message, "error");
+      selectEl.innerHTML = '<option value="">-- Error --</option>';
+      selectEl.disabled = false;
+      if (searchInput) {
+        searchInput.disabled = false;
+        searchInput.placeholder = "Type to search product...";
+      }
+      return;
+    }
+    const rows = data ?? [];
+    allRows = allRows.concat(rows);
+    if (rows.length < pageSize) break;
+    from += pageSize;
+  }
+  const seen = new Map();
+  for (const row of allRows) {
+    if (!row.product_id) continue;
+    if (!seen.has(row.product_id)) {
+      seen.set(row.product_id, row);
+    }
+  }
+  const uniqueRows = [...seen.values()].sort((a, b) =>
+    String(a.product_name ?? "").localeCompare(String(b.product_name ?? "")),
+  );
+  fgProductPickerRows = uniqueRows;
   populateSelect(
     selectEl,
-    data,
+    uniqueRows,
     "product_id",
     "product_name",
     "-- Select Product --",
   );
   selectEl.disabled = false;
+  if (searchInput) {
+    searchInput.disabled = false;
+    searchInput.placeholder = "Type to search product...";
+  }
+  syncFgProductSearchInputFromSelect(selectEl);
 }
 
 function wireOverridesEvents() {
-  ovProductSelect.addEventListener("change", onOvProductChange);
+  ovProductSelect.addEventListener("change", () => {
+    syncFgProductSearchInputFromSelect(ovProductSelect);
+    onOvProductChange();
+  });
 }
 
 async function onOvProductChange() {
@@ -2551,7 +2809,183 @@ function renderRmOverrides(rows) {
 
 // ── EFFECTIVE PREVIEW — FG ────────────────────────────────────────────────────
 function wireEffectivePreviewEvents() {
-  epProductSelect.addEventListener("change", onEpProductChange);
+  epProductSelect.addEventListener("change", () => {
+    syncFgProductSearchInputFromSelect(epProductSelect);
+    onEpProductChange();
+  });
+}
+
+function wireFgProductSearchComboboxes() {
+  wireSingleFgProductSearchCombobox(
+    ovProductSelect,
+    ovProductSearchInput,
+    ovProductSearchResults,
+  );
+  wireSingleFgProductSearchCombobox(
+    epProductSelect,
+    epProductSearchInput,
+    epProductSearchResults,
+  );
+}
+
+function wireSingleFgProductSearchCombobox(selectEl, inputEl, resultsEl) {
+  if (!selectEl || !inputEl || !resultsEl) return;
+
+  inputEl.addEventListener("focus", () => {
+    renderFgProductSearchResults(selectEl, inputEl, resultsEl, inputEl.value);
+  });
+
+  inputEl.addEventListener("input", () => {
+    const q = inputEl.value.trim();
+    if (!q) {
+      if (selectEl.value) {
+        selectEl.value = "";
+        selectEl.dispatchEvent(new Event("change", { bubbles: false }));
+      }
+    }
+    renderFgProductSearchResults(selectEl, inputEl, resultsEl, q);
+  });
+
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      resultsEl.classList.add("hidden");
+      return;
+    }
+
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (resultsEl.classList.contains("hidden")) {
+        renderFgProductSearchResults(
+          selectEl,
+          inputEl,
+          resultsEl,
+          inputEl.value,
+        );
+      }
+
+      const items = [...resultsEl.querySelectorAll(".erp-combobox-item")];
+      if (!items.length) return;
+
+      const currentIndex = Number(resultsEl.dataset.activeIndex ?? "-1");
+      const nextIndex =
+        e.key === "ArrowDown"
+          ? Math.min(currentIndex + 1, items.length - 1)
+          : currentIndex <= 0
+            ? 0
+            : currentIndex - 1;
+
+      setFgProductSearchActiveIndex(resultsEl, nextIndex);
+      const activeBtn = items[nextIndex];
+      activeBtn?.scrollIntoView({ block: "nearest" });
+      return;
+    }
+
+    if (e.key !== "Enter") return;
+    const items = [...resultsEl.querySelectorAll(".erp-combobox-item")];
+    if (!items.length) return;
+    const activeIndex = Number(resultsEl.dataset.activeIndex ?? "-1");
+    const targetBtn = activeIndex >= 0 ? items[activeIndex] : items[0];
+    if (!targetBtn) return;
+    e.preventDefault();
+    targetBtn.click();
+  });
+
+  inputEl.addEventListener("blur", () => {
+    window.setTimeout(() => resultsEl.classList.add("hidden"), 120);
+  });
+}
+
+function renderFgProductSearchResults(selectEl, inputEl, resultsEl, query) {
+  if (!resultsEl || !inputEl || !selectEl) return;
+
+  const needle = String(query ?? "")
+    .trim()
+    .toLowerCase();
+  const baseRows = fgProductPickerRows ?? [];
+  const filtered = needle
+    ? baseRows.filter((r) =>
+        String(r.product_name ?? "")
+          .toLowerCase()
+          .includes(needle),
+      )
+    : baseRows.slice(0, 40);
+
+  const rows = filtered.slice(0, 120);
+  if (!rows.length) {
+    resultsEl.innerHTML =
+      '<div class="erp-combobox-empty">No matching products</div>';
+    resultsEl.dataset.activeIndex = "-1";
+    resultsEl.classList.remove("hidden");
+    return;
+  }
+
+  resultsEl.innerHTML = rows
+    .map(
+      (
+        r,
+      ) => `<button type="button" class="erp-combobox-item" data-id="${esc(String(r.product_id))}">
+      ${esc(r.product_name ?? "")}
+    </button>`,
+    )
+    .join("");
+
+  resultsEl.querySelectorAll(".erp-combobox-item").forEach((btn) => {
+    btn.addEventListener("mousedown", (e) => e.preventDefault());
+    btn.addEventListener("mouseenter", () => {
+      const items = [...resultsEl.querySelectorAll(".erp-combobox-item")];
+      const idx = items.indexOf(btn);
+      setFgProductSearchActiveIndex(resultsEl, idx);
+    });
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.id;
+      const row = rows.find((x) => String(x.product_id) === id);
+      if (!row) return;
+      inputEl.value = row.product_name ?? "";
+      selectEl.value = String(row.product_id);
+      resultsEl.classList.add("hidden");
+      selectEl.dispatchEvent(new Event("change", { bubbles: false }));
+    });
+  });
+
+  const selectedIdx = rows.findIndex(
+    (x) => String(x.product_id) === String(selectEl.value),
+  );
+  setFgProductSearchActiveIndex(resultsEl, selectedIdx >= 0 ? selectedIdx : 0);
+  resultsEl.classList.remove("hidden");
+}
+
+function setFgProductSearchActiveIndex(resultsEl, idx) {
+  const items = [...resultsEl.querySelectorAll(".erp-combobox-item")];
+  const safeIdx = idx >= 0 && idx < items.length ? idx : -1;
+  resultsEl.dataset.activeIndex = String(safeIdx);
+  items.forEach((item, i) => {
+    item.classList.toggle("active", i === safeIdx);
+    item.setAttribute("aria-selected", i === safeIdx ? "true" : "false");
+  });
+}
+
+function syncFgProductSearchInputFromSelect(selectEl) {
+  if (!selectEl) return;
+
+  const isOv = selectEl === ovProductSelect;
+  const inputEl = isOv ? ovProductSearchInput : epProductSearchInput;
+  const resultsEl = isOv ? ovProductSearchResults : epProductSearchResults;
+  if (!inputEl || !resultsEl) return;
+
+  if (!selectEl.value) {
+    inputEl.value = "";
+    resultsEl.classList.add("hidden");
+    return;
+  }
+
+  const selectedText =
+    selectEl.options[selectEl.selectedIndex]?.text ??
+    fgProductPickerRows.find(
+      (r) => String(r.product_id) === String(selectEl.value),
+    )?.product_name ??
+    "";
+  inputEl.value = selectedText;
+  resultsEl.classList.add("hidden");
 }
 
 async function onEpProductChange() {
@@ -2586,6 +3020,7 @@ async function onEpProductChange() {
   }
 
   const newProfileId = Number(data);
+  console.log("[SPM EP FG] effective profile id", newProfileId);
   if (!newProfileId) {
     showBanner(
       epBanner,
@@ -2615,7 +3050,18 @@ async function onEpProductChange() {
     return;
   }
 
-  renderEffectivePreview(lines ?? []);
+  console.log("[SPM EP FG] lines", lines);
+
+  if (!lines || lines.length === 0) {
+    showBanner(
+      epBanner,
+      "warn",
+      "Effective spec profile was resolved but no active lines were found.",
+    );
+    return;
+  }
+
+  renderEffectivePreview(lines);
 }
 
 function renderEffectivePreview(rows) {
@@ -2742,6 +3188,377 @@ function renderRmEffectivePreview(rows) {
     </tr>`,
     )
     .join("");
+}
+
+// ── BASE SPEC LINE EDIT MODAL ─────────────────────────────────────────────────
+// Shared modal for editing a single spec line across FG / RM / PM base specs.
+
+function wireBsLineModal() {
+  const modal = document.getElementById("bsLineModal");
+  const closeBtn = document.getElementById("bsLineModalClose");
+  const cancelBtn = document.getElementById("bsLineModalCancel");
+  const applyBtn = document.getElementById("bsLineModalApply");
+  const specTypeSel = document.getElementById("bsLineModalSpecType");
+  const minEl = document.getElementById("bsLineModalMin");
+  const maxEl = document.getElementById("bsLineModalMax");
+  const exactEl = document.getElementById("bsLineModalExact");
+  const textEl = document.getElementById("bsLineModalText");
+  const passFailSel = document.getElementById("bsLineModalPassFail");
+  const displayEl = document.getElementById("bsLineModalDisplayText");
+
+  if (!modal) return;
+
+  closeBtn.addEventListener("click", closeBsLineModal);
+  cancelBtn.addEventListener("click", closeBsLineModal);
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) closeBsLineModal();
+  });
+
+  specTypeSel.addEventListener("change", () => {
+    applyBaseSpecTypeUI();
+    bsLineDisplayTextManual = false; // reset manual flag on spec type change
+    buildBsDisplayText();
+  });
+
+  [minEl, maxEl, exactEl].forEach((el) => {
+    el.addEventListener("input", () => {
+      if (!bsLineDisplayTextManual) buildBsDisplayText();
+    });
+  });
+  textEl.addEventListener("input", () => {
+    if (!bsLineDisplayTextManual) buildBsDisplayText();
+  });
+  passFailSel.addEventListener("change", () => {
+    if (!bsLineDisplayTextManual) buildBsDisplayText();
+  });
+
+  displayEl.addEventListener("input", () => {
+    bsLineDisplayTextManual = true;
+    document.getElementById("bsLineModalDisplayPreview").textContent =
+      displayEl.value.trim() || "—";
+  });
+
+  applyBtn.addEventListener("click", saveBsLineModal);
+}
+
+async function openBsLineModal(subject, seqNo) {
+  const modal = document.getElementById("bsLineModal");
+  const titleEl = document.getElementById("bsLineModalTitle");
+  const ctxBar = document.getElementById("bsLineModalCtxBar");
+  const specTypeSel = document.getElementById("bsLineModalSpecType");
+  const minEl = document.getElementById("bsLineModalMin");
+  const maxEl = document.getElementById("bsLineModalMax");
+  const exactEl = document.getElementById("bsLineModalExact");
+  const textEl = document.getElementById("bsLineModalText");
+  const passFailSel = document.getElementById("bsLineModalPassFail");
+  const displayEl = document.getElementById("bsLineModalDisplayText");
+  const activeChk = document.getElementById("bsLineModalActive");
+  const errEl = document.getElementById("bsLineModalError");
+
+  bsLineCurrentSubject = subject;
+  bsLineCurrentSeqNo = seqNo;
+  bsLineDisplayTextManual = false;
+
+  titleEl.textContent = "Edit Specification Line";
+  errEl.classList.add("hidden");
+  errEl.textContent = "";
+
+  // Find the table row to read data attributes
+  const tbodyId =
+    subject === "FG"
+      ? "bsTableBody"
+      : subject === "RM"
+        ? "rmTableBody"
+        : "pmTableBody";
+  const tbodyEl = document.getElementById(tbodyId);
+  const tr = tbodyEl?.querySelector(`tr[data-seq="${seqNo}"]`);
+  if (!tr) return;
+
+  const testName = tr.dataset.testName ?? "";
+  const methodName = tr.dataset.methodName ?? "";
+  const testId = Number(tr.dataset.testId ?? "0");
+  ctxBar.textContent = testName + (methodName ? ` · ${methodName}` : "");
+
+  // Resolve current values: pending edit takes precedence over server data
+  const editedMap =
+    subject === "FG"
+      ? bsEditedSpecLines
+      : subject === "RM"
+        ? rmEditedSpecLines
+        : pmEditedSpecLines;
+  const existing = editedMap.get(seqNo);
+
+  const curSpecType = existing?.spec_type ?? tr.dataset.origSpecType ?? "";
+  const curMin =
+    existing?.min_value != null
+      ? String(existing.min_value)
+      : (tr.dataset.origMin ?? "");
+  const curMax =
+    existing?.max_value != null
+      ? String(existing.max_value)
+      : (tr.dataset.origMax ?? "");
+  const curText = existing?.text_value ?? tr.dataset.origText ?? "";
+  const curDisplay = existing?.display_text ?? tr.dataset.origDisplay ?? "";
+  const curActive = existing
+    ? existing.is_active
+    : tr.dataset.origActive === "1";
+
+  // Lazy-load test_master for result_kind (shares ovCachedTests with Override modal)
+  if (!ovCachedTests) {
+    const { data, error } = await labSupabase
+      .from("test_master")
+      .select("id, test_name, result_kind")
+      .eq("is_active", true)
+      .order("test_name");
+    ovCachedTests = error ? [] : (data ?? []);
+  }
+  const testRow = ovCachedTests.find((t) => Number(t.id) === testId);
+  const resultKind = String(testRow?.result_kind ?? "").toUpperCase();
+
+  // Populate Spec Type options based on result_kind
+  specTypeSel.innerHTML = "";
+  if (resultKind === "TEXT") {
+    specTypeSel.innerHTML = `<option value="TEXT">TEXT — free text</option>`;
+  } else if (resultKind === "PASS_FAIL") {
+    specTypeSel.innerHTML = `<option value="PASS_FAIL">PASS / FAIL</option>`;
+  } else {
+    // NUMERIC (default)
+    specTypeSel.innerHTML = `
+      <option value="RANGE">RANGE — min to max</option>
+      <option value="NMT">NMT — Not More Than</option>
+      <option value="NLT">NLT — Not Less Than</option>
+      <option value="EXACT_NUMERIC">EXACT NUMERIC — equals value</option>
+    `;
+  }
+
+  // Set selected spec type
+  if ([...specTypeSel.options].some((o) => o.value === curSpecType)) {
+    specTypeSel.value = curSpecType;
+  }
+
+  // Pre-fill value fields
+  minEl.value = curMin;
+  maxEl.value = curMax;
+  exactEl.value = curSpecType === "EXACT_NUMERIC" ? curMin : "";
+  textEl.value = curText;
+  passFailSel.value = curText || "PASS";
+  displayEl.value = curDisplay;
+  activeChk.checked = curActive;
+
+  // If display text was already manually set, treat it as manual
+  bsLineDisplayTextManual = !!curDisplay;
+
+  applyBaseSpecTypeUI();
+  document.getElementById("bsLineModalDisplayPreview").textContent =
+    curDisplay || "—";
+
+  modal.classList.remove("hidden");
+}
+
+function closeBsLineModal() {
+  document.getElementById("bsLineModal").classList.add("hidden");
+  bsLineCurrentSubject = null;
+  bsLineCurrentSeqNo = null;
+  bsLineDisplayTextManual = false;
+}
+
+function applyBaseSpecTypeUI() {
+  const specType = document.getElementById("bsLineModalSpecType").value;
+  const minMaxRow = document.getElementById("bsLineModalMinMaxRow");
+  const exactRow = document.getElementById("bsLineModalExactRow");
+  const textRow = document.getElementById("bsLineModalTextRow");
+  const passFailRow = document.getElementById("bsLineModalPassFailRow");
+  const minEl = document.getElementById("bsLineModalMin");
+  const maxEl = document.getElementById("bsLineModalMax");
+  const minLabel = document.getElementById("bsLineModalMinLabel");
+  const maxLabel = document.getElementById("bsLineModalMaxLabel");
+
+  [minMaxRow, exactRow, textRow, passFailRow].forEach((r) =>
+    r.classList.add("hidden"),
+  );
+  minEl.disabled = false;
+  maxEl.disabled = false;
+
+  switch (specType) {
+    case "RANGE":
+      minMaxRow.classList.remove("hidden");
+      minLabel.textContent = "Min Value (NLT)";
+      maxLabel.textContent = "Max Value (NMT)";
+      break;
+    case "NMT":
+      minMaxRow.classList.remove("hidden");
+      minLabel.textContent = "Min Value";
+      maxLabel.textContent = "Max Value (NMT) *";
+      minEl.disabled = true;
+      minEl.value = "";
+      break;
+    case "NLT":
+      minMaxRow.classList.remove("hidden");
+      minLabel.textContent = "Min Value (NLT) *";
+      maxLabel.textContent = "Max Value";
+      maxEl.disabled = true;
+      maxEl.value = "";
+      break;
+    case "EXACT_NUMERIC":
+      exactRow.classList.remove("hidden");
+      break;
+    case "TEXT":
+      textRow.classList.remove("hidden");
+      break;
+    case "PASS_FAIL":
+      passFailRow.classList.remove("hidden");
+      break;
+  }
+}
+
+function buildBsDisplayText() {
+  const specType = document.getElementById("bsLineModalSpecType").value;
+  const minEl = document.getElementById("bsLineModalMin");
+  const maxEl = document.getElementById("bsLineModalMax");
+  const exactEl = document.getElementById("bsLineModalExact");
+  const textEl = document.getElementById("bsLineModalText");
+  const passFailSel = document.getElementById("bsLineModalPassFail");
+  const displayEl = document.getElementById("bsLineModalDisplayText");
+  const preview = document.getElementById("bsLineModalDisplayPreview");
+
+  let generated = "";
+  const min = minEl.value.trim();
+  const max = maxEl.value.trim();
+
+  switch (specType) {
+    case "RANGE":
+      if (min && max) generated = `${min} – ${max}`;
+      else if (min) generated = `NLT ${min}`;
+      else if (max) generated = `NMT ${max}`;
+      break;
+    case "NMT":
+      if (max) generated = `NMT ${max}`;
+      break;
+    case "NLT":
+      if (min) generated = `NLT ${min}`;
+      break;
+    case "EXACT_NUMERIC":
+      if (exactEl.value.trim()) generated = exactEl.value.trim();
+      break;
+    case "TEXT":
+      generated = textEl.value.trim();
+      break;
+    case "PASS_FAIL":
+      generated = passFailSel.value;
+      break;
+  }
+
+  displayEl.value = generated;
+  preview.textContent = generated || "—";
+}
+
+function saveBsLineModal() {
+  const specTypeSel = document.getElementById("bsLineModalSpecType");
+  const minEl = document.getElementById("bsLineModalMin");
+  const maxEl = document.getElementById("bsLineModalMax");
+  const exactEl = document.getElementById("bsLineModalExact");
+  const textEl = document.getElementById("bsLineModalText");
+  const passFailSel = document.getElementById("bsLineModalPassFail");
+  const displayEl = document.getElementById("bsLineModalDisplayText");
+  const activeChk = document.getElementById("bsLineModalActive");
+  const errEl = document.getElementById("bsLineModalError");
+
+  errEl.classList.add("hidden");
+  errEl.textContent = "";
+
+  const specType = specTypeSel.value;
+  if (!specType) {
+    showBanner(errEl, "error", "Spec Type is required.");
+    return;
+  }
+
+  // Collect and validate values per spec type
+  let minValue = null;
+  let maxValue = null;
+  let textValue = null;
+
+  switch (specType) {
+    case "RANGE":
+      if (!minEl.value.trim() || !maxEl.value.trim()) {
+        showBanner(errEl, "error", "RANGE requires both Min and Max values.");
+        return;
+      }
+      minValue = Number(minEl.value);
+      maxValue = Number(maxEl.value);
+      if (minValue >= maxValue) {
+        showBanner(
+          errEl,
+          "error",
+          "Min value must be less than Max value for RANGE.",
+        );
+        return;
+      }
+      break;
+    case "NMT":
+      if (!maxEl.value.trim()) {
+        showBanner(errEl, "error", "NMT requires a Max value.");
+        return;
+      }
+      maxValue = Number(maxEl.value);
+      break;
+    case "NLT":
+      if (!minEl.value.trim()) {
+        showBanner(errEl, "error", "NLT requires a Min value.");
+        return;
+      }
+      minValue = Number(minEl.value);
+      break;
+    case "EXACT_NUMERIC":
+      if (!exactEl.value.trim()) {
+        showBanner(errEl, "error", "Exact Value is required.");
+        return;
+      }
+      minValue = Number(exactEl.value); // EXACT_NUMERIC stores in min_value
+      break;
+    case "TEXT":
+      if (!textEl.value.trim()) {
+        showBanner(errEl, "error", "Text Value is required.");
+        return;
+      }
+      textValue = textEl.value.trim();
+      break;
+    case "PASS_FAIL":
+      textValue = passFailSel.value;
+      break;
+  }
+
+  const displayText = displayEl.value.trim();
+  const isActive = activeChk.checked;
+  const seqNo = bsLineCurrentSeqNo;
+
+  // Write to the appropriate edits Map
+  const editedMap =
+    bsLineCurrentSubject === "FG"
+      ? bsEditedSpecLines
+      : bsLineCurrentSubject === "RM"
+        ? rmEditedSpecLines
+        : pmEditedSpecLines;
+
+  editedMap.set(seqNo, {
+    seq_no: seqNo,
+    spec_type: specType,
+    min_value: minValue,
+    max_value: maxValue,
+    text_value: textValue,
+    display_text: displayText,
+    is_active: isActive,
+  });
+
+  // Re-render the table to reflect the new values
+  if (bsLineCurrentSubject === "FG") {
+    bsRenderSpecLines(bsLoadedRows);
+  } else if (bsLineCurrentSubject === "RM") {
+    rmRenderSpecLines(rmLoadedRows);
+  } else {
+    pmRenderSpecLines(pmLoadedRows);
+  }
+
+  closeBsLineModal();
 }
 
 // ── OVERRIDE EDITOR MODAL ─────────────────────────────────────────────────────

@@ -37,6 +37,7 @@ function appIconForWindows() {
 
 const APP_ICON = appIconForWindows();
 const express = require("express");
+const fs = require("fs");
 const htmlToDocx = require("html-to-docx");
 const {
   Document,

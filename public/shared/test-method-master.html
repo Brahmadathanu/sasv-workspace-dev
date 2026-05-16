@@ -1234,6 +1234,7 @@
                   maxlength="50"
                   style="text-transform: uppercase"
                   placeholder="e.g. MOIST_01"
+                  oninput="this.value = this.value.toUpperCase()"
                 />
               </div>
               <div class="form-group">
@@ -1388,8 +1389,13 @@
                   id="methodModalCode"
                   class="form-control"
                   maxlength="50"
-                  style="text-transform: uppercase"
-                  placeholder="e.g. HPLC_01"
+                  placeholder="e.g. hplc_01"
+                  oninput="
+                    this.value = this.value
+                      .toLowerCase()
+                      .replace(/\s/g, '_')
+                      .replace(/[^a-z0-9_]/g, '')
+                  "
                 />
               </div>
               <div class="form-group">

@@ -37,4 +37,4 @@ contextBridge.exposeInMainWorld("auth", {
   setSession: (user) => ipcRenderer.invoke("auth:setSession", user),
 });
 
-console.log("preload ready: app, electronAPI, sopAPI exposed");
+console.log("preload ready: app, electronAPI, sopAPI, auth exposed");

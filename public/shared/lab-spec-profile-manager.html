@@ -410,6 +410,58 @@
         padding-right: 30px;
       }
 
+      /* ── ERP searchable combobox (FG pickers) ───────────────────── */
+      .erp-combobox {
+        position: relative;
+      }
+      .erp-combobox-native {
+        display: none;
+      }
+      .erp-combobox-results {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: calc(100% + 4px);
+        z-index: 35;
+        max-height: 280px;
+        overflow-y: auto;
+        background: #fff;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        box-shadow: 0 12px 28px rgba(2, 6, 23, 0.12);
+      }
+      .erp-combobox-results.hidden {
+        display: none;
+      }
+      .erp-combobox-item {
+        width: 100%;
+        text-align: left;
+        border: none;
+        background: #fff;
+        padding: 8px 10px;
+        font-size: 13px;
+        color: #0f172a;
+        cursor: pointer;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+      }
+      .erp-combobox-item:last-child {
+        border-bottom: none;
+      }
+      .erp-combobox-item:hover {
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+      .erp-combobox-item.active {
+        background: #dbeafe;
+        color: #1d4ed8;
+        font-weight: 600;
+      }
+      .erp-combobox-empty {
+        padding: 9px 10px;
+        font-size: 12.5px;
+        color: var(--muted, #6b7280);
+      }
+
       /* ── Context info strip ───────────────────────────────────────── */
       .context-strip {
         display: flex;
@@ -1098,6 +1150,194 @@
       .add-ov-btn:hover {
         background: #1d4ed8;
       }
+
+      /* ── Base Spec Line Edit col ──────────────────────────────────── */
+      .td-edit-col {
+        width: 44px;
+        text-align: center;
+      }
+      .bs-edit-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+        background: #fff;
+        color: #6b7280;
+        cursor: pointer;
+        transition:
+          background 0.12s,
+          color 0.12s;
+        flex-shrink: 0;
+      }
+      .bs-edit-btn:hover {
+        background: #eff6ff;
+        color: var(--primary, #2563eb);
+        border-color: #bfdbfe;
+      }
+      .bs-display-text-cell {
+        max-width: 260px;
+        font-size: 13px;
+        color: #374151;
+        line-height: 1.4;
+      }
+      .bs-display-text-cell.pending {
+        color: #b45309;
+        font-style: italic;
+      }
+      .spec-table tbody tr.bs-row-inactive td {
+        opacity: 0.52;
+      }
+      .spec-table tbody tr.bs-row-inactive td .bs-edit-btn {
+        opacity: 1;
+      }
+
+      /* ── Base Spec info blurb ─────────────────────────────────────── */
+      .bs-info-blurb {
+        font-size: 12.5px;
+        color: #64748b;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 7px;
+        padding: 8px 12px;
+        margin-bottom: 6px;
+        line-height: 1.5;
+      }
+
+      /* ── BS Line modal (Base Spec line editor) ───────────────────── */
+      .bs-line-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 6px;
+      }
+      .bs-line-modal-backdrop.hidden {
+        display: none;
+      }
+      .bs-line-modal {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+        width: 94vw;
+        max-width: 680px;
+        min-width: 340px;
+        height: auto;
+        min-height: 360px;
+        max-height: calc(100vh - 40px);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .bs-line-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 18px 12px;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+        flex-shrink: 0;
+      }
+      .bs-line-modal-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: #0f172a;
+        margin: 0;
+      }
+      .bs-line-modal-close {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        border: none;
+        background: transparent;
+        border-radius: 6px;
+        font-size: 22px;
+        line-height: 1;
+        color: #6b7280;
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+      .bs-line-modal-close:hover {
+        background: #f3f4f6;
+        color: #374151;
+      }
+      .bs-line-modal-body {
+        padding: 14px 18px;
+        overflow-y: auto;
+        flex: 1 1 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .bs-line-modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        padding: 10px 18px;
+        border-top: 1px solid var(--border, #e5e7eb);
+        flex-shrink: 0;
+      }
+      .bs-line-ctx-bar {
+        font-size: 12.5px;
+        font-weight: 600;
+        color: #475569;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 6px 10px;
+        line-height: 1.4;
+      }
+      .bs-line-dyn-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .bs-line-display-preview {
+        padding: 8px 12px;
+        background: #f0f9ff;
+        border: 1px solid #bae6fd;
+        border-radius: 7px;
+        color: #0369a1;
+        font-size: 13px;
+        font-weight: 600;
+        min-height: 36px;
+        display: flex;
+        align-items: center;
+      }
+      @media (max-width: 720px) {
+        .bs-line-modal-backdrop {
+          padding: 0;
+          align-items: stretch;
+        }
+        .bs-line-modal {
+          width: 100%;
+          min-width: 0;
+          max-width: none;
+          height: 100vh;
+          min-height: 0;
+          max-height: none;
+          border-radius: 0;
+        }
+        .bs-line-modal-header {
+          padding: 12px 14px;
+        }
+        .bs-line-modal-body {
+          padding: 12px 14px;
+          gap: 10px;
+        }
+        .bs-line-modal-footer {
+          padding: 10px 14px;
+        }
+        .bs-line-dyn-row {
+          grid-template-columns: 1fr;
+        }
+      }
       .edit-ov-btn {
         display: inline-flex;
         align-items: center;
@@ -1432,6 +1672,11 @@
 
         <!-- RM: Base spec lines table -->
         <div class="spec-table-card hidden" id="rmTableCard">
+          <div class="bs-info-blurb">
+            Base Spec defines the family-level reference values inherited by all
+            stock items in this inventory group. Product-level overrides can
+            modify or disable individual tests on the Overrides tab.
+          </div>
           <div class="spec-table-header">
             <div class="spec-table-title">Base Specification Lines</div>
             <div style="display: flex; align-items: center; gap: 10px">
@@ -1448,8 +1693,8 @@
                   <th class="td-seq">#</th>
                   <th>Test</th>
                   <th>Method</th>
-                  <th>Spec</th>
-                  <th>Type</th>
+                  <th>Spec Type</th>
+                  <th>Display Text</th>
                   <th class="td-active">
                     <label
                       class="bs-all-active-label"
@@ -1463,6 +1708,7 @@
                       Active
                     </label>
                   </th>
+                  <th class="td-edit-col"></th>
                 </tr>
               </thead>
               <tbody id="rmTableBody"></tbody>
@@ -1568,6 +1814,11 @@
 
         <!-- PM: Base spec lines table -->
         <div class="spec-table-card hidden" id="pmTableCard">
+          <div class="bs-info-blurb">
+            Base Spec defines the family-level reference values inherited by all
+            packing material items in this subcategory. Item-level overrides can
+            modify or disable individual tests on the Overrides tab.
+          </div>
           <div class="spec-table-header">
             <div class="spec-table-title">Base Specification Lines</div>
             <div style="display: flex; align-items: center; gap: 10px">
@@ -1584,8 +1835,8 @@
                   <th class="td-seq">#</th>
                   <th>Test</th>
                   <th>Method</th>
-                  <th>Spec</th>
-                  <th>Type</th>
+                  <th>Spec Type</th>
+                  <th>Display Text</th>
                   <th class="td-active">
                     <label
                       class="bs-all-active-label"
@@ -1599,6 +1850,7 @@
                       Active
                     </label>
                   </th>
+                  <th class="td-edit-col"></th>
                 </tr>
               </thead>
               <tbody id="pmTableBody"></tbody>
@@ -1661,6 +1913,11 @@
 
         <!-- Base spec lines table -->
         <div class="spec-table-card hidden" id="bsTableCard">
+          <div class="bs-info-blurb">
+            Base Spec defines the family-level reference values inherited by all
+            FG products in this product group. Product-level overrides can
+            modify or disable individual tests on the Overrides tab.
+          </div>
           <div class="spec-table-header">
             <div class="spec-table-title">Base Specification Lines</div>
             <div style="display: flex; align-items: center; gap: 10px">
@@ -1677,8 +1934,8 @@
                   <th class="td-seq">#</th>
                   <th>Test</th>
                   <th>Method</th>
-                  <th>Spec</th>
-                  <th>Type</th>
+                  <th>Spec Type</th>
+                  <th>Display Text</th>
                   <th class="td-active">
                     <label
                       class="bs-all-active-label"
@@ -1692,6 +1949,7 @@
                       Active
                     </label>
                   </th>
+                  <th class="td-edit-col"></th>
                 </tr>
               </thead>
               <tbody id="bsTableBody"></tbody>
@@ -1711,14 +1969,30 @@
             </div>
             <div class="form-row">
               <div class="form-group">
-                <label for="ovProductSelect">Product</label>
-                <select
-                  id="ovProductSelect"
-                  class="form-control"
-                  aria-label="Select product for overrides"
-                >
-                  <option value="">-- Select Product --</option>
-                </select>
+                <label for="ovProductSearchInput">Product</label>
+                <div class="erp-combobox">
+                  <input
+                    id="ovProductSearchInput"
+                    class="form-control"
+                    type="text"
+                    placeholder="Type to search product..."
+                    autocomplete="off"
+                    aria-label="Search product for overrides"
+                  />
+                  <div
+                    id="ovProductSearchResults"
+                    class="erp-combobox-results hidden"
+                    role="listbox"
+                    aria-label="Product search results"
+                  ></div>
+                  <select
+                    id="ovProductSelect"
+                    class="form-control erp-combobox-native"
+                    aria-label="Select product for overrides"
+                  >
+                    <option value="">-- Select Product --</option>
+                  </select>
+                </div>
               </div>
             </div>
           </div>
@@ -1969,14 +2243,30 @@
             </div>
             <div class="form-row">
               <div class="form-group">
-                <label for="epProductSelect">Product</label>
-                <select
-                  id="epProductSelect"
-                  class="form-control"
-                  aria-label="Select product for effective preview"
-                >
-                  <option value="">-- Select Product --</option>
-                </select>
+                <label for="epProductSearchInput">Product</label>
+                <div class="erp-combobox">
+                  <input
+                    id="epProductSearchInput"
+                    class="form-control"
+                    type="text"
+                    placeholder="Type to search product..."
+                    autocomplete="off"
+                    aria-label="Search product for effective preview"
+                  />
+                  <div
+                    id="epProductSearchResults"
+                    class="erp-combobox-results hidden"
+                    role="listbox"
+                    aria-label="Product search results"
+                  ></div>
+                  <select
+                    id="epProductSelect"
+                    class="form-control erp-combobox-native"
+                    aria-label="Select product for effective preview"
+                  >
+                    <option value="">-- Select Product --</option>
+                  </select>
+                </div>
               </div>
             </div>
           </div>
@@ -2310,6 +2600,183 @@
           <button type="button" id="ovModalSave" class="btn-primary">
             <span class="btn-spinner"></span>
             <span id="ovModalSaveLabel">Save Override</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- BASE SPEC LINE EDIT MODAL -->
+    <div
+      class="bs-line-modal-backdrop hidden"
+      id="bsLineModal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="bsLineModalTitle"
+    >
+      <div class="bs-line-modal">
+        <div class="bs-line-modal-header">
+          <span class="bs-line-modal-title" id="bsLineModalTitle"
+            >Edit Specification Line</span
+          >
+          <button
+            type="button"
+            class="bs-line-modal-close"
+            id="bsLineModalClose"
+            aria-label="Close"
+          >
+            &times;
+          </button>
+        </div>
+        <div class="bs-line-modal-body">
+          <!-- Context bar: test name · method -->
+          <div class="bs-line-ctx-bar" id="bsLineModalCtxBar">--</div>
+
+          <!-- Spec Type -->
+          <div class="form-group">
+            <label for="bsLineModalSpecType"
+              >Spec Type <span style="color: #ef4444">*</span></label
+            >
+            <select id="bsLineModalSpecType" class="form-control"></select>
+          </div>
+
+          <!-- RANGE / NMT / NLT: min + max pair -->
+          <div class="bs-line-dyn-row hidden" id="bsLineModalMinMaxRow">
+            <div class="form-group">
+              <label for="bsLineModalMin" id="bsLineModalMinLabel"
+                >Min (NLT)</label
+              >
+              <input
+                type="number"
+                id="bsLineModalMin"
+                class="form-control"
+                step="any"
+                placeholder="e.g. 95.0"
+              />
+            </div>
+            <div class="form-group">
+              <label for="bsLineModalMax" id="bsLineModalMaxLabel"
+                >Max (NMT)</label
+              >
+              <input
+                type="number"
+                id="bsLineModalMax"
+                class="form-control"
+                step="any"
+                placeholder="e.g. 105.0"
+              />
+            </div>
+          </div>
+
+          <!-- EXACT_NUMERIC -->
+          <div class="form-group hidden" id="bsLineModalExactRow">
+            <label for="bsLineModalExact"
+              >Exact Value <span style="color: #ef4444">*</span></label
+            >
+            <input
+              type="number"
+              id="bsLineModalExact"
+              class="form-control"
+              step="any"
+              placeholder="e.g. 7.0"
+            />
+          </div>
+
+          <!-- TEXT -->
+          <div class="form-group hidden" id="bsLineModalTextRow">
+            <label for="bsLineModalText"
+              >Text Value <span style="color: #ef4444">*</span></label
+            >
+            <input
+              type="text"
+              id="bsLineModalText"
+              class="form-control"
+              placeholder="e.g. Complies with Ph.Eur."
+            />
+          </div>
+
+          <!-- PASS_FAIL -->
+          <div class="form-group hidden" id="bsLineModalPassFailRow">
+            <label for="bsLineModalPassFail"
+              >Expected Result <span style="color: #ef4444">*</span></label
+            >
+            <select id="bsLineModalPassFail" class="form-control">
+              <option value="PASS">Pass</option>
+              <option value="FAIL">Fail</option>
+              <option value="COMPLIES">Complies</option>
+              <option value="NMT">Not More Than</option>
+              <option value="NLT">Not Less Than</option>
+            </select>
+          </div>
+
+          <!-- Display Text -->
+          <div class="form-group">
+            <label for="bsLineModalDisplayText">
+              Display Text
+              <span
+                style="
+                  font-size: 11px;
+                  font-weight: 400;
+                  color: var(--muted, #6b7280);
+                "
+                >(auto-generated · edit to override)</span
+              >
+            </label>
+            <input
+              type="text"
+              id="bsLineModalDisplayText"
+              class="form-control"
+              placeholder="Auto-generated from spec values"
+            />
+            <div style="margin-top: 6px">
+              <div
+                class="bs-line-display-preview"
+                id="bsLineModalDisplayPreview"
+              >
+                —
+              </div>
+            </div>
+          </div>
+
+          <!-- Active -->
+          <div
+            class="form-group"
+            style="
+              flex-direction: row;
+              align-items: center;
+              gap: 10px;
+              display: flex;
+            "
+          >
+            <input
+              type="checkbox"
+              id="bsLineModalActive"
+              style="
+                width: 16px;
+                height: 16px;
+                accent-color: var(--primary, #2563eb);
+                cursor: pointer;
+              "
+            />
+            <label
+              for="bsLineModalActive"
+              style="margin: 0; font-weight: 600; cursor: pointer"
+              >Active (included in effective spec)</label
+            >
+          </div>
+
+          <!-- Error banner -->
+          <div
+            class="spec-info-banner hidden"
+            id="bsLineModalError"
+            role="alert"
+          ></div>
+        </div>
+        <div class="bs-line-modal-footer">
+          <button type="button" class="btn-secondary" id="bsLineModalCancel">
+            Cancel
+          </button>
+          <button type="button" class="btn-primary" id="bsLineModalApply">
+            Apply
           </button>
         </div>
       </div>

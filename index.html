@@ -2328,40 +2328,78 @@
             String(row?.moduleKey || "").toLowerCase() ===
             "product-shelf-life-manager",
         );
-        if (hasProductShelfLife) return rows;
+        const hasStaffDirectory = rows.some(
+          (row) =>
+            String(row?.moduleKey || "").toLowerCase() ===
+            "staff-directory-manager",
+        );
 
         const sections = Array.isArray(sectionRows) ? sectionRows : [];
-        const preferredSection =
-          sections.find((section) =>
-            /lims|laboratory|lab\s*master/i.test(
-              `${section?.label || ""} ${section?.key || ""}`,
-            ),
-          ) ||
-          sections.find((section) =>
-            /product|reference|master/i.test(
-              `${section?.label || ""} ${section?.key || ""}`,
-            ),
-          ) ||
-          sections.find((section) =>
-            /quality|qc|lab/i.test(
-              `${section?.label || ""} ${section?.key || ""}`,
-            ),
-          ) ||
-          null;
 
-        rows.push({
-          moduleKey: "product-shelf-life-manager",
-          targetKey: "module:product-shelf-life-manager",
-          label: "Product Shelf Life",
-          description:
-            "Manage product shelf-life versions used by LIMS / COA expiry logic.",
-          sectionKey: preferredSection?.key || "laboratory-masters",
-          sectionLabel: preferredSection?.label || "Laboratory Masters",
-          sortOrder: 9998,
-          minNavMode: "view",
-          routePath: "public/shared/product-shelf-life-manager.html",
-          clientKey: "electron",
-        });
+        // Inject Product Shelf Life if not present
+        if (!hasProductShelfLife) {
+          const preferredSection =
+            sections.find((section) =>
+              /lims|laboratory|lab\s*master/i.test(
+                `${section?.label || ""} ${section?.key || ""}`,
+              ),
+            ) ||
+            sections.find((section) =>
+              /product|reference|master/i.test(
+                `${section?.label || ""} ${section?.key || ""}`,
+              ),
+            ) ||
+            sections.find((section) =>
+              /quality|qc|lab/i.test(
+                `${section?.label || ""} ${section?.key || ""}`,
+              ),
+            ) ||
+            null;
+
+          rows.push({
+            moduleKey: "product-shelf-life-manager",
+            targetKey: "module:product-shelf-life-manager",
+            label: "Product Shelf Life",
+            description:
+              "Manage product shelf-life versions used by LIMS / COA expiry logic.",
+            sectionKey: preferredSection?.key || "laboratory-masters",
+            sectionLabel: preferredSection?.label || "Laboratory Masters",
+            sortOrder: 9998,
+            minNavMode: "view",
+            routePath: "public/shared/product-shelf-life-manager.html",
+            clientKey: "electron",
+          });
+        }
+
+        // Inject Staff Directory Manager if not present
+        if (!hasStaffDirectory) {
+          const hrSection =
+            sections.find((section) =>
+              /hr|human\s*resource|staff/i.test(
+                `${section?.label || ""} ${section?.key || ""}`,
+              ),
+            ) ||
+            sections.find((section) =>
+              /admin|system|integrat/i.test(
+                `${section?.label || ""} ${section?.key || ""}`,
+              ),
+            ) ||
+            null;
+
+          rows.push({
+            moduleKey: "staff-directory-manager",
+            targetKey: "module:staff-directory-manager",
+            label: "Staff Directory",
+            description:
+              "View staff details used across workflow access, laboratory operations, and ERP modules.",
+            sectionKey: hrSection?.key || "admin-masters",
+            sectionLabel: hrSection?.label || "System & Admin",
+            sortOrder: 9997,
+            minNavMode: "view",
+            routePath: "public/shared/staff-directory-manager.html",
+            clientKey: "electron",
+          });
+        }
 
         return rows;
       }
