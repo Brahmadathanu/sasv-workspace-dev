@@ -54,6 +54,10 @@ const pmModalCancelBtn = document.getElementById("pmModalCancelBtn");
 // ── Test Lines tab
 const tlSectionTitle = document.getElementById("tlSectionTitle");
 const tlProtocolSelect = document.getElementById("tlProtocolSelect");
+const tlProtocolSearchInput = document.getElementById("tlProtocolSearchInput");
+const tlProtocolSearchResults = document.getElementById(
+  "tlProtocolSearchResults",
+);
 const tlAddLineBtn = document.getElementById("tlAddLineBtn");
 const tlContextStrip = document.getElementById("tlContextStrip");
 const tlCtxCode = document.getElementById("tlCtxCode");
@@ -77,7 +81,13 @@ const fmFormTitle = document.getElementById("fmFormTitle");
 const fmFormBanner = document.getElementById("fmFormBanner");
 const fmFamilyLabel = document.getElementById("fmFamilyLabel");
 const fmFamilySelect = document.getElementById("fmFamilySelect");
+const fmFamilySearchInput = document.getElementById("fmFamilySearchInput");
+const fmFamilySearchResults = document.getElementById("fmFamilySearchResults");
 const fmProtocolSelect = document.getElementById("fmProtocolSelect");
+const fmProtocolSearchInput = document.getElementById("fmProtocolSearchInput");
+const fmProtocolSearchResults = document.getElementById(
+  "fmProtocolSearchResults",
+);
 const fmRemarks = document.getElementById("fmRemarks");
 const fmIsActive = document.getElementById("fmIsActive");
 const fmSaveBtn = document.getElementById("fmSaveBtn");
@@ -90,6 +100,10 @@ const fmThFamily = document.getElementById("fmThFamily");
 
 // ── Usage Preview tab
 const upProtocolSelect = document.getElementById("upProtocolSelect");
+const upProtocolSearchInput = document.getElementById("upProtocolSearchInput");
+const upProtocolSearchResults = document.getElementById(
+  "upProtocolSearchResults",
+);
 const upSummaryStrip = document.getElementById("upSummaryStrip");
 const upMappedCount = document.getElementById("upMappedCount");
 const upCoveredCount = document.getElementById("upCoveredCount");
@@ -178,6 +192,7 @@ function init() {
   homeBtn.addEventListener("click", () => Platform.goHome());
   wireSubjectPills();
   wireTabStrip();
+  wireSearchableSelectComboboxes();
   wirePmForm();
   wireTlTab();
   wireFmTab();
@@ -427,8 +442,10 @@ function selectProtocol(id) {
 /** Set select value to currentProtocolId if that option already exists. */
 function _syncProtocolSelectValue(selectEl) {
   if (!currentProtocolId) return;
-  if (selectEl.querySelector(`option[value="${currentProtocolId}"]`))
+  if (selectEl.querySelector(`option[value="${currentProtocolId}"]`)) {
     selectEl.value = String(currentProtocolId);
+    syncSearchInputFromSelect(selectEl);
+  }
 }
 
 function populatePmForm(proto) {
@@ -1553,10 +1570,209 @@ function populateSelect(selectEl, items, valueKey, labelFn, placeholder) {
           `<option value="${esc(String(item[valueKey]))}">${esc(fn(item))}</option>`,
       )
       .join("");
+  syncSearchInputFromSelect(selectEl);
 }
 
 function resetSelect(selectEl, placeholder) {
   selectEl.innerHTML = `<option value="">${placeholder ?? "-- Select --"}</option>`;
+  syncSearchInputFromSelect(selectEl);
+}
+
+function getSearchableBinding(selectEl) {
+  if (selectEl === tlProtocolSelect) {
+    return {
+      inputEl: tlProtocolSearchInput,
+      resultsEl: tlProtocolSearchResults,
+    };
+  }
+  if (selectEl === fmFamilySelect) {
+    return { inputEl: fmFamilySearchInput, resultsEl: fmFamilySearchResults };
+  }
+  if (selectEl === fmProtocolSelect) {
+    return {
+      inputEl: fmProtocolSearchInput,
+      resultsEl: fmProtocolSearchResults,
+    };
+  }
+  if (selectEl === upProtocolSelect) {
+    return {
+      inputEl: upProtocolSearchInput,
+      resultsEl: upProtocolSearchResults,
+    };
+  }
+  return null;
+}
+
+function wireSearchableSelectComboboxes() {
+  [
+    tlProtocolSelect,
+    fmFamilySelect,
+    fmProtocolSelect,
+    upProtocolSelect,
+  ].forEach((selectEl) => {
+    const binding = getSearchableBinding(selectEl);
+    if (!binding?.inputEl || !binding?.resultsEl || !selectEl) return;
+    const { inputEl, resultsEl } = binding;
+
+    inputEl.addEventListener("focus", async () => {
+      await ensureSearchOptionsLoaded(selectEl);
+      renderSearchResults(selectEl, inputEl.value);
+    });
+
+    inputEl.addEventListener("input", async () => {
+      const q = inputEl.value.trim();
+      if (!q && selectEl.value) {
+        selectEl.value = "";
+        selectEl.dispatchEvent(new Event("change", { bubbles: false }));
+      }
+      await ensureSearchOptionsLoaded(selectEl);
+      renderSearchResults(selectEl, q);
+    });
+
+    inputEl.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        resultsEl.classList.add("hidden");
+        return;
+      }
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        if (resultsEl.classList.contains("hidden")) {
+          renderSearchResults(selectEl, inputEl.value);
+        }
+        const items = [...resultsEl.querySelectorAll(".erp-combobox-item")];
+        if (!items.length) return;
+        const currentIndex = Number(resultsEl.dataset.activeIndex ?? "-1");
+        const nextIndex =
+          e.key === "ArrowDown"
+            ? Math.min(currentIndex + 1, items.length - 1)
+            : currentIndex <= 0
+              ? 0
+              : currentIndex - 1;
+        setSearchActiveIndex(resultsEl, nextIndex);
+        items[nextIndex]?.scrollIntoView({ block: "nearest" });
+        return;
+      }
+      if (e.key !== "Enter") return;
+      const items = [...resultsEl.querySelectorAll(".erp-combobox-item")];
+      if (!items.length) return;
+      const activeIndex = Number(resultsEl.dataset.activeIndex ?? "-1");
+      const targetBtn = activeIndex >= 0 ? items[activeIndex] : items[0];
+      if (!targetBtn) return;
+      e.preventDefault();
+      targetBtn.click();
+    });
+
+    inputEl.addEventListener("blur", () => {
+      window.setTimeout(() => resultsEl.classList.add("hidden"), 120);
+    });
+
+    selectEl.addEventListener("change", () => {
+      syncSearchInputFromSelect(selectEl);
+    });
+  });
+}
+
+async function ensureSearchOptionsLoaded(selectEl) {
+  if (!currentSubject) return;
+  if (selectEl.options.length > 1) return;
+
+  if (selectEl === tlProtocolSelect) {
+    await populateTlProtocolSelect();
+    return;
+  }
+
+  if (selectEl === fmProtocolSelect) {
+    await populateFmProtocolSelect();
+    return;
+  }
+
+  if (selectEl === fmFamilySelect) {
+    await loadFmFamilies();
+    return;
+  }
+
+  if (selectEl === upProtocolSelect) {
+    await populateUpProtocolSelect();
+  }
+}
+
+function renderSearchResults(selectEl, query) {
+  const binding = getSearchableBinding(selectEl);
+  if (!binding?.resultsEl || !binding?.inputEl) return;
+  const { resultsEl, inputEl } = binding;
+
+  const options = [...selectEl.options].filter((o) => o.value !== "");
+  const needle = String(query ?? "")
+    .trim()
+    .toLowerCase();
+  const filtered = needle
+    ? options.filter((o) => o.text.toLowerCase().includes(needle))
+    : options.slice(0, 40);
+  const rows = filtered.slice(0, 120);
+
+  if (!rows.length) {
+    resultsEl.innerHTML =
+      '<div class="erp-combobox-empty">No matching records</div>';
+    resultsEl.dataset.activeIndex = "-1";
+    resultsEl.classList.remove("hidden");
+    return;
+  }
+
+  resultsEl.innerHTML = rows
+    .map(
+      (opt) =>
+        `<button type="button" class="erp-combobox-item" data-id="${esc(String(opt.value))}">${esc(opt.text)}</button>`,
+    )
+    .join("");
+
+  resultsEl.querySelectorAll(".erp-combobox-item").forEach((btn) => {
+    btn.addEventListener("mousedown", (e) => e.preventDefault());
+    btn.addEventListener("mouseenter", () => {
+      const items = [...resultsEl.querySelectorAll(".erp-combobox-item")];
+      setSearchActiveIndex(resultsEl, items.indexOf(btn));
+    });
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.id;
+      const row = rows.find((x) => String(x.value) === id);
+      if (!row) return;
+      inputEl.value = row.text;
+      selectEl.value = String(row.value);
+      resultsEl.classList.add("hidden");
+      selectEl.dispatchEvent(new Event("change", { bubbles: false }));
+    });
+  });
+
+  const selectedIdx = rows.findIndex(
+    (x) => String(x.value) === String(selectEl.value),
+  );
+  setSearchActiveIndex(resultsEl, selectedIdx >= 0 ? selectedIdx : 0);
+  resultsEl.classList.remove("hidden");
+}
+
+function setSearchActiveIndex(resultsEl, idx) {
+  const items = [...resultsEl.querySelectorAll(".erp-combobox-item")];
+  const safeIdx = idx >= 0 && idx < items.length ? idx : -1;
+  resultsEl.dataset.activeIndex = String(safeIdx);
+  items.forEach((item, i) => {
+    item.classList.toggle("active", i === safeIdx);
+    item.setAttribute("aria-selected", i === safeIdx ? "true" : "false");
+  });
+}
+
+function syncSearchInputFromSelect(selectEl) {
+  const binding = getSearchableBinding(selectEl);
+  if (!binding?.inputEl || !binding?.resultsEl) return;
+  const { inputEl, resultsEl } = binding;
+
+  if (!selectEl.value) {
+    inputEl.value = "";
+    resultsEl.classList.add("hidden");
+    return;
+  }
+
+  const selectedText = selectEl.options[selectEl.selectedIndex]?.text ?? "";
+  inputEl.value = selectedText;
+  resultsEl.classList.add("hidden");
 }
 
 function showBanner(el, type, message) {

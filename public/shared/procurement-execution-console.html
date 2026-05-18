@@ -557,6 +557,56 @@
         padding-top: 10px;
         flex: 1;
       }
+      .table-toolbar {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 12px;
+        background: var(--card, var(--panel-bg, #fff));
+      }
+      .table-toolbar.sticky {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+      }
+      .table-toolbar .left,
+      .table-toolbar .right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      #prLinesTable {
+        border-collapse: separate;
+        border-spacing: 0;
+      }
+      #prLinesTable thead th {
+        position: sticky;
+        top: 64px;
+        z-index: 1;
+        background: var(--panel-bg, #fff);
+      }
+      .pr-line-inline-input {
+        width: 100%;
+        min-width: 88px;
+        max-width: 130px;
+        padding: 6px 8px;
+        border-radius: 8px;
+      }
+      .pr-line-inline-input.reason {
+        min-width: 180px;
+        max-width: 100%;
+      }
+      .pr-line-inline-input.is-saving {
+        opacity: 0.75;
+        background: rgba(59, 130, 246, 0.12);
+        border-color: rgba(59, 130, 246, 0.5);
+      }
+      #prLineLockPill {
+        display: none;
+      }
       .modal h3 {
         margin: 0 0 10px;
       }
@@ -592,6 +642,48 @@
       }
       .actions .redundant-close {
         display: none !important;
+      }
+      .inline-item-search-wrap {
+        position: relative;
+      }
+      .inline-item-results {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        margin: 2px 0 0;
+        padding: 0;
+        list-style: none;
+        background: var(--panel-bg, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-top: none;
+        border-radius: 0 0 6px 6px;
+        max-height: 200px;
+        overflow-y: auto;
+        z-index: 10000;
+        display: none;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+      .inline-item-results.show {
+        display: block;
+      }
+      .inline-item-results li {
+        padding: 8px 10px;
+        cursor: pointer;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+        font-size: 13px;
+      }
+      .inline-item-results li:last-child {
+        border-bottom: none;
+      }
+      .inline-item-results li:hover,
+      .inline-item-results li[aria-selected="true"] {
+        background: rgba(0, 90, 141, 0.06);
+      }
+      .inline-item-results li.no-results {
+        color: #888;
+        cursor: default;
+        font-style: italic;
       }
       .kv-table {
         width: 100%;
@@ -721,6 +813,20 @@
       }
       .pec-filter-drawer.open {
         display: block;
+      }
+      .pec-filter-drawer-title {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted, #6b7280);
+        margin-bottom: 8px;
+      }
+      .pec-filter-label {
+        font-size: 11px;
+        color: var(--muted, #6b7280);
+        display: block;
+        margin-bottom: 4px;
       }
       .pec-filter-section {
         margin-bottom: 10px;
@@ -2387,6 +2493,29 @@
               </svg>
             </button>
             <button
+              id="btnPrRebuildFromMrp"
+              type="button"
+              class="icon-btn primary"
+              title="Rebuild from MRP"
+              aria-label="Rebuild from MRP"
+              style="display: none"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M21 12a9 9 0 1 1-3-6.7" />
+                <polyline points="21 3 21 9 15 9" />
+              </svg>
+            </button>
+            <button
               id="btnPrCreateIndent"
               type="button"
               class="icon-btn primary"
@@ -2439,6 +2568,151 @@
               style="font-size: 12px; width: 100%; margin-top: 2px"
             ></div>
           </div>
+          <div class="table-toolbar sticky">
+            <div
+              class="pr-lines-toolbar-erp"
+              style="
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                width: 100%;
+                flex-wrap: wrap;
+              "
+            >
+              <input
+                id="prLineSearch"
+                class="erp-search-input"
+                type="search"
+                placeholder="Search items (name/code/category)..."
+                style="flex: 1 1 0; min-width: 180px; max-width: 340px"
+              />
+              <div class="pec-filter-wrap" id="prLineFilterWrap">
+                <button
+                  id="prLineFilterBtn"
+                  class="pec-filter-btn"
+                  title="Filter lines"
+                  aria-label="Filter lines"
+                  aria-haspopup="true"
+                  aria-expanded="false"
+                  type="button"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <polygon
+                      points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"
+                    />
+                  </svg>
+                  <span
+                    id="prLineFilterBadge"
+                    class="pec-filter-badge"
+                    style="display: none"
+                  ></span>
+                </button>
+                <div
+                  id="prLineFilterDrawer"
+                  class="pec-filter-drawer"
+                  role="dialog"
+                  aria-label="PR line filter"
+                >
+                  <div class="pec-filter-drawer-title">Filter lines</div>
+                  <label class="pec-filter-label" for="prLineFilterSelect"
+                    >Show</label
+                  >
+                  <select id="prLineFilterSelect" class="pec-filter-select">
+                    <option value="all">All lines</option>
+                    <option value="edited_only">Edited only</option>
+                    <option value="zero_suggested">System suggested = 0</option>
+                    <option value="jit_only">RM – JIT only</option>
+                    <option value="normal_only">RM – Normal only</option>
+                  </select>
+                </div>
+              </div>
+              <span
+                id="prLineLockPill"
+                class="pill"
+                style="display: none; margin-left: 8px"
+                >Locked (Active PR)</span
+              >
+              <div
+                class="pr-lines-paging-group"
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 6px;
+                  margin-left: auto;
+                "
+              >
+                <label class="muted" for="prLinePageSize">Rows</label>
+                <select id="prLinePageSize" style="min-width: 48px">
+                  <option value="25">25</option>
+                  <option value="50" selected>50</option>
+                  <option value="100">100</option>
+                </select>
+                <button
+                  id="prLinePrev"
+                  type="button"
+                  class="icon-btn ghost"
+                  title="Previous page"
+                  aria-label="Previous page"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                </button>
+                <span
+                  id="prLineRange"
+                  class="muted"
+                  style="
+                    font-size: 0.8rem;
+                    min-width: 72px;
+                    text-align: center;
+                    font-variant-numeric: tabular-nums;
+                    letter-spacing: 0.01em;
+                  "
+                ></span>
+                <button
+                  id="prLineNext"
+                  type="button"
+                  class="icon-btn ghost"
+                  title="Next page"
+                  aria-label="Next page"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
           <div id="prLinesEmpty" class="muted">No lines for this PR.</div>
           <table id="prLinesTable" style="display: none">
             <thead>
@@ -2449,13 +2723,59 @@
                 <th>Sys. Sug.</th>
                 <th>Requested</th>
                 <th>Delta</th>
-                <th>Final</th>
+                <th>Final Qty</th>
                 <th>Reason</th>
-                <th></th>
               </tr>
             </thead>
             <tbody id="prLinesTbody"></tbody>
           </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PR Rebuild modal -->
+    <div class="modal-backdrop" id="prRebuildModalBackdrop" aria-hidden="true">
+      <div class="modal" style="max-width: 420px">
+        <div class="modal-header page-header">
+          <h3 style="margin: 0">Rebuild PR from MRP</h3>
+          <button
+            id="btnPrRebuildClose"
+            class="modal-close-btn"
+            aria-label="Close"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="muted" id="prRebuildNote" style="margin-bottom: 10px">
+            Rebuild PR suggestions from MRP. Safe mode keeps manual edits.
+          </div>
+          <div class="form-group full-col">
+            <label>Mode</label>
+            <select id="prRebuildMode">
+              <option value="safe" selected>
+                Safe rebuild (preserve manual edits)
+              </option>
+              <option value="reset">
+                Full reset (overwrite quantities, clear manual fields)
+              </option>
+            </select>
+          </div>
+        </div>
+        <div class="actions">
+          <button id="btnPrRebuildCancel">Cancel</button>
+          <button id="btnPrRebuildConfirm">Rebuild</button>
         </div>
       </div>
     </div>
@@ -2505,6 +2825,16 @@
                 <option value="1">RM</option>
                 <option value="2">PLM</option>
                 <option value="5">IND</option>
+              </select>
+            </div>
+            <div class="form-group" id="prRmScopeRow" style="display: none">
+              <label>RM Scope</label>
+              <select id="prRmScope">
+                <option value="all">RM (All)</option>
+                <option value="normal" selected>
+                  RM (Normal — exclude JIT)
+                </option>
+                <option value="jit">RM (JIT Only)</option>
               </select>
             </div>
             <div class="form-group full-col">
@@ -2592,40 +2922,26 @@
                 <option value="5">IND</option>
               </select>
             </div>
-            <div class="form-group full-col">
-              <label>Stock Item <span style="color: red">*</span></label>
-              <div
-                id="prAddLineItemDisplay"
-                style="
-                  display: flex;
-                  align-items: center;
-                  gap: 8px;
-                  padding: 8px 10px;
-                  border-radius: 6px;
-                  border: 1px solid var(--border, #e5e7eb);
-                  background: rgba(0, 0, 0, 0.02);
-                  min-height: 36px;
-                "
+            <div class="form-group full-col inline-item-search-wrap">
+              <label for="prAddLineItemSearch"
+                >Stock Item <span style="color: red">*</span></label
               >
-                <span id="prAddLineItemText" class="muted" style="flex: 1"
-                  >None selected</span
-                >
-                <button
-                  id="prAddLineItemChange"
-                  type="button"
-                  style="
-                    background: transparent;
-                    border: none;
-                    cursor: pointer;
-                    color: var(--primary, #005a8d);
-                    font-size: 12px;
-                    padding: 0;
-                    font-weight: 500;
-                  "
-                >
-                  Change
-                </button>
-              </div>
+              <input
+                id="prAddLineItemSearch"
+                type="text"
+                placeholder="Type to search stock items…"
+                autocomplete="off"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-controls="prAddLineItemResults"
+                aria-expanded="false"
+              />
+              <ul
+                id="prAddLineItemResults"
+                class="inline-item-results"
+                role="listbox"
+                aria-label="Stock item search results"
+              ></ul>
             </div>
             <div class="form-group">
               <label>UOM</label>

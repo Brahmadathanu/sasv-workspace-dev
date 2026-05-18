@@ -1791,24 +1791,25 @@ let __advExInitDone = false;
 function renderRowModal(row) {
   if (!row) return;
 
-  // ── Product summary card (header area) ──────────────────────────────────────
+  // ── Item identity header ────────────────────────────────────────────────────
   if (elRowHeader) {
-    const pillHtml =
-      row.pack_size || row.uom
-        ? `<span class="sc-row-pill">${escapeHtml(String(row.pack_size ?? ""))}${row.uom ? " " + escapeHtml(row.uom) : ""}</span>`
-        : "";
+    const itemName = escapeHtml(row.item || row.item_name || "");
+    const packText = [row.pack_size, row.uom].filter(Boolean).join(" ");
+    const pillHtml = packText
+      ? `<span class="sc-row-pill">${escapeHtml(packText)}</span>`
+      : "";
     const skuHtml = row.sku_id
-      ? `<span class="sc-row-muted">SKU: ${escapeHtml(String(row.sku_id))}</span>`
+      ? `<span class="sc-row-muted">SKU\u202f${escapeHtml(String(row.sku_id))}</span>`
       : "";
     elRowHeader.innerHTML =
-      `<span class="sc-row-title">${escapeHtml(row.item || row.item_name || "")}</span>` +
-      (pillHtml ? ` ${pillHtml}` : "") +
-      (skuHtml
-        ? `<br><small class="sc-row-muted">${skuHtml.replace(/<[^>]+>/g, "")}</small>`
-        : "");
+      `<div class="sc-row-title-line">` +
+      `<span class="sc-row-title">${itemName}</span>` +
+      pillHtml +
+      `</div>` +
+      (skuHtml ? `<div class="sc-row-subline">${skuHtml}</div>` : "");
   }
 
-  // ── Classification chips ────────────────────────────────────────────────────
+  // ── Classification breadcrumb chips ────────────────────────────────────────
   if (elRowClassif) {
     const parts = [
       row.category_name,
@@ -1816,95 +1817,118 @@ function renderRowModal(row) {
       row.product_group_name,
       row.sub_group_name,
     ].filter(Boolean);
-    if (parts.length) {
-      elRowClassif.innerHTML =
-        `<span class="sc-row-chip-list">` +
+    elRowClassif.innerHTML = parts.length
+      ? `<span class="sc-row-chip-list">` +
         parts
           .map((p) => `<span class="sc-row-chip">${escapeHtml(p)}</span>`)
           .join("") +
-        `</span>`;
-    } else {
-      elRowClassif.innerHTML = "";
-    }
+        `</span>`
+      : "";
   }
 
-  // ── Left card: Stock + Demand ────────────────────────────────────────────────
+  // ── Shared helpers ──────────────────────────────────────────────────────────
+  function metricRow(label, val) {
+    return (
+      `<div class="sc-row-metric">` +
+      `<span class="sc-row-metric-label">${escapeHtml(label)}</span>` +
+      `<span class="sc-row-metric-value">${val}</span>` +
+      `</div>`
+    );
+  }
+
+  function totalRow(label, val) {
+    return (
+      `<div class="sc-row-metric sc-row-metric--total">` +
+      `<span class="sc-row-metric-label">${escapeHtml(label)}</span>` +
+      `<span class="sc-row-metric-value">${val}</span>` +
+      `</div>`
+    );
+  }
+
+  function section(title, bodyHtml, totalHtml) {
+    return (
+      `<section class="sc-row-section">` +
+      `<div class="sc-row-card-title">${escapeHtml(title)}</div>` +
+      `<div class="sc-row-card-grid">${bodyHtml}</div>` +
+      totalHtml +
+      `</section>`
+    );
+  }
+
+  // ── Left card: Stock + Demand + MOS ─────────────────────────────────────────
   if (elRowQty) {
     const stIK = Number(row.stock_ik) || 0;
     const stKKD = Number(row.stock_kkd) || 0;
     const stOK = Number(row.stock_ok) || 0;
     const stockOverall = stIK + stKKD + stOK;
+
     const fIK = Number(row.forecast_ik) || 0;
     const fKKD = Number(row.forecast_kkd) || 0;
     const fOK = Number(row.forecast_ok) || 0;
     const forecastOverall = fIK + fKKD + fOK;
-    const mosIk = fmt3(row.mos_ik);
-    const mosKkd = fmt3(row.mos_kkd);
-    const mosOk = fmt3(row.mos_ok);
-    const mosOv = fmt3(row.mos_overall);
-    function metricRow(label, val) {
-      return `<div class="sc-row-metric"><span class="sc-row-metric-label">${label}</span><span class="sc-row-metric-value">${val}</span></div>`;
-    }
+
     elRowQty.innerHTML =
-      `<div class="sc-row-card-title">Stock</div>` +
-      `<div class="sc-row-card-grid">` +
-      metricRow("IK", fmtInt(stIK)) +
-      metricRow("KKD", fmtInt(stKKD)) +
-      metricRow("OK", fmtInt(stOK)) +
-      `</div>` +
-      `<div class="sc-row-metric sc-row-metric--total"><span class="sc-row-metric-label">Overall</span><span class="sc-row-metric-value">${fmtInt(stockOverall)}</span></div>` +
-      `<div class="sc-row-card-sep"></div>` +
-      `<div class="sc-row-card-title">Demand</div>` +
-      `<div class="sc-row-card-grid">` +
-      metricRow("IK", fmtInt(fIK)) +
-      metricRow("KKD", fmtInt(fKKD)) +
-      metricRow("OK", fmtInt(fOK)) +
-      `</div>` +
-      `<div class="sc-row-metric sc-row-metric--total"><span class="sc-row-metric-label">Overall</span><span class="sc-row-metric-value">${fmtInt(forecastOverall)}</span></div>` +
-      `<div class="sc-row-card-sep"></div>` +
-      `<div class="sc-row-card-title">MOS</div>` +
-      `<div class="sc-row-card-grid">` +
-      metricRow("IK", mosIk) +
-      metricRow("KKD", mosKkd) +
-      metricRow("OK", mosOk) +
-      `</div>` +
-      `<div class="sc-row-metric sc-row-metric--total"><span class="sc-row-metric-label">Overall</span><span class="sc-row-metric-value">${mosOv}</span></div>`;
+      section(
+        "Stock",
+        metricRow("IK", fmtInt(stIK)) +
+          metricRow("KKD", fmtInt(stKKD)) +
+          metricRow("OK", fmtInt(stOK)),
+        totalRow("Overall", fmtInt(stockOverall)),
+      ) +
+      section(
+        "Demand",
+        metricRow("IK", fmtInt(fIK)) +
+          metricRow("KKD", fmtInt(fKKD)) +
+          metricRow("OK", fmtInt(fOK)),
+        totalRow("Overall", fmtInt(forecastOverall)),
+      ) +
+      section(
+        "MOS",
+        metricRow("IK", fmt3(row.mos_ik)) +
+          metricRow("KKD", fmt3(row.mos_kkd)) +
+          metricRow("OK", fmt3(row.mos_ok)),
+        totalRow("Overall", fmt3(row.mos_overall)),
+      );
   }
 
   // ── Right card: Value + Rate ─────────────────────────────────────────────────
   if (elRowValue) {
-    function metricRow2(label, val) {
-      return `<div class="sc-row-metric"><span class="sc-row-metric-label">${label}</span><span class="sc-row-metric-value">${val}</span></div>`;
-    }
     elRowValue.innerHTML =
-      `<div class="sc-row-card-title">Value</div>` +
-      `<div class="sc-row-card-grid">` +
-      metricRow2("IK", fmtINR(row.stock_value_ik)) +
-      metricRow2("KKD", fmtINR(row.stock_value_kkd)) +
-      metricRow2("OK", fmtINR(row.stock_value_ok)) +
-      `</div>` +
-      `<div class="sc-row-metric sc-row-metric--total"><span class="sc-row-metric-label">Overall</span><span class="sc-row-metric-value">${fmtINR(row.stock_value_overall)}</span></div>` +
-      `<div class="sc-row-card-sep"></div>` +
-      `<div class="sc-row-card-title">Rate</div>` +
-      `<div class="sc-row-card-grid">` +
-      metricRow2("IK", fmtRate(row.rate_ik)) +
-      metricRow2("KKD", fmtRate(row.rate_kkd)) +
-      metricRow2("OK", fmtRate(row.rate_ok)) +
-      `</div>` +
-      `<div class="sc-row-metric sc-row-metric--total"><span class="sc-row-metric-label">Overall</span><span class="sc-row-metric-value">${fmtRate(row.rate_overall)}</span></div>`;
+      section(
+        "Value",
+        metricRow("IK", fmtINR(row.stock_value_ik)) +
+          metricRow("KKD", fmtINR(row.stock_value_kkd)) +
+          metricRow("OK", fmtINR(row.stock_value_ok)),
+        totalRow("Overall", fmtINR(row.stock_value_overall)),
+      ) +
+      section(
+        "Rate",
+        metricRow("IK", fmtRate(row.rate_ik)) +
+          metricRow("KKD", fmtRate(row.rate_kkd)) +
+          metricRow("OK", fmtRate(row.rate_ok)),
+        totalRow("Overall", fmtRate(row.rate_overall)),
+      );
   }
 
-  // ── Footer: MRP + shade flag (null-safe) ─────────────────────────────────────
+  // ── Footer: MRP tokens + shade flag ─────────────────────────────────────────
   if (elRowFooter) {
-    const mrpParts = [];
-    if (row.mrp_ik != null) mrpParts.push(`MRP IK: ${fmtRate(row.mrp_ik)}`);
-    if (row.mrp_ok != null) mrpParts.push(`MRP OK: ${fmtRate(row.mrp_ok)}`);
-    const shadeStr = row.shade_flag ? "  ·  Shade" : "";
-    elRowFooter.textContent = mrpParts.length
-      ? mrpParts.join("  /  ") + shadeStr
-      : row.shade_flag
-        ? "Shade"
-        : "";
+    const footerParts = [];
+    if (row.mrp_ik != null) {
+      footerParts.push(
+        `<span class="sc-row-footer-token"><span>MRP IK:</span>\u00a0<strong>${fmtRate(row.mrp_ik)}</strong></span>`,
+      );
+    }
+    if (row.mrp_ok != null) {
+      footerParts.push(
+        `<span class="sc-row-footer-token"><span>MRP OK:</span>\u00a0<strong>${fmtRate(row.mrp_ok)}</strong></span>`,
+      );
+    }
+    if (row.shade_flag) {
+      footerParts.push(
+        `<span class="sc-row-footer-token"><strong>Shade</strong></span>`,
+      );
+    }
+    elRowFooter.innerHTML = footerParts.join("");
   }
 }
 

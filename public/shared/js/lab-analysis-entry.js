@@ -35,19 +35,23 @@
  *   )
  *   Returns: spec_profile_id (bigint) or null
  *
- *   fn_build_effective_rm_spec_for_item(
- *     p_stock_item_id,             -- bigint
- *     p_as_of_date,                -- date  (ISO string YYYY-MM-DD)
- *     p_remarks                    -- text
+ *   fn_preview_effective_fg_spec_for_product(
+ *     p_product_id,                -- bigint
+ *     p_as_of_date                 -- date  (ISO string YYYY-MM-DD)
  *   )
- *   Returns: scalar spec_profile_id (bigint)
+ *   Returns: json { ok, message, line_count, lines[] }
  *
- *   fn_build_effective_pm_spec_for_item(
+ *   fn_preview_effective_rm_spec_for_item(
  *     p_stock_item_id,             -- bigint
- *     p_as_of_date,                -- date  (ISO string YYYY-MM-DD)
- *     p_remarks                    -- text
+ *     p_as_of_date                 -- date  (ISO string YYYY-MM-DD)
  *   )
- *   Returns: scalar spec_profile_id (bigint)
+ *   Returns: json { ok, message, line_count, lines[] }
+ *
+ *   fn_preview_effective_pm_spec_for_item(
+ *     p_stock_item_id,             -- bigint
+ *     p_as_of_date                 -- date  (ISO string YYYY-MM-DD)
+ *   )
+ *   Returns: json { ok, message, line_count, lines[] }
  *
  *   fn_receive_sample_and_create_analysis(
  *     p_user_id,                   -- uuid
@@ -71,7 +75,7 @@
  *   stock_item → inv_group (v_rm_pm_item_with_group)
  *             → protocol   (protocol_category_inv_group_map)
  *             → base spec  (spec_profile_inv_group_map)
- *             → eff. spec  (fn_build_effective_rm_spec_for_item)
+ *             → eff. preview (fn_preview_effective_rm_spec_for_item)
  * ─────────────────────────────────────────────────────────────────────────
  */
 
@@ -668,7 +672,7 @@ async function checkReadiness() {
 }
 
 // ── FG readiness check (product-group level) ──────────────────────────────────
-// Validates: product → product group → active protocol → active base spec
+// Validates: product → product group → active protocol → effective FG spec
 async function checkFgReadiness(productId) {
   // Reset FG readiness state
   fgReadiness = {
@@ -748,22 +752,48 @@ async function checkFgReadiness(productId) {
     fgReadiness.protocolCategoryId = protocolCategoryId;
     fgReadiness.protocolName = cat?.category_name ?? null;
 
-    // Step 3: check active FG base spec for the product group
-    const { data: smRows, error: smErr } = await labSupabase
-      .from("spec_profile_product_group_map")
-      .select("spec_profile_id")
-      .eq("product_group_id", grp.product_group_id)
-      .eq("is_active", true)
-      .limit(1);
+    // Step 3: resolve read-only effective FG preview (source of truth)
+    const { data: preview, error: specErr } = await labSupabase.rpc(
+      "fn_preview_effective_fg_spec_for_product",
+      {
+        p_product_id: Number(productId),
+        p_as_of_date: todayISO(),
+      },
+    );
+    if (specErr) throw specErr;
 
-    if (smErr) throw smErr;
-
-    const specProfileId = smRows?.[0]?.spec_profile_id ?? null;
-    if (!specProfileId) {
+    if (preview?.ok !== true) {
+      readinessOk.classList.add("hidden");
+      testPreview.classList.add("hidden");
+      testPreviewLoading.classList.add("hidden");
+      testPreviewTbody.innerHTML = "";
+      testPreviewEmpty.textContent =
+        preview?.message ||
+        "No effective FG specification could be resolved for this product.";
+      testPreviewEmpty.classList.remove("hidden");
       showFgNotReady(
-        "No active FG base specification exists for this product group.",
-        "Please generate a base spec in the Spec Profile Manager before starting analysis.",
+        preview?.message ||
+          "No effective FG specification could be resolved for this product.",
+        "Please confirm base spec and overrides in the Spec Profile Manager.",
       );
+      fgReadiness.specOk = false;
+      fgReadiness.ok = false;
+      return;
+    }
+
+    // FG preview: render canonical read-only effective lines
+    testPreview.classList.remove("hidden");
+    const rows = Array.isArray(preview?.lines) ? preview.lines : [];
+    const activeLineCount = renderEffectiveSpecPreviewRows(rows);
+
+    if (!activeLineCount || activeLineCount <= 0) {
+      readinessOk.classList.add("hidden");
+      showFgNotReady(
+        "Effective FG specification has no active test lines.",
+        "Please check the effective preview in the Spec Profile Manager before starting analysis.",
+      );
+      fgReadiness.specOk = false;
+      fgReadiness.ok = false;
       return;
     }
 
@@ -785,10 +815,6 @@ async function checkFgReadiness(productId) {
       name;
 
     readinessOk.classList.remove("hidden");
-
-    // FG preview: build effective spec from product, not raw protocol
-    testPreview.classList.remove("hidden");
-    await loadFgEffectiveSpecPreview(productId);
   } catch (err) {
     console.error("[lab-analysis-entry] checkFgReadiness error:", err);
     mappingLoading.classList.add("hidden");
@@ -890,6 +916,33 @@ async function checkInventoryReadiness(stockItemId) {
       return;
     }
 
+    // Step 4: resolve read-only effective RM preview
+    const { data: preview, error: previewErr } = await labSupabase.rpc(
+      "fn_preview_effective_rm_spec_for_item",
+      {
+        p_stock_item_id: Number(stockItemId),
+        p_as_of_date: todayISO(),
+      },
+    );
+    if (previewErr) throw previewErr;
+
+    const rows = Array.isArray(preview?.lines) ? preview.lines : [];
+    if (preview?.ok !== true || rows.length <= 0) {
+      readinessOk.classList.add("hidden");
+      testPreview.classList.remove("hidden");
+      renderEffectiveSpecPreviewRows(rows);
+      showInventoryNotReady(
+        preview?.ok === true
+          ? "Effective RM specification has no active test lines."
+          : preview?.message ||
+              "No effective RM specification could be resolved for this stock item.",
+        "Please check the effective preview in the Spec Profile Manager before starting analysis.",
+      );
+      rmReadiness.specOk = false;
+      rmReadiness.ok = false;
+      return;
+    }
+
     // All checks passed
     rmReadiness.specOk = true;
     rmReadiness.ok = true;
@@ -910,7 +963,7 @@ async function checkInventoryReadiness(stockItemId) {
 
     readinessOk.classList.remove("hidden");
     testPreview.classList.remove("hidden");
-    await loadInventoryEffectiveSpecPreview(stockItemId);
+    renderEffectiveSpecPreviewRows(rows);
   } catch (err) {
     console.error("[lab-analysis-entry] checkInventoryReadiness error:", err);
     mappingLoading.classList.add("hidden");
@@ -1003,6 +1056,33 @@ async function checkPmReadiness(stockItemId) {
       return;
     }
 
+    // Step 5: resolve read-only effective PM preview
+    const { data: preview, error: previewErr } = await labSupabase.rpc(
+      "fn_preview_effective_pm_spec_for_item",
+      {
+        p_stock_item_id: Number(stockItemId),
+        p_as_of_date: todayISO(),
+      },
+    );
+    if (previewErr) throw previewErr;
+
+    const rows = Array.isArray(preview?.lines) ? preview.lines : [];
+    if (preview?.ok !== true || rows.length <= 0) {
+      readinessOk.classList.add("hidden");
+      testPreview.classList.remove("hidden");
+      renderEffectiveSpecPreviewRows(rows);
+      showInventoryNotReady(
+        preview?.ok === true
+          ? "Effective PM specification has no active test lines."
+          : preview?.message ||
+              "No effective PM specification could be resolved for this stock item.",
+        "Please check the effective preview in the Spec Profile Manager before starting analysis.",
+      );
+      pmReadiness.specOk = false;
+      pmReadiness.ok = false;
+      return;
+    }
+
     // All checks passed
     pmReadiness.specOk = true;
     pmReadiness.ok = true;
@@ -1023,7 +1103,7 @@ async function checkPmReadiness(stockItemId) {
 
     readinessOk.classList.remove("hidden");
     testPreview.classList.remove("hidden");
-    await loadInventoryEffectiveSpecPreview(stockItemId);
+    renderEffectiveSpecPreviewRows(rows);
   } catch (err) {
     console.error("[lab-analysis-entry] checkPmReadiness error:", err);
     mappingLoading.classList.add("hidden");
@@ -1117,158 +1197,48 @@ function populateFgBatchDropdown(productId) {
   }
 }
 
-// ── FG effective-spec preview ─────────────────────────────────────────────────
-// Calls fn_build_effective_fg_spec_for_product and shows active spec lines.
-async function loadFgEffectiveSpecPreview(productId) {
+// ── Effective-spec preview row renderer (read-only RPC output) ──────────────
+function renderEffectiveSpecPreviewRows(rows) {
   testPreviewLoading.classList.remove("hidden");
   testPreviewEmpty.classList.add("hidden");
   testPreviewTbody.innerHTML = "";
+  const safeRows = Array.isArray(rows) ? rows : [];
 
-  try {
-    const { data: rpcData, error: rpcErr } = await labSupabase.rpc(
-      "fn_build_effective_fg_spec_for_product",
-      {
-        p_product_id: Number(productId),
-        p_as_of_date: todayISO(),
-        p_remarks: "Preview from analysis entry",
-      },
-    );
-    if (rpcErr) throw rpcErr;
+  testPreviewLoading.classList.add("hidden");
 
-    const resolvedProfileId = Number(rpcData);
-    if (!resolvedProfileId) {
-      testPreviewLoading.classList.add("hidden");
-      testPreviewEmpty.textContent =
-        "No effective spec could be resolved for this product.";
-      testPreviewEmpty.classList.remove("hidden");
-      return;
-    }
-
-    const { data: lines, error: linesErr } = await labSupabase
-      .from("v_spec_profile_detail")
-      .select(
-        "seq_no, test_name, method_name, display_text, spec_line_is_active",
-      )
-      .eq("spec_profile_id", resolvedProfileId)
-      .eq("spec_line_is_active", true)
-      .order("seq_no");
-    if (linesErr) throw linesErr;
-
-    testPreviewLoading.classList.add("hidden");
-
-    const rows = lines ?? [];
-    if (rows.length === 0) {
-      testPreviewEmpty.textContent =
-        "Effective spec resolved but has no active lines.";
-      testPreviewEmpty.classList.remove("hidden");
-      return;
-    }
-
-    testPreviewToggleLabel.textContent = `Show Effective Spec (${rows.length} active lines)`;
-
-    const frag = document.createDocumentFragment();
-    rows.forEach((r) => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td class="pt-seq">${esc(String(r.seq_no ?? ""))}</td>
-        <td>${esc(r.test_name ?? "—")}</td>
-        <td>${esc(r.method_name ?? "—")}</td>
-        <td class="pt-spec">${esc(r.display_text ?? "—")}</td>
-      `;
-      frag.appendChild(tr);
-    });
-    testPreviewTbody.appendChild(frag);
-  } catch (err) {
-    console.error(
-      "[lab-analysis-entry] loadFgEffectiveSpecPreview error:",
-      err,
-    );
-    testPreviewLoading.classList.add("hidden");
-    testPreviewEmpty.textContent = `Could not load effective spec preview: ${err.message}`;
-    testPreviewEmpty.classList.remove("hidden");
-  }
-}
-
-// ── Inventory effective-spec preview — handles RM and PM ──────────────────────────
-// Calls fn_build_effective_rm_spec_for_item or fn_build_effective_pm_spec_for_item.
-async function loadInventoryEffectiveSpecPreview(stockItemId) {
-  const isPM = currentSampleType === "PM_LOT";
-  const typeLabel = isPM ? "PM" : "RM";
-  const fnName = isPM
-    ? "fn_build_effective_pm_spec_for_item"
-    : "fn_build_effective_rm_spec_for_item";
-
-  testPreviewLoading.classList.remove("hidden");
-  testPreviewEmpty.classList.add("hidden");
-  testPreviewTbody.innerHTML = "";
-
-  try {
-    const { data: rpcData, error: rpcErr } = await labSupabase.rpc(fnName, {
-      p_stock_item_id: stockItemId,
-      p_as_of_date: todayISO(),
-      p_remarks: "Preview from analysis entry",
-    });
-    if (rpcErr) throw rpcErr;
-
-    const resolvedProfileId = rpcData ? Number(rpcData) : null;
-    if (!resolvedProfileId) {
-      testPreviewLoading.classList.add("hidden");
-      testPreviewEmpty.textContent = `No effective ${typeLabel} spec could be resolved for this stock item.`;
-      testPreviewEmpty.classList.remove("hidden");
-      return;
-    }
-
-    const { data: lines, error: linesErr } = await labSupabase
-      .from("v_spec_profile_detail")
-      .select(
-        "seq_no, test_name, method_name, display_text, spec_line_is_active",
-      )
-      .eq("spec_profile_id", resolvedProfileId)
-      .eq("spec_line_is_active", true)
-      .order("seq_no");
-    if (linesErr) throw linesErr;
-
-    testPreviewLoading.classList.add("hidden");
-
-    const rows = lines ?? [];
-    if (rows.length === 0) {
-      testPreviewEmpty.textContent = `Effective ${typeLabel} spec resolved but has no active lines.`;
-      testPreviewEmpty.classList.remove("hidden");
-      return;
-    }
-
-    testPreviewToggleLabel.textContent =
-      `Show Effective ${typeLabel} Spec (` + rows.length + " active lines)";
-
-    const frag = document.createDocumentFragment();
-    rows.forEach((r) => {
-      const tr = document.createElement("tr");
-      tr.innerHTML =
-        '<td class="pt-seq">' +
-        esc(String(r.seq_no ?? "")) +
-        "</td>" +
-        "<td>" +
-        esc(r.test_name ?? "—") +
-        "</td>" +
-        "<td>" +
-        esc(r.method_name ?? "—") +
-        "</td>" +
-        '<td class="pt-spec">' +
-        esc(r.display_text ?? "—") +
-        "</td>";
-      frag.appendChild(tr);
-    });
-    testPreviewTbody.appendChild(frag);
-  } catch (err) {
-    console.error(
-      "[lab-analysis-entry] loadInventoryEffectiveSpecPreview error:",
-      err,
-    );
-    testPreviewLoading.classList.add("hidden");
+  if (!safeRows.length) {
     testPreviewEmpty.textContent =
-      `Could not load ${typeLabel} effective spec preview: ` + err.message;
+      "No active effective specification lines found.";
     testPreviewEmpty.classList.remove("hidden");
+    testPreviewToggleLabel.textContent = "Show Effective Spec";
+    return 0;
   }
+
+  testPreviewToggleLabel.textContent = `Show Effective Spec (${safeRows.length} active lines)`;
+
+  const sourceBadgeMap = {
+    BASE: "Base",
+    MODIFY: "Modify",
+    ADD: "Add",
+  };
+
+  const frag = document.createDocumentFragment();
+  safeRows.forEach((r) => {
+    const sourceType = String(r.source_type ?? "").toUpperCase();
+    const sourceBadge = sourceBadgeMap[sourceType]
+      ? ` <span class="preview-source-badge">${esc(sourceBadgeMap[sourceType])}</span>`
+      : "";
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="pt-seq">${esc(String(r.seq_no ?? ""))}</td>
+      <td>${esc(r.test_name ?? "—")}${sourceBadge}</td>
+      <td>${esc(r.method_name ?? "—")}</td>
+      <td class="pt-spec">${esc(r.display_text ?? "—")}</td>
+    `;
+    frag.appendChild(tr);
+  });
+  testPreviewTbody.appendChild(frag);
+  return safeRows.length;
 }
 
 // ── Form validation ───────────────────────────────────────────────────────────

@@ -3,11 +3,18 @@ import { supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
 
 // ─── View / RPC name constants (adjust here if DB names differ) ───────────────
-const VENDOR_UNMAPPED_VIEW = "v_proc_vendor_alias_unmapped_queue";
+const RPC_VENDOR_UNMAPPED_QUEUE = "proc_vendor_unmapped_alias_queue";
 const RPC_VENDOR_CREATE_AND_MAP = "proc_vendor_create_and_map_alias";
 const RPC_VENDOR_MAP_ALIAS = "proc_vendor_map_alias";
 const PR_HEADER_VIEW = "v_proc_pr_header";
-const PR_LINES_VIEW = "v_proc_pr_lines";
+
+const VENDOR_PAGE_SIZE = 50;
+
+let prLineAll = [];
+let prLineFiltered = [];
+let prLinePage = 0;
+let prLinePageSize = 50;
+let prLineFilterValue = "all";
 
 const state = {
   tab: "action",
@@ -32,8 +39,9 @@ const state = {
   excessRows: [],
   excessAuditRows: [],
   // vendor tab
-  vendorsPage: 0,
+  vendorPage: 0,
   vendorsRows: [],
+  vendorUnmappedAll: [],
   vendorList: [],
 };
 
@@ -73,6 +81,42 @@ const INDENT_REQUISITION_HEADERS = [
 function qs(id) {
   return document.getElementById(id);
 }
+
+function moveFocusOutsideModal(backdrop, candidates = []) {
+  if (!backdrop) return;
+  const active = document.activeElement;
+  if (!(active instanceof HTMLElement) || !backdrop.contains(active)) return;
+
+  for (const el of candidates) {
+    if (!(el instanceof HTMLElement)) continue;
+    if (!document.contains(el)) continue;
+    if (
+      el.matches(":disabled") ||
+      el.getAttribute("aria-disabled") === "true"
+    ) {
+      continue;
+    }
+    try {
+      el.focus();
+    } catch {
+      // no-op
+    }
+    if (!backdrop.contains(document.activeElement)) return;
+  }
+
+  active.blur();
+  if (!backdrop.contains(document.activeElement)) return;
+
+  const body = document.body;
+  const hadTabIndex = body.hasAttribute("tabindex");
+  if (!hadTabIndex) body.setAttribute("tabindex", "-1");
+  body.focus();
+  if (!hadTabIndex) body.removeAttribute("tabindex");
+}
+
+let lastFocusedBeforeGeneratePrModal = null;
+let lastFocusedBeforePrViewModal = null;
+let lastFocusedBeforePrRebuildModal = null;
 
 function ensureIconBtnA11y(id, label) {
   const el = document.getElementById(id);
@@ -254,6 +298,12 @@ function mergeRemarks(...parts) {
     .map((p) => String(p ?? "").trim())
     .filter(Boolean)
     .join(" | ");
+}
+
+function normalize(value) {
+  return String(value ?? "")
+    .toLowerCase()
+    .trim();
 }
 
 async function fetchStockMetaByItemIds(stockItemIds) {
@@ -546,10 +596,7 @@ async function refreshAllTabCounts() {
       .from("v_proc_purchase_excess_console")
       .select("*", { count: "exact" })
       .limit(1),
-    supabase
-      .from(VENDOR_UNMAPPED_VIEW)
-      .select("*", { count: "exact" })
-      .limit(1),
+    supabase.rpc(RPC_VENDOR_UNMAPPED_QUEUE),
   ]);
   if (indents.status === "fulfilled")
     updateTabCount("tabCountIndents", indents.value.count ?? 0);
@@ -557,8 +604,9 @@ async function refreshAllTabCounts() {
     updateTabCount("tabCountPr", pr.value.count ?? 0);
   if (excess.status === "fulfilled")
     updateTabCount("tabCountExcess", excess.value.count ?? 0);
-  if (vendors.status === "fulfilled")
-    updateTabCount("tabCountVendors", vendors.value.count ?? 0);
+  if (vendors.status === "fulfilled") {
+    updateTabCount("tabCountVendors", (vendors.value.data || []).length);
+  }
 }
 
 // ─── Jump to Indent (Part C) ─────────────────────────────────────────────────
@@ -885,9 +933,8 @@ function wireActionQueueControls() {
       { id: "vendorModalBackdrop", close: closeVendorModal },
       { id: "indentViewModalBackdrop", close: closeIndentViewModal },
       { id: "prViewModalBackdrop", close: closePrViewModal },
+      { id: "prRebuildModalBackdrop", close: closePrRebuildModal },
       { id: "generatePrModalBackdrop", close: closeGeneratePrModal },
-      { id: "prEditReqModalBackdrop", close: closePrEditRequestedModal },
-      { id: "prEditDeltaModalBackdrop", close: closePrEditDeltaModal },
       { id: "prAddLineModalBackdrop", close: closePrAddLineModal },
       { id: "prSetStatusModalBackdrop", close: closePrSetStatusModal },
       { id: "createIndentModalBackdrop", close: closeCreateIndentModal },
@@ -896,7 +943,7 @@ function wireActionQueueControls() {
       { id: "stockPickerModalBackdrop", close: closeStockItemPicker },
       { id: "exportIndentModalBackdrop", close: closeExportIndentModal },
     ];
-    for (const m of modals) {
+    for (const m of [...modals].reverse()) {
       if (qs(m.id)?.classList.contains("show")) {
         m.close();
         return;
@@ -1400,12 +1447,12 @@ async function refreshAllTabsData() {
     if (state.selectedIndent?.indent_id) {
       await loadIndentLines(state.selectedIndent.indent_id);
     }
-    if (
-      state.selectedPr?.pr_id &&
-      qs("prViewModalBackdrop")?.classList.contains("show")
-    ) {
-      await loadPrLines(state.selectedPr.pr_id);
-    }
+    // if (
+    //   state.selectedPr?.pr_id &&
+    //   qs("prViewModalBackdrop")?.classList.contains("show")
+    // ) {
+    //   await loadPrLines(state.selectedPr.pr_id);
+    // }
 
     await refreshAllTabCounts();
     updateExportButtonStates();
@@ -2245,6 +2292,163 @@ async function runStockPickerSearch(query) {
   }
 }
 
+function wireAddPrLineItemSearch() {
+  const input = qs("prAddLineItemSearch");
+  const results = qs("prAddLineItemResults");
+  const backdrop = qs("prAddLineModalBackdrop");
+  if (!input || !results || !backdrop) return;
+
+  let _timer = null;
+  let currentItems = [];
+  let highlighted = -1;
+
+  function getOptionEls() {
+    return Array.from(results.querySelectorAll("li:not(.no-results)"));
+  }
+
+  function setHighlight(idx) {
+    const els = getOptionEls();
+    if (!els.length) return;
+    highlighted = Math.max(0, Math.min(idx, els.length - 1));
+    els.forEach((el, i) => {
+      if (i === highlighted) {
+        el.setAttribute("aria-selected", "true");
+        el.scrollIntoView({ block: "nearest" });
+      } else {
+        el.removeAttribute("aria-selected");
+      }
+    });
+  }
+
+  async function selectItem(item) {
+    backdrop.dataset.stockItemId = String(item.stock_item_id);
+    backdrop.dataset.uomId = String(item.default_uom_id ?? "");
+    input.value = `${item.code} — ${item.name}`;
+    currentItems = [];
+    highlighted = -1;
+    results.innerHTML = "";
+    results.classList.remove("show");
+    input.setAttribute("aria-expanded", "false");
+    qs("prAddLineUomText").textContent = await fetchUomCode(
+      item.default_uom_id,
+    );
+  }
+
+  async function doSearch(q) {
+    q = (q || "").trim();
+    highlighted = -1;
+    currentItems = [];
+    if (q.length < 1) {
+      results.innerHTML = "";
+      results.classList.remove("show");
+      input.setAttribute("aria-expanded", "false");
+      return;
+    }
+    const classVal = qs("prAddLineClass").value || null;
+    let req = supabase
+      .from("v_inv_stock_item_with_class")
+      .select(
+        "stock_item_id,code,name,default_uom_id,category_code,category_id",
+      )
+      .eq("active", true)
+      .or(`name.ilike.%${q}%,code.ilike.%${q}%`)
+      .order("name", { ascending: true })
+      .limit(50);
+    if (classVal) req = req.eq("category_id", Number(classVal));
+    const { data, error } = await req;
+    results.innerHTML = "";
+    if (error) {
+      const li = document.createElement("li");
+      li.className = "no-results";
+      li.textContent = `Error: ${error.message}`;
+      results.appendChild(li);
+      results.classList.add("show");
+      input.setAttribute("aria-expanded", "true");
+      return;
+    }
+    const rows = data || [];
+    if (rows.length === 0) {
+      const li = document.createElement("li");
+      li.className = "no-results";
+      li.textContent = "No items found";
+      results.appendChild(li);
+      results.classList.add("show");
+      input.setAttribute("aria-expanded", "true");
+      return;
+    }
+    currentItems = rows;
+    rows.forEach((item, idx) => {
+      const classLabel = item.category_code ?? String(item.category_id ?? "");
+      const li = document.createElement("li");
+      li.setAttribute("role", "option");
+      li.dataset.idx = String(idx);
+      li.innerHTML = `<b>${esc(item.code ?? "")}</b> \u2014 ${esc(item.name ?? "")} <span style="opacity:0.5;font-size:11px">${esc(classLabel)}</span>`;
+      li.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        selectItem(item);
+      });
+      results.appendChild(li);
+    });
+    results.classList.add("show");
+    input.setAttribute("aria-expanded", "true");
+  }
+
+  input.addEventListener("input", (e) => {
+    clearTimeout(_timer);
+    backdrop.dataset.stockItemId = "";
+    backdrop.dataset.uomId = "";
+    qs("prAddLineUomText").textContent = "\u2014";
+    _timer = setTimeout(() => doSearch(e.target.value), 250);
+  });
+
+  input.addEventListener("blur", () => {
+    setTimeout(() => {
+      results.classList.remove("show");
+      input.setAttribute("aria-expanded", "false");
+      highlighted = -1;
+    }, 150);
+  });
+
+  input.addEventListener("keydown", (e) => {
+    const open = results.classList.contains("show");
+    const els = getOptionEls();
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (!open || !els.length) return;
+      setHighlight(highlighted < 0 ? 0 : highlighted + 1);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (!open || !els.length) return;
+      setHighlight(highlighted <= 0 ? els.length - 1 : highlighted - 1);
+    } else if (e.key === "Enter") {
+      if (open && highlighted >= 0 && currentItems[highlighted]) {
+        e.preventDefault();
+        selectItem(currentItems[highlighted]);
+      }
+    } else if (e.key === "Escape") {
+      if (open) {
+        results.classList.remove("show");
+        input.setAttribute("aria-expanded", "false");
+        highlighted = -1;
+        e.stopPropagation(); // close dropdown only; don't bubble to modal handler
+      }
+      // dropdown already closed → let ESC bubble to the modal ESC handler
+    }
+  });
+
+  qs("prAddLineClass")?.addEventListener("change", () => {
+    backdrop.dataset.stockItemId = "";
+    backdrop.dataset.uomId = "";
+    input.value = "";
+    currentItems = [];
+    highlighted = -1;
+    results.innerHTML = "";
+    results.classList.remove("show");
+    qs("prAddLineUomText").textContent = "\u2014";
+  });
+}
+
 function wireStockItemPicker() {
   qs("btnStockPickerClose").addEventListener("click", closeStockItemPicker);
   qs("stockPickerModalBackdrop").addEventListener("click", (e) => {
@@ -2459,65 +2663,372 @@ async function loadPrHeaders() {
   renderPrHeaders();
 }
 
-function renderPrLines() {
+function renderPrLineRowHtml(row, isDraft) {
+  const requestedQtyNum = Number(row.requested_qty || 0);
+  const deltaQtyNum = Number(row.manual_delta_qty || 0);
+  const finalQtyNum = requestedQtyNum + deltaQtyNum;
+  const reasonText = row.manual_reason ?? "";
+  return `
+    <tr data-pr-line-id="${esc(row.pr_line_id)}" ${isDraft ? "" : 'class="locked-row"'}>
+      <td>${esc(row.stock_item_name ?? row.stock_item_code ?? row.code ?? String(row.stock_item_id ?? ""))}</td>
+      <td>${esc(row.material_class_code ?? row.category_label ?? row.subcategory_label ?? "")}</td>
+      <td>${esc(row.uom_code ?? "")}</td>
+      <td>${fmt(row.system_suggested_qty)}</td>
+      <td>${fmt(requestedQtyNum)}</td>
+      <td data-col="delta">${fmt(deltaQtyNum)}</td>
+      <td>
+        ${
+          isDraft
+            ? `<input
+                class="pr-line-inline-input qty"
+                type="number"
+                min="0"
+                step="any"
+                data-field="final_qty"
+                data-line-id="${esc(row.pr_line_id)}"
+                data-requested="${esc(requestedQtyNum)}"
+                data-old="${esc(finalQtyNum)}"
+                value="${esc(finalQtyNum)}"
+              />`
+            : `<span>${fmt(finalQtyNum)}</span>`
+        }
+      </td>
+      <td>
+        ${
+          isDraft
+            ? `<input
+                class="pr-line-inline-input reason"
+                type="text"
+                data-field="reason"
+                data-line-id="${esc(row.pr_line_id)}"
+                data-old="${esc(reasonText)}"
+                value="${esc(reasonText)}"
+                placeholder="Reason (optional)"
+              />`
+            : `<span>${esc(reasonText)}</span>`
+        }
+      </td>
+    </tr>`;
+}
+
+function updatePrLinePagingUi(total) {
+  const rangeEl = qs("prLineRange");
+  const prevBtn = qs("prLinePrev");
+  const nextBtn = qs("prLineNext");
+  const pageCount = prLinePageSize > 0 ? Math.ceil(total / prLinePageSize) : 0;
+  const totalPages = Math.max(1, pageCount);
+  if (prLinePage > totalPages - 1) prLinePage = totalPages - 1;
+  const start = total ? prLinePage * prLinePageSize + 1 : 0;
+  const end = total ? Math.min((prLinePage + 1) * prLinePageSize, total) : 0;
+  if (rangeEl) {
+    rangeEl.textContent = total ? `${start}–${end} / ${total}` : "0 / 0";
+    rangeEl.title = total
+      ? `Showing ${start} to ${end} of ${total} lines`
+      : "No matching lines";
+  }
+  if (prevBtn) prevBtn.disabled = prLinePage <= 0;
+  if (nextBtn) nextBtn.disabled = total === 0 || prLinePage >= totalPages - 1;
+}
+
+function renderPrLinesPage() {
   const empty = qs("prLinesEmpty");
   const table = qs("prLinesTable");
   const tbody = qs("prLinesTbody");
-  tbody.innerHTML = "";
-  if (!state.prLinesRows.length) {
+  const isDraft = !state.selectedPr || state.selectedPr.status === "draft";
+  const total = prLineFiltered.length;
+  const start = total ? prLinePage * prLinePageSize : 0;
+  const end = total ? Math.min(start + prLinePageSize, total) : 0;
+  const rows = total ? prLineFiltered.slice(start, end) : [];
+  if (!total) {
     empty.style.display = "";
-    empty.textContent = "No lines for this PR.";
+    empty.textContent = prLineAll.length
+      ? "No matching lines."
+      : "No lines for this PR.";
     table.style.display = "none";
+    tbody.innerHTML = "";
+    updatePrLinePagingUi(0);
     return;
   }
   empty.style.display = "none";
   table.style.display = "";
-  const isDraft = !state.selectedPr || state.selectedPr.status === "draft";
-  for (const row of state.prLinesRows) {
-    const tr = document.createElement("tr");
-    if (!isDraft) tr.classList.add("locked-row");
-    tr.innerHTML = `
-      <td>${esc(row.stock_item_name ?? String(row.stock_item_id ?? ""))}</td>
-      <td>${esc(row.material_class_code ?? "")}</td>
-      <td>${esc(row.uom_code ?? "")}</td>
-      <td>${fmt(row.system_suggested_qty)}</td>
-      <td>${fmt(row.requested_qty)}</td>
-      <td>${fmt(row.manual_delta_qty)}</td>
-      <td>${fmt(row.final_requested_qty)}</td>
-      <td class="muted">${esc(row.manual_reason ?? "")}</td>
-      <td class="row-actions">
-        ${
-          isDraft
-            ? `<button data-act="editreq" title="Edit Requested Qty">Qty</button>
-             <button data-act="editdelta" title="Edit Manual Delta">Delta</button>`
-            : `<span class="muted" title="Locked after activation">🔒</span>`
-        }
-      </td>
-    `;
-    if (isDraft) {
-      tr.querySelector('[data-act="editreq"]').addEventListener(
-        "click",
-        (e) => {
-          e.stopPropagation();
-          openPrEditRequestedModal(row);
-        },
-      );
-      tr.querySelector('[data-act="editdelta"]').addEventListener(
-        "click",
-        (e) => {
-          e.stopPropagation();
-          openPrEditDeltaModal(row);
-        },
-      );
-    }
-    tbody.appendChild(tr);
+  tbody.innerHTML = rows
+    .map((row) => renderPrLineRowHtml(row, isDraft))
+    .join("");
+  updatePrLinePagingUi(total);
+}
+
+function setInlineCellSaving(inputEl, saving) {
+  if (!(inputEl instanceof HTMLInputElement)) return;
+  inputEl.classList.toggle("is-saving", saving);
+  if (saving) {
+    inputEl.dataset.wasDisabled = inputEl.disabled ? "1" : "0";
+    inputEl.disabled = true;
+  } else if (inputEl.dataset.wasDisabled !== "1") {
+    inputEl.disabled = false;
   }
 }
 
+async function commitFinalQty(
+  prLineId,
+  requestedQty,
+  newFinalQty,
+  currentReason,
+) {
+  const row = prLineAll.find((item) => Number(item.pr_line_id) === prLineId);
+  if (!row) return;
+  const delta = Number(newFinalQty) - Number(requestedQty || 0);
+  let reasonText = (currentReason || "").trim();
+  const reasonInput = document.querySelector(
+    `.pr-line-inline-input.reason[data-line-id="${prLineId}"]`,
+  );
+  if (delta === 0) {
+    reasonText = "";
+    if (reasonInput) reasonInput.value = "";
+  } else if (!reasonText) {
+    reasonText = "Quantity adjustment";
+    if (reasonInput) reasonInput.value = reasonText;
+  }
+  // Use correct DB param names: p_manual_reason instead of p_reason
+  const { error } = await supabase.rpc("proc_pr_set_manual_delta", {
+    p_pr_line_id: prLineId,
+    p_manual_delta_qty: delta,
+    p_manual_reason: reasonText,
+  });
+  if (error) throw error;
+  row.manual_delta_qty = delta;
+  row.final_requested_qty = Number(newFinalQty);
+  row.manual_reason = reasonText;
+}
+
+async function commitReason(prLineId, reasonText) {
+  const row = prLineAll.find((item) => Number(item.pr_line_id) === prLineId);
+  if (!row) return;
+  const currentDelta = Number(row.manual_delta_qty || 0);
+  // If only the reason changed (final qty unchanged), call proc_pr_set_manual_reason
+  if (!currentDelta) {
+    const { error } = await supabase.rpc("proc_pr_set_manual_reason", {
+      p_pr_line_id: prLineId,
+      p_reason: (reasonText || "").trim(),
+    });
+    if (error) throw error;
+    row.manual_reason = (reasonText || "").trim();
+    return;
+  }
+  // If delta is nonzero, update both delta and reason (for completeness)
+  const { error } = await supabase.rpc("proc_pr_set_manual_delta", {
+    p_pr_line_id: prLineId,
+    p_manual_delta_qty: currentDelta,
+    p_manual_reason: (reasonText || "").trim(),
+  });
+  if (error) throw error;
+  row.manual_reason = (reasonText || "").trim();
+}
+
+function wirePrLineTableActions() {
+  const tbody = qs("prLinesTbody");
+  if (!tbody || tbody.dataset.bound === "1") return;
+  tbody.dataset.bound = "1";
+
+  // --- Filter drawer (matches main pec-filter-* pattern) ---
+  const filterBtn = qs("prLineFilterBtn");
+  const filterDrawer = qs("prLineFilterDrawer");
+  const filterSelect = qs("prLineFilterSelect");
+  const filterBadge = qs("prLineFilterBadge");
+  console.log(
+    "[PR Filter] btn:",
+    !!filterBtn,
+    "drawer:",
+    !!filterDrawer,
+    "select:",
+    !!filterSelect,
+  );
+
+  function syncPrLineFilterBadge() {
+    const active = prLineFilterValue !== "all";
+    if (filterBadge) filterBadge.style.display = active ? "" : "none";
+    if (filterBtn) filterBtn.classList.toggle("pec-filter-btn--active", active);
+  }
+
+  if (filterBtn && filterDrawer) {
+    filterBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isOpen = filterDrawer.classList.contains("open");
+      // Close any other open drawers
+      document.querySelectorAll(".pec-filter-drawer.open").forEach((d) => {
+        if (d !== filterDrawer) {
+          d.classList.remove("open");
+          d.closest(".pec-filter-wrap")
+            ?.querySelector(".pec-filter-btn")
+            ?.setAttribute("aria-expanded", "false");
+        }
+      });
+      filterDrawer.classList.toggle("open", !isOpen);
+      filterBtn.setAttribute("aria-expanded", String(!isOpen));
+      if (!isOpen) {
+        // Use position:fixed so the drawer escapes modal-body overflow:auto clipping
+        const rect = filterBtn.getBoundingClientRect();
+        filterDrawer.style.position = "fixed";
+        filterDrawer.style.top = rect.bottom + 4 + "px";
+        filterDrawer.style.left = rect.left + "px";
+        filterDrawer.style.zIndex = "10001";
+        // Prevent clipping off right edge
+        requestAnimationFrame(() => {
+          const dropW = filterDrawer.offsetWidth || 220;
+          if (rect.left + dropW > window.innerWidth) {
+            filterDrawer.style.left = Math.max(4, rect.right - dropW) + "px";
+          }
+        });
+        if (filterSelect) filterSelect.focus();
+      }
+    });
+    filterDrawer.addEventListener("click", (e) => e.stopPropagation());
+    // Close on outside click (outside the drawer and button)
+    document.addEventListener("click", (e) => {
+      if (
+        filterDrawer.classList.contains("open") &&
+        !filterDrawer.contains(e.target) &&
+        e.target !== filterBtn &&
+        !filterBtn.contains(e.target)
+      ) {
+        filterDrawer.classList.remove("open");
+        filterBtn.setAttribute("aria-expanded", "false");
+      }
+    });
+  }
+
+  if (filterSelect) {
+    filterSelect.value = prLineFilterValue;
+    filterSelect.addEventListener("change", () => {
+      prLineFilterValue = filterSelect.value;
+      syncPrLineFilterBadge();
+      prLinePage = 0;
+      applyPrLineFiltersAndRender();
+    });
+  }
+  const commitInlineEdit = async (inputEl) => {
+    if (!(inputEl instanceof HTMLInputElement)) return;
+    if (inputEl.disabled) return;
+    const rowId = Number(inputEl.dataset.lineId || "0");
+    const field = inputEl.dataset.field || "";
+    const row = prLineAll.find((item) => Number(item.pr_line_id) === rowId);
+    if (!row || !field) return;
+
+    const oldValue = inputEl.dataset.old ?? "";
+    const newValue = inputEl.value.trim();
+    if (normalize(oldValue) === normalize(newValue)) return;
+
+    try {
+      setInlineCellSaving(inputEl, true);
+      if (field === "final_qty") {
+        const newFinalQty = Number(newValue);
+        if (!newValue || Number.isNaN(newFinalQty) || newFinalQty < 0) {
+          throw new Error("Enter a valid final qty.");
+        }
+        const requestedQty = Number(
+          inputEl.dataset.requested || row.requested_qty || 0,
+        );
+        const rowEl = inputEl.closest("tr");
+        const reasonInput = rowEl?.querySelector('input[data-field="reason"]');
+        const reasonText =
+          reasonInput instanceof HTMLInputElement
+            ? reasonInput.value.trim()
+            : "";
+        // commitFinalQty handles auto-fill/auto-clear of reason based on delta
+        await commitFinalQty(rowId, requestedQty, newFinalQty, reasonText);
+        inputEl.value = String(newFinalQty);
+        inputEl.dataset.old = String(newFinalQty);
+        // Sync reason input's data-old so change-detection stays accurate
+        if (reasonInput instanceof HTMLInputElement) {
+          reasonInput.dataset.old = reasonInput.value;
+        }
+      } else if (field === "reason") {
+        await commitReason(rowId, newValue);
+        inputEl.dataset.old = newValue;
+      }
+      renderPrLinesPage();
+    } catch (err) {
+      inputEl.value = oldValue;
+      const message = err?.message || "Save failed.";
+      toast(message, "error");
+    } finally {
+      setInlineCellSaving(inputEl, false);
+    }
+  };
+
+  tbody.addEventListener("focusin", (e) => {
+    const inputEl = e.target.closest("input[data-field]");
+    if (!inputEl) return;
+    inputEl.dataset.old = inputEl.value;
+  });
+
+  tbody.addEventListener("focusout", (e) => {
+    const inputEl = e.target.closest("input[data-field]");
+    if (!inputEl) return;
+    commitInlineEdit(inputEl);
+  });
+
+  tbody.addEventListener("keydown", (e) => {
+    const inputEl = e.target.closest("input[data-field]");
+    if (!inputEl) return;
+    if (e.key === "Enter") {
+      e.preventDefault();
+      inputEl.blur();
+    } else if (e.key === "Escape") {
+      inputEl.value = inputEl.dataset.old ?? "";
+      inputEl.blur();
+    }
+  });
+}
+
+function applyPrLineFiltersAndRender() {
+  const searchRaw = (qs("prLineSearch")?.value ?? "").toLowerCase().trim();
+  const filter = prLineFilterValue || "all";
+
+  prLineFiltered = prLineAll.filter((row) => {
+    // Search filter
+    if (searchRaw) {
+      const haystack = [
+        row.stock_item_name ?? "",
+        row.stock_item_code ?? row.code ?? "",
+        row.material_class_code ??
+          row.category_label ??
+          row.subcategory_label ??
+          "",
+      ]
+        .join(" ")
+        .toLowerCase();
+      if (!haystack.includes(searchRaw)) return false;
+    }
+
+    // Category/type filter
+    if (filter === "edited_only") {
+      const delta = Number(row.manual_delta_qty || 0);
+      if (!delta && !row.manual_reason) return false;
+    } else if (filter === "zero_suggested") {
+      if (Number(row.system_suggested_qty ?? 0) !== 0) return false;
+    } else if (filter === "jit_only") {
+      const mode = String(
+        row.rm_procurement_mode ?? row.stock_item_rm_procurement_mode ?? "",
+      ).toLowerCase();
+      if (mode !== "jit_procured" && mode !== "jit") return false;
+    } else if (filter === "normal_only") {
+      const mode = String(
+        row.rm_procurement_mode ?? row.stock_item_rm_procurement_mode ?? "",
+      ).toLowerCase();
+      if (mode === "jit_procured" || mode === "jit") return false;
+    }
+
+    return true;
+  });
+
+  renderPrLinesPage();
+}
+
 async function loadPrLines(prId) {
+  if (!prId) return;
   setLoading(true);
   const { data, error } = await supabase
-    .from(PR_LINES_VIEW)
+    .from("v_proc_pr_lines")
     .select("*")
     .eq("pr_id", prId)
     .order("pr_line_id", { ascending: true });
@@ -2526,11 +3037,70 @@ async function loadPrLines(prId) {
     toast(`Failed to load PR lines: ${error.message}`, "error");
     return;
   }
-  state.prLinesRows = data || [];
-  renderPrLines();
+  prLineAll = data || [];
+  state.prLinesRows = prLineAll;
+  prLinePage = 0;
+  applyPrLineFiltersAndRender();
+}
+
+function openPrRebuildModal() {
+  if (!state.selectedPr || state.selectedPr.status !== "draft") return;
+  lastFocusedBeforePrRebuildModal =
+    document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+  const backdrop = qs("prRebuildModalBackdrop");
+  qs("prRebuildMode").value = "safe";
+  backdrop.dataset.prId = String(state.selectedPr.pr_id);
+  qs("prViewModalBackdrop").inert = true;
+  backdrop.inert = false;
+  backdrop.classList.add("show");
+  backdrop.setAttribute("aria-hidden", "false");
+  qs("prRebuildMode")?.focus();
+}
+
+function closePrRebuildModal() {
+  const backdrop = qs("prRebuildModalBackdrop");
+  moveFocusOutsideModal(backdrop, [
+    lastFocusedBeforePrRebuildModal,
+    qs("btnPrRebuildFromMrp"),
+    qs("btnPrViewClose"),
+  ]);
+  backdrop.inert = true;
+  backdrop.classList.remove("show");
+  backdrop.setAttribute("aria-hidden", "true");
+  qs("prViewModalBackdrop").inert = false;
+}
+
+async function confirmPrRebuildFromMrp() {
+  const backdrop = qs("prRebuildModalBackdrop");
+  const prId = Number(backdrop.dataset.prId);
+  const mode = qs("prRebuildMode").value || "safe";
+  setLoading(true);
+  const { error } = await supabase.rpc("proc_pr_rebuild_from_mrp", {
+    p_pr_id: prId,
+    p_mode: mode,
+  });
+  setLoading(false);
+  if (error) {
+    toast(`Rebuild failed: ${error.message}`, "error");
+    return;
+  }
+  toast("Rebuilt from MRP", "success");
+  closePrRebuildModal();
+  // requestAnimationFrame(() => {
+  //   refreshPrLines();
+  // });
+  if (state.selectedPr?.pr_id) {
+    requestAnimationFrame(() => loadPrLines(state.selectedPr.pr_id));
+  }
 }
 
 function openPrViewModal(row) {
+  lastFocusedBeforePrViewModal =
+    document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
   state.selectedPr = row;
   upgradePrModalButtons(row);
   qs("prLinesTitle").textContent = row.pr_number ?? "";
@@ -2550,7 +3120,9 @@ function openPrViewModal(row) {
   const btnActivate = qs("btnPrActivate");
   const btnClose = qs("btnPrClosePr");
   const btnAddLine = qs("btnPrAddLine");
+  const btnRebuild = qs("btnPrRebuildFromMrp");
   const btnCreateIndent = qs("btnPrCreateIndent");
+  const lockPill = qs("prLineLockPill");
   if (btnActivate) btnActivate.style.display = isDraft ? "" : "none";
   if (btnClose) {
     btnClose.style.display = isTerminal ? "none" : "";
@@ -2559,7 +3131,9 @@ function openPrViewModal(row) {
     btnClose.setAttribute("aria-label", closeLabel);
   }
   if (btnAddLine) btnAddLine.style.display = isDraft ? "" : "none";
+  if (btnRebuild) btnRebuild.style.display = isDraft ? "" : "none";
   if (btnCreateIndent) btnCreateIndent.style.display = isActive ? "" : "none";
+  if (lockPill) lockPill.style.display = isDraft ? "none" : "";
   // Set lifecycle hint
   const prHints = {
     draft: "Draft — edit lines, then Activate to proceed.",
@@ -2569,12 +3143,31 @@ function openPrViewModal(row) {
   };
   const hintEl = qs("prDetailHint");
   if (hintEl) hintEl.textContent = prHints[row.status] ?? "";
+  const prLineSearch = qs("prLineSearch");
+  const prLineFilter = qs("prLineFilter");
+  const prLinePageSizeEl = qs("prLinePageSize");
+  if (prLineSearch) prLineSearch.value = "";
+  if (prLineFilter) prLineFilter.value = "all";
+  if (prLinePageSizeEl) prLinePageSizeEl.value = "50";
+  prLinePage = 0;
+  prLinePageSize = 50;
+  prLineAll = [];
+  prLineFiltered = [];
   qs("prLinesEmpty").style.display = "";
   qs("prLinesTable").style.display = "none";
   qs("prLinesTbody").innerHTML = "";
+  prLineFilterValue = "all";
+  const _filterSel = qs("prLineFilterSelect");
+  if (_filterSel) _filterSel.value = "all";
+  const _filterBadge = qs("prLineFilterBadge");
+  if (_filterBadge) _filterBadge.style.display = "none";
+  qs("prLineFilterBtn")?.classList.remove("pec-filter-btn--active");
+  qs("prLineFilterDrawer")?.classList.remove("open");
   const backdrop = qs("prViewModalBackdrop");
+  backdrop.inert = false;
   backdrop.classList.add("show");
   backdrop.setAttribute("aria-hidden", "false");
+  qs("btnPrViewClose")?.focus();
   loadPrLines(row.pr_id);
 }
 
@@ -2642,24 +3235,60 @@ function exportPrForm(pr) {
 }
 
 function closePrViewModal() {
-  qs("prViewModalBackdrop").classList.remove("show");
-  qs("prViewModalBackdrop").setAttribute("aria-hidden", "true");
+  const backdrop = qs("prViewModalBackdrop");
+  moveFocusOutsideModal(backdrop, [
+    lastFocusedBeforePrViewModal,
+    qs("prSearch"),
+    qs("btnGeneratePr"),
+    qs("homeBtn"),
+  ]);
+  backdrop.inert = true;
+  backdrop.classList.remove("show");
+  backdrop.setAttribute("aria-hidden", "true");
 }
 
 function openGeneratePrModal() {
+  lastFocusedBeforeGeneratePrModal =
+    document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
   qs("prEffectiveFrom").value = new Date().toISOString().slice(0, 10);
   qs("prNewNumber").value = "";
   qs("prHorizonStart").value = "";
   qs("prHorizonEnd").value = "";
   qs("prMaterialClass").value = "";
+  qs("prRmScope").value = "normal";
+  qs("prRmScopeRow").style.display = "none";
   qs("prNotes").value = "";
   const backdrop = qs("generatePrModalBackdrop");
   backdrop.classList.add("show");
   backdrop.setAttribute("aria-hidden", "false");
+  qs("prNewNumber")?.focus();
+}
+
+function updateGeneratePrRmScopeVisibility() {
+  const materialClassId = Number(qs("prMaterialClass").value || 0);
+  const rmScopeRow = qs("prRmScopeRow");
+  if (!rmScopeRow) return;
+  rmScopeRow.style.display = materialClassId === 1 ? "" : "none";
 }
 
 function closeGeneratePrModal() {
   const backdrop = qs("generatePrModalBackdrop");
+  const active = document.activeElement;
+  if (active instanceof HTMLElement && backdrop.contains(active)) {
+    const fallback = qs("btnGeneratePr");
+    if (
+      lastFocusedBeforeGeneratePrModal instanceof HTMLElement &&
+      document.contains(lastFocusedBeforeGeneratePrModal)
+    ) {
+      lastFocusedBeforeGeneratePrModal.focus();
+    } else if (fallback) {
+      fallback.focus();
+    } else {
+      active.blur();
+    }
+  }
   backdrop.classList.remove("show");
   backdrop.setAttribute("aria-hidden", "true");
 }
@@ -2698,6 +3327,15 @@ async function createIndentFromSelectedPr() {
   }
 }
 
+function monthToFirstDate(monthStr) {
+  // Accepts "YYYY-MM" or "YYYY-MM-01"
+  if (!monthStr) return null;
+  const s = String(monthStr).trim();
+  if (/^\d{4}-\d{2}$/.test(s)) return `${s}-01`;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  return s; // fallback, will error if invalid
+}
+
 async function generateDraftPr() {
   const prNumber = (qs("prNewNumber").value || "").trim();
   if (!prNumber) {
@@ -2709,19 +3347,34 @@ async function generateDraftPr() {
     toast("Effective From date is required.", "error");
     return;
   }
-  const horizonStart = qs("prHorizonStart").value || null;
-  const horizonEnd = qs("prHorizonEnd").value || null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(effectiveFrom)) {
+    toast("Effective From must be a full date (YYYY-MM-DD).", "error");
+    return;
+  }
+  const horizonStartRaw = qs("prHorizonStart").value || null;
+  const horizonEndRaw = qs("prHorizonEnd").value || null;
+
+  const horizonStart = monthToFirstDate(horizonStartRaw);
+  const horizonEnd = monthToFirstDate(horizonEndRaw);
   const materialClassRaw = qs("prMaterialClass").value;
   const materialClassId = materialClassRaw ? Number(materialClassRaw) : null;
   const notes = (qs("prNotes").value || "").trim() || null;
+  const genFilters = {
+    source: "v_mrp_procurement_plan",
+    run: new Date().toISOString().slice(0, 10).replaceAll("-", ""),
+  };
+  if (materialClassId === 1) {
+    genFilters.rm_scope = qs("prRmScope").value || "all";
+  }
 
   setLoading(true);
   const { error } = await supabase.rpc("create_pr_from_mrp_plan", {
     p_pr_number: prNumber,
-    p_effective_from_date: effectiveFrom,
-    p_horizon_start_month: horizonStart,
-    p_horizon_end_month: horizonEnd,
+    p_effective_from_date: effectiveFrom, // must be YYYY-MM-DD
+    p_horizon_start_month: horizonStart, // now YYYY-MM-01
+    p_horizon_end_month: horizonEnd, // now YYYY-MM-01
     p_material_class_id: materialClassId,
+    p_generation_filters: genFilters,
     p_notes: notes,
   });
   setLoading(false);
@@ -2736,131 +3389,40 @@ async function generateDraftPr() {
   await loadPrHeaders();
 }
 
-// ─── PR Line edit modals ──────────────────────────────────────────────────────
-
-function openPrEditRequestedModal(row) {
-  const backdrop = qs("prEditReqModalBackdrop");
-  qs("prEditReqItem").textContent =
-    `${row.stock_item_name ?? row.stock_item_id}`;
-  qs("prEditReqQty").value = row.requested_qty ?? "";
-  qs("prEditReqReason").value = "";
-  backdrop.dataset.prLineId = String(row.pr_line_id);
-  backdrop.classList.add("show");
-  backdrop.setAttribute("aria-hidden", "false");
-}
-
-function closePrEditRequestedModal() {
-  qs("prEditReqModalBackdrop").classList.remove("show");
-  qs("prEditReqModalBackdrop").setAttribute("aria-hidden", "true");
-}
-
-async function savePrEditRequested() {
-  const backdrop = qs("prEditReqModalBackdrop");
-  const prLineId = Number(backdrop.dataset.prLineId);
-  const qty = Number((qs("prEditReqQty").value || "").trim());
-  const reason = (qs("prEditReqReason").value || "").trim() || null;
-  if (!qty || qty < 0) {
-    toast("Enter a valid quantity.", "error");
-    return;
-  }
-  setLoading(true);
-  const { error } = await supabase.rpc("proc_pr_set_requested_qty", {
-    p_pr_line_id: prLineId,
-    p_requested_qty: qty,
-    p_reason: reason,
-  });
-  setLoading(false);
-  if (error) {
-    toast(`Save failed: ${error.message}`, "error");
-    return;
-  }
-  toast("Requested qty updated.", "success");
-  closePrEditRequestedModal();
-  if (state.selectedPr) await loadPrLines(state.selectedPr.pr_id);
-}
-
-function openPrEditDeltaModal(row) {
-  const backdrop = qs("prEditDeltaModalBackdrop");
-  qs("prEditDeltaItem").textContent =
-    `${row.stock_item_name ?? row.stock_item_id}`;
-  qs("prEditDeltaQty").value = row.manual_delta_qty ?? "";
-  qs("prEditDeltaReason").value = "";
-  backdrop.dataset.prLineId = String(row.pr_line_id);
-  backdrop.classList.add("show");
-  backdrop.setAttribute("aria-hidden", "false");
-}
-
-function closePrEditDeltaModal() {
-  qs("prEditDeltaModalBackdrop").classList.remove("show");
-  qs("prEditDeltaModalBackdrop").setAttribute("aria-hidden", "true");
-}
-
-async function savePrEditDelta() {
-  const backdrop = qs("prEditDeltaModalBackdrop");
-  const prLineId = Number(backdrop.dataset.prLineId);
-  const deltaText = (qs("prEditDeltaQty").value || "").trim();
-  const delta = Number(deltaText);
-  const reason = (qs("prEditDeltaReason").value || "").trim();
-  if (deltaText === "" || Number.isNaN(delta)) {
-    toast("Enter a valid delta value.", "error");
-    return;
-  }
-  if (!reason) {
-    toast("Reason is required.", "error");
-    return;
-  }
-  setLoading(true);
-  const { error } = await supabase.rpc("proc_pr_set_manual_delta", {
-    p_pr_line_id: prLineId,
-    p_manual_delta_qty: delta,
-    p_reason: reason,
-  });
-  setLoading(false);
-  if (error) {
-    toast(`Save failed: ${error.message}`, "error");
-    return;
-  }
-  toast("Manual delta updated.", "success");
-  closePrEditDeltaModal();
-  if (state.selectedPr) await loadPrLines(state.selectedPr.pr_id);
-}
-
 function openPrAddLineModal() {
   const backdrop = qs("prAddLineModalBackdrop");
   qs("prAddLineClass").value = "";
   backdrop.dataset.stockItemId = "";
   backdrop.dataset.uomId = "";
-  qs("prAddLineItemText").textContent = "None selected";
-  qs("prAddLineItemText").classList.add("muted");
-  qs("prAddLineItemChange").textContent = "Select";
+  const searchInput = qs("prAddLineItemSearch");
+  const resultsList = qs("prAddLineItemResults");
+  if (searchInput) {
+    searchInput.value = "";
+    searchInput.setAttribute("aria-expanded", "false");
+  }
+  if (resultsList) {
+    resultsList.innerHTML = "";
+    resultsList.classList.remove("show");
+  }
   qs("prAddLineUomText").textContent = "—";
   qs("prAddLineQty").value = "";
   qs("prAddLineReason").value = "";
+  backdrop.inert = false;
   backdrop.classList.add("show");
   backdrop.setAttribute("aria-hidden", "false");
-
-  qs("prAddLineItemChange").onclick = () => {
-    const classVal = qs("prAddLineClass").value || null;
-    openStockItemPicker({
-      materialClassId: classVal ? Number(classVal) : null,
-      onSelect: async (picked) => {
-        backdrop.dataset.stockItemId = String(picked.stock_item_id);
-        backdrop.dataset.uomId = String(picked.default_uom_id ?? "");
-        qs("prAddLineItemText").textContent =
-          `${picked.code} \u2014 ${picked.name}`;
-        qs("prAddLineItemText").classList.remove("muted");
-        qs("prAddLineItemChange").textContent = "Change";
-        qs("prAddLineUomText").textContent = await fetchUomCode(
-          picked.default_uom_id,
-        );
-      },
-    });
-  };
+  setTimeout(() => searchInput?.focus(), 50);
 }
 
 function closePrAddLineModal() {
-  qs("prAddLineModalBackdrop").classList.remove("show");
-  qs("prAddLineModalBackdrop").setAttribute("aria-hidden", "true");
+  const backdrop = qs("prAddLineModalBackdrop");
+  moveFocusOutsideModal(backdrop, [
+    qs("btnPrAddLine"),
+    qs("btnPrViewClose"),
+    qs("btnGeneratePr"),
+  ]);
+  backdrop.inert = true;
+  backdrop.classList.remove("show");
+  backdrop.setAttribute("aria-hidden", "true");
 }
 
 async function savePrAddLine() {
@@ -2903,7 +3465,7 @@ async function savePrAddLine() {
   }
   toast("Line added.", "success");
   closePrAddLineModal();
-  await loadPrLines(state.selectedPr.pr_id);
+  if (state.selectedPr?.pr_id) loadPrLines(state.selectedPr.pr_id);
 }
 
 function openPrSetStatusModal(row, targetStatus) {
@@ -2917,6 +3479,7 @@ function openPrSetStatusModal(row, targetStatus) {
     titles[targetStatus] ?? "Change PR Status";
   qs("prSetStatusItem").textContent = row.pr_number;
   qs("prSetStatusNote").value = "";
+  backdrop.inert = false;
   backdrop.dataset.prId = String(row.pr_id);
   backdrop.dataset.targetStatus = targetStatus;
   backdrop.classList.add("show");
@@ -2924,8 +3487,15 @@ function openPrSetStatusModal(row, targetStatus) {
 }
 
 function closePrSetStatusModal() {
-  qs("prSetStatusModalBackdrop").classList.remove("show");
-  qs("prSetStatusModalBackdrop").setAttribute("aria-hidden", "true");
+  const backdrop = qs("prSetStatusModalBackdrop");
+  moveFocusOutsideModal(backdrop, [
+    qs("btnPrClosePr"),
+    qs("btnPrViewClose"),
+    qs("btnGeneratePr"),
+  ]);
+  backdrop.inert = true;
+  backdrop.classList.remove("show");
+  backdrop.setAttribute("aria-hidden", "true");
 }
 
 async function confirmPrSetStatus() {
@@ -2961,6 +3531,34 @@ function wirePrControls() {
     if (!state.selectedPr) return;
     exportPrForm(state.selectedPr);
   });
+  wirePrLineTableActions();
+  const applyPrLineSearchDebounced = debounce(() => {
+    prLinePage = 0;
+    applyPrLineFiltersAndRender();
+  }, 150);
+  qs("prLineSearch")?.addEventListener("input", applyPrLineSearchDebounced);
+  qs("prLineFilter")?.addEventListener("change", () => {
+    prLinePage = 0;
+    applyPrLineFiltersAndRender();
+  });
+  qs("prLinePageSize")?.addEventListener("change", () => {
+    prLinePage = 0;
+    applyPrLineFiltersAndRender();
+  });
+  qs("prLinePrev")?.addEventListener("click", () => {
+    if (prLinePage <= 0) return;
+    prLinePage -= 1;
+    renderPrLinesPage();
+  });
+  qs("prLineNext")?.addEventListener("click", () => {
+    const totalPages = Math.max(
+      1,
+      Math.ceil(prLineFiltered.length / prLinePageSize),
+    );
+    if (prLinePage >= totalPages - 1) return;
+    prLinePage += 1;
+    renderPrLinesPage();
+  });
   qs("prViewModalBackdrop").addEventListener("click", (e) => {
     if (e.target.id === "prViewModalBackdrop") closePrViewModal();
   });
@@ -2968,6 +3566,10 @@ function wirePrControls() {
   qs("btnGenPrCancel").addEventListener("click", closeGeneratePrModal);
   qs("btnGenPrClose").addEventListener("click", closeGeneratePrModal);
   qs("btnGenPrConfirm").addEventListener("click", generateDraftPr);
+  qs("prMaterialClass").addEventListener(
+    "change",
+    updateGeneratePrRmScopeVisibility,
+  );
   qs("generatePrModalBackdrop").addEventListener("click", (e) => {
     if (e.target.id === "generatePrModalBackdrop") closeGeneratePrModal();
   });
@@ -3004,6 +3606,10 @@ function wirePrControls() {
     }
     openPrAddLineModal();
   });
+  qs("btnPrRebuildFromMrp").addEventListener("click", () => {
+    if (!state.selectedPr || state.selectedPr.status !== "draft") return;
+    openPrRebuildModal();
+  });
   qs("btnPrActivate").addEventListener("click", () => {
     if (!state.selectedPr) return;
     openPrSetStatusModal(state.selectedPr, "active");
@@ -3015,22 +3621,16 @@ function wirePrControls() {
     openPrSetStatusModal(state.selectedPr, targetStatus);
   });
   qs("btnPrCreateIndent").addEventListener("click", createIndentFromSelectedPr);
-
-  // PR edit modals
-  qs("btnPrEditReqCancel").addEventListener("click", closePrEditRequestedModal);
-  qs("btnPrEditReqSave").addEventListener("click", savePrEditRequested);
-  qs("prEditReqModalBackdrop").addEventListener("click", (e) => {
-    if (e.target.id === "prEditReqModalBackdrop") closePrEditRequestedModal();
-  });
-  qs("btnPrEditDeltaCancel").addEventListener("click", closePrEditDeltaModal);
-  qs("btnPrEditDeltaSave").addEventListener("click", savePrEditDelta);
-  qs("prEditDeltaModalBackdrop").addEventListener("click", (e) => {
-    if (e.target.id === "prEditDeltaModalBackdrop") closePrEditDeltaModal();
-  });
   qs("btnPrAddLineCancel").addEventListener("click", closePrAddLineModal);
   qs("btnPrAddLineSave").addEventListener("click", savePrAddLine);
   qs("prAddLineModalBackdrop").addEventListener("click", (e) => {
     if (e.target.id === "prAddLineModalBackdrop") closePrAddLineModal();
+  });
+  qs("btnPrRebuildCancel").addEventListener("click", closePrRebuildModal);
+  qs("btnPrRebuildClose").addEventListener("click", closePrRebuildModal);
+  qs("btnPrRebuildConfirm").addEventListener("click", confirmPrRebuildFromMrp);
+  qs("prRebuildModalBackdrop").addEventListener("click", (e) => {
+    if (e.target.id === "prRebuildModalBackdrop") closePrRebuildModal();
   });
   qs("btnPrSetStatusCancel").addEventListener("click", closePrSetStatusModal);
   qs("btnPrSetStatusConfirm").addEventListener("click", confirmPrSetStatus);
@@ -3274,28 +3874,35 @@ function renderUnmappedAliases() {
     tbody.appendChild(tr);
   }
   qs("vMeta").textContent = `Showing ${state.vendorsRows.length}`;
-  qs("vPaging").textContent = `Page ${state.vendorsPage + 1}`;
+  qs("vPaging").textContent = `Page ${state.vendorPage + 1}`;
   updateTabCount("tabCountVendors", state.vendorsRows.length);
 }
 
 async function loadUnmappedAliases() {
   setLoading(true);
   const search = (qs("vSearch").value || "").trim();
-  let q = supabase.from(VENDOR_UNMAPPED_VIEW).select("*");
-  if (search) q = q.ilike("alias_text", `%${search}%`);
-  q = q
-    .order("alias_text", { ascending: true })
-    .range(
-      state.vendorsPage * state.pageSize,
-      state.vendorsPage * state.pageSize + state.pageSize - 1,
-    );
-  const { data, error } = await q;
+  const { data, error } = await supabase.rpc(RPC_VENDOR_UNMAPPED_QUEUE);
   setLoading(false);
   if (error) {
     toast(`Failed to load unmapped aliases: ${error.message}`, "error");
     return;
   }
-  state.vendorsRows = data || [];
+  const allRows = (data || [])
+    .slice()
+    .sort((a, b) =>
+      String(a.alias_text ?? "").localeCompare(String(b.alias_text ?? "")),
+    );
+  state.vendorUnmappedAll = allRows;
+  const filteredRows = search
+    ? allRows.filter((row) =>
+        String(row.alias_text ?? "")
+          .toLowerCase()
+          .includes(search.toLowerCase()),
+      )
+    : allRows;
+  const start = state.vendorPage * VENDOR_PAGE_SIZE;
+  const end = (state.vendorPage + 1) * VENDOR_PAGE_SIZE;
+  state.vendorsRows = filteredRows.slice(start, end);
   renderUnmappedAliases();
 }
 
@@ -3378,16 +3985,16 @@ async function saveMapVendor() {
 
 function wireVendorControls() {
   qs("vBtnPrev").addEventListener("click", () => {
-    state.vendorsPage = Math.max(0, state.vendorsPage - 1);
+    state.vendorPage = Math.max(0, state.vendorPage - 1);
     loadUnmappedAliases();
   });
   qs("vBtnNext").addEventListener("click", () => {
-    state.vendorsPage += 1;
+    state.vendorPage += 1;
     loadUnmappedAliases();
   });
   qs("vSearch").addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
-      state.vendorsPage = 0;
+      state.vendorPage = 0;
       loadUnmappedAliases();
     }
   });
@@ -3437,6 +4044,7 @@ function wireVendorControls() {
   wireGlobalHeaderControls();
   wireTabs();
   wireStockItemPicker();
+  wireAddPrLineItemSearch();
   wireActionQueueControls();
   wireIndentControls();
   wireExcessControls();

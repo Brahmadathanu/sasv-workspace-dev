@@ -1541,14 +1541,31 @@
             </div>
             <div class="form-row">
               <div class="form-group">
-                <label for="productGroupSelect">Product Group</label>
-                <select
-                  id="productGroupSelect"
-                  class="form-control"
-                  aria-label="Select product group"
-                >
-                  <option value="">-- Select Product Group --</option>
-                </select>
+                <label for="pgProductSearchInput">Product Group</label>
+                <div class="erp-combobox">
+                  <input
+                    id="pgProductSearchInput"
+                    type="text"
+                    class="form-control erp-combobox-trigger"
+                    placeholder="Type to search product group..."
+                    autocomplete="off"
+                    aria-label="Search product group"
+                    disabled
+                  />
+                  <div
+                    id="pgProductSearchResults"
+                    class="erp-combobox-results hidden"
+                    role="listbox"
+                  ></div>
+                  <select
+                    id="productGroupSelect"
+                    class="erp-combobox-native"
+                    aria-hidden="true"
+                    tabindex="-1"
+                  >
+                    <option value="">-- Select Product Group --</option>
+                  </select>
+                </div>
               </div>
             </div>
           </div>
@@ -2338,6 +2355,7 @@
                   <th>Method</th>
                   <th>Spec</th>
                   <th>Type</th>
+                  <th>Source</th>
                   <th class="td-active">Active</th>
                 </tr>
               </thead>
@@ -2412,6 +2430,7 @@
                   <th>Method</th>
                   <th>Spec</th>
                   <th>Type</th>
+                  <th>Source</th>
                   <th class="td-active">Active</th>
                 </tr>
               </thead>
@@ -2465,6 +2484,7 @@
                   <th>Method</th>
                   <th>Spec</th>
                   <th>Type</th>
+                  <th>Source</th>
                   <th class="td-active">Active</th>
                 </tr>
               </thead>

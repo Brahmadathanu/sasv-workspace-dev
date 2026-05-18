@@ -566,6 +566,56 @@
         min-height: 60px;
       }
 
+      /* ── Searchable combobox ─────────────────────────────────────── */
+      .erp-combobox {
+        position: relative;
+      }
+      .erp-combobox-native {
+        display: none;
+      }
+      .erp-combobox-results {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: calc(100% + 4px);
+        z-index: 40;
+        background: #fff;
+        border: 1px solid var(--border, #d1d5db);
+        border-radius: 8px;
+        box-shadow: 0 12px 24px rgba(17, 24, 39, 0.14);
+        max-height: 260px;
+        overflow: auto;
+      }
+      .erp-combobox-results.hidden {
+        display: none;
+      }
+      .erp-combobox-item {
+        width: 100%;
+        border: 0;
+        background: #fff;
+        text-align: left;
+        padding: 9px 10px;
+        font-size: 13px;
+        color: var(--text, #111827);
+        cursor: pointer;
+        border-bottom: 1px solid #f3f4f6;
+      }
+      .erp-combobox-item:last-child {
+        border-bottom: 0;
+      }
+      .erp-combobox-item:hover {
+        background: #f8fafc;
+      }
+      .erp-combobox-item.active {
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+      .erp-combobox-empty {
+        padding: 10px;
+        font-size: 12px;
+        color: var(--muted, #6b7280);
+      }
+
       /* ── Split layout (list + form) ───────────────────────────────── */
       .split-layout {
         display: grid;
@@ -1499,9 +1549,26 @@
             <div class="form-row">
               <div class="form-group">
                 <label for="tlProtocolSelect">Protocol</label>
-                <select id="tlProtocolSelect" class="form-control">
-                  <option value="">-- Select Protocol --</option>
-                </select>
+                <div class="erp-combobox">
+                  <input
+                    id="tlProtocolSearchInput"
+                    class="form-control erp-combobox-trigger"
+                    type="text"
+                    placeholder="Type to search protocol"
+                    autocomplete="off"
+                  />
+                  <div
+                    id="tlProtocolSearchResults"
+                    class="erp-combobox-results hidden"
+                    role="listbox"
+                  ></div>
+                  <select
+                    id="tlProtocolSelect"
+                    class="form-control erp-combobox-native"
+                  >
+                    <option value="">-- Select Protocol --</option>
+                  </select>
+                </div>
               </div>
               <div
                 class="form-group"
@@ -1630,17 +1697,51 @@
               <label for="fmFamilySelect" id="fmFamilyLabel"
                 >Family / Group <span class="req">*</span></label
               >
-              <select id="fmFamilySelect" class="form-control">
-                <option value="">-- Select --</option>
-              </select>
+              <div class="erp-combobox">
+                <input
+                  id="fmFamilySearchInput"
+                  class="form-control erp-combobox-trigger"
+                  type="text"
+                  placeholder="Type to search family"
+                  autocomplete="off"
+                />
+                <div
+                  id="fmFamilySearchResults"
+                  class="erp-combobox-results hidden"
+                  role="listbox"
+                ></div>
+                <select
+                  id="fmFamilySelect"
+                  class="form-control erp-combobox-native"
+                >
+                  <option value="">-- Select --</option>
+                </select>
+              </div>
             </div>
             <div class="form-group">
               <label for="fmProtocolSelect"
                 >Protocol <span class="req">*</span></label
               >
-              <select id="fmProtocolSelect" class="form-control">
-                <option value="">-- Select Protocol --</option>
-              </select>
+              <div class="erp-combobox">
+                <input
+                  id="fmProtocolSearchInput"
+                  class="form-control erp-combobox-trigger"
+                  type="text"
+                  placeholder="Type to search protocol"
+                  autocomplete="off"
+                />
+                <div
+                  id="fmProtocolSearchResults"
+                  class="erp-combobox-results hidden"
+                  role="listbox"
+                ></div>
+                <select
+                  id="fmProtocolSelect"
+                  class="form-control erp-combobox-native"
+                >
+                  <option value="">-- Select Protocol --</option>
+                </select>
+              </div>
             </div>
           </div>
           <div class="form-row">
@@ -1738,9 +1839,26 @@
           <div class="form-row">
             <div class="form-group">
               <label for="upProtocolSelect">Protocol</label>
-              <select id="upProtocolSelect" class="form-control">
-                <option value="">-- Select Protocol --</option>
-              </select>
+              <div class="erp-combobox">
+                <input
+                  id="upProtocolSearchInput"
+                  class="form-control erp-combobox-trigger"
+                  type="text"
+                  placeholder="Type to search protocol"
+                  autocomplete="off"
+                />
+                <div
+                  id="upProtocolSearchResults"
+                  class="erp-combobox-results hidden"
+                  role="listbox"
+                ></div>
+                <select
+                  id="upProtocolSelect"
+                  class="form-control erp-combobox-native"
+                >
+                  <option value="">-- Select Protocol --</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>

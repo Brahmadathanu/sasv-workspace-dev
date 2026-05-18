@@ -29,6 +29,10 @@ const bsFgCard = document.getElementById("bsFgCard");
 const bsRmCard = document.getElementById("bsRmCard");
 const rmControlCard = document.getElementById("rmControlCard");
 const rmTableCard = document.getElementById("rmTableCard");
+const pgProductSearchInput = document.getElementById("pgProductSearchInput");
+const pgProductSearchResults = document.getElementById(
+  "pgProductSearchResults",
+);
 const productGroupSelect = document.getElementById("productGroupSelect");
 const bsContextStrip = document.getElementById("bsContextStrip");
 const bsProtocolName = document.getElementById("bsProtocolName");
@@ -155,6 +159,8 @@ let ovBaseTestIds = new Set(); // Set of test_id numbers in the active base spec
 
 // FG product picker cache (used by searchable combobox in OV + EP tabs)
 let fgProductPickerRows = [];
+// Product group picker cache (used by searchable combobox in BS FG tab)
+let pgPickerRows = [];
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 init();
@@ -175,6 +181,7 @@ async function init() {
   wireEffectivePreviewPmEvents();
   wireOverrideModal();
   wireFgProductSearchComboboxes();
+  wireProductGroupSearchCombobox();
   wireBsLineModal();
   bsSaveSpecBtn.addEventListener("click", bsSaveSpec);
 }
@@ -272,6 +279,7 @@ function resetSubjectState(toSubjectType) {
     pmResetState();
 
     productGroupSelect.value = "";
+    syncPgSearchInputFromSelect();
     ovProductSelect.value = "";
     epProductSelect.value = "";
     syncFgProductSearchInputFromSelect(ovProductSelect);
@@ -296,6 +304,7 @@ function resetSubjectState(toSubjectType) {
     rmResetState();
 
     productGroupSelect.value = "";
+    syncPgSearchInputFromSelect();
     ovProductSelect.value = "";
     epProductSelect.value = "";
     syncFgProductSearchInputFromSelect(ovProductSelect);
@@ -453,7 +462,8 @@ function switchTab(tabId, forceRefresh = false) {
 
 // FIX 1: use group_name, not name
 async function loadProductGroups() {
-  productGroupSelect.disabled = true;
+  pgProductSearchInput.disabled = true;
+  pgProductSearchInput.placeholder = "Loading product groups...";
   productGroupSelect.innerHTML = '<option value="">Loading...</option>';
   const { data, error } = await labSupabase
     .schema("public")
@@ -463,7 +473,8 @@ async function loadProductGroups() {
   if (error) {
     toast("Failed to load product groups: " + error.message, "error");
     productGroupSelect.innerHTML = '<option value="">-- Error --</option>';
-    productGroupSelect.disabled = false;
+    pgProductSearchInput.placeholder = "Error loading groups";
+    pgProductSearchInput.disabled = false;
     return;
   }
   // Dedupe by normalised group_name; keep lowest numeric id per name, track all source ids
@@ -489,6 +500,7 @@ async function loadProductGroups() {
   const deduped = [...seen.values()].sort((a, b) =>
     (a.group_name ?? "").localeCompare(b.group_name ?? ""),
   );
+  pgPickerRows = deduped;
   populateSelect(
     productGroupSelect,
     deduped,
@@ -496,11 +508,16 @@ async function loadProductGroups() {
     "group_name",
     "-- Select Product Group --",
   );
-  productGroupSelect.disabled = false;
+  pgProductSearchInput.disabled = false;
+  pgProductSearchInput.placeholder = "Type to search product group...";
+  syncPgSearchInputFromSelect();
 }
 
 function wireBaseSpecEvents() {
-  productGroupSelect.addEventListener("change", onProductGroupChange);
+  productGroupSelect.addEventListener("change", () => {
+    syncPgSearchInputFromSelect();
+    onProductGroupChange();
+  });
   bsGenerateSpecBtn.addEventListener("click", bsGenerateSpec);
 }
 
@@ -565,13 +582,14 @@ async function bsLoadGroupContext(groupId) {
     }
   }
 
-  // FIX 4 — Step A: fetch spec_profile_id from map
-  const { data: specMapRows, error: specMapErr } = await labSupabase
-    .from("spec_profile_product_group_map")
-    .select("spec_profile_id")
-    .eq("product_group_id", groupId)
-    .eq("is_active", true)
-    .limit(1);
+  // Step C: resolve active spec profile via RPC (handles family-aware mapping)
+  const { data: specProfileId, error: specMapErr } = await labSupabase.rpc(
+    "fn_get_active_spec_profile_id_for_fg_group",
+    {
+      p_product_group_id: Number(groupId),
+      p_as_of_date: todayISO(),
+    },
+  );
 
   if (specMapErr) {
     showBanner(
@@ -581,8 +599,6 @@ async function bsLoadGroupContext(groupId) {
     );
     return;
   }
-
-  const specProfileId = specMapRows?.[0]?.spec_profile_id ?? null;
 
   // FIX 4 — Step B: fetch spec_profile details
   let specProfile = null;
@@ -825,28 +841,52 @@ async function bsGenerateSpec() {
   showBanner(bsBanner, "info", "Generating base spec profile from protocol...");
 
   const specName = `FG | ${bsCurrentGroupName} | v1`;
-  const { error } = await labSupabase.rpc("fn_generate_fg_group_spec_profile", {
-    p_product_group_id: Number(bsCurrentGroupId),
-    p_spec_name: specName,
-    p_version_no: 1,
-    p_remarks: "Generated from protocol via Spec Profile Manager",
-  });
+  const { data: newProfileId, error } = await labSupabase.rpc(
+    "fn_generate_fg_group_spec_profile",
+    {
+      p_product_group_id: Number(bsCurrentGroupId),
+      p_spec_name: specName,
+      p_version_no: 1,
+      p_remarks: "Generated from protocol via Spec Profile Manager",
+    },
+  );
 
   if (error) {
     showBanner(bsBanner, "error", "Generation failed: " + error.message);
-    btn.disabled = false;
-    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="10"/>
-      <line x1="12" y1="8" x2="12" y2="16"/>
-      <line x1="8" y1="12" x2="16" y2="12"/>
-    </svg><span>Generate Spec</span>`;
+    resetGenerateButton(btn);
     return;
   }
 
   toast("Base spec profile generated successfully.", "success");
+  resetGenerateButton(btn);
   btn.classList.add("hidden");
+
+  bsCurrentProfileId = Number(newProfileId) || null;
+  bsEditedSpecLines.clear();
+  bsSyncSaveBtn();
+
   await bsLoadGroupContext(bsCurrentGroupId);
+
+  // Fallback: if context reload didn't find a profile (e.g. RPC not yet deployed),
+  // load spec lines directly using the id returned from generate.
+  if (!bsCurrentProfileId && newProfileId) {
+    const resolvedId = Number(newProfileId);
+    bsCurrentProfileId = resolvedId;
+    const { data: spRows } = await labSupabase
+      .from("spec_profile")
+      .select("id, spec_name, version_no, effective_from")
+      .eq("id", resolvedId)
+      .limit(1);
+    const sp = spRows?.[0];
+    if (sp) {
+      setMetaValue(bsMetaProfileId, String(sp.id), false);
+      setMetaValue(bsMetaVersion, `v${sp.version_no}`, false);
+      setMetaValue(bsMetaEffDate, formatDate(sp.effective_from), false);
+    }
+    hideBanner(bsBanner);
+    btn.classList.add("hidden");
+    await bsLoadSpecLines(resolvedId);
+  }
 }
 
 async function bsSaveSpec() {
@@ -1375,17 +1415,12 @@ async function rmGenerateSpec() {
 
   if (error) {
     showBanner(rmBanner, "error", "Generation failed: " + error.message);
-    btn.disabled = false;
-    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="10"/>
-      <line x1="12" y1="8" x2="12" y2="16"/>
-      <line x1="8" y1="12" x2="16" y2="12"/>
-    </svg><span>Generate Spec</span>`;
+    resetGenerateButton(btn);
     return;
   }
 
   toast("RM base spec profile generated successfully.", "success");
+  resetGenerateButton(btn);
   btn.classList.add("hidden");
   await rmLoadGroupContext(rmCurrentGroupId);
 }
@@ -1914,17 +1949,12 @@ async function pmGenerateSpec() {
 
   if (error) {
     showBanner(pmBanner, "error", "Generation failed: " + error.message);
-    btn.disabled = false;
-    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="10"/>
-      <line x1="12" y1="8" x2="12" y2="16"/>
-      <line x1="8" y1="12" x2="16" y2="12"/>
-    </svg><span>Generate Spec</span>`;
+    resetGenerateButton(btn);
     return;
   }
 
   toast("PM base spec profile generated successfully.", "success");
+  resetGenerateButton(btn);
   btn.classList.add("hidden");
   await pmLoadGroupContext(pmCurrentGroupId);
 }
@@ -2277,6 +2307,8 @@ function wireEffectivePreviewPmEvents() {
 async function onPmEffectivePreviewItemChange() {
   const stockItemId = epPmItemSelect.value;
   if (!stockItemId) {
+    epPmLineCount.textContent = "0 lines";
+    epPmTableBody.innerHTML = "";
     epPmTableCard.classList.add("hidden");
     hideBanner(epPmBanner);
     return;
@@ -2284,14 +2316,13 @@ async function onPmEffectivePreviewItemChange() {
 
   epPmTableCard.classList.add("hidden");
   hideBanner(epPmBanner);
-  showBanner(epPmBanner, "info", "Building effective PM spec preview...");
+  showBanner(epPmBanner, "info", "Resolving effective PM spec preview...");
 
   const { data, error } = await labSupabase.rpc(
-    "fn_build_effective_pm_spec_for_item",
+    "fn_preview_effective_pm_spec_for_item",
     {
       p_stock_item_id: Number(stockItemId),
       p_as_of_date: todayISO(),
-      p_remarks: "Preview build from Spec Profile Manager",
     },
   );
 
@@ -2299,42 +2330,64 @@ async function onPmEffectivePreviewItemChange() {
     showBanner(
       epPmBanner,
       "error",
-      "Could not build effective spec: " + error.message,
+      "Could not resolve effective spec preview: " + error.message,
     );
+    epPmLineCount.textContent = "0 lines";
+    epPmTableBody.innerHTML = "";
+    epPmTableCard.classList.add("hidden");
     return;
   }
 
-  const newProfileId = Number(data);
-  if (!newProfileId) {
+  const preview = data || {};
+  const rows = Array.isArray(preview.lines) ? preview.lines : [];
+
+  if (preview.ok !== true) {
+    const failType = String(preview.reason_code ?? "")
+      .toUpperCase()
+      .includes("ERR")
+      ? "error"
+      : "warn";
+    showBanner(
+      epPmBanner,
+      failType,
+      preview.message ||
+        "No effective spec could be resolved for this packing material.",
+    );
+    epPmLineCount.textContent = "0 lines";
+    epPmTableBody.innerHTML = "";
+    epPmTableCard.classList.add("hidden");
+    return;
+  }
+
+  if (!rows.length) {
     showBanner(
       epPmBanner,
       "warn",
-      "No effective spec could be resolved for this packing material.",
+      "No active effective specification lines found.",
     );
+    epPmLineCount.textContent = "0 lines";
+    epPmTableBody.innerHTML = "";
+    epPmTableCard.classList.add("hidden");
     return;
   }
 
-  hideBanner(epPmBanner);
-
-  const { data: lines, error: linesErr } = await labSupabase
-    .from("v_spec_profile_detail")
-    .select(
-      "spec_profile_id, seq_no, test_name, method_name, display_text, spec_type, spec_line_is_active",
-    )
-    .eq("spec_profile_id", newProfileId)
-    .eq("spec_line_is_active", true)
-    .order("seq_no");
-
-  if (linesErr) {
-    showBanner(
-      epPmBanner,
-      "error",
-      "Could not load effective spec lines: " + linesErr.message,
-    );
-    return;
+  const msgParts = [
+    "Effective PM specification resolved from base spec and stock-item overrides.",
+  ];
+  const metaParts = [];
+  if (preview.base_spec_profile_id) {
+    metaParts.push(`Base: ${preview.base_spec_profile_id}`);
   }
+  if (preview.protocol_category_id) {
+    metaParts.push(`Protocol: ${preview.protocol_category_id}`);
+  }
+  if (preview.subcategory_id) {
+    metaParts.push(`Subcategory: ${preview.subcategory_id}`);
+  }
+  if (metaParts.length) msgParts.push(metaParts.join(" | "));
+  showBanner(epPmBanner, "info", msgParts.join(" "));
 
-  renderPmEffectivePreview(lines ?? []);
+  renderPmEffectivePreview(rows);
 }
 
 function renderPmEffectivePreview(rows) {
@@ -2342,7 +2395,7 @@ function renderPmEffectivePreview(rows) {
   epPmLineCount.textContent = `${rows.length} line${rows.length !== 1 ? "s" : ""}`;
 
   if (!rows.length) {
-    epPmTableBody.innerHTML = `<tr><td colspan="6">
+    epPmTableBody.innerHTML = `<tr><td colspan="7">
       <div class="spec-empty-state">
         <strong>No lines found</strong>
         The effective spec profile has no lines.
@@ -2358,8 +2411,9 @@ function renderPmEffectivePreview(rows) {
       <td class="td-method">${esc(r.method_name ?? "")}</td>
       <td class="td-spec">${esc(r.display_text ?? "")}</td>
       <td>${typeBadge(r.spec_type)}</td>
+      <td>${sourceBadge(r.source_type)}</td>
       <td class="td-active" style="text-align:center;color:var(--muted,#6b7280);">
-        ${r.spec_line_is_active ? "Yes" : "No"}
+        ${r.is_active === false ? "No" : "Yes"}
       </td>
     </tr>`,
     )
@@ -2988,9 +3042,165 @@ function syncFgProductSearchInputFromSelect(selectEl) {
   resultsEl.classList.add("hidden");
 }
 
+// ── Product Group searchable combobox (Base Spec FG tab) ──────────────────────
+
+function wireProductGroupSearchCombobox() {
+  const inputEl = pgProductSearchInput;
+  const resultsEl = pgProductSearchResults;
+  const selectEl = productGroupSelect;
+  if (!inputEl || !resultsEl || !selectEl) return;
+
+  inputEl.addEventListener("focus", () => {
+    renderPgSearchResults(inputEl.value);
+  });
+
+  inputEl.addEventListener("input", () => {
+    const q = inputEl.value.trim();
+    if (!q) {
+      if (selectEl.value) {
+        selectEl.value = "";
+        selectEl.dispatchEvent(new Event("change", { bubbles: false }));
+      }
+    }
+    renderPgSearchResults(q);
+  });
+
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      resultsEl.classList.add("hidden");
+      return;
+    }
+
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (resultsEl.classList.contains("hidden")) {
+        renderPgSearchResults(inputEl.value);
+      }
+      const items = [...resultsEl.querySelectorAll(".erp-combobox-item")];
+      if (!items.length) return;
+      const currentIndex = Number(resultsEl.dataset.activeIndex ?? "-1");
+      const nextIndex =
+        e.key === "ArrowDown"
+          ? Math.min(currentIndex + 1, items.length - 1)
+          : currentIndex <= 0
+            ? 0
+            : currentIndex - 1;
+      setPgSearchActiveIndex(nextIndex);
+      items[nextIndex]?.scrollIntoView({ block: "nearest" });
+      return;
+    }
+
+    if (e.key !== "Enter") return;
+    const items = [...resultsEl.querySelectorAll(".erp-combobox-item")];
+    if (!items.length) return;
+    const activeIndex = Number(resultsEl.dataset.activeIndex ?? "-1");
+    const targetBtn = activeIndex >= 0 ? items[activeIndex] : items[0];
+    if (!targetBtn) return;
+    e.preventDefault();
+    targetBtn.click();
+  });
+
+  inputEl.addEventListener("blur", () => {
+    window.setTimeout(() => resultsEl.classList.add("hidden"), 120);
+  });
+}
+
+function renderPgSearchResults(query) {
+  const inputEl = pgProductSearchInput;
+  const resultsEl = pgProductSearchResults;
+  const selectEl = productGroupSelect;
+  if (!resultsEl || !inputEl || !selectEl) return;
+
+  const needle = String(query ?? "")
+    .trim()
+    .toLowerCase();
+  const baseRows = pgPickerRows ?? [];
+  const filtered = needle
+    ? baseRows.filter((r) =>
+        String(r.group_name ?? "")
+          .toLowerCase()
+          .includes(needle),
+      )
+    : baseRows.slice(0, 40);
+
+  const rows = filtered.slice(0, 120);
+  if (!rows.length) {
+    resultsEl.innerHTML =
+      '<div class="erp-combobox-empty">No matching product groups</div>';
+    resultsEl.dataset.activeIndex = "-1";
+    resultsEl.classList.remove("hidden");
+    return;
+  }
+
+  resultsEl.innerHTML = rows
+    .map(
+      (r) =>
+        `<button type="button" class="erp-combobox-item" data-id="${esc(String(r.id))}">${esc(r.group_name ?? "")}</button>`,
+    )
+    .join("");
+
+  resultsEl.querySelectorAll(".erp-combobox-item").forEach((btn) => {
+    btn.addEventListener("mousedown", (e) => e.preventDefault());
+    btn.addEventListener("mouseenter", () => {
+      const items = [...resultsEl.querySelectorAll(".erp-combobox-item")];
+      setPgSearchActiveIndex(items.indexOf(btn));
+    });
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.id;
+      const row = rows.find((x) => String(x.id) === id);
+      if (!row) return;
+      inputEl.value = row.group_name ?? "";
+      selectEl.value = String(row.id);
+      resultsEl.classList.add("hidden");
+      selectEl.dispatchEvent(new Event("change", { bubbles: false }));
+    });
+  });
+
+  const selectedIdx = rows.findIndex(
+    (x) => String(x.id) === String(selectEl.value),
+  );
+  setPgSearchActiveIndex(selectedIdx >= 0 ? selectedIdx : 0);
+  resultsEl.classList.remove("hidden");
+}
+
+function setPgSearchActiveIndex(idx) {
+  const resultsEl = pgProductSearchResults;
+  if (!resultsEl) return;
+  const items = [...resultsEl.querySelectorAll(".erp-combobox-item")];
+  const safeIdx = idx >= 0 && idx < items.length ? idx : -1;
+  resultsEl.dataset.activeIndex = String(safeIdx);
+  items.forEach((item, i) => {
+    item.classList.toggle("active", i === safeIdx);
+    item.setAttribute("aria-selected", i === safeIdx ? "true" : "false");
+  });
+}
+
+function syncPgSearchInputFromSelect() {
+  const inputEl = pgProductSearchInput;
+  const resultsEl = pgProductSearchResults;
+  const selectEl = productGroupSelect;
+  if (!inputEl || !resultsEl || !selectEl) return;
+
+  if (!selectEl.value) {
+    inputEl.value = "";
+    resultsEl.classList.add("hidden");
+    return;
+  }
+
+  const selectedText =
+    selectEl.options[selectEl.selectedIndex]?.text ??
+    pgPickerRows.find((r) => String(r.id) === String(selectEl.value))
+      ?.group_name ??
+    "";
+  inputEl.value = selectedText;
+  resultsEl.classList.add("hidden");
+}
+
 async function onEpProductChange() {
   const productId = epProductSelect.value;
   if (!productId) {
+    epLineCount.textContent = "0 lines";
+    epTableBody.innerHTML = "";
     epTableCard.classList.add("hidden");
     hideBanner(epBanner);
     return;
@@ -2998,15 +3208,13 @@ async function onEpProductChange() {
 
   epTableCard.classList.add("hidden");
   hideBanner(epBanner);
-  showBanner(epBanner, "info", "Building effective spec preview...");
+  showBanner(epBanner, "info", "Resolving effective FG spec preview...");
 
-  // FIX 7: pass exactly p_product_id, p_as_of_date, p_remarks
   const { data, error } = await labSupabase.rpc(
-    "fn_build_effective_fg_spec_for_product",
+    "fn_preview_effective_fg_spec_for_product",
     {
       p_product_id: Number(productId),
       p_as_of_date: todayISO(),
-      p_remarks: "Preview build from Spec Profile Manager",
     },
   );
 
@@ -3014,54 +3222,64 @@ async function onEpProductChange() {
     showBanner(
       epBanner,
       "error",
-      "Could not build effective spec: " + error.message,
+      "Could not resolve effective spec preview: " + error.message,
     );
+    epLineCount.textContent = "0 lines";
+    epTableBody.innerHTML = "";
+    epTableCard.classList.add("hidden");
     return;
   }
 
-  const newProfileId = Number(data);
-  console.log("[SPM EP FG] effective profile id", newProfileId);
-  if (!newProfileId) {
+  const preview = data || {};
+  const rows = Array.isArray(preview.lines) ? preview.lines : [];
+
+  if (preview.ok !== true) {
+    const failType = String(preview.reason_code ?? "")
+      .toUpperCase()
+      .includes("ERR")
+      ? "error"
+      : "warn";
+    showBanner(
+      epBanner,
+      failType,
+      preview.message ||
+        "No effective spec could be resolved for this product.",
+    );
+    epLineCount.textContent = "0 lines";
+    epTableBody.innerHTML = "";
+    epTableCard.classList.add("hidden");
+    return;
+  }
+
+  if (!rows.length) {
     showBanner(
       epBanner,
       "warn",
-      "No effective spec could be resolved for this product.",
+      "No active effective specification lines found.",
     );
+    epLineCount.textContent = "0 lines";
+    epTableBody.innerHTML = "";
+    epTableCard.classList.add("hidden");
     return;
   }
 
-  hideBanner(epBanner);
-
-  const { data: lines, error: linesErr } = await labSupabase
-    .from("v_spec_profile_detail")
-    .select(
-      "spec_profile_id, seq_no, test_name, method_name, display_text, spec_type, spec_line_is_active",
-    )
-    .eq("spec_profile_id", newProfileId)
-    .eq("spec_line_is_active", true)
-    .order("seq_no");
-
-  if (linesErr) {
-    showBanner(
-      epBanner,
-      "error",
-      "Could not load effective spec lines: " + linesErr.message,
-    );
-    return;
+  const msgParts = [
+    "Effective FG specification resolved from base spec and product-level overrides.",
+  ];
+  const metaParts = [];
+  if (preview.base_spec_profile_id) {
+    metaParts.push(`Base: ${preview.base_spec_profile_id}`);
   }
-
-  console.log("[SPM EP FG] lines", lines);
-
-  if (!lines || lines.length === 0) {
-    showBanner(
-      epBanner,
-      "warn",
-      "Effective spec profile was resolved but no active lines were found.",
-    );
-    return;
+  if (preview.protocol_category_id) {
+    metaParts.push(`Protocol: ${preview.protocol_category_id}`);
   }
+  if (preview.product_group_id) {
+    metaParts.push(`Group: ${preview.product_group_id}`);
+  }
+  if (metaParts.length) msgParts.push(metaParts.join(" | "));
+  showBanner(epBanner, "info", msgParts.join(" "));
 
-  renderEffectivePreview(lines);
+  renderEffectivePreview(rows);
 }
 
 function renderEffectivePreview(rows) {
@@ -3069,7 +3287,7 @@ function renderEffectivePreview(rows) {
   epLineCount.textContent = `${rows.length} line${rows.length !== 1 ? "s" : ""}`;
 
   if (!rows.length) {
-    epTableBody.innerHTML = `<tr><td colspan="6">
+    epTableBody.innerHTML = `<tr><td colspan="7">
       <div class="spec-empty-state">
         <strong>No lines found</strong>
         The effective spec profile has no lines.
@@ -3085,8 +3303,9 @@ function renderEffectivePreview(rows) {
       <td class="td-method">${esc(r.method_name ?? "")}</td>
       <td class="td-spec">${esc(r.display_text ?? "")}</td>
       <td>${typeBadge(r.spec_type)}</td>
+      <td>${sourceBadge(r.source_type)}</td>
       <td class="td-active" style="text-align:center;color:var(--muted,#6b7280);">
-        ${r.spec_line_is_active ? "Yes" : "No"}
+        ${r.is_active === false ? "No" : "Yes"}
       </td>
     </tr>`,
     )
@@ -3101,6 +3320,8 @@ function wireEffectivePreviewRmEvents() {
 async function onRmEffectivePreviewItemChange() {
   const stockItemId = epRmItemSelect.value;
   if (!stockItemId) {
+    epRmLineCount.textContent = "0 lines";
+    epRmTableBody.innerHTML = "";
     epRmTableCard.classList.add("hidden");
     hideBanner(epRmBanner);
     return;
@@ -3108,14 +3329,13 @@ async function onRmEffectivePreviewItemChange() {
 
   epRmTableCard.classList.add("hidden");
   hideBanner(epRmBanner);
-  showBanner(epRmBanner, "info", "Building effective RM spec preview...");
+  showBanner(epRmBanner, "info", "Resolving effective RM spec preview...");
 
   const { data, error } = await labSupabase.rpc(
-    "fn_build_effective_rm_spec_for_item",
+    "fn_preview_effective_rm_spec_for_item",
     {
       p_stock_item_id: Number(stockItemId),
       p_as_of_date: todayISO(),
-      p_remarks: "Preview build from Spec Profile Manager",
     },
   );
 
@@ -3123,42 +3343,64 @@ async function onRmEffectivePreviewItemChange() {
     showBanner(
       epRmBanner,
       "error",
-      "Could not build effective spec: " + error.message,
+      "Could not resolve effective spec preview: " + error.message,
     );
+    epRmLineCount.textContent = "0 lines";
+    epRmTableBody.innerHTML = "";
+    epRmTableCard.classList.add("hidden");
     return;
   }
 
-  const newProfileId = Number(data);
-  if (!newProfileId) {
+  const preview = data || {};
+  const rows = Array.isArray(preview.lines) ? preview.lines : [];
+
+  if (preview.ok !== true) {
+    const failType = String(preview.reason_code ?? "")
+      .toUpperCase()
+      .includes("ERR")
+      ? "error"
+      : "warn";
+    showBanner(
+      epRmBanner,
+      failType,
+      preview.message ||
+        "No effective spec could be resolved for this stock item.",
+    );
+    epRmLineCount.textContent = "0 lines";
+    epRmTableBody.innerHTML = "";
+    epRmTableCard.classList.add("hidden");
+    return;
+  }
+
+  if (!rows.length) {
     showBanner(
       epRmBanner,
       "warn",
-      "No effective spec could be resolved for this stock item.",
+      "No active effective specification lines found.",
     );
+    epRmLineCount.textContent = "0 lines";
+    epRmTableBody.innerHTML = "";
+    epRmTableCard.classList.add("hidden");
     return;
   }
 
-  hideBanner(epRmBanner);
-
-  const { data: lines, error: linesErr } = await labSupabase
-    .from("v_spec_profile_detail")
-    .select(
-      "spec_profile_id, seq_no, test_name, method_name, display_text, spec_type, spec_line_is_active",
-    )
-    .eq("spec_profile_id", newProfileId)
-    .eq("spec_line_is_active", true)
-    .order("seq_no");
-
-  if (linesErr) {
-    showBanner(
-      epRmBanner,
-      "error",
-      "Could not load effective spec lines: " + linesErr.message,
-    );
-    return;
+  const msgParts = [
+    "Effective RM specification resolved from base spec and stock-item overrides.",
+  ];
+  const metaParts = [];
+  if (preview.base_spec_profile_id) {
+    metaParts.push(`Base: ${preview.base_spec_profile_id}`);
   }
+  if (preview.protocol_category_id) {
+    metaParts.push(`Protocol: ${preview.protocol_category_id}`);
+  }
+  if (preview.inv_group_id) {
+    metaParts.push(`Inv Group: ${preview.inv_group_id}`);
+  }
+  if (metaParts.length) msgParts.push(metaParts.join(" | "));
+  showBanner(epRmBanner, "info", msgParts.join(" "));
 
-  renderRmEffectivePreview(lines ?? []);
+  renderRmEffectivePreview(rows);
 }
 
 function renderRmEffectivePreview(rows) {
@@ -3166,7 +3408,7 @@ function renderRmEffectivePreview(rows) {
   epRmLineCount.textContent = `${rows.length} line${rows.length !== 1 ? "s" : ""}`;
 
   if (!rows.length) {
-    epRmTableBody.innerHTML = `<tr><td colspan="6">
+    epRmTableBody.innerHTML = `<tr><td colspan="7">
       <div class="spec-empty-state">
         <strong>No lines found</strong>
         The effective spec profile has no lines.
@@ -3182,8 +3424,9 @@ function renderRmEffectivePreview(rows) {
       <td class="td-method">${esc(r.method_name ?? "")}</td>
       <td class="td-spec">${esc(r.display_text ?? "")}</td>
       <td>${typeBadge(r.spec_type)}</td>
+      <td>${sourceBadge(r.source_type)}</td>
       <td class="td-active" style="text-align:center;color:var(--muted,#6b7280);">
-        ${r.spec_line_is_active ? "Yes" : "No"}
+        ${r.is_active === false ? "No" : "Yes"}
       </td>
     </tr>`,
     )
@@ -4188,6 +4431,17 @@ function typeBadge(type) {
   return `<span class="type-badge type-badge-other">${esc(type ?? "")}</span>`;
 }
 
+function sourceBadge(sourceType) {
+  const src = String(sourceType ?? "BASE").toUpperCase();
+  if (src === "ADD") {
+    return '<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;border:1px solid #86efac;background:#f0fdf4;color:#166534;">ADD</span>';
+  }
+  if (src === "MODIFY") {
+    return '<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;border:1px solid #93c5fd;background:#eff6ff;color:#1d4ed8;">MODIFY</span>';
+  }
+  return '<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;border:1px solid #d1d5db;background:#f9fafb;color:#374151;">BASE</span>';
+}
+
 function populateSelect(sel, rows, valKey, labelKey, placeholder) {
   sel.innerHTML =
     `<option value="">${esc(placeholder)}</option>` +
@@ -4197,6 +4451,19 @@ function populateSelect(sel, rows, valKey, labelKey, placeholder) {
           `<option value="${esc(String(r[valKey]))}">${esc(r[labelKey] ?? "")}</option>`,
       )
       .join("");
+}
+
+function resetGenerateButton(btn) {
+  if (!btn) return;
+  btn.disabled = false;
+  btn.classList.remove("loading");
+  btn.innerHTML = `
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="12" y1="8" x2="12" y2="16"/>
+      <line x1="8" y1="12" x2="16" y2="12"/>
+    </svg><span>Generate Spec</span>`;
 }
 
 function setMetaValue(el, val, isEmpty) {

@@ -1,3 +1,16 @@
+/* Responsive: allow PR lines toolbar controls to wrap on small screens */
+@media (max-width: 500px) {
+  .pr-lines-toolbar-erp {
+    flex-wrap: wrap !important;
+    row-gap: 8px;
+  }
+  .pr-lines-paging-group {
+    flex-wrap: wrap !important;
+    row-gap: 6px;
+    margin-left: 0 !important;
+    justify-content: flex-start;
+  }
+}
 /* Neutral shared UI styles: tables, forms, toolbars, actions, and buttons */
 .table {
   width: 100%;
@@ -339,7 +352,10 @@ details.drawer > summary svg {
   font-weight: 700;
   line-height: 1;
   color: #3f3f46; /* stronger neutral */
-  transition: color 0.12s ease, transform 0.12s ease, opacity 0.12s ease;
+  transition:
+    color 0.12s ease,
+    transform 0.12s ease,
+    opacity 0.12s ease;
   opacity: 1;
   z-index: 2;
 }
