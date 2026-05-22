@@ -799,6 +799,11 @@
         resize: vertical;
         min-height: 64px;
       }
+      .field-hint {
+        font-size: 11px;
+        color: var(--muted, #6b7280);
+        margin-top: 4px;
+      }
       .form-actions {
         display: flex;
         gap: 8px;
@@ -1262,14 +1267,20 @@
                 </select>
               </div>
               <div class="form-group">
-                <label for="testModalUom">Default UOM ID (optional)</label>
-                <input
+                <label for="testModalUom"
+                  >Default UOM <span class="req">*</span></label
+                >
+                <select
                   id="testModalUom"
                   class="form-control"
-                  type="number"
-                  min="1"
-                  placeholder="UOM ID"
-                />
+                  required
+                  aria-required="true"
+                >
+                  <option value="">-- Select UOM --</option>
+                </select>
+                <div class="field-hint">
+                  Select NONE if no unit is applicable.
+                </div>
               </div>
             </div>
             <div class="form-group">

@@ -604,7 +604,7 @@ async function populateTlProtocolSelect() {
 
   const { data, error } = await labSupabase
     .from("protocol_category")
-    .select("id, category_code, category_name")
+    .select("id, category_code, category_name, source_document")
     .eq("subject_type", currentSubject)
     .eq("is_active", true)
     .order("category_code");
@@ -707,13 +707,11 @@ async function onTlProtocolChange() {
 async function loadTlLines(protocolId) {
   showBanner(tlBanner, "info", "Loading test lines…");
   tlTableCard.classList.remove("hidden");
-  tlTableBody.innerHTML = `<tr><td colspan="6" class="empty-state"><div class="spinner" style="margin:0 auto 6px;"></div>Loading…</td></tr>`;
+  tlTableBody.innerHTML = `<tr><td colspan="5" class="empty-state"><div class="spinner" style="margin:0 auto 6px;"></div>Loading…</td></tr>`;
 
   const { data, error } = await labSupabase
     .from("protocol_category_test")
-    .select(
-      "id, seq_no, test_id, method_id, display_text, is_required, is_active",
-    )
+    .select("id, seq_no, test_id, method_id, is_required, is_active")
     .eq("protocol_category_id", protocolId)
     .eq("is_active", true)
     .order("seq_no");
@@ -726,7 +724,7 @@ async function loadTlLines(protocolId) {
       "error",
       "Failed to load test lines: " + error.message,
     );
-    tlTableBody.innerHTML = `<tr><td colspan="6" class="empty-state">Error loading lines.</td></tr>`;
+    tlTableBody.innerHTML = `<tr><td colspan="5" class="empty-state">Error loading lines.</td></tr>`;
     return;
   }
 
@@ -741,7 +739,7 @@ function renderTlTable() {
   tlLineCount.textContent = `${tlLines.length} line${tlLines.length !== 1 ? "s" : ""}`;
 
   if (tlLines.length === 0) {
-    tlTableBody.innerHTML = `<tr><td colspan="6" class="empty-state">No test lines yet. Click <strong>Add Line</strong> to begin.</td></tr>`;
+    tlTableBody.innerHTML = `<tr><td colspan="5" class="empty-state">No test lines yet. Click <strong>Add Line</strong> to begin.</td></tr>`;
     tlSaveLinesBtn.disabled = true;
     return;
   }
@@ -768,9 +766,7 @@ function renderTlTable() {
         testEntry?.default_method_name ??
         (line.test_id ? "(No default method assigned)" : "—");
       const methodCellColor = hasMethod ? "#374151" : "#9ca3af";
-      const methodSelectHtml = `<select class="line-input" style="min-width:130px;color:${methodCellColor};background:#f9fafb" disabled>
-        <option>${esc(methodDisplay)}</option>
-      </select>`;
+      const methodSelectHtml = `<input class="line-input" type="text" style="min-width:130px;color:${methodCellColor};background:#f9fafb" value="${esc(methodDisplay)}" disabled />`;
 
       return `
     <tr data-idx="${idx}">
@@ -779,7 +775,6 @@ function renderTlTable() {
       </td>
       <td><select class="line-input" data-field="test_id" style="min-width:160px">${testOpts}</select></td>
       <td>${methodSelectHtml}</td>
-      <td><input class="line-input" type="text" data-field="display_text" value="${esc(line.display_text ?? "")}" placeholder="Optional display note" /></td>
       <td class="td-center"><input class="line-cb" type="checkbox" data-field="is_required" ${line.is_required ? "checked" : ""} /></td>
       <td class="td-actions">
         <button class="del-line-btn" data-idx="${idx}" title="Remove line" type="button">
@@ -881,7 +876,6 @@ function addTlLine() {
     seq_no: nextSeq,
     test_id: null,
     method_id: null,
-    display_text: "",
     is_required: true,
     is_active: true,
     _dirty: true,
@@ -958,7 +952,7 @@ async function saveTlLines() {
       p_seq_no: l.seq_no,
       p_test_id: l.test_id || null,
       p_method_id: l.method_id || null,
-      p_display_text: l.display_text || null,
+      p_display_text: null,
       p_is_required: l.is_required !== false,
       p_is_active: true,
     });

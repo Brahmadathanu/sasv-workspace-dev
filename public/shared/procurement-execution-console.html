@@ -39,6 +39,9 @@
         display: flex;
         flex-direction: column;
         padding: 20px;
+        height: 100vh;
+        overflow: hidden;
+        box-sizing: border-box;
       }
       @media (max-width: 1080px) {
         body {
@@ -64,6 +67,22 @@
       .page-sub {
         color: var(--muted, #6b7280);
         font-size: 0.95rem;
+      }
+      .page-shell {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow: hidden;
+        margin-bottom: 0;
+      }
+      .tab-panels-wrap {
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+      }
+      .tab-panels-wrap .tab-panel {
+        min-height: 0;
       }
 
       /* ── ERP icon-only button system ── */
@@ -287,7 +306,16 @@
         display: none;
       }
       .tab-panel.active {
-        display: block;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+      .tab-panel.active > .card {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
       }
 
       /* ── Toolbar text-action buttons (not icon-only) ── */
@@ -353,6 +381,17 @@
       .export-dropdown button:hover {
         background: rgba(0, 90, 141, 0.06);
         color: var(--primary, #005a8d);
+      }
+      .export-dropdown button:disabled,
+      .export-dropdown button[aria-disabled="true"] {
+        opacity: 0.45;
+        cursor: not-allowed;
+        color: #6b7280;
+      }
+      .export-dropdown button:disabled:hover,
+      .export-dropdown button[aria-disabled="true"]:hover {
+        background: none;
+        color: #6b7280;
       }
       .export-dropdown button + button {
         border-top: 1px solid var(--border, #e5e7eb);
@@ -557,6 +596,116 @@
         padding-top: 10px;
         flex: 1;
       }
+      .detail-modal {
+        max-width: 1120px;
+      }
+      .detail-modal .modal-body {
+        padding-top: 12px;
+      }
+      .detail-status-strip {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin: 0 0 12px;
+        padding: 10px 12px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 12px;
+        background: linear-gradient(
+          135deg,
+          rgba(0, 90, 141, 0.04) 0%,
+          rgba(0, 90, 141, 0.01) 100%
+        );
+      }
+      .detail-flags {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-left: auto;
+        justify-content: flex-end;
+      }
+      .detail-shell {
+        display: grid;
+        grid-template-columns: minmax(0, 1.45fr) minmax(300px, 360px);
+        gap: 12px;
+        align-items: start;
+      }
+      .detail-column,
+      .detail-rail {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-width: 0;
+      }
+      .detail-rail {
+        position: sticky;
+        top: 0;
+        align-self: start;
+      }
+      .detail-card {
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 12px;
+        background: var(--panel-bg, #fff);
+        padding: 12px;
+        box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03);
+      }
+      .detail-card-title {
+        margin: 0 0 10px;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--muted, #6b7280);
+      }
+      .detail-card .kv-table td {
+        white-space: normal;
+        vertical-align: top;
+      }
+      .detail-card .kv-table td.key {
+        width: 42%;
+      }
+      .detail-action-note {
+        margin: 0 0 10px;
+        font-size: 12px;
+        line-height: 1.45;
+        color: var(--muted, #6b7280);
+      }
+      .detail-action-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .detail-action-buttons .icon-btn {
+        width: 100%;
+        min-height: 40px;
+        padding: 0 12px;
+        justify-content: flex-start;
+        gap: 8px;
+        font-weight: 600;
+      }
+      .detail-action-buttons .icon-btn.secondary {
+        background: rgba(37, 99, 235, 0.08);
+        border-color: rgba(37, 99, 235, 0.24);
+        color: var(--primary, #005a8d);
+      }
+      .detail-action-buttons .icon-btn.secondary:hover {
+        background: rgba(37, 99, 235, 0.12);
+        border-color: rgba(37, 99, 235, 0.34);
+      }
+      .detail-action-buttons .icon-btn.ghost {
+        border-color: var(--border, #e5e7eb);
+      }
+      .detail-action-buttons .icon-btn svg {
+        flex-shrink: 0;
+      }
+      @media (max-width: 980px) {
+        .detail-shell {
+          grid-template-columns: 1fr;
+        }
+        .detail-rail {
+          position: static;
+        }
+      }
       .table-toolbar {
         display: flex;
         justify-content: space-between;
@@ -577,6 +726,78 @@
         align-items: center;
         gap: 8px;
         flex-wrap: wrap;
+      }
+      .table-scroll {
+        flex: 1;
+        min-height: 0;
+        overflow: auto;
+      }
+      .table-scroll.loading {
+        position: relative;
+      }
+      .table-loading-mask {
+        position: absolute;
+        inset: 0;
+        z-index: 8;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        background: rgba(255, 255, 255, 0.68);
+        backdrop-filter: blur(1px);
+        color: var(--muted, #6b7280);
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+      .table-loading-spinner {
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(15, 23, 42, 0.16);
+        border-top-color: var(--primary, #005a8d);
+        border-radius: 50%;
+        animation: pecSpin 0.7s linear infinite;
+      }
+      .table-topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 0 0 4px;
+      }
+      .pager-mini {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        font-size: 12px;
+      }
+      .pager-mini .muted {
+        margin-right: 2px;
+      }
+      table td,
+      table th {
+        vertical-align: middle;
+      }
+      .erp-table td,
+      .erp-table th {
+        vertical-align: middle;
+      }
+      .table-scroll.modal-scroll {
+        max-height: 60vh;
+      }
+      .erp-table {
+        width: 100%;
+      }
+      .erp-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        background: var(--panel-bg, #fff);
+        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
+      }
+      .pill-flag {
+        min-width: 20px;
+        justify-content: center;
+        display: inline-flex;
       }
       #prLinesTable {
         border-collapse: separate;
@@ -684,6 +905,14 @@
         color: #888;
         cursor: default;
         font-style: italic;
+      }
+      /* Indent lines: sticky header */
+      #iLinesTable thead th {
+        position: sticky;
+        top: 0;
+        background: #fff;
+        z-index: 5;
+        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
       }
       .kv-table {
         width: 100%;
@@ -857,6 +1086,26 @@
         flex: 1;
         min-width: 0;
       }
+      .pec-search-wrap.is-searching::after {
+        content: "";
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        width: 14px;
+        height: 14px;
+        margin-top: -7px;
+        border: 2px solid rgba(15, 23, 42, 0.2);
+        border-top-color: var(--primary, #005a8d);
+        border-radius: 50%;
+        animation: pecSpin 0.7s linear infinite;
+        pointer-events: none;
+      }
+      .pec-search-wrap.is-searching .pec-search-input {
+        padding-right: 56px;
+      }
+      .pec-search-wrap.is-searching .pec-input-clear {
+        right: 28px;
+      }
       .pec-search-input {
         width: 100%;
         padding: 7px 34px 7px 10px;
@@ -895,6 +1144,11 @@
       .pec-input-clear:hover {
         background: rgba(15, 23, 42, 0.04);
         color: var(--text-color, #111);
+      }
+      @keyframes pecSpin {
+        to {
+          transform: rotate(360deg);
+        }
       }
       @media (max-width: 520px) {
         .pec-filter-drawer {
@@ -1006,15 +1260,15 @@
       </div>
     </div>
 
-    <section class="panel" id="mainPanel">
+    <section class="panel page-shell" id="mainPanel">
       <div class="tabs-card">
         <div class="tab-select-wrap">
           <select id="procTabSelect" class="tab-select" aria-label="Select tab">
-            <option value="pr">PR Workbench</option>
-            <option value="action" selected>Action Queue</option>
+            <option value="pr" selected>PR Workbench</option>
             <option value="indents">Indents</option>
-            <option value="excess">Excess &amp; Overshoot</option>
+            <option value="action">Action Queue</option>
             <option value="vendors">Vendor Mapping</option>
+            <option value="excess">Excess &amp; Overshoot</option>
           </select>
           <svg
             class="tab-select-icon"
@@ -1035,170 +1289,128 @@
           </svg>
         </div>
         <div class="tabs" role="tablist" aria-label="Procurement tabs">
-          <button class="tab-btn" data-tab="pr">PR Workbench</button>
-          <button class="tab-btn active" data-tab="action">Action Queue</button>
+          <button class="tab-btn active" data-tab="pr">PR Workbench</button>
           <button class="tab-btn" data-tab="indents">Indents</button>
+          <button class="tab-btn" data-tab="action">Action Queue</button>
+          <button class="tab-btn" data-tab="vendors">Vendor Mapping</button>
           <button class="tab-btn" data-tab="excess">
             Excess &amp; Overshoot
           </button>
-          <button class="tab-btn" data-tab="vendors">Vendor Mapping</button>
         </div>
       </div>
 
-      <!-- PR WORKBENCH -->
-      <div class="tab-panel" id="tab-pr">
-        <div class="pec-search-card">
-          <div class="pec-filter-wrap" id="prFilterWrap">
-            <button
-              id="prFilterBtn"
-              type="button"
-              class="pec-filter-btn"
-              title="Filters"
-              aria-label="Filters"
-              aria-haspopup="true"
-              aria-expanded="false"
-            >
-              <svg
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
+      <div class="tab-panels-wrap">
+        <!-- PR WORKBENCH -->
+        <div class="tab-panel active" id="tab-pr">
+          <div class="pec-search-card">
+            <div class="pec-filter-wrap" id="prFilterWrap">
+              <button
+                id="prFilterBtn"
+                type="button"
+                class="pec-filter-btn"
+                title="Filters"
+                aria-label="Filters"
+                aria-haspopup="true"
+                aria-expanded="false"
               >
-                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-              </svg>
-              <span
-                class="pec-filter-badge"
-                id="prFilterBadge"
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <polygon
+                    points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"
+                  />
+                </svg>
+                <span
+                  class="pec-filter-badge"
+                  id="prFilterBadge"
+                  style="display: none"
+                ></span>
+              </button>
+              <div
+                id="prFilterDrawer"
+                class="pec-filter-drawer"
+                role="dialog"
+                aria-label="PR filters"
+              >
+                <div class="pec-filter-section">
+                  <div class="pec-filter-section-title">Status</div>
+                  <select id="prFilterStatus" class="pec-filter-select">
+                    <option value="">All Statuses</option>
+                    <option value="draft">Draft</option>
+                    <option value="active">Active</option>
+                    <option value="closed">Closed</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </div>
+                <div class="pec-filter-section">
+                  <div class="pec-filter-section-title">Material Class</div>
+                  <select id="prFilterClass" class="pec-filter-select">
+                    <option value="">All Classes</option>
+                    <option value="1">RM</option>
+                    <option value="2">PLM</option>
+                    <option value="5">IND</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="pec-search-wrap">
+              <input
+                id="prSearch"
+                class="pec-search-input"
+                type="text"
+                placeholder="Search PR number…"
+                aria-label="Search purchase requisitions"
+              />
+              <button
+                id="prSearchClear"
+                type="button"
+                class="pec-input-clear"
+                title="Clear search"
+                aria-label="Clear search"
                 style="display: none"
-              ></span>
-            </button>
-            <div
-              id="prFilterDrawer"
-              class="pec-filter-drawer"
-              role="dialog"
-              aria-label="PR filters"
-            >
-              <div class="pec-filter-section">
-                <div class="pec-filter-section-title">Status</div>
-                <select id="prFilterStatus" class="pec-filter-select">
-                  <option value="">All Statuses</option>
-                  <option value="draft">Draft</option>
-                  <option value="active">Active</option>
-                  <option value="closed">Closed</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-              </div>
-              <div class="pec-filter-section">
-                <div class="pec-filter-section-title">Material Class</div>
-                <select id="prFilterClass" class="pec-filter-select">
-                  <option value="">All Classes</option>
-                  <option value="1">RM</option>
-                  <option value="2">PLM</option>
-                  <option value="5">IND</option>
-                </select>
-              </div>
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="13"
+                  height="13"
+                  aria-hidden="true"
+                >
+                  <line
+                    x1="18"
+                    y1="6"
+                    x2="6"
+                    y2="18"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                  />
+                  <line
+                    x1="6"
+                    y1="6"
+                    x2="18"
+                    y2="18"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </button>
             </div>
-          </div>
-          <div class="pec-search-wrap">
-            <input
-              id="prSearch"
-              class="pec-search-input"
-              type="text"
-              placeholder="Search PR number…"
-              aria-label="Search purchase requisitions"
-            />
-            <button
-              id="prSearchClear"
-              type="button"
-              class="pec-input-clear"
-              title="Clear search"
-              aria-label="Clear search"
-              style="display: none"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                width="13"
-                height="13"
-                aria-hidden="true"
-              >
-                <line
-                  x1="18"
-                  y1="6"
-                  x2="6"
-                  y2="18"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                  stroke-linecap="round"
-                />
-                <line
-                  x1="6"
-                  y1="6"
-                  x2="18"
-                  y2="18"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                  stroke-linecap="round"
-                />
-              </svg>
-            </button>
-          </div>
-          <div style="margin-left: auto; flex-shrink: 0">
-            <button
-              id="btnGeneratePr"
-              type="button"
-              class="icon-btn primary"
-              title="Generate Draft PR"
-              aria-label="Generate Draft PR"
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="page-header">
-            <h2 style="margin: 0">Purchase Requisitions</h2>
-            <div class="muted" id="prMeta"></div>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>PR Number</th>
-                <th>Status</th>
-                <th>Eff. From</th>
-                <th>Horizon</th>
-                <th>Class</th>
-                <th>Lines</th>
-              </tr>
-            </thead>
-            <tbody id="prTbody"></tbody>
-          </table>
-          <div class="toolbar" style="justify-content: space-between">
-            <div class="muted" id="prPaging"></div>
-            <div>
+            <div style="margin-left: auto; flex-shrink: 0">
               <button
-                id="prBtnPrev"
-                class="icon-btn ghost"
-                title="Previous page"
-                aria-label="Previous page"
+                id="btnGeneratePr"
+                type="button"
+                class="icon-btn primary"
+                title="Generate Draft PR"
+                aria-label="Generate Draft PR"
               >
                 <svg
                   width="16"
@@ -1207,180 +1419,304 @@
                   fill="none"
                   stroke="currentColor"
                   stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
                   aria-hidden="true"
                 >
-                  <path d="M15 6l-6 6 6 6" />
-                </svg>
-              </button>
-              <button
-                id="prBtnNext"
-                class="icon-btn ghost"
-                title="Next page"
-                aria-label="Next page"
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  aria-hidden="true"
-                >
-                  <path d="M9 6l6 6-6 6" />
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
                 </svg>
               </button>
             </div>
           </div>
-        </div>
-      </div>
 
-      <!-- ACTION QUEUE -->
-      <div class="tab-panel active" id="tab-action">
-        <div class="pec-search-card">
-          <div class="pec-filter-wrap" id="aqFilterWrap">
-            <button
-              id="aqFilterBtn"
-              type="button"
-              class="pec-filter-btn"
-              title="Filters"
-              aria-label="Filters"
-              aria-haspopup="true"
-              aria-expanded="false"
-            >
-              <svg
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
+          <div class="card">
+            <div class="table-topbar">
+              <h2 style="margin: 0">Purchase Requisitions</h2>
+              <div class="pager-mini">
+                <span class="muted" id="prMeta"></span>
+                <button
+                  id="prBtnPrev"
+                  class="icon-btn ghost"
+                  title="Previous page"
+                  aria-label="Previous page"
+                  disabled
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <path d="M15 6l-6 6 6 6" />
+                  </svg>
+                </button>
+                <span id="prPaging"></span>
+                <button
+                  id="prBtnNext"
+                  class="icon-btn ghost"
+                  title="Next page"
+                  aria-label="Next page"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <path d="M9 6l6 6-6 6" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div class="table-scroll">
+              <table class="erp-table">
+                <thead>
+                  <tr>
+                    <th>PR Number</th>
+                    <th>Status</th>
+                    <th>Eff. From</th>
+                    <th>Horizon</th>
+                    <th>Class</th>
+                    <th>Lines</th>
+                  </tr>
+                </thead>
+                <tbody id="prTbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ACTION QUEUE -->
+        <div class="tab-panel" id="tab-action">
+          <div class="pec-search-card">
+            <div class="pec-filter-wrap" id="aqFilterWrap">
+              <button
+                id="aqFilterBtn"
+                type="button"
+                class="pec-filter-btn"
+                title="Filters"
+                aria-label="Filters"
+                aria-haspopup="true"
+                aria-expanded="false"
               >
-                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-              </svg>
-              <span
-                class="pec-filter-badge"
-                id="aqFilterBadge"
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <polygon
+                    points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"
+                  />
+                </svg>
+                <span
+                  class="pec-filter-badge"
+                  id="aqFilterBadge"
+                  style="display: none"
+                ></span>
+              </button>
+              <div
+                id="aqFilterDrawer"
+                class="pec-filter-drawer"
+                role="dialog"
+                aria-label="Action queue filters"
+              >
+                <div class="pec-filter-section">
+                  <div class="pec-filter-section-title">Priority Band</div>
+                  <select id="fBand" class="pec-filter-select">
+                    <option value="">All Bands</option>
+                    <option value="P1">P1</option>
+                    <option value="P2">P2</option>
+                    <option value="P3">P3</option>
+                  </select>
+                </div>
+                <div class="pec-filter-section">
+                  <div class="pec-filter-section-title">Material Class</div>
+                  <select id="fClass" class="pec-filter-select">
+                    <option value="">All Classes</option>
+                    <option value="1">RM</option>
+                    <option value="2">PLM</option>
+                    <option value="5">IND</option>
+                  </select>
+                </div>
+                <div class="pec-filter-section">
+                  <div class="pec-filter-section-title">Needs</div>
+                  <select id="fNeeds" class="pec-filter-select">
+                    <option value="">All</option>
+                    <option value="needs_vendor">
+                      Needs vendor candidates
+                    </option>
+                    <option value="needs_selection">
+                      Needs vendor selection
+                    </option>
+                    <option value="has_excess">Has net excess</option>
+                  </select>
+                </div>
+                <div class="pec-filter-section">
+                  <div class="pec-filter-section-title">Quick toggles</div>
+                  <label style="display: flex; gap: 8px; align-items: center">
+                    <input id="fSelectedOnly" type="checkbox" />
+                    Selected vendor only
+                  </label>
+                  <label
+                    style="
+                      display: flex;
+                      gap: 8px;
+                      align-items: center;
+                      margin-top: 6px;
+                    "
+                  >
+                    <input id="fUnselectedOnly" type="checkbox" />
+                    Unselected only
+                  </label>
+                </div>
+                <div class="pec-filter-section">
+                  <div class="pec-filter-section-title">Group mode</div>
+                  <select id="fGroupMode" class="pec-filter-select">
+                    <option value="none">None</option>
+                    <option value="vendor">Group by vendor</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="pec-search-wrap">
+              <input
+                id="fSearch"
+                class="pec-search-input"
+                type="text"
+                placeholder="Search item / indent / vendor…"
+                aria-label="Search action queue"
+              />
+              <button
+                id="fSearchClear"
+                type="button"
+                class="pec-input-clear"
+                title="Clear search"
+                aria-label="Clear search"
                 style="display: none"
-              ></span>
-            </button>
-            <div
-              id="aqFilterDrawer"
-              class="pec-filter-drawer"
-              role="dialog"
-              aria-label="Action queue filters"
-            >
-              <div class="pec-filter-section">
-                <div class="pec-filter-section-title">Priority Band</div>
-                <select id="fBand" class="pec-filter-select">
-                  <option value="">All Bands</option>
-                  <option value="P1">P1</option>
-                  <option value="P2">P2</option>
-                  <option value="P3">P3</option>
-                </select>
-              </div>
-              <div class="pec-filter-section">
-                <div class="pec-filter-section-title">Material Class</div>
-                <select id="fClass" class="pec-filter-select">
-                  <option value="">All Classes</option>
-                  <option value="1">RM</option>
-                  <option value="2">PLM</option>
-                  <option value="5">IND</option>
-                </select>
-              </div>
-              <div class="pec-filter-section">
-                <div class="pec-filter-section-title">Needs</div>
-                <select id="fNeeds" class="pec-filter-select">
-                  <option value="">All</option>
-                  <option value="needs_vendor">Needs vendor candidates</option>
-                  <option value="needs_selection">
-                    Needs vendor selection
-                  </option>
-                  <option value="has_excess">Has net excess</option>
-                </select>
-              </div>
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="13"
+                  height="13"
+                  aria-hidden="true"
+                >
+                  <line
+                    x1="18"
+                    y1="6"
+                    x2="6"
+                    y2="18"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                  />
+                  <line
+                    x1="6"
+                    y1="6"
+                    x2="18"
+                    y2="18"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </button>
             </div>
           </div>
-          <div class="pec-search-wrap">
-            <input
-              id="fSearch"
-              class="pec-search-input"
-              type="text"
-              placeholder="Search item / indent / vendor…"
-              aria-label="Search action queue"
-            />
-            <button
-              id="fSearchClear"
-              type="button"
-              class="pec-input-clear"
-              title="Clear search"
-              aria-label="Clear search"
-              style="display: none"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                width="13"
-                height="13"
-                aria-hidden="true"
-              >
-                <line
-                  x1="18"
-                  y1="6"
-                  x2="6"
-                  y2="18"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                  stroke-linecap="round"
-                />
-                <line
-                  x1="6"
-                  y1="6"
-                  x2="18"
-                  y2="18"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                  stroke-linecap="round"
-                />
-              </svg>
-            </button>
+
+          <div class="card">
+            <div class="table-topbar">
+              <h2 style="margin: 0">Lines</h2>
+              <div class="pager-mini">
+                <span class="muted" id="aqMeta"></span>
+                <button
+                  id="btnPrev"
+                  class="icon-btn ghost"
+                  title="Previous page"
+                  aria-label="Previous page"
+                  disabled
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <path d="M15 6l-6 6 6 6" />
+                  </svg>
+                </button>
+                <span id="aqPaging"></span>
+                <button
+                  id="btnNext"
+                  class="icon-btn ghost"
+                  title="Next page"
+                  aria-label="Next page"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <path d="M9 6l6 6-6 6" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="table-scroll">
+              <table class="erp-table">
+                <thead>
+                  <tr>
+                    <th>Indent#</th>
+                    <th>Item</th>
+                    <th>Qty Pending</th>
+                    <th>Band</th>
+                    <th>Score</th>
+                    <th>Vendor</th>
+                    <th>Rate</th>
+                  </tr>
+                </thead>
+                <tbody id="aqTbody"></tbody>
+              </table>
+            </div>
           </div>
         </div>
 
-        <div class="card">
-          <div class="page-header">
-            <h2 style="margin: 0">Lines</h2>
-            <div class="muted" id="aqMeta"></div>
-          </div>
-
-          <table>
-            <thead>
-              <tr>
-                <th>Indent</th>
-                <th>Item</th>
-                <th>Remaining</th>
-                <th>Priority</th>
-                <th>L1 Vendor</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="aqTbody"></tbody>
-          </table>
-
-          <div class="toolbar" style="justify-content: space-between">
-            <div class="muted" id="aqPaging"></div>
-            <div>
+        <!-- INDENTS -->
+        <div class="tab-panel" id="tab-indents">
+          <div class="pec-search-card">
+            <div class="pec-filter-wrap" id="iFilterWrap">
               <button
-                id="btnPrev"
-                class="icon-btn ghost"
-                title="Previous page"
-                aria-label="Previous page"
+                id="iFilterBtn"
+                type="button"
+                class="pec-filter-btn"
+                title="Filters"
+                aria-label="Filters"
+                aria-haspopup="true"
+                aria-expanded="false"
               >
                 <svg
-                  width="16"
-                  height="16"
+                  width="15"
+                  height="15"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -1389,510 +1725,457 @@
                   stroke-linejoin="round"
                   aria-hidden="true"
                 >
-                  <polyline points="15 18 9 12 15 6"></polyline>
+                  <polygon
+                    points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"
+                  />
                 </svg>
+                <span
+                  class="pec-filter-badge"
+                  id="iFilterBadge"
+                  style="display: none"
+                ></span>
               </button>
-              <button
-                id="btnNext"
-                class="icon-btn ghost"
-                title="Next page"
-                aria-label="Next page"
+              <div
+                id="iFilterDrawer"
+                class="pec-filter-drawer"
+                role="dialog"
+                aria-label="Indent filters"
               >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <polyline points="9 18 15 12 9 6"></polyline>
-                </svg>
-              </button>
+                <div class="pec-filter-section">
+                  <div class="pec-filter-section-title">Status</div>
+                  <select id="iStatus" class="pec-filter-select">
+                    <option value="">All Statuses</option>
+                    <option value="draft">Draft</option>
+                    <option value="approved">Approved</option>
+                    <option value="issued">Issued</option>
+                    <option value="closed">Closed</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </div>
+                <div class="pec-filter-section">
+                  <div class="pec-filter-section-title">Material Class</div>
+                  <select id="iClass" class="pec-filter-select">
+                    <option value="">All Classes</option>
+                    <option value="1">RM</option>
+                    <option value="2">PLM</option>
+                    <option value="5">IND</option>
+                  </select>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- INDENTS -->
-      <div class="tab-panel" id="tab-indents">
-        <div class="pec-search-card">
-          <div class="pec-filter-wrap" id="iFilterWrap">
-            <button
-              id="iFilterBtn"
-              type="button"
-              class="pec-filter-btn"
-              title="Filters"
-              aria-label="Filters"
-              aria-haspopup="true"
-              aria-expanded="false"
-            >
-              <svg
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-              </svg>
-              <span
-                class="pec-filter-badge"
-                id="iFilterBadge"
+            <div class="pec-search-wrap">
+              <input
+                id="iSearch"
+                class="pec-search-input"
+                type="text"
+                placeholder="Search indent number…"
+                aria-label="Search indents"
+              />
+              <button
+                id="iSearchClear"
+                type="button"
+                class="pec-input-clear"
+                title="Clear search"
+                aria-label="Clear search"
                 style="display: none"
-              ></span>
-            </button>
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="13"
+                  height="13"
+                  aria-hidden="true"
+                >
+                  <line
+                    x1="18"
+                    y1="6"
+                    x2="6"
+                    y2="18"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                  />
+                  <line
+                    x1="6"
+                    y1="6"
+                    x2="18"
+                    y2="18"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </button>
+            </div>
             <div
-              id="iFilterDrawer"
-              class="pec-filter-drawer"
-              role="dialog"
-              aria-label="Indent filters"
+              style="margin-left: auto; flex-shrink: 0; display: flex; gap: 6px"
             >
-              <div class="pec-filter-section">
-                <div class="pec-filter-section-title">Status</div>
-                <select id="iStatus" class="pec-filter-select">
-                  <option value="">All Statuses</option>
-                  <option value="draft">Draft</option>
-                  <option value="approved">Approved</option>
-                  <option value="issued">Issued</option>
-                  <option value="closed">Closed</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
+              <button
+                id="iBtnNewDraft"
+                class="icon-btn primary"
+                title="New Indent"
+                aria-label="New Indent"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              </button>
+              <button
+                id="iBtnFromPR"
+                class="icon-btn primary"
+                title="Create from PR"
+                aria-label="Create from PR"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                  <polyline points="12 5 19 12 12 19"></polyline>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="table-topbar">
+              <h2 style="margin: 0">Indents</h2>
+              <div class="pager-mini">
+                <span class="muted" id="iMeta"></span>
+                <button
+                  id="iBtnPrev"
+                  class="icon-btn ghost"
+                  title="Previous page"
+                  aria-label="Previous page"
+                  disabled
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <path d="M15 6l-6 6 6 6" />
+                  </svg>
+                </button>
+                <span id="iPaging"></span>
+                <button
+                  id="iBtnNext"
+                  class="icon-btn ghost"
+                  title="Next page"
+                  aria-label="Next page"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <path d="M9 6l6 6-6 6" />
+                  </svg>
+                </button>
               </div>
-              <div class="pec-filter-section">
-                <div class="pec-filter-section-title">Material Class</div>
-                <select id="iClass" class="pec-filter-select">
-                  <option value="">All Classes</option>
-                  <option value="1">RM</option>
-                  <option value="2">PLM</option>
-                  <option value="5">IND</option>
-                </select>
+            </div>
+            <div class="table-scroll">
+              <table class="erp-table">
+                <thead>
+                  <tr>
+                    <th>Indent #</th>
+                    <th>Approved Date</th>
+                    <th>Status</th>
+                    <th>Class</th>
+                    <th>Lines</th>
+                  </tr>
+                </thead>
+                <tbody id="iTbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- EXCESS -->
+        <div class="tab-panel" id="tab-excess">
+          <div class="pec-search-card">
+            <div class="pec-search-wrap">
+              <input
+                id="eSearch"
+                class="pec-search-input"
+                type="text"
+                placeholder="Search item…"
+                aria-label="Search excess purchases"
+              />
+              <button
+                id="eSearchClear"
+                type="button"
+                class="pec-input-clear"
+                title="Clear search"
+                aria-label="Clear search"
+                style="display: none"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="13"
+                  height="13"
+                  aria-hidden="true"
+                >
+                  <line
+                    x1="18"
+                    y1="6"
+                    x2="6"
+                    y2="18"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                  />
+                  <line
+                    x1="6"
+                    y1="6"
+                    x2="18"
+                    y2="18"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="card" style="margin-bottom: 12px">
+            <div class="table-topbar">
+              <h2 style="margin: 0">Excess Purchases</h2>
+              <div class="pager-mini">
+                <span class="muted" id="eMeta"></span>
+                <button
+                  id="eBtnPrev"
+                  class="icon-btn ghost"
+                  title="Previous page"
+                  aria-label="Previous page"
+                  disabled
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <path d="M15 6l-6 6 6 6" />
+                  </svg>
+                </button>
+                <span id="ePaging"></span>
+                <button
+                  id="eBtnNext"
+                  class="icon-btn ghost"
+                  title="Next page"
+                  aria-label="Next page"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <path d="M9 6l6 6-6 6" />
+                  </svg>
+                </button>
               </div>
             </div>
+            <div class="table-scroll">
+              <table class="erp-table">
+                <thead>
+                  <tr>
+                    <th>Voucher</th>
+                    <th>Item</th>
+                    <th>Class</th>
+                    <th>Purchase Qty</th>
+                    <th>Allocated</th>
+                    <th>Unallocated</th>
+                    <th>Accepted</th>
+                    <th>Net Unalloc</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="eTbody"></tbody>
+              </table>
+            </div>
           </div>
-          <div class="pec-search-wrap">
-            <input
-              id="iSearch"
-              class="pec-search-input"
-              type="text"
-              placeholder="Search indent number…"
-              aria-label="Search indents"
-            />
-            <button
-              id="iSearchClear"
-              type="button"
-              class="pec-input-clear"
-              title="Clear search"
-              aria-label="Clear search"
-              style="display: none"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                width="13"
-                height="13"
-                aria-hidden="true"
-              >
-                <line
-                  x1="18"
-                  y1="6"
-                  x2="6"
-                  y2="18"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                  stroke-linecap="round"
-                />
-                <line
-                  x1="6"
-                  y1="6"
-                  x2="18"
-                  y2="18"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                  stroke-linecap="round"
-                />
-              </svg>
-            </button>
-          </div>
-          <div
-            style="margin-left: auto; flex-shrink: 0; display: flex; gap: 6px"
-          >
-            <button
-              id="iBtnNewDraft"
-              class="icon-btn primary"
-              title="New Indent"
-              aria-label="New Indent"
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-            </button>
-            <button
-              id="iBtnFromPR"
-              class="icon-btn primary"
-              title="Create from PR"
-              aria-label="Create from PR"
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-                <polyline points="12 5 19 12 12 19"></polyline>
-              </svg>
-            </button>
-          </div>
-        </div>
-        <div class="card">
-          <div class="page-header">
-            <h2 style="margin: 0">Indents</h2>
-            <div class="muted" id="iMeta"></div>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Indent #</th>
-                <th>Approved Date</th>
-                <th>Status</th>
-                <th>Class</th>
-                <th>Lines</th>
-              </tr>
-            </thead>
-            <tbody id="iTbody"></tbody>
-          </table>
-          <div class="toolbar" style="justify-content: space-between">
-            <div class="muted" id="iPaging"></div>
-            <div>
-              <button
-                id="iBtnPrev"
-                class="icon-btn ghost"
-                title="Previous page"
-                aria-label="Previous page"
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <polyline points="15 18 9 12 15 6"></polyline>
-                </svg>
-              </button>
-              <button
-                id="iBtnNext"
-                class="icon-btn ghost"
-                title="Next page"
-                aria-label="Next page"
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <polyline points="9 18 15 12 9 6"></polyline>
-                </svg>
-              </button>
+          <div class="card">
+            <h2 style="margin: 0 0 10px">Acceptance Audit</h2>
+            <div class="table-scroll">
+              <table class="erp-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Item</th>
+                    <th>Accepted Qty</th>
+                    <th>Reason</th>
+                    <th>By</th>
+                  </tr>
+                </thead>
+                <tbody id="eAuditTbody"></tbody>
+              </table>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- EXCESS -->
-      <div class="tab-panel" id="tab-excess">
-        <div class="pec-search-card">
-          <div class="pec-search-wrap">
-            <input
-              id="eSearch"
-              class="pec-search-input"
-              type="text"
-              placeholder="Search item…"
-              aria-label="Search excess purchases"
-            />
-            <button
-              id="eSearchClear"
-              type="button"
-              class="pec-input-clear"
-              title="Clear search"
-              aria-label="Clear search"
-              style="display: none"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                width="13"
-                height="13"
-                aria-hidden="true"
-              >
-                <line
-                  x1="18"
-                  y1="6"
-                  x2="6"
-                  y2="18"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                  stroke-linecap="round"
-                />
-                <line
-                  x1="6"
-                  y1="6"
-                  x2="18"
-                  y2="18"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                  stroke-linecap="round"
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
-        <div class="card" style="margin-bottom: 12px">
-          <div class="page-header">
-            <h2 style="margin: 0">Excess Purchases</h2>
-            <div class="muted" id="eMeta"></div>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Voucher</th>
-                <th>Item</th>
-                <th>Class</th>
-                <th>Purchase Qty</th>
-                <th>Allocated</th>
-                <th>Unallocated</th>
-                <th>Accepted</th>
-                <th>Net Unalloc</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="eTbody"></tbody>
-          </table>
-          <div class="toolbar" style="justify-content: space-between">
-            <div class="muted" id="ePaging"></div>
-            <div>
+        <!-- VENDORS -->
+        <div class="tab-panel" id="tab-vendors">
+          <div class="pec-search-card">
+            <div class="pec-search-wrap">
+              <input
+                id="vSearch"
+                class="pec-search-input"
+                type="text"
+                placeholder="Search alias…"
+                aria-label="Search vendor aliases"
+              />
               <button
-                id="eBtnPrev"
-                class="icon-btn ghost"
-                title="Previous page"
-                aria-label="Previous page"
+                id="vSearchClear"
+                type="button"
+                class="pec-input-clear"
+                title="Clear search"
+                aria-label="Clear search"
+                style="display: none"
               >
                 <svg
-                  width="16"
-                  height="16"
                   viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
+                  width="13"
+                  height="13"
                   aria-hidden="true"
                 >
-                  <polyline points="15 18 9 12 15 6"></polyline>
-                </svg>
-              </button>
-              <button
-                id="eBtnNext"
-                class="icon-btn ghost"
-                title="Next page"
-                aria-label="Next page"
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <polyline points="9 18 15 12 9 6"></polyline>
+                  <line
+                    x1="18"
+                    y1="6"
+                    x2="6"
+                    y2="18"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                  />
+                  <line
+                    x1="6"
+                    y1="6"
+                    x2="18"
+                    y2="18"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                  />
                 </svg>
               </button>
             </div>
-          </div>
-        </div>
-        <div class="card">
-          <h2 style="margin: 0 0 10px">Acceptance Audit</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Item</th>
-                <th>Accepted Qty</th>
-                <th>Reason</th>
-                <th>By</th>
-              </tr>
-            </thead>
-            <tbody id="eAuditTbody"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- VENDORS -->
-      <div class="tab-panel" id="tab-vendors">
-        <div class="pec-search-card">
-          <div class="pec-search-wrap">
-            <input
-              id="vSearch"
-              class="pec-search-input"
-              type="text"
-              placeholder="Search alias…"
-              aria-label="Search vendor aliases"
-            />
-            <button
-              id="vSearchClear"
-              type="button"
-              class="pec-input-clear"
-              title="Clear search"
-              aria-label="Clear search"
-              style="display: none"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                width="13"
-                height="13"
-                aria-hidden="true"
+            <div style="margin-left: auto; flex-shrink: 0">
+              <a
+                id="linkVendorMaster"
+                href="#"
+                style="
+                  font-size: 12px;
+                  color: var(--primary, #005a8d);
+                  text-decoration: none;
+                  padding: 6px 10px;
+                  border-radius: 6px;
+                  border: 1px solid var(--border, #e5e7eb);
+                  display: inline-block;
+                "
+                title="Vendor master management (coming soon)"
+                onclick="
+                  event.preventDefault();
+                  alert('Vendor Master page not yet available.');
+                "
               >
-                <line
-                  x1="18"
-                  y1="6"
-                  x2="6"
-                  y2="18"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                  stroke-linecap="round"
-                />
-                <line
-                  x1="6"
-                  y1="6"
-                  x2="18"
-                  y2="18"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                  stroke-linecap="round"
-                />
-              </svg>
-            </button>
+                View Vendor Master &#8599;
+              </a>
+            </div>
           </div>
-          <div style="margin-left: auto; flex-shrink: 0">
-            <a
-              id="linkVendorMaster"
-              href="#"
-              style="
-                font-size: 12px;
-                color: var(--primary, #005a8d);
-                text-decoration: none;
-                padding: 6px 10px;
-                border-radius: 6px;
-                border: 1px solid var(--border, #e5e7eb);
-                display: inline-block;
-              "
-              title="Vendor master management (coming soon)"
-              onclick="
-                event.preventDefault();
-                alert('Vendor Master page not yet available.');
-              "
-            >
-              View Vendor Master &#8599;
-            </a>
-          </div>
-        </div>
-        <div class="card">
-          <div class="page-header">
-            <h2 style="margin: 0">Unmapped Vendor Aliases</h2>
-            <div class="muted" id="vMeta"></div>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Alias</th>
-                <th>Source</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="vTbody"></tbody>
-          </table>
-          <div class="toolbar" style="justify-content: space-between">
-            <div class="muted" id="vPaging"></div>
-            <div>
-              <button
-                id="vBtnPrev"
-                class="icon-btn ghost"
-                title="Previous page"
-                aria-label="Previous page"
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  aria-hidden="true"
+          <div class="card">
+            <div class="table-topbar">
+              <h2 style="margin: 0">Unmapped Vendor Aliases</h2>
+              <div class="pager-mini">
+                <span class="muted" id="vMeta"></span>
+                <button
+                  id="vBtnPrev"
+                  class="icon-btn ghost"
+                  title="Previous page"
+                  aria-label="Previous page"
+                  disabled
                 >
-                  <path d="M15 6l-6 6 6 6" />
-                </svg>
-              </button>
-              <button
-                id="vBtnNext"
-                class="icon-btn ghost"
-                title="Next page"
-                aria-label="Next page"
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  aria-hidden="true"
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <path d="M15 6l-6 6 6 6" />
+                  </svg>
+                </button>
+                <span id="vPaging"></span>
+                <button
+                  id="vBtnNext"
+                  class="icon-btn ghost"
+                  title="Next page"
+                  aria-label="Next page"
                 >
-                  <path d="M9 6l6 6-6 6" />
-                </svg>
-              </button>
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <path d="M9 6l6 6-6 6" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div class="table-scroll">
+              <table class="erp-table">
+                <thead>
+                  <tr>
+                    <th>Alias</th>
+                    <th>Source</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="vTbody"></tbody>
+              </table>
             </div>
           </div>
         </div>
       </div>
     </section>
-
     <!-- Indent View modal -->
     <div class="modal-backdrop" id="indentViewModalBackdrop" aria-hidden="true">
       <div class="modal" style="max-width: 1100px">
@@ -1912,7 +2195,150 @@
                 id="indentViewMeta"
                 style="font-size: 12px; margin-top: 4px"
               ></div>
+              <div
+                style="
+                  margin-top: 6px;
+                  display: flex;
+                  gap: 6px;
+                  align-items: center;
+                  flex-wrap: wrap;
+                "
+              >
+                <span id="indentSourcePrBadge" class="pill">Source PR: —</span>
+              </div>
             </div>
+            <div
+              id="indentDraftWorkflowGroup"
+              style="
+                display: none;
+                gap: 6px;
+                align-items: center;
+                flex-wrap: wrap;
+              "
+            >
+              <button
+                class="icon-btn ghost"
+                id="btnIndentOpenPr"
+                title="Open Source PR"
+                aria-label="Open Source PR"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  <path d="M14 3h7v7" />
+                  <path d="M10 14 21 3" />
+                  <path d="M21 14v7h-7" />
+                  <path d="M3 10 14 21" />
+                </svg>
+              </button>
+              <button
+                class="icon-btn ghost"
+                id="btnIndentCreatePrRevision"
+                title="Create PR Revision"
+                aria-label="Create PR Revision"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                  />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="12" y1="11" x2="12" y2="17" />
+                  <line x1="9" y1="14" x2="15" y2="14" />
+                </svg>
+              </button>
+              <button
+                class="icon-btn ghost"
+                id="btnIndentSetSourcePr"
+                title="Set Source PR"
+                aria-label="Set Source PR"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
+                  />
+                  <path
+                    d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+                  />
+                </svg>
+              </button>
+              <div class="export-menu" id="iResyncMenu">
+                <button
+                  class="icon-btn primary"
+                  id="btnIndentResyncMenu"
+                  title="Resync"
+                  aria-label="Resync options"
+                  aria-haspopup="true"
+                  aria-expanded="false"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <polyline points="23 4 23 10 17 10" />
+                    <polyline points="1 20 1 14 7 14" />
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10" />
+                    <path d="M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                  </svg>
+                </button>
+                <div class="export-dropdown" id="iResyncDropdown" role="menu">
+                  <button id="btnIndentResyncSafe" role="menuitem">Safe</button>
+                  <button id="btnIndentResyncFull" role="menuitem">Full</button>
+                </div>
+              </div>
+            </div>
+            <button
+              id="btnIndentDeleteDraft"
+              class="icon-btn danger"
+              title="Delete Draft Indent"
+              aria-label="Delete Draft Indent"
+              type="button"
+              style="display: none"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                <path d="M10 11v6"></path>
+                <path d="M14 11v6"></path>
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
+              </svg>
+            </button>
             <div class="export-menu" id="iExportMenu">
               <button
                 class="icon-btn primary"
@@ -2052,26 +2478,150 @@
               style="font-size: 12px; margin-left: auto"
             ></div>
           </div>
-          <div id="iLinesEmpty" class="muted">No lines for this indent.</div>
-          <table id="iLinesTable" style="display: none">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Item</th>
-                <th>Class</th>
-                <th>UOM</th>
-                <th>Requested</th>
-                <th>Allocated</th>
-                <th>Remaining</th>
-                <th>Rec. Vendor</th>
-                <th>Rec. Rate</th>
-                <th>Sel. Vendor</th>
-                <th>Sel. Rate</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="iLinesTbody"></tbody>
-          </table>
+          <div class="table-toolbar sticky">
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                width: 100%;
+                flex-wrap: wrap;
+              "
+            >
+              <input
+                id="iLineSearch"
+                class="erp-search-input"
+                type="search"
+                placeholder="Search items (name/code/class)..."
+                style="flex: 1 1 0; min-width: 180px; max-width: 340px"
+              />
+              <div class="pec-filter-wrap" id="iLineFilterWrap">
+                <button
+                  id="iLineFilterBtn"
+                  class="pec-filter-btn icon-btn ghost"
+                  title="Filter lines"
+                  aria-label="Filter lines"
+                  type="button"
+                  aria-haspopup="true"
+                  aria-expanded="false"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <polygon
+                      points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"
+                    />
+                  </svg>
+                </button>
+                <span
+                  id="iLineFilterBadge"
+                  class="pec-filter-badge"
+                  style="display: none"
+                  title="Filter active"
+                ></span>
+                <div
+                  id="iLineFilterDrawer"
+                  class="pec-filter-drawer"
+                  role="dialog"
+                  aria-label="Indent line filter"
+                >
+                  <div class="pec-filter-drawer-title">Filter lines</div>
+                  <label class="pec-filter-label" for="iLineFilterSelect"
+                    >Show</label
+                  >
+                  <select id="iLineFilterSelect" class="pec-filter-select">
+                    <option value="all">All lines</option>
+                    <option value="remaining_only">Remaining only</option>
+                    <option value="allocated_only">Allocated only</option>
+                    <option value="zero_requested">Requested = 0</option>
+                  </select>
+                </div>
+              </div>
+              <div
+                id="iLinesPager"
+                class="pager"
+                style="
+                  display: none;
+                  align-items: center;
+                  gap: 6px;
+                  margin-left: auto;
+                "
+              >
+                <button
+                  id="iLinesPrev"
+                  class="icon-btn ghost"
+                  title="Previous"
+                  aria-label="Previous"
+                  type="button"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <path d="M15 6l-6 6 6 6" />
+                  </svg>
+                </button>
+                <span
+                  id="iLinesPageInfo"
+                  class="muted"
+                  style="min-width: 120px; text-align: center"
+                ></span>
+                <button
+                  id="iLinesNext"
+                  class="icon-btn ghost"
+                  title="Next"
+                  aria-label="Next"
+                  type="button"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <path d="M9 6l6 6-6 6" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div id="iLinesScroll" class="table-scroll modal-scroll">
+            <div id="iLinesEmpty" class="muted">No lines for this indent.</div>
+            <table id="iLinesTable" class="erp-table" style="display: none">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Item</th>
+                  <th>Class</th>
+                  <th>UOM</th>
+                  <th>Requested</th>
+                  <th>Allocated</th>
+                  <th>Remaining</th>
+                  <th>Rec. Vendor</th>
+                  <th>Rec. Rate</th>
+                  <th>Sel. Vendor</th>
+                  <th>Sel. Rate</th>
+                </tr>
+              </thead>
+              <tbody id="iLinesTbody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -2129,66 +2679,10 @@
 
     <!-- Detail modal -->
     <div class="modal-backdrop" id="detailModalBackdrop" aria-hidden="true">
-      <div class="modal" style="max-width: 760px">
+      <div class="modal detail-modal">
         <div class="modal-header page-header">
           <h3 style="margin: 0" id="detailModalTitle"></h3>
           <div style="display: flex; align-items: center; gap: 6px">
-            <div class="export-menu" id="aqExportMenu">
-              <button
-                class="icon-btn primary"
-                id="btnAqExportMenu"
-                title="Export"
-                aria-label="Export options"
-                aria-haspopup="true"
-                aria-expanded="false"
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  aria-hidden="true"
-                >
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-              </button>
-              <div class="export-dropdown" id="aqExportDropdown" role="menu">
-                <button id="btnAqExportDropdownCsv" role="menuitem">
-                  <svg
-                    width="13"
-                    height="13"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    aria-hidden="true"
-                  >
-                    <rect x="3" y="3" width="18" height="18" rx="2" />
-                    <path d="M3 9h18M9 21V9" />
-                  </svg>
-                  Export CSV
-                </button>
-                <button id="btnAqExportDropdownTsv" role="menuitem">
-                  <svg
-                    width="13"
-                    height="13"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    aria-hidden="true"
-                  >
-                    <rect x="3" y="3" width="18" height="18" rx="2" />
-                    <path d="M3 9h18M9 21V9" />
-                  </svg>
-                  Export TSV
-                </button>
-              </div>
-            </div>
             <button
               id="btnDetailClose"
               class="modal-close-btn"
@@ -2211,27 +2705,115 @@
           </div>
         </div>
         <div class="modal-body" id="detailModalBody">
-          <div
-            style="margin: 8px 0 12px; display: flex; gap: 8px; flex-wrap: wrap"
-          >
+          <div class="detail-status-strip">
             <span class="pill" id="detailBand"></span>
             <span class="pill" id="detailMos"></span>
             <span class="pill" id="detailLead"></span>
+            <div id="detailFlags" class="detail-flags"></div>
           </div>
 
-          <div class="section-title">Summary</div>
-          <div id="detailSummary"></div>
+          <div class="detail-shell">
+            <div class="detail-column">
+              <section class="detail-card">
+                <div class="detail-card-title">Summary</div>
+                <div id="detailSummary"></div>
+              </section>
 
-          <div class="section-title">Priority Factors</div>
-          <div id="detailPriority"></div>
+              <section class="detail-card">
+                <div class="detail-card-title">Priority Drivers</div>
+                <div id="detailPriority"></div>
+              </section>
 
-          <div class="section-title">Vendor Decision</div>
-          <div id="detailVendor"></div>
+              <section class="detail-card">
+                <div class="detail-card-title">Vendor Evidence (L1)</div>
+                <div id="detailEvidenceList"></div>
+              </section>
+            </div>
 
-          <div class="section-title">Vendor Evidence (L1)</div>
-          <div id="detailEvidenceList"></div>
+            <aside class="detail-rail">
+              <section class="detail-card">
+                <div class="detail-card-title">Vendor Decision</div>
+                <div id="detailVendor"></div>
+              </section>
+
+              <section class="detail-card">
+                <div class="detail-card-title">Actions</div>
+                <p class="detail-action-note" id="detailActionHint"></p>
+                <div class="detail-action-buttons">
+                  <button
+                    id="btnDetailRecommend"
+                    type="button"
+                    class="icon-btn primary with-label"
+                    title="Recommend vendor"
+                    aria-label="Recommend vendor"
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      aria-hidden="true"
+                    >
+                      <path d="M15 4V2" />
+                      <path d="M15 16v-2" />
+                      <path d="M8 9h2" />
+                      <path d="M20 9h2" />
+                      <path d="M17.8 11.8 19 13" />
+                      <path d="M15 9h0" />
+                      <path d="M17.8 6.2 11 5" />
+                      <path d="M3 21l9-9" />
+                      <path d="M12.2 6.2 11 5" />
+                    </svg>
+                    <span>Recommend vendor</span>
+                  </button>
+                  <button
+                    id="btnDetailSelectVendor"
+                    type="button"
+                    class="icon-btn secondary with-label"
+                    title="Select vendor"
+                    aria-label="Select vendor"
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      aria-hidden="true"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span>Select vendor</span>
+                  </button>
+                  <button
+                    id="btnDetailJumpIndent"
+                    type="button"
+                    class="icon-btn ghost with-label"
+                    title="Jump to indent"
+                    aria-label="Jump to indent"
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      aria-hidden="true"
+                    >
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                      <polyline points="12 5 19 12 12 19" />
+                    </svg>
+                    <span>Jump to indent</span>
+                  </button>
+                </div>
+              </section>
+            </aside>
+          </div>
         </div>
-        <div class="actions"></div>
       </div>
     </div>
 
@@ -2293,6 +2875,56 @@
         <div class="actions">
           <button id="btnIndentActionCancel">Cancel</button>
           <button id="btnIndentActionConfirm">Confirm</button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="modal-backdrop"
+      id="indentSourcePrModalBackdrop"
+      aria-hidden="true"
+    >
+      <div class="modal" style="max-width: 560px">
+        <h3>Set Source PR</h3>
+        <div
+          class="muted"
+          id="indentSourcePrModalHint"
+          style="margin-bottom: 10px"
+        ></div>
+        <div>
+          <label>Select an Active PR</label>
+          <select
+            id="indentSourcePrPick"
+            size="8"
+            style="width: 100%; margin-top: 6px"
+          ></select>
+        </div>
+        <div class="actions">
+          <button id="btnIndentSourcePrCancel">Cancel</button>
+          <button id="btnIndentSourcePrConfirm">Set Source PR</button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="modal-backdrop"
+      id="indentResyncModalBackdrop"
+      aria-hidden="true"
+    >
+      <div class="modal" style="max-width: 460px">
+        <h3>Resync Indent from PR</h3>
+        <div
+          class="muted"
+          id="indentResyncModeText"
+          style="margin-top: 8px"
+        ></div>
+        <div class="muted" style="margin-top: 8px; font-size: 12px">
+          This will sync indent lines with source PR final quantities (including
+          delete-on-zero).
+        </div>
+        <div class="actions">
+          <button id="btnIndentResyncCancel">Cancel</button>
+          <button id="btnIndentResyncConfirm">Resync</button>
         </div>
       </div>
     </div>
@@ -2468,6 +3100,32 @@
               >
                 <line x1="18" y1="6" x2="6" y2="18"></line>
                 <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+            <button
+              id="btnPrDeleteDraft"
+              type="button"
+              class="icon-btn danger"
+              title="Delete Draft PR"
+              aria-label="Delete Draft PR"
+              style="display: none"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                <path d="M10 11v6"></path>
+                <path d="M14 11v6"></path>
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
               </svg>
             </button>
             <button
@@ -2713,22 +3371,24 @@
               </div>
             </div>
           </div>
-          <div id="prLinesEmpty" class="muted">No lines for this PR.</div>
-          <table id="prLinesTable" style="display: none">
-            <thead>
-              <tr>
-                <th>Item</th>
-                <th>Class</th>
-                <th>UOM</th>
-                <th>Sys. Sug.</th>
-                <th>Requested</th>
-                <th>Delta</th>
-                <th>Final Qty</th>
-                <th>Reason</th>
-              </tr>
-            </thead>
-            <tbody id="prLinesTbody"></tbody>
-          </table>
+          <div id="prLinesScroll" class="table-scroll modal-scroll">
+            <div id="prLinesEmpty" class="muted">No lines for this PR.</div>
+            <table id="prLinesTable" class="erp-table" style="display: none">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Class</th>
+                  <th>UOM</th>
+                  <th>Sys. Sug.</th>
+                  <th>Requested</th>
+                  <th>Delta</th>
+                  <th>Final Qty</th>
+                  <th>Reason</th>
+                </tr>
+              </thead>
+              <tbody id="prLinesTbody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -2776,6 +3436,61 @@
         <div class="actions">
           <button id="btnPrRebuildCancel">Cancel</button>
           <button id="btnPrRebuildConfirm">Rebuild</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-backdrop" id="hardDeleteModalBackdrop" aria-hidden="true">
+      <div class="modal" style="max-width: 460px">
+        <div class="modal-header page-header">
+          <h3 id="hardDeleteTitle" style="margin: 0">Delete Draft?</h3>
+          <button
+            id="btnHardDeleteClose"
+            class="modal-close-btn"
+            aria-label="Close"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div
+            id="hardDeleteMessage"
+            class="muted"
+            style="margin-bottom: 14px"
+          ></div>
+          <div class="form-group full-col">
+            <label for="hardDeleteConfirmText">Type DELETE to confirm</label>
+            <input
+              id="hardDeleteConfirmText"
+              type="text"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="DELETE"
+            />
+          </div>
+          <div class="form-group full-col">
+            <label for="hardDeleteReason">Reason (optional)</label>
+            <textarea
+              id="hardDeleteReason"
+              rows="3"
+              placeholder="Optional reason"
+            ></textarea>
+          </div>
+        </div>
+        <div class="actions">
+          <button id="btnHardDeleteCancel">Cancel</button>
+          <button id="btnHardDeleteConfirm" class="danger">Delete</button>
         </div>
       </div>
     </div>
@@ -3164,39 +3879,32 @@
                 <option value="5">IND</option>
               </select>
             </div>
-            <div class="form-group full-col">
-              <label>Stock Item <span style="color: red">*</span></label>
-              <div
-                id="ialItemDisplay"
-                style="
-                  display: flex;
-                  align-items: center;
-                  gap: 8px;
-                  padding: 8px 10px;
-                  border-radius: 6px;
-                  border: 1px solid var(--border, #e5e7eb);
-                  background: rgba(0, 0, 0, 0.02);
-                  min-height: 36px;
-                "
+            <div class="form-group full-col inline-item-search-wrap">
+              <label for="ialItemSearch"
+                >Stock Item <span style="color: red">*</span></label
               >
-                <span id="ialItemText" class="muted" style="flex: 1"
-                  >None selected</span
-                >
-                <button
-                  id="ialItemChange"
-                  type="button"
-                  style="
-                    background: transparent;
-                    border: none;
-                    cursor: pointer;
-                    color: var(--primary, #005a8d);
-                    font-size: 12px;
-                    padding: 0;
-                    font-weight: 500;
-                  "
-                >
-                  Change
-                </button>
+              <input
+                id="ialItemSearch"
+                type="text"
+                placeholder="Type to search stock items…"
+                autocomplete="off"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-controls="ialItemResults"
+                aria-expanded="false"
+              />
+              <ul
+                id="ialItemResults"
+                class="inline-item-results"
+                role="listbox"
+                aria-label="Indent stock item search results"
+              ></ul>
+              <div
+                id="ialItemHelper"
+                class="muted"
+                style="font-size: 11px; margin-top: 4px"
+              >
+                Type to search and pick a stock item.
               </div>
             </div>
             <div class="form-group">

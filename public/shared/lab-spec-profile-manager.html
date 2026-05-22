@@ -1225,11 +1225,11 @@
         border-radius: 12px;
         box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
         width: 94vw;
-        max-width: 680px;
+        max-width: 860px;
         min-width: 340px;
-        height: auto;
+        height: min(840px, calc(100vh - 12px));
         min-height: 360px;
-        max-height: calc(100vh - 40px);
+        max-height: calc(100vh - 12px);
         display: flex;
         flex-direction: column;
         overflow: hidden;
@@ -1268,12 +1268,12 @@
         color: #374151;
       }
       .bs-line-modal-body {
-        padding: 14px 18px;
+        padding: 18px 22px;
         overflow-y: auto;
         flex: 1 1 0;
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: 14px;
       }
       .bs-line-modal-footer {
         display: flex;
@@ -1369,6 +1369,63 @@
         border-radius: 7px;
         font-size: 12.5px;
         color: #374151;
+      }
+      .rebuild-choice-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .rebuild-choice-card {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+        text-align: left;
+        padding: 14px 16px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 10px;
+        background: #fff;
+        cursor: pointer;
+        font-family: inherit;
+        color: #0f172a;
+      }
+      .rebuild-choice-card:hover:not(:disabled) {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+      }
+      .rebuild-choice-card:disabled {
+        opacity: 0.55;
+        cursor: wait;
+      }
+      .rebuild-choice-danger:hover:not(:disabled) {
+        background: #fef2f2;
+        border-color: #fecaca;
+      }
+      .rebuild-choice-icon {
+        color: var(--primary, #2563eb);
+        display: inline-flex;
+      }
+      .rebuild-choice-danger .rebuild-choice-icon {
+        color: #b91c1c;
+      }
+      .rebuild-choice-title {
+        font-size: 13.5px;
+        font-weight: 800;
+      }
+      .rebuild-choice-desc {
+        font-size: 12.5px;
+        line-height: 1.45;
+        color: var(--muted, #6b7280);
+      }
+      .modal-body,
+      .panel,
+      .card {
+        overflow: visible;
+      }
+      @media (max-width: 720px) {
+        .rebuild-choice-grid {
+          grid-template-columns: 1fr;
+        }
       }
     </style>
   </head>
@@ -1676,6 +1733,27 @@
                   </svg>
                   <span>Generate Spec</span>
                 </button>
+                <button
+                  id="rmRebuildSpecBtn"
+                  type="button"
+                  class="btn-secondary hidden"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M21 12a9 9 0 1 1-2.64-6.36"></path>
+                    <polyline points="21 3 21 9 15 9"></polyline>
+                  </svg>
+                  <span>Rebuild</span>
+                </button>
               </div>
             </div>
             <div
@@ -1818,6 +1896,27 @@
                   </svg>
                   <span>Generate Spec</span>
                 </button>
+                <button
+                  id="pmRebuildSpecBtn"
+                  type="button"
+                  class="btn-secondary hidden"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M21 12a9 9 0 1 1-2.64-6.36"></path>
+                    <polyline points="21 3 21 9 15 9"></polyline>
+                  </svg>
+                  <span>Rebuild</span>
+                </button>
               </div>
             </div>
             <div
@@ -1916,6 +2015,27 @@
                     <line x1="8" y1="12" x2="16" y2="12" />
                   </svg>
                   <span>Generate Spec</span>
+                </button>
+                <button
+                  id="bsRebuildSpecBtn"
+                  type="button"
+                  class="btn-secondary hidden"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M21 12a9 9 0 1 1-2.64-6.36"></path>
+                    <polyline points="21 3 21 9 15 9"></polyline>
+                  </svg>
+                  <span>Rebuild</span>
                 </button>
               </div>
             </div>
@@ -2500,6 +2620,105 @@
     <!-- Toast container -->
     <div id="labToastContainer" aria-live="polite" aria-atomic="false"></div>
 
+    <!-- Base spec rebuild modal -->
+    <div
+      id="rebuildModal"
+      class="ov-modal-backdrop hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="rebuildModalTitle"
+    >
+      <div class="ov-modal">
+        <div class="ov-modal-header">
+          <h2 id="rebuildModalTitle" class="ov-modal-title">
+            Rebuild Base Spec
+          </h2>
+          <button
+            id="rebuildModalClose"
+            type="button"
+            class="ov-modal-close"
+            aria-label="Close"
+          >
+            &times;
+          </button>
+        </div>
+
+        <div class="ov-modal-body">
+          <div id="rebuildModalContext" class="ov-context-bar"></div>
+
+          <div class="rebuild-choice-grid">
+            <button
+              id="rebuildSafeBtn"
+              type="button"
+              class="rebuild-choice-card"
+            >
+              <span class="rebuild-choice-icon" aria-hidden="true">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M12 3l8 4v5c0 5-3.5 8.5-8 9-4.5-.5-8-4-8-9V7l8-4z" />
+                  <path d="M9 12l2 2 4-4" />
+                </svg>
+              </span>
+              <span class="rebuild-choice-title">Safe Rebuild</span>
+              <span class="rebuild-choice-desc">
+                Creates a new version only if changes are detected. Carries
+                forward existing specification values for matching tests and
+                adds new protocol tests.
+              </span>
+            </button>
+
+            <button
+              id="rebuildFullResetBtn"
+              type="button"
+              class="rebuild-choice-card rebuild-choice-danger"
+            >
+              <span class="rebuild-choice-icon" aria-hidden="true">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                  <polyline points="21 3 21 9 15 9" />
+                </svg>
+              </span>
+              <span class="rebuild-choice-title">Full Reset from Protocol</span>
+              <span class="rebuild-choice-desc">
+                Creates a new base spec version exactly from the current mapped
+                protocol. Existing manual specification values are not carried
+                forward.
+              </span>
+            </button>
+          </div>
+
+          <div class="spec-info-banner warn">
+            Safe Rebuild is recommended for normal protocol updates. Use Full
+            Reset only when the base spec must be fully realigned with the
+            protocol.
+          </div>
+        </div>
+
+        <div class="ov-modal-footer">
+          <button id="rebuildCancelBtn" type="button" class="btn-secondary">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Override editor modal -->
     <div
       id="ovModal"
@@ -2659,6 +2878,16 @@
             <select id="bsLineModalSpecType" class="form-control"></select>
           </div>
 
+          <div class="form-group" id="bsLineModalUomRow">
+            <label for="bsLineModalUom"
+              >Unit of Measure (default from Test Master; editable for
+              family-specific specification)</label
+            >
+            <select id="bsLineModalUom" class="form-control">
+              <option value="">-- No Unit --</option>
+            </select>
+          </div>
+
           <!-- RANGE / NMT / NLT: min + max pair -->
           <div class="bs-line-dyn-row hidden" id="bsLineModalMinMaxRow">
             <div class="form-group">
@@ -2738,7 +2967,7 @@
                   font-weight: 400;
                   color: var(--muted, #6b7280);
                 "
-                >(auto-generated · edit to override)</span
+                >(auto-generated)</span
               >
             </label>
             <input
@@ -2746,6 +2975,7 @@
               id="bsLineModalDisplayText"
               class="form-control"
               placeholder="Auto-generated from spec values"
+              readonly
             />
             <div style="margin-top: 6px">
               <div

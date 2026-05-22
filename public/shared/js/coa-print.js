@@ -82,6 +82,40 @@ function formatBatchSize(size, uom) {
   return parts.join(" ");
 }
 
+function withUom(text, uom) {
+  const value = String(text ?? "").trim();
+  const unit = String(uom ?? "").trim();
+
+  if (!value || value === "—" || !unit) return value || "—";
+
+  const normalizedValue = value.toLowerCase();
+  const normalizedUnit = unit.toLowerCase();
+
+  if (normalizedValue.includes(normalizedUnit)) return value;
+
+  return `${value} ${unit}`;
+}
+
+function isNumericSpecLine(line) {
+  return ["RANGE", "MIN_ONLY", "MAX_ONLY", "EXACT_NUMERIC"].includes(
+    String(line?.spec_type_snapshot ?? "").toUpperCase(),
+  );
+}
+
+function getCoaReferenceDisplay(line) {
+  const base = line?.spec_display_snapshot ?? "—";
+  if (!isNumericSpecLine(line)) return base;
+  return withUom(base, line?.uom_symbol_snapshot);
+}
+
+function getCoaResultDisplay(line) {
+  const base = line?.result_display_snapshot ?? "—";
+  if (String(line?.result_kind_snapshot ?? "").toUpperCase() !== "NUMERIC") {
+    return base;
+  }
+  return withUom(base, line?.uom_symbol_snapshot);
+}
+
 function getSubjectDisplayConfig(header) {
   const subject = String(header.analysis_subject_type || "").toUpperCase();
   const isFG = subject === "FG_BATCH";
@@ -554,9 +588,9 @@ async function generatePdf() {
     const tBody = currentLines.length
       ? currentLines.map((ln) => [
           ln.test_name_snapshot ?? "\u2014",
-          ln.result_display_snapshot ?? "\u2014",
+          getCoaResultDisplay(ln),
           ln.method_name_snapshot ?? "\u2014",
-          ln.spec_display_snapshot ?? "\u2014",
+          getCoaReferenceDisplay(ln),
         ])
       : [["No test results recorded.", "", "", ""]];
 
@@ -767,9 +801,9 @@ function renderResultsTable(lines) {
       (line) => `
         <tr>
           <td>${esc(line.test_name_snapshot ?? "—")}</td>
-          <td>${esc(line.result_display_snapshot ?? "—")}</td>
+          <td>${esc(getCoaResultDisplay(line))}</td>
           <td>${esc(line.method_name_snapshot ?? "—")}</td>
-          <td>${esc(line.spec_display_snapshot ?? "—")}</td>
+          <td>${esc(getCoaReferenceDisplay(line))}</td>
         </tr>`,
     )
     .join("");

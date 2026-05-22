@@ -4,6 +4,24 @@ import { Platform } from "./platform.js";
 
 const MODULE_ID = "lab-test-method-master";
 
+// Define utility functions for UOM display
+function getUomPrimary(row) {
+  if (!row) return "—";
+  return (
+    row.uom_symbol ||
+    row.default_uom_symbol ||
+    row.uom_code ||
+    row.default_uom_code ||
+    row.uom_display ||
+    row.default_uom_display ||
+    "—"
+  );
+}
+
+function getUomSecondary(row) {
+  return row.uom_name || row.default_uom_name || "";
+}
+
 // ── DOM refs ──────────────────────────────────────────────────────────────────
 const $ = (id) => document.getElementById(id);
 
@@ -86,6 +104,7 @@ let tests = [];
 let methods = [];
 let mappings = [];
 let activeDefaultMethodByTestId = new Map(); // testId -> mapping row
+let uoms = []; // Add UOMs to the state
 
 let currentTab = "testMaster";
 let filteredRows = [];
@@ -342,7 +361,61 @@ async function loadAllData() {
   refreshBtn.disabled = true;
 
   try {
-    await Promise.all([loadTests(), loadMethods(), loadMappings()]);
+    const { data, error } = await labSupabase.rpc(
+      "fn_get_test_method_master_snapshot",
+    );
+    if (error) throw new Error("Snapshot: " + error.message);
+
+    tests = (data.tests || []).map((t) => ({
+      ...t,
+      id: Number(t.test_id || t.id),
+      default_uom_id:
+        t.default_uom_id == null ? null : Number(t.default_uom_id),
+      uom_id: t.default_uom_id == null ? null : Number(t.default_uom_id),
+      uom_code: t.default_uom_code,
+      uom_name: t.default_uom_name,
+      uom_symbol: t.default_uom_symbol,
+      uom_display:
+        t.default_uom_display ||
+        t.default_uom_symbol ||
+        t.default_uom_code ||
+        t.default_uom_name ||
+        "—",
+    }));
+
+    methods = (data.methods || []).map((m) => ({
+      ...m,
+      id: Number(m.method_id || m.id),
+    }));
+
+    mappings = (data.defaultMethodMaps || []).map((m) => ({
+      ...m,
+      id: Number(m.map_id || m.id),
+      test_id: Number(m.test_id),
+      method_id: Number(m.method_id),
+      default_uom_id:
+        m.default_uom_id == null ? null : Number(m.default_uom_id),
+      uom_code: m.default_uom_code,
+      uom_name: m.default_uom_name,
+      uom_symbol: m.default_uom_symbol,
+      uom_display:
+        m.default_uom_display ||
+        m.default_uom_symbol ||
+        m.default_uom_code ||
+        m.default_uom_name ||
+        "—",
+    }));
+
+    uoms = (data.uoms || []).map((u) => ({
+      ...u,
+      id: Number(u.uom_id || u.id),
+      uom_id: Number(u.uom_id || u.id),
+      uom_code: u.uom_code,
+      uom_name: u.uom_name,
+      symbol: u.symbol,
+      uom_display: u.uom_display || u.symbol || u.uom_code || u.uom_name || "—",
+    }));
+
     buildActiveDefaultsMap();
     renderSummary();
     applyCurrentSearchAndFilters();
@@ -355,53 +428,6 @@ async function loadAllData() {
   } finally {
     refreshBtn.disabled = false;
   }
-}
-
-async function loadTests() {
-  const { data, error } = await labSupabase
-    .from("test_master")
-    .select("*")
-    .order("is_active", { ascending: false })
-    .order("test_name", { ascending: true });
-  if (error) throw new Error("Tests: " + error.message);
-  tests = Array.isArray(data) ? data : [];
-}
-
-async function loadMethods() {
-  const { data, error } = await labSupabase
-    .from("test_method")
-    .select("*")
-    .order("is_active", { ascending: false })
-    .order("method_name", { ascending: true });
-  if (error) throw new Error("Methods: " + error.message);
-  methods = Array.isArray(data) ? data : [];
-}
-
-async function loadMappings() {
-  const { data, error } = await labSupabase
-    .from("test_default_method_map")
-    .select(
-      "id, test_id, method_id, is_active, remarks, created_at, updated_at",
-    )
-    .order("created_at", { ascending: false });
-  if (error) throw new Error("Mappings: " + error.message);
-  mappings = Array.isArray(data) ? data : [];
-}
-
-function buildActiveDefaultsMap() {
-  activeDefaultMethodByTestId = new Map();
-  const active = mappings
-    .filter((r) => r?.is_active === true)
-    .sort(
-      (a, b) =>
-        new Date(b.updated_at || b.created_at || 0) -
-        new Date(a.updated_at || a.created_at || 0),
-    );
-  active.forEach((row) => {
-    const key = Number(row.test_id);
-    if (!activeDefaultMethodByTestId.has(key))
-      activeDefaultMethodByTestId.set(key, row);
-  });
 }
 
 // ── Summary KPIs ──────────────────────────────────────────────────────────────
@@ -448,6 +474,14 @@ function applyCurrentSearchAndFilters() {
         row.result_kind,
         method?.method_name,
         row.test_code,
+        row.uom_code,
+        row.uom_name,
+        row.uom_symbol,
+        row.uom_display,
+        row.default_uom_code,
+        row.default_uom_name,
+        row.default_uom_symbol,
+        row.default_uom_display,
       ]
         .filter(Boolean)
         .join(" ")
@@ -505,6 +539,14 @@ function applyCurrentSearchAndFilters() {
         method?.method_name,
         mappingLabel,
         row.test_code,
+        row.uom_code,
+        row.uom_name,
+        row.uom_symbol,
+        row.uom_display,
+        row.default_uom_code,
+        row.default_uom_name,
+        row.default_uom_symbol,
+        row.default_uom_display,
       ]
         .filter(Boolean)
         .join(" ")
@@ -545,13 +587,14 @@ function renderTestTable(rows) {
     <th>Test Name</th>
     <th class="col-hide-mobile">Result Kind</th>
     <th class="col-hide-mobile">Default Method</th>
+    <th class="col-hide-mobile">UOM</th>
     <th>Active</th>
     <th class="col-hide-mobile">Updated</th>
   </tr>`;
 
   if (!rows.length) {
     tmTbody.innerHTML =
-      '<tr><td colspan="5" class="empty-state">No tests found.</td></tr>';
+      '<tr><td colspan="6" class="empty-state">No tests found.</td></tr>';
     return;
   }
 
@@ -565,6 +608,8 @@ function renderTestTable(rows) {
         ? escHtml(method.method_name || "")
         : '<span style="color:#9ca3af;font-size:11.5px;">No default</span>';
       const kindChip = resultKindBadge(row.result_kind);
+      const uomPrimary = getUomPrimary(row);
+      const uomSecondary = getUomSecondary(row);
 
       return `<tr class="tm-row" data-id="${escHtml(row.id)}" tabindex="0">
       <td>
@@ -573,6 +618,10 @@ function renderTestTable(rows) {
       </td>
       <td class="col-hide-mobile">${kindChip}</td>
       <td class="col-hide-mobile">${defaultLabel}</td>
+      <td class="col-hide-mobile">
+        <div class="item-primary small">${escHtml(uomPrimary)}</div>
+        <div class="item-secondary">${escHtml(uomSecondary)}</div>
+      </td>
       <td>${activeBadge(row.is_active)}</td>
       <td class="col-hide-mobile" style="font-size:12px;color:var(--muted,#6b7280)">${escHtml(formatDateTime(row.updated_at))}</td>
     </tr>`;
@@ -872,35 +921,39 @@ function openNewTestModal() {
   testModalName.value = "";
   testModalKind.value = "";
   testModalUom.value = "";
+  testModalMethod.value = "";
   testModalActiveWrap.style.display = "none";
   testModalDeactivate.style.display = "none";
   hideBanner(testModalBanner);
   populateTestMethodDropdown(null);
+  populateTestModalUomDropdown(null);
   testModal.classList.remove("hidden");
   document.body.style.overflow = "hidden";
   setTimeout(() => testModalCode.focus(), 0);
 }
 
-function openEditTestModal(testId) {
+async function openEditTestModal(testId) {
   rememberFocus();
-  const row = tests.find((t) => Number(t.id) === testId);
-  if (!row) return;
+  const test = tests.find((t) => Number(t.id) === Number(testId));
+  if (!test) return;
+
+  const currentMap = activeDefaultMethodByTestId.get(Number(test.id));
+  const currentMethodId = currentMap ? Number(currentMap.method_id) : null;
 
   testModalTitle.textContent = "Edit Test";
-  testModalSubtitle.textContent = escHtml(row.test_name || "");
-  testModalId.value = String(row.id);
-  testModalCode.value = (row.test_code || "").toUpperCase();
-  testModalName.value = row.test_name || "";
-  testModalKind.value = row.result_kind || "";
-  testModalUom.value =
-    row.default_uom_id != null ? String(row.default_uom_id) : "";
-  testModalActiveWrap.style.display = "";
-  testModalActiveDisp.innerHTML = activeBadge(row.is_active);
-  testModalDeactivate.style.display = row.is_active ? "" : "none";
-  hideBanner(testModalBanner);
+  testModalSubtitle.textContent = test.test_name || "";
 
-  const activeMap = activeDefaultMethodByTestId.get(Number(row.id));
-  populateTestMethodDropdown(activeMap ? Number(activeMap.method_id) : null);
+  populateTestMethodDropdown(currentMethodId);
+  populateTestModalUomDropdown(test.default_uom_id || test.uom_id);
+
+  testModalId.value = String(test.id);
+  testModalCode.value = test.test_code;
+  testModalName.value = test.test_name;
+  testModalKind.value = test.result_kind;
+  testModalActiveWrap.style.display = "";
+  testModalActiveDisp.innerHTML = activeBadge(test.is_active);
+  testModalDeactivate.style.display = test.is_active ? "" : "none";
+  hideBanner(testModalBanner);
 
   testModal.classList.remove("hidden");
   document.body.style.overflow = "hidden";
@@ -925,14 +978,71 @@ function populateTestMethodDropdown(selectedMethodId) {
       .join("");
 }
 
+function formatUomOptionLabel(uom) {
+  if (!uom) return "Unnamed UOM";
+
+  const code = String(uom.uom_code || "").trim();
+  const symbol = String(uom.symbol || uom.default_uom_symbol || "").trim();
+  const name = String(uom.uom_name || uom.default_uom_name || "").trim();
+
+  const primary = symbol || code || String(uom.uom_display || "").trim();
+
+  if (primary && name) return `${primary} — ${name}`;
+  return primary || name || "Unnamed UOM";
+}
+
+function populateTestModalUomDropdown(selectedUomId = null) {
+  if (!testModalUom) return;
+
+  const selectedId =
+    selectedUomId === null ||
+    selectedUomId === undefined ||
+    String(selectedUomId).trim() === ""
+      ? null
+      : Number(selectedUomId);
+
+  const activeUoms = uoms.filter((u) => u.is_active === true);
+
+  const selectedInactive =
+    selectedId &&
+    !activeUoms.some((u) => Number(u.id || u.uom_id) === selectedId)
+      ? uoms.find((u) => Number(u.id || u.uom_id) === selectedId)
+      : null;
+
+  const rows = selectedInactive
+    ? [...activeUoms, selectedInactive]
+    : activeUoms;
+
+  testModalUom.innerHTML =
+    '<option value="">-- Select UOM --</option>' +
+    rows
+      .map((u) => {
+        const id = Number(u.id || u.uom_id);
+        const inactiveSuffix = u.is_active === false ? " (Inactive)" : "";
+        return `<option value="${escHtml(id)}">${escHtml(formatUomOptionLabel(u) + inactiveSuffix)}</option>`;
+      })
+      .join("");
+
+  if (selectedId && Number.isFinite(selectedId) && selectedId > 0) {
+    testModalUom.value = String(selectedId);
+    return;
+  }
+
+  const none = rows.find(
+    (u) => String(u.uom_code || "").toUpperCase() === "NONE",
+  );
+
+  if (none) {
+    testModalUom.value = String(Number(none.id || none.uom_id));
+  }
+}
+
 async function saveTestFromModal() {
   const cleanCode = String(testModalCode.value || "")
     .trim()
     .toUpperCase();
   const cleanName = String(testModalName.value || "").trim();
   const kind = String(testModalKind.value || "").trim();
-  const uomRaw = String(testModalUom.value || "").trim();
-  const parsedUom = uomRaw ? Number(uomRaw) : null;
   const selMethod = testModalMethod.value
     ? Number(testModalMethod.value)
     : null;
@@ -951,6 +1061,17 @@ async function saveTestFromModal() {
     return;
   }
 
+  const parsedUom = Number(testModalUom.value);
+  if (!Number.isFinite(parsedUom) || parsedUom <= 0) {
+    showModalBanner(
+      testModalBanner,
+      "error",
+      "Default UOM is required. Select NONE if no unit is applicable.",
+    );
+    testModalUom.focus();
+    return;
+  }
+
   testModalSave.disabled = true;
   hideBanner(testModalBanner);
 
@@ -961,8 +1082,7 @@ async function saveTestFromModal() {
         p_test_code: cleanCode,
         p_test_name: cleanName,
         p_result_kind: kind,
-        p_default_uom_id:
-          Number.isFinite(parsedUom) && parsedUom > 0 ? parsedUom : null,
+        p_default_uom_id: parsedUom,
         p_id: editId,
       },
     );
@@ -1536,4 +1656,13 @@ function extractId(data) {
   }
   const n = Number(data);
   return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function buildActiveDefaultsMap() {
+  activeDefaultMethodByTestId.clear();
+  mappings.forEach((mapping) => {
+    if (mapping.is_active) {
+      activeDefaultMethodByTestId.set(Number(mapping.test_id), mapping);
+    }
+  });
 }

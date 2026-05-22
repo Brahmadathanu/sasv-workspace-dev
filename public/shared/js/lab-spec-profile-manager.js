@@ -43,11 +43,23 @@ const bsMetaProfileId = document.getElementById("bsMetaProfileId");
 const bsMetaVersion = document.getElementById("bsMetaVersion");
 const bsMetaEffDate = document.getElementById("bsMetaEffDate");
 const bsGenerateSpecBtn = document.getElementById("bsGenerateSpecBtn");
+const bsRebuildSpecBtn = document.getElementById("bsRebuildSpecBtn");
 const bsBanner = document.getElementById("bsBanner");
 const bsTableCard = document.getElementById("bsTableCard");
 const bsTableBody = document.getElementById("bsTableBody");
 const bsLineCount = document.getElementById("bsLineCount");
 const bsSaveSpecBtn = document.getElementById("bsSaveSpecBtn");
+const rmGenerateSpecBtn = document.getElementById("rmGenerateSpecBtn");
+const rmRebuildSpecBtn = document.getElementById("rmRebuildSpecBtn");
+const pmGenerateSpecBtn = document.getElementById("pmGenerateSpecBtn");
+const pmRebuildSpecBtn = document.getElementById("pmRebuildSpecBtn");
+
+const rebuildModal = document.getElementById("rebuildModal");
+const rebuildModalClose = document.getElementById("rebuildModalClose");
+const rebuildCancelBtn = document.getElementById("rebuildCancelBtn");
+const rebuildModalContext = document.getElementById("rebuildModalContext");
+const rebuildSafeBtn = document.getElementById("rebuildSafeBtn");
+const rebuildFullResetBtn = document.getElementById("rebuildFullResetBtn");
 
 // OVERRIDES tab
 const ovFgCard = document.getElementById("ovFgCard");
@@ -140,15 +152,19 @@ let pmCurrentGroupLabel = null;
 let pmEditedSpecLines = new Map(); // seqNo -> {seq_no, spec_type, min_value, max_value, text_value, display_text, is_active}
 let pmLoadedRows = [];
 
+let rebuildSubject = null;
+let rebuildFamilyId = null;
+let rebuildFamilyLabel = null;
+
 // Base Spec Line edit modal state
 let bsLineCurrentSubject = null; // "FG" | "RM" | "PM"
 let bsLineCurrentSeqNo = null;
-let bsLineDisplayTextManual = false; // true when user has manually edited display text
 
 // Override editor modal state
 let ovModalMode = "add"; // "add" | "edit"
 let ovCachedTests = null; // test_master rows (lazy-loaded, shared)
 let ovModalPrefill = {}; // pre-fill values for edit mode
+let labUomRows = null; // cached active rows from lab_uom
 // Item currently selected in the overrides tab per subject:
 let ovFgProductId = null;
 let ovRmItemId = null;
@@ -179,6 +195,7 @@ async function init() {
   wireBaseSpecPmEvents();
   wireOverridesPmEvents();
   wireEffectivePreviewPmEvents();
+  wireRebuildModal();
   wireOverrideModal();
   wireFgProductSearchComboboxes();
   wireProductGroupSearchCombobox();
@@ -519,6 +536,7 @@ function wireBaseSpecEvents() {
     onProductGroupChange();
   });
   bsGenerateSpecBtn.addEventListener("click", bsGenerateSpec);
+  bsRebuildSpecBtn?.addEventListener("click", () => openRebuildModal("FG"));
 }
 
 async function onProductGroupChange() {
@@ -631,6 +649,8 @@ async function bsLoadGroupContext(groupId) {
     setMetaValue(bsMetaProfileId, String(specProfile.id), false);
     setMetaValue(bsMetaVersion, `v${specProfile.version_no}`, false);
     setMetaValue(bsMetaEffDate, formatDate(specProfile.effective_from), false);
+    bsGenerateSpecBtn.classList.add("hidden");
+    bsRebuildSpecBtn?.classList.remove("hidden");
     hideBanner(bsBanner);
     await bsLoadSpecLines(specProfile.id);
   } else {
@@ -640,12 +660,15 @@ async function bsLoadGroupContext(groupId) {
     setMetaValue(bsMetaEffDate, "--", true);
     if (protocolName) {
       bsGenerateSpecBtn.classList.remove("hidden");
+      bsRebuildSpecBtn?.classList.add("hidden");
       showBanner(
         bsBanner,
         "warn",
         "No base spec profile found for this product group. Use Generate Spec to create one from the protocol.",
       );
     } else {
+      bsGenerateSpecBtn.classList.add("hidden");
+      bsRebuildSpecBtn?.classList.add("hidden");
       showBanner(
         bsBanner,
         "info",
@@ -659,7 +682,7 @@ async function bsLoadSpecLines(profileId) {
   const { data, error } = await labSupabase
     .from("v_spec_profile_detail")
     .select(
-      "spec_profile_id, seq_no, test_id, test_name, method_name, display_text, spec_type, min_value, max_value, text_value, spec_line_is_active",
+      "spec_profile_id, seq_no, test_id, test_name, method_name, display_text, spec_type, min_value, max_value, text_value, spec_line_is_active, uom_id, uom_code, uom_name, uom_symbol",
     )
     .eq("spec_profile_id", profileId)
     .order("seq_no");
@@ -706,7 +729,9 @@ function bsRenderSpecLines(rows) {
     .map((r) => {
       const seqNo = r.seq_no;
       const pending = bsEditedSpecLines.get(seqNo);
-      const dispType = pending ? pending.spec_type : (r.spec_type ?? "");
+      const dispType = pending
+        ? normalizeBaseSpecTypeValue(pending.spec_type)
+        : normalizeBaseSpecTypeValue(r.spec_type ?? "");
       const dispText = pending
         ? (pending.display_text ?? "")
         : (r.display_text ?? "");
@@ -716,11 +741,13 @@ function bsRenderSpecLines(rows) {
           data-test-id="${esc(String(r.test_id ?? ""))}"
           data-test-name="${esc(r.test_name ?? "")}"
           data-method-name="${esc(r.method_name ?? "")}"
-          data-orig-spec-type="${esc(r.spec_type ?? "")}"
+          data-orig-spec-type="${esc(normalizeBaseSpecTypeValue(r.spec_type ?? ""))}"
           data-orig-min="${esc(String(r.min_value ?? ""))}"
           data-orig-max="${esc(String(r.max_value ?? ""))}"
           data-orig-text="${esc(r.text_value ?? "")}"
           data-orig-display="${esc(r.display_text ?? "")}"
+          data-orig-uom-id="${esc(String(r.uom_id ?? ""))}"
+          data-orig-uom-symbol="${esc(r.uom_symbol ?? "")}"
           data-orig-active="${origActive ? "1" : "0"}"
           class="${isActive ? "" : "bs-row-inactive"}">
         <td class="td-seq">${esc(String(seqNo))}</td>
@@ -765,6 +792,9 @@ function bsRenderSpecLines(rows) {
           max_value:
             tr.dataset.origMax !== "" ? Number(tr.dataset.origMax) : null,
           text_value: tr.dataset.origText || null,
+          uom_id:
+            tr.dataset.origUomId !== "" ? Number(tr.dataset.origUomId) : null,
+          uom_symbol: tr.dataset.origUomSymbol || null,
           display_text: tr.dataset.origDisplay || null,
           is_active: newActive,
         });
@@ -1003,6 +1033,7 @@ function bsResetState() {
   bsContextStrip.classList.add("hidden");
   hideBanner(bsBanner);
   bsGenerateSpecBtn.classList.add("hidden");
+  bsRebuildSpecBtn?.classList.add("hidden");
 }
 
 // ── BASE SPEC — RM ────────────────────────────────────────────────────────────
@@ -1052,11 +1083,12 @@ async function loadRmGroups() {
 
 function wireBaseSpecRmEvents() {
   const rmGroupSelect = document.getElementById("rmGroupSelect");
-  const rmGenerateSpecBtn = document.getElementById("rmGenerateSpecBtn");
   const rmSaveSpecBtn = document.getElementById("rmSaveSpecBtn");
   if (rmGroupSelect) rmGroupSelect.addEventListener("change", onRmGroupChange);
   if (rmGenerateSpecBtn)
     rmGenerateSpecBtn.addEventListener("click", rmGenerateSpec);
+  if (rmRebuildSpecBtn)
+    rmRebuildSpecBtn.addEventListener("click", () => openRebuildModal("RM"));
   if (rmSaveSpecBtn) rmSaveSpecBtn.addEventListener("click", rmSaveSpec);
 }
 
@@ -1189,6 +1221,8 @@ async function rmLoadGroupContext(groupId) {
     setMetaValue(rmMetaProfileId, String(specProfile.id), false);
     setMetaValue(rmMetaVersion, `v${specProfile.version_no}`, false);
     setMetaValue(rmMetaEffDate, formatDate(specProfile.effective_from), false);
+    rmGenerateSpecBtn?.classList.add("hidden");
+    rmRebuildSpecBtn?.classList.remove("hidden");
     hideBanner(rmBanner);
     await rmLoadSpecLines(specProfile.id);
   } else {
@@ -1197,13 +1231,16 @@ async function rmLoadGroupContext(groupId) {
     setMetaValue(rmMetaVersion, "--", true);
     setMetaValue(rmMetaEffDate, "--", true);
     if (protocolName) {
-      rmGenerateSpecBtn.classList.remove("hidden");
+      rmGenerateSpecBtn?.classList.remove("hidden");
+      rmRebuildSpecBtn?.classList.add("hidden");
       showBanner(
         rmBanner,
         "warn",
         "No base spec profile found for this inventory group. Use Generate Spec to create one from the protocol.",
       );
     } else {
+      rmGenerateSpecBtn?.classList.add("hidden");
+      rmRebuildSpecBtn?.classList.add("hidden");
       showBanner(
         rmBanner,
         "info",
@@ -1218,7 +1255,7 @@ async function rmLoadSpecLines(profileId) {
   const { data, error } = await labSupabase
     .from("v_spec_profile_detail")
     .select(
-      "spec_profile_id, seq_no, test_id, test_name, method_name, display_text, spec_type, min_value, max_value, text_value, spec_line_is_active",
+      "spec_profile_id, seq_no, test_id, test_name, method_name, display_text, spec_type, min_value, max_value, text_value, spec_line_is_active, uom_id, uom_code, uom_name, uom_symbol",
     )
     .eq("spec_profile_id", profileId)
     .order("seq_no");
@@ -1268,7 +1305,9 @@ function rmRenderSpecLines(rows) {
     .map((r) => {
       const seqNo = r.seq_no;
       const pending = rmEditedSpecLines.get(seqNo);
-      const dispType = pending ? pending.spec_type : (r.spec_type ?? "");
+      const dispType = pending
+        ? normalizeBaseSpecTypeValue(pending.spec_type)
+        : normalizeBaseSpecTypeValue(r.spec_type ?? "");
       const dispText = pending
         ? (pending.display_text ?? "")
         : (r.display_text ?? "");
@@ -1278,11 +1317,13 @@ function rmRenderSpecLines(rows) {
           data-test-id="${esc(String(r.test_id ?? ""))}"
           data-test-name="${esc(r.test_name ?? "")}"
           data-method-name="${esc(r.method_name ?? "")}"
-          data-orig-spec-type="${esc(r.spec_type ?? "")}"
+          data-orig-spec-type="${esc(normalizeBaseSpecTypeValue(r.spec_type ?? ""))}"
           data-orig-min="${esc(String(r.min_value ?? ""))}"
           data-orig-max="${esc(String(r.max_value ?? ""))}"
           data-orig-text="${esc(r.text_value ?? "")}"
           data-orig-display="${esc(r.display_text ?? "")}"
+          data-orig-uom-id="${esc(String(r.uom_id ?? ""))}"
+          data-orig-uom-symbol="${esc(r.uom_symbol ?? "")}"
           data-orig-active="${origActive ? "1" : "0"}"
           class="${isActive ? "" : "bs-row-inactive"}">
         <td class="td-seq">${esc(String(seqNo))}</td>
@@ -1327,6 +1368,9 @@ function rmRenderSpecLines(rows) {
           max_value:
             tr.dataset.origMax !== "" ? Number(tr.dataset.origMax) : null,
           text_value: tr.dataset.origText || null,
+          uom_id:
+            tr.dataset.origUomId !== "" ? Number(tr.dataset.origUomId) : null,
+          uom_symbol: tr.dataset.origUomSymbol || null,
           display_text: tr.dataset.origDisplay || null,
           is_active: newActive,
         });
@@ -1542,12 +1586,12 @@ function rmResetState() {
   rmEditedSpecLines.clear();
   const rmContextStrip = document.getElementById("rmContextStrip");
   const rmBanner = document.getElementById("rmBanner");
-  const rmGenerateSpecBtn = document.getElementById("rmGenerateSpecBtn");
   rmControlCard.classList.add("hidden");
   rmTableCard.classList.add("hidden");
   if (rmContextStrip) rmContextStrip.classList.add("hidden");
   if (rmBanner) hideBanner(rmBanner);
   if (rmGenerateSpecBtn) rmGenerateSpecBtn.classList.add("hidden");
+  if (rmRebuildSpecBtn) rmRebuildSpecBtn.classList.add("hidden");
 }
 
 // ── BASE SPEC — PM ────────────────────────────────────────────────────────────
@@ -1597,11 +1641,12 @@ async function loadPmGroups() {
 
 function wireBaseSpecPmEvents() {
   const pmGroupSelect = document.getElementById("pmGroupSelect");
-  const pmGenerateSpecBtn = document.getElementById("pmGenerateSpecBtn");
   const pmSaveSpecBtn = document.getElementById("pmSaveSpecBtn");
   if (pmGroupSelect) pmGroupSelect.addEventListener("change", onPmGroupChange);
   if (pmGenerateSpecBtn)
     pmGenerateSpecBtn.addEventListener("click", pmGenerateSpec);
+  if (pmRebuildSpecBtn)
+    pmRebuildSpecBtn.addEventListener("click", () => openRebuildModal("PM"));
   if (pmSaveSpecBtn) pmSaveSpecBtn.addEventListener("click", pmSaveSpec);
 }
 
@@ -1726,6 +1771,8 @@ async function pmLoadGroupContext(groupId) {
     setMetaValue(pmMetaProfileId, String(specProfile.id), false);
     setMetaValue(pmMetaVersion, `v${specProfile.version_no}`, false);
     setMetaValue(pmMetaEffDate, formatDate(specProfile.effective_from), false);
+    pmGenerateSpecBtn?.classList.add("hidden");
+    pmRebuildSpecBtn?.classList.remove("hidden");
     hideBanner(pmBanner);
     await pmLoadSpecLines(specProfile.id);
   } else {
@@ -1734,13 +1781,16 @@ async function pmLoadGroupContext(groupId) {
     setMetaValue(pmMetaVersion, "--", true);
     setMetaValue(pmMetaEffDate, "--", true);
     if (protocolName) {
-      pmGenerateSpecBtn.classList.remove("hidden");
+      pmGenerateSpecBtn?.classList.remove("hidden");
+      pmRebuildSpecBtn?.classList.add("hidden");
       showBanner(
         pmBanner,
         "warn",
         "No base spec profile found for this packing material subcategory. Use Generate Spec to create one from the protocol.",
       );
     } else {
+      pmGenerateSpecBtn?.classList.add("hidden");
+      pmRebuildSpecBtn?.classList.add("hidden");
       showBanner(
         pmBanner,
         "info",
@@ -1755,7 +1805,7 @@ async function pmLoadSpecLines(profileId) {
   const { data, error } = await labSupabase
     .from("v_spec_profile_detail")
     .select(
-      "spec_profile_id, seq_no, test_id, test_name, method_name, display_text, spec_type, min_value, max_value, text_value, spec_line_is_active",
+      "spec_profile_id, seq_no, test_id, test_name, method_name, display_text, spec_type, min_value, max_value, text_value, spec_line_is_active, uom_id, uom_code, uom_name, uom_symbol",
     )
     .eq("spec_profile_id", profileId)
     .order("seq_no");
@@ -1803,7 +1853,9 @@ function pmRenderSpecLines(rows) {
     .map((r) => {
       const seqNo = r.seq_no;
       const pending = pmEditedSpecLines.get(seqNo);
-      const dispType = pending ? pending.spec_type : (r.spec_type ?? "");
+      const dispType = pending
+        ? normalizeBaseSpecTypeValue(pending.spec_type)
+        : normalizeBaseSpecTypeValue(r.spec_type ?? "");
       const dispText = pending
         ? (pending.display_text ?? "")
         : (r.display_text ?? "");
@@ -1813,11 +1865,13 @@ function pmRenderSpecLines(rows) {
           data-test-id="${esc(String(r.test_id ?? ""))}"
           data-test-name="${esc(r.test_name ?? "")}"
           data-method-name="${esc(r.method_name ?? "")}"
-          data-orig-spec-type="${esc(r.spec_type ?? "")}"
+          data-orig-spec-type="${esc(normalizeBaseSpecTypeValue(r.spec_type ?? ""))}"
           data-orig-min="${esc(String(r.min_value ?? ""))}"
           data-orig-max="${esc(String(r.max_value ?? ""))}"
           data-orig-text="${esc(r.text_value ?? "")}"
           data-orig-display="${esc(r.display_text ?? "")}"
+          data-orig-uom-id="${esc(String(r.uom_id ?? ""))}"
+          data-orig-uom-symbol="${esc(r.uom_symbol ?? "")}"
           data-orig-active="${origActive ? "1" : "0"}"
           class="${isActive ? "" : "bs-row-inactive"}">
         <td class="td-seq">${esc(String(seqNo))}</td>
@@ -1862,6 +1916,9 @@ function pmRenderSpecLines(rows) {
           max_value:
             tr.dataset.origMax !== "" ? Number(tr.dataset.origMax) : null,
           text_value: tr.dataset.origText || null,
+          uom_id:
+            tr.dataset.origUomId !== "" ? Number(tr.dataset.origUomId) : null,
+          uom_symbol: tr.dataset.origUomSymbol || null,
           display_text: tr.dataset.origDisplay || null,
           is_active: newActive,
         });
@@ -2076,12 +2133,161 @@ function pmResetState() {
   pmEditedSpecLines.clear();
   const pmContextStrip = document.getElementById("pmContextStrip");
   const pmBanner = document.getElementById("pmBanner");
-  const pmGenerateSpecBtn = document.getElementById("pmGenerateSpecBtn");
   pmControlCard.classList.add("hidden");
   pmTableCard.classList.add("hidden");
   if (pmContextStrip) pmContextStrip.classList.add("hidden");
   if (pmBanner) hideBanner(pmBanner);
   if (pmGenerateSpecBtn) pmGenerateSpecBtn.classList.add("hidden");
+  if (pmRebuildSpecBtn) pmRebuildSpecBtn.classList.add("hidden");
+}
+
+function wireRebuildModal() {
+  rebuildModalClose?.addEventListener("click", closeRebuildModal);
+  rebuildCancelBtn?.addEventListener("click", closeRebuildModal);
+
+  rebuildModal?.addEventListener("click", (e) => {
+    if (e.target === rebuildModal) closeRebuildModal();
+  });
+
+  rebuildSafeBtn?.addEventListener("click", () => executeRebuild("SAFE"));
+  rebuildFullResetBtn?.addEventListener("click", () =>
+    executeRebuild("FULL_RESET"),
+  );
+}
+
+function openRebuildModal(subject) {
+  rebuildSubject = subject;
+
+  if (subject === "FG") {
+    rebuildFamilyId = bsCurrentGroupId;
+    rebuildFamilyLabel = bsCurrentGroupName;
+  } else if (subject === "RM") {
+    rebuildFamilyId = rmCurrentGroupId;
+    rebuildFamilyLabel = rmCurrentGroupLabel;
+  } else if (subject === "PM") {
+    rebuildFamilyId = pmCurrentGroupId;
+    rebuildFamilyLabel = pmCurrentGroupLabel;
+  }
+
+  if (!rebuildFamilyId) {
+    toast("Select a family before rebuilding.", "warn");
+    return;
+  }
+
+  rebuildModalContext.textContent = `${subject} · ${rebuildFamilyLabel || "Selected family"}`;
+  rebuildModal.classList.remove("hidden");
+}
+
+function closeRebuildModal() {
+  rebuildModal.classList.add("hidden");
+  rebuildSubject = null;
+  rebuildFamilyId = null;
+  rebuildFamilyLabel = null;
+  setRebuildButtonsLoading(false);
+}
+
+function setRebuildButtonsLoading(isLoading) {
+  [rebuildSafeBtn, rebuildFullResetBtn].forEach((btn) => {
+    if (!btn) return;
+    btn.disabled = isLoading;
+    btn.classList.toggle("loading", isLoading);
+  });
+}
+
+async function executeRebuild(mode) {
+  if (!rebuildSubject || !rebuildFamilyId) {
+    toast("Rebuild context is missing.", "error");
+    return;
+  }
+
+  if (mode === "FULL_RESET") {
+    const ok = window.confirm(
+      "Full Reset will create a new Base Spec version using only the current mapped protocol. Existing manually entered specification values will not be carried forward. Continue?",
+    );
+    if (!ok) return;
+  }
+
+  const subject = rebuildSubject;
+  const familyId = Number(rebuildFamilyId);
+
+  setRebuildButtonsLoading(true);
+
+  const { data, error } = await labSupabase.rpc(
+    "fn_rebuild_base_spec_from_protocol",
+    {
+      p_subject_type: subject,
+      p_family_id: familyId,
+      p_rebuild_mode: mode,
+      p_remarks:
+        mode === "SAFE"
+          ? "Safe rebuild from mapped protocol via Spec Profile Manager"
+          : "Full reset from mapped protocol via Spec Profile Manager",
+    },
+  );
+
+  if (error) {
+    toast("Rebuild failed: " + error.message, "error");
+    setRebuildButtonsLoading(false);
+    return;
+  }
+
+  const result = Array.isArray(data) ? (data[0] ?? {}) : (data ?? {});
+  const newProfileId = Number(result.spec_profile_id || 0);
+  const createdNew = result.created_new_version === true;
+  const message =
+    result.message ||
+    (createdNew
+      ? "Base spec rebuild completed. A new version was created."
+      : "No rebuild required. Active base spec is already aligned with the mapped protocol.");
+
+  toast(message, createdNew ? "success" : "info");
+
+  closeRebuildModal();
+
+  await refreshAfterRebuild(subject, newProfileId);
+}
+
+async function refreshAfterRebuild(subject, newProfileId) {
+  if (subject === "FG") {
+    const previousProfileId = bsCurrentProfileId;
+    bsEditedSpecLines.clear();
+    bsSyncSaveBtn();
+
+    await bsLoadGroupContext(bsCurrentGroupId);
+
+    if (newProfileId && previousProfileId !== newProfileId) {
+      bsCurrentProfileId = newProfileId;
+      await bsLoadSpecLines(newProfileId);
+    }
+    return;
+  }
+
+  if (subject === "RM") {
+    const previousProfileId = rmCurrentProfileId;
+    rmEditedSpecLines.clear();
+    rmSyncSaveBtn();
+
+    await rmLoadGroupContext(rmCurrentGroupId);
+
+    if (newProfileId && previousProfileId !== newProfileId) {
+      rmCurrentProfileId = newProfileId;
+      await rmLoadSpecLines(newProfileId);
+    }
+    return;
+  }
+
+  if (subject === "PM") {
+    const previousProfileId = pmCurrentProfileId;
+    pmEditedSpecLines.clear();
+    pmSyncSaveBtn();
+
+    await pmLoadGroupContext(pmCurrentGroupId);
+
+    if (newProfileId && previousProfileId !== newProfileId) {
+      pmCurrentProfileId = newProfileId;
+      await pmLoadSpecLines(newProfileId);
+    }
+  }
 }
 
 // ── OVERRIDES — PM ────────────────────────────────────────────────────────────
@@ -3447,7 +3653,7 @@ function wireBsLineModal() {
   const exactEl = document.getElementById("bsLineModalExact");
   const textEl = document.getElementById("bsLineModalText");
   const passFailSel = document.getElementById("bsLineModalPassFail");
-  const displayEl = document.getElementById("bsLineModalDisplayText");
+  const uomSel = document.getElementById("bsLineModalUom");
 
   if (!modal) return;
 
@@ -3456,32 +3662,70 @@ function wireBsLineModal() {
   modal.addEventListener("click", (e) => {
     if (e.target === modal) closeBsLineModal();
   });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (modal.classList.contains("hidden")) return;
+    e.preventDefault();
+    closeBsLineModal();
+  });
+
+  if (!document.getElementById("bsLineModalSpecTypeHint") && specTypeSel) {
+    const hint = document.createElement("div");
+    hint.id = "bsLineModalSpecTypeHint";
+    hint.style.fontSize = "11px";
+    hint.style.color = "var(--muted,#6b7280)";
+    hint.style.marginTop = "4px";
+    hint.textContent =
+      "Spec Type is controlled and cannot be changed from this modal.";
+    specTypeSel.insertAdjacentElement("afterend", hint);
+  }
 
   specTypeSel.addEventListener("change", () => {
     applyBaseSpecTypeUI();
-    bsLineDisplayTextManual = false; // reset manual flag on spec type change
     buildBsDisplayText();
   });
 
   [minEl, maxEl, exactEl].forEach((el) => {
     el.addEventListener("input", () => {
-      if (!bsLineDisplayTextManual) buildBsDisplayText();
+      buildBsDisplayText();
     });
   });
   textEl.addEventListener("input", () => {
-    if (!bsLineDisplayTextManual) buildBsDisplayText();
+    buildBsDisplayText();
   });
   passFailSel.addEventListener("change", () => {
-    if (!bsLineDisplayTextManual) buildBsDisplayText();
+    buildBsDisplayText();
   });
-
-  displayEl.addEventListener("input", () => {
-    bsLineDisplayTextManual = true;
-    document.getElementById("bsLineModalDisplayPreview").textContent =
-      displayEl.value.trim() || "—";
+  uomSel.addEventListener("change", () => {
+    buildBsDisplayText();
   });
 
   applyBtn.addEventListener("click", saveBsLineModal);
+}
+
+async function ensureTestMasterCacheWithUom() {
+  if (
+    ovCachedTests &&
+    ovCachedTests.length &&
+    Object.prototype.hasOwnProperty.call(ovCachedTests[0], "default_uom_id")
+  ) {
+    return ovCachedTests;
+  }
+
+  const { data, error } = await labSupabase
+    .from("test_master")
+    .select("id, test_name, result_kind, default_uom_id")
+    .eq("is_active", true)
+    .order("test_name");
+
+  if (error) {
+    toast("Failed to load test master UOM defaults: " + error.message, "error");
+    ovCachedTests = [];
+    return ovCachedTests;
+  }
+
+  ovCachedTests = data ?? [];
+  return ovCachedTests;
 }
 
 async function openBsLineModal(subject, seqNo) {
@@ -3494,13 +3738,13 @@ async function openBsLineModal(subject, seqNo) {
   const exactEl = document.getElementById("bsLineModalExact");
   const textEl = document.getElementById("bsLineModalText");
   const passFailSel = document.getElementById("bsLineModalPassFail");
+  const uomSel = document.getElementById("bsLineModalUom");
   const displayEl = document.getElementById("bsLineModalDisplayText");
   const activeChk = document.getElementById("bsLineModalActive");
   const errEl = document.getElementById("bsLineModalError");
 
   bsLineCurrentSubject = subject;
   bsLineCurrentSeqNo = seqNo;
-  bsLineDisplayTextManual = false;
 
   titleEl.textContent = "Edit Specification Line";
   errEl.classList.add("hidden");
@@ -3531,7 +3775,9 @@ async function openBsLineModal(subject, seqNo) {
         : pmEditedSpecLines;
   const existing = editedMap.get(seqNo);
 
-  const curSpecType = existing?.spec_type ?? tr.dataset.origSpecType ?? "";
+  const curSpecType = normalizeBaseSpecTypeValue(
+    existing?.spec_type ?? tr.dataset.origSpecType ?? "",
+  );
   const curMin =
     existing?.min_value != null
       ? String(existing.min_value)
@@ -3546,17 +3792,35 @@ async function openBsLineModal(subject, seqNo) {
     ? existing.is_active
     : tr.dataset.origActive === "1";
 
-  // Lazy-load test_master for result_kind (shares ovCachedTests with Override modal)
-  if (!ovCachedTests) {
-    const { data, error } = await labSupabase
-      .from("test_master")
-      .select("id, test_name, result_kind")
-      .eq("is_active", true)
-      .order("test_name");
-    ovCachedTests = error ? [] : (data ?? []);
-  }
+  await ensureTestMasterCacheWithUom();
   const testRow = ovCachedTests.find((t) => Number(t.id) === testId);
   const resultKind = String(testRow?.result_kind ?? "").toUpperCase();
+  // UOM selection logic (2026-05):
+  // For first modal load, prefer Test Master default.
+  // Only prefer existing/pending UOM when the user has already changed UOM in the modal.
+  const pendingUomId = existing?.uom_id != null ? String(existing.uom_id) : "";
+  const specLineUomId = tr.dataset.origUomId
+    ? String(tr.dataset.origUomId)
+    : "";
+  const testDefaultUomId =
+    testRow?.default_uom_id != null ? String(testRow.default_uom_id) : "";
+
+  const curUomId = pendingUomId || testDefaultUomId || specLineUomId || "";
+
+  await loadLabUoms();
+  populateLabUomSelect(uomSel, curUomId);
+
+  // Temporary debug log for UOM selection
+  console.log("[BS Line UOM Debug]", {
+    subject,
+    seqNo,
+    testId,
+    testDefaultUomId,
+    specLineUomId,
+    pendingUomId,
+    curUomId,
+    selectedValue: uomSel.value,
+  });
 
   // Populate Spec Type options based on result_kind
   specTypeSel.innerHTML = "";
@@ -3567,17 +3831,22 @@ async function openBsLineModal(subject, seqNo) {
   } else {
     // NUMERIC (default)
     specTypeSel.innerHTML = `
-      <option value="RANGE">RANGE — min to max</option>
-      <option value="NMT">NMT — Not More Than</option>
-      <option value="NLT">NLT — Not Less Than</option>
-      <option value="EXACT_NUMERIC">EXACT NUMERIC — equals value</option>
+      <option value="RANGE">Range</option>
+      <option value="MIN_ONLY">Minimum only / NLT</option>
+      <option value="MAX_ONLY">Maximum only / NMT</option>
+      <option value="EXACT_NUMERIC">Exact numeric</option>
     `;
   }
 
   // Set selected spec type
   if ([...specTypeSel.options].some((o) => o.value === curSpecType)) {
     specTypeSel.value = curSpecType;
+  } else if (specTypeSel.options.length) {
+    specTypeSel.value = specTypeSel.options[0].value;
   }
+  specTypeSel.disabled = true;
+  specTypeSel.title =
+    "Spec Type is controlled by Test Master / generated base specification and cannot be changed here.";
 
   // Pre-fill value fields
   minEl.value = curMin;
@@ -3588,12 +3857,8 @@ async function openBsLineModal(subject, seqNo) {
   displayEl.value = curDisplay;
   activeChk.checked = curActive;
 
-  // If display text was already manually set, treat it as manual
-  bsLineDisplayTextManual = !!curDisplay;
-
   applyBaseSpecTypeUI();
-  document.getElementById("bsLineModalDisplayPreview").textContent =
-    curDisplay || "—";
+  buildBsDisplayText();
 
   modal.classList.remove("hidden");
 }
@@ -3602,7 +3867,6 @@ function closeBsLineModal() {
   document.getElementById("bsLineModal").classList.add("hidden");
   bsLineCurrentSubject = null;
   bsLineCurrentSeqNo = null;
-  bsLineDisplayTextManual = false;
 }
 
 function applyBaseSpecTypeUI() {
@@ -3611,45 +3875,67 @@ function applyBaseSpecTypeUI() {
   const exactRow = document.getElementById("bsLineModalExactRow");
   const textRow = document.getElementById("bsLineModalTextRow");
   const passFailRow = document.getElementById("bsLineModalPassFailRow");
+  const uomSel = document.getElementById("bsLineModalUom");
   const minEl = document.getElementById("bsLineModalMin");
   const maxEl = document.getElementById("bsLineModalMax");
+  const exactEl = document.getElementById("bsLineModalExact");
+  const textEl = document.getElementById("bsLineModalText");
+  const passFailSel = document.getElementById("bsLineModalPassFail");
   const minLabel = document.getElementById("bsLineModalMinLabel");
   const maxLabel = document.getElementById("bsLineModalMaxLabel");
 
   [minMaxRow, exactRow, textRow, passFailRow].forEach((r) =>
     r.classList.add("hidden"),
   );
-  minEl.disabled = false;
-  maxEl.disabled = false;
+  [minEl, maxEl, exactEl, textEl, passFailSel].forEach((el) => {
+    el.disabled = true;
+  });
+
+  minEl.value =
+    specType === "MIN_ONLY" || specType === "RANGE" ? minEl.value : "";
+  maxEl.value =
+    specType === "MAX_ONLY" || specType === "RANGE" ? maxEl.value : "";
+  if (specType !== "EXACT_NUMERIC") exactEl.value = "";
+  if (specType !== "TEXT") textEl.value = "";
+  if (specType !== "PASS_FAIL") passFailSel.value = "PASS";
+
+  uomSel.disabled = false;
 
   switch (specType) {
     case "RANGE":
       minMaxRow.classList.remove("hidden");
       minLabel.textContent = "Min Value (NLT)";
       maxLabel.textContent = "Max Value (NMT)";
+      minEl.disabled = false;
+      maxEl.disabled = false;
       break;
-    case "NMT":
+    case "MAX_ONLY":
       minMaxRow.classList.remove("hidden");
       minLabel.textContent = "Min Value";
       maxLabel.textContent = "Max Value (NMT) *";
-      minEl.disabled = true;
       minEl.value = "";
+      minEl.disabled = true;
+      maxEl.disabled = false;
       break;
-    case "NLT":
+    case "MIN_ONLY":
       minMaxRow.classList.remove("hidden");
       minLabel.textContent = "Min Value (NLT) *";
       maxLabel.textContent = "Max Value";
-      maxEl.disabled = true;
       maxEl.value = "";
+      minEl.disabled = false;
+      maxEl.disabled = true;
       break;
     case "EXACT_NUMERIC":
       exactRow.classList.remove("hidden");
+      exactEl.disabled = false;
       break;
     case "TEXT":
       textRow.classList.remove("hidden");
+      textEl.disabled = false;
       break;
     case "PASS_FAIL":
       passFailRow.classList.remove("hidden");
+      passFailSel.disabled = false;
       break;
   }
 }
@@ -3665,22 +3951,27 @@ function buildBsDisplayText() {
   const preview = document.getElementById("bsLineModalDisplayPreview");
 
   let generated = "";
+  let isNumericType = false;
   const min = minEl.value.trim();
   const max = maxEl.value.trim();
 
   switch (specType) {
     case "RANGE":
-      if (min && max) generated = `${min} – ${max}`;
+      isNumericType = true;
+      if (min && max) generated = `${min} - ${max}`;
       else if (min) generated = `NLT ${min}`;
       else if (max) generated = `NMT ${max}`;
       break;
-    case "NMT":
+    case "MAX_ONLY":
+      isNumericType = true;
       if (max) generated = `NMT ${max}`;
       break;
-    case "NLT":
+    case "MIN_ONLY":
+      isNumericType = true;
       if (min) generated = `NLT ${min}`;
       break;
     case "EXACT_NUMERIC":
+      isNumericType = true;
       if (exactEl.value.trim()) generated = exactEl.value.trim();
       break;
     case "TEXT":
@@ -3691,8 +3982,11 @@ function buildBsDisplayText() {
       break;
   }
 
-  displayEl.value = generated;
-  preview.textContent = generated || "—";
+  const finalText = isNumericType
+    ? appendUomIfNeeded(generated, selectedUomSymbol())
+    : generated;
+  displayEl.value = finalText;
+  preview.textContent = finalText || "—";
 }
 
 function saveBsLineModal() {
@@ -3702,6 +3996,7 @@ function saveBsLineModal() {
   const exactEl = document.getElementById("bsLineModalExact");
   const textEl = document.getElementById("bsLineModalText");
   const passFailSel = document.getElementById("bsLineModalPassFail");
+  const uomSel = document.getElementById("bsLineModalUom");
   const displayEl = document.getElementById("bsLineModalDisplayText");
   const activeChk = document.getElementById("bsLineModalActive");
   const errEl = document.getElementById("bsLineModalError");
@@ -3709,7 +4004,7 @@ function saveBsLineModal() {
   errEl.classList.add("hidden");
   errEl.textContent = "";
 
-  const specType = specTypeSel.value;
+  const specType = normalizeBaseSpecTypeValue(specTypeSel.value);
   if (!specType) {
     showBanner(errEl, "error", "Spec Type is required.");
     return;
@@ -3737,16 +4032,16 @@ function saveBsLineModal() {
         return;
       }
       break;
-    case "NMT":
+    case "MAX_ONLY":
       if (!maxEl.value.trim()) {
-        showBanner(errEl, "error", "NMT requires a Max value.");
+        showBanner(errEl, "error", "MAX_ONLY requires a Max value.");
         return;
       }
       maxValue = Number(maxEl.value);
       break;
-    case "NLT":
+    case "MIN_ONLY":
       if (!minEl.value.trim()) {
-        showBanner(errEl, "error", "NLT requires a Min value.");
+        showBanner(errEl, "error", "MIN_ONLY requires a Min value.");
         return;
       }
       minValue = Number(minEl.value);
@@ -3770,7 +4065,11 @@ function saveBsLineModal() {
       break;
   }
 
+  // Display text is always system-generated from spec type, values, and selected UOM.
+  buildBsDisplayText();
   const displayText = displayEl.value.trim();
+  const uomId = uomSel.value ? Number(uomSel.value) : null;
+  const uomRow = (labUomRows ?? []).find((u) => Number(u.id) === uomId);
   const isActive = activeChk.checked;
   const seqNo = bsLineCurrentSeqNo;
 
@@ -3782,15 +4081,54 @@ function saveBsLineModal() {
         ? rmEditedSpecLines
         : pmEditedSpecLines;
 
-  editedMap.set(seqNo, {
-    seq_no: seqNo,
-    spec_type: specType,
-    min_value: minValue,
-    max_value: maxValue,
-    text_value: textValue,
-    display_text: displayText,
-    is_active: isActive,
-  });
+  const tbodyId =
+    bsLineCurrentSubject === "FG"
+      ? "bsTableBody"
+      : bsLineCurrentSubject === "RM"
+        ? "rmTableBody"
+        : "pmTableBody";
+  const tbodyEl = document.getElementById(tbodyId);
+  const tr = tbodyEl?.querySelector(`tr[data-seq="${seqNo}"]`);
+  const origSpecType = normalizeBaseSpecTypeValue(
+    tr?.dataset.origSpecType || null,
+  );
+  const origMin =
+    tr?.dataset.origMin !== undefined && tr.dataset.origMin !== ""
+      ? Number(tr.dataset.origMin)
+      : null;
+  const origMax =
+    tr?.dataset.origMax !== undefined && tr.dataset.origMax !== ""
+      ? Number(tr.dataset.origMax)
+      : null;
+  const origText = tr?.dataset.origText || null;
+  const origDisplay = tr?.dataset.origDisplay || null;
+  const origUomId = tr?.dataset.origUomId ? Number(tr.dataset.origUomId) : null;
+  const origActive = tr?.dataset.origActive === "1";
+
+  const hasChanged =
+    specType !== origSpecType ||
+    minValue !== origMin ||
+    maxValue !== origMax ||
+    textValue !== origText ||
+    displayText !== origDisplay ||
+    uomId !== origUomId ||
+    isActive !== origActive;
+
+  if (!hasChanged) {
+    editedMap.delete(seqNo);
+  } else {
+    editedMap.set(seqNo, {
+      seq_no: seqNo,
+      spec_type: specType,
+      min_value: minValue,
+      max_value: maxValue,
+      text_value: textValue,
+      uom_id: uomId,
+      uom_symbol: uomRow?.symbol ?? null,
+      display_text: displayText,
+      is_active: isActive,
+    });
+  }
 
   // Re-render the table to reflect the new values
   if (bsLineCurrentSubject === "FG") {
@@ -3802,6 +4140,12 @@ function saveBsLineModal() {
   }
 
   closeBsLineModal();
+}
+
+function normalizeBaseSpecTypeValue(specType) {
+  if (specType === "NMT") return "MAX_ONLY";
+  if (specType === "NLT") return "MIN_ONLY";
+  return String(specType ?? "").trim();
 }
 
 // ── OVERRIDE EDITOR MODAL ─────────────────────────────────────────────────────
@@ -4032,7 +4376,7 @@ async function openOverrideModal(mode, row) {
     testSel.disabled = true;
     const { data, error } = await labSupabase
       .from("test_master")
-      .select("id, test_name, result_kind")
+      .select("id, test_name, result_kind, default_uom_id")
       .eq("is_active", true)
       .order("test_name");
     ovCachedTests = error ? [] : (data ?? []);
@@ -4440,6 +4784,52 @@ function sourceBadge(sourceType) {
     return '<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;border:1px solid #93c5fd;background:#eff6ff;color:#1d4ed8;">MODIFY</span>';
   }
   return '<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;border:1px solid #d1d5db;background:#f9fafb;color:#374151;">BASE</span>';
+}
+
+async function loadLabUoms() {
+  const { data, error } = await labSupabase.rpc("fn_get_lab_uom_picker");
+
+  if (error) {
+    toast("Failed to load lab UOMs: " + error.message, "error");
+    labUomRows = [];
+    return labUomRows;
+  }
+
+  labUomRows = data ?? [];
+  return labUomRows;
+}
+
+function populateLabUomSelect(selectEl, selectedId) {
+  if (!selectEl) return;
+  const rows = labUomRows ?? [];
+  selectEl.innerHTML =
+    '<option value="">-- No Unit --</option>' +
+    rows
+      .map((u) => {
+        const label = u.symbol
+          ? `${u.uom_code} - ${u.symbol}`
+          : `${u.uom_code} - ${u.uom_name}`;
+        return `<option value="${esc(String(u.id))}" ${
+          String(u.id) === String(selectedId ?? "") ? "selected" : ""
+        }>${esc(label)}</option>`;
+      })
+      .join("");
+}
+
+function selectedUomSymbol() {
+  const uomSel = document.getElementById("bsLineModalUom");
+  const id = Number(uomSel?.value || 0);
+  if (!id) return "";
+  const row = (labUomRows ?? []).find((u) => Number(u.id) === id);
+  return String(row?.symbol ?? "").trim();
+}
+
+function appendUomIfNeeded(text, symbol) {
+  const value = String(text ?? "").trim();
+  const unit = String(symbol ?? "").trim();
+  if (!value || !unit) return value;
+  if (value.toLowerCase().includes(unit.toLowerCase())) return value;
+  return `${value} ${unit}`;
 }
 
 function populateSelect(sel, rows, valKey, labelKey, placeholder) {
