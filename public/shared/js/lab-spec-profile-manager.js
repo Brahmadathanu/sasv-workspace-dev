@@ -155,6 +155,8 @@ let pmLoadedRows = [];
 let rebuildSubject = null;
 let rebuildFamilyId = null;
 let rebuildFamilyLabel = null;
+let fullResetConfirmModal = null;
+let fullResetConfirmResolve = null;
 
 // Base Spec Line edit modal state
 let bsLineCurrentSubject = null; // "FG" | "RM" | "PM"
@@ -2155,6 +2157,85 @@ function wireRebuildModal() {
   );
 }
 
+function ensureFullResetConfirmModal() {
+  if (fullResetConfirmModal) return fullResetConfirmModal;
+
+  const modal = document.createElement("div");
+  modal.id = "fullResetConfirmModal";
+  modal.className = "ov-modal-backdrop hidden";
+  modal.setAttribute("role", "dialog");
+  modal.setAttribute("aria-modal", "true");
+  modal.setAttribute("aria-labelledby", "fullResetConfirmTitle");
+  modal.innerHTML = `
+    <div class="ov-modal" style="max-width: 500px; width: calc(100% - 24px); min-width: 0; min-height: 320px; max-height: calc(100vh - 48px);">
+      <div class="ov-modal-header">
+        <h2 class="ov-modal-title" id="fullResetConfirmTitle">Confirm Full Reset</h2>
+        <button type="button" class="ov-modal-close" id="fullResetConfirmClose" aria-label="Close">&times;</button>
+      </div>
+      <div class="ov-modal-body" id="fullResetConfirmBody" style="display:flex;flex-direction:column;gap:12px;padding:16px 18px 18px;min-height:0;">
+        <div class="spec-info-banner warn" style="margin:0;padding:12px 14px;line-height:1.45;">
+          Full Reset will create a new Base Spec version using only the current mapped protocol.
+          Existing manually entered specification values will not be carried forward.
+        </div>
+        <div id="fullResetConfirmContext" style="font-size:13px;line-height:1.4;color:var(--muted,#6b7280);">
+          —
+        </div>
+      </div>
+      <div class="ov-modal-footer" style="padding:12px 18px;gap:10px;">
+        <button type="button" class="btn-secondary" id="fullResetConfirmCancel">Cancel</button>
+        <button type="button" class="btn-primary" id="fullResetConfirmOk" style="background:#dc2626;border-color:#dc2626;box-shadow:none;">
+          Full Reset
+        </button>
+      </div>
+    </div>
+  `;
+
+  const closeBtn = modal.querySelector("#fullResetConfirmClose");
+  const cancelBtn = modal.querySelector("#fullResetConfirmCancel");
+  const okBtn = modal.querySelector("#fullResetConfirmOk");
+
+  const resolveAndClose = (value) => {
+    if (fullResetConfirmResolve) {
+      const resolver = fullResetConfirmResolve;
+      fullResetConfirmResolve = null;
+      resolver(value);
+    }
+    modal.classList.add("hidden");
+  };
+
+  closeBtn?.addEventListener("click", () => resolveAndClose(false));
+  cancelBtn?.addEventListener("click", () => resolveAndClose(false));
+  okBtn?.addEventListener("click", () => resolveAndClose(true));
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) resolveAndClose(false);
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (modal.classList.contains("hidden")) return;
+    e.preventDefault();
+    resolveAndClose(false);
+  });
+
+  document.body.appendChild(modal);
+  fullResetConfirmModal = modal;
+  return modal;
+}
+
+async function showFullResetConfirmModal(contextText) {
+  const modal = ensureFullResetConfirmModal();
+  const contextEl = modal.querySelector("#fullResetConfirmContext");
+  if (contextEl) {
+    contextEl.textContent =
+      contextText || "Proceed with a full reset for this mapped protocol?";
+  }
+
+  modal.classList.remove("hidden");
+
+  return new Promise((resolve) => {
+    fullResetConfirmResolve = resolve;
+  });
+}
+
 function openRebuildModal(subject) {
   rebuildSubject = subject;
 
@@ -2201,8 +2282,8 @@ async function executeRebuild(mode) {
   }
 
   if (mode === "FULL_RESET") {
-    const ok = window.confirm(
-      "Full Reset will create a new Base Spec version using only the current mapped protocol. Existing manually entered specification values will not be carried forward. Continue?",
+    const ok = await showFullResetConfirmModal(
+      `${rebuildSubject} · ${rebuildFamilyLabel || "Selected family"}`,
     );
     if (!ok) return;
   }
@@ -3669,17 +3750,6 @@ function wireBsLineModal() {
     closeBsLineModal();
   });
 
-  if (!document.getElementById("bsLineModalSpecTypeHint") && specTypeSel) {
-    const hint = document.createElement("div");
-    hint.id = "bsLineModalSpecTypeHint";
-    hint.style.fontSize = "11px";
-    hint.style.color = "var(--muted,#6b7280)";
-    hint.style.marginTop = "4px";
-    hint.textContent =
-      "Spec Type is controlled and cannot be changed from this modal.";
-    specTypeSel.insertAdjacentElement("afterend", hint);
-  }
-
   specTypeSel.addEventListener("change", () => {
     applyBaseSpecTypeUI();
     buildBsDisplayText();
@@ -3844,9 +3914,9 @@ async function openBsLineModal(subject, seqNo) {
   } else if (specTypeSel.options.length) {
     specTypeSel.value = specTypeSel.options[0].value;
   }
-  specTypeSel.disabled = true;
+  specTypeSel.disabled = false;
   specTypeSel.title =
-    "Spec Type is controlled by Test Master / generated base specification and cannot be changed here.";
+    "Select how the reference value should be interpreted for this specification line.";
 
   // Pre-fill value fields
   minEl.value = curMin;
@@ -3904,8 +3974,8 @@ function applyBaseSpecTypeUI() {
   switch (specType) {
     case "RANGE":
       minMaxRow.classList.remove("hidden");
-      minLabel.textContent = "Min Value (NLT)";
-      maxLabel.textContent = "Max Value (NMT)";
+      minLabel.textContent = "Min Value (NLT) *";
+      maxLabel.textContent = "Max Value (NMT) *";
       minEl.disabled = false;
       maxEl.disabled = false;
       break;
