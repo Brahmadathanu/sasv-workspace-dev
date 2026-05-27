@@ -586,7 +586,7 @@
         position: sticky;
         top: 0;
         background: var(--panel-bg, #fff);
-        z-index: 2;
+        z-index: 5;
         padding-bottom: 8px;
         border-bottom: 1px solid var(--border, #e5e7eb);
         flex-shrink: 0;
@@ -764,6 +764,10 @@
         align-items: center;
         margin: 0 0 4px;
       }
+      .toolbar-row {
+        display: flex;
+        align-items: center;
+      }
       .pager-mini {
         display: flex;
         gap: 6px;
@@ -773,6 +777,14 @@
       .pager-mini .muted {
         margin-right: 2px;
       }
+      #iLinesPager {
+        min-height: 34px;
+        align-items: center;
+      }
+      #iLinesPageInfo {
+        position: relative;
+        top: -1px;
+      }
       table td,
       table th {
         vertical-align: middle;
@@ -781,8 +793,24 @@
       .erp-table th {
         vertical-align: middle;
       }
+      .erp-table th.num,
+      .erp-table td.num {
+        text-align: right;
+      }
+      .linklike {
+        background: transparent;
+        border: 0;
+        color: var(--primary, #005a8d);
+        text-decoration: underline;
+        cursor: pointer;
+        padding: 0;
+        font: inherit;
+      }
       .table-scroll.modal-scroll {
         max-height: 60vh;
+      }
+      .modal-lg {
+        max-width: 980px;
       }
       .erp-table {
         width: 100%;
@@ -799,15 +827,40 @@
         justify-content: center;
         display: inline-flex;
       }
+      .vendor-map-modal {
+        max-width: 760px;
+      }
+      .vendor-map-links {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+      }
+      .vendor-map-links a {
+        font-size: 12px;
+        color: var(--primary, #005a8d);
+        text-decoration: none;
+        padding: 6px 10px;
+        border-radius: 6px;
+        border: 1px solid var(--border, #e5e7eb);
+      }
+      .vendor-map-links a:hover {
+        background: rgba(0, 90, 141, 0.06);
+      }
       #prLinesTable {
         border-collapse: separate;
         border-spacing: 0;
       }
       #prLinesTable thead th {
         position: sticky;
-        top: 64px;
-        z-index: 1;
+        top: 0; /* toolbar is outside #prLinesScroll, so header sticks to scroll container top */
+        z-index: 5;
         background: var(--panel-bg, #fff);
+        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
+      }
+      #prLinesScroll.table-scroll {
+        overflow: auto;
+        max-height: 55vh; /* safe inside modal body */
       }
       .pr-line-inline-input {
         width: 100%;
@@ -910,9 +963,24 @@
       #iLinesTable thead th {
         position: sticky;
         top: 0;
-        background: #fff;
+        background: var(--panel-bg, #fff);
         z-index: 5;
         box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
+      }
+      .modal .table-scroll thead th {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        background: var(--panel-bg, #fff);
+        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
+      }
+      .modal .table-scroll {
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .erp-table td.num,
+      .erp-table th.num {
+        white-space: nowrap;
       }
       .kv-table {
         width: 100%;
@@ -1159,6 +1227,40 @@
           width: auto;
         }
       }
+      @media (max-width: 680px) {
+        .modal-backdrop {
+          padding: 10px;
+        }
+
+        .modal {
+          max-width: 100%;
+          border-radius: 14px;
+          padding: 12px;
+          max-height: calc(100vh - 20px);
+        }
+
+        .modal-header {
+          padding-bottom: 10px;
+        }
+
+        .modal-body {
+          padding-top: 10px;
+        }
+
+        .detail-shell {
+          grid-template-columns: 1fr !important;
+        }
+        .detail-rail {
+          position: static !important;
+        }
+
+        .pr-line-inline-input {
+          max-width: 100% !important;
+        }
+        .pr-line-inline-input.reason {
+          min-width: 140px;
+        }
+      }
     </style>
   </head>
 
@@ -1266,8 +1368,8 @@
           <select id="procTabSelect" class="tab-select" aria-label="Select tab">
             <option value="pr" selected>PR Workbench</option>
             <option value="indents">Indents</option>
+            <option value="vendor-buylist">Vendor-wise Buying List</option>
             <option value="action">Action Queue</option>
-            <option value="vendors">Vendor Mapping</option>
             <option value="excess">Excess &amp; Overshoot</option>
           </select>
           <svg
@@ -1291,8 +1393,15 @@
         <div class="tabs" role="tablist" aria-label="Procurement tabs">
           <button class="tab-btn active" data-tab="pr">PR Workbench</button>
           <button class="tab-btn" data-tab="indents">Indents</button>
+          <button
+            class="tab-btn"
+            data-tab="vendor-buylist"
+            id="tab-vendor-buylist-btn"
+          >
+            Vendor-wise Buying List
+            <div class="tab-sub">All actionable indents - vendor grouped</div>
+          </button>
           <button class="tab-btn" data-tab="action">Action Queue</button>
-          <button class="tab-btn" data-tab="vendors">Vendor Mapping</button>
           <button class="tab-btn" data-tab="excess">
             Excess &amp; Overshoot
           </button>
@@ -1639,7 +1748,7 @@
           <div class="card">
             <div class="table-topbar">
               <h2 style="margin: 0">Lines</h2>
-              <div class="pager-mini">
+              <div class="pager-mini" style="margin-left: auto">
                 <span class="muted" id="aqMeta"></span>
                 <button
                   id="btnPrev"
@@ -1902,7 +2011,8 @@
               <table class="erp-table">
                 <thead>
                   <tr>
-                    <th>Indent #</th>
+                    <th>Indent ID</th>
+                    <th>Indent Number</th>
                     <th>Approved Date</th>
                     <th>Status</th>
                     <th>Class</th>
@@ -1910,6 +2020,222 @@
                   </tr>
                 </thead>
                 <tbody id="iTbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- VENDOR-WISE BUYING LIST -->
+        <div
+          class="tab-panel"
+          id="tab-vendor-buylist"
+          data-tab-panel="vendor-buylist"
+        >
+          <div class="pec-search-card">
+            <div class="pec-filter-wrap" id="vwlFilterWrap">
+              <button
+                id="vwlFilterBtn"
+                class="pec-filter-btn icon-btn ghost"
+                title="Filters"
+                aria-label="Filters"
+                type="button"
+                aria-haspopup="true"
+                aria-expanded="false"
+              >
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <polygon
+                    points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"
+                  />
+                </svg>
+              </button>
+              <span
+                id="vwlFilterBadge"
+                class="pec-filter-badge"
+                style="display: none"
+                title="Filter active"
+              ></span>
+              <div
+                id="vwlFilterDrawer"
+                class="pec-filter-drawer"
+                role="dialog"
+                aria-label="Vendor-wise filter"
+              >
+                <div class="pec-filter-drawer-title">
+                  Filter vendor-wise list
+                </div>
+                <div class="pec-filter-section">
+                  <div
+                    class="muted"
+                    style="font-size: 12px; margin-bottom: 4px"
+                  >
+                    Vendor
+                  </div>
+                  <select id="vwlVendorFilter" class="pec-filter-select">
+                    <option value="">All vendors</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="pec-search-wrap">
+              <input
+                id="vwlSearch"
+                class="pec-search-input"
+                type="text"
+                placeholder="Search vendor / item / code..."
+                aria-label="Search vendor-wise buying list"
+              />
+              <button
+                id="vwlSearchClear"
+                class="pec-input-clear"
+                type="button"
+                title="Clear"
+                aria-label="Clear"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="13"
+                  height="13"
+                  aria-hidden="true"
+                >
+                  <line
+                    x1="18"
+                    y1="6"
+                    x2="6"
+                    y2="18"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                  />
+                  <line
+                    x1="6"
+                    y1="6"
+                    x2="18"
+                    y2="18"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div
+              class="toolbar-row"
+              style="justify-content: space-between; gap: 10px; flex-wrap: wrap"
+            >
+              <h2 style="margin: 0">Buying List</h2>
+
+              <div class="toolbar-row" style="gap: 8px">
+                <div class="export-menu" id="vwlExportMenu">
+                  <button
+                    id="vwlExportBtn"
+                    class="icon-btn ghost"
+                    title="Export"
+                    type="button"
+                    aria-label="Export"
+                    aria-haspopup="true"
+                    aria-expanded="false"
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      aria-hidden="true"
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                  </button>
+                  <div id="vwlExportDrawer" class="export-dropdown" role="menu">
+                    <button id="vwlExportCsv" role="menuitem" type="button">
+                      Export Vendor-wise CSV
+                    </button>
+                    <button id="vwlExportTsv" role="menuitem" type="button">
+                      Export Vendor-wise TSV
+                    </button>
+                  </div>
+                </div>
+
+                <div class="pager-mini">
+                  <span class="muted" id="vwlMeta"></span>
+                  <button
+                    id="vwlPrev"
+                    class="icon-btn ghost"
+                    title="Prev"
+                    type="button"
+                    aria-label="Previous page"
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      aria-hidden="true"
+                    >
+                      <path d="M15 6l-6 6 6 6" />
+                    </svg>
+                  </button>
+                  <span id="vwlPaging"></span>
+                  <button
+                    id="vwlNext"
+                    class="icon-btn ghost"
+                    title="Next"
+                    type="button"
+                    aria-label="Next page"
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      aria-hidden="true"
+                    >
+                      <path d="M9 6l6 6-6 6" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="table-scroll">
+              <table class="erp-table">
+                <thead>
+                  <tr>
+                    <th>Vendor</th>
+                    <th>Item</th>
+                    <th>UOM</th>
+                    <th class="num">Qty to Buy</th>
+                    <th class="num">Rate</th>
+                    <th class="num">Amount</th>
+                    <th>Indents</th>
+                  </tr>
+                </thead>
+                <tbody id="vwlTbody">
+                  <tr>
+                    <td colspan="7" class="muted">Loading...</td>
+                  </tr>
+                </tbody>
               </table>
             </div>
           </div>
@@ -2044,138 +2370,58 @@
             </div>
           </div>
         </div>
+      </div>
+    </section>
 
-        <!-- VENDORS -->
-        <div class="tab-panel" id="tab-vendors">
-          <div class="pec-search-card">
-            <div class="pec-search-wrap">
-              <input
-                id="vSearch"
-                class="pec-search-input"
-                type="text"
-                placeholder="Search alias…"
-                aria-label="Search vendor aliases"
-              />
-              <button
-                id="vSearchClear"
-                type="button"
-                class="pec-input-clear"
-                title="Clear search"
-                aria-label="Clear search"
-                style="display: none"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  width="13"
-                  height="13"
-                  aria-hidden="true"
-                >
-                  <line
-                    x1="18"
-                    y1="6"
-                    x2="6"
-                    y2="18"
-                    stroke="currentColor"
-                    stroke-width="2.5"
-                    stroke-linecap="round"
-                  />
-                  <line
-                    x1="6"
-                    y1="6"
-                    x2="18"
-                    y2="18"
-                    stroke="currentColor"
-                    stroke-width="2.5"
-                    stroke-linecap="round"
-                  />
-                </svg>
-              </button>
-            </div>
-            <div style="margin-left: auto; flex-shrink: 0">
-              <a
-                id="linkVendorMaster"
-                href="#"
-                style="
-                  font-size: 12px;
-                  color: var(--primary, #005a8d);
-                  text-decoration: none;
-                  padding: 6px 10px;
-                  border-radius: 6px;
-                  border: 1px solid var(--border, #e5e7eb);
-                  display: inline-block;
-                "
-                title="Vendor master management (coming soon)"
-                onclick="
-                  event.preventDefault();
-                  alert('Vendor Master page not yet available.');
-                "
-              >
-                View Vendor Master &#8599;
-              </a>
-            </div>
+    <div
+      id="vwlBreakdownModalBackdrop"
+      class="modal-backdrop"
+      aria-hidden="true"
+      inert
+    >
+      <div class="modal modal-lg">
+        <div class="modal-header page-header">
+          <div>
+            <h3 style="margin: 0" id="vwlBdTitle">Indent breakdown</h3>
+            <div class="muted" id="vwlBdSub">-</div>
           </div>
-          <div class="card">
-            <div class="table-topbar">
-              <h2 style="margin: 0">Unmapped Vendor Aliases</h2>
-              <div class="pager-mini">
-                <span class="muted" id="vMeta"></span>
-                <button
-                  id="vBtnPrev"
-                  class="icon-btn ghost"
-                  title="Previous page"
-                  aria-label="Previous page"
-                  disabled
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    aria-hidden="true"
-                  >
-                    <path d="M15 6l-6 6 6 6" />
-                  </svg>
-                </button>
-                <span id="vPaging"></span>
-                <button
-                  id="vBtnNext"
-                  class="icon-btn ghost"
-                  title="Next page"
-                  aria-label="Next page"
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    aria-hidden="true"
-                  >
-                    <path d="M9 6l6 6-6 6" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-            <div class="table-scroll">
-              <table class="erp-table">
-                <thead>
-                  <tr>
-                    <th>Alias</th>
-                    <th>Source</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="vTbody"></tbody>
-              </table>
-            </div>
+          <button
+            class="modal-close-btn"
+            id="btnVwlBdClose"
+            title="Close"
+            type="button"
+            aria-label="Close"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="table-scroll" style="max-height: 55vh">
+            <table class="erp-table">
+              <thead>
+                <tr>
+                  <th>Indent #</th>
+                  <th class="num">Qty to Buy</th>
+                </tr>
+              </thead>
+              <tbody id="vwlBdTbody"></tbody>
+            </table>
           </div>
         </div>
       </div>
-    </section>
+    </div>
+
     <!-- Indent View modal -->
     <div class="modal-backdrop" id="indentViewModalBackdrop" aria-hidden="true">
       <div class="modal" style="max-width: 1100px">
@@ -2378,7 +2624,7 @@
                     />
                     <polyline points="14 2 14 8 20 8" />
                   </svg>
-                  Export PDF
+                  Purchase Requisition - PDF
                 </button>
                 <button id="btnIExportDropdownCsv" role="menuitem">
                   <svg
@@ -2393,7 +2639,7 @@
                     <rect x="3" y="3" width="18" height="18" rx="2" />
                     <path d="M3 9h18M9 21V9" />
                   </svg>
-                  Export CSV
+                  Purchase Requisition - CSV
                 </button>
                 <button id="btnIExportDropdownTsv" role="menuitem">
                   <svg
@@ -2408,7 +2654,7 @@
                     <rect x="3" y="3" width="18" height="18" rx="2" />
                     <path d="M3 9h18M9 21V9" />
                   </svg>
-                  Export TSV
+                  Purchase Requisition - TSV
                 </button>
               </div>
             </div>
@@ -2480,6 +2726,7 @@
           </div>
           <div class="table-toolbar sticky">
             <div
+              class="pr-lines-toolbar-erp"
               style="
                 display: flex;
                 align-items: center;
@@ -2492,13 +2739,13 @@
                 id="iLineSearch"
                 class="erp-search-input"
                 type="search"
-                placeholder="Search items (name/code/class)..."
+                placeholder="Search items (name/code/category)..."
                 style="flex: 1 1 0; min-width: 180px; max-width: 340px"
               />
               <div class="pec-filter-wrap" id="iLineFilterWrap">
                 <button
                   id="iLineFilterBtn"
-                  class="pec-filter-btn icon-btn ghost"
+                  class="pec-filter-btn"
                   title="Filter lines"
                   aria-label="Filter lines"
                   type="button"
@@ -2520,13 +2767,13 @@
                       points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"
                     />
                   </svg>
+                  <span
+                    id="iLineFilterBadge"
+                    class="pec-filter-badge"
+                    style="display: none"
+                    title="Filter active"
+                  ></span>
                 </button>
-                <span
-                  id="iLineFilterBadge"
-                  class="pec-filter-badge"
-                  style="display: none"
-                  title="Filter active"
-                ></span>
                 <div
                   id="iLineFilterDrawer"
                   class="pec-filter-drawer"
@@ -2547,7 +2794,7 @@
               </div>
               <div
                 id="iLinesPager"
-                class="pager"
+                class="pr-lines-paging-group"
                 style="
                   display: none;
                   align-items: center;
@@ -2571,13 +2818,19 @@
                     stroke-width="2"
                     aria-hidden="true"
                   >
-                    <path d="M15 6l-6 6 6 6" />
+                    <polyline points="15 18 9 12 15 6" />
                   </svg>
                 </button>
                 <span
                   id="iLinesPageInfo"
                   class="muted"
-                  style="min-width: 120px; text-align: center"
+                  style="
+                    font-size: 0.8rem;
+                    min-width: 72px;
+                    text-align: center;
+                    font-variant-numeric: tabular-nums;
+                    letter-spacing: 0.01em;
+                  "
                 ></span>
                 <button
                   id="iLinesNext"
@@ -2595,7 +2848,7 @@
                     stroke-width="2"
                     aria-hidden="true"
                   >
-                    <path d="M9 6l6 6-6 6" />
+                    <polyline points="9 18 15 12 9 6" />
                   </svg>
                 </button>
               </div>
@@ -2613,6 +2866,8 @@
                   <th>Requested</th>
                   <th>Allocated</th>
                   <th>Remaining</th>
+                  <th>Vendor</th>
+                  <th>Rate</th>
                   <th>Rec. Vendor</th>
                   <th>Rec. Rate</th>
                   <th>Sel. Vendor</th>
@@ -2858,6 +3113,11 @@
       <div class="modal" style="max-width: 480px">
         <h3 id="indentActionTitle">Confirm Action</h3>
         <div class="muted" id="indentActionItem"></div>
+        <div
+          class="muted"
+          id="indentActionExplain"
+          style="margin-top: 8px"
+        ></div>
         <div id="indentApproveDateRow" style="margin-top: 10px; display: none">
           <label>Approval Date</label>
           <input type="date" id="indentApproveDate" />
@@ -2961,51 +3221,83 @@
       </div>
     </div>
 
-    <!-- Create vendor + map modal -->
+    <!-- Vendor alias mapping modal -->
     <div
       class="modal-backdrop"
-      id="createVendorModalBackdrop"
+      id="vendorAliasMapModalBackdrop"
       aria-hidden="true"
     >
-      <div class="modal" style="max-width: 520px">
-        <h3>Create Vendor &amp; Map Alias</h3>
-        <div class="muted" id="createVendorAlias"></div>
-        <div style="margin-top: 10px">
-          <label>Vendor Display Name</label>
-          <input id="createVendorName" placeholder="Display name…" />
+      <div class="modal vendor-map-modal">
+        <div class="modal-header page-header">
+          <h3 style="margin: 0">Vendor Alias Mapping</h3>
+          <button
+            id="btnVendorAliasMapClose"
+            class="modal-close-btn"
+            title="Close"
+            aria-label="Close"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
-        <div class="actions">
-          <button id="btnCreateVendorCancel">Cancel</button>
-          <button id="btnCreateVendorSave">Create &amp; Map</button>
-        </div>
-      </div>
-    </div>
+        <div class="modal-body">
+          <div class="grid">
+            <div>
+              <label>Alias</label>
+              <input id="vamAlias" readonly />
+            </div>
+            <div>
+              <label>Source System</label>
+              <input id="vamSourceSystem" readonly />
+            </div>
+          </div>
 
-    <!-- Map to existing vendor modal -->
-    <div class="modal-backdrop" id="mapVendorModalBackdrop" aria-hidden="true">
-      <div class="modal" style="max-width: 520px">
-        <h3>Map Alias to Existing Vendor</h3>
-        <div class="muted" id="mapVendorAlias"></div>
-        <div style="margin-top: 10px">
-          <label>Filter vendors</label>
-          <input id="mapVendorFilter" placeholder="Type to filter list…" />
-        </div>
-        <div style="margin-top: 8px">
-          <label>Select Vendor</label>
-          <select
-            id="mapVendorPick"
-            size="8"
-            style="
-              width: 100%;
-              border-radius: 6px;
-              border: 1px solid var(--border, #e5e7eb);
-              padding: 4px;
-            "
-          ></select>
-        </div>
-        <div class="actions">
-          <button id="btnMapVendorCancel">Cancel</button>
-          <button id="btnMapVendorSave">Map</button>
+          <div style="margin-top: 10px">
+            <label>Suggested Display Name</label>
+            <input id="vamDisplayName" placeholder="Vendor display name…" />
+          </div>
+
+          <div style="margin-top: 10px">
+            <label>Find Existing Vendor</label>
+            <input
+              id="vamVendorFilter"
+              placeholder="Type to filter vendor list…"
+            />
+          </div>
+          <div style="margin-top: 8px">
+            <label>Select Existing Vendor</label>
+            <select
+              id="vamVendorPick"
+              size="8"
+              style="
+                width: 100%;
+                border-radius: 6px;
+                border: 1px solid var(--border, #e5e7eb);
+                padding: 4px;
+              "
+            ></select>
+          </div>
+
+          <div class="vendor-map-links">
+            <a href="#" id="linkVamVendorMaster">Open Vendor Master</a>
+            <a href="#" id="linkVamRateBook">Open Rate Book</a>
+          </div>
+
+          <div class="actions">
+            <button id="btnVendorAliasMapCancel">Cancel</button>
+            <button id="btnVamMapExisting">Map to Existing Vendor</button>
+            <button id="btnVamCreateMap">Create Vendor + Map</button>
+          </div>
         </div>
       </div>
     </div>
@@ -4137,7 +4429,6 @@
         wireSearch("prSearch", "prSearchClear");
         wireSearch("iSearch", "iSearchClear");
         wireSearch("eSearch", "eSearchClear");
-        wireSearch("vSearch", "vSearchClear");
 
         // Wire each tab's filter drawer
         wireFilterDrawer("aqFilterBtn", "aqFilterDrawer", "aqFilterBadge", [

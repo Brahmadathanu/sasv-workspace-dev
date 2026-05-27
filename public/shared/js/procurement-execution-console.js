@@ -3,12 +3,7 @@ import { supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
 
 // ─── View / RPC name constants (adjust here if DB names differ) ───────────────
-const RPC_VENDOR_UNMAPPED_QUEUE = "proc_vendor_unmapped_alias_queue";
-const RPC_VENDOR_CREATE_AND_MAP = "proc_vendor_create_and_map_alias";
-const RPC_VENDOR_MAP_ALIAS = "proc_vendor_map_alias";
 const PR_HEADER_VIEW = "v_proc_pr_header";
-
-const VENDOR_PAGE_SIZE = 50;
 
 let prLineAll = [];
 let prLineFiltered = [];
@@ -41,17 +36,31 @@ const state = {
   indentsPage: 0,
   indentsRows: [],
   selectedIndent: null,
+  currentIndentId: null,
   indentLinesRows: [],
   selectedIndentLine: null,
   // excess tab
   excessPage: 0,
   excessRows: [],
   excessAuditRows: [],
+  // vendor-wise buylist tab
+  vwl: {
+    page: 0,
+    pageSize: 75,
+    totalCount: null,
+    search: "",
+    vendorId: "",
+    rows: [],
+    loaded: false,
+    vendorsLoaded: false,
+  },
   // vendor tab
   vendorPage: 0,
+  vendorPageSize: 75,
+  vendorQuery: "",
+  vendorLoading: false,
   vendorsRows: [],
-  vendorUnmappedAll: [],
-  vendorFilteredTotal: 0,
+  vendorTotalCount: null,
   vendorList: [],
 };
 
@@ -139,6 +148,13 @@ const _svgPaths = {
     '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/>',
   download:
     '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
+  send: '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>',
+  checkCircle:
+    '<circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/>',
+  alertTriangle:
+    '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+  lockCheck:
+    '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/><polyline points="10 16 12 18 15 15"/>',
 };
 
 function iconSvg(name, size = 14) {
@@ -197,7 +213,12 @@ function setTab(tab) {
     loadExcess();
     loadExcessAudit();
   }
-  if (tab === "vendors") loadUnmappedAliases();
+  if (tab === "vendor-buylist") {
+    if (!state.vwl.loaded) {
+      state.vwl.loaded = true;
+      loadVendorBuylist();
+    }
+  }
 }
 
 function fmt(n) {
@@ -373,7 +394,7 @@ function setLoading(active) {
   panel.style.pointerEvents = active ? "none" : "";
 }
 
-function setTabTableLoading(tabName, active) {
+function setTabTableLoading(tabName, active, loadingText = "Loading...") {
   const panel = qs(`tab-${tabName}`);
   if (!panel) return;
 
@@ -390,9 +411,11 @@ function setTabTableLoading(tabName, active) {
         mask = document.createElement("div");
         mask.className = "table-loading-mask";
         mask.innerHTML =
-          '<span class="table-loading-spinner" aria-hidden="true"></span><span>Loading…</span>';
+          '<span class="table-loading-spinner" aria-hidden="true"></span><span></span>';
         area.appendChild(mask);
       }
+      const textEl = mask.querySelector("span:last-child");
+      if (textEl) textEl.textContent = loadingText;
       return;
     }
 
@@ -690,7 +713,7 @@ function updateTabCount(id, n) {
 }
 
 async function refreshAllTabCounts() {
-  const [indents, pr, excess, vendors] = await Promise.allSettled([
+  const [indents, pr, excess] = await Promise.allSettled([
     supabase
       .from("v_proc_indent_console")
       .select("*", { count: "exact" })
@@ -700,7 +723,6 @@ async function refreshAllTabCounts() {
       .from("v_proc_purchase_excess_console")
       .select("*", { count: "exact" })
       .limit(1),
-    supabase.rpc(RPC_VENDOR_UNMAPPED_QUEUE),
   ]);
   if (indents.status === "fulfilled")
     updateTabCount("tabCountIndents", indents.value.count ?? 0);
@@ -708,9 +730,6 @@ async function refreshAllTabCounts() {
     updateTabCount("tabCountPr", pr.value.count ?? 0);
   if (excess.status === "fulfilled")
     updateTabCount("tabCountExcess", excess.value.count ?? 0);
-  if (vendors.status === "fulfilled") {
-    updateTabCount("tabCountVendors", (vendors.value.data || []).length);
-  }
 }
 
 // ─── Jump to Indent (Part C) ─────────────────────────────────────────────────
@@ -981,6 +1000,14 @@ async function saveVendorSelection() {
 
   closeVendorModal();
   await loadActionQueue();
+
+  if (state.currentIndentId) {
+    await loadIndentLines(state.currentIndentId);
+  }
+
+  if (state.tab === "vendor-buylist" && state.vwl.loaded) {
+    await reloadVendorBuylist();
+  }
 }
 
 function wireTabs() {
@@ -1136,6 +1163,7 @@ function wireActionQueueControls() {
       { id: "workflowGuideModalBackdrop", close: closeWorkflowGuideModal },
       { id: "detailModalBackdrop", close: closeDetailModal },
       { id: "vendorModalBackdrop", close: closeVendorModal },
+      { id: "vwlBreakdownModalBackdrop", close: closeVwlBreakdownModal },
       { id: "indentViewModalBackdrop", close: closeIndentViewModal },
       { id: "prViewModalBackdrop", close: closePrViewModal },
       { id: "prRebuildModalBackdrop", close: closePrRebuildModal },
@@ -1470,6 +1498,7 @@ async function confirmIndentResync() {
 
 function openIndentViewModal(row) {
   state.selectedIndent = row;
+  state.currentIndentId = row?.indent_id ?? null;
   state.selectedIndentLine = null;
   state.indentLinesRows = [];
   updateExportButtonStates();
@@ -1488,6 +1517,7 @@ function openIndentViewModal(row) {
 }
 
 function closeIndentViewModal() {
+  state.currentIndentId = null;
   hideModalBackdrop(qs("indentViewModalBackdrop"), [qs("iSearch")]);
   closeAllExportMenus();
 }
@@ -1510,22 +1540,13 @@ function renderIndentLinesActions(indent) {
   }
 
   // Status action buttons (approve / issue / close) — rendered dynamically
-  const btnStyle =
-    "padding:6px 12px;border:1px solid rgba(0,0,0,.12);border-radius:10px;background:transparent;cursor:pointer;";
   // Remove previously injected status buttons
   container.querySelectorAll("button.status-action").forEach((b) => b.remove());
-  const makeText = (label, act) => {
-    const b = document.createElement("button");
-    b.textContent = label;
-    b.style.cssText = btnStyle;
-    b.classList.add("status-action");
-    b.addEventListener("click", () => openIndentActionModal(indent, act));
-    container.appendChild(b);
-  };
-  const makeIcon = (label, act, iconName, variant = "primary") => {
+  const makeIcon = (label, act, iconName, variant = "primary", id = "") => {
     const b = document.createElement("button");
     b.type = "button";
     b.classList.add("icon-btn", variant, "status-action");
+    if (id) b.id = id;
     b.setAttribute("title", label);
     b.setAttribute("aria-label", label);
     b.innerHTML = svgIcon(iconName);
@@ -1534,10 +1555,30 @@ function renderIndentLinesActions(indent) {
   };
   const s = indent.status;
   if (s === "draft") makeIcon("Approve", "approve", "check", "primary");
-  if (s === "approved") makeText("Issue", "issue");
+  if (s === "approved") {
+    makeIcon(
+      "Issue to Purchase (mark as issued)",
+      "issue",
+      "send",
+      "primary",
+      "btnIndentIssue",
+    );
+  }
   if (s === "approved" || s === "issued") {
-    makeText("Close Strict", "close_strict");
-    makeText("Close w/ Override", "close_override");
+    makeIcon(
+      "Close Strict (only if fully satisfied)",
+      "close_strict",
+      "lockCheck",
+      "primary",
+      "btnIndentCloseStrict",
+    );
+    makeIcon(
+      "Close with Override (force close with reason)",
+      "close_override",
+      "alertTriangle",
+      "danger",
+      "btnIndentCloseOverride",
+    );
   }
 }
 
@@ -1566,6 +1607,11 @@ function renderIndentLines(rows) {
       row.recommended_rate != null ? fmt(row.recommended_rate) : "-";
     const selVendor = esc(row.selected_vendor_name ?? "-");
     const selRate = row.selected_rate != null ? fmt(row.selected_rate) : "-";
+    const resolvedVendor = row.resolved_vendor_name
+      ? esc(row.resolved_vendor_name)
+      : "&mdash;";
+    const resolvedRate =
+      row.resolved_rate != null ? fmt(row.resolved_rate) : "&mdash;";
     tr.innerHTML = `
       <td class="muted" style="text-align:center">${lineNo}</td>
       <td>${esc(row.stock_item_name)}</td>
@@ -1574,6 +1620,8 @@ function renderIndentLines(rows) {
       <td>${fmt(row.requested_qty)}</td>
       <td>${fmt(row.allocated_qty)}</td>
       <td><span class="pill">${Number(row.remaining_qty) <= 0 ? "fulfilled" : fmt(row.remaining_qty)}</span></td>
+      <td>${resolvedVendor}</td>
+      <td class="muted">${resolvedRate}</td>
       <td>${recVendor}</td>
       <td class="muted">${recRate}</td>
       <td>${selVendor}</td>
@@ -1655,8 +1703,10 @@ function applyIndentLineFiltersAndRender() {
 async function loadIndentLines(indentId) {
   setLoading(true);
   const { data, error } = await supabase
-    .from("v_proc_indent_lines_all")
-    .select("*")
+    .from("v_proc_indent_lines_console")
+    .select(
+      "indent_line_id,indent_id,stock_item_id,stock_item_name,stock_item_code,code,material_class_code,material_class_label,uom_id,uom_code,requested_qty,allocated_qty,remaining_qty,resolved_vendor_name,resolved_rate,selected_vendor_name,selected_rate,recommended_vendor_name,recommended_rate,has_selected_vendor",
+    )
     .eq("indent_id", indentId)
     .order("indent_line_id", { ascending: true });
   setLoading(false);
@@ -1691,10 +1741,8 @@ function renderIndents() {
       tr.style.background = "rgba(10,100,200,.06)";
     }
     tr.innerHTML = `
-      <td>
-        <div><b>${esc(row.indent_number)}</b></div>
-        <div class="muted">ID: ${esc(String(row.indent_id ?? ""))}</div>
-      </td>
+      <td>${esc(String(row.indent_id ?? ""))}</td>
+      <td>${esc(row.indent_number ?? "")}</td>
       <td>${esc(row.approved_date ?? "")}</td>
       <td><span class="pill">${esc(row.status ?? "")}</span></td>
       <td>${esc(row.material_class_code ?? "")}</td>
@@ -1755,8 +1803,20 @@ function openIndentActionModal(indent, action) {
     close_strict: "Close Indent (Strict)",
     close_override: "Close Indent with Override",
   };
+  const explain = {
+    approve:
+      "Confirming will mark this indent as approved with the selected approval date.",
+    issue:
+      "Confirming will mark this indent as issued and allow purchase fulfilment to proceed.",
+    close_strict:
+      "Confirming will attempt strict close. This succeeds only when all lines are fully satisfied.",
+    close_override:
+      "Confirming will force-close this indent using your override reason and bypass strict completion checks.",
+  };
   qs("indentActionTitle").textContent = titles[action] ?? "Confirm Action";
   qs("indentActionItem").textContent = indent.indent_number;
+  qs("indentActionExplain").textContent =
+    explain[action] ?? "Please review this action before confirming.";
   qs("indentApproveDateRow").style.display = action === "approve" ? "" : "none";
   qs("indentOverrideReasonRow").style.display =
     action === "close_override" ? "" : "none";
@@ -2178,7 +2238,7 @@ async function refreshAllTabsData() {
     await loadIndents();
     await loadExcess();
     await loadExcessAudit();
-    await loadUnmappedAliases();
+    if (state.vwl.loaded) await loadVendorBuylist();
 
     if (state.selectedIndent?.indent_id) {
       await loadIndentLines(state.selectedIndent.indent_id);
@@ -3504,7 +3564,7 @@ function renderPrHeaders() {
       ? `${row.horizon_start_month.slice(0, 7)}${row.horizon_end_month ? ` – ${row.horizon_end_month.slice(0, 7)}` : ""}`
       : "";
     tr.innerHTML = `
-      <td><b>${esc(row.pr_number ?? "")}</b></td>
+      <td>${esc(row.pr_number ?? "")}</td>
       <td><span class="pill">${esc(row.status ?? "")}</span></td>
       <td>${esc(row.effective_from_date ?? "")}</td>
       <td class="muted">${esc(horizonStr)}</td>
@@ -4782,210 +4842,419 @@ function wireExcessControls() {
   });
 }
 
-// ─── VENDOR TAB ───────────────────────────────────────────────────────────────
+function showLoadingMask(message = "Loading...") {
+  setTabTableLoading("vendor-buylist", true, message);
+}
 
-async function loadVendorList() {
-  if (state.vendorList.length) return; // cached
+function hideLoadingMask() {
+  setTabTableLoading("vendor-buylist", false);
+}
+
+function toastError(prefix, error) {
+  const msg = error?.message || String(error || "Unknown error");
+  toast(`${prefix}: ${msg}`, "error");
+}
+
+function fmtFixed(n, digits = 2) {
+  if (n === null || n === undefined || n === "") return "";
+  const x = Number(n);
+  if (Number.isNaN(x)) return String(n);
+  return x.toLocaleString(undefined, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+}
+
+function normalizeVwlBreakdown(raw) {
+  const parsed =
+    typeof raw === "string"
+      ? (() => {
+          try {
+            return JSON.parse(raw);
+          } catch {
+            return [];
+          }
+        })()
+      : raw;
+
+  if (!Array.isArray(parsed)) return [];
+  return parsed.map((entry) => ({
+    indent_number:
+      entry?.indent_number ??
+      entry?.indent_no ??
+      entry?.indent ??
+      entry?.indentNumber ??
+      "-",
+    qty_to_buy:
+      entry?.qty_to_buy ??
+      entry?.qty ??
+      entry?.remaining_qty ??
+      entry?.qtyToBuy ??
+      0,
+  }));
+}
+
+function breakdownToCompactText(raw) {
+  const parts = normalizeVwlBreakdown(raw).map(
+    (b) => `${b.indent_number}:${fmt(b.qty_to_buy)}`,
+  );
+  return parts.join("; ");
+}
+
+function updateVendorBuylistPager() {
+  const { page, pageSize, rows, totalCount } = state.vwl;
+  const prev = qs("vwlPrev");
+  const next = qs("vwlNext");
+  const text = qs("vwlPaging");
+  const count = qs("vwlMeta");
+  const total = Number.isFinite(totalCount) ? totalCount : rows.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  if (prev) prev.disabled = page <= 0;
+  if (next) next.disabled = rows.length < pageSize;
+  if (text) {
+    text.textContent = `Page ${page + 1}/${totalPages}`;
+  }
+  if (count) {
+    count.textContent = total
+      ? `${total} line${total !== 1 ? "s" : ""}`
+      : "0 lines";
+  }
+}
+
+function closeVwlBreakdownModal() {
+  const backdrop = qs("vwlBreakdownModalBackdrop");
+  if (!backdrop) return;
+  backdrop.setAttribute("inert", "");
+  hideModalBackdrop(backdrop, [qs("vwlTbody"), qs("vwlSearch")]);
+}
+
+function openVwlBreakdown(row) {
+  const backdrop = qs("vwlBreakdownModalBackdrop");
+  const title = qs("vwlBdTitle");
+  const sub = qs("vwlBdSub");
+  const tbody = qs("vwlBdTbody");
+  if (!backdrop || !title || !sub || !tbody) return;
+
+  title.textContent = `${row.vendor_name ?? "-"} - ${row.stock_item_name ?? "-"}`;
+  sub.textContent = `Total Qty to Buy: ${fmt(row.total_qty_to_buy)} ${row.uom_code ?? ""}`;
+
+  const breakdown = normalizeVwlBreakdown(row.indent_breakdown);
+  tbody.innerHTML = "";
+  if (!breakdown.length) {
+    tbody.innerHTML =
+      '<tr><td colspan="2" class="muted">No indent breakdown.</td></tr>';
+  } else {
+    for (const item of breakdown) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${esc(item.indent_number)}</td>
+        <td class="num">${esc(fmt(item.qty_to_buy))}</td>
+      `;
+      tbody.appendChild(tr);
+    }
+  }
+
+  backdrop.removeAttribute("inert");
+  backdrop.classList.add("show");
+  backdrop.setAttribute("aria-hidden", "false");
+}
+
+function renderVendorBuylistTable() {
+  const tbody = qs("vwlTbody");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+
+  if (!state.vwl.rows.length) {
+    tbody.innerHTML =
+      '<tr><td colspan="7" class="muted">No rows found.</td></tr>';
+    return;
+  }
+
+  for (const row of state.vwl.rows) {
+    const indentCount = normalizeVwlBreakdown(row.indent_breakdown).length;
+    const tr = document.createElement("tr");
+    tr.classList.add("clickable-row");
+    tr.innerHTML = `
+      <td>${esc(row.vendor_name ?? "-")}</td>
+      <td>${esc(row.stock_item_name ?? "-")}</td>
+      <td>${esc(row.uom_code ?? "-")}</td>
+      <td class="num">${esc(fmt(row.total_qty_to_buy))}</td>
+      <td class="num">${esc(fmtFixed(row.rate_value ?? 0, 2))}</td>
+      <td class="num">${esc(fmtFixed(row.total_amount ?? 0, 2))}</td>
+      <td><button type="button" class="linklike" data-act="bd">${indentCount} indent${indentCount !== 1 ? "s" : ""}</button></td>
+    `;
+
+    tr.addEventListener("click", () => openVwlBreakdown(row));
+    tr.querySelector('[data-act="bd"]')?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openVwlBreakdown(row);
+    });
+
+    tbody.appendChild(tr);
+  }
+}
+
+async function ensureVendorBuylistVendorsLoaded() {
+  if (state.vwl.vendorsLoaded) return;
   const { data, error } = await supabase
     .from("proc_vendor")
     .select("vendor_id, display_name")
     .order("display_name", { ascending: true });
-  if (!error) state.vendorList = data || [];
-}
+  if (error) {
+    toastError("Failed to load vendor filter", error);
+    return;
+  }
 
-function filterVendorPick(filterText) {
-  const pick = qs("mapVendorPick");
-  pick.innerHTML = "";
-  const lower = filterText.toLowerCase();
-  const filtered = state.vendorList.filter(
-    (v) => !lower || v.display_name.toLowerCase().includes(lower),
-  );
-  for (const v of filtered) {
+  const pick = qs("vwlVendorFilter");
+  if (!pick) return;
+  for (const row of data || []) {
     const opt = document.createElement("option");
-    opt.value = String(v.vendor_id);
-    opt.textContent = v.display_name;
+    opt.value = String(row.vendor_id);
+    opt.textContent = row.display_name;
     pick.appendChild(opt);
   }
+  state.vwl.vendorsLoaded = true;
 }
 
-function renderUnmappedAliases() {
-  const tbody = qs("vTbody");
-  tbody.innerHTML = "";
-  for (const row of state.vendorsRows) {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td><b>${esc(row.alias_text ?? "")}</b></td>
-      <td>${esc(row.source_system ?? "")}</td>
-      <td><span class="pill">${esc(row.status ?? "")}</span></td>
-      <td class="row-actions">
-        <button data-act="create">Create + Map</button>
-        <button data-act="mapexisting">Map Existing</button>
-      </td>
-    `;
-    tr.querySelector('[data-act="create"]').addEventListener("click", (e) => {
-      e.stopPropagation();
-      openCreateVendorModal(row);
-    });
-    tr.querySelector('[data-act="mapexisting"]').addEventListener(
-      "click",
-      async (e) => {
-        e.stopPropagation();
-        await openMapVendorModal(row);
-      },
-    );
-    tbody.appendChild(tr);
-  }
-  const _vFiltered = state.vendorFilteredTotal;
-  const _vAll = state.vendorUnmappedAll.length;
-  const _vTotalPages = Math.max(1, Math.ceil(_vFiltered / VENDOR_PAGE_SIZE));
-  qs("vMeta").textContent =
-    _vFiltered < _vAll
-      ? `Showing ${_vFiltered} of ${_vAll} aliases`
-      : `${_vAll} alias${_vAll !== 1 ? "es" : ""}`;
-  qs("vPaging").textContent = `Page ${state.vendorPage + 1}/${_vTotalPages}`;
-  const _vPrev = qs("vBtnPrev");
-  const _vNext = qs("vBtnNext");
-  if (_vPrev) _vPrev.disabled = state.vendorPage <= 0;
-  if (_vNext) _vNext.disabled = state.vendorPage >= _vTotalPages - 1;
-  updateTabCount("tabCountVendors", _vAll);
-}
-
-async function loadUnmappedAliases() {
-  setTabTableLoading("vendors", true);
+async function loadVendorBuylist() {
+  showLoadingMask();
   try {
-    const search = (qs("vSearch").value || "").trim();
-    const { data, error } = await supabase.rpc(RPC_VENDOR_UNMAPPED_QUEUE);
-    if (error) {
-      toast(`Failed to load unmapped aliases: ${error.message}`, "error");
+    await ensureVendorBuylistVendorsLoaded();
+
+    const from = state.vwl.page * state.vwl.pageSize;
+    const to = from + state.vwl.pageSize - 1;
+
+    let q = supabase
+      .from("v_proc_vendorwise_buylist")
+      .select(
+        "vendor_id,vendor_name,stock_item_id,stock_item_name,uom_code,total_qty_to_buy,rate_value,total_amount,indent_breakdown",
+        { count: "exact" },
+      )
+      .order("vendor_name", { ascending: true })
+      .order("stock_item_name", { ascending: true })
+      .range(from, to);
+
+    if (state.vwl.vendorId) q = q.eq("vendor_id", Number(state.vwl.vendorId));
+
+    const term = (state.vwl.search || "").trim();
+    if (term) {
+      q = q.or(`vendor_name.ilike.%${term}%,stock_item_name.ilike.%${term}%`);
+    }
+
+    const { data, error, count } = await q;
+    if (error) throw error;
+
+    state.vwl.totalCount = count ?? (data || []).length;
+    state.vwl.rows = data || [];
+    renderVendorBuylistTable();
+    updateVendorBuylistPager();
+  } catch (e) {
+    toastError("Failed to load vendor-wise list", e);
+    state.vwl.totalCount = 0;
+    const tbody = qs("vwlTbody");
+    if (tbody)
+      tbody.innerHTML =
+        '<tr><td colspan="7" class="muted">Failed to load.</td></tr>';
+  } finally {
+    hideLoadingMask();
+  }
+}
+
+async function reloadVendorBuylist() {
+  await loadVendorBuylist();
+}
+
+function makeDateStamp() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}${m}${day}`;
+}
+
+async function fetchAllVendorBuylistRows() {
+  const all = [];
+  const pageSize = state.vwl.pageSize || 75;
+  let page = 0;
+
+  while (true) {
+    const from = page * pageSize;
+    const to = from + pageSize - 1;
+
+    let q = supabase
+      .from("v_proc_vendorwise_buylist")
+      .select(
+        "vendor_id,vendor_name,stock_item_id,stock_item_name,uom_code,total_qty_to_buy,rate_value,total_amount,indent_breakdown",
+      )
+      .order("vendor_name", { ascending: true })
+      .order("stock_item_name", { ascending: true })
+      .range(from, to);
+
+    if (state.vwl.vendorId) q = q.eq("vendor_id", Number(state.vwl.vendorId));
+
+    const term = (state.vwl.search || "").trim();
+    if (term) {
+      q = q.or(`vendor_name.ilike.%${term}%,stock_item_name.ilike.%${term}%`);
+    }
+
+    const { data, error } = await q;
+    if (error) throw error;
+
+    const rows = data || [];
+    all.push(...rows);
+
+    if (rows.length < pageSize) break;
+    page += 1;
+  }
+
+  return all;
+}
+
+async function exportVendorBuylist(format) {
+  showLoadingMask("Preparing export…");
+  try {
+    const rows = await fetchAllVendorBuylistRows();
+    if (!rows.length) {
+      toast("No rows to export for current filters.", "error");
       return;
     }
-    const allRows = (data || [])
-      .slice()
-      .sort((a, b) =>
-        String(a.alias_text ?? "").localeCompare(String(b.alias_text ?? "")),
+
+    const mapped = rows.map((r) => ({
+      Vendor: r.vendor_name ?? "",
+      Item: r.stock_item_name ?? "",
+      UOM: r.uom_code ?? "",
+      Qty_to_Buy: r.total_qty_to_buy ?? "",
+      Rate: r.rate_value ?? "",
+      Amount: r.total_amount ?? "",
+      Indent_Breakdown: breakdownToCompactText(r.indent_breakdown),
+    }));
+
+    const headers = [
+      "Vendor",
+      "Item",
+      "UOM",
+      "Qty_to_Buy",
+      "Rate",
+      "Amount",
+      "Indent_Breakdown",
+    ];
+
+    const stamp = makeDateStamp();
+    if (format === "tsv") {
+      downloadText(
+        `VENDOR_WISE_BUYLIST_${stamp}.tsv`,
+        toTsv(mapped, headers),
+        "text/tab-separated-values;charset=utf-8;",
       );
-    state.vendorUnmappedAll = allRows;
-    const filteredRows = search
-      ? allRows.filter((row) =>
-          String(row.alias_text ?? "")
-            .toLowerCase()
-            .includes(search.toLowerCase()),
-        )
-      : allRows;
-    const start = state.vendorPage * VENDOR_PAGE_SIZE;
-    const end = (state.vendorPage + 1) * VENDOR_PAGE_SIZE;
-    state.vendorFilteredTotal = filteredRows.length;
-    state.vendorsRows = filteredRows.slice(start, end);
-    renderUnmappedAliases();
+      return;
+    }
+
+    downloadText(
+      `VENDOR_WISE_BUYLIST_${stamp}.csv`,
+      toCsv(mapped, headers),
+      "text/csv;charset=utf-8;",
+    );
+  } catch (e) {
+    toastError("Failed to export vendor-wise buy list", e);
   } finally {
-    setTabTableLoading("vendors", false);
+    hideLoadingMask();
   }
 }
 
-function openCreateVendorModal(row) {
-  const backdrop = qs("createVendorModalBackdrop");
-  backdrop.classList.add("show");
-  backdrop.setAttribute("aria-hidden", "false");
-  qs("createVendorAlias").textContent = `Alias: ${row.alias_text}`;
-  qs("createVendorName").value = row.alias_text ?? "";
-  backdrop.dataset.aliasText = row.alias_text ?? "";
-  backdrop.dataset.sourceSystem = row.source_system ?? "";
-}
+function wireVendorBuylistControls() {
+  const vwlFilterBtn = qs("vwlFilterBtn");
+  const vwlFilterDrawer = qs("vwlFilterDrawer");
+  const vwlVendorFilter = qs("vwlVendorFilter");
 
-function closeCreateVendorModal() {
-  const backdrop = qs("createVendorModalBackdrop");
-  hideModalBackdrop(backdrop, [qs("vSearch")]);
-}
-
-async function saveCreateVendor() {
-  const backdrop = qs("createVendorModalBackdrop");
-  const displayName = (qs("createVendorName").value || "").trim();
-  if (!displayName) {
-    toast("Vendor display name is required.", "error");
-    return;
+  if (vwlFilterBtn && vwlFilterDrawer) {
+    vwlFilterBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isOpen = vwlFilterDrawer.classList.contains("open");
+      document.querySelectorAll(".pec-filter-drawer.open").forEach((drawer) => {
+        if (drawer !== vwlFilterDrawer) {
+          drawer.classList.remove("open");
+          drawer
+            .closest(".pec-filter-wrap")
+            ?.querySelector(".pec-filter-btn")
+            ?.setAttribute("aria-expanded", "false");
+        }
+      });
+      vwlFilterDrawer.classList.toggle("open", !isOpen);
+      vwlFilterBtn.setAttribute("aria-expanded", String(!isOpen));
+      if (!isOpen) {
+        const rect = vwlFilterBtn.getBoundingClientRect();
+        vwlFilterDrawer.style.position = "fixed";
+        vwlFilterDrawer.style.top = rect.bottom + 4 + "px";
+        vwlFilterDrawer.style.left = rect.left + "px";
+        vwlFilterDrawer.style.zIndex = "10001";
+        requestAnimationFrame(() => {
+          const dropW = vwlFilterDrawer.offsetWidth || 220;
+          if (rect.left + dropW > window.innerWidth) {
+            vwlFilterDrawer.style.left = Math.max(4, rect.right - dropW) + "px";
+          }
+        });
+        vwlVendorFilter?.focus();
+      }
+    });
+    vwlFilterDrawer.addEventListener("click", (e) => e.stopPropagation());
+    document.addEventListener("click", (e) => {
+      if (
+        vwlFilterDrawer.classList.contains("open") &&
+        !vwlFilterDrawer.contains(e.target) &&
+        !vwlFilterBtn.contains(e.target)
+      ) {
+        vwlFilterDrawer.classList.remove("open");
+        vwlFilterBtn.setAttribute("aria-expanded", "false");
+      }
+    });
   }
-  const { error } = await supabase.rpc(RPC_VENDOR_CREATE_AND_MAP, {
-    p_display_name: displayName,
-    p_alias_text: backdrop.dataset.aliasText,
-    p_source_system: backdrop.dataset.sourceSystem,
-  });
-  if (error) {
-    toast(`Create + map failed: ${error.message}`, "error");
-    return;
-  }
-  toast("Vendor created and alias mapped.", "success");
-  state.vendorList = []; // invalidate cache
-  closeCreateVendorModal();
-  await loadUnmappedAliases();
-}
 
-async function openMapVendorModal(row) {
-  await loadVendorList();
-  const backdrop = qs("mapVendorModalBackdrop");
-  backdrop.classList.add("show");
-  backdrop.setAttribute("aria-hidden", "false");
-  qs("mapVendorAlias").textContent = `Alias: ${row.alias_text}`;
-  qs("mapVendorFilter").value = "";
-  filterVendorPick("");
-  backdrop.dataset.aliasText = row.alias_text ?? "";
-  backdrop.dataset.sourceSystem = row.source_system ?? "";
-}
-
-function closeMapVendorModal() {
-  const backdrop = qs("mapVendorModalBackdrop");
-  hideModalBackdrop(backdrop, [qs("vSearch")]);
-}
-
-async function saveMapVendor() {
-  const backdrop = qs("mapVendorModalBackdrop");
-  const vendorId = Number(qs("mapVendorPick").value || 0);
-  if (!vendorId) {
-    toast("Select a vendor from the list.", "error");
-    return;
-  }
-  const { error } = await supabase.rpc(RPC_VENDOR_MAP_ALIAS, {
-    p_vendor_id: vendorId,
-    p_alias_text: backdrop.dataset.aliasText,
-    p_source_system: backdrop.dataset.sourceSystem,
-  });
-  if (error) {
-    toast(`Map failed: ${error.message}`, "error");
-    return;
-  }
-  toast("Alias mapped to vendor.", "success");
-  closeMapVendorModal();
-  await loadUnmappedAliases();
-}
-
-function wireVendorControls() {
-  qs("vBtnPrev").addEventListener("click", () => {
-    state.vendorPage = Math.max(0, state.vendorPage - 1);
-    loadUnmappedAliases();
-  });
-  qs("vBtnNext").addEventListener("click", () => {
-    state.vendorPage += 1;
-    loadUnmappedAliases();
-  });
   wireLiveSearchInput({
-    inputId: "vSearch",
-    clearId: "vSearchClear",
-    onSearch: () => {
-      state.vendorPage = 0;
-      loadUnmappedAliases();
+    inputId: "vwlSearch",
+    clearId: "vwlSearchClear",
+    debounceMs: 250,
+    onSearch: (query) => {
+      state.vwl.search = query;
+      state.vwl.page = 0;
+      loadVendorBuylist();
     },
   });
-  qs("btnCreateVendorCancel").addEventListener("click", closeCreateVendorModal);
-  qs("btnCreateVendorSave").addEventListener("click", saveCreateVendor);
-  qs("createVendorModalBackdrop").addEventListener("click", (e) => {
-    if (e.target.id === "createVendorModalBackdrop") closeCreateVendorModal();
+
+  qs("vwlVendorFilter")?.addEventListener("change", (e) => {
+    state.vwl.vendorId = e.target.value || "";
+    state.vwl.page = 0;
+    loadVendorBuylist();
   });
-  qs("btnMapVendorCancel").addEventListener("click", closeMapVendorModal);
-  qs("btnMapVendorSave").addEventListener("click", saveMapVendor);
-  qs("mapVendorModalBackdrop").addEventListener("click", (e) => {
-    if (e.target.id === "mapVendorModalBackdrop") closeMapVendorModal();
+
+  qs("vwlPrev")?.addEventListener("click", () => {
+    if (state.vwl.page <= 0) return;
+    state.vwl.page -= 1;
+    loadVendorBuylist();
   });
-  qs("mapVendorFilter").addEventListener("input", (e) => {
-    filterVendorPick(e.target.value);
+
+  qs("vwlNext")?.addEventListener("click", () => {
+    if ((state.vwl.rows || []).length < state.vwl.pageSize) return;
+    state.vwl.page += 1;
+    loadVendorBuylist();
+  });
+
+  qs("vwlExportBtn")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleExportMenu("vwlExportMenu", qs("vwlExportBtn"));
+  });
+  qs("vwlExportCsv")?.addEventListener("click", () => {
+    exportVendorBuylist("csv");
+    closeAllExportMenus();
+  });
+  qs("vwlExportTsv")?.addEventListener("click", () => {
+    exportVendorBuylist("tsv");
+    closeAllExportMenus();
+  });
+
+  qs("btnVwlBdClose")?.addEventListener("click", closeVwlBreakdownModal);
+  qs("vwlBreakdownModalBackdrop")?.addEventListener("click", (e) => {
+    if (e.target.id === "vwlBreakdownModalBackdrop") closeVwlBreakdownModal();
   });
 }
 
@@ -5012,6 +5281,9 @@ function wireVendorControls() {
   ensureIconBtnA11y("iBtnNext", "Next page");
   ensureIconBtnA11y("eBtnPrev", "Previous page");
   ensureIconBtnA11y("eBtnNext", "Next page");
+  ensureIconBtnA11y("vwlPrev", "Previous page");
+  ensureIconBtnA11y("vwlNext", "Next page");
+  ensureIconBtnA11y("vwlExportBtn", "Export");
   ensureIconBtnA11y("vBtnPrev", "Previous page");
   ensureIconBtnA11y("vBtnNext", "Next page");
   ensureIconBtnA11y("btnAqExportMenu", "Export options");
@@ -5023,9 +5295,9 @@ function wireVendorControls() {
   wireAddPrLineItemSearch();
   wireAddIndentLineItemSearch();
   wireActionQueueControls();
+  wireVendorBuylistControls();
   wireIndentControls();
   wireExcessControls();
-  wireVendorControls();
   wirePrControls();
   wireHardDeleteControls();
   setTab(state.tab);

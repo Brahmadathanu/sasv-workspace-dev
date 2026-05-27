@@ -7068,6 +7068,10 @@ export type Database = {
           rm_gate_status_display: string | null
           rm_issue_completion_ratio: number | null
           rm_pending_lines: number | null
+          rm_ready_shortage_qty: number | null
+          rm_receiving_cover_qty: number | null
+          rm_shortage_after_receiving_qty: number | null
+          rm_supply_tier: number | null
           snapshot_refreshed_at: string
           stage_rank: number | null
           supply_continuity_reason: string | null
@@ -7111,6 +7115,10 @@ export type Database = {
           rm_gate_status_display?: string | null
           rm_issue_completion_ratio?: number | null
           rm_pending_lines?: number | null
+          rm_ready_shortage_qty?: number | null
+          rm_receiving_cover_qty?: number | null
+          rm_shortage_after_receiving_qty?: number | null
+          rm_supply_tier?: number | null
           snapshot_refreshed_at?: string
           stage_rank?: number | null
           supply_continuity_reason?: string | null
@@ -7154,6 +7162,10 @@ export type Database = {
           rm_gate_status_display?: string | null
           rm_issue_completion_ratio?: number | null
           rm_pending_lines?: number | null
+          rm_ready_shortage_qty?: number | null
+          rm_receiving_cover_qty?: number | null
+          rm_shortage_after_receiving_qty?: number | null
+          rm_supply_tier?: number | null
           snapshot_refreshed_at?: string
           stage_rank?: number | null
           supply_continuity_reason?: string | null
@@ -7212,6 +7224,7 @@ export type Database = {
           issued_date: string | null
           material_class_id: number | null
           notes: string | null
+          source_pr_id: number | null
           status: string
           updated_at: string
           updated_by: string | null
@@ -7228,6 +7241,7 @@ export type Database = {
           issued_date?: string | null
           material_class_id?: number | null
           notes?: string | null
+          source_pr_id?: number | null
           status?: string
           updated_at?: string
           updated_by?: string | null
@@ -7244,6 +7258,7 @@ export type Database = {
           issued_date?: string | null
           material_class_id?: number | null
           notes?: string | null
+          source_pr_id?: number | null
           status?: string
           updated_at?: string
           updated_by?: string | null
@@ -7255,6 +7270,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "inv_class_category"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_header_source_pr_fk"
+            columns: ["source_pr_id"]
+            isOneToOne: false
+            referencedRelation: "proc_pr_header"
+            referencedColumns: ["pr_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_header_source_pr_fk"
+            columns: ["source_pr_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_pr_header"
+            referencedColumns: ["pr_id"]
           },
         ]
       }
@@ -7599,6 +7628,156 @@ export type Database = {
           },
         ]
       }
+      proc_pr_indent_line_map: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          indent_id: number
+          indent_line_id: number
+          map_id: number
+          pr_id: number
+          pr_line_id: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          indent_id: number
+          indent_line_id: number
+          map_id?: number
+          pr_id: number
+          pr_line_id: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          indent_id?: number
+          indent_line_id?: number
+          map_id?: number
+          pr_id?: number
+          pr_line_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proc_pr_indent_line_map_indent_id_fkey"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "proc_indent_header"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_indent_line_map_indent_id_fkey"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_console"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_indent_line_map_indent_id_fkey"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_header_balance"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_indent_line_map_indent_line_id_fkey"
+            columns: ["indent_line_id"]
+            isOneToOne: true
+            referencedRelation: "proc_indent_line"
+            referencedColumns: ["indent_line_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_indent_line_map_indent_line_id_fkey"
+            columns: ["indent_line_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_indent_fifo_allocation"
+            referencedColumns: ["indent_line_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_indent_line_map_indent_line_id_fkey"
+            columns: ["indent_line_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_indent_line_balance"
+            referencedColumns: ["indent_line_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_indent_line_map_indent_line_id_fkey"
+            columns: ["indent_line_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_indent_lines_all"
+            referencedColumns: ["indent_line_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_indent_line_map_indent_line_id_fkey"
+            columns: ["indent_line_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_indent_lines_console"
+            referencedColumns: ["indent_line_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_indent_line_map_indent_line_id_fkey"
+            columns: ["indent_line_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_indent_open_lines"
+            referencedColumns: ["indent_line_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_indent_line_map_indent_line_id_fkey"
+            columns: ["indent_line_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_indent_priority_final"
+            referencedColumns: ["indent_line_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_indent_line_map_indent_line_id_fkey"
+            columns: ["indent_line_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_indent_priority_system"
+            referencedColumns: ["indent_line_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_indent_line_map_indent_line_id_fkey"
+            columns: ["indent_line_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_indent_sourcing_variance"
+            referencedColumns: ["indent_line_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_indent_line_map_indent_line_id_fkey"
+            columns: ["indent_line_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_procurement_action_queue"
+            referencedColumns: ["indent_line_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_indent_line_map_pr_id_fkey"
+            columns: ["pr_id"]
+            isOneToOne: false
+            referencedRelation: "proc_pr_header"
+            referencedColumns: ["pr_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_indent_line_map_pr_id_fkey"
+            columns: ["pr_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_pr_header"
+            referencedColumns: ["pr_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_indent_line_map_pr_line_id_fkey"
+            columns: ["pr_line_id"]
+            isOneToOne: false
+            referencedRelation: "proc_pr_line"
+            referencedColumns: ["pr_line_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_indent_line_map_pr_line_id_fkey"
+            columns: ["pr_line_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_pr_lines"
+            referencedColumns: ["pr_line_id"]
+          },
+        ]
+      }
       proc_pr_line: {
         Row: {
           created_at: string
@@ -7673,58 +7852,146 @@ export type Database = {
           },
         ]
       }
-      proc_pr_to_indent_map: {
+      proc_pr_revision_map: {
         Row: {
           created_at: string
           created_by: string | null
-          indent_id: number
           pr_id: number
+          revision_map_id: number
+          revision_no: number
+          root_pr_id: number
+          supersedes_pr_id: number | null
         }
         Insert: {
           created_at?: string
           created_by?: string | null
-          indent_id: number
           pr_id: number
+          revision_map_id?: number
+          revision_no: number
+          root_pr_id: number
+          supersedes_pr_id?: number | null
         }
         Update: {
           created_at?: string
           created_by?: string | null
-          indent_id?: number
           pr_id?: number
+          revision_map_id?: number
+          revision_no?: number
+          root_pr_id?: number
+          supersedes_pr_id?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "proc_pr_to_indent_map_indent_fk"
-            columns: ["indent_id"]
-            isOneToOne: true
-            referencedRelation: "proc_indent_header"
-            referencedColumns: ["indent_id"]
-          },
-          {
-            foreignKeyName: "proc_pr_to_indent_map_indent_fk"
-            columns: ["indent_id"]
-            isOneToOne: true
-            referencedRelation: "v_proc_indent_console"
-            referencedColumns: ["indent_id"]
-          },
-          {
-            foreignKeyName: "proc_pr_to_indent_map_indent_fk"
-            columns: ["indent_id"]
-            isOneToOne: true
-            referencedRelation: "v_proc_indent_header_balance"
-            referencedColumns: ["indent_id"]
-          },
-          {
-            foreignKeyName: "proc_pr_to_indent_map_pr_fk"
+            foreignKeyName: "proc_pr_revision_map_pr_id_fkey"
             columns: ["pr_id"]
             isOneToOne: true
             referencedRelation: "proc_pr_header"
             referencedColumns: ["pr_id"]
           },
           {
-            foreignKeyName: "proc_pr_to_indent_map_pr_fk"
+            foreignKeyName: "proc_pr_revision_map_pr_id_fkey"
             columns: ["pr_id"]
             isOneToOne: true
+            referencedRelation: "v_proc_pr_header"
+            referencedColumns: ["pr_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_revision_map_root_pr_id_fkey"
+            columns: ["root_pr_id"]
+            isOneToOne: false
+            referencedRelation: "proc_pr_header"
+            referencedColumns: ["pr_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_revision_map_root_pr_id_fkey"
+            columns: ["root_pr_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_pr_header"
+            referencedColumns: ["pr_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_revision_map_supersedes_pr_id_fkey"
+            columns: ["supersedes_pr_id"]
+            isOneToOne: false
+            referencedRelation: "proc_pr_header"
+            referencedColumns: ["pr_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_revision_map_supersedes_pr_id_fkey"
+            columns: ["supersedes_pr_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_pr_header"
+            referencedColumns: ["pr_id"]
+          },
+        ]
+      }
+      proc_pr_to_indent_map: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          indent_id: number
+          is_active: boolean
+          linked_at: string
+          map_id: number
+          note: string | null
+          pr_id: number
+          unlinked_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          indent_id: number
+          is_active?: boolean
+          linked_at?: string
+          map_id?: number
+          note?: string | null
+          pr_id: number
+          unlinked_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          indent_id?: number
+          is_active?: boolean
+          linked_at?: string
+          map_id?: number
+          note?: string | null
+          pr_id?: number
+          unlinked_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proc_pr_to_indent_map_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "proc_indent_header"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_to_indent_map_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_console"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_to_indent_map_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_header_balance"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_to_indent_map_pr_fk"
+            columns: ["pr_id"]
+            isOneToOne: false
+            referencedRelation: "proc_pr_header"
+            referencedColumns: ["pr_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_to_indent_map_pr_fk"
+            columns: ["pr_id"]
+            isOneToOne: false
             referencedRelation: "v_proc_pr_header"
             referencedColumns: ["pr_id"]
           },
@@ -10239,6 +10506,7 @@ export type Database = {
         Row: {
           available_before_reservation: number | null
           batch_number: string
+          effective_stock_qty: number | null
           has_unassigned_issues: boolean | null
           higher_priority_required_qty: number | null
           is_blocking_line: boolean
@@ -10247,6 +10515,8 @@ export type Database = {
           month_start: string
           planned_rm_qty: number | null
           product_id: number
+          ready_stock_qty: number | null
+          receiving_stock_qty: number | null
           refreshed_at: string
           required_from_stock_qty: number | null
           reserved_qty: number | null
@@ -10256,12 +10526,15 @@ export type Database = {
           rm_status_reason: string | null
           rm_stock_item_id: number
           rm_uom: string | null
+          shortage_after_ready_qty: number | null
+          shortage_after_receiving_qty: number | null
           stock_qty: number | null
           uncovered_qty: number | null
         }
         Insert: {
           available_before_reservation?: number | null
           batch_number: string
+          effective_stock_qty?: number | null
           has_unassigned_issues?: boolean | null
           higher_priority_required_qty?: number | null
           is_blocking_line?: boolean
@@ -10270,6 +10543,8 @@ export type Database = {
           month_start: string
           planned_rm_qty?: number | null
           product_id: number
+          ready_stock_qty?: number | null
+          receiving_stock_qty?: number | null
           refreshed_at?: string
           required_from_stock_qty?: number | null
           reserved_qty?: number | null
@@ -10279,12 +10554,15 @@ export type Database = {
           rm_status_reason?: string | null
           rm_stock_item_id: number
           rm_uom?: string | null
+          shortage_after_ready_qty?: number | null
+          shortage_after_receiving_qty?: number | null
           stock_qty?: number | null
           uncovered_qty?: number | null
         }
         Update: {
           available_before_reservation?: number | null
           batch_number?: string
+          effective_stock_qty?: number | null
           has_unassigned_issues?: boolean | null
           higher_priority_required_qty?: number | null
           is_blocking_line?: boolean
@@ -10293,6 +10571,8 @@ export type Database = {
           month_start?: string
           planned_rm_qty?: number | null
           product_id?: number
+          ready_stock_qty?: number | null
+          receiving_stock_qty?: number | null
           refreshed_at?: string
           required_from_stock_qty?: number | null
           reserved_qty?: number | null
@@ -10302,6 +10582,8 @@ export type Database = {
           rm_status_reason?: string | null
           rm_stock_item_id?: number
           rm_uom?: string | null
+          shortage_after_ready_qty?: number | null
+          shortage_after_receiving_qty?: number | null
           stock_qty?: number | null
           uncovered_qty?: number | null
         }
@@ -21445,18 +21727,24 @@ export type Database = {
       v_proc_indent_console: {
         Row: {
           approved_date: string | null
+          created_at: string | null
           has_remaining: boolean | null
+          indent_date: string | null
           indent_id: number | null
           indent_number: string | null
           is_actionable: boolean | null
+          issued_date: string | null
           line_count: number | null
           material_class_code: string | null
           material_class_id: number | null
           material_class_label: string | null
+          source_pr_id: number | null
+          source_pr_number: string | null
           status: string | null
           total_allocated_qty: number | null
           total_remaining_qty: number | null
           total_requested_qty: number | null
+          updated_at: string | null
         }
         Relationships: [
           {
@@ -21465,6 +21753,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "inv_class_category"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_header_source_pr_fk"
+            columns: ["source_pr_id"]
+            isOneToOne: false
+            referencedRelation: "proc_pr_header"
+            referencedColumns: ["pr_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_header_source_pr_fk"
+            columns: ["source_pr_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_pr_header"
+            referencedColumns: ["pr_id"]
           },
         ]
       }
@@ -21594,35 +21896,35 @@ export type Database = {
           {
             foreignKeyName: "proc_pr_to_indent_map_indent_fk"
             columns: ["indent_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "proc_indent_header"
             referencedColumns: ["indent_id"]
           },
           {
             foreignKeyName: "proc_pr_to_indent_map_indent_fk"
             columns: ["indent_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "v_proc_indent_console"
             referencedColumns: ["indent_id"]
           },
           {
             foreignKeyName: "proc_pr_to_indent_map_indent_fk"
             columns: ["indent_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "v_proc_indent_header_balance"
             referencedColumns: ["indent_id"]
           },
           {
             foreignKeyName: "proc_pr_to_indent_map_pr_fk"
             columns: ["pr_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "proc_pr_header"
             referencedColumns: ["pr_id"]
           },
           {
             foreignKeyName: "proc_pr_to_indent_map_pr_fk"
             columns: ["pr_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "v_proc_pr_header"
             referencedColumns: ["pr_id"]
           },
@@ -21727,6 +22029,57 @@ export type Database = {
           l3_vendor_name: string | null
         }
         Relationships: []
+      }
+      v_proc_indent_lines_all: {
+        Row: {
+          allocated_qty: number | null
+          approved_date: string | null
+          indent_date: string | null
+          indent_id: number | null
+          indent_line_id: number | null
+          indent_number: string | null
+          issued_date: string | null
+          material_class_code: string | null
+          material_class_id: number | null
+          material_class_label: string | null
+          remaining_qty: number | null
+          requested_qty: number | null
+          status: string | null
+          stock_item_id: number | null
+          stock_item_name: string | null
+          uom_code: string | null
+          uom_id: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proc_indent_line_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "proc_indent_header"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_console"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_header_balance"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_material_class_fk"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       v_proc_indent_lines_console: {
         Row: {
@@ -22149,6 +22502,7 @@ export type Database = {
           generation_filters: Json | null
           horizon_end_month: string | null
           horizon_start_month: string | null
+          line_count: number | null
           material_class_code: string | null
           material_class_id: number | null
           material_class_label: string | null
@@ -22156,6 +22510,7 @@ export type Database = {
           pr_id: number | null
           pr_number: string | null
           status: string | null
+          total_final_qty: number | null
           updated_at: string | null
           updated_by: string | null
         }
@@ -31067,6 +31422,10 @@ export type Database = {
         }
         Returns: number
       }
+      proc_indent_delete_draft: {
+        Args: { p_indent_id: number; p_reason?: string }
+        Returns: undefined
+      }
       proc_indent_get_status: { Args: { p_indent_id: number }; Returns: string }
       proc_indent_issue: {
         Args: { p_indent_id: number; p_issued_date?: string }
@@ -31080,12 +31439,20 @@ export type Database = {
         Args: { p_indent_line_id: number }
         Returns: undefined
       }
+      proc_indent_resync_from_pr: {
+        Args: { p_indent_id: number; p_mode?: string }
+        Returns: undefined
+      }
       proc_indent_set_priority_override: {
         Args: {
           p_indent_line_id: number
           p_override_band: string
           p_reason: string
         }
+        Returns: undefined
+      }
+      proc_indent_set_source_pr: {
+        Args: { p_indent_id: number; p_note?: string; p_pr_id: number }
         Returns: undefined
       }
       proc_indent_set_status: {
@@ -31120,12 +31487,32 @@ export type Database = {
         }
         Returns: number
       }
+      proc_pr_create_revision_from_active: {
+        Args: { p_notes?: string; p_pr_id: number }
+        Returns: number
+      }
+      proc_pr_delete_draft: {
+        Args: { p_pr_id: number; p_reason?: string }
+        Returns: undefined
+      }
+      proc_pr_next_revision_number: {
+        Args: { p_base_pr_number: string; p_revision_no: number }
+        Returns: string
+      }
+      proc_pr_rebuild_from_mrp: {
+        Args: { p_mode?: string; p_pr_id: number }
+        Returns: undefined
+      }
       proc_pr_set_manual_delta: {
         Args: {
           p_manual_delta_qty: number
           p_manual_reason?: string
           p_pr_line_id: number
         }
+        Returns: undefined
+      }
+      proc_pr_set_manual_reason: {
+        Args: { p_pr_line_id: number; p_reason: string }
         Returns: undefined
       }
       proc_pr_set_requested_qty: {
@@ -31147,6 +31534,16 @@ export type Database = {
       proc_vendor_map_tally_alias: {
         Args: { p_alias_text: string; p_vendor_id: number }
         Returns: undefined
+      }
+      proc_vendor_unmapped_alias_queue: {
+        Args: never
+        Returns: {
+          alias_key: string
+          alias_text: string
+          source_system: string
+          status: string
+          vendor_id: number
+        }[]
       }
       process_supply_rollup_refresh: { Args: never; Returns: undefined }
       promote_all_staging: {

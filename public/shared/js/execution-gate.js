@@ -282,22 +282,28 @@ function consolidateImpactRows(rows) {
 }
 
 function toImpactedBatchRows(statusRows, queueLookup) {
-  return statusRows
+  return (statusRows || [])
     .map((s) => {
       const q = queueLookup.get(buildBatchKey(s.product_id, s.batch_number));
+
+      // ERP rule: impacted batches shown in Execution Gate must be PEQ-active rows only.
+      // rm/pm_status_snapshot_current_month may contain historical / non-execution rows,
+      // but this modal must not show them unless they are present in priority_queue_snapshot_current_month.
+      if (!q) return null;
+
       return {
         product_id: s.product_id,
         batch_number: s.batch_number,
-        product_name: q?.product_name || "—",
-        batch_size_declared: q?.batch_size_declared,
-        batch_uom: q?.batch_uom,
-        priority_rank_v4: q?.priority_rank_v4,
-        primary_state: q?.primary_state,
+        product_name: q.product_name || "—",
+        batch_size_declared: q.batch_size_declared,
+        batch_uom: q.batch_uom,
+        priority_rank_v4: q.priority_rank_v4,
+        primary_state: q.primary_state,
         required_qty: Number(s.required_qty) || 0,
         uncovered_qty: Number(s.uncovered_qty) || 0,
       };
     })
-    .filter((r) => r.product_id != null && r.batch_number != null);
+    .filter(Boolean);
 }
 
 async function loadImpactedBatchesForRow(row, lens, tabId) {
@@ -385,10 +391,16 @@ async function loadImpactedBatchesForRow(row, lens, tabId) {
       }))
       .filter((r) => r.required_qty > 0);
 
-    const sorted = toImpactedBatchRows(requiredRows, queueLookup).sort(
-      (a, b) =>
-        Number(a.priority_rank_v4 || 0) - Number(b.priority_rank_v4 || 0),
-    );
+    const sorted = toImpactedBatchRows(requiredRows, queueLookup)
+      .filter((r) =>
+        ["NOT_INITIATED", "WIP", "MIXED"].includes(
+          String(r.primary_state || ""),
+        ),
+      )
+      .sort(
+        (a, b) =>
+          Number(a.priority_rank_v4 || 0) - Number(b.priority_rank_v4 || 0),
+      );
     let remaining = Number(row.stock_qty || 0);
     statusRows = sorted
       .map((r) => {
@@ -425,8 +437,10 @@ async function loadImpactedBatchesForRow(row, lens, tabId) {
       .filter((r) => r.required_qty > 0);
 
     const sorted = toImpactedBatchRows(requiredRows, queueLookup)
-      .filter(
-        (r) => r.primary_state !== "FG_BULK" && r.primary_state !== "BOTTLED",
+      .filter((r) =>
+        ["NOT_INITIATED", "WIP", "MIXED"].includes(
+          String(r.primary_state || ""),
+        ),
       )
       .sort(
         (a, b) =>

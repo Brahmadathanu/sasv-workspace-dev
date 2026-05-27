@@ -134,6 +134,7 @@ const btnApproveForCoa = $("btnApproveForCoa");
 const btnIssueCoa = $("btnIssueCoa");
 const btnReturnForCorrection = $("btnReturnForCorrection");
 const btnReopenAfterApproval = $("btnReopenAfterApproval");
+const btnSyncFromSpec = $("btnSyncFromSpec");
 const btnViewCoa = $("btnViewCoa");
 const actionBarStatus = $("actionBarStatus");
 const refreshBtn = $("refreshBtn");
@@ -145,7 +146,19 @@ const loadingOverlay = $("loadingOverlay");
 const referenceModal = $("referenceModal");
 const refModalTitle = $("refModalTitle");
 const refModalSub = $("refModalSub");
-const refValueInput = $("refValueInput");
+const refSpecTypeSelect = $("refSpecTypeSelect");
+const refMinValueField = $("refMinValueField");
+const refMinValueInput = $("refMinValueInput");
+const refMaxValueField = $("refMaxValueField");
+const refMaxValueInput = $("refMaxValueInput");
+const refExactValueField = $("refExactValueField");
+const refExactValueInput = $("refExactValueInput");
+const refTextValueField = $("refTextValueField");
+const refTextValueInput = $("refTextValueInput");
+const refPassFailValueField = $("refPassFailValueField");
+const refPassFailValueSelect = $("refPassFailValueSelect");
+const refUomDisplayInput = $("refUomDisplayInput");
+const refDisplayPreviewInput = $("refDisplayPreviewInput");
 const refNoteInput = $("refNoteInput");
 const btnAddException = $("btnAddException");
 const btnRefCancel = $("btnRefCancel");
@@ -498,6 +511,92 @@ function updateValidationPanel(data) {
   fmt(vpRefMissing, refMissing, 1, 1);
 }
 
+function parseNumericInput(value) {
+  if (value == null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function evaluateComplianceLocally(row) {
+  const kind = String(row.result_kind_snapshot || "").toUpperCase();
+  const specType = normalizeReferenceSpecType(row.spec_type_snapshot);
+
+  if (kind === "NUMERIC") {
+    const n = parseNumericInput(row.result_numeric);
+    if (n == null) return "NOT_EVALUATED";
+
+    const min = parseNumericInput(row.min_value_snapshot);
+    const max = parseNumericInput(row.max_value_snapshot);
+
+    if (specType === "RANGE") {
+      if (min == null || max == null) return "NOT_EVALUATED";
+      return n >= min && n <= max ? "PASS" : "FAIL";
+    }
+    if (specType === "MIN_ONLY") {
+      if (min == null) return "NOT_EVALUATED";
+      return n >= min ? "PASS" : "FAIL";
+    }
+    if (specType === "MAX_ONLY") {
+      if (max == null) return "NOT_EVALUATED";
+      return n <= max ? "PASS" : "FAIL";
+    }
+    if (specType === "EXACT_NUMERIC") {
+      if (min == null) return "NOT_EVALUATED";
+      return n === min ? "PASS" : "FAIL";
+    }
+    return String(row.compliance_status || "NOT_EVALUATED").toUpperCase();
+  }
+
+  const actual = normText(row.result_text);
+  if (!actual) return "NOT_EVALUATED";
+
+  const expected = normText(row.text_value_snapshot);
+  if (expected) {
+    return actual.toLowerCase() === expected.toLowerCase() ? "PASS" : "FAIL";
+  }
+
+  const actualNorm = actual.toLowerCase();
+  const passSet = new Set(["pass", "complies", "present", "yes"]);
+  const failSet = new Set(["fail", "does not comply", "absent", "no"]);
+  if (passSet.has(actualNorm)) return "PASS";
+  if (failSet.has(actualNorm)) return "FAIL";
+
+  return String(row.compliance_status || "NOT_EVALUATED").toUpperCase();
+}
+
+function applyOptimisticResultState(resultId, kind, value) {
+  const idx = rows.findIndex(
+    (r) => String(r.analysis_result_id) === String(resultId),
+  );
+  if (idx === -1) return;
+
+  const nextRow = { ...rows[idx] };
+  if (kind === "NUMERIC") {
+    nextRow.result_numeric = parseNumericInput(value);
+  } else {
+    nextRow.result_text = value === "" ? null : String(value);
+  }
+
+  nextRow.result_display =
+    kind === "NUMERIC"
+      ? nextRow.result_numeric == null
+        ? null
+        : String(nextRow.result_numeric)
+      : normText(nextRow.result_text) || null;
+  nextRow.compliance_status = evaluateComplianceLocally(nextRow);
+  rows[idx] = nextRow;
+
+  const tr = resultsBody.querySelector(`tr[data-rid="${resultId}"]`);
+  if (tr) {
+    const cells = tr.querySelectorAll("td");
+    if (cells[5]) cells[5].textContent = nextRow.result_display ?? "—";
+    if (cells[6])
+      cells[6].innerHTML = complianceBadge(nextRow.compliance_status);
+  }
+
+  updateValidationPanel(rows);
+}
+
 // ── Permission check for workflow buttons ───────────────────────────────────────
 function makeAnalysisPermissionKey(id, actionCode) {
   return `${Number(id)}:${String(actionCode || "").toUpperCase()}`;
@@ -635,6 +734,68 @@ function applyPermissions() {
   if (btnViewCoa) {
     btnViewCoa.disabled = !isReadOnly;
   }
+
+  if (btnSyncFromSpec) {
+    const canSync =
+      statusAllowsAnalysisAction("ENTER_RESULT") &&
+      mayPerformAnalysisAction(analysisId, "ENTER_RESULT");
+    btnSyncFromSpec.disabled = !canSync;
+    btnSyncFromSpec.title = canSync
+      ? "Refresh analysis result lines from the current effective specification."
+      : denyMsg;
+  }
+}
+
+async function syncFromCurrentSpec() {
+  if (isReadOnly) return;
+  if (!statusAllowsAnalysisAction("ENTER_RESULT")) {
+    toast(
+      "Spec sync is allowed only in Draft or In Progress stage.",
+      "warn",
+      4000,
+    );
+    return;
+  }
+  if (!analysisPermissionVerified) {
+    toast(PERMISSION_VERIFY_FAILED_MESSAGE, "error", 5000);
+    return;
+  }
+  if (!mayPerformAnalysisAction(analysisId, "ENTER_RESULT")) {
+    toast(PERMISSION_DENIED_MESSAGE, "warn", 4000);
+    return;
+  }
+
+  if (btnSyncFromSpec) btnSyncFromSpec.disabled = true;
+  showLoading();
+  try {
+    const { data, error } = await labSupabase.rpc(
+      "fn_sync_analysis_results_from_effective_spec",
+      {
+        p_user_id: userId,
+        p_analysis_id: Number(analysisId),
+        p_mode: "SAFE",
+      },
+    );
+    if (error) throw error;
+
+    const result = Array.isArray(data) ? data[0] : data;
+    const added = Number(result?.added_count ?? 0);
+    const updated = Number(result?.updated_count ?? 0);
+    const removed = Number(result?.removed_count ?? 0);
+    const skipped = Number(result?.skipped_count ?? 0);
+
+    toast(
+      `Spec sync completed. Added: ${added}, Updated: ${updated}, Removed: ${removed}, Skipped: ${skipped}.`,
+      "success",
+      5000,
+    );
+    await reloadAndRender();
+  } catch (err) {
+    toast(`Spec sync failed: ${err.message}`, "error", 6000);
+  } finally {
+    hideLoading();
+    applyPermissions();
+  }
 }
 
 // ── Save a single result to DB ──────────────────────────────────────────────────
@@ -715,12 +876,100 @@ async function refreshSingleRow(resultId) {
 // ── Debounced result change handler ─────────────────────────────────────────────
 function onResultChange(resultId, kind, value) {
   clearTimeout(debounceTimers[resultId]);
+
+  // Optimistic update so KPI and compliance indicators react immediately.
+  applyOptimisticResultState(resultId, kind, value);
+
   debounceTimers[resultId] = setTimeout(() => {
     saveResult(resultId, kind, value);
   }, DEBOUNCE_MS);
 }
 
 // ── Reference modal ─────────────────────────────────────────────────────────────
+function normalizeReferenceSpecType(raw) {
+  const t = String(raw || "").toUpperCase();
+  if (t === "NLT" || t === "MIN_ONLY") return "MIN_ONLY";
+  if (t === "NMT" || t === "LIMIT" || t === "MAX_ONLY") return "MAX_ONLY";
+  if (t === "RANGE") return "RANGE";
+  if (t === "EXACT" || t === "EXACT_NUMERIC") return "EXACT_NUMERIC";
+  if (t === "PASS_FAIL") return "PASS_FAIL";
+  return "TEXT";
+}
+
+function getAllowedReferenceSpecTypes(row) {
+  const kind = String(row?.result_kind_snapshot || "").toUpperCase();
+  if (kind === "NUMERIC") {
+    return ["RANGE", "MIN_ONLY", "MAX_ONLY", "EXACT_NUMERIC"];
+  }
+  if (kind === "PASS_FAIL") return ["PASS_FAIL"];
+  return ["TEXT"];
+}
+
+function applyReferenceSpecTypeUI() {
+  const specType = String(refSpecTypeSelect?.value || "TEXT").toUpperCase();
+
+  if (refMinValueField)
+    refMinValueField.style.display =
+      specType === "RANGE" || specType === "MIN_ONLY" ? "" : "none";
+  if (refMaxValueField)
+    refMaxValueField.style.display =
+      specType === "RANGE" || specType === "MAX_ONLY" ? "" : "none";
+  if (refExactValueField)
+    refExactValueField.style.display =
+      specType === "EXACT_NUMERIC" ? "" : "none";
+  if (refTextValueField)
+    refTextValueField.style.display = specType === "TEXT" ? "" : "none";
+  if (refPassFailValueField)
+    refPassFailValueField.style.display =
+      specType === "PASS_FAIL" ? "" : "none";
+}
+
+function formatNumberForDisplay(value) {
+  if (value == null || value === "") return "";
+  const n = Number(value);
+  if (!Number.isFinite(n)) return String(value).trim();
+  return Number.isInteger(n) ? String(n) : String(n).replace(/\.?0+$/, "");
+}
+
+function appendUomIfNeeded(display, row) {
+  const base = String(display ?? "").trim();
+  const uom = String(row?.uom_symbol_snapshot ?? "").trim();
+  if (!base || !uom) return base;
+  if (base.toLowerCase().includes(uom.toLowerCase())) return base;
+  return `${base} ${uom}`;
+}
+
+function updateReferenceDisplayPreview() {
+  if (!pendingRefRow || !refDisplayPreviewInput) return;
+
+  const specType = String(refSpecTypeSelect?.value || "TEXT").toUpperCase();
+  const minVal = formatNumberForDisplay(refMinValueInput?.value?.trim());
+  const maxVal = formatNumberForDisplay(refMaxValueInput?.value?.trim());
+  const exactVal = formatNumberForDisplay(refExactValueInput?.value?.trim());
+  const textVal = refTextValueInput?.value?.trim() ?? "";
+  const passFailVal = refPassFailValueSelect?.value?.trim() ?? "";
+
+  let preview = "";
+  if (specType === "RANGE") {
+    preview = minVal && maxVal ? `${minVal} - ${maxVal}` : "";
+    preview = appendUomIfNeeded(preview, pendingRefRow);
+  } else if (specType === "MIN_ONLY") {
+    preview = minVal ? `NLT ${minVal}` : "";
+    preview = appendUomIfNeeded(preview, pendingRefRow);
+  } else if (specType === "MAX_ONLY") {
+    preview = maxVal ? `NMT ${maxVal}` : "";
+    preview = appendUomIfNeeded(preview, pendingRefRow);
+  } else if (specType === "EXACT_NUMERIC") {
+    preview = exactVal ? appendUomIfNeeded(exactVal, pendingRefRow) : "";
+  } else if (specType === "PASS_FAIL") {
+    preview = passFailVal;
+  } else {
+    preview = textVal;
+  }
+
+  refDisplayPreviewInput.value = preview;
+}
+
 function openReferenceModal(row) {
   pendingRefRow = row;
   refModalTitle.textContent = `Add Reference — ${row.test_name ?? "Test"}`;
@@ -730,16 +979,58 @@ function openReferenceModal(row) {
     ? ` | Exception: ${row.reference_exception_display_text}`
     : "";
   refModalSub.textContent = `Specification: ${specDisplay}${exceptionText}`;
-  refValueInput.value = "";
+
+  const allowedTypes = getAllowedReferenceSpecTypes(row);
+  const normalizedType = normalizeReferenceSpecType(row.spec_type_snapshot);
+  const selectedType = allowedTypes.includes(normalizedType)
+    ? normalizedType
+    : allowedTypes[0];
+
+  Array.from(refSpecTypeSelect.options).forEach((opt) => {
+    opt.hidden = !allowedTypes.includes(opt.value);
+  });
+  refSpecTypeSelect.value = selectedType;
+
+  refMinValueInput.value =
+    row.min_value_snapshot == null ? "" : String(row.min_value_snapshot);
+  refMaxValueInput.value =
+    row.max_value_snapshot == null ? "" : String(row.max_value_snapshot);
+  refExactValueInput.value =
+    row.min_value_snapshot == null ? "" : String(row.min_value_snapshot);
+  refTextValueInput.value = row.text_value_snapshot ?? "";
+  refPassFailValueSelect.value = row.text_value_snapshot ?? "Absent";
+  refDisplayPreviewInput.value = row.spec_display_snapshot ?? "";
+  if (refUomDisplayInput)
+    refUomDisplayInput.value = row.uom_symbol_snapshot || "No unit";
   refNoteInput.value = "";
+
+  applyReferenceSpecTypeUI();
+  updateReferenceDisplayPreview();
   referenceModal.classList.add("open");
-  refValueInput.focus();
+
+  if (selectedType === "RANGE" || selectedType === "MIN_ONLY") {
+    refMinValueInput.focus();
+  } else if (selectedType === "MAX_ONLY") {
+    refMaxValueInput.focus();
+  } else if (selectedType === "EXACT_NUMERIC") {
+    refExactValueInput.focus();
+  } else if (selectedType === "PASS_FAIL") {
+    refPassFailValueSelect.focus();
+  } else {
+    refTextValueInput.focus();
+  }
 }
 
 function closeReferenceModal() {
   referenceModal.classList.remove("open");
   pendingRefRow = null;
-  refValueInput.value = "";
+  if (refSpecTypeSelect) refSpecTypeSelect.value = "TEXT";
+  if (refMinValueInput) refMinValueInput.value = "";
+  if (refMaxValueInput) refMaxValueInput.value = "";
+  if (refExactValueInput) refExactValueInput.value = "";
+  if (refTextValueInput) refTextValueInput.value = "";
+  if (refPassFailValueSelect) refPassFailValueSelect.value = "Absent";
+  if (refDisplayPreviewInput) refDisplayPreviewInput.value = "";
   refNoteInput.value = "";
 }
 
@@ -761,36 +1052,85 @@ async function saveReference() {
     toast(PERMISSION_DENIED_MESSAGE, "warn", 4000);
     return;
   }
-  const val = refValueInput.value.trim();
-  if (!val) {
-    toast("Please enter a reference value.", "warn");
-    refValueInput.focus();
-    return;
-  }
 
-  // Parse range input: "3.0 - 8.0" → RANGE spec type
-  let specType, minVal, maxVal, textVal;
-  if (val.includes("-")) {
-    const parts = val.split("-").map((s) => s.trim());
-    const lo = parseFloat(parts[0]);
-    const hi = parseFloat(parts[parts.length - 1]);
-    if (isNaN(lo) || isNaN(hi)) {
+  const specType = String(refSpecTypeSelect.value || "TEXT").toUpperCase();
+  const minRaw = refMinValueInput.value.trim();
+  const maxRaw = refMaxValueInput.value.trim();
+  const exactRaw = refExactValueInput.value.trim();
+  const textRaw = refTextValueInput.value.trim();
+  const passFailRaw = refPassFailValueSelect.value.trim();
+
+  let minVal = null;
+  let maxVal = null;
+  let textVal = null;
+
+  if (specType === "RANGE") {
+    if (!minRaw || !maxRaw) {
       toast(
-        "Could not parse range. Use format: 3.0 - 8.0 (min - max).",
+        "Range specification requires both Min Value and Max Value.",
         "warn",
-        4000,
       );
       return;
     }
-    specType = "RANGE";
-    minVal = lo;
-    maxVal = hi;
-    textVal = null;
+    minVal = Number(minRaw);
+    maxVal = Number(maxRaw);
+    if (!Number.isFinite(minVal) || !Number.isFinite(maxVal)) {
+      toast("Min/Max values must be valid numbers.", "warn");
+      return;
+    }
+  } else if (specType === "MIN_ONLY") {
+    if (!minRaw) {
+      toast("Min-only specification requires Min Value.", "warn");
+      return;
+    }
+    minVal = Number(minRaw);
+    if (!Number.isFinite(minVal)) {
+      toast("Min Value must be a valid number.", "warn");
+      return;
+    }
+  } else if (specType === "MAX_ONLY") {
+    if (!maxRaw) {
+      toast("Max-only specification requires Max Value.", "warn");
+      return;
+    }
+    maxVal = Number(maxRaw);
+    if (!Number.isFinite(maxVal)) {
+      toast("Max Value must be a valid number.", "warn");
+      return;
+    }
+  } else if (specType === "EXACT_NUMERIC") {
+    if (!exactRaw) {
+      toast("Exact numeric specification requires Exact Value.", "warn");
+      return;
+    }
+    minVal = Number(exactRaw);
+    if (!Number.isFinite(minVal)) {
+      toast("Exact Value must be a valid number.", "warn");
+      return;
+    }
+    maxVal = minVal;
+  } else if (specType === "PASS_FAIL") {
+    if (!passFailRaw) {
+      toast("PASS/FAIL specification requires a selected value.", "warn");
+      return;
+    }
+    textVal = passFailRaw;
   } else {
-    specType = "TEXT";
-    minVal = null;
-    maxVal = null;
-    textVal = val;
+    if (!textRaw) {
+      toast("Text specification requires Text Value.", "warn");
+      return;
+    }
+    textVal = textRaw;
+  }
+
+  updateReferenceDisplayPreview();
+  const displayText = refDisplayPreviewInput.value.trim();
+  if (!displayText) {
+    toast(
+      "Display Preview is empty. Please enter valid reference inputs.",
+      "warn",
+    );
+    return;
   }
 
   const note = refNoteInput.value.trim() || null;
@@ -804,7 +1144,7 @@ async function saveReference() {
       p_min_value: minVal,
       p_max_value: maxVal,
       p_text_value: textVal,
-      p_display_text: val,
+      p_display_text: displayText,
       p_remarks: note,
     });
     if (error) throw error;
@@ -1369,6 +1709,10 @@ function wireEvents() {
     refreshBtn.disabled = false;
   });
 
+  if (btnSyncFromSpec) {
+    btnSyncFromSpec.addEventListener("click", syncFromCurrentSpec);
+  }
+
   // Result input changes (delegated on tbody)
   resultsBody.addEventListener("change", (e) => {
     const el = e.target;
@@ -1396,6 +1740,16 @@ function wireEvents() {
     }
 
     onResultChange(rid, kind, el.value);
+  });
+
+  // Live KPI refresh while typing in numeric inputs (fires on every keystroke,
+  // before blur; does not trigger save — the change event handles that)
+  resultsBody.addEventListener("input", (e) => {
+    const el = e.target;
+    if (el.tagName !== "INPUT" || el.dataset.kind !== "NUMERIC") return;
+    const rid = el.dataset.rid;
+    if (!rid) return;
+    applyOptimisticResultState(rid, "NUMERIC", el.value);
   });
 
   // Delegated action button clicks
@@ -1435,6 +1789,18 @@ function wireEvents() {
   btnRefSave.addEventListener("click", saveReference);
   btnAddException.addEventListener("click", grantException);
   btnRefCancel.addEventListener("click", closeReferenceModal);
+  refSpecTypeSelect?.addEventListener("change", () => {
+    applyReferenceSpecTypeUI();
+    updateReferenceDisplayPreview();
+  });
+  refMinValueInput?.addEventListener("input", updateReferenceDisplayPreview);
+  refMaxValueInput?.addEventListener("input", updateReferenceDisplayPreview);
+  refExactValueInput?.addEventListener("input", updateReferenceDisplayPreview);
+  refTextValueInput?.addEventListener("input", updateReferenceDisplayPreview);
+  refPassFailValueSelect?.addEventListener(
+    "change",
+    updateReferenceDisplayPreview,
+  );
   referenceModal.addEventListener("click", (e) => {
     if (e.target === referenceModal) closeReferenceModal();
   });

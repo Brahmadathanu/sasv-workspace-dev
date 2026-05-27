@@ -1,0 +1,1379 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vendor Master</title>
+    <link rel="stylesheet" href="../shared/css/style.css" />
+    <style>
+      :root {
+        --border: #e5e7eb;
+        --btn-bg: rgba(255, 255, 255, 0.06);
+        --btn-bg-hover: rgba(255, 255, 255, 0.1);
+        --btn-border: rgba(255, 255, 255, 0.14);
+        --btn-border-strong: rgba(255, 255, 255, 0.22);
+        --btn-primary-bg: rgba(59, 130, 246, 0.16);
+        --btn-primary-bg-hover: rgba(59, 130, 246, 0.24);
+        --btn-primary-border: rgba(59, 130, 246, 0.38);
+      }
+      [data-theme="dark"] {
+        --border: #374151;
+      }
+      html,
+      body {
+        margin: 0;
+        font-family: system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        padding: 20px;
+        height: 100vh;
+        overflow: hidden;
+        box-sizing: border-box;
+      }
+      @media (max-width: 1080px) {
+        body {
+          padding: 10px;
+        }
+      }
+      @media (max-width: 520px) {
+        body {
+          padding: 6px;
+        }
+      }
+
+      .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+      }
+      .page-header h1 {
+        margin: 0;
+        color: var(--primary);
+      }
+      .page-sub {
+        color: var(--muted, #6b7280);
+        font-size: 0.95rem;
+      }
+      .page-shell {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow: hidden;
+      }
+      #mainPanel {
+        padding: 10px;
+        margin-bottom: 0;
+      }
+      .tab-panels-wrap {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow: hidden;
+      }
+      .tab-panels-wrap > .tab-panel {
+        flex: 1;
+        min-height: 0;
+      }
+
+      .icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        padding: 0;
+        border-radius: 10px;
+        border: 1px solid var(--btn-border);
+        background: var(--btn-bg);
+        color: inherit;
+        flex-shrink: 0;
+        transition:
+          background 0.12s ease,
+          border-color 0.12s ease,
+          transform 0.04s ease;
+      }
+      .icon-btn svg {
+        width: 16px;
+        height: 16px;
+      }
+      .icon-btn:hover {
+        background: var(--btn-bg-hover);
+        border-color: var(--btn-border-strong);
+      }
+      .icon-btn:active {
+        transform: translateY(1px);
+      }
+      .icon-btn.primary {
+        background: var(--btn-primary-bg);
+        border-color: var(--btn-primary-border);
+      }
+      .icon-btn.primary:hover {
+        background: var(--btn-primary-bg-hover);
+      }
+      .icon-btn.ghost {
+        background: transparent;
+        border-color: transparent;
+      }
+      .icon-btn.ghost:hover {
+        background: var(--btn-bg-hover);
+        border-color: var(--btn-border);
+      }
+      .icon-btn.with-label {
+        width: auto;
+        padding: 0 10px;
+        gap: 6px;
+      }
+      .icon-btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      #homeBtn .home-label {
+        display: inline;
+      }
+      @media (max-width: 520px) {
+        #homeBtn .home-label {
+          display: none;
+        }
+        .page-header h1 {
+          font-size: 16px;
+          line-height: 1.1;
+        }
+        .page-header .page-sub {
+          display: none;
+        }
+      }
+
+      .tabs-card {
+        margin-top: 8px;
+        margin-bottom: 10px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        background: var(--panel-bg);
+        border: 1px solid var(--border);
+      }
+      .tabs {
+        display: flex;
+        gap: 6px;
+        padding: 8px;
+        background: linear-gradient(
+          135deg,
+          rgba(37, 99, 235, 0.05) 0%,
+          rgba(37, 99, 235, 0.02) 100%
+        );
+        border: 1px solid var(--erp-border, var(--border, #e5e7eb));
+        border-radius: 10px;
+        align-items: center;
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+      .tabs::-webkit-scrollbar {
+        display: none;
+      }
+      .tab-btn {
+        padding: 8px 16px;
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--erp-muted, var(--muted, #6b7280));
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        border-radius: 8px;
+        transition: all 0.16s ease;
+        white-space: nowrap;
+        line-height: 1.2;
+      }
+      .tab-btn:hover {
+        color: var(--erp-text, #0f172a);
+        background: rgba(37, 99, 235, 0.05);
+        border-color: rgba(37, 99, 235, 0.12);
+      }
+      .tab-btn.active {
+        color: #fff;
+        background: var(--erp-accent, var(--primary, #2563eb));
+        border-color: var(--erp-accent, var(--primary, #2563eb));
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.22);
+      }
+      .tab-select-wrap {
+        display: none;
+      }
+      @media (max-width: 520px) {
+        .tabs {
+          display: none;
+        }
+        .tab-select-wrap {
+          position: relative;
+          display: inline-block;
+          width: 100%;
+          margin: 8px 0;
+        }
+        .tab-select {
+          display: inline-block;
+          width: 100%;
+          padding: 8px 10px;
+          padding-right: 42px;
+          border-radius: 8px;
+          border: 1px solid var(--erp-accent, #2563eb);
+          background: linear-gradient(
+            135deg,
+            rgba(37, 99, 235, 0.12) 0%,
+            rgba(37, 99, 235, 0.06) 100%
+          );
+          color: #0f172a;
+          font-weight: 600;
+          font-size: 14px;
+          appearance: none;
+          cursor: pointer;
+        }
+        .tab-select-icon {
+          position: absolute;
+          right: 12px;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 18px;
+          height: 18px;
+          pointer-events: none;
+          color: var(--erp-accent, #2563eb);
+        }
+      }
+      @media (min-width: 521px) {
+        .tab-select,
+        .tab-select-wrap,
+        .tab-select-icon {
+          display: none;
+        }
+      }
+
+      .tab-panel {
+        display: none;
+        min-height: 0;
+      }
+      .tab-panel.active {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+      }
+      .tab-panel.active > .card {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      .table-topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        margin: 0 0 8px;
+      }
+      .table-topbar h2 {
+        margin: 0;
+      }
+      .toolbar-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+      }
+      .toolbar-ratebook {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .toolbar-ratebook .toolbar-row {
+        margin-bottom: 0;
+      }
+      #rbVendorFilterPanel {
+        display: none;
+      }
+      #rbVendorFilterPanel.open {
+        display: block;
+      }
+      .erp-input {
+        width: 100%;
+        padding: 7px 10px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+        font-size: 13px;
+        background: var(--panel-bg, #fff);
+        color: var(--text-color, #111);
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      @media (min-width: 700px) {
+        .toolbar-ratebook {
+          flex-direction: row;
+          align-items: center;
+          justify-content: space-between;
+        }
+        .toolbar-ratebook .toolbar-row {
+          flex: 1;
+        }
+        .toolbar-ratebook .toolbar-row:last-child {
+          justify-content: flex-end;
+        }
+      }
+      @media (max-width: 520px) {
+        .rate-toolbar {
+          gap: 8px;
+        }
+        #rbFilterBtn,
+        #btnRateNew {
+          width: 34px;
+          height: 34px;
+        }
+      }
+      .toolbar-row input,
+      .toolbar-row select {
+        padding: 7px 10px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+      }
+      .toolbar-row .spacer {
+        margin-left: auto;
+      }
+      .pager-mini {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        font-size: 12px;
+      }
+      .muted {
+        opacity: 0.72;
+      }
+
+      .table-scroll {
+        flex: 1;
+        min-height: 0;
+        overflow: auto;
+      }
+      .table-scroll.loading {
+        position: relative;
+      }
+      .table-loading-mask {
+        position: absolute;
+        inset: 0;
+        z-index: 8;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        background: rgba(255, 255, 255, 0.68);
+        backdrop-filter: blur(1px);
+        color: var(--muted, #6b7280);
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+      .table-loading-spinner {
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(15, 23, 42, 0.16);
+        border-top-color: var(--primary, #005a8d);
+        border-radius: 50%;
+        animation: pecSpin 0.7s linear infinite;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        padding: 7px 10px;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+        vertical-align: middle;
+      }
+      th {
+        text-align: left;
+        font-weight: 600;
+        background: rgba(0, 0, 0, 0.02);
+        font-size: 12px;
+      }
+      td {
+        font-size: 13px;
+      }
+      .erp-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        background: var(--panel-bg, #fff);
+        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
+      }
+      tr.clickable {
+        cursor: pointer;
+      }
+      tr.clickable:hover td {
+        background: rgba(37, 99, 235, 0.04);
+      }
+      td.num,
+      th.num {
+        text-align: right;
+      }
+      .alias-cell {
+        font-weight: 400;
+      }
+
+      .badge-warn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-left: 8px;
+        padding: 2px 10px;
+        border: 1px solid rgba(245, 158, 11, 0.38);
+        background: rgba(251, 191, 36, 0.2);
+        color: #9a3412;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+
+      .card {
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        padding: 12px;
+        background: var(--panel-bg, #fff);
+      }
+      .header-card {
+        background: transparent !important;
+        border: none !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+      }
+
+      .pec-search-wrap {
+        position: relative;
+        flex: 1;
+        min-width: 0;
+      }
+      .pec-search-wrap.is-searching::after {
+        content: "";
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        width: 14px;
+        height: 14px;
+        margin-top: -7px;
+        border: 2px solid rgba(15, 23, 42, 0.2);
+        border-top-color: var(--primary, #005a8d);
+        border-radius: 50%;
+        animation: pecSpin 0.7s linear infinite;
+        pointer-events: none;
+      }
+      .pec-search-wrap.is-searching .pec-search-input {
+        padding-right: 56px;
+      }
+      .pec-search-wrap.is-searching .pec-input-clear {
+        right: 28px;
+      }
+      .pec-search-input {
+        width: 100%;
+        padding: 7px 34px 7px 10px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 7px;
+        font-size: 13px;
+        background: #e6f7ff;
+        box-sizing: border-box;
+      }
+      .pec-search-input:focus {
+        outline: none;
+        border-color: rgba(14, 165, 233, 0.5);
+        box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.08);
+      }
+      .pec-search-input::placeholder {
+        color: var(--muted, #6b7280);
+        font-weight: 400;
+      }
+      .pec-input-clear {
+        position: absolute;
+        right: 6px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        border: none;
+        background: transparent;
+        color: var(--muted, #6b7280);
+        cursor: pointer;
+        padding: 0;
+        border-radius: 4px;
+      }
+      .pec-input-clear:hover {
+        background: rgba(15, 23, 42, 0.04);
+        color: var(--text-color, #111);
+      }
+      @keyframes pecSpin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        z-index: 9999;
+      }
+      .modal-backdrop.show {
+        display: flex;
+      }
+      .modal {
+        width: 100%;
+        max-width: 760px;
+        background: var(--panel-bg, #fff);
+        border-radius: 10px;
+        padding: 14px;
+        border: 1px solid var(--border, #e5e7eb);
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+        display: flex;
+        flex-direction: column;
+        max-height: calc(100vh - 60px);
+      }
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: sticky;
+        top: 0;
+        background: var(--panel-bg, #fff);
+        z-index: 2;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+        flex-shrink: 0;
+      }
+      .modal-close-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: transparent;
+        cursor: pointer;
+        color: var(--muted, #6b7280);
+      }
+      .modal-close-btn svg {
+        width: 14px;
+        height: 14px;
+      }
+      .modal-close-btn:hover {
+        background: var(--btn-bg-hover);
+        border-color: var(--btn-border);
+      }
+      .modal-body {
+        overflow: auto;
+        padding-top: 10px;
+        flex: 1;
+      }
+      .modal .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .modal label {
+        font-size: 12px;
+        opacity: 0.85;
+      }
+      .modal input,
+      .modal select,
+      .modal textarea {
+        width: 100%;
+        padding: 8px 10px;
+        border-radius: 6px;
+        border: 1px solid var(--border, #e5e7eb);
+      }
+      .modal textarea {
+        min-height: 70px;
+      }
+      .modal .actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 12px;
+        flex-wrap: wrap;
+      }
+      .modal .actions button {
+        padding: 6px 12px;
+        border-radius: 6px;
+        border: 1px solid var(--border, #e5e7eb);
+        background: var(--panel-bg, #fff);
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.2;
+        min-height: 32px;
+        cursor: pointer;
+      }
+      .modal .actions button.primary {
+        background: var(--primary, #005a8d);
+        color: #fff;
+        border-color: var(--primary, #005a8d);
+      }
+      .modal .actions button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      .lookup-results {
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        max-height: 170px;
+        overflow: auto;
+        margin-top: 8px;
+      }
+      .lookup-item {
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+        cursor: pointer;
+      }
+      .lookup-item:last-child {
+        border-bottom: none;
+      }
+      .lookup-item:hover,
+      .lookup-item.active {
+        background: rgba(37, 99, 235, 0.08);
+      }
+      .pill {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--border, #e5e7eb);
+        font-size: 12px;
+      }
+      .pill.ok {
+        background: rgba(34, 197, 94, 0.1);
+        border-color: rgba(22, 163, 74, 0.3);
+      }
+      .pill.no {
+        background: rgba(239, 68, 68, 0.1);
+        border-color: rgba(220, 38, 38, 0.3);
+      }
+      .empty-row {
+        text-align: center;
+        color: var(--muted, #6b7280);
+      }
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      @media (max-width: 860px) {
+        .modal .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      #toastContainer {
+        position: fixed;
+        right: 16px;
+        bottom: 16px;
+        z-index: 10000;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="panel header-card" style="margin-bottom: 10px">
+      <div class="page-header">
+        <div>
+          <h1>Vendor Master</h1>
+          <div class="page-sub">
+            Canonical vendors, tally alias mapping, and vendor rate book.
+          </div>
+        </div>
+        <div style="display: inline-flex; gap: 8px">
+          <button
+            id="btnRefresh"
+            type="button"
+            title="Refresh"
+            aria-label="Refresh"
+            class="icon-btn ghost"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <polyline points="23 4 23 10 17 10" />
+              <polyline points="1 20 1 14 7 14" />
+              <path d="M3.51 9a9 9 0 0114.13-3.36L23 10" />
+              <path d="M20.49 15a9 9 0 01-14.13 3.36L1 14" />
+            </svg>
+          </button>
+          <button
+            id="homeBtn"
+            type="button"
+            title="Home"
+            aria-label="Home"
+            class="icon-btn ghost with-label"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9,22 9,12 15,12 15,22" />
+            </svg>
+            <span class="home-label">HOME</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <section class="panel page-shell" id="mainPanel">
+      <div class="tabs-card">
+        <div class="tab-select-wrap">
+          <select id="tabSelect" class="tab-select" aria-label="Select tab">
+            <option value="vendors">Vendor Directory</option>
+            <option value="vendor-mapping">Vendor Mapping</option>
+            <option value="rate-book">Rate Book</option>
+          </select>
+          <svg class="tab-select-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <polyline
+              points="6 9 12 15 18 9"
+              stroke="currentColor"
+              stroke-width="2"
+              fill="none"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </div>
+        <div class="tabs" role="tablist" aria-label="Vendor master tabs">
+          <button class="tab-btn active" data-tab="vendors">
+            Vendor Directory
+          </button>
+          <button class="tab-btn" data-tab="vendor-mapping">
+            Vendor Mapping
+          </button>
+          <button class="tab-btn" data-tab="rate-book">Rate Book</button>
+        </div>
+      </div>
+
+      <div class="tab-panels-wrap">
+        <div class="tab-panel" id="tab-vendor-mapping">
+          <div class="card">
+            <div class="table-topbar">
+              <h2>
+                Unmapped Alias Queue
+                <span class="badge-warn" id="unmappedCountBadge"
+                  >Unmapped aliases: 0</span
+                >
+              </h2>
+            </div>
+            <div class="toolbar-row">
+              <div class="pec-search-wrap">
+                <input
+                  id="mapSearch"
+                  class="pec-search-input"
+                  type="text"
+                  placeholder="Search alias text..."
+                  aria-label="Search unmapped aliases"
+                />
+                <button
+                  id="mapSearchClear"
+                  type="button"
+                  class="pec-input-clear"
+                  title="Clear search"
+                  aria-label="Clear search"
+                  style="display: none"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="13"
+                    height="13"
+                    aria-hidden="true"
+                  >
+                    <line
+                      x1="18"
+                      y1="6"
+                      x2="6"
+                      y2="18"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                    />
+                    <line
+                      x1="6"
+                      y1="6"
+                      x2="18"
+                      y2="18"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <div class="spacer"></div>
+              <div class="pager-mini">
+                <button
+                  id="mapPrev"
+                  class="icon-btn ghost"
+                  title="Previous page"
+                  aria-label="Previous page"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <path d="M15 6l-6 6 6 6" />
+                  </svg>
+                </button>
+                <span id="mapPaging" class="muted">0-0 of 0</span>
+                <button
+                  id="mapNext"
+                  class="icon-btn ghost"
+                  title="Next page"
+                  aria-label="Next page"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <path d="M9 6l6 6-6 6" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div class="table-scroll">
+              <table class="erp-table">
+                <thead>
+                  <tr>
+                    <th>Alias</th>
+                    <th>Suggested Vendor</th>
+                  </tr>
+                </thead>
+                <tbody id="mapTbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-panel active" id="tab-vendors">
+          <div class="card">
+            <div class="table-topbar">
+              <h2>Vendor Directory</h2>
+            </div>
+            <div class="toolbar-row">
+              <div class="pec-search-wrap">
+                <input
+                  id="vendorSearch"
+                  class="pec-search-input"
+                  type="text"
+                  placeholder="Search display name..."
+                  aria-label="Search vendors"
+                />
+                <button
+                  id="vendorSearchClear"
+                  type="button"
+                  class="pec-input-clear"
+                  title="Clear search"
+                  aria-label="Clear search"
+                  style="display: none"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="13"
+                    height="13"
+                    aria-hidden="true"
+                  >
+                    <line
+                      x1="18"
+                      y1="6"
+                      x2="6"
+                      y2="18"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                    />
+                    <line
+                      x1="6"
+                      y1="6"
+                      x2="18"
+                      y2="18"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <button
+                id="btnVendorNew"
+                class="icon-btn primary"
+                title="New vendor"
+                aria-label="New vendor"
+                type="button"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              </button>
+              <div class="spacer"></div>
+              <div class="pager-mini">
+                <button
+                  id="vendorPrev"
+                  class="icon-btn ghost"
+                  title="Previous page"
+                  aria-label="Previous page"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <path d="M15 6l-6 6 6 6" />
+                  </svg>
+                </button>
+                <span id="vendorPaging" class="muted">0-0 of 0</span>
+                <button
+                  id="vendorNext"
+                  class="icon-btn ghost"
+                  title="Next page"
+                  aria-label="Next page"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <path d="M9 6l6 6-6 6" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div class="table-scroll">
+              <table class="erp-table">
+                <thead>
+                  <tr>
+                    <th>Vendor ID</th>
+                    <th>Display Name</th>
+                    <th>Active</th>
+                  </tr>
+                </thead>
+                <tbody id="vendorTbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-panel" id="tab-rate-book">
+          <div class="card">
+            <div class="table-topbar">
+              <h2>Rate Book</h2>
+              <div class="pager-mini">
+                <button
+                  id="ratePrev"
+                  class="icon-btn ghost"
+                  title="Previous page"
+                  aria-label="Previous page"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <path d="M15 6l-6 6 6 6" />
+                  </svg>
+                </button>
+                <span id="ratePaging" class="muted">0-0 of 0</span>
+                <button
+                  id="rateNext"
+                  class="icon-btn ghost"
+                  title="Next page"
+                  aria-label="Next page"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <path d="M9 6l6 6-6 6" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div class="toolbar toolbar-ratebook">
+              <div class="toolbar-row rate-toolbar" style="flex-wrap: wrap">
+                <button
+                  id="rbFilterBtn"
+                  class="icon-btn ghost"
+                  title="Filter by vendor"
+                  aria-label="Filter by vendor"
+                  type="button"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <polygon
+                      points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"
+                    />
+                  </svg>
+                </button>
+
+                <div class="pec-search-wrap" style="flex: 1; min-width: 240px">
+                  <input
+                    id="rateSearch"
+                    class="pec-search-input"
+                    type="search"
+                    placeholder="Search item / code / vendor..."
+                    aria-label="Search item / code / vendor"
+                  />
+                  <button
+                    id="rateSearchClear"
+                    type="button"
+                    class="pec-input-clear"
+                    title="Clear"
+                    aria-label="Clear"
+                    style="display: none"
+                  >
+                    &times;
+                  </button>
+                </div>
+
+                <button
+                  id="btnRateNew"
+                  class="icon-btn primary"
+                  title="Add rate"
+                  aria-label="Add rate"
+                  type="button"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div
+              id="rbVendorFilterPanel"
+              class="card"
+              style="margin-top: 8px; padding: 10px"
+            >
+              <div class="toolbar-row" style="margin-bottom: 0">
+                <label class="muted" style="font-size: 12px"
+                  >Vendor filter</label
+                >
+                <select
+                  id="rateVendorFilter"
+                  aria-label="Filter by vendor"
+                  style="min-width: 260px"
+                >
+                  <option value="">All vendors</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="table-scroll">
+              <table class="erp-table">
+                <thead>
+                  <tr>
+                    <th>Vendor</th>
+                    <th>Stock Item</th>
+                    <th>UOM</th>
+                    <th class="num">Rate</th>
+                    <th>Valid From</th>
+                    <th>Valid To</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody id="rateTbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="modal-backdrop" id="mapModalBackdrop" aria-hidden="true">
+      <div class="modal">
+        <div class="modal-header page-header">
+          <h3 style="margin: 0">Map Vendor Alias</h3>
+          <button
+            id="mapModalClose"
+            class="modal-close-btn"
+            title="Close"
+            aria-label="Close"
+            type="button"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="grid">
+            <div>
+              <label for="mapAliasText">Alias text</label>
+              <input id="mapAliasText" readonly />
+            </div>
+            <div>
+              <label for="mapDisplayName">Suggested display name</label>
+              <input id="mapDisplayName" />
+            </div>
+          </div>
+          <div style="margin-top: 10px">
+            <label for="mapExistingSearch">Map to existing vendor</label>
+            <input id="mapExistingSearch" placeholder="Search vendor name..." />
+            <div id="mapExistingResults" class="lookup-results" hidden></div>
+            <div class="muted" id="mapExistingSelected" style="margin-top: 8px">
+              No vendor selected
+            </div>
+          </div>
+          <div class="actions">
+            <button id="btnMapClose" type="button">Close</button>
+            <button id="btnMapExisting" type="button">Map to Existing</button>
+            <button id="btnCreateMap" type="button" class="primary">
+              Create Vendor + Map
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-backdrop" id="vendorModalBackdrop" aria-hidden="true">
+      <div class="modal" style="max-width: 900px">
+        <div class="modal-header page-header">
+          <h3 style="margin: 0" id="vendorModalTitle">Edit Vendor</h3>
+          <button
+            id="vendorModalClose"
+            class="modal-close-btn"
+            title="Close"
+            aria-label="Close"
+            type="button"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <input id="vendorId" type="hidden" />
+          <div class="grid">
+            <div>
+              <label for="vendorDisplayName">Display Name</label>
+              <input id="vendorDisplayName" />
+            </div>
+            <div>
+              <label for="vendorIsActive">Active</label>
+              <select id="vendorIsActive">
+                <option value="true">Yes</option>
+                <option value="false">No</option>
+              </select>
+            </div>
+            <div>
+              <label for="vendorPhone">Phone</label>
+              <input id="vendorPhone" />
+            </div>
+            <div>
+              <label for="vendorEmail">Email</label>
+              <input id="vendorEmail" />
+            </div>
+            <div>
+              <label for="vendorGst">GST No</label>
+              <input id="vendorGst" />
+            </div>
+            <div>
+              <label for="vendorPinCode">Pin Code</label>
+              <input id="vendorPinCode" />
+            </div>
+            <div>
+              <label for="vendorCity">City</label>
+              <input id="vendorCity" />
+            </div>
+            <div>
+              <label for="vendorState">State</label>
+              <input id="vendorState" />
+            </div>
+            <div>
+              <label for="vendorAddress1">Address 1</label>
+              <input id="vendorAddress1" />
+            </div>
+            <div>
+              <label for="vendorAddress2">Address 2</label>
+              <input id="vendorAddress2" />
+            </div>
+          </div>
+          <div style="margin-top: 10px">
+            <label for="vendorNotes">Notes</label>
+            <textarea id="vendorNotes"></textarea>
+          </div>
+          <div class="actions">
+            <button id="btnVendorClose" type="button">Close</button>
+            <button id="btnVendorToggle" type="button">Deactivate</button>
+            <button id="btnVendorSave" type="button" class="primary">
+              Save
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-backdrop" id="rateModalBackdrop" aria-hidden="true">
+      <div class="modal" style="max-width: 860px">
+        <div class="modal-header page-header">
+          <h3 style="margin: 0" id="rateModalTitle">Add Rate Entry</h3>
+          <button
+            id="rateModalClose"
+            class="modal-close-btn"
+            title="Close"
+            aria-label="Close"
+            type="button"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <input id="ratePkCol" type="hidden" />
+          <input id="ratePkVal" type="hidden" />
+          <input id="rateStockItemId" type="hidden" />
+          <div class="grid">
+            <div>
+              <label for="rateVendorId">Vendor</label>
+              <select id="rateVendorId"></select>
+            </div>
+            <div>
+              <label for="rateUom">UOM</label>
+              <input id="rateUom" />
+            </div>
+            <div>
+              <label for="rateItemSearch">Item</label>
+              <input id="rateItemSearch" placeholder="Search stock item..." />
+              <div id="rateItemResults" class="lookup-results" hidden></div>
+            </div>
+            <div>
+              <label for="rateValue">Rate</label>
+              <input id="rateValue" type="number" step="0.000001" min="0" />
+            </div>
+            <div>
+              <label for="rateValidFrom">Valid From</label>
+              <input id="rateValidFrom" type="date" />
+            </div>
+            <div>
+              <label for="rateValidTo">Valid To</label>
+              <input id="rateValidTo" type="date" />
+            </div>
+          </div>
+          <div style="margin-top: 10px">
+            <label for="rateNotes">Notes</label>
+            <textarea id="rateNotes"></textarea>
+          </div>
+          <div
+            style="
+              margin-top: 10px;
+              display: flex;
+              align-items: center;
+              gap: 8px;
+            "
+          >
+            <input
+              id="rateIsActive"
+              type="checkbox"
+              checked
+              style="width: auto"
+            />
+            <label for="rateIsActive" style="font-size: 13px">Active</label>
+          </div>
+          <div class="actions">
+            <button id="btnRateClose" type="button">Close</button>
+            <button id="btnRateSave" type="button" class="primary">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="toastContainer" aria-live="polite"></div>
+
+    <script type="module" src="js/vendor-master.js"></script>
+  </body>
+</html>

@@ -2069,6 +2069,58 @@ function stripHtmlTags(text) {
   return String(text || "").replace(/<[^>]*>/g, "");
 }
 
+function copyTextWithExecCommand(text) {
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = String(text || "");
+    ta.setAttribute("readonly", "readonly");
+    ta.style.position = "fixed";
+    ta.style.top = "-1000px";
+    ta.style.left = "-1000px";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    ta.setSelectionRange(0, ta.value.length);
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return !!ok;
+  } catch (err) {
+    console.warn("execCommand copy failed", err);
+    return false;
+  }
+}
+
+async function writeTextRobust(text) {
+  if (navigator?.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return "copied";
+    } catch (err) {
+      console.warn("navigator.clipboard.writeText failed", err);
+    }
+  }
+
+  if (copyTextWithExecCommand(text)) {
+    return "copied";
+  }
+
+  if (navigator?.share) {
+    try {
+      await navigator.share({
+        title: "RM Receiving Stock",
+        text,
+      });
+      return "shared";
+    } catch (err) {
+      // user cancel is expected; treat as failure path below
+      console.warn("navigator.share failed", err);
+    }
+  }
+
+  return "failed";
+}
+
 function copyRmReceivingRows() {
   // Copy ALL mapped RM receiving rows (not just the currently loaded page)
   // and include only the Name and Qty columns.
@@ -2129,8 +2181,14 @@ function copyRmReceivingRows() {
         lines.push(`${name} | ${qty}`);
       });
 
-      await navigator.clipboard.writeText(lines.join("\n"));
-      showStatusToast("Copied RM Receiving Stock", "success");
+      const outcome = await writeTextRobust(lines.join("\n"));
+      if (outcome === "copied") {
+        showStatusToast("Copied RM Receiving Stock", "success");
+      } else if (outcome === "shared") {
+        showStatusToast("Opened share sheet for RM Receiving Stock", "info");
+      } else {
+        showStatusToast("Copy failed on this device", "error");
+      }
     } catch (err) {
       console.error(err);
       showStatusToast("Copy failed — check clipboard permission", "error");

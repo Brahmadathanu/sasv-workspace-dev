@@ -166,6 +166,7 @@ let bsLineCurrentSeqNo = null;
 let ovModalMode = "add"; // "add" | "edit"
 let ovCachedTests = null; // test_master rows (lazy-loaded, shared)
 let ovModalPrefill = {}; // pre-fill values for edit mode
+let ovModalUomTouched = false;
 let labUomRows = null; // cached active rows from lab_uom
 // Item currently selected in the overrides tab per subject:
 let ovFgProductId = null;
@@ -2493,7 +2494,7 @@ async function onPmOverrideItemChange() {
   const { data: overrides, error: ovErr } = await labSupabase
     .from("spec_override")
     .select(
-      "id, test_id, action_type, override_method_id, override_spec_type, override_min_value, override_max_value, override_text_value, override_display_text, override_is_required, is_active, reason",
+      "id, test_id, action_type, override_method_id, override_spec_type, override_min_value, override_max_value, override_text_value, override_display_text, override_is_required, override_uom_id, is_active, reason",
     )
     .eq("subject_type", "PM")
     .eq("stock_item_id", stockItemId);
@@ -2523,8 +2524,11 @@ async function onPmOverrideItemChange() {
   const methodIds = [
     ...new Set(overrides.map((r) => r.override_method_id).filter(Boolean)),
   ];
+  const uomIds = [
+    ...new Set(overrides.map((r) => r.override_uom_id).filter(Boolean)),
+  ];
 
-  const [testRes, methodRes] = await Promise.all([
+  const [testRes, methodRes, uomRes] = await Promise.all([
     testIds.length
       ? labSupabase
           .from("test_master")
@@ -2537,6 +2541,12 @@ async function onPmOverrideItemChange() {
           .select("id, method_name")
           .in("id", methodIds)
       : Promise.resolve({ data: [] }),
+    uomIds.length
+      ? labSupabase
+          .from("lab_uom")
+          .select("id, uom_code, uom_name, symbol")
+          .in("id", uomIds)
+      : Promise.resolve({ data: [] }),
   ]);
 
   const testMap = Object.fromEntries(
@@ -2545,14 +2555,21 @@ async function onPmOverrideItemChange() {
   const methodMap = Object.fromEntries(
     (methodRes.data ?? []).map((r) => [r.id, r.method_name]),
   );
+  const uomMap = Object.fromEntries((uomRes.data ?? []).map((u) => [u.id, u]));
 
-  const enriched = overrides.map((r) => ({
-    ...r,
-    test_name: testMap[r.test_id] ?? `(test #${r.test_id})`,
-    override_method_name:
-      methodMap[r.override_method_id] ??
-      (r.override_method_id ? `(method #${r.override_method_id})` : ""),
-  }));
+  const enriched = overrides.map((r) => {
+    const uom = uomMap[r.override_uom_id] ?? null;
+    return {
+      ...r,
+      test_name: testMap[r.test_id] ?? `(test #${r.test_id})`,
+      override_method_name:
+        methodMap[r.override_method_id] ??
+        (r.override_method_id ? `(method #${r.override_method_id})` : ""),
+      uom_code: uom?.uom_code ?? "",
+      uom_name: uom?.uom_name ?? "",
+      uom_symbol: uom?.symbol ?? "",
+    };
+  });
   enriched.sort((a, b) => {
     if (b.is_active !== a.is_active) return b.is_active ? 1 : -1;
     return (a.test_name ?? "").localeCompare(b.test_name ?? "");
@@ -2824,16 +2841,30 @@ async function onOvProductChange() {
   ovFgGroupName.textContent = grp.product_group_name ?? "--";
   ovFgGroupName.classList.toggle("not-set", !grp.product_group_name);
 
-  // FIX 6: resolve base spec profile id separately via spec_profile_product_group_map + spec_profile
+  // Resolve base spec profile through canonical FG resolver RPC
   let baseSpecProfileId = null;
   if (grp.product_group_id) {
-    const { data: smRows } = await labSupabase
-      .from("spec_profile_product_group_map")
-      .select("spec_profile_id")
-      .eq("product_group_id", grp.product_group_id)
-      .eq("is_active", true)
-      .limit(1);
-    baseSpecProfileId = smRows?.[0]?.spec_profile_id ?? null;
+    const { data: resolvedSpecId, error: specErr } = await labSupabase.rpc(
+      "fn_get_active_spec_profile_id_for_fg_group",
+      {
+        p_product_group_id: Number(grp.product_group_id),
+        p_as_of_date: todayISO(),
+      },
+    );
+
+    if (specErr) {
+      showBanner(
+        ovBanner,
+        "error",
+        "Could not resolve FG base spec profile: " + specErr.message,
+      );
+      setOverrideAddButtonState("FG", false);
+      ovBaseSpecProfileId = null;
+      ovBaseTestIds = new Set();
+      return;
+    }
+
+    baseSpecProfileId = resolvedSpecId ? Number(resolvedSpecId) : null;
   }
 
   ovFgBaseSpecId.textContent = baseSpecProfileId
@@ -2851,7 +2882,7 @@ async function onOvProductChange() {
   const { data: overrides, error: ovErr } = await labSupabase
     .from("spec_override")
     .select(
-      "id, test_id, action_type, override_method_id, override_spec_type, override_min_value, override_max_value, override_text_value, override_display_text, override_is_required, is_active, reason",
+      "id, test_id, action_type, override_method_id, override_spec_type, override_min_value, override_max_value, override_text_value, override_display_text, override_is_required, override_uom_id, is_active, reason",
     )
     .eq("subject_type", "FG")
     .eq("product_id", productId);
@@ -2878,8 +2909,11 @@ async function onOvProductChange() {
   const methodIds = [
     ...new Set(overrides.map((r) => r.override_method_id).filter(Boolean)),
   ];
+  const uomIds = [
+    ...new Set(overrides.map((r) => r.override_uom_id).filter(Boolean)),
+  ];
 
-  const [testRes, methodRes] = await Promise.all([
+  const [testRes, methodRes, uomRes] = await Promise.all([
     testIds.length
       ? labSupabase
           .from("test_master")
@@ -2892,6 +2926,12 @@ async function onOvProductChange() {
           .select("id, method_name")
           .in("id", methodIds)
       : Promise.resolve({ data: [] }),
+    uomIds.length
+      ? labSupabase
+          .from("lab_uom")
+          .select("id, uom_code, uom_name, symbol")
+          .in("id", uomIds)
+      : Promise.resolve({ data: [] }),
   ]);
 
   const testMap = Object.fromEntries(
@@ -2900,14 +2940,21 @@ async function onOvProductChange() {
   const methodMap = Object.fromEntries(
     (methodRes.data ?? []).map((r) => [r.id, r.method_name]),
   );
+  const uomMap = Object.fromEntries((uomRes.data ?? []).map((u) => [u.id, u]));
 
-  const enriched = overrides.map((r) => ({
-    ...r,
-    test_name: testMap[r.test_id] ?? `(test #${r.test_id})`,
-    override_method_name:
-      methodMap[r.override_method_id] ??
-      (r.override_method_id ? `(method #${r.override_method_id})` : ""),
-  }));
+  const enriched = overrides.map((r) => {
+    const uom = uomMap[r.override_uom_id] ?? null;
+    return {
+      ...r,
+      test_name: testMap[r.test_id] ?? `(test #${r.test_id})`,
+      override_method_name:
+        methodMap[r.override_method_id] ??
+        (r.override_method_id ? `(method #${r.override_method_id})` : ""),
+      uom_code: uom?.uom_code ?? "",
+      uom_name: uom?.uom_name ?? "",
+      uom_symbol: uom?.symbol ?? "",
+    };
+  });
 
   // Sort: active first, then by test name
   enriched.sort((a, b) => {
@@ -3031,14 +3078,28 @@ async function onRmOverrideItemChange() {
   // Resolve base spec profile
   let baseSpecProfileId = null;
   if (grp.inv_group_id) {
-    const { data: smRows } = await labSupabase
-      .from("spec_profile_inv_group_map")
-      .select("spec_profile_id")
-      .eq("inv_group_id", grp.inv_group_id)
-      .eq("subject_type", "RM")
-      .eq("is_active", true)
-      .limit(1);
-    baseSpecProfileId = smRows?.[0]?.spec_profile_id ?? null;
+    const { data: resolvedSpecId, error: specErr } = await labSupabase.rpc(
+      "fn_get_active_spec_profile_id_for_inv_group",
+      {
+        p_subject_type: "RM",
+        p_inv_group_id: Number(grp.inv_group_id),
+        p_as_of_date: todayISO(),
+      },
+    );
+
+    if (specErr) {
+      showBanner(
+        ovRmBanner,
+        "error",
+        "Could not resolve RM base spec profile: " + specErr.message,
+      );
+      setOverrideAddButtonState("RM", false);
+      ovBaseSpecProfileId = null;
+      ovBaseTestIds = new Set();
+      return;
+    }
+
+    baseSpecProfileId = resolvedSpecId ? Number(resolvedSpecId) : null;
   }
 
   ovRmBaseSpecId.textContent = baseSpecProfileId
@@ -3056,7 +3117,7 @@ async function onRmOverrideItemChange() {
   const { data: overrides, error: ovErr } = await labSupabase
     .from("spec_override")
     .select(
-      "id, test_id, action_type, override_method_id, override_spec_type, override_min_value, override_max_value, override_text_value, override_display_text, override_is_required, is_active, reason",
+      "id, test_id, action_type, override_method_id, override_spec_type, override_min_value, override_max_value, override_text_value, override_display_text, override_is_required, override_uom_id, is_active, reason",
     )
     .eq("subject_type", "RM")
     .eq("stock_item_id", stockItemId);
@@ -3086,8 +3147,11 @@ async function onRmOverrideItemChange() {
   const methodIds = [
     ...new Set(overrides.map((r) => r.override_method_id).filter(Boolean)),
   ];
+  const uomIds = [
+    ...new Set(overrides.map((r) => r.override_uom_id).filter(Boolean)),
+  ];
 
-  const [testRes, methodRes] = await Promise.all([
+  const [testRes, methodRes, uomRes] = await Promise.all([
     testIds.length
       ? labSupabase
           .from("test_master")
@@ -3100,6 +3164,12 @@ async function onRmOverrideItemChange() {
           .select("id, method_name")
           .in("id", methodIds)
       : Promise.resolve({ data: [] }),
+    uomIds.length
+      ? labSupabase
+          .from("lab_uom")
+          .select("id, uom_code, uom_name, symbol")
+          .in("id", uomIds)
+      : Promise.resolve({ data: [] }),
   ]);
 
   const testMap = Object.fromEntries(
@@ -3108,14 +3178,21 @@ async function onRmOverrideItemChange() {
   const methodMap = Object.fromEntries(
     (methodRes.data ?? []).map((r) => [r.id, r.method_name]),
   );
+  const uomMap = Object.fromEntries((uomRes.data ?? []).map((u) => [u.id, u]));
 
-  const enriched = overrides.map((r) => ({
-    ...r,
-    test_name: testMap[r.test_id] ?? `(test #${r.test_id})`,
-    override_method_name:
-      methodMap[r.override_method_id] ??
-      (r.override_method_id ? `(method #${r.override_method_id})` : ""),
-  }));
+  const enriched = overrides.map((r) => {
+    const uom = uomMap[r.override_uom_id] ?? null;
+    return {
+      ...r,
+      test_name: testMap[r.test_id] ?? `(test #${r.test_id})`,
+      override_method_name:
+        methodMap[r.override_method_id] ??
+        (r.override_method_id ? `(method #${r.override_method_id})` : ""),
+      uom_code: uom?.uom_code ?? "",
+      uom_name: uom?.uom_name ?? "",
+      uom_symbol: uom?.symbol ?? "",
+    };
+  });
   enriched.sort((a, b) => {
     if (b.is_active !== a.is_active) return b.is_active ? 1 : -1;
     return (a.test_name ?? "").localeCompare(b.test_name ?? "");
@@ -4364,9 +4441,23 @@ function wireOverrideModal() {
     renderDynamicInputs();
     updateDisplayText();
   });
+  document.getElementById("ovModalUom")?.addEventListener("change", () => {
+    ovModalUomTouched = true;
+    updateDisplayText();
+  });
   document.getElementById("ovModalTest").addEventListener("change", () => {
     applyActionOptionsForSelectedTest();
     applySpecTypeOptionsForSelectedTest();
+    const uomSel = document.getElementById("ovModalUom");
+    if (ovModalMode === "add" && uomSel && !ovModalUomTouched) {
+      const testId = Number(document.getElementById("ovModalTest").value || 0);
+      const testRow = (ovCachedTests ?? []).find(
+        (t) => Number(t.id) === testId,
+      );
+      const defaultUomId =
+        testRow?.default_uom_id != null ? String(testRow.default_uom_id) : "";
+      uomSel.value = defaultUomId;
+    }
     updateModalDynamics();
   });
 
@@ -4417,8 +4508,11 @@ async function openOverrideModal(mode, row) {
   const testSel = document.getElementById("ovModalTest");
   const actionSel = document.getElementById("ovModalAction");
   const specSel = document.getElementById("ovModalSpecType");
+  const uomSel = document.getElementById("ovModalUom");
   const reasonEl = document.getElementById("ovModalReason");
   const banner = document.getElementById("ovModalBanner");
+
+  ovModalUomTouched = false;
 
   titleEl.textContent = mode === "add" ? "Add Override" : "Edit Override";
   saveLabel.textContent = mode === "add" ? "Save Override" : "Update Override";
@@ -4459,6 +4553,13 @@ async function openOverrideModal(mode, row) {
     "test_name",
     "-- Select Test --",
   );
+  await loadLabUoms();
+
+  const selectedUomId =
+    mode === "edit" && row?.override_uom_id != null
+      ? String(row.override_uom_id)
+      : "";
+  populateLabUomSelect(uomSel, selectedUomId);
 
   // Pre-fill form
   if (mode === "edit" && row) {
@@ -4479,12 +4580,24 @@ async function openOverrideModal(mode, row) {
     // Restrict spec type options, then restore saved spec type
     applySpecTypeOptionsForSelectedTest();
     specSel.value = row.override_spec_type ?? specSel.options[0]?.value ?? "";
+    if (uomSel) {
+      uomSel.value = selectedUomId;
+    }
   } else {
     testSel.value = "";
     reasonEl.value = "";
     ovModalPrefill = { min: "", max: "", text: "", exact: "" };
     applyActionOptionsForSelectedTest(); // will show "-- Select test first --"
     applySpecTypeOptionsForSelectedTest(); // will show "-- Select test first --"
+    if (uomSel) {
+      const selectedTestId = Number(testSel.value || 0);
+      const testRow = (ovCachedTests ?? []).find(
+        (t) => Number(t.id) === selectedTestId,
+      );
+      const defaultUomId =
+        testRow?.default_uom_id != null ? String(testRow.default_uom_id) : "";
+      uomSel.value = defaultUomId;
+    }
   }
 
   updateModalDynamics();
@@ -4588,6 +4701,17 @@ function updateDisplayText() {
     text = "Passes";
   }
 
+  const isNumericType = ["RANGE", "NMT", "NLT", "EXACT_NUMERIC"].includes(
+    specType,
+  );
+  const uomSel = document.getElementById("ovModalUom");
+  const uomId = uomSel?.value ? Number(uomSel.value) : null;
+  const uomRow = (labUomRows ?? []).find((u) => Number(u.id) === uomId);
+  const uomToken = uomRow?.symbol || uomRow?.uom_code || "";
+  if (isNumericType && text !== "—" && uomToken) {
+    text = appendUomIfNeeded(text, uomToken);
+  }
+
   preview.textContent = text;
 }
 
@@ -4600,6 +4724,9 @@ async function saveOverrideModal() {
   const testId = document.getElementById("ovModalTest").value;
   const actionType = document.getElementById("ovModalAction").value;
   const reason = document.getElementById("ovModalReason").value.trim();
+  const overrideUomId = document.getElementById("ovModalUom")?.value
+    ? Number(document.getElementById("ovModalUom").value)
+    : null;
 
   if (!testId) {
     showBanner(banner, "error", "Please select a test.");
@@ -4686,6 +4813,12 @@ async function saveOverrideModal() {
     } else if (specType === "PASS_FAIL") {
       displayText = "Passes";
     }
+
+    updateDisplayText();
+    const previewText =
+      document.getElementById("ovModalDisplayPreview")?.textContent?.trim() ||
+      "";
+    displayText = previewText && previewText !== "—" ? previewText : null;
   }
 
   saveBtn.disabled = true;
@@ -4716,6 +4849,7 @@ async function saveOverrideModal() {
     p_max_value: maxVal !== null ? Number(maxVal) : null,
     p_text_value: textVal ?? null,
     p_display_text: displayText ?? null,
+    p_override_uom_id: actionType === "disable" ? null : overrideUomId,
     p_reason: reason || null,
   });
 
@@ -4754,12 +4888,13 @@ function renderOverrideRow(r) {
   const inactiveStyle = r.is_active
     ? ""
     : 'style="opacity:0.55;background:#f9fafb;"';
+  const uomSuffix = r.uom_symbol || r.uom_code || "";
 
   return `<tr ${inactiveStyle} data-ov-id="${esc(String(r.id))}">
     <td class="td-test">${esc(r.test_name ?? "")}${!r.is_active ? ` <span style="font-size:10px;color:#9ca3af;font-weight:600;text-transform:uppercase;">(inactive)</span>` : ""}</td>
     <td><span class="action-badge ${actionClass}">${esc(r.action_type ?? "")}</span></td>
     <td style="color:var(--muted,#6b7280);">${esc(r.override_spec_type ?? "—")}</td>
-    <td>${esc(r.override_display_text ?? "—")}</td>
+    <td>${esc(r.override_display_text ?? "—")}${uomSuffix ? `<span style="color:var(--muted,#6b7280);font-size:12px;"> ${esc(uomSuffix)}</span>` : ""}</td>
     <td class="td-active">
       <input type="checkbox" class="ov-active-chk" data-ov-id="${esc(String(r.id))}"
         ${r.is_active ? "checked" : ""} aria-label="Active">
@@ -4774,6 +4909,7 @@ function renderOverrideRow(r) {
         data-max="${esc(String(r.override_max_value ?? ""))}"
         data-text="${esc(r.override_text_value ?? "")}"
         data-display="${esc(r.override_display_text ?? "")}"
+        data-uom-id="${esc(String(r.override_uom_id ?? ""))}"
         data-reason="${esc(r.reason ?? "")}"
         aria-label="Edit override for ${esc(r.test_name ?? "")}">Edit</button>
     </td>
@@ -4827,6 +4963,7 @@ function wireOverrideTableEvents(tbody) {
         override_max_value: d.max !== "" ? d.max : null,
         override_text_value: d.text || null,
         override_display_text: d.display,
+        override_uom_id: d.uomId !== "" ? Number(d.uomId) : null,
         reason: d.reason,
       });
     });
