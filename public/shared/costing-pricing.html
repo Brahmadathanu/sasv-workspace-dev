@@ -1,0 +1,2059 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Costing &amp; Pricing</title>
+    <link rel="stylesheet" href="../shared/css/style.css" />
+    <style>
+      html,
+      body {
+        height: 100vh;
+        min-height: 100vh;
+        margin: 0;
+        overflow: hidden;
+        box-sizing: border-box;
+        font-family:
+          system-ui,
+          Segoe UI,
+          Roboto,
+          Arial,
+          sans-serif;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        padding: 20px;
+      }
+      @media (max-width: 1080px) {
+        body {
+          padding: 10px;
+        }
+      }
+      @media (max-width: 520px) {
+        body {
+          padding: 6px;
+        }
+      }
+      .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+      }
+      .page-header h1 {
+        margin: 0;
+        color: var(--primary);
+      }
+      .page-sub {
+        color: var(--muted, #6b7280);
+        font-size: 0.95rem;
+      }
+      .toolbar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-top: 8px;
+      }
+      .icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 7px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+        background: var(--panel-bg);
+        color: inherit;
+        cursor: pointer;
+      }
+      .icon-btn:hover {
+        background: #f3f4f6;
+      }
+      .icon-btn:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      .kpi-strip {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 6px;
+        margin: 0;
+        align-items: stretch;
+        justify-content: space-between;
+        scrollbar-width: none;
+      }
+      .kpi-strip::-webkit-scrollbar {
+        display: none;
+      }
+      .kpi {
+        background: linear-gradient(180deg, var(--panel-bg), var(--panel-bg));
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        padding: 5px 10px;
+        border-radius: 7px;
+        min-width: fit-content;
+        flex-shrink: 0;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+      }
+      .kpi > div:first-child {
+        font-weight: 600;
+        font-size: 10.5px;
+        color: var(--muted, #6b7280);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .kpi > div:last-child {
+        font-size: 13px;
+        color: var(--text, #0f172a);
+        font-weight: 700;
+      }
+      .kpi.total {
+        border-left: 4px solid #2563eb;
+        background: linear-gradient(
+          135deg,
+          rgba(37, 99, 235, 0.06),
+          rgba(37, 99, 235, 0.02)
+        );
+      }
+      .kpi.ready {
+        border-left: 4px solid #16a34a;
+        background: linear-gradient(
+          135deg,
+          rgba(22, 163, 74, 0.07),
+          rgba(22, 163, 74, 0.02)
+        );
+      }
+      .kpi.review {
+        border-left: 4px solid #f59e0b;
+        background: linear-gradient(
+          135deg,
+          rgba(245, 158, 11, 0.07),
+          rgba(245, 158, 11, 0.02)
+        );
+      }
+      .kpi.blocked {
+        border-left: 4px solid #ef4444;
+        background: linear-gradient(
+          135deg,
+          rgba(239, 68, 68, 0.07),
+          rgba(239, 68, 68, 0.02)
+        );
+      }
+      .kpi.scheme {
+        border-left: 4px solid #4f46e5;
+        background: linear-gradient(
+          135deg,
+          rgba(79, 70, 229, 0.07),
+          rgba(79, 70, 229, 0.02)
+        );
+      }
+      @media (max-width: 800px) {
+        .kpi-strip {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          overflow-x: visible;
+          gap: 5px;
+        }
+        .kpi {
+          min-width: 0;
+          white-space: normal;
+          padding: 5px 8px;
+        }
+      }
+      .search-card {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .search-card .filter-item.search {
+        flex: 1;
+        min-width: 160px;
+        position: relative;
+      }
+      #search {
+        background: #e6f7ff;
+        border-color: rgba(14, 165, 233, 0.35);
+        padding-right: 38px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid var(--border, #e5e7eb);
+        font-weight: 400;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      #search::placeholder {
+        font-weight: 400;
+        color: var(--muted, #6b7280);
+        opacity: 0.9;
+      }
+      #search:focus {
+        outline: none;
+        border-color: var(--erp-accent-2, #0ea5e9);
+        box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.08);
+      }
+      .input-clear-btn {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border: none;
+        background: transparent;
+        color: var(--erp-muted, #6b7280);
+        cursor: pointer;
+        padding: 0;
+        border-radius: 6px;
+      }
+      .input-clear-btn:hover {
+        background: rgba(15, 23, 42, 0.03);
+        color: var(--erp-text, #0f172a);
+      }
+      .peq-filter-btn {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        flex-shrink: 0;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 7px;
+        background: var(--surface, #fff);
+        color: var(--erp-text, #374151);
+        cursor: pointer;
+      }
+      .peq-filter-btn:hover,
+      .peq-filter-btn:focus-visible {
+        background: var(--erp-hover, #f3f4f6);
+        border-color: var(--erp-accent, #2563eb);
+        color: var(--erp-accent, #2563eb);
+        outline: none;
+      }
+      .peq-filter-btn--active {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+        color: #2563eb;
+      }
+      .peq-filter-btn--active:hover {
+        background: #dbeafe;
+      }
+      .peq-filter-badge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        min-width: 14px;
+        height: 14px;
+        padding: 0 3px;
+        border-radius: 999px;
+        background: #2563eb;
+        color: #fff;
+        font-size: 9px;
+        font-weight: 700;
+        line-height: 14px;
+        text-align: center;
+      }
+      .peq-filter-drawer {
+        display: none;
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        width: 280px;
+        max-width: min(280px, calc(100vw - 24px));
+        background: var(--surface, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+        z-index: 300;
+        padding: 12px 14px;
+        box-sizing: border-box;
+      }
+      @media (max-width: 480px) {
+        .peq-filter-drawer {
+          position: fixed;
+          left: 8px;
+          right: 8px;
+          top: auto;
+          width: auto;
+          max-width: none;
+        }
+      }
+      .peq-filter-drawer {
+        max-height: min(480px, 80vh);
+        overflow-y: auto;
+      }
+      .peq-filter-drawer.open {
+        display: block;
+      }
+      .peq-filter-section {
+        margin-bottom: 10px;
+      }
+      .peq-filter-section-title {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted, #6b7280);
+        margin-bottom: 8px;
+      }
+      .peq-filter-checklist {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .peq-filter-checklist li label {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 13px;
+        color: var(--erp-text, #374151);
+        cursor: pointer;
+        user-select: none;
+      }
+      .peq-filter-checklist input[type="checkbox"] {
+        width: 14px;
+        height: 14px;
+        accent-color: #2563eb;
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+      .peq-filter-summary {
+        margin-top: 8px;
+        font-size: 11.5px;
+        color: var(--muted, #6b7280);
+        font-style: italic;
+        min-height: 16px;
+      }
+      .peq-filter-actions {
+        display: flex;
+        gap: 8px;
+        padding-top: 8px;
+        border-top: 1px solid var(--border, #e5e7eb);
+      }
+      .peq-filter-action-btn {
+        flex: 1;
+        padding: 5px 8px;
+        font-size: 12px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+        background: var(--surface, #fff);
+        color: var(--erp-text, #374151);
+        cursor: pointer;
+      }
+      .lens-pills {
+        display: flex;
+        gap: 6px;
+        padding: 8px;
+        background: linear-gradient(
+          135deg,
+          rgba(37, 99, 235, 0.05),
+          rgba(37, 99, 235, 0.02)
+        );
+        border: 1px solid var(--erp-border, var(--border, #e5e7eb));
+        border-radius: 10px;
+        align-items: center;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+      }
+      .lens-pills .pill {
+        padding: 8px 16px;
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--erp-muted, var(--muted, #6b7280));
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        border-radius: 8px;
+        transition: all 0.16s ease;
+        white-space: nowrap;
+        line-height: 1.2;
+      }
+      .lens-pills .pill:hover {
+        color: var(--erp-text, #0f172a);
+        background: rgba(37, 99, 235, 0.05);
+        border-color: rgba(37, 99, 235, 0.12);
+      }
+      .lens-pills .pill.active {
+        color: #fff;
+        background: var(--erp-accent, var(--primary, #2563eb));
+        border-color: var(--erp-accent, var(--primary, #2563eb));
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.22);
+      }
+      @media (max-width: 520px) {
+        .page-header h1 {
+          font-size: 16px;
+          line-height: 1.1;
+        }
+        .page-header .page-sub {
+          display: none;
+        }
+        .lens-pills {
+          display: none;
+        }
+        .tab-select-wrap {
+          position: relative;
+          display: inline-block;
+          width: 100%;
+          margin: 8px 0;
+        }
+        .tab-select {
+          display: inline-block;
+          width: 100%;
+          padding: 8px 42px 8px 10px;
+          border-radius: 8px;
+          border: 1px solid var(--erp-accent, #2563eb);
+          background: linear-gradient(
+            135deg,
+            rgba(37, 99, 235, 0.12),
+            rgba(37, 99, 235, 0.06)
+          );
+          color: #0f172a;
+          font-weight: 600;
+          font-size: 14px;
+          appearance: none;
+          cursor: pointer;
+        }
+        .tab-select-icon {
+          position: absolute;
+          right: 12px;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 18px;
+          height: 18px;
+          pointer-events: none;
+          display: block;
+          color: var(--erp-accent, #2563eb);
+        }
+        #homeBtn .home-label {
+          display: none;
+        }
+        #homeBtn {
+          padding-left: 8px;
+          padding-right: 8px;
+        }
+      }
+      @media (min-width: 521px) {
+        .tab-select,
+        .tab-select-wrap,
+        .tab-select-icon {
+          display: none;
+        }
+      }
+      .main {
+        display: flex;
+        flex: 1 1 auto;
+        gap: 12px;
+        min-height: 0;
+      }
+      .table-card {
+        flex: 1 1 0;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        position: relative;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        padding: 8px;
+        background: var(--panel-bg);
+      }
+      #tableWrap {
+        flex: 1 1 0;
+        min-height: 0;
+        overflow: auto;
+        display: none;
+      }
+      #tableWrap.tw-visible {
+        display: block;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      thead th {
+        position: sticky;
+        top: 0;
+        background: var(--table-header, #fafafa);
+        z-index: 3;
+        padding: 8px;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+        white-space: nowrap;
+      }
+      tbody td {
+        padding: 8px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+        vertical-align: top;
+      }
+      tbody tr:nth-child(even) {
+        background: rgba(15, 23, 42, 0.018);
+      }
+      tr.clickable {
+        cursor: pointer;
+      }
+      tr.clickable:hover {
+        background: rgba(37, 99, 235, 0.045);
+      }
+      .lane-col {
+        width: 6px;
+        min-width: 6px;
+        padding: 0;
+      }
+      .lane {
+        display: block;
+        width: 5px;
+        min-height: 28px;
+        border-radius: 6px;
+        background: #6b7280;
+      }
+      .lane.ready {
+        background: #16a34a;
+      }
+      .lane.review {
+        background: #f59e0b;
+      }
+      .lane.blocked {
+        background: #ef4444;
+      }
+      .lane.scheme {
+        background: #4f46e5;
+      }
+      .c-center {
+        text-align: center;
+      }
+      .c-left {
+        text-align: left;
+      }
+      .c-right {
+        text-align: right;
+      }
+      .cp-num-cell {
+        text-align: right;
+      }
+      .cp-num-wrap {
+        display: inline-block;
+        min-width: 82px;
+        max-width: 118px;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .cp-pct-cell {
+        text-align: center;
+      }
+      .cp-pct-wrap {
+        display: inline-block;
+        min-width: 64px;
+        max-width: 88px;
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .cp-blank-cell {
+        text-align: center;
+        color: var(--muted, #6b7280);
+      }
+      @media (max-width: 760px) {
+        .cp-num-wrap {
+          min-width: 72px;
+          max-width: 102px;
+        }
+        .cp-pct-wrap {
+          min-width: 56px;
+          max-width: 78px;
+        }
+      }
+      .status {
+        padding: 12px;
+        color: var(--muted, #6b7280);
+      }
+      .cp-loading-mask {
+        position: absolute;
+        inset: 0;
+        z-index: 25;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.78);
+        backdrop-filter: blur(1px);
+      }
+      .cp-loading-mask.hidden {
+        display: none;
+      }
+      .cp-loading-panel {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: var(--panel-bg, #fff);
+        color: var(--muted, #6b7280);
+        font-size: 13px;
+        font-weight: 600;
+        box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
+      }
+      .cp-loading-spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid #d1d5db;
+        border-top-color: var(--primary, #2563eb);
+        border-radius: 50%;
+        animation: cp-spin 0.75s linear infinite;
+      }
+      @keyframes cp-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      [data-theme="dark"] .cp-loading-mask {
+        background: rgba(15, 23, 42, 0.72);
+      }
+      .status-chip,
+      .chip {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        color: #fff;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .chip.green,
+      .status-chip.green {
+        background: #16a34a;
+      }
+      .chip.amber,
+      .status-chip.amber {
+        background: #f59e0b;
+      }
+      .chip.red,
+      .status-chip.red {
+        background: #ef4444;
+      }
+      .chip.blue,
+      .status-chip.blue {
+        background: #3b82f6;
+      }
+      .chip.indigo,
+      .status-chip.indigo {
+        background: #4f46e5;
+      }
+      .chip.gray,
+      .status-chip.gray {
+        background: #6b7280;
+      }
+      .cp-status-text {
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .cp-status-text--green {
+        color: #166534;
+      }
+      .cp-status-text--amber {
+        color: #92400e;
+      }
+      .cp-status-text--red {
+        color: #991b1b;
+      }
+      .cp-status-text--gray {
+        color: #6b7280;
+      }
+      .cp-status-text--indigo {
+        color: #3730a3;
+      }
+      .cp-muted-text {
+        color: var(--muted, #6b7280);
+        font-size: 12.5px;
+        font-weight: 500;
+      }
+      .cp-change-positive {
+        color: #166534;
+        font-weight: 700;
+      }
+      .cp-change-negative {
+        color: #991b1b;
+        font-weight: 700;
+      }
+      .cp-change-neutral {
+        color: var(--muted, #6b7280);
+      }
+      .cp-section-title {
+        margin: 0 0 8px;
+        color: var(--text, #0f172a);
+        font-size: 13px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .cp-summary-strip {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .cp-card {
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: var(--panel-bg, #fff);
+        padding: 10px;
+      }
+      .cp-card-label,
+      .cp-kv dt {
+        color: var(--muted, #6b7280);
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .cp-card-value {
+        margin-top: 4px;
+        color: var(--text, #0f172a);
+        font-weight: 800;
+        overflow-wrap: anywhere;
+      }
+      .cp-kv {
+        display: grid;
+        grid-template-columns: minmax(110px, 0.35fr) 1fr;
+        gap: 8px 12px;
+        margin: 0;
+      }
+      .cp-kv dt,
+      .cp-kv dd {
+        margin: 0;
+      }
+      .cp-kv dd {
+        overflow-wrap: anywhere;
+      }
+      .cp-table-wrap {
+        overflow: auto;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+      }
+      .cp-printable-table th,
+      .cp-printable-table td {
+        white-space: nowrap;
+      }
+      .cp-printable-section-row td {
+        background: rgba(37, 99, 235, 0.055);
+        color: var(--text, #0f172a);
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .cp-line-description {
+        margin-top: 3px;
+        color: var(--muted, #6b7280);
+        font-size: 11.5px;
+        font-weight: 500;
+        line-height: 1.35;
+      }
+      .cp-source-list {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--muted, #6b7280);
+        font-size: 13px;
+        line-height: 1.55;
+      }
+      .cost-sheet-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 1200;
+        background: rgba(15, 23, 42, 0.52);
+        display: flex;
+        align-items: stretch;
+        justify-content: center;
+        padding: 14px;
+      }
+      .cost-sheet-modal.hidden {
+        display: none;
+      }
+      .cost-sheet-modal-panel {
+        width: min(1180px, 100%);
+        height: calc(100vh - 28px);
+        background: var(--panel-bg, #fff);
+        border-radius: 10px;
+        border: 1px solid var(--border, #e5e7eb);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .cost-sheet-modal-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+        flex-shrink: 0;
+      }
+      .cost-sheet-modal-subtitle {
+        font-size: 12px;
+        color: var(--muted, #6b7280);
+        margin-top: 2px;
+      }
+      .cost-sheet-modal-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .icon-btn.icon-btn-primary,
+      button.icon-btn-primary {
+        background: var(--primary, #2563eb);
+        border-color: var(--primary, #2563eb);
+        color: #fff;
+      }
+      .icon-btn.icon-btn-primary:hover,
+      button.icon-btn-primary:hover,
+      .icon-btn.icon-btn-primary:focus-visible,
+      button.icon-btn-primary:focus-visible {
+        background: #1d4ed8;
+        background: color-mix(in srgb, var(--primary, #2563eb) 86%, #000);
+        border-color: #1d4ed8;
+        border-color: color-mix(in srgb, var(--primary, #2563eb) 86%, #000);
+        color: #fff;
+      }
+      .icon-btn.icon-btn-primary svg,
+      button.icon-btn-primary svg {
+        stroke: currentColor;
+      }
+      #costSheetPdfBtn.icon-btn.icon-btn-primary,
+      #costSheetSignConfirmBtn.icon-btn.icon-btn-primary {
+        background: var(--primary, #2563eb) !important;
+        border-color: var(--primary, #2563eb) !important;
+        color: #fff !important;
+      }
+      #costSheetPdfBtn.icon-btn.icon-btn-primary:hover,
+      #costSheetPdfBtn.icon-btn.icon-btn-primary:focus-visible,
+      #costSheetSignConfirmBtn.icon-btn.icon-btn-primary:hover,
+      #costSheetSignConfirmBtn.icon-btn.icon-btn-primary:focus-visible {
+        background: #1d4ed8 !important;
+        background: color-mix(in srgb, var(--primary, #2563eb) 86%, #000) !important;
+        border-color: #1d4ed8 !important;
+        border-color: color-mix(in srgb, var(--primary, #2563eb) 86%, #000) !important;
+        color: #fff !important;
+      }
+      .cost-sheet-a4-wrap {
+        flex: 1;
+        overflow: auto;
+        background: #f3f4f6;
+        padding: 18px;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+      }
+      .cost-sheet-a4 {
+        width: 210mm;
+        min-height: 297mm;
+        background: #fff;
+        color: #111827;
+        padding: 10mm 12mm 11mm;
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+        font-family: Arial, Helvetica, sans-serif;
+        box-sizing: border-box;
+      }
+      .cost-sheet-a4 *,
+      .cost-sheet-a4 table,
+      .cost-sheet-a4 td,
+      .cost-sheet-a4 th {
+        text-overflow: clip;
+      }
+      .cost-sheet-letterhead {
+        display: grid;
+        grid-template-columns: 1fr 28mm;
+        align-items: start;
+        gap: 8mm;
+        border-top: 2px solid #4b5563;
+        padding-top: 2.5mm;
+        margin-bottom: 0.6mm;
+      }
+      .cost-sheet-company {
+        min-width: 0;
+      }
+      .cost-sheet-org {
+        font-size: 10.5pt;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+      }
+      .cost-sheet-address {
+        font-size: 7.6pt;
+        line-height: 1.35;
+        color: #374151;
+        margin-top: 1.2mm;
+      }
+      .cost-sheet-logo-wrap {
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+      }
+      .cost-sheet-logo {
+        max-width: 22mm;
+        max-height: 22mm;
+        object-fit: contain;
+      }
+      .cost-sheet-title {
+        margin: 5mm 0 0;
+        font-size: 16pt;
+        line-height: 1.1;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+      }
+      .cost-sheet-hierarchy-line {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 2.4mm;
+        align-items: center;
+        font-size: 7.4pt;
+        line-height: 1.25;
+        margin: 0.4mm 0 1.4mm;
+        white-space: nowrap;
+      }
+      .cost-sheet-hierarchy-line span {
+        min-width: 0;
+      }
+      .cost-sheet-hierarchy-line .cs-sep {
+        color: #6b7280;
+        flex-shrink: 0;
+      }
+      .cost-sheet-meta-line {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2mm;
+      }
+      .cost-sheet-date-line {
+        font-size: 8.2pt;
+        font-weight: 700;
+        margin: 2.5mm 0 1.5mm;
+      }
+      .cost-sheet-section-title {
+        border-top: 1px solid #333;
+        border-bottom: 1px solid #333;
+        padding: 1mm 0;
+        margin-top: 2.4mm;
+        font-size: 9.5pt;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .cost-sheet-section-desc {
+        font-size: 7.4pt;
+        font-style: italic;
+        color: #374151;
+        margin: 1mm 0 1.3mm;
+      }
+      .cost-sheet-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+        font-size: 7.7pt;
+        margin-bottom: 2mm;
+      }
+      .cost-sheet-table th,
+      .cost-sheet-table td {
+        border: 1px solid #555;
+        padding: 1.45mm 1.25mm;
+        vertical-align: middle;
+      }
+      .cost-sheet-table th {
+        background: #f3f4f6;
+        font-weight: 700;
+        text-align: center;
+      }
+      .cost-sheet-table th:first-child,
+      .cost-sheet-table td:first-child {
+        width: 38%;
+        text-align: left;
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+      }
+      .cost-sheet-table td:not(:first-child) {
+        text-align: right;
+        white-space: nowrap;
+      }
+      .cost-sheet-table thead th {
+        position: static !important;
+        top: auto !important;
+      }
+      .cost-sheet-row-strong td {
+        font-weight: 600;
+      }
+      .cost-sheet-row-strong td:first-child {
+        font-weight: 650;
+      }
+      .cost-sheet-row-sub td:first-child {
+        padding-left: 7mm;
+      }
+      .cost-sheet-line-label {
+        display: block;
+        font-weight: 500;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: normal;
+      }
+      .cost-sheet-line-calc {
+        display: block;
+        margin-top: 0.5mm;
+        font-size: 6.1pt;
+        line-height: 1.18;
+        color: #4b5563;
+        font-style: italic;
+        font-weight: 400;
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        overflow-wrap: anywhere;
+        word-break: normal;
+      }
+      .cost-sheet-text-cell {
+        text-align: right !important;
+        white-space: normal !important;
+        overflow-wrap: anywhere;
+      }
+      .cost-sheet-status-note {
+        margin-top: 2.2mm;
+        padding-top: 1.3mm;
+        border-top: 1px solid #9ca3af;
+        font-size: 6.8pt;
+        line-height: 1.35;
+        color: #374151;
+      }
+      .cost-sheet-signatures {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14mm;
+        margin-top: 8mm;
+        padding-top: 3mm;
+        border-top: 1px solid #555;
+        font-size: 7.1pt;
+      }
+      .cost-sheet-sig-title {
+        font-weight: 500;
+        margin-bottom: 11mm;
+      }
+      .cost-sheet-sig-role {
+        font-weight: 600;
+        margin-bottom: 1mm;
+      }
+      .cost-sheet-sig-org {
+        font-size: 6.7pt;
+        line-height: 1.25;
+      }
+      .cost-sheet-bottom-line {
+        margin-top: 4mm;
+        border-bottom: 1px solid #333;
+      }
+      .cost-sheet-export-footer {
+        margin-top: 4mm;
+        padding-top: 1.5mm;
+        border-top: 1px solid #9ca3af;
+        font-size: 6.6pt;
+        color: #4b5563;
+      }
+      .cost-sheet-sign-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 1300;
+        background: rgba(15, 23, 42, 0.38);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 14px;
+      }
+      .cost-sheet-sign-modal.hidden {
+        display: none;
+      }
+      .cost-sheet-sign-panel {
+        width: min(620px, 100%);
+        background: var(--panel-bg, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 10px;
+        box-shadow: 0 22px 60px rgba(0, 0, 0, 0.24);
+        overflow: hidden;
+      }
+      .cost-sheet-sign-header,
+      .cost-sheet-sign-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+      }
+      .cost-sheet-sign-actions {
+        border-bottom: none;
+        border-top: 1px solid var(--border, #e5e7eb);
+        justify-content: flex-end;
+      }
+      .cost-sheet-sign-body {
+        padding: 12px;
+      }
+      .sign-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px 12px;
+      }
+      .sign-grid label {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted, #6b7280);
+      }
+      .sign-grid input {
+        padding: 8px 9px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 7px;
+        font-size: 13px;
+        color: var(--text, #111827);
+        background: var(--surface, #fff);
+      }
+      @media (max-width: 620px) {
+        .sign-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .cp-workbench-summary {
+        display: none;
+        margin: 0 0 8px;
+        padding: 8px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: linear-gradient(
+          135deg,
+          rgba(37, 99, 235, 0.04),
+          rgba(37, 99, 235, 0.015)
+        );
+      }
+      .cp-workbench-summary.is-visible {
+        display: block;
+      }
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.42);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 18px;
+      }
+      .modal-overlay.hidden {
+        display: none;
+      }
+      .modal-window {
+        width: min(1120px, calc(100vw - 28px));
+        max-height: min(86vh, 860px);
+        display: flex;
+        flex-direction: column;
+        background: var(--panel-bg, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        box-shadow: 0 22px 60px rgba(0, 0, 0, 0.22);
+        overflow: hidden;
+      }
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: flex-start;
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+      }
+      .modal-close-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+        background: var(--surface, #fff);
+        color: inherit;
+        cursor: pointer;
+      }
+      .modal-window .tabs {
+        display: flex;
+        gap: 6px;
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+        overflow-x: auto;
+      }
+      .modal-window .tab {
+        padding: 7px 12px;
+        border-radius: 7px;
+        border: 1px solid var(--border, #e5e7eb);
+        color: var(--muted, #6b7280);
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .modal-window .tab.active {
+        background: var(--primary, #2563eb);
+        color: #fff;
+        border-color: var(--primary, #2563eb);
+      }
+      .modal-content {
+        padding: 12px;
+        overflow: auto;
+        font-size: 13px;
+        line-height: 1.45;
+      }
+      .modal-content .cp-card-label,
+      .modal-content .cp-kv dt {
+        font-size: 10.5px;
+      }
+      .modal-content .cp-card-value {
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .modal-content .cp-kv dd,
+      .modal-content .cp-table-wrap td {
+        font-size: 12.5px;
+        font-weight: 400;
+      }
+      .modal-content .cp-table-wrap th {
+        font-size: 11.5px;
+      }
+      .modal-content .cp-printable-table strong {
+        font-weight: 600;
+      }
+      .modal-content .cp-printable-section-row td {
+        font-weight: 700;
+      }
+      .peq-modal-subtitle {
+        color: var(--muted, #6b7280);
+        font-size: 12.5px;
+        margin-top: 2px;
+      }
+      #peqToastContainer {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-end;
+        pointer-events: none;
+      }
+      .peq-toast {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        font-size: 13px;
+        font-weight: 500;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+        pointer-events: auto;
+        animation: peq-toast-in 0.2s ease forwards;
+        max-width: 320px;
+        line-height: 1.4;
+      }
+      .peq-toast.toast-success {
+        background: #f0fdf4;
+        border-color: #86efac;
+        color: #166534;
+      }
+      .peq-toast.toast-info {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+        color: #1e40af;
+      }
+      .peq-toast.toast-error {
+        background: #fef2f2;
+        border-color: #fca5a5;
+        color: #991b1b;
+      }
+      .peq-toast.toast-fade-out {
+        animation: peq-toast-out 0.3s ease forwards;
+      }
+      @keyframes peq-toast-in {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes peq-toast-out {
+        to {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+      }
+      @media (max-width: 760px) {
+        .page-header {
+          flex-direction: column;
+        }
+        .page-header > div:last-child {
+          width: 100%;
+          justify-content: flex-end;
+        }
+        .modal-overlay {
+          padding: 8px;
+          align-items: stretch;
+        }
+        .modal-window {
+          width: 100%;
+          max-height: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      class="header-card"
+      style="
+        padding: 12px;
+        background: transparent;
+        border: none;
+        border-radius: 0;
+      "
+    >
+      <div class="page-header">
+        <div>
+          <h1>Costing &amp; Pricing</h1>
+          <div class="page-sub" id="subtitle">
+            SKU-level costing, selling price bridge, scheme viability, and
+            costing review workbench
+          </div>
+          <div class="toolbar"></div>
+        </div>
+        <div style="display: flex; align-items: stretch; gap: 8px">
+          <button
+            id="refreshBtn"
+            type="button"
+            title="Refresh View"
+            aria-label="Refresh View"
+            class="icon-btn"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <polyline points="1 20 1 14 7 14"></polyline>
+              <path d="M3.51 9a9 9 0 0114.13-3.36L23 10"></path>
+              <path d="M20.49 15a9 9 0 01-14.13 3.36L1 14"></path>
+            </svg>
+          </button>
+          <button
+            id="snapshotRefreshBtn"
+            type="button"
+            title="Refresh Monthly Snapshot"
+            aria-label="Refresh Monthly Snapshot"
+            class="icon-btn"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M8 2v4"></path>
+              <path d="M16 2v4"></path>
+              <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+              <path d="M3 10h18"></path>
+            </svg>
+          </button>
+          <button
+            id="exportCsv"
+            type="button"
+            title="Export CSV"
+            aria-label="Export CSV"
+            class="icon-btn"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+          </button>
+          <div
+            id="lastRefreshed"
+            class="sc-snapshot"
+            tabindex="0"
+            role="button"
+            aria-haspopup="true"
+            aria-expanded="false"
+          >
+            <span class="sc-snapshot-dot" aria-hidden="true"></span>
+            <span class="sc-snapshot-label">Not loaded</span>
+            <div id="sc-status-detail" style="display: none">
+              Last refreshed: --
+            </div>
+          </div>
+          <button id="homeBtn" type="button" title="Home" aria-label="Home">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9,22 9,12 15,12 15,22" />
+            </svg>
+            <span class="home-label">HOME</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top: 8px; overflow: hidden">
+      <div class="kpi-strip" id="kpiStrip"></div>
+    </div>
+
+    <div
+      class="card search-card"
+      style="
+        margin-top: 8px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        background: var(--panel-bg);
+        border: 1px solid var(--border);
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+      "
+    >
+      <div id="peqFilterWrapper" style="position: relative; flex-shrink: 0">
+        <button
+          id="peqFilterBtn"
+          type="button"
+          class="peq-filter-btn"
+          title="Filters"
+          aria-label="Filters"
+          aria-haspopup="true"
+        >
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+          </svg>
+          <span class="peq-filter-badge" style="display: none"></span>
+        </button>
+        <div
+          id="peqFilterDrawer"
+          class="peq-filter-drawer"
+          role="dialog"
+          aria-label="Costing filters"
+        >
+          <div class="peq-filter-section">
+            <div class="peq-filter-section-title">Costing Status</div>
+            <ul class="peq-filter-checklist">
+              <li>
+                <label
+                  ><input
+                    type="checkbox"
+                    data-filter-group="status"
+                    value="BLOCKED"
+                  />
+                  BLOCKED</label
+                >
+              </li>
+              <li>
+                <label
+                  ><input
+                    type="checkbox"
+                    data-filter-group="status"
+                    value="REVIEW_REQUIRED"
+                  />
+                  REVIEW_REQUIRED</label
+                >
+              </li>
+              <li>
+                <label
+                  ><input
+                    type="checkbox"
+                    data-filter-group="status"
+                    value="READY"
+                  />
+                  READY</label
+                >
+              </li>
+            </ul>
+          </div>
+          <div class="peq-filter-section">
+            <div class="peq-filter-section-title">Issue Type</div>
+            <ul class="peq-filter-checklist">
+              <li>
+                <label
+                  ><input
+                    type="checkbox"
+                    data-filter-group="issue"
+                    value="MISSING_REQUIRED_PM_RATE"
+                  />
+                  Missing required PM rate</label
+                >
+              </li>
+              <li>
+                <label
+                  ><input
+                    type="checkbox"
+                    data-filter-group="issue"
+                    value="MISSING_REQUIRED_RM_RATE"
+                  />
+                  Missing required RM rate</label
+                >
+              </li>
+              <li>
+                <label
+                  ><input
+                    type="checkbox"
+                    data-filter-group="issue"
+                    value="PM_STOCK_VALUATION_FALLBACK"
+                  />
+                  PM stock valuation fallback</label
+                >
+              </li>
+              <li>
+                <label
+                  ><input
+                    type="checkbox"
+                    data-filter-group="issue"
+                    value="RM_STOCK_VALUATION_FALLBACK"
+                  />
+                  RM stock valuation fallback</label
+                >
+              </li>
+              <li>
+                <label
+                  ><input
+                    type="checkbox"
+                    data-filter-group="issue"
+                    value="STALE_RM_PURCHASE_RATE"
+                  />
+                  Stale RM purchase rate</label
+                >
+              </li>
+              <li>
+                <label
+                  ><input
+                    type="checkbox"
+                    data-filter-group="issue"
+                    value="OPTIONAL_PM_RATE_MISSING"
+                  />
+                  Optional PM rate missing</label
+                >
+              </li>
+            </ul>
+          </div>
+          <div class="peq-filter-section">
+            <div class="peq-filter-section-title">Source</div>
+            <ul class="peq-filter-checklist">
+              <li>
+                <label
+                  ><input
+                    type="checkbox"
+                    data-filter-group="source"
+                    value="RM_BOM"
+                  />
+                  RM_BOM</label
+                >
+              </li>
+              <li>
+                <label
+                  ><input
+                    type="checkbox"
+                    data-filter-group="source"
+                    value="PM_BOM"
+                  />
+                  PM_BOM</label
+                >
+              </li>
+              <li>
+                <label
+                  ><input
+                    type="checkbox"
+                    data-filter-group="source"
+                    value="PM_SKU_OVERRIDE"
+                  />
+                  PM_SKU_OVERRIDE</label
+                >
+              </li>
+            </ul>
+            <div class="peq-filter-summary">No filters applied</div>
+          </div>
+          <div class="peq-filter-actions">
+            <button
+              id="peqFilterSelectAll"
+              type="button"
+              class="peq-filter-action-btn"
+            >
+              Select all
+            </button>
+            <button
+              id="peqFilterClear"
+              type="button"
+              class="peq-filter-action-btn"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="filter-item search">
+        <input
+          type="text"
+          id="search"
+          placeholder="Search product, SKU, ID, or material issue item"
+          title="Search product, SKU, ID, or material issue item"
+          aria-label="Search costing rows"
+        />
+        <button
+          id="searchClear"
+          type="button"
+          class="input-clear-btn"
+          title="Clear search"
+          aria-label="Clear search"
+          style="display: none"
+        >
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+            <line
+              x1="18"
+              y1="6"
+              x2="6"
+              y2="18"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            ></line>
+            <line
+              x1="6"
+              y1="6"
+              x2="18"
+              y2="18"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            ></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div
+      class="card tabs-card"
+      style="
+        margin-top: 6px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        background: var(--panel-bg);
+        border: 1px solid var(--border);
+      "
+    >
+      <div class="tab-select-wrap">
+        <select
+          id="lensSelect"
+          class="tab-select"
+          aria-label="Select lens"
+        ></select>
+        <svg
+          class="tab-select-icon"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <polyline
+            points="6 9 12 15 18 9"
+            stroke="currentColor"
+            stroke-width="2"
+            fill="none"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </div>
+      <div class="lens-pills" id="lensPills"></div>
+    </div>
+
+    <div class="main" style="margin-top: 8px">
+      <div class="table-card">
+        <div id="workbenchSummary" class="cp-workbench-summary"></div>
+        <div id="statusArea" class="status">Loading...</div>
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+          "
+        >
+          <span
+            id="peqRowCount"
+            class="peq-row-count"
+            style="display: none; margin-left: 8px"
+          ></span>
+          <div
+            class="pagination"
+            style="
+              margin-left: auto;
+              display: inline-flex;
+              align-items: center;
+              gap: 8px;
+              background: transparent;
+              border: none;
+              padding: 0;
+            "
+          >
+            <button
+              id="prevPage"
+              class="sc-btn"
+              type="button"
+              disabled
+              title="Previous page"
+              aria-label="Previous page"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <path d="M15 6l-6 6 6 6" />
+              </svg>
+            </button>
+            <span id="peqPage" style="display: inline-flex; align-items: center"
+              >Page 1/1</span
+            >
+            <button
+              id="nextPage"
+              class="sc-btn"
+              type="button"
+              disabled
+              title="Next page"
+              aria-label="Next page"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <path d="M9 6l6 6-6 6" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div id="tableWrap">
+          <table id="mainTable" class="costing-pricing-table">
+            <thead id="tableHead"></thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+        <div
+          id="costingLoadingMask"
+          class="cp-loading-mask hidden"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <div class="cp-loading-panel">
+            <span class="cp-loading-spinner" aria-hidden="true"></span>
+            <span id="costingLoadingText">Loading...</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-overlay hidden" id="detailsModal" aria-hidden="true">
+        <div class="modal-window">
+          <div class="modal-header">
+            <div>
+              <strong id="drawerTitle">Details</strong>
+              <div class="peq-modal-subtitle" id="drawerSubtitle"></div>
+            </div>
+            <button
+              id="drawerClose"
+              class="modal-close-btn"
+              title="Close"
+              aria-label="Close"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+          <div class="tabs" id="drawerTabs"></div>
+          <div id="drawerContent" class="modal-content">
+            Select a row to view details.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="costSheetModal" class="cost-sheet-modal hidden" aria-hidden="true">
+      <div class="cost-sheet-modal-panel">
+        <div class="cost-sheet-modal-toolbar">
+          <div>
+            <strong id="costSheetModalTitle">Cost Sheet</strong>
+            <div
+              id="costSheetModalSubtitle"
+              class="cost-sheet-modal-subtitle"
+            ></div>
+          </div>
+          <div class="cost-sheet-modal-actions">
+            <button
+              id="costSheetPdfBtn"
+              type="button"
+              class="icon-btn icon-btn-primary"
+              title="Download PDF"
+              aria-label="Download PDF"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+            </button>
+            <button
+              id="costSheetCloseBtn"
+              type="button"
+              class="icon-btn"
+              title="Close"
+              aria-label="Close"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M18 6 6 18"></path>
+                <path d="m6 6 12 12"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div id="costSheetA4Wrap" class="cost-sheet-a4-wrap">
+          <div id="costSheetA4" class="cost-sheet-a4"></div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="costSheetSignModal"
+      class="cost-sheet-sign-modal hidden"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel">
+        <div class="cost-sheet-sign-header">
+          <strong>Confirm Signatory Details</strong>
+          <button
+            id="costSheetSignCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Close"
+            aria-label="Close"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="cost-sheet-sign-body">
+          <div class="sign-grid">
+            <label
+              >Prepared By Role
+              <input id="csPreparedRole" type="text" />
+            </label>
+            <label
+              >Prepared By Organisation
+              <input id="csPreparedOrg" type="text" />
+            </label>
+            <label
+              >Verified By Role
+              <input id="csVerifiedRole" type="text" />
+            </label>
+            <label
+              >Verified By Organisation
+              <input id="csVerifiedOrg" type="text" />
+            </label>
+            <label
+              >Approved By Role
+              <input id="csApprovedRole" type="text" />
+            </label>
+            <label
+              >Approved By Organisation
+              <input id="csApprovedOrg" type="text" />
+            </label>
+          </div>
+        </div>
+        <div class="cost-sheet-sign-actions">
+          <button id="costSheetSignCancelBtn" type="button" class="icon-btn">
+            Cancel
+          </button>
+          <button
+            id="costSheetSignConfirmBtn"
+            type="button"
+            class="icon-btn icon-btn-primary"
+          >
+            Confirm &amp; Download PDF
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="snapshotConfirmModal"
+      class="cost-sheet-sign-modal hidden"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel">
+        <div class="cost-sheet-sign-header">
+          <strong>Confirm Monthly Snapshot Refresh</strong>
+          <button
+            id="snapshotConfirmCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Close"
+            aria-label="Close"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+
+        <div class="cost-sheet-sign-body">
+          <div class="cp-card" style="margin-bottom: 10px">
+            <div class="cp-card-label">Snapshot Period</div>
+            <div id="snapshotConfirmPeriod" class="cp-card-value">--</div>
+          </div>
+
+          <div class="status" style="padding: 0; color: var(--text, #111827)">
+            This will replace the monthly cost sheet snapshot for the selected period.
+          </div>
+
+          <div class="cp-muted-text" style="margin-top: 8px; line-height: 1.45">
+            Existing snapshot rows for this month will be deleted and recreated from
+            the current live cost sheet view. This will not affect live cost sheet
+            printing.
+          </div>
+        </div>
+
+        <div class="cost-sheet-sign-actions">
+          <button id="snapshotConfirmCancelBtn" type="button" class="icon-btn">
+            Cancel
+          </button>
+          <button
+            id="snapshotConfirmProceedBtn"
+            type="button"
+            class="icon-btn icon-btn-primary"
+          >
+            Refresh Monthly Snapshot
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="peqToastContainer"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <script type="module" src="js/costing-pricing.js"></script>
+  </body>
+</html>

@@ -141,6 +141,43 @@
         border-color: var(--btn-border);
       }
 
+      .icon-btn.audit-btn {
+        background: rgba(245, 158, 11, 0.16);
+        border-color: rgba(245, 158, 11, 0.42);
+        color: #b45309;
+      }
+      .icon-btn.audit-btn:hover {
+        background: rgba(245, 158, 11, 0.26);
+        border-color: rgba(245, 158, 11, 0.55);
+        color: #92400e;
+      }
+
+      #excessModalGrid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      #excessAcceptGrid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        align-items: start;
+      }
+
+      @media (max-width: 680px) {
+        #excessModalGrid,
+        #excessAcceptGrid {
+          grid-template-columns: 1fr !important;
+        }
+        .modal {
+          max-height: calc(100vh - 24px);
+        }
+        .modal .table-scroll,
+        .modal-body {
+          overflow: auto;
+        }
+      }
+
       .icon-btn:disabled {
         opacity: 0.45;
         cursor: not-allowed;
@@ -461,6 +498,19 @@
       .actions button:hover {
         opacity: 0.88;
       }
+      .actions button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      .actions button:disabled:hover {
+        opacity: 0.55;
+      }
+      .actions button:last-child:disabled,
+      .actions button:last-child:disabled:hover {
+        background: var(--primary, #005a8d);
+        color: #fff;
+        border-color: var(--primary, #005a8d);
+      }
 
       /* ── HOME label responsive ── */
       #homeBtn .home-label {
@@ -525,6 +575,20 @@
         border: 1px solid var(--border, #e5e7eb);
         background: transparent;
         cursor: pointer;
+      }
+      .excess-summary-grid .summary-item {
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        padding: 8px 10px;
+        background: rgba(0, 0, 0, 0.01);
+      }
+      .excess-summary-grid .summary-label {
+        font-size: 11px;
+        color: var(--muted, #6b7280);
+        margin-bottom: 4px;
+      }
+      .excess-summary-grid .summary-value {
+        font-size: 13px;
       }
 
       .split {
@@ -1149,6 +1213,26 @@
         color: var(--text-color, #111);
         box-sizing: border-box;
       }
+      .pec-filter-input {
+        width: 100%;
+        padding: 6px 8px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+        font-size: 13px;
+        background: var(--panel-bg, #fff);
+        color: var(--text-color, #111);
+        box-sizing: border-box;
+      }
+      .pec-filter-check {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: var(--text-color, #111);
+      }
+      .pec-filter-drawer.wide {
+        width: min(320px, calc(100vw - 16px));
+      }
       .pec-search-wrap {
         position: relative;
         flex: 1;
@@ -1259,6 +1343,9 @@
         }
         .pr-line-inline-input.reason {
           min-width: 140px;
+        }
+        .excess-summary-grid {
+          grid-template-columns: 1fr !important;
         }
       }
     </style>
@@ -2287,11 +2374,144 @@
                 </svg>
               </button>
             </div>
+            <div class="pec-filter-wrap">
+              <button
+                id="eFilterBtn"
+                class="pec-filter-btn"
+                type="button"
+                title="Filter excess purchases"
+                aria-label="Filter excess purchases"
+                aria-expanded="false"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <polygon
+                    points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"
+                  />
+                </svg>
+              </button>
+              <div
+                id="eFilterPanel"
+                class="pec-filter-drawer wide"
+                role="dialog"
+                aria-label="Excess purchase filters"
+              >
+                <div class="pec-filter-drawer-title">
+                  Filter excess purchases
+                </div>
+                <div class="pec-filter-section">
+                  <label class="pec-filter-label" for="eFMaterialClass"
+                    >Material class</label
+                  >
+                  <select id="eFMaterialClass" class="pec-filter-select">
+                    <option value="">All</option>
+                    <option value="RM">RM</option>
+                    <option value="PLM">PLM</option>
+                    <option value="IND">IND</option>
+                  </select>
+                </div>
+                <div class="pec-filter-section">
+                  <label class="pec-filter-label" for="eFDatePreset"
+                    >Date preset</label
+                  >
+                  <select id="eFDatePreset" class="pec-filter-select">
+                    <option value="7d">Last 7 days</option>
+                    <option value="30d" selected>Last 30 days</option>
+                    <option value="fy">Last 365 days</option>
+                    <option value="custom">Custom range</option>
+                  </select>
+                </div>
+                <div class="pec-filter-section">
+                  <label class="pec-filter-label" for="eFDateFrom">From</label>
+                  <input id="eFDateFrom" class="pec-filter-input" type="date" />
+                </div>
+                <div class="pec-filter-section">
+                  <label class="pec-filter-label" for="eFDateTo">To</label>
+                  <input id="eFDateTo" class="pec-filter-input" type="date" />
+                </div>
+                <div class="pec-filter-section">
+                  <label class="pec-filter-label" for="eFMinQty"
+                    >Min net excess qty</label
+                  >
+                  <input
+                    id="eFMinQty"
+                    class="pec-filter-input"
+                    type="number"
+                    min="0"
+                    step="any"
+                    value="0"
+                  />
+                </div>
+                <div class="pec-filter-section">
+                  <label class="pec-filter-label" for="eFVendorQ"
+                    >Vendor search</label
+                  >
+                  <input
+                    id="eFVendorQ"
+                    class="pec-filter-input"
+                    type="text"
+                    placeholder="Search vendor"
+                  />
+                </div>
+                <div class="pec-filter-section">
+                  <label class="pec-filter-label" for="eFItemQ"
+                    >Item search</label
+                  >
+                  <input
+                    id="eFItemQ"
+                    class="pec-filter-input"
+                    type="text"
+                    placeholder="Search item or code"
+                  />
+                </div>
+                <div class="pec-filter-section">
+                  <label class="pec-filter-check" for="eFUnmappedOnly">
+                    <input id="eFUnmappedOnly" type="checkbox" />
+                    <span>Unmapped vendor only</span>
+                  </label>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="card" style="margin-bottom: 12px">
             <div class="table-topbar">
               <h2 style="margin: 0">Excess Purchases</h2>
               <div class="pager-mini">
+                <button
+                  id="eAuditBtn"
+                  class="icon-btn audit-btn"
+                  type="button"
+                  title="Acceptance Audit"
+                  aria-label="Acceptance Audit"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <rect x="8" y="3" width="8" height="4" rx="1" />
+                    <path
+                      d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"
+                    />
+                    <line x1="8" y1="12" x2="16" y2="12" />
+                    <line x1="8" y1="16" x2="14" y2="16" />
+                  </svg>
+                </button>
                 <span class="muted" id="eMeta"></span>
                 <button
                   id="eBtnPrev"
@@ -2345,33 +2565,110 @@
                     <th>Unallocated</th>
                     <th>Accepted</th>
                     <th>Net Unalloc</th>
-                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody id="eTbody"></tbody>
               </table>
             </div>
           </div>
-          <div class="card">
-            <h2 style="margin: 0 0 10px">Acceptance Audit</h2>
-            <div class="table-scroll">
-              <table class="erp-table">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Item</th>
-                    <th>Accepted Qty</th>
-                    <th>Reason</th>
-                    <th>By</th>
-                  </tr>
-                </thead>
-                <tbody id="eAuditTbody"></tbody>
-              </table>
-            </div>
-          </div>
         </div>
       </div>
     </section>
+
+    <div
+      id="eAuditModalBackdrop"
+      class="modal-backdrop"
+      aria-hidden="true"
+      inert
+    >
+      <div class="modal modal-lg">
+        <div class="modal-header page-header">
+          <div>
+            <h3 style="margin: 0">Acceptance Audit</h3>
+            <div class="muted" id="eAuditMeta">—</div>
+          </div>
+          <button
+            class="modal-close-btn"
+            id="btnEAuditClose"
+            type="button"
+            title="Close"
+            aria-label="Close"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div class="pager-mini" style="justify-content: flex-end">
+            <span class="muted" id="eAuditPaging">Page 1/1</span>
+            <button
+              id="eAuditBtnPrev"
+              class="icon-btn ghost"
+              title="Previous page"
+              aria-label="Previous page"
+              disabled
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+            <button
+              id="eAuditBtnNext"
+              class="icon-btn ghost"
+              title="Next page"
+              aria-label="Next page"
+              disabled
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="table-scroll" style="max-height: 55vh">
+            <table class="erp-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Item</th>
+                  <th>Accepted Qty</th>
+                  <th>Reason</th>
+                  <th>By</th>
+                </tr>
+              </thead>
+              <tbody id="eAuditTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <div
       id="vwlBreakdownModalBackdrop"
@@ -3195,28 +3492,108 @@
       id="acceptExcessModalBackdrop"
       aria-hidden="true"
     >
-      <div class="modal" style="max-width: 480px">
-        <h3>Accept Excess</h3>
-        <div class="muted" id="acceptExcessItem"></div>
-        <div style="margin-top: 10px">
-          <label
-            >Accept Qty
-            <span class="muted"
-              >(max: <span id="acceptExcessMax"></span>)</span
-            ></label
+      <div class="modal" style="max-width: 640px">
+        <div class="modal-header page-header">
+          <div>
+            <h3 style="margin: 0">Excess Purchase</h3>
+            <div
+              class="muted"
+              id="excessModalSub"
+              style="font-size: 12px"
+            ></div>
+          </div>
+          <button
+            id="btnAcceptExcessClose"
+            class="modal-close-btn"
+            title="Close"
+            aria-label="Close"
           >
-          <input id="acceptExcessQty" type="number" min="0.001" step="any" />
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
-        <div style="margin-top: 10px">
-          <label>Reason (required)</label>
-          <textarea
-            id="acceptExcessReason"
-            placeholder="Reason for accepting excess…"
-          ></textarea>
-        </div>
-        <div class="actions">
-          <button id="btnAcceptExcessCancel">Cancel</button>
-          <button id="btnAcceptExcessSave">Accept</button>
+        <div class="modal-body">
+          <div
+            id="excessModalGrid"
+            class="grid excess-summary-grid"
+            style="margin-bottom: 12px"
+          >
+            <div class="summary-item">
+              <div class="summary-label">Item</div>
+              <div class="summary-value" id="excessItemValue">—</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-label">Item Code</div>
+              <div class="summary-value" id="excessItemCodeValue">—</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-label">UOM</div>
+              <div class="summary-value" id="excessUomValue">—</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-label">Purchase Qty</div>
+              <div class="summary-value" id="excessPurchaseQtyValue">—</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-label">Allocated Qty</div>
+              <div class="summary-value" id="excessAllocatedQtyValue">—</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-label">Net Unallocated Qty</div>
+              <div class="summary-value" id="excessNetUnallocValue">—</div>
+            </div>
+          </div>
+
+          <div>
+            <h4 style="margin: 0 0 8px">Accept Excess</h4>
+            <div id="excessAcceptGrid" class="grid">
+              <div>
+                <label
+                  >Accept Qty
+                  <span class="muted"
+                    >(max: <span id="excessAcceptMax"></span>)</span
+                  ></label
+                >
+                <input
+                  id="excessAcceptQty"
+                  type="number"
+                  min="0.001"
+                  step="any"
+                />
+              </div>
+              <div>
+                <label>Reason (required, min 10 chars)</label>
+                <textarea
+                  id="excessAcceptReason"
+                  placeholder="Reason for accepting excess…"
+                ></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button id="btnAcceptExcessCancel" class="secondary" type="button">
+              Cancel
+            </button>
+            <button
+              id="btnExcessAccept"
+              class="btn primary"
+              type="button"
+              disabled
+            >
+              <span class="btn-label">Accept Excess</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

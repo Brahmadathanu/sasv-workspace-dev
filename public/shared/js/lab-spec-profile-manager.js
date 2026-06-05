@@ -6,7 +6,7 @@
  * PM: inventory-group base specs, stock-item overrides, effective preview
  */
 
-import { labSupabase } from "./supabaseClient.js";
+import { supabase, labSupabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
@@ -48,6 +48,9 @@ const bsBanner = document.getElementById("bsBanner");
 const bsTableCard = document.getElementById("bsTableCard");
 const bsTableBody = document.getElementById("bsTableBody");
 const bsLineCount = document.getElementById("bsLineCount");
+const bsPendingFamilyBtn = document.getElementById("bsPendingFamilyBtn");
+const rmPendingFamilyBtn = document.getElementById("rmPendingFamilyBtn");
+const pmPendingFamilyBtn = document.getElementById("pmPendingFamilyBtn");
 const bsSaveSpecBtn = document.getElementById("bsSaveSpecBtn");
 const rmGenerateSpecBtn = document.getElementById("rmGenerateSpecBtn");
 const rmRebuildSpecBtn = document.getElementById("rmRebuildSpecBtn");
@@ -76,6 +79,7 @@ const ovBanner = document.getElementById("ovBanner");
 const ovTableCard = document.getElementById("ovTableCard");
 const ovTableBody = document.getElementById("ovTableBody");
 const ovLineCount = document.getElementById("ovLineCount");
+const ovPendingProductBtn = document.getElementById("ovPendingProductBtn");
 // RM Overrides
 const ovRmItemSelect = document.getElementById("ovRmItemSelect");
 const ovRmContextStrip = document.getElementById("ovRmContextStrip");
@@ -85,6 +89,7 @@ const ovRmBanner = document.getElementById("ovRmBanner");
 const ovRmTableCard = document.getElementById("ovRmTableCard");
 const ovRmTableBody = document.getElementById("ovRmTableBody");
 const ovRmLineCount = document.getElementById("ovRmLineCount");
+const ovRmPendingProductBtn = document.getElementById("ovRmPendingProductBtn");
 
 // EFFECTIVE PREVIEW tab
 const epFgCard = document.getElementById("epFgCard");
@@ -119,6 +124,32 @@ const ovPmBanner = document.getElementById("ovPmBanner");
 const ovPmTableCard = document.getElementById("ovPmTableCard");
 const ovPmTableBody = document.getElementById("ovPmTableBody");
 const ovPmLineCount = document.getElementById("ovPmLineCount");
+const ovPmPendingProductBtn = document.getElementById("ovPmPendingProductBtn");
+
+const specRequestReviewModal = document.getElementById(
+  "specRequestReviewModal",
+);
+const specRequestReviewTitle = document.getElementById(
+  "specRequestReviewTitle",
+);
+const specRequestReviewContext = document.getElementById(
+  "specRequestReviewContext",
+);
+const specRequestReviewClose = document.getElementById(
+  "specRequestReviewClose",
+);
+const specRequestReviewList = document.getElementById("specRequestReviewList");
+const specRequestReviewDetail = document.getElementById(
+  "specRequestReviewDetail",
+);
+const specRequestReviewRemarks = document.getElementById(
+  "specRequestReviewRemarks",
+);
+const specRequestReviewCancel = document.getElementById(
+  "specRequestReviewCancel",
+);
+const specRequestRejectBtn = document.getElementById("specRequestRejectBtn");
+const specRequestApproveBtn = document.getElementById("specRequestApproveBtn");
 // PM Effective Preview
 const epPmCard = document.getElementById("epPmCard");
 const epPmItemSelect = document.getElementById("epPmItemSelect");
@@ -175,6 +206,10 @@ let ovPmItemId = null;
 // Override base spec tracking (populated by each override context loader)
 let ovBaseSpecProfileId = null; // numeric profile id or null
 let ovBaseTestIds = new Set(); // Set of test_id numbers in the active base spec
+let pendingSpecRequests = [];
+let activePendingReviewRequests = [];
+let selectedPendingReviewRequestId = null;
+let selectedPendingReviewScope = null;
 
 // FG product picker cache (used by searchable combobox in OV + EP tabs)
 let fgProductPickerRows = [];
@@ -203,6 +238,7 @@ async function init() {
   wireFgProductSearchComboboxes();
   wireProductGroupSearchCombobox();
   wireBsLineModal();
+  wirePendingSpecRequestReviewModal();
   bsSaveSpecBtn.addEventListener("click", bsSaveSpec);
 }
 
@@ -476,6 +512,738 @@ function switchTab(tabId, forceRefresh = false) {
       loadPmItems(epPmItemSelect);
     }
   }
+
+  void refreshPendingSpecRequestIndicators({ reload: true });
+}
+
+function wirePendingSpecRequestReviewModal() {
+  bsPendingFamilyBtn?.addEventListener("click", () =>
+    openSpecRequestReviewModal("FAMILY"),
+  );
+  rmPendingFamilyBtn?.addEventListener("click", () =>
+    openSpecRequestReviewModal("FAMILY"),
+  );
+  pmPendingFamilyBtn?.addEventListener("click", () =>
+    openSpecRequestReviewModal("FAMILY"),
+  );
+  ovPendingProductBtn?.addEventListener("click", () =>
+    openSpecRequestReviewModal("PRODUCT"),
+  );
+  ovRmPendingProductBtn?.addEventListener("click", () =>
+    openSpecRequestReviewModal("PRODUCT"),
+  );
+  ovPmPendingProductBtn?.addEventListener("click", () =>
+    openSpecRequestReviewModal("PRODUCT"),
+  );
+
+  specRequestReviewClose?.addEventListener(
+    "click",
+    closeSpecRequestReviewModal,
+  );
+  specRequestReviewCancel?.addEventListener(
+    "click",
+    closeSpecRequestReviewModal,
+  );
+  specRequestReviewModal?.addEventListener("click", (e) => {
+    if (e.target === specRequestReviewModal) closeSpecRequestReviewModal();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (
+      !specRequestReviewModal ||
+      specRequestReviewModal.classList.contains("hidden")
+    )
+      return;
+    e.preventDefault();
+    closeSpecRequestReviewModal();
+  });
+
+  specRequestApproveBtn?.addEventListener("click", () =>
+    submitSpecRequestReview("approve"),
+  );
+  specRequestRejectBtn?.addEventListener("click", () =>
+    submitSpecRequestReview("reject"),
+  );
+}
+
+async function loadPendingSpecChangeRequests() {
+  if (!currentSubjectType) {
+    pendingSpecRequests = [];
+    return pendingSpecRequests;
+  }
+
+  const { data, error } = await labSupabase
+    .schema("lab")
+    .from("v_pending_spec_change_requests")
+    .select("*")
+    .eq("subject_type", currentSubjectType)
+    .order("requested_at", { ascending: false });
+
+  if (error) {
+    toast(
+      "Failed to load pending specification requests: " + error.message,
+      "error",
+    );
+    pendingSpecRequests = [];
+    return pendingSpecRequests;
+  }
+
+  pendingSpecRequests = data ?? [];
+  return pendingSpecRequests;
+}
+
+async function refreshPendingSpecRequestIndicators({ reload = false } = {}) {
+  if (reload) {
+    await loadPendingSpecChangeRequests();
+  }
+  refreshPendingRequestButtons();
+}
+
+function refreshPendingRequestButtons() {
+  const allButtons = [
+    bsPendingFamilyBtn,
+    rmPendingFamilyBtn,
+    pmPendingFamilyBtn,
+    ovPendingProductBtn,
+    ovRmPendingProductBtn,
+    ovPmPendingProductBtn,
+  ];
+  allButtons.forEach((btn) => {
+    if (!btn) return;
+    btn.classList.add("hidden");
+  });
+
+  if (!currentSubjectType) return;
+
+  if (currentTab === "baseSpec") {
+    setPendingRequestButton(
+      getFamilyPendingButtonForSubject(),
+      "Pending Family Requests",
+      getCurrentFamilyPendingRequests().length,
+    );
+  }
+
+  if (currentTab === "overrides") {
+    setPendingRequestButton(
+      getProductPendingButtonForSubject(),
+      "Pending Product Requests",
+      getCurrentProductPendingRequests().length,
+    );
+  }
+}
+
+function setPendingRequestButton(button, label, count) {
+  if (!button) return;
+  if (!count) {
+    button.classList.add("hidden");
+    button.textContent = label;
+    return;
+  }
+  button.textContent = `${label} (${count})`;
+  button.classList.remove("hidden");
+}
+
+function getFamilyPendingButtonForSubject() {
+  if (currentSubjectType === "FG") return bsPendingFamilyBtn;
+  if (currentSubjectType === "RM") return rmPendingFamilyBtn;
+  if (currentSubjectType === "PM") return pmPendingFamilyBtn;
+  return null;
+}
+
+function getProductPendingButtonForSubject() {
+  if (currentSubjectType === "FG") return ovPendingProductBtn;
+  if (currentSubjectType === "RM") return ovRmPendingProductBtn;
+  if (currentSubjectType === "PM") return ovPmPendingProductBtn;
+  return null;
+}
+
+function getCurrentFamilyPendingRequests() {
+  const familyId =
+    currentSubjectType === "FG"
+      ? bsCurrentGroupId
+      : currentSubjectType === "RM"
+        ? rmCurrentGroupId
+        : pmCurrentGroupId;
+  if (!familyId) return [];
+
+  return pendingSpecRequests.filter((request) => {
+    if (normalizePendingRequestScope(request.request_scope) !== "FAMILY") {
+      return false;
+    }
+    if (currentSubjectType === "FG") {
+      return isSameRequestId(request.product_group_id, familyId);
+    }
+    if (currentSubjectType === "RM") {
+      return isSameRequestId(request.inv_group_id, familyId);
+    }
+    if (currentSubjectType === "PM") {
+      return isSameRequestId(request.subcategory_id, familyId);
+    }
+    return false;
+  });
+}
+
+function getCurrentProductPendingRequests() {
+  const entityId =
+    currentSubjectType === "FG"
+      ? ovFgProductId
+      : currentSubjectType === "RM"
+        ? ovRmItemId
+        : ovPmItemId;
+  if (!entityId) return [];
+
+  return pendingSpecRequests.filter((request) => {
+    if (normalizePendingRequestScope(request.request_scope) !== "PRODUCT") {
+      return false;
+    }
+    if (currentSubjectType === "FG") {
+      return isSameRequestId(request.product_id, entityId);
+    }
+    return isSameRequestId(request.stock_item_id, entityId);
+  });
+}
+
+function normalizePendingRequestScope(value) {
+  return String(value ?? "")
+    .trim()
+    .toUpperCase();
+}
+
+function isSameRequestId(left, right) {
+  if (left == null || left === "" || right == null || right === "")
+    return false;
+  return String(left) === String(right);
+}
+
+function pickPendingRequestValue(request, keys, fallback = "") {
+  for (const key of keys) {
+    const value = request?.[key];
+    if (value != null && value !== "") return value;
+  }
+  return fallback;
+}
+
+function getSnapshotValue(request, snapshotKey, valueKey, fallback = "—") {
+  const snapshot = request?.[snapshotKey];
+  if (snapshot && typeof snapshot === "object") {
+    const value = snapshot[valueKey];
+    if (value !== null && value !== undefined && value !== "") return value;
+  }
+  return fallback;
+}
+
+function getPendingRequestId(request) {
+  return pickPendingRequestValue(request, ["request_id", "id"], "");
+}
+
+function getPendingRequestRequestedBy(request) {
+  return pickPendingRequestValue(
+    request,
+    [
+      "requested_by_name",
+      "requested_by_display_name",
+      "requested_by",
+      "requested_by_email",
+    ],
+    "—",
+  );
+}
+
+function getPendingRequestSourceAnalysisNo(request) {
+  return pickPendingRequestValue(
+    request,
+    [
+      "source_analysis_register_no",
+      "analysis_register_no",
+      "register_no",
+      "source_register_no",
+    ],
+    "—",
+  );
+}
+
+function getPendingRequestSubjectLabel(request) {
+  const familyLabel = pickPendingRequestValue(
+    request,
+    [
+      "family_label",
+      "product_group_name",
+      "inv_group_label",
+      "subcategory_label",
+    ],
+    "",
+  );
+  const productLabel = pickPendingRequestValue(
+    request,
+    ["product_name", "stock_item_name", "item_name"],
+    "",
+  );
+  if (normalizePendingRequestScope(request.request_scope) === "FAMILY") {
+    return familyLabel || "—";
+  }
+  if (productLabel && familyLabel) {
+    return `${productLabel} · ${familyLabel}`;
+  }
+  return productLabel || familyLabel || "—";
+}
+
+function getPendingRequestCurrentReference(request) {
+  const snapshotDisplay = getSnapshotValue(
+    request,
+    "current_reference_snapshot",
+    "display_text",
+    "",
+  );
+  if (snapshotDisplay) return snapshotDisplay;
+  return pickPendingRequestValue(
+    request,
+    [
+      "current_reference",
+      "current_display_text",
+      "current_reference_display_text",
+      "existing_display_text",
+    ],
+    "—",
+  );
+}
+
+function getPendingRequestProposedReference(request) {
+  const snapshotDisplay = getSnapshotValue(
+    request,
+    "proposed_reference_snapshot",
+    "display_text",
+    "",
+  );
+  if (snapshotDisplay) return snapshotDisplay;
+  return pickPendingRequestValue(
+    request,
+    [
+      "proposed_reference",
+      "proposed_display_text",
+      "proposed_reference_display_text",
+      "display_text",
+    ],
+    "—",
+  );
+}
+
+function getPendingRequestCurrentType(request) {
+  const snapshotType = getSnapshotValue(
+    request,
+    "current_reference_snapshot",
+    "spec_type",
+    "",
+  );
+  if (snapshotType) return snapshotType;
+  return pickPendingRequestValue(
+    request,
+    ["current_spec_type", "current_reference_spec_type", "existing_spec_type"],
+    "—",
+  );
+}
+
+function getPendingRequestProposedType(request) {
+  const snapshotType = getSnapshotValue(
+    request,
+    "proposed_reference_snapshot",
+    "spec_type",
+    "",
+  );
+  if (snapshotType) return snapshotType;
+  return pickPendingRequestValue(
+    request,
+    ["proposed_spec_type", "spec_type", "requested_spec_type"],
+    "—",
+  );
+}
+
+function getPendingRequestCurrentMethod(request) {
+  return getSnapshotValue(
+    request,
+    "current_reference_snapshot",
+    "method_name",
+    "—",
+  );
+}
+
+function getPendingRequestProposedMethod(request) {
+  return getSnapshotValue(
+    request,
+    "proposed_reference_snapshot",
+    "method_name",
+    "—",
+  );
+}
+
+function getPendingRequestCurrentUom(request) {
+  const symbol = getSnapshotValue(
+    request,
+    "current_reference_snapshot",
+    "uom_symbol",
+    "",
+  );
+  if (symbol) return symbol;
+  return getSnapshotValue(
+    request,
+    "current_reference_snapshot",
+    "uom_code",
+    "—",
+  );
+}
+
+function getPendingRequestProposedUom(request) {
+  const symbol = getSnapshotValue(
+    request,
+    "proposed_reference_snapshot",
+    "uom_symbol",
+    "",
+  );
+  if (symbol) return symbol;
+  return getSnapshotValue(
+    request,
+    "proposed_reference_snapshot",
+    "uom_code",
+    "—",
+  );
+}
+
+function getPendingRequestRemarks(request) {
+  return pickPendingRequestValue(
+    request,
+    ["remarks", "request_remarks", "proposal_remarks", "note"],
+    "—",
+  );
+}
+
+function getPendingRequestTestName(request) {
+  return pickPendingRequestValue(request, ["test_name", "test_label"], "—");
+}
+
+function getPendingRequestRequestedAt(request) {
+  const raw = pickPendingRequestValue(
+    request,
+    ["requested_at", "created_at"],
+    "",
+  );
+  return formatDateTime(raw);
+}
+
+function openSpecRequestReviewModal(scope) {
+  const requests =
+    scope === "FAMILY"
+      ? getCurrentFamilyPendingRequests()
+      : getCurrentProductPendingRequests();
+
+  if (!requests.length) {
+    toast(
+      scope === "FAMILY"
+        ? "No pending family requests for the current selection."
+        : "No pending product requests for the current selection.",
+      "warn",
+    );
+    return;
+  }
+
+  activePendingReviewRequests = requests;
+  selectedPendingReviewScope = scope;
+  selectedPendingReviewRequestId = getPendingRequestId(requests[0]);
+  if (specRequestReviewTitle) {
+    specRequestReviewTitle.textContent =
+      scope === "FAMILY"
+        ? "Pending Family Requests"
+        : "Pending Product Requests";
+  }
+  if (specRequestReviewContext) {
+    specRequestReviewContext.textContent = `${currentSubjectType} · ${getPendingReviewContextLabel(scope)}`;
+  }
+  if (specRequestReviewRemarks) {
+    specRequestReviewRemarks.value = "";
+  }
+  renderSpecRequestReviewModal();
+  specRequestReviewModal?.classList.remove("hidden");
+}
+
+function getPendingReviewContextLabel(scope) {
+  if (scope === "FAMILY") {
+    if (currentSubjectType === "FG")
+      return bsCurrentGroupName || "Selected family";
+    if (currentSubjectType === "RM")
+      return rmCurrentGroupLabel || "Selected family";
+    if (currentSubjectType === "PM")
+      return pmCurrentGroupLabel || "Selected family";
+  }
+  if (currentSubjectType === "FG") {
+    return (
+      ovProductSelect.options[ovProductSelect.selectedIndex]?.text ||
+      "Selected product"
+    );
+  }
+  if (currentSubjectType === "RM") {
+    return (
+      ovRmItemSelect.options[ovRmItemSelect.selectedIndex]?.text ||
+      "Selected stock item"
+    );
+  }
+  return (
+    ovPmItemSelect.options[ovPmItemSelect.selectedIndex]?.text ||
+    "Selected stock item"
+  );
+}
+
+function renderSpecRequestReviewModal() {
+  renderSpecRequestReviewList();
+  renderSpecRequestReviewDetail();
+  const hasSelection = !!getSelectedPendingReviewRequest();
+  if (specRequestApproveBtn) specRequestApproveBtn.disabled = !hasSelection;
+  if (specRequestRejectBtn) specRequestRejectBtn.disabled = !hasSelection;
+}
+
+function renderSpecRequestReviewList() {
+  if (!specRequestReviewList) return;
+  specRequestReviewList.innerHTML = activePendingReviewRequests
+    .map((request) => {
+      const requestId = String(getPendingRequestId(request));
+      const isActive = requestId === String(selectedPendingReviewRequestId);
+      const requestType = pickPendingRequestValue(
+        request,
+        ["request_type", "request_scope"],
+        "",
+      );
+      return `<button type="button" class="spec-request-item ${isActive ? "active" : ""}" data-request-id="${esc(requestId)}">
+        <div class="spec-request-item-title">#${esc(requestId)} · ${esc(getPendingRequestTestName(request))}${
+          requestType
+            ? ` <span class="spec-request-type-badge">${esc(String(requestType).toUpperCase())}</span>`
+            : ""
+        }</div>
+        <div class="spec-request-item-meta">${esc(getPendingRequestRequestedBy(request))}</div>
+        <div class="spec-request-item-meta">${esc(getPendingRequestRequestedAt(request))}</div>
+      </button>`;
+    })
+    .join("");
+
+  specRequestReviewList
+    .querySelectorAll(".spec-request-item")
+    .forEach((btn) => {
+      btn.addEventListener("click", () => {
+        selectedPendingReviewRequestId = btn.dataset.requestId;
+        renderSpecRequestReviewModal();
+      });
+    });
+}
+
+function renderSpecRequestReviewDetail() {
+  if (!specRequestReviewDetail) return;
+  const request = getSelectedPendingReviewRequest();
+  if (!request) {
+    specRequestReviewDetail.innerHTML = `<div class="spec-request-empty">Select a pending specification change request to review.</div>`;
+    return;
+  }
+
+  specRequestReviewDetail.innerHTML = `
+    <div class="spec-request-section-title">Reference Comparison</div>
+    <div class="spec-request-detail-grid">
+      <div class="spec-request-card">
+        <div class="spec-request-card-title">Existing / Current</div>
+        <div class="spec-request-card-value">
+          <div class="spec-request-kv"><div class="spec-request-kv-label">Spec Type</div><div class="spec-request-kv-value">${esc(getPendingRequestCurrentType(request))}</div></div>
+          <div class="spec-request-kv"><div class="spec-request-kv-label">Display</div><div class="spec-request-kv-value">${esc(getPendingRequestCurrentReference(request))}</div></div>
+          <div class="spec-request-kv"><div class="spec-request-kv-label">Method</div><div class="spec-request-kv-value">${esc(getPendingRequestCurrentMethod(request))}</div></div>
+          <div class="spec-request-kv"><div class="spec-request-kv-label">Unit</div><div class="spec-request-kv-value">${esc(getPendingRequestCurrentUom(request))}</div></div>
+        </div>
+      </div>
+      <div class="spec-request-card">
+        <div class="spec-request-card-title">Requested Change</div>
+        <div class="spec-request-card-value">
+          <div class="spec-request-kv"><div class="spec-request-kv-label">Spec Type</div><div class="spec-request-kv-value">${esc(getPendingRequestProposedType(request))}</div></div>
+          <div class="spec-request-kv"><div class="spec-request-kv-label">Display</div><div class="spec-request-kv-value">${esc(getPendingRequestProposedReference(request))}</div></div>
+          <div class="spec-request-kv"><div class="spec-request-kv-label">Method</div><div class="spec-request-kv-value">${esc(getPendingRequestProposedMethod(request))}</div></div>
+          <div class="spec-request-kv"><div class="spec-request-kv-label">Unit</div><div class="spec-request-kv-value">${esc(getPendingRequestProposedUom(request))}</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="spec-request-section-title">Request Metadata</div>
+    <div class="spec-request-meta-grid">
+      <div class="spec-request-meta-item">
+        <div class="spec-request-meta-label">Request ID</div>
+        <div class="spec-request-meta-value">${esc(String(getPendingRequestId(request) || "—"))}</div>
+      </div>
+      <div class="spec-request-meta-item">
+        <div class="spec-request-meta-label">Requested By</div>
+        <div class="spec-request-meta-value">${esc(getPendingRequestRequestedBy(request))}</div>
+      </div>
+      <div class="spec-request-meta-item">
+        <div class="spec-request-meta-label">Source Analysis Register No</div>
+        <div class="spec-request-meta-value">${esc(getPendingRequestSourceAnalysisNo(request))}</div>
+      </div>
+      <div class="spec-request-meta-item">
+        <div class="spec-request-meta-label">Subject / Product / Family</div>
+        <div class="spec-request-meta-value">${esc(getPendingRequestSubjectLabel(request))}</div>
+      </div>
+      <div class="spec-request-meta-item">
+        <div class="spec-request-meta-label">Test Name</div>
+        <div class="spec-request-meta-value">${esc(getPendingRequestTestName(request))}</div>
+      </div>
+      <div class="spec-request-meta-item">
+        <div class="spec-request-meta-label">Remarks</div>
+        <div class="spec-request-meta-value">${esc(getPendingRequestRemarks(request))}</div>
+      </div>
+    </div>
+  `;
+}
+
+function getSelectedPendingReviewRequest() {
+  return (
+    activePendingReviewRequests.find(
+      (request) =>
+        String(getPendingRequestId(request)) ===
+        String(selectedPendingReviewRequestId),
+    ) ?? null
+  );
+}
+
+function closeSpecRequestReviewModal() {
+  specRequestReviewModal?.classList.add("hidden");
+  activePendingReviewRequests = [];
+  selectedPendingReviewRequestId = null;
+  selectedPendingReviewScope = null;
+  if (specRequestReviewRemarks) {
+    specRequestReviewRemarks.value = "";
+  }
+}
+
+async function submitSpecRequestReview(action) {
+  console.log("Spec request review clicked", {
+    action,
+    selectedPendingReviewRequestId,
+    selectedPendingReviewScope,
+  });
+
+  const approveLabel = specRequestApproveBtn?.textContent ?? "Approve";
+  const rejectLabel = specRequestRejectBtn?.textContent ?? "Reject";
+  let shouldRefresh = false;
+
+  try {
+    const request = getSelectedPendingReviewRequest();
+    console.log("Selected spec request", request);
+
+    const rawRequestId = getPendingRequestId(request);
+    const numericRequestId = Number(rawRequestId);
+
+    if (
+      !request ||
+      !Number.isFinite(numericRequestId) ||
+      numericRequestId <= 0
+    ) {
+      toast("Select a valid request to review.", "warn");
+      console.warn("Invalid spec request selection", { request, rawRequestId });
+      return;
+    }
+
+    const { data: userData, error: userErr } = await supabase.auth.getUser();
+    if (userErr) {
+      const msg = "Login session not found. Please reload.";
+      console.error("Spec request review auth error", userErr || msg);
+      toast(msg, "error");
+      return;
+    }
+    if (!userData?.user?.id) {
+      toast("Login session not found. Please reload.", "error");
+      return;
+    }
+
+    const reviewRemarks = specRequestReviewRemarks?.value.trim() || null;
+    const scope = normalizePendingRequestScope(request.request_scope);
+
+    const rpcName =
+      action === "approve"
+        ? scope === "PRODUCT"
+          ? "fn_approve_product_spec_change_request"
+          : "fn_approve_family_spec_change_request"
+        : "fn_reject_spec_change_request";
+
+    if (action === "approve" && specRequestApproveBtn)
+      specRequestApproveBtn.textContent = "Approving...";
+    if (action === "reject" && specRequestRejectBtn)
+      specRequestRejectBtn.textContent = "Rejecting...";
+    if (specRequestApproveBtn) specRequestApproveBtn.disabled = true;
+    if (specRequestRejectBtn) specRequestRejectBtn.disabled = true;
+
+    const payload = {
+      p_user_id: userData.user.id,
+      p_request_id: numericRequestId,
+      p_review_remarks: reviewRemarks,
+    };
+    console.log("Calling RPC", {
+      rpcName,
+      payload,
+      scope,
+      rawRequestId,
+    });
+
+    const { error } = await labSupabase.rpc(rpcName, payload);
+
+    if (error) {
+      console.error("Spec request review RPC error", error);
+      toast(
+        `Failed to ${action === "approve" ? "approve" : "reject"} request: ${error.message}`,
+        "error",
+      );
+      return;
+    }
+
+    toast(
+      action === "approve"
+        ? "Specification change request approved."
+        : "Specification change request rejected.",
+      "success",
+    );
+    closeSpecRequestReviewModal();
+    shouldRefresh = true;
+  } catch (err) {
+    const message = err?.message || String(err);
+    console.error("Spec request review unexpected error", err);
+    toast(
+      `Failed to ${action === "approve" ? "approve" : "reject"} request: ${message}`,
+      "error",
+    );
+  } finally {
+    if (specRequestApproveBtn) {
+      specRequestApproveBtn.disabled = false;
+      specRequestApproveBtn.textContent = approveLabel;
+    }
+    if (specRequestRejectBtn) {
+      specRequestRejectBtn.disabled = false;
+      specRequestRejectBtn.textContent = rejectLabel;
+    }
+
+    if (shouldRefresh) {
+      await refreshCurrentSpecReviewContext();
+      await refreshPendingSpecRequestIndicators({ reload: true });
+    }
+  }
+}
+
+async function refreshCurrentSpecReviewContext() {
+  if (currentTab === "baseSpec") {
+    if (currentSubjectType === "FG" && bsCurrentGroupId) {
+      await bsLoadGroupContext(bsCurrentGroupId);
+    } else if (currentSubjectType === "RM" && rmCurrentGroupId) {
+      await rmLoadGroupContext(rmCurrentGroupId);
+    } else if (currentSubjectType === "PM" && pmCurrentGroupId) {
+      await pmLoadGroupContext(pmCurrentGroupId);
+    }
+    return;
+  }
+
+  if (currentTab === "overrides") {
+    if (currentSubjectType === "FG" && ovFgProductId) {
+      await onOvProductChange();
+    } else if (currentSubjectType === "RM" && ovRmItemId) {
+      await onRmOverrideItemChange();
+    } else if (currentSubjectType === "PM" && ovPmItemId) {
+      await onPmOverrideItemChange();
+    }
+  }
 }
 
 // ── BASE SPEC — FG ────────────────────────────────────────────────────────────
@@ -566,6 +1334,7 @@ async function onProductGroupChange() {
   setMetaValue(bsMetaEffDate, "--", true);
 
   await bsLoadGroupContext(groupId);
+  refreshPendingRequestButtons();
 }
 
 async function bsLoadGroupContext(groupId) {
@@ -1037,6 +1806,7 @@ function bsResetState() {
   hideBanner(bsBanner);
   bsGenerateSpecBtn.classList.add("hidden");
   bsRebuildSpecBtn?.classList.add("hidden");
+  refreshPendingRequestButtons();
 }
 
 // ── BASE SPEC — RM ────────────────────────────────────────────────────────────
@@ -1125,6 +1895,7 @@ async function onRmGroupChange() {
   setMetaValue(rmMetaEffDate, "--", true);
 
   await rmLoadGroupContext(groupId);
+  refreshPendingRequestButtons();
 }
 
 async function rmLoadGroupContext(groupId) {
@@ -1595,6 +2366,7 @@ function rmResetState() {
   if (rmBanner) hideBanner(rmBanner);
   if (rmGenerateSpecBtn) rmGenerateSpecBtn.classList.add("hidden");
   if (rmRebuildSpecBtn) rmRebuildSpecBtn.classList.add("hidden");
+  refreshPendingRequestButtons();
 }
 
 // ── BASE SPEC — PM ────────────────────────────────────────────────────────────
@@ -1683,6 +2455,7 @@ async function onPmGroupChange() {
   setMetaValue(pmMetaEffDate, "--", true);
 
   await pmLoadGroupContext(groupId);
+  refreshPendingRequestButtons();
 }
 
 async function pmLoadGroupContext(groupId) {
@@ -2142,6 +2915,7 @@ function pmResetState() {
   if (pmBanner) hideBanner(pmBanner);
   if (pmGenerateSpecBtn) pmGenerateSpecBtn.classList.add("hidden");
   if (pmRebuildSpecBtn) pmRebuildSpecBtn.classList.add("hidden");
+  refreshPendingRequestButtons();
 }
 
 function wireRebuildModal() {
@@ -2418,6 +3192,7 @@ async function onPmOverrideItemChange() {
     ovPmContextStrip.classList.add("hidden");
     ovPmTableCard.classList.add("hidden");
     hideBanner(ovPmBanner);
+    refreshPendingRequestButtons();
     return;
   }
   ovPmItemId = stockItemId;
@@ -2517,6 +3292,7 @@ async function onPmOverrideItemChange() {
       );
     else hideBanner(ovPmBanner);
     renderPmOverrides([]);
+    refreshPendingRequestButtons();
     return;
   }
 
@@ -2583,6 +3359,7 @@ async function onPmOverrideItemChange() {
     );
   else hideBanner(ovPmBanner);
   renderPmOverrides(enriched);
+  refreshPendingRequestButtons();
 }
 
 function renderPmOverrides(rows) {
@@ -2804,6 +3581,7 @@ async function onOvProductChange() {
     ovFgContextStrip.classList.add("hidden");
     ovTableCard.classList.add("hidden");
     hideBanner(ovBanner);
+    refreshPendingRequestButtons();
     return;
   }
   ovFgProductId = productId;
@@ -2901,6 +3679,7 @@ async function onOvProductChange() {
       );
     else hideBanner(ovBanner);
     renderOverrides([]);
+    refreshPendingRequestButtons();
     return;
   }
 
@@ -2970,6 +3749,7 @@ async function onOvProductChange() {
     );
   else hideBanner(ovBanner);
   renderOverrides(enriched);
+  refreshPendingRequestButtons();
 }
 
 function renderOverrides(rows) {
@@ -3037,6 +3817,7 @@ async function onRmOverrideItemChange() {
     ovRmContextStrip.classList.add("hidden");
     ovRmTableCard.classList.add("hidden");
     hideBanner(ovRmBanner);
+    refreshPendingRequestButtons();
     return;
   }
   ovRmItemId = stockItemId;
@@ -3140,6 +3921,7 @@ async function onRmOverrideItemChange() {
       );
     else hideBanner(ovRmBanner);
     renderRmOverrides([]);
+    refreshPendingRequestButtons();
     return;
   }
 
@@ -3206,6 +3988,7 @@ async function onRmOverrideItemChange() {
     );
   else hideBanner(ovRmBanner);
   renderRmOverrides(enriched);
+  refreshPendingRequestButtons();
 }
 
 function renderRmOverrides(rows) {
@@ -5076,6 +5859,19 @@ function formatDate(val) {
     day: "2-digit",
     month: "short",
     year: "numeric",
+  });
+}
+
+function formatDateTime(val) {
+  if (!val) return "--";
+  const d = new Date(val);
+  if (isNaN(d)) return String(val);
+  return d.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
 

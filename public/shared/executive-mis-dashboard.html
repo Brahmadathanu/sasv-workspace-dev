@@ -1,0 +1,1189 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Executive MIS Dashboard</title>
+    <link rel="stylesheet" href="../shared/css/style.css" />
+    <style>
+      html,
+      body {
+        height: 100vh;
+        min-height: 100vh;
+        margin: 0;
+        overflow: hidden;
+        box-sizing: border-box;
+        font-family:
+          system-ui,
+          Segoe UI,
+          Roboto,
+          Arial,
+          sans-serif;
+      }
+
+      body {
+        display: flex;
+        flex-direction: column;
+        padding: 20px;
+        background: var(--bg, #f8fafc);
+        color: var(--text, #0f172a);
+      }
+
+      .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+      }
+
+      .page-header h1 {
+        margin: 0;
+        color: var(--primary);
+      }
+
+      .page-sub {
+        margin-top: 4px;
+        color: var(--muted, #6b7280);
+        font-size: 0.95rem;
+        line-height: 1.4;
+      }
+
+      .header-actions {
+        display: flex;
+        align-items: stretch;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+
+      .icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 7px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+        background: var(--panel-bg, #fff);
+        color: inherit;
+        cursor: pointer;
+      }
+
+      .icon-btn:hover {
+        background: #f3f4f6;
+      }
+
+      .icon-btn:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+
+      #homeBtn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .status {
+        margin-top: 12px;
+        padding: 12px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: var(--panel-bg, #fff);
+        color: var(--muted, #6b7280);
+        font-size: 0.95rem;
+      }
+
+      .status.error {
+        border-color: #fecaca;
+        background: #fef2f2;
+        color: #991b1b;
+      }
+
+      .status.warning {
+        border-color: #fde68a;
+        background: #fffbeb;
+        color: #92400e;
+      }
+
+      .status.success {
+        border-color: #bbf7d0;
+        background: #f0fdf4;
+        color: #166534;
+      }
+
+      .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .kpi-card {
+        position: relative;
+        border: 1px solid var(--border, #e5e7eb);
+        border-left: 3px solid #2563eb;
+        border-radius: 8px;
+        padding: 9px 34px 9px 10px;
+        background: var(--panel-bg, #fff);
+        min-height: 74px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 5px;
+      }
+
+      .kpi-card.caution {
+        border-left-color: #f59e0b;
+        background: linear-gradient(
+          135deg,
+          rgba(245, 158, 11, 0.08) 0%,
+          var(--panel-bg, #fff) 48%
+        );
+      }
+
+      .kpi-card.warning {
+        border-left-color: #d97706;
+      }
+
+      .kpi-title {
+        color: var(--muted, #6b7280);
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        line-height: 1.25;
+      }
+
+      .kpi-value {
+        color: var(--text, #0f172a);
+        font-size: 18px;
+        font-weight: 750;
+        line-height: 1.15;
+        overflow-wrap: anywhere;
+      }
+
+      .kpi-card.caution .kpi-value,
+      .kpi-card.warning .kpi-value {
+        color: #92400e;
+      }
+
+      .kpi-info-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 20px;
+        height: 20px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        background: transparent;
+        color: var(--muted, #6b7280);
+        cursor: pointer;
+      }
+
+      .kpi-info-btn:hover,
+      .kpi-info-btn:focus-visible,
+      .kpi-info-btn[aria-expanded="true"] {
+        border-color: #cbd5e1;
+        background: #f8fafc;
+        color: #2563eb;
+        outline: none;
+      }
+
+      .kpi-popover {
+        position: fixed;
+        z-index: 1000;
+        width: min(280px, calc(100vw - 24px));
+        padding: 10px 12px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: var(--panel-bg, #fff);
+        box-shadow: 0 10px 28px rgba(15, 23, 42, 0.14);
+        color: var(--text, #0f172a);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .kpi-popover-title {
+        margin-bottom: 6px;
+        color: var(--muted, #6b7280);
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .kpi-popover-row + .kpi-popover-row {
+        margin-top: 6px;
+      }
+
+      .kpi-popover-label {
+        display: block;
+        color: var(--muted, #6b7280);
+        font-size: 10.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+
+      .planning-notice {
+        margin-top: 10px;
+        padding: 9px 11px;
+        border: 1px solid #fde68a;
+        border-radius: 8px;
+        background: #fffbeb;
+        color: #92400e;
+        font-size: 12.5px;
+        line-height: 1.45;
+      }
+
+      .tabs-card {
+        margin-top: 12px;
+        padding: 8px 10px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: var(--panel-bg, #fff);
+      }
+
+      .lens-pills {
+        display: flex;
+        gap: 6px;
+        padding: 8px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 10px;
+        background: linear-gradient(
+          135deg,
+          rgba(37, 99, 235, 0.05) 0%,
+          rgba(37, 99, 235, 0.02) 100%
+        );
+        align-items: center;
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+
+      .lens-pills::-webkit-scrollbar {
+        display: none;
+      }
+
+      .lens-pills .pill {
+        flex: 0 0 auto;
+        padding: 8px 16px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--erp-muted, var(--muted, #6b7280));
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 1.2;
+        white-space: nowrap;
+        cursor: pointer;
+        transition: all 0.16s ease;
+      }
+
+      .lens-pills .pill:hover {
+        border-color: rgba(37, 99, 235, 0.12);
+        background: rgba(37, 99, 235, 0.05);
+        color: var(--erp-text, #0f172a);
+      }
+
+      .lens-pills .pill:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+      }
+
+      .lens-pills .pill.active {
+        border-color: var(--primary, #2563eb);
+        background: var(--primary, #2563eb);
+        color: #fff;
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.22);
+      }
+
+      .tab-select-wrap {
+        position: relative;
+        display: none;
+        width: 100%;
+      }
+
+      .tab-select {
+        width: 100%;
+        padding: 8px 42px 8px 10px;
+        border: 1px solid var(--primary, #2563eb);
+        border-radius: 8px;
+        background: linear-gradient(
+          135deg,
+          rgba(37, 99, 235, 0.12) 0%,
+          rgba(37, 99, 235, 0.06) 100%
+        );
+        color: var(--text, #0f172a);
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        appearance: none;
+      }
+
+      .tab-select-icon {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        width: 18px;
+        height: 18px;
+        color: var(--primary, #2563eb);
+        transform: translateY(-50%);
+        pointer-events: none;
+      }
+
+      .detail-section {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        margin-top: 8px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: var(--panel-bg, #fff);
+        overflow: hidden;
+      }
+
+      .tab-panel {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        padding: 10px;
+        min-height: 0;
+      }
+
+      .tab-panel.production-panel {
+        overflow: auto;
+      }
+
+      .finance-scope-note,
+      .sales-scope-note,
+      .inventory-scope-note,
+      .fg-scope-note,
+      .production-scope-note {
+        margin-bottom: 8px;
+        color: var(--muted, #6b7280);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .sales-period-line,
+      .inventory-scope-line,
+      .fg-scope-line,
+      .production-period-line {
+        margin-bottom: 3px;
+        color: var(--text, #374151);
+        font-weight: 700;
+      }
+
+      .production-summary-heading {
+        margin: 8px 0 6px;
+        color: var(--muted, #6b7280);
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .production-loading-shell {
+        position: relative;
+        min-height: 260px;
+        flex: 1 1 auto;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: #fff;
+        overflow: hidden;
+      }
+
+      .production-status {
+        padding: 18px;
+        color: var(--muted, #6b7280);
+        font-size: 13px;
+        text-align: center;
+      }
+
+      .production-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+        gap: 6px;
+      }
+
+      .production-summary-card {
+        min-height: 58px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 4px;
+        padding: 8px 10px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+
+      .production-summary-card.warning {
+        border-color: #fde68a;
+        background: #fffbeb;
+        color: #92400e;
+      }
+
+      .production-summary-title {
+        color: var(--muted, #6b7280);
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        line-height: 1.25;
+        text-transform: uppercase;
+      }
+
+      .production-summary-card.warning .production-summary-title,
+      .production-summary-card.warning .production-summary-value {
+        color: #92400e;
+      }
+
+      .production-summary-value {
+        color: var(--text, #0f172a);
+        font-size: 15px;
+        font-weight: 750;
+        line-height: 1.15;
+        overflow-wrap: anywhere;
+      }
+
+      .production-section {
+        min-height: 0;
+        margin-top: 10px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: #fff;
+        overflow: hidden;
+      }
+
+      .production-section-title {
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+        background: #f8fafc;
+        color: var(--text, #374151);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .production-table-wrap {
+        max-height: 260px;
+        overflow: auto;
+      }
+
+      .production-table {
+        width: 100%;
+        min-width: 780px;
+        border-collapse: collapse;
+      }
+
+      .production-table th,
+      .production-table td {
+        padding: 8px 9px;
+        border-bottom: 1px solid #eef2f7;
+        font-size: 12.5px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      .production-table th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #f8fafc;
+        color: var(--muted, #6b7280);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .production-table td.num,
+      .production-table th.num {
+        text-align: right;
+      }
+
+      .finance-toolbar,
+      .sales-toolbar,
+      .inventory-toolbar,
+      .fg-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .finance-search-wrap,
+      .sales-search-wrap,
+      .inventory-search-wrap,
+      .fg-search-wrap {
+        position: relative;
+        flex: 1 1 auto;
+        min-width: 180px;
+      }
+
+      .finance-search-wrap input,
+      .sales-search-wrap input,
+      .inventory-search-wrap input,
+      .fg-search-wrap input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px 32px 8px 10px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: #eff6ff;
+        color: var(--text, #0f172a);
+        font-size: 13px;
+      }
+
+      .input-clear-btn {
+        position: absolute;
+        right: 7px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 20px;
+        height: 20px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        border: none;
+        background: transparent;
+        color: var(--muted, #6b7280);
+        cursor: pointer;
+      }
+
+      .finance-filter-wrapper,
+      .inventory-filter-wrapper,
+      .fg-filter-wrapper {
+        position: relative;
+        flex: 0 0 auto;
+      }
+
+      .finance-filter-btn,
+      .inventory-filter-btn,
+      .fg-filter-btn {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 7px;
+        background: #fff;
+        color: var(--text, #374151);
+        cursor: pointer;
+      }
+
+      .finance-filter-btn:hover,
+      .finance-filter-btn:focus-visible,
+      .finance-filter-btn--active,
+      .inventory-filter-btn:hover,
+      .inventory-filter-btn:focus-visible,
+      .inventory-filter-btn--active,
+      .fg-filter-btn:hover,
+      .fg-filter-btn:focus-visible,
+      .fg-filter-btn--active {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: #2563eb;
+        outline: none;
+      }
+
+      .finance-filter-badge,
+      .inventory-filter-badge,
+      .fg-filter-badge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        min-width: 14px;
+        height: 14px;
+        padding: 0 3px;
+        border-radius: 999px;
+        background: #2563eb;
+        color: #fff;
+        font-size: 9px;
+        font-weight: 700;
+        line-height: 14px;
+        text-align: center;
+      }
+
+      .finance-filter-drawer,
+      .inventory-filter-drawer,
+      .fg-filter-drawer {
+        display: none;
+        position: absolute;
+        top: calc(100% + 6px);
+        right: 0;
+        width: 280px;
+        max-width: min(280px, calc(100vw - 24px));
+        z-index: 300;
+        padding: 12px 14px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: 0 6px 20px rgba(15, 23, 42, 0.12);
+      }
+
+      .finance-filter-drawer.open,
+      .inventory-filter-drawer.open,
+      .fg-filter-drawer.open {
+        display: block;
+      }
+
+      .finance-filter-section-title,
+      .inventory-filter-section-title,
+      .fg-filter-section-title {
+        margin-bottom: 8px;
+        color: var(--muted, #6b7280);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      .finance-filter-list,
+      .inventory-filter-list,
+      .fg-filter-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .finance-filter-list label,
+      .inventory-filter-list label,
+      .fg-filter-list label {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        color: var(--text, #374151);
+        font-size: 13px;
+        cursor: pointer;
+      }
+
+      .finance-table-shell,
+      .sales-table-shell,
+      .inventory-table-shell,
+      .fg-table-shell {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+        max-height: calc(100vh - 360px);
+        margin-top: 8px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+
+      .table-loading-mask {
+        position: absolute;
+        inset: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(248, 250, 252, 0.72);
+        backdrop-filter: blur(1px);
+      }
+
+      .table-loading-mask[hidden] {
+        display: none;
+      }
+
+      .table-loading-card {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 12px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: var(--panel-bg, #fff);
+        color: var(--muted, #6b7280);
+        font-size: 13px;
+        font-weight: 600;
+        box-shadow: 0 8px 22px rgba(15, 23, 42, 0.12);
+      }
+
+      .table-loading-spinner {
+        width: 15px;
+        height: 15px;
+        border: 2px solid #cbd5e1;
+        border-top-color: #2563eb;
+        border-radius: 999px;
+        animation: tableSpin 0.75s linear infinite;
+      }
+
+      @keyframes tableSpin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .finance-table-wrap,
+      .sales-table-wrap,
+      .inventory-table-wrap,
+      .fg-table-wrap {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: auto;
+      }
+
+      .finance-table,
+      .sales-table,
+      .inventory-table,
+      .fg-table {
+        width: 100%;
+        min-width: 680px;
+        border-collapse: collapse;
+      }
+
+      .inventory-table,
+      .fg-table {
+        min-width: 920px;
+      }
+
+      .fg-table {
+        min-width: 980px;
+      }
+
+      .finance-table th,
+      .finance-table td,
+      .sales-table th,
+      .sales-table td,
+      .inventory-table th,
+      .inventory-table td,
+      .fg-table th,
+      .fg-table td {
+        padding: 8px 9px;
+        border-bottom: 1px solid #eef2f7;
+        font-size: 12.5px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      .finance-table th,
+      .sales-table th,
+      .inventory-table th,
+      .fg-table th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #f8fafc;
+        color: var(--muted, #6b7280);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .finance-table td.num,
+      .finance-table th.num,
+      .sales-table td.num,
+      .sales-table th.num,
+      .inventory-table td.num,
+      .inventory-table th.num,
+      .fg-table td.num,
+      .fg-table th.num {
+        text-align: right;
+      }
+
+      .finance-table tbody tr {
+        cursor: pointer;
+      }
+
+      .finance-table tbody tr:hover {
+        background: #f8fafc;
+      }
+
+      .finance-pagination,
+      .sales-pagination,
+      .inventory-pagination,
+      .fg-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 8px 9px;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+        background: #fff;
+        color: var(--muted, #6b7280);
+        font-size: 12.5px;
+      }
+
+      .finance-page-controls,
+      .sales-page-controls,
+      .inventory-page-controls,
+      .fg-page-controls {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--text, #374151);
+      }
+
+      .tab-placeholder,
+      .finance-empty,
+      .finance-status,
+      .sales-empty,
+      .sales-status,
+      .inventory-empty,
+      .inventory-status,
+      .fg-empty,
+      .fg-status {
+        padding: 18px;
+        color: var(--muted, #6b7280);
+        font-size: 13px;
+        text-align: center;
+      }
+
+      .finance-status.error,
+      .sales-status.error,
+      .inventory-status.error,
+      .fg-status.error {
+        color: #991b1b;
+      }
+
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 18px;
+        background: rgba(15, 23, 42, 0.42);
+      }
+
+      .modal-overlay.hidden {
+        display: none;
+      }
+
+      .modal-window {
+        width: min(920px, 100%);
+        max-height: min(760px, calc(100vh - 36px));
+        display: flex;
+        flex-direction: column;
+        border-radius: 8px;
+        background: var(--panel-bg, #fff);
+        box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+        overflow: hidden;
+      }
+
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+      }
+
+      .finance-modal-title {
+        margin: 0;
+        font-size: 15px;
+        color: var(--text, #0f172a);
+      }
+
+      .finance-modal-subtitle {
+        margin-top: 3px;
+        color: var(--muted, #6b7280);
+        font-size: 12px;
+      }
+
+      .modal-close-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+        background: #fff;
+        color: var(--muted, #6b7280);
+        cursor: pointer;
+      }
+
+      .modal-content {
+        padding: 12px 14px 14px;
+        overflow: auto;
+      }
+
+      .finance-modal-note {
+        margin-bottom: 10px;
+        padding: 9px 10px;
+        border: 1px solid #bfdbfe;
+        border-radius: 7px;
+        background: #eff6ff;
+        color: #1e3a8a;
+        font-size: 12.5px;
+        line-height: 1.45;
+      }
+
+      @media (max-width: 640px) {
+        body {
+          padding: 8px;
+        }
+
+        .page-header {
+          align-items: stretch;
+        }
+
+        .page-header h1 {
+          font-size: 18px;
+          line-height: 1.15;
+        }
+
+        .page-sub {
+          display: none;
+        }
+
+        #homeBtn .home-label {
+          display: none;
+        }
+
+        #homeBtn {
+          padding-left: 8px;
+          padding-right: 8px;
+        }
+
+        .kpi-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 7px;
+        }
+
+        .kpi-card {
+          min-height: 70px;
+          padding: 8px 31px 8px 9px;
+        }
+
+        .kpi-value {
+          font-size: 16px;
+        }
+
+        .finance-toolbar,
+        .sales-toolbar,
+        .inventory-toolbar,
+        .fg-toolbar {
+          align-items: flex-start;
+          flex-direction: row;
+        }
+
+        .lens-pills {
+          display: none;
+        }
+
+        .tab-select-wrap {
+          display: inline-block;
+        }
+
+        .finance-table-shell,
+        .sales-table-shell,
+        .inventory-table-shell,
+        .fg-table-shell {
+          min-height: 0;
+          max-height: calc(100vh - 300px);
+        }
+
+        .finance-pagination,
+        .sales-pagination,
+        .inventory-pagination,
+        .fg-pagination {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .modal-overlay {
+          padding: 0;
+          align-items: flex-start;
+        }
+
+        .modal-window {
+          width: 100vw;
+          height: 100vh;
+          max-height: none;
+          border-radius: 0;
+        }
+      }
+
+      @media (max-width: 360px) {
+        .kpi-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      class="header-card"
+      style="
+        padding: 12px;
+        background: transparent;
+        border: none;
+        border-radius: 0;
+      "
+    >
+      <div class="page-header">
+        <div>
+          <h1>Executive MIS Dashboard</h1>
+          <div class="page-sub">
+            Management summary of finance, sales, inventory, and production
+            position
+          </div>
+        </div>
+        <div class="header-actions">
+          <button
+            id="refreshBtn"
+            type="button"
+            title="Refresh View"
+            aria-label="Refresh View"
+            class="icon-btn"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <polyline points="1 20 1 14 7 14"></polyline>
+              <path d="M3.51 9a9 9 0 0114.13-3.36L23 10"></path>
+              <path d="M20.49 15a9 9 0 01-14.13 3.36L1 14"></path>
+            </svg>
+          </button>
+          <div
+            id="lastRefreshed"
+            class="sc-snapshot"
+            tabindex="0"
+            role="button"
+            aria-haspopup="true"
+            aria-expanded="false"
+          >
+            <span class="sc-snapshot-dot" aria-hidden="true"></span>
+            <span class="sc-snapshot-label">Not loaded</span>
+            <div id="sc-status-detail" style="display: none">
+              Dashboard data refreshed at: -
+            </div>
+          </div>
+          <button id="homeBtn" type="button" title="Home" aria-label="Home">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9,22 9,12 15,12 15,22" />
+            </svg>
+            <span class="home-label">HOME</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="statusArea" class="status">Loading...</div>
+    <div id="planningNotice" class="planning-notice" hidden></div>
+    <div id="kpiGrid" class="kpi-grid" aria-live="polite"></div>
+
+    <div class="tabs-card">
+      <div class="tab-select-wrap">
+        <select
+          id="detailTabSelect"
+          class="tab-select"
+          aria-label="Select dashboard detail section"
+        ></select>
+        <svg
+          class="tab-select-icon"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <polyline
+            points="6 9 12 15 18 9"
+            stroke="currentColor"
+            stroke-width="2"
+            fill="none"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          ></polyline>
+        </svg>
+      </div>
+      <div id="detailTabs" class="lens-pills" role="tablist"></div>
+    </div>
+
+    <section class="detail-section table-card" aria-label="Dashboard details">
+      <div id="tabPanel" class="tab-panel"></div>
+    </section>
+
+    <div
+      id="financeModalOverlay"
+      class="modal-overlay finance-modal-overlay hidden"
+      aria-hidden="true"
+    >
+      <div
+        class="modal-window finance-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="financeModalTitle"
+      >
+        <div class="modal-header finance-modal-header">
+          <div>
+            <h2 id="financeModalTitle" class="finance-modal-title">
+              Outstanding Bills
+            </h2>
+            <div id="financeModalSubtitle" class="finance-modal-subtitle"></div>
+          </div>
+          <button
+            id="financeModalClose"
+            type="button"
+            class="modal-close-btn finance-modal-close"
+            aria-label="Close finance details"
+            title="Close"
+          >
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-content finance-modal-body">
+          <div class="finance-modal-note">
+            Signed amount is the original Tally balance. MIS total is
+            calculated from signed balances, not by adding all absolute bill
+            lines.
+          </div>
+          <div id="financeModalContent"></div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="js/executive-mis-dashboard.js"></script>
+  </body>
+</html>

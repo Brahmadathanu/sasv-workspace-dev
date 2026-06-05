@@ -55,6 +55,10 @@ let _headerStatus = "draft"; // track current header status
 let _productsCache = new Map(); // product_id -> product info cache
 let _bnPickerCleanup = null; // cleanup handlers for inline BN picker
 
+// Allow BMRs created a few days before/after the plan month to appear as candidates.
+// Example: June plan can still use BMRs created on May 29.
+const BMR_CANDIDATE_WINDOW_MARGIN_DAYS = 7;
+
 // Product lookup utilities
 async function loadProductsCache() {
   if (_productsCache.size > 0) return; // Already loaded
@@ -93,7 +97,7 @@ async function loadProductsCache() {
     });
 
     console.log(
-      `Loaded ${_productsCache.size} products into cache (${page} pages)`
+      `Loaded ${_productsCache.size} products into cache (${page} pages)`,
     );
   } catch (e) {
     console.error("Products cache exception:", e);
@@ -290,7 +294,7 @@ function showAlert(message, title = "Alert") {
           document.removeEventListener("keydown", handleEscape);
         }
       },
-      { once: true }
+      { once: true },
     );
 
     // Focus the OK button
@@ -344,7 +348,7 @@ function showConfirm(message, title = "Confirm") {
           document.removeEventListener("keydown", handleEscape);
         }
       },
-      { once: true }
+      { once: true },
     );
 
     // Focus the OK button
@@ -400,7 +404,7 @@ async function loadHeaders() {
           toast(
             `Load headers failed: ${
               fallback.error.message || "400 Bad Request"
-            }`
+            }`,
           );
           if (meta) meta.textContent = "No headers yet.";
           return;
@@ -447,7 +451,7 @@ async function onHeaderChanged() {
   const { data: hdr, error } = await supabase
     .from("batch_plan_headers")
     .select(
-      "id,plan_title,status,created_at,updated_at,created_by,window_from,window_to"
+      "id,plan_title,status,created_at,updated_at,created_by,window_from,window_to",
     )
     .eq("id", id)
     .single();
@@ -560,7 +564,7 @@ async function onCreateHeader() {
     from = first.toISOString().slice(0, 10);
     to = last.toISOString().slice(0, 10);
     q("newPlanMonth").value = `${first.getFullYear()}-${String(
-      first.getMonth() + 1
+      first.getMonth() + 1,
     ).padStart(2, "0")}`;
   }
 
@@ -597,7 +601,7 @@ async function onCreateHeader() {
   try {
     // Use new rebuild RPC (ignores provided window; header stores window_from/to)
     const { data: buildData, error: buildError } = await rpcRebuildBatchPlan(
-      data.id
+      data.id,
     );
     if (buildError) {
       console.error("Initial build failed:", buildError);
@@ -606,7 +610,7 @@ async function onCreateHeader() {
         /v_product_batches_plan/i.test(buildError.message)
       ) {
         toast(
-          `Header #${data.id} created – missing view v_product_batches_plan.`
+          `Header #${data.id} created – missing view v_product_batches_plan.`,
         );
       } else {
         toast(`Created header #${data.id} (initial build failed)`);
@@ -624,7 +628,7 @@ async function onCreateHeader() {
         batchesInfo = `${br}`;
       }
       toast(
-        `Created & built header #${data.id} (lines: ${linesInfo}, batches: ${batchesInfo})`
+        `Created & built header #${data.id} (lines: ${linesInfo}, batches: ${batchesInfo})`,
       );
     }
   } catch (e) {
@@ -646,7 +650,7 @@ async function onCreateHeader() {
   const linesBody = q("bpLinesBody");
   if (built && linesBody && linesBody.children.length === 0) {
     toast(
-      "Built header – no lines: upstream consolidated view returned 0 rows."
+      "Built header – no lines: upstream consolidated view returned 0 rows.",
     );
     const hint = q("bpStatusMsg");
     if (hint)
@@ -709,7 +713,7 @@ async function onDeleteHeader() {
   const ok = await showConfirm(
     `Delete header #${headerId} "${hdr.plan_title}"? ` +
       `This will also delete its lines & batches.`,
-    "Delete Plan"
+    "Delete Plan",
   );
   if (!ok) return;
 
@@ -748,7 +752,7 @@ async function onArchiveHeader() {
   const ok = await showConfirm(
     `Archive header #${headerId} "${hdr.plan_title}"? ` +
       `This keeps all lines/batches for audit, but the plan is read-only.`,
-    "Archive Plan"
+    "Archive Plan",
   );
   if (!ok) return;
 
@@ -930,14 +934,14 @@ function updateTabStatuses() {
         break;
       case "tab-mapping": {
         const unmappedCount = _batchesCache.filter(
-          (b) => b.bmr_id === null
+          (b) => b.bmr_id === null,
         ).length;
         status =
           unmappedCount === 0 && _batchesCache.length > 0
             ? "complete"
             : unmappedCount < _batchesCache.length && _batchesCache.length > 0
-            ? "warning"
-            : "incomplete";
+              ? "warning"
+              : "incomplete";
         break;
       }
       case "tab-overrides":
@@ -990,7 +994,7 @@ async function onRebuildAll() {
 
   const ok = await showConfirm(
     "Rebuild all lines & batches from consolidated plan?",
-    "Rebuild All"
+    "Rebuild All",
   );
   if (!ok) return;
 
@@ -1104,7 +1108,7 @@ async function loadRollup() {
     const { data: lines, error: linesError } = await supabase
       .from("batch_plan_lines")
       .select(
-        "product_id, residual_qty, preferred_batch_size, min_batch_size, max_batch_size"
+        "product_id, residual_qty, preferred_batch_size, min_batch_size, max_batch_size",
       )
       .eq("header_id", headerId);
 
@@ -1133,12 +1137,12 @@ async function loadRollup() {
       (line) =>
         line.preferred_batch_size === null &&
         line.min_batch_size === null &&
-        line.max_batch_size === null
+        line.max_batch_size === null,
     ).length;
 
     // 5. Products (with residuals) - products with non-zero residual
     const productsWithResiduals = lines.filter(
-      (line) => line.residual_qty !== null && line.residual_qty !== 0
+      (line) => line.residual_qty !== null && line.residual_qty !== 0,
     ).length;
 
     const productsTotal = lines.length;
@@ -1146,9 +1150,8 @@ async function loadRollup() {
     const batchesUnmapped = unmappedCount || 0;
 
     // Update plan statistics display
-    q(
-      "bpStatTotals"
-    ).textContent = `Products (total): ${productsTotal} · Batches (mapped): ${batchesMapped} · Batches (unmapped): ${batchesUnmapped} · Products (no batch ref): ${productsNoBatchRef} · Products (with residuals): ${productsWithResiduals}`;
+    q("bpStatTotals").textContent =
+      `Products (total): ${productsTotal} · Batches (mapped): ${batchesMapped} · Batches (unmapped): ${batchesUnmapped} · Products (no batch ref): ${productsNoBatchRef} · Products (with residuals): ${productsWithResiduals}`;
 
     // Update header bar metrics
     updateHeaderMetrics({
@@ -1182,7 +1185,7 @@ async function loadLines() {
   const { data, error } = await supabase
     .from("v_batch_plan_lines_with_impact")
     .select(
-      "product_id,month_start,final_make_qty,batch_count,residual_qty,preferred_batch_size,overrides_delta,effective_total"
+      "product_id,month_start,final_make_qty,batch_count,residual_qty,preferred_batch_size,overrides_delta,effective_total",
     )
     .eq("header_id", headerId)
     .order("product_id")
@@ -1379,7 +1382,7 @@ async function loadBatches() {
   const { data, error } = await supabase
     .from("v_batch_plan_batches_status")
     .select(
-      "batch_id,product_id,product_name,month_start,batch_no_seq,batch_size,source_rule,map_status,mapped_bn,mapped_size,bmr_id"
+      "batch_id,product_id,product_name,month_start,batch_no_seq,batch_size,source_rule,map_status,mapped_bn,mapped_size,bmr_id",
     )
     .eq("header_id", headerId)
     .order("product_id")
@@ -1431,7 +1434,7 @@ async function loadUnmappedBatches() {
   const { data, error } = await supabase
     .from("v_batch_plan_mapping")
     .select(
-      "batch_id,product_id,month_start,batch_no_seq,batch_size,source_rule"
+      "batch_id,product_id,month_start,batch_no_seq,batch_size,source_rule",
     )
     .eq("header_id", headerId)
     .is("bmr_id", null)
@@ -1480,22 +1483,21 @@ async function loadBmrCandidates() {
   if (window._headerFrom) {
     try {
       const fromDt = new Date(window._headerFrom + "T00:00:00");
-      fromDt.setDate(fromDt.getDate() - 1); // one-day margin before
+      fromDt.setDate(fromDt.getDate() - BMR_CANDIDATE_WINDOW_MARGIN_DAYS);
       const fromStr = fromDt.toISOString().slice(0, 19).replace("T", " ");
       query = query.gte("created_at", fromStr);
     } catch {
-      // Fallback to original behavior if parsing fails
       query = query.gte("created_at", window._headerFrom + " 00:00:00");
     }
   }
+
   if (window._headerTo) {
     try {
       const toDt = new Date(window._headerTo + "T23:59:59");
-      toDt.setDate(toDt.getDate() + 1); // one-day margin after
+      toDt.setDate(toDt.getDate() + BMR_CANDIDATE_WINDOW_MARGIN_DAYS);
       const toStr = toDt.toISOString().slice(0, 19).replace("T", " ");
       query = query.lte("created_at", toStr);
     } catch {
-      // Fallback to original behavior if parsing fails
       query = query.lte("created_at", window._headerTo + " 23:59:59");
     }
   }
@@ -1533,7 +1535,7 @@ async function onUnlinkBmr(evt) {
   if (!batchId) return toast("Pick a batch");
   const ok = await showConfirm(
     "Unlink the mapped BMR from this planned batch?",
-    "Unlink BMR"
+    "Unlink BMR",
   );
   if (!ok) return;
   const { error } = await supabase
@@ -1575,10 +1577,25 @@ async function onPickBmrForBatch(evt) {
 
   // Apply month window filter if available
   if (window._headerFrom) {
-    query = query.gte("created_at", window._headerFrom + " 00:00:00");
+    try {
+      const fromDate = new Date(window._headerFrom + "T00:00:00");
+      fromDate.setDate(fromDate.getDate() - BMR_CANDIDATE_WINDOW_MARGIN_DAYS);
+      const fromStr = fromDate.toISOString().slice(0, 10) + " 00:00:00";
+      query = query.gte("created_at", fromStr);
+    } catch {
+      query = query.gte("created_at", window._headerFrom + " 00:00:00");
+    }
   }
+
   if (window._headerTo) {
-    query = query.lte("created_at", window._headerTo + " 23:59:59");
+    try {
+      const toDate = new Date(window._headerTo + "T00:00:00");
+      toDate.setDate(toDate.getDate() + BMR_CANDIDATE_WINDOW_MARGIN_DAYS);
+      const toStr = toDate.toISOString().slice(0, 10) + " 23:59:59";
+      query = query.lte("created_at", toStr);
+    } catch {
+      query = query.lte("created_at", window._headerTo + " 23:59:59");
+    }
   }
 
   const { data: rows, error: e2 } = await query;
@@ -1826,7 +1843,7 @@ window.showInlineBnPicker = async function (button) {
     } else {
       top = Math.min(
         window.innerHeight - dropdownRect.height - 8,
-        rect.bottom + spacing
+        rect.bottom + spacing,
       );
     }
 
@@ -1889,7 +1906,7 @@ window.showInlineBnPicker = async function (button) {
       clearTimeout(typeTimer);
       typeTimer = setTimeout(() => (typeBuffer = ""), 800);
       const match = opts.find((o) =>
-        o.textContent.trim().toLowerCase().startsWith(typeBuffer)
+        o.textContent.trim().toLowerCase().startsWith(typeBuffer),
       );
       if (match) {
         match.focus();
@@ -1986,7 +2003,7 @@ document.addEventListener(
       // defensive: do nothing
     }
   },
-  true
+  true,
 );
 
 // Helper function to get BN candidates for a product
@@ -2003,17 +2020,18 @@ async function getBnCandidates(productId, batchSize) {
   if (window._headerFrom) {
     try {
       const fromDate = new Date(window._headerFrom + "T00:00:00");
-      fromDate.setDate(fromDate.getDate() - 1);
+      fromDate.setDate(fromDate.getDate() - BMR_CANDIDATE_WINDOW_MARGIN_DAYS);
       const fromStr = fromDate.toISOString().slice(0, 10) + " 00:00:00";
       query = query.gte("created_at", fromStr);
     } catch {
       query = query.gte("created_at", window._headerFrom + " 00:00:00");
     }
   }
+
   if (window._headerTo) {
     try {
       const toDate = new Date(window._headerTo + "T00:00:00");
-      toDate.setDate(toDate.getDate() + 1);
+      toDate.setDate(toDate.getDate() + BMR_CANDIDATE_WINDOW_MARGIN_DAYS);
       const toStr = toDate.toISOString().slice(0, 10) + " 23:59:59";
       query = query.lte("created_at", toStr);
     } catch {
@@ -2319,7 +2337,7 @@ async function fetchProductsTotal(headerId) {
       data.map(async (item) => {
         const productName = await getProductName(item.product_id);
         return `${productName} (ID: ${item.product_id})`;
-      })
+      }),
     ),
   };
 }
@@ -2346,7 +2364,7 @@ async function fetchBatchesMapped(headerId) {
       data.map(async (item) => {
         const productName = await getProductName(item.product_id);
         return `Batch ${item.id}: ${productName} (ID: ${item.product_id})`;
-      })
+      }),
     ),
   };
 }
@@ -2373,7 +2391,7 @@ async function fetchBatchesUnmapped(headerId) {
       data.map(async (item) => {
         const productName = await getProductName(item.product_id);
         return `Batch ${item.id}: ${productName} (ID: ${item.product_id})`;
-      })
+      }),
     ),
   };
 }
@@ -2391,7 +2409,7 @@ async function fetchProductsNoBatchRef(headerId) {
     (item) =>
       item.preferred_batch_size === null &&
       item.min_batch_size === null &&
-      item.max_batch_size === null
+      item.max_batch_size === null,
   );
 
   // Ensure product cache is loaded
@@ -2407,7 +2425,7 @@ async function fetchProductsNoBatchRef(headerId) {
       filtered.map(async (item) => {
         const productName = await getProductName(item.product_id);
         return `${productName} (ID: ${item.product_id})`;
-      })
+      }),
     ),
   };
 }
@@ -2422,7 +2440,7 @@ async function fetchProductsResidual(headerId) {
   if (error) throw error;
 
   const filtered = data.filter(
-    (item) => item.residual_qty !== null && item.residual_qty !== 0
+    (item) => item.residual_qty !== null && item.residual_qty !== 0,
   );
 
   // Ensure product cache is loaded
@@ -2438,7 +2456,7 @@ async function fetchProductsResidual(headerId) {
       filtered.map(async (item) => {
         const productName = await getProductName(item.product_id);
         return `${productName} (ID: ${item.product_id}): ${item.residual_qty} units residual`;
-      })
+      }),
     ),
   };
 }
@@ -2599,7 +2617,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!headerId) return toast("Pick a header");
     const ok = await showConfirm(
       "Rebuild only unmapped products?",
-      "Rebuild Unmapped"
+      "Rebuild Unmapped",
     );
     if (!ok) return;
     const { error } = await supabase.rpc("rebuild_batch_plan_unmapped", {
@@ -2619,13 +2637,13 @@ document.addEventListener("DOMContentLoaded", () => {
   q("btnNudgeResiduals")?.addEventListener("click", onNudgeResiduals);
   q("btnRefreshSelected").addEventListener("click", onRebuildSelected);
   q("btnSubmitHeaderKebab")?.addEventListener("click", () =>
-    setHeaderStatus("submitted")
+    setHeaderStatus("submitted"),
   );
   q("btnReopenHeaderKebab")?.addEventListener("click", () =>
-    setHeaderStatus("draft")
+    setHeaderStatus("draft"),
   );
   q("btnApplyHeaderKebab")?.addEventListener("click", () =>
-    setHeaderStatus("applied")
+    setHeaderStatus("applied"),
   );
 
   // Health checks refresh button
@@ -2659,7 +2677,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Set initial template if month is already selected
     if (planMonthInput.value) {
       newHeaderTitleInput.placeholder = generateTemplateName(
-        planMonthInput.value
+        planMonthInput.value,
       );
     }
 
@@ -2740,16 +2758,16 @@ function renderBatches() {
         `<button class="kebab-item" data-batch="${r.batch_id}" onclick="onPickBmrForBatch(event)">Pick BN</button>`,
         `<button class="kebab-item" data-batch="${r.batch_id}" onclick="onMapByBN(event)">Map by BN</button>`,
         `<button class="kebab-item" onclick="window.open('public/shared/manage-bmr.html?item=${encodeURIComponent(
-          productDisplay
+          productDisplay,
         )}&size=${encodeURIComponent(
-          String(formatExact(r.batch_size ?? 0))
+          String(formatExact(r.batch_size ?? 0)),
         )}', '_blank')">Create BN</button>`,
       ];
     } else {
       // mapped or WIP
       menuItems = [
         `<button class="kebab-item" onclick="window.location.href='public/shared/manage-bmr.html?item=${encodeURIComponent(
-          productDisplay
+          productDisplay,
         )}&bn=${encodeURIComponent(r.mapped_bn || "")}'">View BMR</button>`,
         `<button class="kebab-item" data-batch="${
           r.batch_id
@@ -2777,7 +2795,7 @@ function renderBatches() {
       <td>${
         editable
           ? `<input type="number" step="0.001" min="0" value="${Number(
-              r.batch_size
+              r.batch_size,
             )}"
              data-pid="${r.product_id}" data-ms="${r.month_start}"
              data-seq="${
@@ -2861,7 +2879,7 @@ window.mapSingleBnRows = async function () {
     .join("\n");
   const ok = await showConfirm(
     `Map ${candidatesToMap.length} rows that each have exactly one eligible BN?\n\nExamples:\n${example}\n\nProceed?`,
-    "Map Single BN Rows"
+    "Map Single BN Rows",
   );
   if (!ok) return;
 
@@ -2875,7 +2893,7 @@ window.mapSingleBnRows = async function () {
     updateProcessingOverlay(
       `Mapping ${i + 1} / ${candidatesToMap.length}: #${item.batchId} → ${
         item.bn
-      }`
+      }`,
     );
     try {
       const { error } = await supabase.rpc("map_batch_to_bmr_by_bn", {
@@ -2973,7 +2991,7 @@ async function onEditBatchSize(evt) {
     (b) =>
       b.product_id === product_id &&
       b.month_start === month_start &&
-      b.batch_no_seq === batch_no_seq
+      b.batch_no_seq === batch_no_seq,
   );
   if (!hitCheck) return toast("Batch context not found");
   if (hitCheck.map_status !== "UNMAPPED")
@@ -2998,7 +3016,7 @@ async function onEditBatchSize(evt) {
     (b) =>
       b.product_id === product_id &&
       b.month_start === month_start &&
-      b.batch_no_seq === batch_no_seq
+      b.batch_no_seq === batch_no_seq,
   );
   if (hit) hit.batch_size = val;
   renderBatches();
@@ -3057,16 +3075,16 @@ async function renderOverrides() {
       <td>${override.batch_size}</td>
       <td>${override.uom}</td>
       <td><span class="op-type-badge op-type-${override.op_type.toLowerCase()}">${
-      override.op_type
-    }</span></td>
+        override.op_type
+      }</span></td>
       <td>${override.override_qty ?? ""}</td>
       <td>${override.note || ""}</td>
       <td>
         <button class="btn btn-sm btn-danger" onclick="deactivateOverride(${
           override.product_id
         }, '${override.month_start}', '${override.bn}', ${
-      override.batch_size
-    }, '${override.uom}', '${override.op_type}')">
+          override.batch_size
+        }, '${override.uom}', '${override.op_type}')">
           Deactivate
         </button>
       </td>
@@ -3147,7 +3165,7 @@ async function applyOverrideImmediate() {
         p_op_type: override.op_type,
         p_override_qty: override.override_qty,
         p_note: override.note,
-      }
+      },
     );
 
     if (error) {
@@ -3176,11 +3194,11 @@ async function deactivateOverride(
   bn,
   batchSize,
   uom,
-  opType
+  opType,
 ) {
   const ok = await showConfirm(
     `Deactivate ${opType} override for BN ${bn}?`,
-    "Deactivate Override"
+    "Deactivate Override",
   );
   if (!ok) return;
 
@@ -3194,7 +3212,7 @@ async function deactivateOverride(
         p_batch_size: batchSize,
         p_uom: uom,
         p_op_type: opType,
-      }
+      },
     );
 
     if (error) {
@@ -3267,10 +3285,10 @@ window.onUnlinkBmr = onUnlinkBmr; // exposed for inline Unlink buttons
 // --- Enhanced tab switcher with status indicators ---
 (function initTabs() {
   const workflowTabs = Array.from(
-    document.querySelectorAll('.tabs [role="tab"]')
+    document.querySelectorAll('.tabs [role="tab"]'),
   );
   const configTabs = Array.from(
-    document.querySelectorAll('.config-tabs [role="tab"]')
+    document.querySelectorAll('.config-tabs [role="tab"]'),
   );
   const allTabs = [...workflowTabs, ...configTabs];
   const panels = Array.from(document.querySelectorAll(".tabpanel"));
@@ -3281,8 +3299,8 @@ window.onUnlinkBmr = onUnlinkBmr; // exposed for inline Unlink buttons
     allTabs.forEach((btn) =>
       btn.setAttribute(
         "aria-selected",
-        btn.getAttribute("aria-controls") === id ? "true" : "false"
-      )
+        btn.getAttribute("aria-controls") === id ? "true" : "false",
+      ),
     );
 
     // Update panel visibility
@@ -3291,7 +3309,7 @@ window.onUnlinkBmr = onUnlinkBmr; // exposed for inline Unlink buttons
 
     // Only update workflow status indicators for workflow tabs
     const isWorkflowTab = workflowTabs.some(
-      (tab) => tab.getAttribute("aria-controls") === id
+      (tab) => tab.getAttribute("aria-controls") === id,
     );
     if (isWorkflowTab) {
       updateTabStatuses(); // Update indicators when switching tabs
@@ -3310,7 +3328,7 @@ window.onUnlinkBmr = onUnlinkBmr; // exposed for inline Unlink buttons
 
   allTabs.forEach((btn) => {
     btn.addEventListener("click", () =>
-      activate(btn.getAttribute("aria-controls"))
+      activate(btn.getAttribute("aria-controls")),
     );
   });
 
@@ -3423,7 +3441,7 @@ async function updatePlanSummary() {
 
     // 5. Products (with residuals) - products with non-zero residual
     const productsWithResiduals = lines.filter(
-      (line) => line.residual_qty !== null && line.residual_qty !== 0
+      (line) => line.residual_qty !== null && line.residual_qty !== 0,
     ).length;
 
     // Update the Review & Apply tab summary elements
@@ -3492,7 +3510,7 @@ async function runAllHealthChecks(headerId) {
 
     if (batches) {
       const mismatches = batches.filter(
-        (b) => b.mismatch_text && b.mismatch_text.trim() !== ""
+        (b) => b.mismatch_text && b.mismatch_text.trim() !== "",
       );
       const wipConflicts = batches.filter((b) => b.is_wip === true);
 
@@ -3537,37 +3555,37 @@ function updateHealthCheckUI(checks) {
   updateCheckItem(
     "checkMappingComplete",
     checks.mappingComplete,
-    `${checks.details.unmappedCount || 0} batches unmapped`
+    `${checks.details.unmappedCount || 0} batches unmapped`,
   );
 
   updateCheckItem(
     "checkResidualLow",
     checks.residualLow,
-    `Total residual: ${(checks.details.totalResidual || 0).toLocaleString()}`
+    `Total residual: ${(checks.details.totalResidual || 0).toLocaleString()}`,
   );
 
   updateCheckItem(
     "checkNoMismatches",
     checks.noMismatches,
-    `${checks.details.mismatchCount || 0} size mismatches found`
+    `${checks.details.mismatchCount || 0} size mismatches found`,
   );
 
   updateCheckItem(
     "checkNoWipConflicts",
     checks.noWipConflicts,
-    `${checks.details.wipConflictCount || 0} WIP conflicts found`
+    `${checks.details.wipConflictCount || 0} WIP conflicts found`,
   );
 
   updateCheckItem(
     "checkOverridesApplied",
     checks.overridesApplied,
-    `${checks.details.stagingOverrides || 0} pending overrides`
+    `${checks.details.stagingOverrides || 0} pending overrides`,
   );
 
   updateCheckItem(
     "checkUniqueMonth",
     checks.uniqueMonth,
-    `${checks.details.conflictingHeaders || 0} conflicting active plans`
+    `${checks.details.conflictingHeaders || 0} conflicting active plans`,
   );
 }
 
@@ -3959,10 +3977,10 @@ function renderBatchSizeReferences() {
       return `
       <tr>
         <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${getProductDisplay(
-          ref.product_id
+          ref.product_id,
         )}</td>
         <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: center;">${Number(
-          ref.preferred_batch_size
+          ref.preferred_batch_size,
         ).toLocaleString()}</td>
         <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: center;">${
           ref.min_batch_size ? Number(ref.min_batch_size).toLocaleString() : "-"
@@ -4043,7 +4061,7 @@ async function loadProductsForBatchSize() {
   const existingProductIds = new Set(
     _batchSizeRefsCache
       .filter((ref) => ref.is_active) // Only consider active references
-      .map((ref) => ref.product_id)
+      .map((ref) => ref.product_id),
   );
 
   // Convert cache to array, filter out products with existing batch size refs, and sort
@@ -4184,7 +4202,7 @@ async function saveBatchSizeRef() {
     formData.min_batch_size > formData.preferred_batch_size
   ) {
     showAlert(
-      "Minimum batch size cannot be greater than preferred batch size."
+      "Minimum batch size cannot be greater than preferred batch size.",
     );
     return;
   }
@@ -4218,11 +4236,11 @@ async function saveBatchSizeRef() {
 
       if (result.error.code === "23505") {
         showAlert(
-          "This product already has an active batch size reference. Please deactivate the existing one first or edit it instead."
+          "This product already has an active batch size reference. Please deactivate the existing one first or edit it instead.",
         );
       } else {
         showAlert(
-          "Failed to save batch size reference: " + result.error.message
+          "Failed to save batch size reference: " + result.error.message,
         );
       }
       return;
@@ -4231,7 +4249,7 @@ async function saveBatchSizeRef() {
     showAlert(
       _currentEditingBatchSizeId
         ? "Batch size reference updated successfully!"
-        : "Batch size reference added successfully!"
+        : "Batch size reference added successfully!",
     );
     hideBatchSizeModal();
     await loadBatchSizeReferences();
@@ -4262,7 +4280,7 @@ async function deleteBatchSizeRef(id) {
 
   const productDisplay = getProductDisplay(ref.product_id);
   const confirmed = await showConfirm(
-    `Delete batch size reference for ${productDisplay}?\n\nThis action cannot be undone.`
+    `Delete batch size reference for ${productDisplay}?\n\nThis action cannot be undone.`,
   );
 
   if (!confirmed) return;
@@ -4294,7 +4312,7 @@ function initializeBatchSizeManagement() {
 
   // Control buttons
   q("addNewBatchSizeBtn")?.addEventListener("click", () =>
-    showBatchSizeModal()
+    showBatchSizeModal(),
   );
   q("refreshBatchSizesBtn")?.addEventListener("click", loadBatchSizeReferences);
 
@@ -4378,7 +4396,7 @@ async function openBatchSizeQuickEdit(productId, monthStart = null) {
   // Fallback: if no applicable by month, pick any active ref for the product
   if (!existingRef) {
     existingRef = _batchSizeRefsCache.find(
-      (ref) => ref.product_id === productId && ref.is_active
+      (ref) => ref.product_id === productId && ref.is_active,
     );
   }
 
@@ -4471,7 +4489,7 @@ async function saveAndRebuildBatchSize() {
     formData.min_batch_size > formData.preferred_batch_size
   ) {
     showAlert(
-      "Minimum batch size cannot be greater than preferred batch size."
+      "Minimum batch size cannot be greater than preferred batch size.",
     );
     return;
   }
@@ -4491,7 +4509,7 @@ async function saveAndRebuildBatchSize() {
       (ref) =>
         ref.product_id === _currentQuickEditProductId &&
         ref.is_active &&
-        ref.effective_from === formData.effective_from
+        ref.effective_from === formData.effective_from,
     );
 
     let result;
@@ -4518,11 +4536,11 @@ async function saveAndRebuildBatchSize() {
         // it doesn't stay on top of the alert.
         hideQuickEditModal();
         showAlert(
-          "This product already has an active batch size reference. Please deactivate the existing one first."
+          "This product already has an active batch size reference. Please deactivate the existing one first.",
         );
       } else {
         showAlert(
-          "Failed to save batch size reference: " + result.error.message
+          "Failed to save batch size reference: " + result.error.message,
         );
       }
       return;
@@ -4536,7 +4554,7 @@ async function saveAndRebuildBatchSize() {
 
     // Show success message
     showAlert(
-      "Batch size updated successfully! Rebuilding plan for this product..."
+      "Batch size updated successfully! Rebuilding plan for this product...",
     );
 
     // Refresh batch size references cache so the rebuild sees the new values
@@ -4569,7 +4587,7 @@ async function rebuildPlanForProduct(productId) {
     }
 
     showAlert(
-      "Plan rebuilt successfully for " + getProductDisplay(productId) + "!"
+      "Plan rebuilt successfully for " + getProductDisplay(productId) + "!",
     );
 
     // Refresh all tabs to show updated data
@@ -4599,7 +4617,7 @@ function initializeQuickEditBatchSize() {
   // Form validation
   q("quickEditPreferred")?.addEventListener(
     "input",
-    validateQuickEditBatchSizes
+    validateQuickEditBatchSizes,
   );
   q("quickEditMin")?.addEventListener("input", validateQuickEditBatchSizes);
   q("quickEditMax")?.addEventListener("input", validateQuickEditBatchSizes);
@@ -4663,7 +4681,7 @@ async function downloadWorklist(format, category, language) {
     // Get worklist data
     const { data: worklistData, error: worklistError } = await supabase.rpc(
       "get_plan_worklist",
-      { p_header_id: headerId }
+      { p_header_id: headerId },
     );
 
     if (worklistError) {
@@ -4686,7 +4704,7 @@ async function downloadWorklist(format, category, language) {
         header,
         planWindow,
         category,
-        language
+        language,
       );
 
       if (!pdfSuccess) {
@@ -4739,7 +4757,7 @@ function downloadCSV(data, planWindow, category, language) {
         `"${(row.sub_category || "").replace(/"/g, '""')}"`,
         `"${(row.group || "").replace(/"/g, '""')}"`,
         `"${(row.sub_group || "").replace(/"/g, '""')}"`,
-      ].join(",")
+      ].join(","),
     ),
   ].join("\n");
 
@@ -4767,7 +4785,7 @@ async function generatePdfWithJsPDF(
   header,
   planWindow,
   category,
-  language
+  language,
 ) {
   try {
     // Check if jsPDF is available
@@ -4781,7 +4799,7 @@ async function generatePdfWithJsPDF(
     let filteredData = data;
     if (category === "ayurveda") {
       filteredData = data.filter((row) =>
-        ["Ayurveda", "Food Products", "Other Products"].includes(row.category)
+        ["Ayurveda", "Food Products", "Other Products"].includes(row.category),
       );
     } else if (category === "siddha") {
       filteredData = data.filter((row) => row.category === "Siddha");
@@ -4843,11 +4861,11 @@ async function generatePdfWithJsPDF(
     let categoryFilteredData;
     if (category === "ayurveda") {
       categoryFilteredData = filteredData.filter((row) =>
-        ["Ayurveda", "Food Products", "Other Products"].includes(row.category)
+        ["Ayurveda", "Food Products", "Other Products"].includes(row.category),
       );
     } else if (category === "siddha") {
       categoryFilteredData = filteredData.filter(
-        (row) => row.category === "Siddha"
+        (row) => row.category === "Siddha",
       );
     } else {
       categoryFilteredData = filteredData; // fallback to all data
@@ -4983,7 +5001,7 @@ async function generatePdfWithJsPDF(
             "Page " + doc.internal.getNumberOfPages(),
             pw - rightMargin,
             ph - 15,
-            { align: "right" }
+            { align: "right" },
           );
       },
     });

@@ -356,6 +356,15 @@
         color: #92400e;
         border: 1px solid #fcd34d;
       }
+      .badge-lock {
+        background: #fef2f2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
+      }
+
+      .row-locked td {
+        background: #fff7f7 !important;
+      }
 
       /* ── Status chip (analysis level) ────────────────────────────────────── */
       .status-chip {
@@ -420,6 +429,27 @@
       }
       .btn-ref:not(:disabled):hover {
         background: #fef3c7;
+      }
+      .btn-ref-add {
+        background: #fffbeb;
+        color: #92400e;
+        border-color: #fcd34d;
+      }
+      .btn-ref-add:not(:disabled):hover {
+        background: #fef3c7;
+      }
+      .btn-ref-modify {
+        background: #ecfeff;
+        color: #155e75;
+        border-color: #a5f3fc;
+      }
+      .btn-ref-modify:not(:disabled):hover {
+        background: #cffafe;
+      }
+      .btn-ref-icon {
+        width: 12px;
+        height: 12px;
+        flex: 0 0 12px;
       }
       .btn-outsourced {
         background: #f3e8ff;
@@ -604,6 +634,31 @@
       .modal-field textarea:focus {
         border-color: #2563eb;
         box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
+      .ref-scope-group {
+        gap: 8px;
+      }
+      .ref-scope-option {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-color, #111827);
+        text-transform: none;
+        letter-spacing: normal;
+      }
+      .ref-scope-option input[type="radio"] {
+        width: 14px;
+        height: 14px;
+        margin: 0;
+        flex: 0 0 auto;
+      }
+      .ref-scope-help {
+        margin-top: 2px;
+        font-size: 12px;
+        line-height: 1.35;
+        color: var(--muted, #6b7280);
       }
       .modal-divider {
         border: none;
@@ -816,6 +871,10 @@
         <span class="vp-label">Ref. Missing</span>
         <span class="vp-count" id="vpRefMissing">—</span>
       </span>
+      <span>
+        <span class="vp-label">Pending Review Locks</span>
+        <span class="vp-count" id="vpLocks">—</span>
+      </span>
       <button class="btn-workflow btn-sync-spec" id="btnSyncFromSpec" disabled>
         Sync From Current Spec
       </button>
@@ -893,7 +952,7 @@
       </table>
     </div>
 
-    <!-- ── Reference capture modal ──────────────────────────────────────────── -->
+    <!-- ── Reference proposal modal ─────────────────────────────────────────── -->
     <div
       class="modal-overlay"
       id="referenceModal"
@@ -902,7 +961,7 @@
       aria-labelledby="refModalTitle"
     >
       <div class="modal-box">
-        <p class="modal-title" id="refModalTitle">Add Reference</p>
+        <p class="modal-title" id="refModalTitle">Reference Proposal</p>
         <p class="modal-sub" id="refModalSub">
           Enter the actual reference for this test.
         </p>
@@ -979,6 +1038,44 @@
           <label for="refDisplayPreviewInput">Display Preview</label>
           <input type="text" id="refDisplayPreviewInput" readonly />
         </div>
+
+        <div class="modal-field ref-scope-group">
+          <label>Apply this reference change to:</label>
+          <label class="ref-scope-option"
+            ><input
+              type="radio"
+              id="refScopeAnalysisOnly"
+              name="refRequestScope"
+              value="ANALYSIS_ONLY"
+              checked
+            />
+            This analysis only</label
+          >
+          <label class="ref-scope-option"
+            ><input
+              type="radio"
+              id="refScopeProduct"
+              name="refRequestScope"
+              value="PRODUCT"
+            />
+            This product in future analyses</label
+          >
+          <label class="ref-scope-option"
+            ><input
+              type="radio"
+              id="refScopeFamily"
+              name="refRequestScope"
+              value="FAMILY"
+            />
+            Similar products in this family/category</label
+          >
+          <small class="ref-scope-help">
+            Product/family requests will be sent for specification review.
+            Result entry for the affected test may be blocked until review is
+            completed.
+          </small>
+        </div>
+
         <div class="modal-field">
           <label for="refNoteInput">Note (optional)</label>
           <textarea

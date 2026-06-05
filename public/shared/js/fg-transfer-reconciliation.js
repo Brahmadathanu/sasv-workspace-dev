@@ -249,6 +249,34 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+function formatMoney(value) {
+  if (value === null || value === undefined || value === "") return "—";
+  const num = Number(value);
+  if (!Number.isFinite(num)) return "—";
+  return num.toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function formatNumberPlain(value) {
+  if (value === null || value === undefined || value === "") return "—";
+  const num = Number(value);
+  if (!Number.isFinite(num)) return String(value);
+  return num.toLocaleString("en-IN");
+}
+
+function formatValuationStatus(status, warningCount) {
+  const s = status || "—";
+  const wc = Number(warningCount || 0);
+  if (s === "OK" && wc === 0) return "OK";
+  if (s === "PARTIAL") return wc > 0 ? `PARTIAL (${wc})` : "PARTIAL";
+  if (s === "NOT_VALUED") {
+    return wc > 0 ? `NOT VALUED (${wc})` : "NOT VALUED";
+  }
+  return wc > 0 ? `${s} (${wc})` : s;
+}
+
 // ---------------- Raw names / display label helpers ----------------
 function formatRawNames(rawNames) {
   if (!rawNames) return "";
@@ -634,6 +662,19 @@ function getProblemBadge(problem) {
   };
   const cls = map[problem] || "unmapped";
   return `<span class="badge ${cls}">${escapeHtml(problem)}</span>`;
+}
+
+function getValuationBadge(status, warningCount) {
+  if (!status) {
+    return '<span class="badge legacy">—</span>';
+  }
+  const map = {
+    OK: "legacy",
+    PARTIAL: "missing-log",
+    NOT_VALUED: "mismatch",
+  };
+  const cls = map[status] || "unmapped";
+  return `<span class="badge ${cls}">${escapeHtml(formatValuationStatus(status, warningCount))}</span>`;
 }
 
 function getBoolIcon(value) {
@@ -1492,23 +1533,6 @@ async function renderOverviewTab() {
     const diagnosisTip =
       "Diagnosis (Reason) is computed from Outcome + mapping flags (see rpc_fg_transfer_recon_problem_counts CASE). It describes why the outcome occurred (mapping issue vs missing entry vs breakdown mismatch).";
 
-    // Build overview blocks with clickable headers arranged side by side
-    let overviewHeadersHtml = `<div class="overview-headers-container">`;
-
-    // Outcome header (clickable)
-    overviewHeadersHtml += `<div class="overview-header clickable-header" data-drawer="outcome-chips">`;
-    overviewHeadersHtml += `<div class="overview-title">Outcome (Recon Result)</div>`;
-    overviewHeadersHtml += `<div class="section-info" data-section="outcome">i</div>`;
-    overviewHeadersHtml += `</div>`;
-
-    // Diagnosis header (clickable)
-    overviewHeadersHtml += `<div class="overview-header clickable-header" data-drawer="diagnosis-chips">`;
-    overviewHeadersHtml += `<div class="overview-title">Diagnosis (Reason)</div>`;
-    overviewHeadersHtml += `<div class="section-info" data-section="diagnosis">i</div>`;
-    overviewHeadersHtml += `</div>`;
-
-    overviewHeadersHtml += `</div>`;
-
     // Build hidden chip rows for extraction
     let outcomeChipsHtml = `<div class="chip-row" data-chips="outcome-chips">`;
     statusOrder.forEach((key) => {
@@ -1542,16 +1566,23 @@ async function renderOverviewTab() {
     });
     diagnosisChipsHtml += `</div>`;
 
-    // Counts by date (if available) - NEW RPC returns one row per date with columns
-    // transfer_date, total, matched, mismatch, missing_log, extra_log, legacy
+    // Counts by date (if available) - RPC returns one row per date with counts and valuation totals.
     let byDateHtml = "";
     if (countsByDate && countsByDate.length > 0) {
       const fmt = (n) =>
         n === null || n === undefined ? "—" : n.toLocaleString();
       byDateHtml = `
         <div class="breakdown-section">
-          <div class="row-head">
+          <div class="row-head bydate-head">
             <h4>By Date Summary <span class="section-info" data-section="bydate">i</span></h4>
+            <div class="overview-action-strip">
+              <button type="button" class="overview-action-chip clickable-header" data-drawer="outcome-chips">
+                Outcome
+              </button>
+              <button type="button" class="overview-action-chip clickable-header" data-drawer="diagnosis-chips">
+                Diagnosis
+              </button>
+            </div>
           </div>
           <div class="bydate-wrapper">
             <table class="bydate-table">
@@ -1565,6 +1596,9 @@ async function renderOverviewTab() {
                   <th>Extra Log</th>
                   <th>Legacy</th>
                   <th>Unknown</th>
+                  <th>Book Transfer Value</th>
+                  <th>MRP Notional Value</th>
+                  <th>Valuation Warnings</th>
                 </tr>
               </thead>
               <tbody>
@@ -1580,6 +1614,9 @@ async function renderOverviewTab() {
             <td>${fmt(d.extra_log)}</td>
             <td>${fmt(d.legacy)}</td>
             <td>${fmt(d.unknown)}</td>
+            <td>${formatMoney(d.book_transfer_value)}</td>
+            <td>${formatMoney(d.mrp_notional_value)}</td>
+            <td>${formatNumberPlain(d.valuation_warning_line_count)}</td>
           </tr>
         `;
       });
@@ -1587,11 +1624,14 @@ async function renderOverviewTab() {
               </tbody>
             </table>
           </div>
+          <div class="muted-caption">
+            MRP Notional Value is calculated from transferred pack count × applicable SKU MRP. It is not selling price or revenue.
+          </div>
         </div>
       `;
     }
 
-    const html = `<div class="overview-content">${overviewHeadersHtml + outcomeChipsHtml + diagnosisChipsHtml + byDateHtml}</div>`;
+    const html = `<div class="overview-content">${outcomeChipsHtml + diagnosisChipsHtml + byDateHtml}</div>`;
     const tableAreaEl = document.getElementById("tableArea");
     if (tableAreaEl) {
       // On narrow screens allow the outer area to scroll so users can reach
@@ -1740,8 +1780,11 @@ async function renderReconciliationTab() {
             <th>In Log</th>
             <th>Tally Packs</th>
             <th>Log Packs</th>
+            <th>Book Value</th>
+            <th>MRP Notional</th>
             <th>Breakdown Match</th>
             <th>Mapping</th>
+            <th>Valuation</th>
           </tr>
         </thead>
         <tbody>
@@ -1766,8 +1809,11 @@ async function renderReconciliationTab() {
           <td>${getBoolIcon(row.exists_in_log)}</td>
           <td>${row.tally_total_packs || "—"}</td>
           <td>${row.log_total_packs || "—"}</td>
+          <td>${formatMoney(row.book_transfer_value)}</td>
+          <td>${formatMoney(row.mrp_notional_value)}</td>
           <td>${getBoolIcon(row.is_exact_breakdown_match)}</td>
           <td style="font-size: 11px;">${mappingHtml}</td>
+          <td>${getValuationBadge(row.valuation_status, row.valuation_warning_line_count)}</td>
         </tr>
       `;
     });
@@ -1945,6 +1991,45 @@ function renderInspectorSummary(detail) {
     </div>
 
     <div class="breakdown-section">
+      <h4>Value Summary</h4>
+      <div class="summary-grid">
+        <div class="summary-item">
+          <label>Book Transfer Value</label>
+          <div class="value">${formatMoney(detail.book_transfer_value)}</div>
+        </div>
+        <div class="summary-item">
+          <label>MRP Notional Value</label>
+          <div class="value">${formatMoney(detail.mrp_notional_value)}</div>
+        </div>
+        <div class="summary-item">
+          <label>IK MRP Notional Value</label>
+          <div class="value">${formatMoney(detail.mrp_ik_notional_value)}</div>
+        </div>
+        <div class="summary-item">
+          <label>OK MRP Notional Value</label>
+          <div class="value">${formatMoney(detail.mrp_ok_notional_value)}</div>
+        </div>
+        <div class="summary-item">
+          <label>Valuation Status</label>
+          <div class="value">${getValuationBadge(detail.valuation_status, detail.valuation_warning_line_count)}</div>
+        </div>
+        <div class="summary-item">
+          <label>Valuation Warnings</label>
+          <div class="value">${formatNumberPlain(detail.valuation_warning_line_count)}</div>
+        </div>
+        <div class="summary-item">
+          <label>Price Missing Lines</label>
+          <div class="value">${formatNumberPlain(detail.price_missing_line_count)}</div>
+        </div>
+        <div class="summary-item">
+          <label>SKU Unmapped Lines</label>
+          <div class="value">${formatNumberPlain(detail.sku_unmapped_line_count)}</div>
+        </div>
+      </div>
+      <div class="muted-caption">MRP Notional Value is not selling price or revenue.</div>
+    </div>
+
+    <div class="breakdown-section">
       <h4>Flags</h4>
       <div class="summary-grid">
         <div class="summary-item">
@@ -2042,6 +2127,59 @@ function renderInspectorTally(detail) {
     }
   } else {
     html += "<p>No breakdown available</p>";
+  }
+  html += "</div>";
+
+  html += '<div class="breakdown-section"><h4>Valuation Breakdown Lines</h4>';
+  if (
+    detail.valuation_breakdown_lines &&
+    Array.isArray(detail.valuation_breakdown_lines)
+  ) {
+    if (detail.valuation_breakdown_lines.length === 0) {
+      html += "<p>No valuation breakdown lines available</p>";
+    } else {
+      html += `
+        <div class="breakdown-table-wrap">
+          <table class="breakdown-table">
+            <thead>
+              <tr>
+                <th>Godown</th>
+                <th>SKU</th>
+                <th>Transferred Packs</th>
+                <th>Book Line Value</th>
+                <th>MRP Region</th>
+                <th>Applicable MRP</th>
+                <th>MRP Notional Value</th>
+                <th>Valuation</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+      detail.valuation_breakdown_lines.forEach((line) => {
+        const valuationWarning = line.valuation_warning
+          ? `<div class="muted-caption" style="margin:4px 0 0 0;">${escapeHtml(line.valuation_warning)}</div>`
+          : "";
+        html += `
+          <tr>
+            <td>${escapeHtml(line.transfer_godown_code || "—")}</td>
+            <td>${escapeHtml(line.sku_label || line.sku_id || "—")}</td>
+            <td>${formatNumberPlain(line.transferred_pack_count)}</td>
+            <td>${formatMoney(line.book_line_value)}</td>
+            <td>${escapeHtml(line.mrp_price_region || "—")}</td>
+            <td>${formatMoney(line.applicable_mrp)}</td>
+            <td>${formatMoney(line.mrp_notional_line_value)}</td>
+            <td>${getValuationBadge(line.valuation_status, line.valuation_warning ? 1 : 0)}${valuationWarning}</td>
+          </tr>
+        `;
+      });
+      html += `
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+  } else {
+    html += "<p>No valuation breakdown available</p>";
   }
   html += "</div>";
 
@@ -3344,6 +3482,24 @@ async function exportCsvCurrentTab() {
       return;
     }
 
+    if (state.currentTab === "reconciliation") {
+      data = data.map((row) => ({
+        ...row,
+        "Book Transfer Value":
+          row.book_transfer_value_raw ?? row.book_transfer_value,
+        "MRP Notional Value":
+          row.mrp_notional_value_raw ?? row.mrp_notional_value,
+        "IK MRP Notional Value":
+          row.mrp_ik_notional_value_raw ?? row.mrp_ik_notional_value,
+        "OK MRP Notional Value":
+          row.mrp_ok_notional_value_raw ?? row.mrp_ok_notional_value,
+        "Valuation Status": row.valuation_status,
+        "Valuation Warning Line Count": row.valuation_warning_line_count,
+        "Price Missing Line Count": row.price_missing_line_count,
+        "SKU Unmapped Line Count": row.sku_unmapped_line_count,
+      }));
+    }
+
     // Convert to CSV
     const csv = convertToCSV(data);
     downloadCSV(csv, filename);
@@ -3427,18 +3583,39 @@ function invalidateTransferSummaryCopyCache() {
 async function fetchTransferSummaryRowsForCopy() {
   const from = formatDateForDB(state.dateFrom) || "1900-01-01";
   const to = formatDateForDB(state.dateTo) || "2100-01-01";
+  const valuedColumns =
+    "transfer_date, transfer_godown_code, product_name, batch_code, pack_size, sku_pack_uom, qty_value_raw, book_line_value, mrp_notional_line_value, valuation_status";
+  const baseColumns =
+    "transfer_date, transfer_godown_code, product_name, batch_code, pack_size, sku_pack_uom, qty_value_raw";
   try {
-    const { data, error } = await supabase
-      .from("v_tally_fg_transfer_normalized")
-      .select(
-        "transfer_date, transfer_godown_code, product_name, batch_code, pack_size, sku_pack_uom, qty_value_raw",
-      )
-      .gte("transfer_date", from)
-      .lte("transfer_date", to)
-      .order("transfer_date", { ascending: true })
-      .order("transfer_godown_code", { ascending: true })
-      .order("product_name", { ascending: true })
-      .order("batch_code", { ascending: true });
+    const buildQuery = (viewName, columns) =>
+      supabase
+        .from(viewName)
+        .select(columns)
+        .gte("transfer_date", from)
+        .lte("transfer_date", to)
+        .order("transfer_date", { ascending: true })
+        .order("transfer_godown_code", { ascending: true })
+        .order("product_name", { ascending: true })
+        .order("batch_code", { ascending: true });
+
+    let { data, error } = await buildQuery(
+      "v_tally_fg_transfer_normalized_valued",
+      valuedColumns,
+    );
+
+    if (error) {
+      console.warn(
+        "v_tally_fg_transfer_normalized_valued unavailable; falling back to base normalized view",
+        error,
+      );
+      const fallback = await buildQuery(
+        "v_tally_fg_transfer_normalized",
+        baseColumns,
+      );
+      data = fallback.data;
+      error = fallback.error;
+    }
 
     if (error) {
       handleSupabaseError(error);
@@ -3490,8 +3667,27 @@ function buildTransferSummaryText(rows) {
           typeof it.qty_value_raw !== "undefined" && it.qty_value_raw !== null
             ? String(it.qty_value_raw)
             : "—";
+        const valueParts = [];
+        if (Object.prototype.hasOwnProperty.call(it, "book_line_value")) {
+          valueParts.push(`Book Value: ${formatMoney(it.book_line_value)}`);
+        }
+        if (
+          Object.prototype.hasOwnProperty.call(it, "mrp_notional_line_value")
+        ) {
+          valueParts.push(
+            `MRP Notional Value: ${formatMoney(it.mrp_notional_line_value)}`,
+          );
+        }
+        if (Object.prototype.hasOwnProperty.call(it, "valuation_status")) {
+          valueParts.push(
+            `Valuation: ${formatValuationStatus(it.valuation_status, 0)}`,
+          );
+        }
+        const valueText = valueParts.length
+          ? ` | ${valueParts.join(" | ")}`
+          : "";
         out.push(
-          `${idx}. ${product} | Batch: ${batch} | Pack: ${pack} | Qty: ${qty}`,
+          `${idx}. ${product} | Batch: ${batch} | Pack: ${pack} | Qty: ${qty}${valueText}`,
         );
         idx++;
         totalLines++;

@@ -41,8 +41,24 @@ const state = {
   selectedIndentLine: null,
   // excess tab
   excessPage: 0,
+  excessTotalCount: 0,
+  excessTotalPages: 1,
   excessRows: [],
+  excessAuditPage: 0,
+  excessAuditTotalCount: 0,
+  excessAuditTotalPages: 1,
   excessAuditRows: [],
+  excessModal: null,
+  excessFilters: {
+    materialClassId: "",
+    datePreset: "30d",
+    dateFrom: "",
+    dateTo: "",
+    minQty: 0,
+    vendorQ: "",
+    itemQ: "",
+    unmappedOnly: false,
+  },
   // vendor-wise buylist tab
   vwl: {
     page: 0,
@@ -211,7 +227,6 @@ function setTab(tab) {
   if (tab === "indents") loadIndents();
   if (tab === "excess") {
     loadExcess();
-    loadExcessAudit();
   }
   if (tab === "vendor-buylist") {
     if (!state.vwl.loaded) {
@@ -1163,6 +1178,8 @@ function wireActionQueueControls() {
       { id: "workflowGuideModalBackdrop", close: closeWorkflowGuideModal },
       { id: "detailModalBackdrop", close: closeDetailModal },
       { id: "vendorModalBackdrop", close: closeVendorModal },
+      { id: "acceptExcessModalBackdrop", close: closeAcceptExcessModal },
+      { id: "eAuditModalBackdrop", close: closeExcessAuditModal },
       { id: "vwlBreakdownModalBackdrop", close: closeVwlBreakdownModal },
       { id: "indentViewModalBackdrop", close: closeIndentViewModal },
       { id: "prViewModalBackdrop", close: closePrViewModal },
@@ -2237,7 +2254,9 @@ async function refreshAllTabsData() {
     await loadPrHeaders();
     await loadIndents();
     await loadExcess();
-    await loadExcessAudit();
+    if (qs("eAuditModalBackdrop")?.classList.contains("show")) {
+      await loadExcessAuditPaged();
+    }
     if (state.vwl.loaded) await loadVendorBuylist();
 
     if (state.selectedIndent?.indent_id) {
@@ -4678,56 +4697,183 @@ function renderExcess() {
   tbody.innerHTML = "";
   for (const row of state.excessRows) {
     const tr = document.createElement("tr");
+    tr.classList.add("clickable-row");
+    tr.style.cursor = "pointer";
     tr.innerHTML = `
       <td>
         <div>${esc(row.voucher_number ?? "")}</div>
         <div class="muted">${esc(row.voucher_date ?? "")}</div>
       </td>
-      <td><b>${esc(row.stock_item_name ?? "")}</b></td>
+      <td>${esc(row.stock_item_name ?? "")}</td>
       <td>${esc(row.material_class_code ?? "")}</td>
       <td>${fmt(row.purchase_qty)}</td>
       <td>${fmt(row.allocated_qty)}</td>
       <td>${fmt(row.unallocated_qty)}</td>
       <td>${fmt(row.accepted_qty)}</td>
       <td>${fmt(row.net_unallocated_qty)}</td>
-      <td class="row-actions">
-        <button data-act="accept">Accept</button>
-      </td>
     `;
-    tr.querySelector('[data-act="accept"]').addEventListener("click", (e) => {
-      e.stopPropagation();
-      openAcceptExcessModal(row);
+    tr.addEventListener("click", () => {
+      openExcessPurchaseModal(row);
     });
     tbody.appendChild(tr);
   }
-  const _eCnt = state.excessRows.length;
-  qs("eMeta").textContent = `${_eCnt} item${_eCnt !== 1 ? "s" : ""}`;
-  qs("ePaging").textContent = `Page ${state.excessPage + 1}`;
+  qs("eMeta").textContent = getExcessMetaSummary();
+  qs("ePaging").textContent =
+    `Page ${state.excessPage + 1}/${state.excessTotalPages}`;
   const _ePrev = qs("eBtnPrev");
   const _eNext = qs("eBtnNext");
   if (_ePrev) _ePrev.disabled = state.excessPage <= 0;
-  if (_eNext) _eNext.disabled = _eCnt < state.pageSize;
-  updateTabCount("tabCountExcess", _eCnt);
+  if (_eNext) _eNext.disabled = state.excessPage >= state.excessTotalPages - 1;
+  updateTabCount("tabCountExcess", state.excessRows.length);
+}
+
+function formatIsoDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getExcessDateRange() {
+  const preset = state.excessFilters.datePreset || "30d";
+  const today = new Date();
+  const end = formatIsoDate(today);
+  if (preset === "custom") {
+    return {
+      from: state.excessFilters.dateFrom || "",
+      to: state.excessFilters.dateTo || "",
+      label:
+        state.excessFilters.dateFrom || state.excessFilters.dateTo
+          ? `${state.excessFilters.dateFrom || "…"} to ${state.excessFilters.dateTo || "…"}`
+          : "custom range",
+    };
+  }
+  if (preset === "7d") {
+    const from = new Date(today);
+    from.setDate(today.getDate() - 7);
+    return { from: formatIsoDate(from), to: end, label: "last 7 days" };
+  }
+  if (preset === "fy") {
+    const from = new Date(today);
+    from.setDate(today.getDate() - 365);
+    return { from: formatIsoDate(from), to: end, label: "last 365 days" };
+  }
+  const from = new Date(today);
+  from.setDate(today.getDate() - 30);
+  return { from: formatIsoDate(from), to: end, label: "last 30 days" };
+}
+
+function getExcessMetaSummary() {
+  const parts = [
+    `${state.excessTotalCount} line${state.excessTotalCount !== 1 ? "s" : ""}`,
+  ];
+  const filters = state.excessFilters;
+  if (filters.materialClassId) parts.push(filters.materialClassId);
+  const dateRange = getExcessDateRange();
+  if (filters.datePreset !== "custom" || dateRange.from || dateRange.to) {
+    parts.push(dateRange.label);
+  }
+  if (Number(filters.minQty) > 0) parts.push(`min ${Number(filters.minQty)}`);
+  if (filters.vendorQ) parts.push(`vendor: '${filters.vendorQ}'`);
+  if (filters.itemQ) parts.push(`item: '${filters.itemQ}'`);
+  if (filters.unmappedOnly) parts.push("unmapped only");
+  const quickSearch = (qs("eSearch")?.value || "").trim();
+  if (quickSearch) parts.push(`search: '${quickSearch}'`);
+  return parts.join(" • ");
+}
+
+function applyExcessFilterChange(patch = {}) {
+  Object.assign(state.excessFilters, patch);
+  state.excessPage = 0;
+  loadExcess();
+}
+
+function closeExcessFilterPanel() {
+  const panel = qs("eFilterPanel");
+  const btn = qs("eFilterBtn");
+  if (!panel || !btn) return;
+  panel.classList.remove("open");
+  btn.setAttribute("aria-expanded", "false");
+}
+
+function toggleExcessFilterPanel() {
+  const panel = qs("eFilterPanel");
+  const btn = qs("eFilterBtn");
+  if (!panel || !btn) return;
+
+  const isOpen = panel.classList.contains("open");
+  document.querySelectorAll(".pec-filter-drawer.open").forEach((drawer) => {
+    drawer.classList.remove("open");
+    drawer
+      .closest(".pec-filter-wrap")
+      ?.querySelector(".pec-filter-btn")
+      ?.setAttribute("aria-expanded", "false");
+  });
+
+  if (isOpen) return;
+
+  panel.classList.add("open");
+  btn.setAttribute("aria-expanded", "true");
+  const rect = btn.getBoundingClientRect();
+  panel.style.position = "fixed";
+  panel.style.top = rect.bottom + 4 + "px";
+  panel.style.left = rect.left + "px";
+  panel.style.zIndex = "10001";
+  requestAnimationFrame(() => {
+    const drawerWidth = panel.offsetWidth || 320;
+    if (rect.left + drawerWidth > window.innerWidth) {
+      panel.style.left = Math.max(4, rect.right - drawerWidth) + "px";
+    }
+  });
 }
 
 async function loadExcess() {
   setTabTableLoading("excess", true);
   try {
-    const search = (qs("eSearch").value || "").trim();
-    let q = supabase.from("v_proc_purchase_excess_console").select("*");
+    const search = (qs("eSearch")?.value || "").trim();
+    const filters = state.excessFilters;
+    const from = state.excessPage * state.pageSize;
+    const to = from + state.pageSize - 1;
+    let q = supabase
+      .from("v_proc_purchase_excess_console")
+      .select("*", { count: "exact" });
     if (search) q = q.ilike("stock_item_name", `%${search}%`);
-    q = q
-      .order("voucher_date", { ascending: false })
-      .range(
-        state.excessPage * state.pageSize,
-        state.excessPage * state.pageSize + state.pageSize - 1,
+    if (filters.materialClassId) {
+      q = q.eq("material_class_code", filters.materialClassId);
+    }
+    if (Number(filters.minQty) > 0) {
+      q = q.gte("net_unallocated_qty", Number(filters.minQty));
+    }
+    const dateRange = getExcessDateRange();
+    if (dateRange.from) q = q.gte("voucher_date", dateRange.from);
+    if (dateRange.to) q = q.lte("voucher_date", dateRange.to);
+    if (filters.vendorQ) {
+      q = q.ilike("vendor_display_name", `%${filters.vendorQ}%`);
+    }
+    if (filters.itemQ) {
+      const escapedItemQ = filters.itemQ.replaceAll(",", "\\,");
+      q = q.or(
+        `stock_item_name.ilike.%${escapedItemQ}%,stock_item_code.ilike.%${escapedItemQ}%`,
       );
-    const { data, error } = await q;
+    }
+    if (filters.unmappedOnly) {
+      q = q.is("vendor_display_name", null);
+    }
+    q = q
+      .order("net_unallocated_qty", { ascending: false })
+      .order("voucher_date", { ascending: false })
+      .range(from, to);
+    const { data, error, count } = await q;
     if (error) {
       toast(`Failed to load excess purchases: ${error.message}`, "error");
       return;
     }
     state.excessRows = data || [];
+    state.excessTotalCount = count ?? 0;
+    state.excessTotalPages = Math.max(
+      1,
+      Math.ceil(state.excessTotalCount / state.pageSize),
+    );
     renderExcess();
   } finally {
     setTabTableLoading("excess", false);
@@ -4750,37 +4896,107 @@ function renderExcessAudit() {
   }
 }
 
-async function loadExcessAudit() {
-  const { data, error } = await supabase
+async function loadExcessAuditPaged() {
+  const from = state.excessAuditPage * state.pageSize;
+  const to = from + state.pageSize - 1;
+
+  const { data, error, count } = await supabase
     .from("v_proc_excess_acceptance_audit_console")
-    .select("*")
+    .select("*", { count: "exact" })
     .order("accepted_at", { ascending: false })
-    .limit(100);
+    .range(from, to);
   if (error) {
-    console.error("Audit load error:", error);
+    toast(`Failed to load acceptance audit: ${error.message}`, "error");
     return;
   }
   state.excessAuditRows = data || [];
+  state.excessAuditTotalCount = count ?? 0;
+  state.excessAuditTotalPages = Math.max(
+    1,
+    Math.ceil(state.excessAuditTotalCount / state.pageSize),
+  );
   renderExcessAudit();
+  qs("eAuditMeta").textContent =
+    `${state.excessAuditTotalCount} line${state.excessAuditTotalCount !== 1 ? "s" : ""}`;
+  qs("eAuditPaging").textContent =
+    `Page ${state.excessAuditPage + 1}/${state.excessAuditTotalPages}`;
+  qs("eAuditBtnPrev").disabled = state.excessAuditPage <= 0;
+  qs("eAuditBtnNext").disabled =
+    state.excessAuditPage >= state.excessAuditTotalPages - 1;
 }
 
-function openAcceptExcessModal(row) {
+function openExcessAuditModal() {
+  const backdrop = qs("eAuditModalBackdrop");
+  if (!backdrop) return;
+  state.excessAuditPage = 0;
+  backdrop.removeAttribute("inert");
+  backdrop.classList.add("show");
+  backdrop.setAttribute("aria-hidden", "false");
+  loadExcessAuditPaged();
+}
+
+function closeExcessAuditModal() {
+  const backdrop = qs("eAuditModalBackdrop");
+  if (!backdrop) return;
+  backdrop.setAttribute("inert", "");
+  hideModalBackdrop(backdrop, [qs("eAuditBtn"), qs("eSearch")]);
+}
+
+function updateExcessAcceptState() {
+  const row = state.excessModal || {};
+  const max = Number(row.net_unallocated_qty || 0);
+  const qty = Number(qs("excessAcceptQty")?.value || 0);
+  const reason = (qs("excessAcceptReason")?.value || "").trim();
+  const ok = qty > 0 && qty <= max && reason.length >= 10;
+  const btn = qs("btnExcessAccept");
+  if (btn) btn.disabled = !ok;
+}
+
+function openExcessPurchaseModal(row) {
   const backdrop = qs("acceptExcessModalBackdrop");
   backdrop.classList.add("show");
   backdrop.setAttribute("aria-hidden", "false");
-  qs("acceptExcessItem").textContent = `${row.stock_item_name} — Voucher ${
-    row.voucher_number ?? row.purchase_fact_id
-  }`;
-  qs("acceptExcessMax").textContent = fmt(row.net_unallocated_qty);
-  qs("acceptExcessQty").value = "";
-  qs("acceptExcessQty").max = String(row.net_unallocated_qty ?? "");
-  qs("acceptExcessReason").value = "";
+  state.excessModal = row;
+
+  const subtitleParts = [];
+  subtitleParts.push(`Fact #${row.purchase_fact_id ?? "—"}`);
+  if (row.voucher_date) subtitleParts.push(String(row.voucher_date));
+  if (row.vendor_display_name && String(row.vendor_display_name).trim()) {
+    subtitleParts.push(String(row.vendor_display_name).trim());
+  }
+  qs("excessModalSub").textContent = subtitleParts.join(" • ");
+  qs("excessItemValue").textContent =
+    row.stock_item_name && String(row.stock_item_name).trim()
+      ? String(row.stock_item_name).trim()
+      : "—";
+  qs("excessItemCodeValue").textContent =
+    row.stock_item_code && String(row.stock_item_code).trim()
+      ? String(row.stock_item_code).trim()
+      : "—";
+  qs("excessUomValue").textContent =
+    row.uom_code && String(row.uom_code).trim()
+      ? String(row.uom_code).trim()
+      : "—";
+  qs("excessPurchaseQtyValue").textContent =
+    row.purchase_qty == null ? "—" : fmt(row.purchase_qty);
+  qs("excessAllocatedQtyValue").textContent =
+    row.allocated_qty == null ? "—" : fmt(row.allocated_qty);
+  qs("excessNetUnallocValue").textContent =
+    row.net_unallocated_qty == null ? "—" : fmt(row.net_unallocated_qty);
+  qs("excessAcceptMax").textContent =
+    row.net_unallocated_qty == null ? "—" : fmt(row.net_unallocated_qty);
+  const max = Number(row.net_unallocated_qty || 0);
+  qs("excessAcceptQty").value = max > 0 ? String(max) : "0";
+  qs("excessAcceptQty").max = String(max);
+  qs("excessAcceptReason").value = "";
   backdrop.dataset.purchaseFactId = String(row.purchase_fact_id);
-  backdrop.dataset.maxQty = String(row.net_unallocated_qty ?? 0);
+  backdrop.dataset.maxQty = String(max);
+  updateExcessAcceptState();
 }
 
 function closeAcceptExcessModal() {
   const backdrop = qs("acceptExcessModalBackdrop");
+  state.excessModal = null;
   hideModalBackdrop(backdrop, [qs("eSearch")]);
 }
 
@@ -4788,9 +5004,9 @@ async function saveAcceptExcess() {
   const backdrop = qs("acceptExcessModalBackdrop");
   const purchaseFactId = Number(backdrop.dataset.purchaseFactId);
   const maxQty = Number(backdrop.dataset.maxQty);
-  const qtyText = (qs("acceptExcessQty").value || "").trim();
-  const qty = Number(qtyText);
-  if (!qtyText || Number.isNaN(qty) || qty <= 0) {
+  const qty = Number(qs("excessAcceptQty").value || 0);
+  const reason = (qs("excessAcceptReason").value || "").trim();
+  if (Number.isNaN(qty) || qty <= 0) {
     toast("Enter a valid quantity greater than zero.", "error");
     return;
   }
@@ -4798,9 +5014,8 @@ async function saveAcceptExcess() {
     toast(`Quantity cannot exceed max unallocated (${fmt(maxQty)}).`, "error");
     return;
   }
-  const reason = (qs("acceptExcessReason").value || "").trim();
-  if (!reason) {
-    toast("Reason is required.", "error");
+  if (reason.length < 10) {
+    toast("Reason is required (minimum 10 characters).", "error");
     return;
   }
   const { error } = await supabase.rpc("proc_indent_accept_excess", {
@@ -4815,7 +5030,9 @@ async function saveAcceptExcess() {
   toast("Excess accepted.", "success");
   closeAcceptExcessModal();
   await loadExcess();
-  await loadExcessAudit();
+  if (qs("eAuditModalBackdrop")?.classList.contains("show")) {
+    await loadExcessAuditPaged();
+  }
 }
 
 function wireExcessControls() {
@@ -4824,6 +5041,7 @@ function wireExcessControls() {
     loadExcess();
   });
   qs("eBtnNext").addEventListener("click", () => {
+    if (state.excessPage >= state.excessTotalPages - 1) return;
     state.excessPage += 1;
     loadExcess();
   });
@@ -4835,10 +5053,80 @@ function wireExcessControls() {
       loadExcess();
     },
   });
+  const eFilterBtn = qs("eFilterBtn");
+  const eFilterPanel = qs("eFilterPanel");
+  const applyExcessFilterSearchVendor = debounce((value) => {
+    applyExcessFilterChange({ vendorQ: value.trim() });
+  }, 250);
+  const applyExcessFilterSearchItem = debounce((value) => {
+    applyExcessFilterChange({ itemQ: value.trim() });
+  }, 250);
+
+  eFilterBtn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleExcessFilterPanel();
+  });
+  eFilterPanel?.addEventListener("click", (e) => {
+    e.stopPropagation();
+  });
+  document.addEventListener("click", (e) => {
+    if (
+      !e.target.closest("#eFilterBtn") &&
+      !e.target.closest("#eFilterPanel")
+    ) {
+      closeExcessFilterPanel();
+    }
+  });
+  window.addEventListener("resize", closeExcessFilterPanel);
+
+  qs("eFMaterialClass")?.addEventListener("change", (e) => {
+    applyExcessFilterChange({ materialClassId: e.target.value });
+  });
+  qs("eFDatePreset")?.addEventListener("change", (e) => {
+    applyExcessFilterChange({ datePreset: e.target.value });
+  });
+  qs("eFDateFrom")?.addEventListener("change", (e) => {
+    applyExcessFilterChange({ dateFrom: e.target.value, datePreset: "custom" });
+  });
+  qs("eFDateTo")?.addEventListener("change", (e) => {
+    applyExcessFilterChange({ dateTo: e.target.value, datePreset: "custom" });
+  });
+  qs("eFMinQty")?.addEventListener("input", (e) => {
+    applyExcessFilterChange({ minQty: Number(e.target.value || 0) });
+  });
+  qs("eFVendorQ")?.addEventListener("input", (e) => {
+    applyExcessFilterSearchVendor(e.target.value || "");
+  });
+  qs("eFItemQ")?.addEventListener("input", (e) => {
+    applyExcessFilterSearchItem(e.target.value || "");
+  });
+  qs("eFUnmappedOnly")?.addEventListener("change", (e) => {
+    applyExcessFilterChange({ unmappedOnly: e.target.checked });
+  });
+
   qs("btnAcceptExcessCancel").addEventListener("click", closeAcceptExcessModal);
-  qs("btnAcceptExcessSave").addEventListener("click", saveAcceptExcess);
+  qs("btnAcceptExcessClose")?.addEventListener("click", closeAcceptExcessModal);
+  qs("btnExcessAccept").addEventListener("click", saveAcceptExcess);
+  qs("excessAcceptQty").addEventListener("input", updateExcessAcceptState);
+  qs("excessAcceptReason").addEventListener("input", updateExcessAcceptState);
   qs("acceptExcessModalBackdrop").addEventListener("click", (e) => {
     if (e.target.id === "acceptExcessModalBackdrop") closeAcceptExcessModal();
+  });
+
+  qs("eAuditBtn")?.addEventListener("click", openExcessAuditModal);
+  qs("btnEAuditClose")?.addEventListener("click", closeExcessAuditModal);
+  qs("eAuditModalBackdrop")?.addEventListener("click", (e) => {
+    if (e.target.id === "eAuditModalBackdrop") closeExcessAuditModal();
+  });
+  qs("eAuditBtnPrev")?.addEventListener("click", () => {
+    if (state.excessAuditPage <= 0) return;
+    state.excessAuditPage -= 1;
+    loadExcessAuditPaged();
+  });
+  qs("eAuditBtnNext")?.addEventListener("click", () => {
+    if (state.excessAuditPage >= state.excessAuditTotalPages - 1) return;
+    state.excessAuditPage += 1;
+    loadExcessAuditPaged();
   });
 }
 

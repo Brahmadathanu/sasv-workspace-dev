@@ -2336,7 +2336,7 @@
         const pinnedItems = pinnedKeys
           .map((moduleKey) => lookup.get(moduleKey))
           .filter(Boolean);
-        const shortcuts = pinnedItems.slice(0, 8);
+        const shortcuts = pinnedItems;
 
         workspaceBandMeta.textContent = shortcuts.length
           ? `${pinnedItems.length} pinned in your panel`

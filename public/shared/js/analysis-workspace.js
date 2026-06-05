@@ -128,6 +128,7 @@ const vpMissing = $("vpMissing");
 const vpFailed = $("vpFailed");
 const vpNotEval = $("vpNotEval");
 const vpRefMissing = $("vpRefMissing");
+const vpLocks = $("vpLocks");
 const btnSubmitScrutiny = $("btnSubmitScrutiny");
 const btnPassScrutiny = $("btnPassScrutiny");
 const btnApproveForCoa = $("btnApproveForCoa");
@@ -159,6 +160,9 @@ const refPassFailValueField = $("refPassFailValueField");
 const refPassFailValueSelect = $("refPassFailValueSelect");
 const refUomDisplayInput = $("refUomDisplayInput");
 const refDisplayPreviewInput = $("refDisplayPreviewInput");
+const refScopeAnalysisOnly = $("refScopeAnalysisOnly");
+const refScopeProduct = $("refScopeProduct");
+const refScopeFamily = $("refScopeFamily");
 const refNoteInput = $("refNoteInput");
 const btnAddException = $("btnAddException");
 const btnRefCancel = $("btnRefCancel");
@@ -197,6 +201,7 @@ let analysisInfo = null; // Analysis-level metadata (first row)
 let debounceTimers = {}; // { [analysis_result_id]: timeoutId }
 let analysisActionPermissions = new Map(); // key: `${analysisId}:${actionCode}`
 let analysisPermissionVerified = false;
+let analysisLocks = new Map(); // key: analysis_result_id
 
 // Staff data for Issue COA modal (role-filtered from lab.v_coa_signatory_picker)
 let preparedByList = []; // action_code = 'ENTER_RESULT'
@@ -333,6 +338,34 @@ async function loadAnalysisData() {
   return data ?? [];
 }
 
+async function loadAnalysisLocks() {
+  analysisLocks.clear();
+  if (!analysisId) return;
+
+  const { data, error } = await labSupabase.rpc("fn_get_analysis_spec_locks", {
+    p_analysis_id: analysisId,
+  });
+
+  if (error) {
+    console.error("[AW] lock fetch failed:", error);
+    return;
+  }
+
+  (data ?? []).forEach((row) => {
+    if (row?.is_locked === true) {
+      analysisLocks.set(Number(row.analysis_result_id), row);
+    }
+  });
+}
+
+function getRowLock(resultId) {
+  return analysisLocks.get(Number(resultId)) || null;
+}
+
+function isRowLocked(resultId) {
+  return !!getRowLock(resultId);
+}
+
 // ── Render header card ──────────────────────────────────────────────────────────
 function renderHeader(info) {
   hdrRegisterNo.textContent = info.analysis_register_no ?? "—";
@@ -371,6 +404,8 @@ function buildResultRow(row) {
   const kind = String(row.result_kind_snapshot || "").toUpperCase();
   const src = String(row.result_source_type || "").toUpperCase();
   const refRequired = row.reference_capture_required === true;
+  const rowLocked = isRowLocked(row.analysis_result_id);
+  const lockInfo = getRowLock(row.analysis_result_id);
   const hasTempException = row.has_active_reference_exception === true;
   const isOutsourced = src === "OUTSOURCED";
   const canEnterResult = mayPerformAnalysisAction(analysisId, "ENTER_RESULT");
@@ -378,6 +413,12 @@ function buildResultRow(row) {
     analysisId,
     "CREATE_REFERENCE_EXCEPTION",
   );
+  const resultDisabled = rowLocked || isReadOnly || !canEnterResult;
+  const resultTitle = rowLocked
+    ? String(lockInfo?.lock_message || "Pending specification review exists.")
+    : !canEnterResult
+      ? PERMISSION_DENIED_MESSAGE
+      : "";
 
   // Use reference_range_display if available, fall back to spec_display_snapshot
   const specDisplay =
@@ -408,8 +449,8 @@ function buildResultRow(row) {
         data-rid="${rid}"
         data-kind="NUMERIC"
         value="${esc(String(currentVal))}"
-        ${isReadOnly || !canEnterResult ? "disabled" : ""}
-        ${!canEnterResult ? `title="${esc(PERMISSION_DENIED_MESSAGE)}"` : ""}
+        ${resultDisabled ? "disabled" : ""}
+        ${resultTitle ? `title="${esc(resultTitle)}"` : ""}
         aria-label="Numeric result for ${esc(row.test_name)}"
       />`;
   } else {
@@ -427,8 +468,8 @@ function buildResultRow(row) {
         class="result-select"
         data-rid="${rid}"
         data-kind="TEXT"
-        ${isReadOnly || !canEnterResult ? "disabled" : ""}
-        ${!canEnterResult ? `title="${esc(PERMISSION_DENIED_MESSAGE)}"` : ""}
+        ${resultDisabled ? "disabled" : ""}
+        ${resultTitle ? `title="${esc(resultTitle)}"` : ""}
         aria-label="Text result for ${esc(row.test_name)}"
       >
         <option value="">— Select —</option>
@@ -440,10 +481,14 @@ function buildResultRow(row) {
   const tempBadge = hasTempException
     ? `<span class="badge badge-temp" title="One-time exception active">TEMP</span>`
     : "";
+  const lockBadge = rowLocked
+    ? `<span class="badge badge-lock" title="${esc(String(lockInfo?.lock_message || "Pending specification review exists."))}">Pending Spec Review</span>`
+    : "";
 
   let actionCell;
   if (!isReadOnly && isOutsourced) {
     actionCell = `
+      ${lockBadge}
       ${tempBadge}
       <button
         class="btn-sm btn-outsourced"
@@ -451,25 +496,40 @@ function buildResultRow(row) {
         data-rid="${rid}"
         title="Edit outsourced source details"
       >&#9998; Edit Source</button>`;
-  } else if (!isReadOnly && refRequired) {
+  } else if (!isReadOnly && canCreateRefException) {
+    const modifyIcon =
+      '<svg class="btn-ref-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" fill="currentColor"></path><path d="M20.71 7.04a1 1 0 0 0 0-1.41L18.37 3.29a1 1 0 0 0-1.41 0L15.13 5.12l3.75 3.75 1.83-1.83z" fill="currentColor"></path></svg>';
+    const refActionLabel = rowLocked
+      ? `${modifyIcon} Modify Reference`
+      : refRequired
+        ? "+ Add Reference"
+        : `${modifyIcon} Modify Reference`;
+    const refActionTitle = refRequired
+      ? "Add or review reference for this test"
+      : "Review or modify reference for this test";
+    const refActionClass = rowLocked
+      ? "btn-ref-modify"
+      : refRequired
+        ? "btn-ref-add"
+        : "btn-ref-modify";
     actionCell = `
+      ${lockBadge}
+      ${tempBadge}
       <button
-        class="btn-sm btn-ref"
+        class="btn-sm btn-ref ${refActionClass}"
         data-action="add-reference"
         data-rid="${rid}"
-        ${!canCreateRefException ? "disabled" : ""}
-        title="${esc(canCreateRefException ? "Add or review reference for this test" : PERMISSION_DENIED_MESSAGE)}"
+        title="${esc(refActionTitle)}"
       >
-        ${tempBadge}
-        + Add Reference
+        ${refActionLabel}
       </button>`;
   } else {
     // Reference satisfied (or read-only) — still show TEMP if exception active
-    actionCell = tempBadge || "—";
+    actionCell = lockBadge || tempBadge || "—";
   }
 
   return `
-    <tr data-rid="${rid}">
+    <tr data-rid="${rid}" class="${rowLocked ? "row-locked" : ""}">
       <td>${esc(String(row.seq_no ?? ""))}</td>
       <td title="${esc(row.test_name)}">${esc(row.test_name ?? "—")}</td>
       <td title="${esc(row.method_name)}" style="color:var(--muted)">${esc(row.method_name ?? "—")}</td>
@@ -488,6 +548,7 @@ function updateValidationPanel(data) {
   let failed = 0;
   let notEval = 0;
   let refMissing = 0;
+  const lockCount = analysisLocks.size;
 
   data.forEach((row) => {
     const compliance = String(row.compliance_status || "").toUpperCase();
@@ -509,6 +570,7 @@ function updateValidationPanel(data) {
   fmt(vpFailed, failed, 1, 1);
   fmt(vpNotEval, notEval, 1, 1);
   fmt(vpRefMissing, refMissing, 1, 1);
+  if (vpLocks) fmt(vpLocks, lockCount, 1, 1);
 }
 
 function parseNumericInput(value) {
@@ -700,6 +762,15 @@ function applyPermissions() {
     mayPerformAnalysisAction(analysisId, ACTION_CODES.submitScrutiny),
     denyMsg,
   );
+  if (btnSubmitScrutiny && analysisLocks.size > 0) {
+    btnSubmitScrutiny.disabled = true;
+    btnSubmitScrutiny.title = "Pending specification review exists.";
+  } else if (
+    btnSubmitScrutiny &&
+    btnSubmitScrutiny.title === "Pending specification review exists."
+  ) {
+    btnSubmitScrutiny.title = "";
+  }
   applyPermissionToButton(
     btnPassScrutiny,
     statusAllowsAnalysisAction(ACTION_CODES.passScrutiny),
@@ -834,7 +905,16 @@ async function saveResult(resultId, kind, value) {
   });
 
   if (error) {
-    toast(`Save failed: ${error.message}`, "error", 5000);
+    const msg = String(error.message || "");
+    if (msg.toLowerCase().includes("pending specification approval exists")) {
+      toast(
+        "Result entry blocked until specification review is completed.",
+        "warn",
+        5000,
+      );
+    } else {
+      toast(`Save failed: ${error.message}`, "error", 5000);
+    }
     return;
   }
 
@@ -972,13 +1052,11 @@ function updateReferenceDisplayPreview() {
 
 function openReferenceModal(row) {
   pendingRefRow = row;
-  refModalTitle.textContent = `Add Reference — ${row.test_name ?? "Test"}`;
+  const refRequired = row.reference_capture_required === true;
+  refModalTitle.textContent = `${refRequired ? "Add Reference" : "Modify Reference"} — ${row.test_name ?? "Test"}`;
   const specDisplay =
     row.reference_range_display ?? row.spec_display_snapshot ?? "None on file";
-  const exceptionText = row.reference_exception_display_text
-    ? ` | Exception: ${row.reference_exception_display_text}`
-    : "";
-  refModalSub.textContent = `Specification: ${specDisplay}${exceptionText}`;
+  refModalSub.textContent = `Current specification: ${specDisplay}`;
 
   const allowedTypes = getAllowedReferenceSpecTypes(row);
   const normalizedType = normalizeReferenceSpecType(row.spec_type_snapshot);
@@ -1002,6 +1080,9 @@ function openReferenceModal(row) {
   refDisplayPreviewInput.value = row.spec_display_snapshot ?? "";
   if (refUomDisplayInput)
     refUomDisplayInput.value = row.uom_symbol_snapshot || "No unit";
+  if (refScopeAnalysisOnly) refScopeAnalysisOnly.checked = true;
+  if (refScopeProduct) refScopeProduct.checked = false;
+  if (refScopeFamily) refScopeFamily.checked = false;
   refNoteInput.value = "";
 
   applyReferenceSpecTypeUI();
@@ -1031,6 +1112,9 @@ function closeReferenceModal() {
   if (refTextValueInput) refTextValueInput.value = "";
   if (refPassFailValueSelect) refPassFailValueSelect.value = "Absent";
   if (refDisplayPreviewInput) refDisplayPreviewInput.value = "";
+  if (refScopeAnalysisOnly) refScopeAnalysisOnly.checked = true;
+  if (refScopeProduct) refScopeProduct.checked = false;
+  if (refScopeFamily) refScopeFamily.checked = false;
   refNoteInput.value = "";
 }
 
@@ -1134,21 +1218,35 @@ async function saveReference() {
   }
 
   const note = refNoteInput.value.trim() || null;
+  const requestScope = refScopeProduct?.checked
+    ? "PRODUCT"
+    : refScopeFamily?.checked
+      ? "FAMILY"
+      : "ANALYSIS_ONLY";
   btnRefSave.disabled = true;
   showLoading();
   try {
-    const { error } = await labSupabase.rpc("fn_save_result_reference", {
-      p_user_id: userId,
-      p_analysis_result_id: pendingRefRow.analysis_result_id,
-      p_spec_type: specType,
-      p_min_value: minVal,
-      p_max_value: maxVal,
-      p_text_value: textVal,
-      p_display_text: displayText,
-      p_remarks: note,
-    });
+    const { error } = await labSupabase.rpc(
+      "fn_submit_analysis_reference_proposal",
+      {
+        p_user_id: userId,
+        p_analysis_result_id: pendingRefRow.analysis_result_id,
+        p_spec_type: specType,
+        p_min_value: minVal,
+        p_max_value: maxVal,
+        p_text_value: textVal,
+        p_display_text: displayText,
+        p_request_scope: requestScope,
+        p_remarks: note,
+      },
+    );
     if (error) throw error;
-    toast("Reference saved.", "success");
+    toast(
+      requestScope === "ANALYSIS_ONLY"
+        ? "Reference saved for this analysis."
+        : "Reference saved and submitted for specification review.",
+      "success",
+    );
     closeReferenceModal();
     await reloadAndRender();
   } catch (err) {
@@ -1617,6 +1715,7 @@ async function performWorkflowAction(actionCode, label, btn) {
 // ── Full reload and render cycle ────────────────────────────────────────────────
 async function reloadAndRender() {
   rows = await loadAnalysisData();
+  await loadAnalysisLocks();
 
   if (!rows.length) {
     resultsBody.innerHTML = `
