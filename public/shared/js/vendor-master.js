@@ -18,8 +18,13 @@ const state = {
     q: "",
     page: 0,
     pageSize: 75,
-    total: 0,
     rows: [],
+    totalCount: null,
+    totalPages: 1,
+    isLoading: false,
+    reqToken: 0,
+    debounceTimer: null,
+    initialAutoSyncAttempted: false,
     selectedVendorId: null,
     selectedVendorName: "",
     selectedAlias: null,
@@ -158,7 +163,7 @@ function esc(s) {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;");
+    .replace(/"/g, "&quot;");
 }
 
 function toNum(v, d = 0) {
@@ -186,20 +191,6 @@ function toast(msg, type = "info") {
     div.style.opacity = "0";
   }, 3000);
   setTimeout(() => div.remove(), 3500);
-}
-
-function svg(name) {
-  const map = {
-    arrowLeft: '<path d="M15 6l-6 6 6 6" />',
-    arrowRight: '<path d="M9 6l6 6-6 6" />',
-    edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4Z"/>',
-    map: '<path d="M14 3h7v7"/><path d="M10 14 21 3"/><path d="M21 14v7H3V3h7"/>',
-  };
-  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${map[name] || ""}</svg>`;
-}
-
-function iconBtn(name, title, className = "icon-btn ghost") {
-  return `<button type="button" class="${className}" title="${esc(title)}" aria-label="${esc(title)}">${svg(name)}</button>`;
 }
 
 async function requireSession() {
@@ -239,9 +230,32 @@ async function setActiveTab(tab, updateHash = true) {
   if (tab === "vendors" && !state.loaded.vendors) {
     state.loaded.vendors = await loadVendorsPaged();
   }
-  if (tab === "vendor-mapping" && !state.loaded.mapping) {
+  if (tab === "vendor-mapping") {
+    const isFirstOpen = !state.loaded.mapping;
     await loadUnmappedAliasCount();
-    state.loaded.mapping = await loadUnmappedAliases();
+    state.mapping.q = "";
+    state.mapping.page = 0;
+    let loaded = await loadVendorMappingPage();
+
+    if (
+      isFirstOpen &&
+      !state.mapping.initialAutoSyncAttempted &&
+      !state.mapping.q &&
+      state.mapping.page === 0 &&
+      state.mapping.rows.length === 0
+    ) {
+      state.mapping.initialAutoSyncAttempted = true;
+      const synced = await runVendorAliasSync({
+        loadingLabel: "Refreshing aliases…",
+        showErrorToast: true,
+      });
+      if (synced) {
+        await loadUnmappedAliasCount();
+        loaded = await loadVendorMappingPage();
+      }
+    }
+
+    state.loaded.mapping = loaded || state.loaded.mapping;
   }
   if (tab === "rate-book" && !state.loaded.rates) {
     state.loaded.rates = await loadRateBook();
@@ -353,8 +367,12 @@ function wireModalEscapeClose() {
 }
 
 async function loadUnmappedAliasCount() {
-  const badge = qs("unmappedCountBadge");
-  if (!badge) return;
+  return fetchUnmappedAliasCount(qs("unmappedCountBadge"));
+}
+
+async function fetchUnmappedAliasCount(badge = null) {
+  if (badge === null) badge = qs("unmappedCountBadge");
+  if (!badge) return null;
   try {
     const { data, error } = await supabase.rpc(
       "proc_vendor_unmapped_alias_count",
@@ -371,15 +389,20 @@ async function loadUnmappedAliasCount() {
     } else if (data && typeof data === "object") {
       count = toNum(data.count ?? data.unmapped_count ?? data.total_count, 0);
     }
-    badge.textContent = `Unmapped aliases: ${count.toLocaleString()}`;
+    if (badge)
+      badge.textContent = `Unmapped aliases: ${count.toLocaleString()}`;
+    return count;
   } catch (e) {
     console.error(e);
-    badge.textContent = "Unmapped aliases: ?";
+    if (badge) badge.textContent = "Unmapped aliases: ?";
+    return null;
   }
 }
 
-async function loadUnmappedAliases() {
-  setTabTableLoading("vendor-mapping", true, "Loading...");
+async function loadVendorMappingPage() {
+  const token = ++state.mapping.reqToken;
+  state.mapping.isLoading = true;
+  setTabTableLoading("vendor-mapping", true, "Loading vendor aliases…");
   try {
     const { q, page, pageSize } = state.mapping;
     const offset = page * pageSize;
@@ -393,30 +416,52 @@ async function loadUnmappedAliases() {
       },
     );
 
+    if (token !== state.mapping.reqToken) return false;
     if (error) {
       toast(`Failed to load alias queue: ${error.message}`, "error");
       return false;
     }
 
     const rows = Array.isArray(data) ? data : [];
-    const total = toNum(rows[0]?.total_count, 0);
     state.mapping.rows = rows;
-    state.mapping.total = total;
-    renderMappingTable();
-    renderMapPager();
+
+    // When searching, use total_count from RPC if present.
+    // When not searching, keep total unknown for faster paging.
+    let totalCount = null;
+
+    if (q && q.trim()) {
+      totalCount =
+        rows.length && rows[0]?.total_count != null
+          ? Number(rows[0].total_count)
+          : 0;
+    } else {
+      totalCount = null;
+    }
+
+    state.mapping.rows = rows;
+    state.mapping.totalCount = Number.isFinite(totalCount) ? totalCount : null;
+    state.mapping.totalPages =
+      state.mapping.totalCount !== null
+        ? Math.max(1, Math.ceil(state.mapping.totalCount / pageSize))
+        : 1;
+    renderVendorMappingTable(rows);
+    renderVendorMappingPager();
     return true;
   } catch (error) {
+    if (token !== state.mapping.reqToken) return false;
     console.error(error);
     toast("Failed to load alias queue.", "error");
     return false;
   } finally {
-    setTabTableLoading("vendor-mapping", false);
+    if (token === state.mapping.reqToken) {
+      state.mapping.isLoading = false;
+      setTabTableLoading("vendor-mapping", false);
+    }
   }
 }
 
-function renderMappingTable() {
+function renderVendorMappingTable(rows) {
   const body = qs("mapTbody");
-  const rows = state.mapping.rows;
   if (!body) return;
 
   if (!rows.length) {
@@ -428,11 +473,10 @@ function renderMappingTable() {
   body.innerHTML = rows
     .map((r, idx) => {
       const alias = esc(r.alias_text ?? "");
-      const suggested = esc(r.vendor_display_name ?? "");
       return `
         <tr class="clickable" data-idx="${idx}">
           <td class="alias-cell">${alias}</td>
-          <td>${suggested || '<span class="muted">-</span>'}</td>
+          <td><span class="muted">-</span></td>
         </tr>
       `;
     })
@@ -441,16 +485,80 @@ function renderMappingTable() {
   body.querySelectorAll("tr.clickable").forEach((tr) => {
     tr.addEventListener("click", () => {
       const idx = Number(tr.dataset.idx);
-      openMapModal(state.mapping.rows[idx]);
+      openMapModal(rows[idx]);
     });
   });
 }
 
-function renderMapPager() {
-  const { page, pageSize, total } = state.mapping;
-  qs("mapPaging").textContent = fmtRange(page, pageSize, total);
-  qs("mapPrev").disabled = page <= 0;
-  qs("mapNext").disabled = (page + 1) * pageSize >= total;
+function renderVendorMappingPager() {
+  const { page, pageSize, totalCount, rows } = state.mapping;
+  const paging = qs("mapPaging");
+  const prev = qs("mapPrev");
+  const next = qs("mapNext");
+  if (!paging || !prev || !next) return;
+  if (totalCount !== null) {
+    const pages = Math.max(1, Math.ceil(totalCount / pageSize));
+    paging.textContent = `Page ${page + 1}/${pages}`;
+    prev.disabled = page <= 0;
+    next.disabled = page >= pages - 1;
+  } else {
+    paging.textContent = `Page ${page + 1}`;
+    prev.disabled = page <= 0;
+    next.disabled = rows.length !== pageSize;
+  }
+}
+
+async function syncVendorAliasesAndReload() {
+  try {
+    const synced = await runVendorAliasSync({
+      loadingLabel: "Refreshing aliases…",
+      showErrorToast: true,
+    });
+    if (!synced) {
+      return;
+    }
+
+    state.mapping.q = "";
+    state.mapping.page = 0;
+    const mapSearch = qs("mapSearch");
+    const mapSearchClear = qs("mapSearchClear");
+    if (mapSearch) mapSearch.value = "";
+    setClearButtonState(mapSearch, mapSearchClear);
+
+    await loadUnmappedAliasCount();
+    await loadVendorMappingPage();
+    toast("Alias queue refreshed.", "success");
+  } catch (error) {
+    console.error(error);
+    toast("Alias refresh failed.", "error");
+  } finally {
+    setTabTableLoading("vendor-mapping", false);
+  }
+}
+
+async function runVendorAliasSync({
+  loadingLabel = "Refreshing aliases…",
+  showErrorToast = true,
+} = {}) {
+  try {
+    setTabTableLoading("vendor-mapping", true, loadingLabel);
+    const { error } = await supabase.rpc("proc_vendor_alias_sync_from_sources");
+    if (error) {
+      if (showErrorToast) {
+        toast(`Alias refresh failed: ${error.message}`, "error");
+      }
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error(error);
+    if (showErrorToast) {
+      toast("Alias refresh failed.", "error");
+    }
+    return false;
+  } finally {
+    setTabTableLoading("vendor-mapping", false);
+  }
 }
 
 function selectExistingVendor(vendorId, displayName) {
@@ -547,7 +655,7 @@ async function createVendorAndMap() {
   closeModal("mapModalBackdrop");
   await Promise.all([
     loadUnmappedAliasCount(),
-    loadUnmappedAliases(),
+    loadVendorMappingPage(),
     loadVendorsList(),
   ]);
 }
@@ -576,7 +684,7 @@ async function mapAliasToExisting() {
 
   toast("Alias mapped to existing vendor.", "success");
   closeModal("mapModalBackdrop");
-  await Promise.all([loadUnmappedAliasCount(), loadUnmappedAliases()]);
+  await Promise.all([loadUnmappedAliasCount(), loadVendorMappingPage()]);
 }
 
 async function loadVendorsPaged() {
@@ -1080,25 +1188,52 @@ function wireTabRouting() {
 }
 
 function wireMappingTab() {
+  qs("mapSyncBtn")?.addEventListener("click", syncVendorAliasesAndReload);
+
   qs("mapPrev")?.addEventListener("click", async () => {
     state.mapping.page = Math.max(0, state.mapping.page - 1);
-    await loadUnmappedAliases();
+    await loadVendorMappingPage();
   });
   qs("mapNext")?.addEventListener("click", async () => {
+    if (state.mapping.totalCount !== null) {
+      if (state.mapping.page >= state.mapping.totalPages - 1) return;
+    } else if (state.mapping.rows.length < state.mapping.pageSize) {
+      return;
+    }
     state.mapping.page += 1;
-    await loadUnmappedAliases();
+    await loadVendorMappingPage();
   });
 
-  const onMapSearch = async () => {
-    state.mapping.q = (qs("mapSearch").value || "").trim();
+  const mapSearch = qs("mapSearch");
+  const mapSearchClear = qs("mapSearchClear");
+  const runSearch = () => {
     state.mapping.page = 0;
-    await loadUnmappedAliases();
+    if (state.mapping.debounceTimer) clearTimeout(state.mapping.debounceTimer);
+    state.mapping.debounceTimer = setTimeout(() => {
+      loadVendorMappingPage();
+    }, 300);
   };
-  wireSearchInput({
-    inputId: "mapSearch",
-    clearId: "mapSearchClear",
-    onInput: onMapSearch,
+
+  mapSearch?.addEventListener("input", () => {
+    state.mapping.q = (mapSearch.value || "").trim();
+    setClearButtonState(mapSearch, mapSearchClear);
+    runSearch();
   });
+  mapSearch?.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    state.mapping.q = (mapSearch.value || "").trim();
+    runSearch();
+  });
+  mapSearchClear?.addEventListener("click", () => {
+    if (!mapSearch?.value) return;
+    mapSearch.value = "";
+    state.mapping.q = "";
+    setClearButtonState(mapSearch, mapSearchClear);
+    runSearch();
+    mapSearch.focus();
+  });
+  setClearButtonState(mapSearch, mapSearchClear);
 
   qs("mapModalClose")?.addEventListener("click", () =>
     closeModal("mapModalBackdrop"),

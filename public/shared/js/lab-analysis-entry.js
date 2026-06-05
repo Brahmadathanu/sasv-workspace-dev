@@ -475,6 +475,20 @@ function wireEvents() {
     if (stockItemSelect.value) scheduleProtocolCheck();
   });
 
+  // Effective specifications are date-sensitive. Keep readiness aligned with
+  // the same sample date that will be passed to the create-analysis RPC.
+  sampleDate.addEventListener("change", () => {
+    clearMappingState();
+    if (
+      (currentSampleType === "FG_BATCH" &&
+        productSelect.value &&
+        batchNoSelect.value) ||
+      (currentSampleType !== "FG_BATCH" && getSelectedItemId())
+    ) {
+      scheduleProtocolCheck();
+    }
+  });
+
   // Blur-validate required fields
   sampleDate.addEventListener("blur", () =>
     validateField(sampleDate, dateMsg, "Sample Received Date is required"),
@@ -745,7 +759,7 @@ async function checkFgReadiness(productId) {
       "fn_preview_effective_fg_spec_for_product",
       {
         p_product_id: Number(productId),
-        p_as_of_date: todayISO(),
+        p_as_of_date: selectedSampleDate(),
       },
     );
     if (specErr) throw specErr;
@@ -909,7 +923,7 @@ async function checkInventoryReadiness(stockItemId) {
       "fn_preview_effective_rm_spec_for_item",
       {
         p_stock_item_id: Number(stockItemId),
-        p_as_of_date: todayISO(),
+        p_as_of_date: selectedSampleDate(),
       },
     );
     if (previewErr) throw previewErr;
@@ -1031,7 +1045,7 @@ async function checkPmReadiness(stockItemId) {
       "fn_get_active_spec_profile_id_for_pm_subcategory",
       {
         p_subcategory_id: Number(subcat.subcategory_id),
-        p_as_of_date: todayISO(),
+        p_as_of_date: selectedSampleDate(),
       },
     );
     if (smErr) throw smErr;
@@ -1049,7 +1063,7 @@ async function checkPmReadiness(stockItemId) {
       "fn_preview_effective_pm_spec_for_item",
       {
         p_stock_item_id: Number(stockItemId),
-        p_as_of_date: todayISO(),
+        p_as_of_date: selectedSampleDate(),
       },
     );
     if (previewErr) throw previewErr;
@@ -1777,6 +1791,10 @@ function esc(str) {
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function selectedSampleDate() {
+  return sampleDate.value || todayISO();
 }
 
 function getSelectedItemId() {

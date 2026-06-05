@@ -64,6 +64,9 @@ let WORKBENCH_SUMMARY = [];
 let PRINTABLE_LINES = [];
 let CURRENT_COST_SHEET_PRODUCT_ID = null;
 let CURRENT_EXPORT_USER = "--";
+let DETAILS_RETURN_FOCUS = null;
+let COST_SHEET_RETURN_FOCUS = null;
+let COST_SHEET_SIGN_RETURN_FOCUS = null;
 let ACTIVE_FILTERS = {
   status: [],
   issue: [],
@@ -774,7 +777,86 @@ function renderTableHeaderForLens() {
       "Recommended Action",
     ],
   }[CURRENT_LENS];
-  tableHead.innerHTML = `<tr>${headers.map((h, i) => `<th class="${i === 0 && h === "" ? "lane-col" : ""}">${text(h, "")}</th>`).join("")}</tr>`;
+  const alignments = {
+    dashboard: [
+      "c-left",
+      "c-right",
+      "c-right",
+      "c-right",
+      "c-right",
+      "c-right",
+      "c-right",
+      "c-right",
+      "c-right",
+      "c-right",
+      "c-left",
+      "c-left",
+      "c-left",
+    ],
+    "sku-cost-sheet": [
+      "c-center",
+      "c-left",
+      "c-left",
+      "c-right",
+      "c-right",
+      "c-right",
+      "c-right",
+      "c-right",
+      "c-left",
+    ],
+    "printable-cost-sheet": [
+      "c-left",
+      "c-left",
+      "c-left",
+      "c-left",
+      "c-left",
+      "c-left",
+    ],
+    "cost-comparison": [
+      "c-left",
+      "c-right",
+      "c-right",
+      "c-center",
+      "c-right",
+      "c-right",
+      "c-center",
+      "c-right",
+      "c-right",
+      "c-right",
+      "c-right",
+    ],
+    "scheme-comparison": [
+      "c-left",
+      "c-left",
+      "c-right",
+      "c-right",
+      "c-left",
+      "c-right",
+      "c-right",
+      "c-left",
+      "c-left",
+    ],
+    "pricing-diagnostics": Array(9).fill("c-left"),
+    "costing-review-workbench": [
+      "c-center",
+      "c-left",
+      "c-left",
+      "c-left",
+      "c-right",
+      "c-left",
+      "c-left",
+      "c-right",
+      "c-right",
+      "c-left",
+    ],
+  }[CURRENT_LENS] || [];
+  tableHead.innerHTML = `<tr>${headers
+    .map((h, i) => {
+      const classes = [alignments[i] || "c-left"];
+      if (i === 0 && h === "") classes.push("lane-col");
+      return `<th class="${classes.join(" ")}">${text(h, "")}</th>`;
+    })
+    .join("")}</tr>`;
 }
 
 function productSkuLabel(row) {
@@ -828,16 +910,16 @@ function renderRowForLens(row, idx) {
   if (CURRENT_LENS === "cost-comparison") {
     return `<tr ${trAttrs}>
       <td>${productSkuLabel(row)}</td>
-      ${comparisonCell(costComparisonValue(row, "manufacturingCop"), formatMoney)}
-      ${comparisonCell(costComparisonValue(row, "previousMonthCop"), formatMoney)}
-      ${comparisonCell(costComparisonValue(row, "momCopChangePercent"), formatPercent, "c-center")}
-      ${comparisonCell(costComparisonValue(row, "internalLoadedCost"), formatMoney)}
-      ${comparisonCell(costComparisonValue(row, "previousMonthInternalLoadedCost"), formatMoney)}
-      ${comparisonCell(costComparisonValue(row, "momInternalLoadedCostChangePercent"), formatPercent, "c-center")}
-      ${comparisonCell(costComparisonValue(row, "profitIk"), formatMoney)}
-      ${comparisonCell(costComparisonValue(row, "momProfitIkChange"), formatMoney)}
-      ${comparisonCell(costComparisonValue(row, "profitOk"), formatMoney)}
-      ${comparisonCell(costComparisonValue(row, "momProfitOkChange"), formatMoney)}
+      ${comparisonCell(costComparisonValue(row, "manufacturingCop"), formatMoney, "money")}
+      ${comparisonCell(costComparisonValue(row, "previousMonthCop"), formatMoney, "money")}
+      ${comparisonCell(costComparisonValue(row, "momCopChangePercent"), formatPercent, "percent")}
+      ${comparisonCell(costComparisonValue(row, "internalLoadedCost"), formatMoney, "money")}
+      ${comparisonCell(costComparisonValue(row, "previousMonthInternalLoadedCost"), formatMoney, "money")}
+      ${comparisonCell(costComparisonValue(row, "momInternalLoadedCostChangePercent"), formatPercent, "percent")}
+      ${comparisonCell(costComparisonValue(row, "profitIk"), formatMoney, "money")}
+      ${comparisonCell(costComparisonValue(row, "momProfitIkChange"), formatMoney, "money")}
+      ${comparisonCell(costComparisonValue(row, "profitOk"), formatMoney, "money")}
+      ${comparisonCell(costComparisonValue(row, "momProfitOkChange"), formatMoney, "money")}
     </tr>`;
   }
   if (CURRENT_LENS === "scheme-comparison") {
@@ -969,7 +1051,32 @@ function kvCards(items) {
 
 function simpleTable(headers, rows, renderer) {
   if (!rows?.length) return `<div class="status">No rows available.</div>`;
-  return `<div class="cp-table-wrap"><table><thead><tr>${headers.map((h) => `<th>${text(h)}</th>`).join("")}</tr></thead><tbody>${rows.map(renderer).join("")}</tbody></table></div>`;
+  const renderedRows = rows.map(renderer);
+  const rowCells = renderedRows.map((rowHtml) => [
+    ...String(rowHtml).matchAll(/<td(?:\s+class="([^"]*)")?[^>]*>/g),
+  ]);
+  const headerHtml = headers
+    .map((header, index) => {
+      const columnClasses = rowCells
+        .map((cells) => cells[index]?.[1] || "")
+        .filter(Boolean);
+      const hasRight = columnClasses.some((classes) =>
+        /(?:^|\s)(?:c-right|cp-num-cell)(?:\s|$)/.test(classes),
+      );
+      const hasCenter = columnClasses.some((classes) =>
+        /(?:^|\s)(?:c-center|cp-pct-cell|cp-blank-cell)(?:\s|$)/.test(
+          classes,
+        ),
+      );
+      const alignmentClass = hasRight
+        ? "c-right"
+        : hasCenter
+          ? "c-center"
+          : "c-left";
+      return `<th class="${alignmentClass}">${text(header)}</th>`;
+    })
+    .join("");
+  return `<div class="cp-table-wrap"><table><thead><tr>${headerHtml}</tr></thead><tbody>${renderedRows.join("")}</tbody></table></div>`;
 }
 
 const COST_COMPARISON_FIELDS = {
@@ -1099,10 +1206,17 @@ function costComparisonValue(row, key) {
   return null;
 }
 
-function comparisonCell(value, formatter, className = "c-right") {
+function comparisonCell(value, formatter, type = "money") {
   const isBlank = value === null || value === undefined || value === "";
-  return `<td class="${isBlank ? "c-center cp-muted-text" : className}">
-    ${isBlank ? "--" : formatter(value)}
+  if (isBlank) {
+    return `<td class="cp-blank-cell">--</td>`;
+  }
+
+  const cellClass = type === "percent" ? "cp-pct-cell" : "cp-num-cell";
+  const wrapClass = type === "percent" ? "cp-pct-wrap" : "cp-num-wrap";
+
+  return `<td class="${cellClass}">
+    <span class="${wrapClass}">${formatter(value)}</span>
   </td>`;
 }
 
@@ -1227,15 +1341,37 @@ function formatPrintableValue(row) {
 
 function closeCostSheetModal() {
   if (!costSheetModal) return;
+
+  const active = document.activeElement;
+  if (active && costSheetModal.contains(active)) {
+    active.blur();
+  }
+
+  closeCostSheetSignModal();
+
   costSheetModal.classList.add("hidden");
   costSheetModal.setAttribute("aria-hidden", "true");
+
   if (costSheetA4) costSheetA4.innerHTML = "";
-  closeCostSheetSignModal();
   CURRENT_COST_SHEET_PRODUCT_ID = null;
+
+  const returnTarget =
+    COST_SHEET_RETURN_FOCUS &&
+    COST_SHEET_RETURN_FOCUS !== document.body &&
+    document.contains(COST_SHEET_RETURN_FOCUS)
+      ? COST_SHEET_RETURN_FOCUS
+      : searchBox;
+
+  COST_SHEET_RETURN_FOCUS = null;
+
+  if (returnTarget && typeof returnTarget.focus === "function") {
+    setTimeout(() => returnTarget.focus(), 0);
+  }
 }
 
 function openCostSheetSignModal() {
   if (!costSheetSignModal) return;
+  COST_SHEET_SIGN_RETURN_FOCUS = document.activeElement;
   if (csPreparedRole)
     csPreparedRole.value = COST_SHEET_SIGNATORIES.preparedRole;
   if (csPreparedOrg) csPreparedOrg.value = COST_SHEET_SIGNATORIES.preparedOrg;
@@ -1247,12 +1383,35 @@ function openCostSheetSignModal() {
   if (csApprovedOrg) csApprovedOrg.value = COST_SHEET_SIGNATORIES.approvedOrg;
   costSheetSignModal.classList.remove("hidden");
   costSheetSignModal.setAttribute("aria-hidden", "false");
+
+  setTimeout(() => {
+    costSheetSignConfirmBtn?.focus();
+  }, 0);
 }
 
 function closeCostSheetSignModal() {
   if (!costSheetSignModal) return;
+
+  const active = document.activeElement;
+  if (active && costSheetSignModal.contains(active)) {
+    active.blur();
+  }
+
   costSheetSignModal.classList.add("hidden");
   costSheetSignModal.setAttribute("aria-hidden", "true");
+
+  const returnTarget =
+    COST_SHEET_SIGN_RETURN_FOCUS &&
+    COST_SHEET_SIGN_RETURN_FOCUS !== document.body &&
+    document.contains(COST_SHEET_SIGN_RETURN_FOCUS)
+      ? COST_SHEET_SIGN_RETURN_FOCUS
+      : costSheetPdfBtn;
+
+  COST_SHEET_SIGN_RETURN_FOCUS = null;
+
+  if (returnTarget && typeof returnTarget.focus === "function") {
+    setTimeout(() => returnTarget.focus(), 0);
+  }
 }
 
 function readCostSheetSignatoriesFromModal() {
@@ -1450,6 +1609,9 @@ function buildCostSheetStatusNote(rows) {
 
 function openCostSheetModal(productId) {
   if (!costSheetModal || !costSheetA4) return;
+  if (costSheetModal.classList.contains("hidden")) {
+    COST_SHEET_RETURN_FOCUS = document.activeElement;
+  }
   CURRENT_COST_SHEET_PRODUCT_ID = productId;
   const rows = printableRowsForProduct(productId);
   if (!rows.length) {
@@ -1522,6 +1684,10 @@ function openCostSheetModal(productId) {
     </div>`;
   costSheetModal.classList.remove("hidden");
   costSheetModal.setAttribute("aria-hidden", "false");
+
+  setTimeout(() => {
+    costSheetPdfBtn?.focus();
+  }, 0);
 }
 
 function formatPrintablePdfValue(row) {
@@ -2346,6 +2512,7 @@ async function setDrawerTab(tabId) {
 }
 
 function openDetails(row, preferredTab) {
+  DETAILS_RETURN_FOCUS = document.activeElement;
   SELECTED_ROW = row;
   if (!detailsModal) return;
   const title = $("drawerTitle");
@@ -2402,9 +2569,27 @@ function openDetails(row, preferredTab) {
 }
 
 function closeDetails() {
+  if (!detailsModal) return;
+
+  const active = document.activeElement;
+  if (active && detailsModal.contains(active)) {
+    active.blur();
+  }
+
   SELECTED_ROW = null;
-  detailsModal?.classList.add("hidden");
-  detailsModal?.setAttribute("aria-hidden", "true");
+  detailsModal.classList.add("hidden");
+  detailsModal.setAttribute("aria-hidden", "true");
+
+  const returnTarget =
+    DETAILS_RETURN_FOCUS &&
+    DETAILS_RETURN_FOCUS !== document.body &&
+    document.contains(DETAILS_RETURN_FOCUS)
+      ? DETAILS_RETURN_FOCUS
+      : searchBox;
+  DETAILS_RETURN_FOCUS = null;
+  if (returnTarget && typeof returnTarget.focus === "function") {
+    setTimeout(() => returnTarget.focus(), 0);
+  }
 }
 
 async function refreshCostingChain() {
