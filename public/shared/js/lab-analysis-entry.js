@@ -163,7 +163,7 @@ let createdAnalysis = null; // result from fn_receive_sample_and_create_analysis
 let currentUserId = null;
 let workflowActionPermissions = new Map();
 let receivePermissionVerified = false;
-let fgBatchRows = []; // rows from v_sample_receipt_fg_batch_picker
+let fgBatchLoadRequestId = 0;
 let rmItems = []; // RM items from v_rm_pm_item_with_group (category_code = 'RM')
 let pmItems = []; // PM items from v_rm_pm_item_with_group (category_code = 'PLM')
 let mappingCheckDebounceTimer = null;
@@ -316,18 +316,6 @@ async function loadPickers() {
     if (staffRes.error)
       throw new Error(`Staff picker: ${staffRes.error.message}`);
 
-    // Load FG batch rows separately — non-blocking so a missing view doesn't
-    // break the rest of the form.
-    try {
-      const fgBatchRes = await labSupabase
-        .from("v_sample_receipt_fg_batch_picker")
-        .select("bmr_id, product_id, batch_no, batch_size, uom")
-        .order("batch_no");
-      if (!fgBatchRes.error) fgBatchRows = fgBatchRes.data ?? [];
-    } catch {
-      // view not yet deployed — FG batch dropdown will show no options
-    }
-
     // Populate FG product dropdown
     populateSelect(
       productSelect,
@@ -459,10 +447,10 @@ function wireEvents() {
   });
 
   // Product change → repopulate FG batch dropdown; protocol check deferred to batch selection
-  productSelect.addEventListener("change", () => {
-    populateFgBatchDropdown(productSelect.value);
+  productSelect.addEventListener("change", async () => {
     clearFieldError(batchNoSelect, batchSelectMsg);
     clearMappingState();
+    await populateFgBatchDropdown(productSelect.value);
   });
 
   // Batch No dropdown → populate read-only fields + trigger mapping check
@@ -1164,7 +1152,8 @@ function clearMappingState() {
 }
 
 // ── FG batch dropdown population ──────────────────────────────────────────────
-function populateFgBatchDropdown(productId) {
+async function populateFgBatchDropdown(productId) {
+  const requestId = ++fgBatchLoadRequestId;
   batchSizeDisplay.value = "";
   batchUomDisplay.value = "";
 
@@ -1175,9 +1164,49 @@ function populateFgBatchDropdown(productId) {
     return;
   }
 
-  const rows = fgBatchRows.filter(
-    (r) => String(r.product_id) === String(productId),
-  );
+  batchNoSelect.innerHTML = '<option value="">— Loading batches… —</option>';
+  batchNoSelect.disabled = true;
+  updateStartButton();
+
+  const rows = [];
+  const pageSize = 1000;
+
+  try {
+    for (let from = 0; ; ) {
+      const { data, error, count } = await labSupabase
+        .from("v_sample_receipt_fg_batch_picker")
+        .select("bmr_id, product_id, batch_no, batch_size, uom", {
+          count: "exact",
+        })
+        .eq("product_id", productId)
+        .order("batch_no")
+        .order("bmr_id")
+        .range(from, from + pageSize - 1);
+
+      if (error) throw error;
+      if (requestId !== fgBatchLoadRequestId) return;
+
+      const page = data ?? [];
+      rows.push(...page);
+      if (page.length === 0 || (count !== null && rows.length >= count)) break;
+      from += page.length;
+    }
+  } catch (error) {
+    if (requestId !== fgBatchLoadRequestId) return;
+    console.error("[lab-analysis-entry] Failed to load FG batches:", error);
+    batchNoSelect.innerHTML =
+      '<option value="">— Could not load batches —</option>';
+    batchNoSelect.disabled = true;
+    setFieldError(
+      batchNoSelect,
+      batchSelectMsg,
+      "Could not load batches for the selected product.",
+    );
+    updateStartButton();
+    return;
+  }
+
+  if (requestId !== fgBatchLoadRequestId) return;
 
   if (rows.length === 0) {
     batchNoSelect.innerHTML =
@@ -1195,6 +1224,7 @@ function populateFgBatchDropdown(productId) {
     });
     batchNoSelect.disabled = false;
   }
+  updateStartButton();
 }
 
 // ── Effective-spec preview row renderer (read-only RPC output) ──────────────
