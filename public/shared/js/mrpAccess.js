@@ -76,31 +76,16 @@ export async function loadAccessContext() {
           }
           _ctx.hub_access = perms;
         } else {
-          // RPC missing or errored; fall back to legacy queries
+          // RPC missing or errored; fall back to legacy module permissions only.
           await (async function legacyLoad() {
             try {
               const maybeUuid = String(actor.actor_id);
               const uuidLike = /^[0-9a-fA-F-]{20,}$/i.test(maybeUuid);
               if (!uuidLike) return;
 
-              const { data: rows, error } = await supabase
-                .from("hub_user_access")
-                .select("level, hub_utilities(key)")
-                .eq("user_id", actor.actor_id)
-                .limit(200);
-              if (!error && Array.isArray(rows)) {
-                _ctx.hub_access = rows;
-                const rset = new Set();
-                for (const r of rows) {
-                  const lvl = (r.level || "") + "";
-                  const key = r.hub_utilities?.key || null;
-                  if (!key) continue;
-                  if (lvl && lvl.toLowerCase() !== "none") rset.add(key);
-                }
-                _ctx.roles = Array.from(rset);
-              }
-
-              // also merge user_permissions module flags as fallback
+              // Merge legacy user_permissions module flags as a compatibility
+              // fallback. Do not read hub_user_access; canonical access is the
+              // source of truth for module and role grants.
               try {
                 const { data: ups, error: upErr } = await supabase
                   .from("user_permissions")

@@ -170,10 +170,10 @@ async function checkModuleAccess(userId) {
       .maybeSingle();
     if (row !== null && row !== undefined) return !!row.can_view;
   } catch {
-    /* canonical check failed, default allow */
+    /* canonical check failed */
   }
 
-  return true; // default allow if all checks fail
+  return false;
 }
 
 // ── Tab controls ──────────────────────────────────────────────────────────────

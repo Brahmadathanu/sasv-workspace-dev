@@ -69,6 +69,7 @@ const tlLineCount = document.getElementById("tlLineCount");
 const tlSaveLinesBtn = document.getElementById("tlSaveLinesBtn");
 const tlBanner = document.getElementById("tlBanner");
 const tlEmptyBanner = document.getElementById("tlEmptyBanner");
+const tlOrderHint = document.getElementById("tlOrderHint");
 
 // ── Confirm-delete modal
 const tlConfirmModal = document.getElementById("tlConfirmModal");
@@ -174,6 +175,8 @@ let tlDirty = false;
  */
 let tlTestMaster = [];
 let tlTestMasterLoaded = false;
+let tlDraggedLineId = null;
+let tlBatchReorderRpcAvailable = null;
 
 // Family Mapping state
 let fmProtocols = [];
@@ -590,6 +593,7 @@ function clearTlTab() {
   tlLines = [];
   tlProtocolId = null;
   tlDirty = false;
+  hideTlOrderHint();
 }
 
 function wireTlTab() {
@@ -709,12 +713,17 @@ async function loadTlLines(protocolId) {
   tlTableCard.classList.remove("hidden");
   tlTableBody.innerHTML = `<tr><td colspan="5" class="empty-state"><div class="spinner" style="margin:0 auto 6px;"></div>Loading…</td></tr>`;
 
+  await loadTlMasterData();
+
   const { data, error } = await labSupabase
     .from("protocol_category_test")
-    .select("id, seq_no, test_id, method_id, is_required, is_active")
+    .select(
+      "id, sort_order, seq_no, test_id, method_id, is_required, is_active",
+    )
     .eq("protocol_category_id", protocolId)
     .eq("is_active", true)
-    .order("seq_no");
+    .order("sort_order", { ascending: true })
+    .order("seq_no", { ascending: true });
 
   hideBanner(tlBanner);
 
@@ -728,10 +737,20 @@ async function loadTlLines(protocolId) {
     return;
   }
 
-  tlLines = (data ?? []).map((r) => ({ ...r, _dirty: false, _new: false }));
+  tlLines = (data ?? []).map((r) => {
+    const testEntry = tlTestMaster.find(
+      (t) => String(t.id) === String(r.test_id),
+    );
+    return {
+      ...r,
+      test_name: testEntry?.test_name ?? r.test_name ?? "",
+      method_name: testEntry?.default_method_name ?? r.method_name ?? "",
+      _dirty: false,
+      _new: false,
+    };
+  });
   tlCtxCount.textContent = tlLines.length.toString();
   tlAddLineBtn.disabled = false;
-  await loadTlMasterData();
   renderTlTable();
 }
 
@@ -763,15 +782,27 @@ function renderTlTable() {
       // Only show a subtle cue when truly unmapped (edge case).
       const hasMethod = !!testEntry?.default_method_id;
       const methodDisplay =
-        testEntry?.default_method_name ??
-        (line.test_id ? "(No default method assigned)" : "—");
+        line.method_name ||
+        (testEntry?.default_method_name ??
+          (line.test_id ? "(No default method assigned)" : "—"));
       const methodCellColor = hasMethod ? "#374151" : "#9ca3af";
       const methodSelectHtml = `<input class="line-input" type="text" style="min-width:130px;color:${methodCellColor};background:#f9fafb" value="${esc(methodDisplay)}" disabled />`;
+      const canDrag =
+        tlBatchReorderRpcAvailable !== false &&
+        !!line.id &&
+        line.is_active !== false &&
+        !line._new;
+      const dragHandleHtml = canDrag
+        ? `<span class="drag-handle" title="Drag to reorder" role="button" tabindex="0" aria-label="Drag to reorder test">⋮⋮</span>`
+        : `<span class="drag-handle drag-handle-disabled" title="Drag unavailable" aria-hidden="true">⋮⋮</span>`;
 
       return `
-    <tr data-idx="${idx}">
+    <tr data-idx="${idx}" data-line-id="${esc(line.id ?? "")}" data-seq-no="${esc(line.seq_no ?? "")}" data-sort-order="${esc(line.sort_order ?? "")}" draggable="${canDrag ? "true" : "false"}" class="${canDrag ? "" : "drag-disabled"}">
       <td class="td-center">
-        <input class="line-input narrow" type="number" min="1" data-field="seq_no" value="${esc(line.seq_no ?? idx + 1)}" style="text-align:center" />
+        <div class="order-cell">
+          <span class="order-index">${idx + 1}</span>
+          ${dragHandleHtml}
+        </div>
       </td>
       <td><select class="line-input" data-field="test_id" style="min-width:160px">${testOpts}</select></td>
       <td>${methodSelectHtml}</td>
@@ -823,6 +854,20 @@ function renderTlTable() {
       });
     });
 
+  wireTlDragAndDrop();
+
+  // Legacy move controls are intentionally kept for compatibility.
+  // Buttons are hidden in UI, so this normally binds to zero elements.
+  tlTableBody.querySelectorAll(".move-line-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const idx = Number(btn.dataset.idx);
+      const direction = btn.dataset.direction;
+      const line = tlLines[idx];
+      if (!line?.id || line.is_active === false || !direction) return;
+      await moveTlLine(line.id, direction, btn);
+    });
+  });
+
   // Delete button
   tlTableBody.querySelectorAll(".del-line-btn").forEach((btn) => {
     btn.addEventListener("click", async () => {
@@ -864,6 +909,229 @@ function renderTlTable() {
   });
 
   tlSaveLinesBtn.disabled = !tlDirty;
+}
+
+function rpcMoveChanged(data) {
+  const value = Array.isArray(data) ? data[0] : data;
+  if (value && typeof value === "object" && "changed" in value) {
+    return value.changed !== false;
+  }
+  if (value === false) return false;
+  return true;
+}
+
+function getTlScrollState() {
+  const scrollContainer = document.querySelector(".page-scroll") || window;
+  const previousScrollTop =
+    scrollContainer === window ? window.scrollY : scrollContainer.scrollTop;
+  return { scrollContainer, previousScrollTop };
+}
+
+function restoreTlScrollState({ scrollContainer, previousScrollTop }) {
+  requestAnimationFrame(() => {
+    if (scrollContainer === window) {
+      window.scrollTo({ top: previousScrollTop, behavior: "auto" });
+    } else {
+      scrollContainer.scrollTop = previousScrollTop;
+    }
+  });
+}
+
+function showTlOrderHint(message) {
+  if (!tlOrderHint) return;
+  if (
+    tlOrderHint.textContent === message &&
+    !tlOrderHint.classList.contains("hidden")
+  )
+    return;
+  tlOrderHint.textContent = message;
+  tlOrderHint.classList.remove("hidden");
+}
+
+function hideTlOrderHint() {
+  if (!tlOrderHint) return;
+  tlOrderHint.textContent = "";
+  tlOrderHint.classList.add("hidden");
+}
+
+function isMissingBatchReorderRpc(error) {
+  const msg = String(error?.message ?? "");
+  return (
+    /Could not find the function/i.test(msg) ||
+    /not found in the schema cache/i.test(msg) ||
+    /fn_reorder_protocol_test_lines/i.test(msg)
+  );
+}
+
+function wireTlDragAndDrop() {
+  tlTableBody.querySelectorAll('tr[draggable="true"]').forEach((row) => {
+    row.addEventListener("dragstart", (e) => {
+      if (tlDirty) {
+        e.preventDefault();
+        toast("Save pending test-line changes before reordering.", "info");
+        return;
+      }
+      const lineId = Number(row.dataset.lineId);
+      if (!lineId) {
+        e.preventDefault();
+        return;
+      }
+      tlDraggedLineId = lineId;
+      row.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", String(lineId));
+    });
+
+    row.addEventListener("dragend", () => {
+      row.classList.remove("dragging");
+      tlDraggedLineId = null;
+      clearTlDragOver();
+    });
+
+    row.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      const sourceId = tlDraggedLineId;
+      const targetId = Number(row.dataset.lineId);
+      if (!sourceId || !targetId || sourceId === targetId) return;
+      clearTlDragOver();
+      row.classList.add("drag-over");
+      e.dataTransfer.dropEffect = "move";
+    });
+
+    row.addEventListener("dragleave", () => {
+      row.classList.remove("drag-over");
+    });
+
+    row.addEventListener("drop", async (e) => {
+      e.preventDefault();
+      const targetId = Number(row.dataset.lineId);
+      const draggedId =
+        Number(e.dataTransfer.getData("text/plain")) || tlDraggedLineId;
+      row.classList.remove("drag-over");
+      if (!draggedId || !targetId || draggedId === targetId) return;
+      await reorderTlByDragDrop(draggedId, targetId, e.clientY, row);
+    });
+  });
+}
+
+function clearTlDragOver() {
+  tlTableBody
+    .querySelectorAll("tr.drag-over")
+    .forEach((row) => row.classList.remove("drag-over"));
+}
+
+function computeDraggedOrderIds(
+  draggedLineId,
+  targetLineId,
+  clientY,
+  targetRow,
+) {
+  const activeIds = tlLines
+    .filter((line) => line.id && line.is_active !== false && !line._new)
+    .map((line) => Number(line.id));
+
+  const fromIdx = activeIds.indexOf(Number(draggedLineId));
+  const targetIdx = activeIds.indexOf(Number(targetLineId));
+  if (fromIdx < 0 || targetIdx < 0) return null;
+
+  const rect = targetRow.getBoundingClientRect();
+  const dropAfter = clientY > rect.top + rect.height / 2;
+  const ordered = [...activeIds];
+  const [moved] = ordered.splice(fromIdx, 1);
+
+  let insertIdx = targetIdx;
+  if (fromIdx < targetIdx) insertIdx -= 1;
+  if (dropAfter) insertIdx += 1;
+  ordered.splice(Math.max(0, Math.min(insertIdx, ordered.length)), 0, moved);
+
+  return ordered;
+}
+
+async function reorderTlByDragDrop(
+  draggedLineId,
+  targetLineId,
+  clientY,
+  targetRow,
+) {
+  if (!tlProtocolId) return;
+  if (tlBatchReorderRpcAvailable === false) {
+    console.warn("Batch reorder RPC not deployed.");
+    toast("Batch reorder RPC not deployed.", "warn");
+    return;
+  }
+
+  const orderedIds = computeDraggedOrderIds(
+    draggedLineId,
+    targetLineId,
+    clientY,
+    targetRow,
+  );
+  if (!orderedIds || orderedIds.length <= 1) return;
+
+  const scrollState = getTlScrollState();
+
+  const { error } = await labSupabase.rpc("fn_reorder_protocol_test_lines", {
+    p_protocol_category_id: Number(tlProtocolId),
+    p_ordered_line_ids: orderedIds,
+  });
+
+  if (error) {
+    if (isMissingBatchReorderRpc(error)) {
+      tlBatchReorderRpcAvailable = false;
+      renderTlTable();
+      console.warn("Batch reorder RPC not deployed.");
+      toast("Batch reorder RPC not deployed.", "warn");
+      return;
+    }
+    console.error("Protocol drag reorder failed", error);
+    toast(`Could not update test order: ${error.message}`, "error");
+    return;
+  }
+
+  tlBatchReorderRpcAvailable = true;
+  showTlOrderHint(
+    "Order changed. Rebuild/sync base specs if this order must flow downstream.",
+  );
+  toast("Test order updated.", "success");
+  await loadTlLines(tlProtocolId);
+  restoreTlScrollState(scrollState);
+}
+
+async function moveTlLine(lineId, direction, btn) {
+  if (!tlProtocolId) return;
+  if (tlDirty) {
+    toast("Save pending test-line changes before reordering.", "info");
+    return;
+  }
+
+  btn.disabled = true;
+  const { data, error } = await labSupabase.rpc("fn_move_protocol_test_line", {
+    p_protocol_category_test_id: Number(lineId),
+    p_direction: direction,
+  });
+
+  if (error) {
+    console.error("Protocol test move failed", error);
+    toast(`Could not update test order: ${error.message}`, "error");
+    btn.disabled = false;
+    return;
+  }
+
+  if (!rpcMoveChanged(data)) {
+    toast("Line is already at the boundary.", "info");
+    const scrollState = getTlScrollState();
+    await loadTlLines(tlProtocolId);
+    restoreTlScrollState(scrollState);
+    return;
+  }
+
+  const scrollState = getTlScrollState();
+  await loadTlLines(tlProtocolId);
+  restoreTlScrollState(scrollState);
+  toast("Test order updated.", "success");
+  showTlOrderHint(
+    "Order changed. Rebuild/sync base specs if this order must flow downstream.",
+  );
 }
 
 function addTlLine() {

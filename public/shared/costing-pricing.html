@@ -73,35 +73,85 @@
         opacity: 0.55;
         cursor: not-allowed;
       }
+      .icon-btn.hidden {
+        display: none;
+      }
+      .icon-btn.cp-danger-icon-btn {
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        border-color: #fecaca;
+        background: #fef2f2;
+        color: #991b1b;
+      }
+      .icon-btn.cp-danger-icon-btn:hover,
+      .icon-btn.cp-danger-icon-btn:focus-visible {
+        background: #fee2e2;
+        border-color: #fca5a5;
+        color: #7f1d1d;
+      }
+      .icon-btn.cp-danger-icon-btn svg {
+        stroke: currentColor;
+      }
+      .icon-btn.cp-muted-icon-btn {
+        width: 30px;
+        height: 30px;
+        padding: 0;
+      }
+      #prevPage.sc-btn,
+      #nextPage.sc-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        background: transparent;
+        box-shadow: none;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        line-height: 1;
+      }
+      #prevPage.sc-btn:hover,
+      #nextPage.sc-btn:hover {
+        background: rgba(15, 23, 42, 0.04);
+      }
+      #prevPage.sc-btn svg,
+      #nextPage.sc-btn svg {
+        display: block;
+      }
+      #peqPage {
+        min-height: 28px;
+        line-height: 28px;
+      }
       .kpi-strip {
-        display: flex;
-        flex-direction: row;
-        flex-wrap: nowrap;
-        overflow-x: auto;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
         gap: 6px;
         margin: 0;
         align-items: stretch;
-        justify-content: space-between;
-        scrollbar-width: none;
-      }
-      .kpi-strip::-webkit-scrollbar {
-        display: none;
+        width: 100%;
       }
       .kpi {
         background: linear-gradient(180deg, var(--panel-bg), var(--panel-bg));
         border: 1px solid rgba(0, 0, 0, 0.06);
-        padding: 5px 10px;
+        padding: 5px 8px;
         border-radius: 7px;
-        min-width: fit-content;
-        flex-shrink: 0;
-        flex-grow: 1;
+        min-width: 0;
         display: flex;
         flex-direction: row;
         align-items: center;
+        justify-content: space-between;
         gap: 6px;
-        white-space: nowrap;
+        white-space: normal;
+        min-height: 32px;
+        box-sizing: border-box;
       }
       .kpi > div:first-child {
+        min-width: 0;
+        overflow: visible;
+        text-overflow: clip;
+        white-space: normal;
+        line-height: 1.15;
         font-weight: 600;
         font-size: 10.5px;
         color: var(--muted, #6b7280);
@@ -109,12 +159,29 @@
         letter-spacing: 0.04em;
       }
       .kpi > div:last-child {
+        flex: 0 0 auto;
         font-size: 13px;
         color: var(--text, #0f172a);
-        font-weight: 700;
+        font-weight: 800;
+        line-height: 1.15;
+        font-variant-numeric: tabular-nums;
+      }
+      .cp-kpi-action {
+        text-align: left;
+        cursor: pointer;
+        appearance: none;
+        font: inherit;
+      }
+      .cp-kpi-action:hover {
+        background: rgba(15, 23, 42, 0.018);
+        border-color: rgba(15, 23, 42, 0.12);
+      }
+      .cp-kpi-action:focus-visible {
+        outline: 2px solid var(--primary, #2563eb);
+        outline-offset: 2px;
       }
       .kpi.total {
-        border-left: 4px solid #2563eb;
+        border-left: 3px solid #2563eb;
         background: linear-gradient(
           135deg,
           rgba(37, 99, 235, 0.06),
@@ -122,7 +189,7 @@
         );
       }
       .kpi.ready {
-        border-left: 4px solid #16a34a;
+        border-left: 3px solid #16a34a;
         background: linear-gradient(
           135deg,
           rgba(22, 163, 74, 0.07),
@@ -130,7 +197,7 @@
         );
       }
       .kpi.review {
-        border-left: 4px solid #f59e0b;
+        border-left: 3px solid #f59e0b;
         background: linear-gradient(
           135deg,
           rgba(245, 158, 11, 0.07),
@@ -138,7 +205,7 @@
         );
       }
       .kpi.blocked {
-        border-left: 4px solid #ef4444;
+        border-left: 3px solid #ef4444;
         background: linear-gradient(
           135deg,
           rgba(239, 68, 68, 0.07),
@@ -146,7 +213,7 @@
         );
       }
       .kpi.scheme {
-        border-left: 4px solid #4f46e5;
+        border-left: 3px solid #4f46e5;
         background: linear-gradient(
           135deg,
           rgba(79, 70, 229, 0.07),
@@ -155,15 +222,25 @@
       }
       @media (max-width: 800px) {
         .kpi-strip {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          overflow-x: visible;
+          grid-template-columns: repeat(auto-fit, minmax(124px, 1fr));
           gap: 5px;
         }
         .kpi {
-          min-width: 0;
-          white-space: normal;
           padding: 5px 8px;
+        }
+        .kpi > div:first-child {
+          font-size: 10px;
+        }
+        .kpi > div:last-child {
+          font-size: 12.5px;
+        }
+      }
+      @media (max-width: 520px) {
+        .kpi-strip {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .kpi {
+          min-height: 30px;
         }
       }
       .search-card {
@@ -625,36 +702,56 @@
       .status-chip,
       .chip {
         display: inline-block;
-        padding: 4px 8px;
+        padding: 2px 7px;
         border-radius: 999px;
-        font-size: 0.8rem;
-        color: #fff;
+        font-size: 11px;
+        line-height: 1.35;
         font-weight: 700;
         white-space: nowrap;
+        border: 1px solid transparent;
+        background: #f8fafc;
+        color: #475569;
       }
       .chip.green,
       .status-chip.green {
-        background: #16a34a;
+        background: #f0fdf4;
+        border-color: #bbf7d0;
+        color: #166534;
       }
       .chip.amber,
       .status-chip.amber {
-        background: #f59e0b;
+        background: #fffbeb;
+        border-color: #fde68a;
+        color: #92400e;
       }
       .chip.red,
       .status-chip.red {
-        background: #ef4444;
+        background: #fef2f2;
+        border-color: #fecaca;
+        color: #991b1b;
       }
       .chip.blue,
       .status-chip.blue {
-        background: #3b82f6;
+        background: #eff6ff;
+        border-color: #bfdbfe;
+        color: #1d4ed8;
       }
       .chip.indigo,
       .status-chip.indigo {
-        background: #4f46e5;
+        background: #eef2ff;
+        border-color: #c7d2fe;
+        color: #3730a3;
       }
       .chip.gray,
       .status-chip.gray {
-        background: #6b7280;
+        background: #f8fafc;
+        border-color: #e2e8f0;
+        color: #475569;
+      }
+      .cp-status-chip-compact {
+        padding: 1px 6px;
+        font-size: 10.75px;
+        line-height: 1.3;
       }
       .cp-status-text {
         font-size: 12px;
@@ -680,6 +777,21 @@
         color: var(--muted, #6b7280);
         font-size: 12.5px;
         font-weight: 500;
+      }
+      .cp-dashboard-main {
+        color: var(--text, #0f172a);
+        font-size: 12.5px;
+        font-weight: 700;
+        line-height: 1.25;
+        white-space: nowrap;
+      }
+      .cp-dashboard-sub {
+        color: var(--muted, #6b7280);
+        font-size: 11.5px;
+        font-weight: 500;
+        line-height: 1.25;
+        margin-top: 2px;
+        white-space: nowrap;
       }
       .cp-change-positive {
         color: #166534;
@@ -725,6 +837,23 @@
         color: var(--text, #0f172a);
         font-weight: 800;
         overflow-wrap: anywhere;
+      }
+      .scheme-policy-sku-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 10px;
+        background: #f8fafc;
+      }
+      .scheme-policy-sku-card .cp-card-label {
+        flex: 0 0 auto;
+      }
+      .scheme-policy-sku-card .cp-card-value {
+        margin-top: 0;
+        font-size: 13px;
+        font-weight: 600;
+        text-align: right;
       }
       .cp-kv {
         display: grid;
@@ -1117,13 +1246,16 @@
         font-weight: 600;
         color: var(--muted, #6b7280);
       }
-      .sign-grid input {
+      .sign-grid input,
+      .sign-grid select {
         padding: 8px 9px;
         border: 1px solid var(--border, #e5e7eb);
         border-radius: 7px;
         font-size: 13px;
         color: var(--text, #111827);
         background: var(--surface, #fff);
+        min-height: 40px;
+        width: 100%;
       }
       @media (max-width: 620px) {
         .sign-grid {
@@ -1136,14 +1268,122 @@
         padding: 8px;
         border: 1px solid var(--border, #e5e7eb);
         border-radius: 8px;
-        background: linear-gradient(
-          135deg,
-          rgba(37, 99, 235, 0.04),
-          rgba(37, 99, 235, 0.015)
-        );
+        background: rgba(15, 23, 42, 0.015);
+        flex-shrink: 0;
       }
       .cp-workbench-summary.is-visible {
         display: block;
+      }
+      .cp-workbench-compact-summary {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        align-items: stretch;
+      }
+      .cp-workbench-summary-card {
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 7px;
+        background: var(--panel-bg, #fff);
+        padding: 7px 9px;
+        min-width: 0;
+      }
+      .cp-workbench-summary-card .cp-card-label {
+        font-size: 10px;
+      }
+      .cp-workbench-summary-card .cp-card-value {
+        margin-top: 2px;
+        font-size: 13px;
+        font-weight: 700;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .cp-workbench-summary-card .icon-btn {
+        min-height: 26px;
+        padding: 4px 10px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .cp-manager-tab-card {
+        text-align: left;
+        cursor: pointer;
+        color: inherit;
+      }
+      .cp-manager-tab-card:hover {
+        border-color: rgba(37, 99, 235, 0.28);
+        background: rgba(37, 99, 235, 0.035);
+      }
+      .cp-manager-tab-card.active {
+        border-color: rgba(37, 99, 235, 0.55);
+        background: rgba(37, 99, 235, 0.08);
+      }
+      .cp-manager-tab-card.active .cp-card-label,
+      .cp-manager-tab-card.active .cp-card-value {
+        color: var(--primary, #2563eb);
+      }
+      #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
+        table {
+        min-width: 980px;
+      }
+      #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
+        th:nth-child(11),
+      #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
+        td:nth-child(11) {
+        position: sticky;
+        right: 0;
+        z-index: 5;
+        background: var(--panel-bg, #fff);
+        box-shadow: -8px 0 12px rgba(15, 23, 42, 0.08);
+      }
+      #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
+        thead
+        th:nth-child(11) {
+        z-index: 8;
+        background: var(--table-header, #fafafa);
+      }
+      #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
+        td:nth-child(2) {
+        min-width: 220px;
+        max-width: 320px;
+      }
+      #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
+        td:nth-child(10) {
+        min-width: 260px;
+      }
+      @media (max-width: 760px) {
+        #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
+          table {
+          min-width: 760px;
+        }
+        #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
+          th:nth-child(5),
+        #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
+          td:nth-child(5),
+        #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
+          th:nth-child(9),
+        #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
+          td:nth-child(9),
+        #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
+          th:nth-child(10),
+        #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
+          td:nth-child(10) {
+          display: none;
+        }
+        #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
+          td:nth-child(2) {
+          min-width: 190px;
+          max-width: 230px;
+        }
+      }
+      @media (max-width: 620px) {
+        .cp-workbench-compact-summary {
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .cp-workbench-summary-wide {
+          grid-column: 1 / -1;
+        }
       }
       .modal-overlay {
         position: fixed;
@@ -1191,13 +1431,24 @@
       }
       .modal-window .tabs {
         display: flex;
+        flex: 0 0 auto;
+        align-items: center;
         gap: 6px;
         padding: 8px 12px;
         border-bottom: 1px solid var(--border, #e5e7eb);
         overflow-x: auto;
+        overflow-y: hidden;
+        min-height: 44px;
+        box-sizing: border-box;
+        scrollbar-width: thin;
       }
       .modal-window .tab {
-        padding: 7px 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        min-height: 28px;
+        padding: 6px 12px;
         border-radius: 7px;
         border: 1px solid var(--border, #e5e7eb);
         color: var(--muted, #6b7280);
@@ -1205,6 +1456,8 @@
         font-weight: 700;
         cursor: pointer;
         white-space: nowrap;
+        line-height: 1.2;
+        box-sizing: border-box;
       }
       .modal-window .tab.active {
         background: var(--primary, #2563eb);
@@ -1212,10 +1465,22 @@
         border-color: var(--primary, #2563eb);
       }
       .modal-content {
+        flex: 1 1 auto;
+        min-height: 0;
         padding: 12px;
         overflow: auto;
         font-size: 13px;
         line-height: 1.45;
+      }
+      .modal-content .cp-table-wrap {
+        max-height: calc(86vh - 190px);
+        overflow: auto;
+      }
+      .modal-content .cp-table-wrap thead th {
+        position: sticky;
+        top: 0;
+        z-index: 6;
+        background: var(--table-header, #fafafa);
       }
       .modal-content .cp-card-label,
       .modal-content .cp-kv dt {
@@ -1319,6 +1584,45 @@
         .modal-window {
           width: 100%;
           max-height: none;
+        }
+      }
+      @media (max-width: 520px) {
+        .page-header {
+          flex-direction: row;
+          align-items: center;
+          gap: 6px;
+        }
+        .page-header > div:first-child {
+          min-width: 0;
+          flex: 1 1 auto;
+        }
+        .page-header > div:last-child {
+          width: auto;
+          flex: 0 0 auto;
+          align-items: center !important;
+          gap: 5px !important;
+        }
+        .page-header h1 {
+          font-size: 13.5px;
+          line-height: 1;
+          white-space: nowrap;
+        }
+        .page-header .icon-btn,
+        .page-header #homeBtn {
+          width: 28px;
+          height: 28px;
+          padding: 0;
+          flex: 0 0 28px;
+        }
+        .page-header #lastRefreshed {
+          min-width: 28px;
+          width: 28px;
+          height: 28px;
+          padding: 0;
+          justify-content: center;
+        }
+        .page-header #lastRefreshed .sc-snapshot-label {
+          display: none;
         }
       }
     </style>
@@ -1444,7 +1748,7 @@
       </div>
     </div>
 
-    <div style="margin-top: 8px; overflow: hidden">
+    <div style="margin-top: 8px; overflow: visible">
       <div class="kpi-strip" id="kpiStrip"></div>
     </div>
 
@@ -1578,6 +1882,16 @@
                     value="STALE_RM_PURCHASE_RATE"
                   />
                   Stale RM purchase rate</label
+                >
+              </li>
+              <li>
+                <label
+                  ><input
+                    type="checkbox"
+                    data-filter-group="issue"
+                    value="STALE_PM_PURCHASE_RATE"
+                  />
+                  Stale PM purchase rate</label
                 >
               </li>
               <li>
@@ -2046,6 +2360,659 @@
             class="icon-btn icon-btn-primary"
           >
             Refresh Monthly Snapshot
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="sellingPolicyEditModal"
+      class="cost-sheet-sign-modal hidden"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel">
+        <div class="cost-sheet-sign-header">
+          <strong>Edit Selling Price Policy</strong>
+          <button
+            id="sellingPolicyEditCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Close"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="cost-sheet-sign-body">
+          <div class="cp-card scheme-policy-sku-card">
+            <div class="cp-card-label">SKU</div>
+            <div id="sellingPolicyEditSkuLabel" class="cp-card-value">--</div>
+          </div>
+
+          <div class="sign-grid">
+            <label>
+              GST %
+              <input id="sellingPolicyGstPercent" type="number" step="0.01" min="0" />
+            </label>
+
+            <label>
+              IK Discount %
+              <input id="sellingPolicyIkDiscountPercent" type="number" step="0.01" min="0" />
+            </label>
+
+            <label>
+              OK Discount %
+              <input id="sellingPolicyOkDiscountPercent" type="number" step="0.01" min="0" />
+            </label>
+
+            <label>
+              IK Fixed Discount Amount
+              <input id="sellingPolicyIkDiscountAmount" type="number" step="0.01" min="0" />
+            </label>
+
+            <label>
+              OK Fixed Discount Amount
+              <input id="sellingPolicyOkDiscountAmount" type="number" step="0.01" min="0" />
+            </label>
+
+            <label>
+              Contingency %
+              <input id="sellingPolicyContingencyPercent" type="number" step="0.01" min="0" />
+            </label>
+
+            <label>
+              Effective From
+              <input id="sellingPolicyEffectiveFrom" type="date" />
+            </label>
+
+            <label>
+              Remarks
+              <input
+                id="sellingPolicyRemarks"
+                type="text"
+                placeholder="Reason / note for policy change"
+              />
+            </label>
+          </div>
+
+          <div class="cp-muted-text" style="margin-top: 10px; line-height: 1.45">
+            Saving this policy will not automatically recalculate costing. After saving,
+            use Refresh Live Costing to update derived selling price and cost sheet values.
+          </div>
+        </div>
+
+        <div class="cost-sheet-sign-actions">
+          <button
+            id="sellingPolicyEditCancelBtn"
+            type="button"
+            class="icon-btn"
+            title="Cancel"
+            aria-label="Cancel"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.3"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+          <button
+            id="sellingPolicyEditSaveBtn"
+            type="button"
+            class="icon-btn icon-btn-primary"
+            title="Save Selling Policy"
+            aria-label="Save Selling Policy"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M20 6 9 17l-5-5"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="schemePolicyEditModal"
+      class="cost-sheet-sign-modal hidden"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel">
+        <div class="cost-sheet-sign-header">
+          <strong>Edit Scheme Policy</strong>
+          <button
+            id="schemePolicyEditCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Close"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="cost-sheet-sign-body">
+          <div class="cp-card scheme-policy-sku-card">
+            <div class="cp-card-label">SKU</div>
+            <div id="schemePolicyEditSkuLabel" class="cp-card-value">--</div>
+          </div>
+
+          <div class="sign-grid">
+            <label>
+              Region
+              <select id="schemePolicyEditRegion">
+                <option value="IK">Inside Kerala</option>
+                <option value="OK">Outside Kerala</option>
+              </select>
+            </label>
+
+            <label>
+              Scheme
+              <select id="schemePolicyEditScheme"></select>
+            </label>
+
+            <label>
+              Effective From
+              <input id="schemePolicyEditEffectiveFrom" type="date" />
+            </label>
+
+            <label>
+              Remarks
+              <input
+                id="schemePolicyEditRemarks"
+                type="text"
+                placeholder="Reason / note for policy change"
+              />
+            </label>
+          </div>
+        </div>
+
+        <div class="cost-sheet-sign-actions">
+          <button
+            id="schemePolicyEditCancelBtn"
+            type="button"
+            class="icon-btn"
+            title="Cancel"
+            aria-label="Cancel"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.3"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+          <button
+            id="schemePolicyEditSaveBtn"
+            type="button"
+            class="icon-btn icon-btn-primary"
+            title="Save Scheme Policy"
+            aria-label="Save Scheme Policy"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M20 6 9 17l-5-5"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="schemeRuleEditModal"
+      class="cost-sheet-sign-modal hidden"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel">
+        <div class="cost-sheet-sign-header">
+          <strong>Create Hierarchy Scheme Rule</strong>
+          <button
+            id="schemeRuleEditCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Close"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="cost-sheet-sign-body">
+          <div class="sign-grid">
+            <label>
+              Scope Level
+              <select id="schemeRuleScope">
+                <option value="CATEGORY">Category</option>
+                <option value="SUB_CATEGORY">Sub-category</option>
+                <option value="PRODUCT_GROUP">Product Group</option>
+                <option value="SUB_GROUP">Sub-group</option>
+                <option value="PRODUCT">Product</option>
+                <option value="SKU">SKU</option>
+              </select>
+            </label>
+
+            <label>
+              Search Scope
+              <input
+                id="schemeRuleScopeSearch"
+                type="text"
+                placeholder="Search category, group, product, SKU..."
+              />
+            </label>
+
+            <label style="grid-column: 1 / -1">
+              Select Scope
+              <select id="schemeRuleScopeSelect"></select>
+            </label>
+
+            <label>
+              Region
+              <select id="schemeRuleRegion">
+                <option value="IK">Inside Kerala</option>
+                <option value="OK">Outside Kerala</option>
+              </select>
+            </label>
+
+            <label>
+              Scheme
+              <select id="schemeRuleScheme"></select>
+            </label>
+
+            <label>
+              Apply Mode
+              <select id="schemeRuleApplyMode">
+                <option value="ALL_MATCHING">All Matching</option>
+                <option value="MISSING_ONLY">Missing / No Scheme Only</option>
+                <option value="REPLACE_EXISTING_SCHEME">
+                  Replace Existing Scheme
+                </option>
+              </select>
+            </label>
+
+            <label id="schemeRuleReplaceFromWrap" style="display: none">
+              Replace From Scheme
+              <select id="schemeRuleReplaceFromScheme"></select>
+            </label>
+
+            <label>
+              Effective From
+              <input id="schemeRuleEffectiveFrom" type="date" />
+            </label>
+
+            <label style="grid-column: 1 / -1">
+              Remarks
+              <input
+                id="schemeRuleRemarks"
+                type="text"
+                placeholder="Approval reference / reason for this scheme rule"
+              />
+            </label>
+          </div>
+
+          <div class="cp-muted-text" style="margin-top: 10px; line-height: 1.45">
+            The selected scope is saved by ID, not by name. Full hierarchy path
+            is shown to avoid accidental selection when names repeat.
+          </div>
+        </div>
+
+        <div class="cost-sheet-sign-actions">
+          <button
+            id="schemeRuleEditCancelBtn"
+            type="button"
+            class="icon-btn cp-muted-icon-btn"
+            title="Cancel"
+            aria-label="Cancel"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.3"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+          <button
+            id="schemeRuleEditSaveBtn"
+            type="button"
+            class="icon-btn icon-btn-primary"
+            title="Save Scheme Rule"
+            aria-label="Save Scheme Rule"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M20 6 9 17l-5-5"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="schemeRuleCloseModal"
+      class="cost-sheet-sign-modal hidden"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel">
+        <div class="cost-sheet-sign-header">
+          <strong>Close Scheme Rule</strong>
+          <button
+            id="schemeRuleCloseCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Close"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="cost-sheet-sign-body">
+          <div class="cp-card scheme-policy-sku-card">
+            <div class="cp-card-label">Rule</div>
+            <div id="schemeRuleCloseLabel" class="cp-card-value">--</div>
+          </div>
+
+          <div class="sign-grid">
+            <label>
+              Effective To
+              <input id="schemeRuleCloseEffectiveTo" type="date" />
+            </label>
+
+            <label>
+              Close Remarks
+              <input
+                id="schemeRuleCloseRemarks"
+                type="text"
+                placeholder="Reason / approval reference for closing this rule"
+              />
+            </label>
+          </div>
+
+          <div class="cp-muted-text" style="margin-top: 10px; line-height: 1.45">
+            Closing a rule will stop it from applying further, while preserving
+            the audit trail.
+          </div>
+        </div>
+
+        <div class="cost-sheet-sign-actions">
+          <button id="schemeRuleCloseCancelBtn" type="button" class="icon-btn">
+            Cancel
+          </button>
+          <button
+            id="schemeRuleCloseSaveBtn"
+            type="button"
+            class="icon-btn icon-btn-primary"
+          >
+            Close Rule
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="manualRateEditModal"
+      class="cost-sheet-sign-modal hidden"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel">
+        <div class="cost-sheet-sign-header">
+          <strong>Set Manual Material Rate</strong>
+          <button
+            id="manualRateEditCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Close"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="cost-sheet-sign-body">
+          <div class="cp-card scheme-policy-sku-card">
+            <div>
+              <div class="cp-card-label">Stock Item</div>
+              <div id="manualRateStockItemLabel" class="cp-card-value">--</div>
+            </div>
+          </div>
+
+          <div class="cp-summary-strip">
+            <div class="cp-card">
+              <div class="cp-card-label">Current Selected Rate</div>
+              <div id="manualRateCurrentRate" class="cp-card-value">--</div>
+            </div>
+            <div class="cp-card">
+              <div class="cp-card-label">Current Rate Source</div>
+              <div id="manualRateCurrentSource" class="cp-card-value">--</div>
+            </div>
+            <div class="cp-card">
+              <div class="cp-card-label">Current Rate Date</div>
+              <div id="manualRateCurrentDate" class="cp-card-value">--</div>
+            </div>
+          </div>
+
+          <div class="sign-grid">
+            <label>
+              Manual Rate
+              <input
+                id="manualRateValue"
+                type="number"
+                step="0.0001"
+                min="0"
+                placeholder="Enter approved manual rate"
+              />
+            </label>
+
+            <label>
+              Effective From
+              <input id="manualRateEffectiveFrom" type="date" />
+            </label>
+
+            <label style="grid-column: 1 / -1">
+              Reason / Approval Reference
+              <input
+                id="manualRateReason"
+                type="text"
+                placeholder="Example: Approved by GM Production as per note dated ..."
+              />
+            </label>
+          </div>
+
+          <div class="cp-muted-text" style="margin-top: 10px; line-height: 1.45">
+            Saving a manual rate will close any existing active manual rate for this stock item and create a new active rate.
+            Use Refresh Live Costing after saving to recalculate costing and Workbench status.
+          </div>
+        </div>
+
+        <div class="cost-sheet-sign-actions">
+          <button
+            id="manualRateEditCancelBtn"
+            type="button"
+            class="icon-btn"
+            title="Cancel"
+            aria-label="Cancel"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.3"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+
+          <button
+            id="manualRateEditSaveBtn"
+            type="button"
+            class="icon-btn icon-btn-primary"
+            title="Save Manual Rate"
+            aria-label="Save Manual Rate"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M20 6 9 17l-5-5"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="manualRateCloseModal"
+      class="cost-sheet-sign-modal hidden"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel">
+        <div class="cost-sheet-sign-header">
+          <strong>Close Manual Material Rate</strong>
+          <button
+            id="manualRateCloseCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Close"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="cost-sheet-sign-body">
+          <div class="cp-card scheme-policy-sku-card">
+            <div>
+              <div class="cp-card-label">Manual Rate</div>
+              <div id="manualRateCloseLabel" class="cp-card-value">--</div>
+            </div>
+          </div>
+
+          <div class="sign-grid">
+            <label>
+              Effective To
+              <input id="manualRateCloseEffectiveTo" type="date" />
+            </label>
+
+            <label style="grid-column: 1 / -1">
+              Close Reason
+              <input
+                id="manualRateCloseReason"
+                type="text"
+                placeholder="Example: Purchase rate now available and verified"
+              />
+            </label>
+          </div>
+
+          <div class="cp-muted-text" style="margin-top: 10px; line-height: 1.45">
+            Closing the manual rate will make it inactive. After Refresh Live Costing,
+            the costing engine can use purchase rate or other available rate source.
+          </div>
+        </div>
+
+        <div class="cost-sheet-sign-actions">
+          <button
+            id="manualRateCloseCancelBtn"
+            type="button"
+            class="icon-btn cp-muted-icon-btn"
+            title="Cancel"
+            aria-label="Cancel"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.3"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+          <button
+            id="manualRateCloseSaveBtn"
+            type="button"
+            class="icon-btn cp-danger-icon-btn"
+            title="Close Manual Rate"
+            aria-label="Close Manual Rate"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.4"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="9"></circle>
+              <path d="M15 9l-6 6"></path>
+              <path d="M9 9l6 6"></path>
+            </svg>
           </button>
         </div>
       </div>

@@ -2499,6 +2499,7 @@
 
           sections.get(sectionTitle).items.push({
             moduleKey: row.moduleKey,
+            targetKey: row.targetKey || `module:${row.moduleKey}`,
             label: row.label || row.moduleKey,
             routePath: row.routePath || "#",
             order: Number.isFinite(Number(row.sortOrder))
@@ -2607,6 +2608,7 @@
                 const attrs = [
                   `class="module-link ${identityClass}"`,
                   `data-module-id="${escapeHtml(item.moduleKey)}"`,
+                  `data-target-key="${escapeHtml(item.targetKey || `module:${item.moduleKey}`)}"`,
                   `data-module-label="${escapeHtml(item.label)}"`,
                   `data-min-nav-mode="${escapeHtml(item.minNavMode || "view")}"`,
                   `data-placeholder="${item.placeholder ? "true" : "false"}"`,
@@ -2929,11 +2931,7 @@
                 permsErr || perms,
               );
               document.querySelectorAll("a.module-link").forEach((anchor) => {
-                const isPlaceholder =
-                  anchor.dataset.placeholder === "true" ||
-                  (anchor.getAttribute("aria-disabled") === "true" &&
-                    !anchor.dataset.href);
-                anchor.style.display = isPlaceholder ? "flex" : "none";
+                anchor.style.display = "none";
               });
               refreshWorkspaceChrome();
             } else {
@@ -2959,6 +2957,8 @@
                   moduleKey,
                   label: (anchor.textContent || "").trim(),
                   accessLevel,
+                  targetKey:
+                    anchor.dataset.targetKey || `module:${moduleKey}`,
                   minNavMode,
                   placeholder: isPlaceholder,
                   routePath:
@@ -2991,6 +2991,15 @@
                 }
               });
 
+              const hasGrantedModules = moduleDecisions.some(
+                (item) => !item.placeholder && item.accessLevel !== "none",
+              );
+              if (!hasGrantedModules) {
+                renderWorkspaceStatus(
+                  "Account active",
+                  "Your account is active. Contact an admin to activate the tools you need.",
+                );
+              }
               refreshWorkspaceChrome();
 
               if (!window.__moduleClickGuard) {
@@ -3042,11 +3051,7 @@
           } catch (e) {
             console.warn("Permission fetch error", e);
             document.querySelectorAll("a.module-link").forEach((anchor) => {
-              const isPlaceholder =
-                anchor.dataset.placeholder === "true" ||
-                (anchor.getAttribute("aria-disabled") === "true" &&
-                  !anchor.dataset.href);
-              anchor.style.display = isPlaceholder ? "flex" : "none";
+              anchor.style.display = "none";
             });
             refreshWorkspaceChrome();
           }

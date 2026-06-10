@@ -44,6 +44,66 @@ const snapshotConfirmPeriod = $("snapshotConfirmPeriod");
 const snapshotConfirmCloseBtn = $("snapshotConfirmCloseBtn");
 const snapshotConfirmCancelBtn = $("snapshotConfirmCancelBtn");
 const snapshotConfirmProceedBtn = $("snapshotConfirmProceedBtn");
+const sellingPolicyEditModal = $("sellingPolicyEditModal");
+const sellingPolicyEditCloseBtn = $("sellingPolicyEditCloseBtn");
+const sellingPolicyEditCancelBtn = $("sellingPolicyEditCancelBtn");
+const sellingPolicyEditSaveBtn = $("sellingPolicyEditSaveBtn");
+const sellingPolicyEditSkuLabel = $("sellingPolicyEditSkuLabel");
+const sellingPolicyGstPercent = $("sellingPolicyGstPercent");
+const sellingPolicyIkDiscountPercent = $("sellingPolicyIkDiscountPercent");
+const sellingPolicyOkDiscountPercent = $("sellingPolicyOkDiscountPercent");
+const sellingPolicyIkDiscountAmount = $("sellingPolicyIkDiscountAmount");
+const sellingPolicyOkDiscountAmount = $("sellingPolicyOkDiscountAmount");
+const sellingPolicyContingencyPercent = $("sellingPolicyContingencyPercent");
+const sellingPolicyEffectiveFrom = $("sellingPolicyEffectiveFrom");
+const sellingPolicyRemarks = $("sellingPolicyRemarks");
+const schemePolicyEditModal = $("schemePolicyEditModal");
+const schemePolicyEditCloseBtn = $("schemePolicyEditCloseBtn");
+const schemePolicyEditCancelBtn = $("schemePolicyEditCancelBtn");
+const schemePolicyEditSaveBtn = $("schemePolicyEditSaveBtn");
+const schemePolicyEditRegion = $("schemePolicyEditRegion");
+const schemePolicyEditScheme = $("schemePolicyEditScheme");
+const schemePolicyEditEffectiveFrom = $("schemePolicyEditEffectiveFrom");
+const schemePolicyEditRemarks = $("schemePolicyEditRemarks");
+const schemeRuleEditModal = $("schemeRuleEditModal");
+const schemeRuleEditCloseBtn = $("schemeRuleEditCloseBtn");
+const schemeRuleEditCancelBtn = $("schemeRuleEditCancelBtn");
+const schemeRuleEditSaveBtn = $("schemeRuleEditSaveBtn");
+const schemeRuleScope = $("schemeRuleScope");
+const schemeRuleScopeSearch = $("schemeRuleScopeSearch");
+const schemeRuleScopeSelect = $("schemeRuleScopeSelect");
+const schemeRuleRegion = $("schemeRuleRegion");
+const schemeRuleScheme = $("schemeRuleScheme");
+const schemeRuleApplyMode = $("schemeRuleApplyMode");
+const schemeRuleReplaceFromScheme = $("schemeRuleReplaceFromScheme");
+const schemeRuleReplaceFromWrap = $("schemeRuleReplaceFromWrap");
+const schemeRuleEffectiveFrom = $("schemeRuleEffectiveFrom");
+const schemeRuleRemarks = $("schemeRuleRemarks");
+const schemeRuleCloseModal = $("schemeRuleCloseModal");
+const schemeRuleCloseCloseBtn = $("schemeRuleCloseCloseBtn");
+const schemeRuleCloseCancelBtn = $("schemeRuleCloseCancelBtn");
+const schemeRuleCloseSaveBtn = $("schemeRuleCloseSaveBtn");
+const schemeRuleCloseLabel = $("schemeRuleCloseLabel");
+const schemeRuleCloseEffectiveTo = $("schemeRuleCloseEffectiveTo");
+const schemeRuleCloseRemarks = $("schemeRuleCloseRemarks");
+const manualRateEditModal = $("manualRateEditModal");
+const manualRateEditCloseBtn = $("manualRateEditCloseBtn");
+const manualRateEditCancelBtn = $("manualRateEditCancelBtn");
+const manualRateEditSaveBtn = $("manualRateEditSaveBtn");
+const manualRateStockItemLabel = $("manualRateStockItemLabel");
+const manualRateCurrentRate = $("manualRateCurrentRate");
+const manualRateCurrentSource = $("manualRateCurrentSource");
+const manualRateCurrentDate = $("manualRateCurrentDate");
+const manualRateValue = $("manualRateValue");
+const manualRateEffectiveFrom = $("manualRateEffectiveFrom");
+const manualRateReason = $("manualRateReason");
+const manualRateCloseModal = $("manualRateCloseModal");
+const manualRateCloseCloseBtn = $("manualRateCloseCloseBtn");
+const manualRateCloseCancelBtn = $("manualRateCloseCancelBtn");
+const manualRateCloseSaveBtn = $("manualRateCloseSaveBtn");
+const manualRateCloseLabel = $("manualRateCloseLabel");
+const manualRateCloseEffectiveTo = $("manualRateCloseEffectiveTo");
+const manualRateCloseReason = $("manualRateCloseReason");
 const csPreparedRole = $("csPreparedRole");
 const csPreparedOrg = $("csPreparedOrg");
 const csVerifiedRole = $("csVerifiedRole");
@@ -60,13 +120,35 @@ let PAGE_SIZE = 25;
 let SELECTED_ROW = null;
 let LAST_REFRESH_TIME = null;
 let DASHBOARD_SUMMARY = null;
-let WORKBENCH_SUMMARY = [];
+let BUSINESS_KPI_SUMMARY = null;
+let SKU_STATUS_DIAGNOSIS = [];
+let DIAGNOSIS_BY_SKU_ID = new Map();
 let PRINTABLE_LINES = [];
 let CURRENT_COST_SHEET_PRODUCT_ID = null;
 let CURRENT_EXPORT_USER = "--";
 let DETAILS_RETURN_FOCUS = null;
 let COST_SHEET_RETURN_FOCUS = null;
 let COST_SHEET_SIGN_RETURN_FOCUS = null;
+let SCHEME_OPTIONS = [];
+let SCHEME_POLICY_EDIT_ROW = null;
+let SCHEME_POLICY_RETURN_FOCUS = null;
+let SCHEME_POLICY_INITIAL = {
+  region: null,
+  schemeId: null,
+};
+let SCHEME_RULE_SCOPE_OPTIONS = [];
+let SCHEME_RULE_EDIT_RETURN_FOCUS = null;
+let SCHEME_RULE_CLOSE_ROW = null;
+let SCHEME_RULE_CLOSE_RETURN_FOCUS = null;
+let SELLING_POLICY_EDIT_ROW = null;
+let SELLING_POLICY_RETURN_FOCUS = null;
+let SELLING_POLICY_INITIAL = null;
+let MANUAL_RATE_EDIT_ROW = null;
+let MANUAL_RATE_RETURN_FOCUS = null;
+let MANUAL_RATE_CLOSE_ROW = null;
+let MANUAL_RATE_CLOSE_RETURN_FOCUS = null;
+let MANUAL_RATE_MANAGER_TAB = "action-queue";
+let POLICY_MANAGER_TAB = "sku-overview";
 let ACTIVE_FILTERS = {
   status: [],
   issue: [],
@@ -90,9 +172,10 @@ const LENSES = [
   { id: "sku-cost-sheet", label: "SKU Cost Details" },
   { id: "printable-cost-sheet", label: "Cost Sheet" },
   { id: "cost-comparison", label: "Cost Comparison" },
+  { id: "policy-manager", label: "Policy Manager" },
   { id: "scheme-comparison", label: "Scheme Comparison" },
-  { id: "pricing-diagnostics", label: "Pricing Diagnostics" },
   { id: "costing-review-workbench", label: "Costing Review Workbench" },
+  { id: "manual-rate-manager", label: "Manual Rate Manager" },
 ];
 
 const VIEW_BY_LENS = {
@@ -100,9 +183,10 @@ const VIEW_BY_LENS = {
   "sku-cost-sheet": "v_costing_pricing_sku_selector",
   "printable-cost-sheet": "v_costing_pricing_printable_cost_sheet_lines",
   "cost-comparison": "v_cost_sheet_snapshot_sku_monthly_comparison",
+  "policy-manager": "v_costing_policy_manager_sku_overview",
   "scheme-comparison": "v_costing_pricing_sku_scheme_comparison",
-  "pricing-diagnostics": "v_costing_pricing_workflow_diagnostics",
-  "costing-review-workbench": "v_costing_pricing_review_top_action_items",
+  "costing-review-workbench": "v_costing_pricing_review_top_action_items_snapshot",
+  "manual-rate-manager": "v_costing_manual_rate_manager_action_queue",
 };
 
 function costingFrom(viewName) {
@@ -111,6 +195,30 @@ function costingFrom(viewName) {
 
 async function costingRpc(name, params) {
   return supabase.rpc(name, params);
+}
+
+async function loadSchemeOptions() {
+  const { data, error } = await costingFrom(
+    "v_costing_policy_manager_scheme_options",
+  )
+    .select("*")
+    .order("paid_qty", { ascending: true })
+    .order("free_qty", { ascending: true })
+    .order("scheme_name", { ascending: true });
+
+  if (error) throw error;
+  SCHEME_OPTIONS = data || [];
+}
+
+async function loadSchemeRuleScopeOptions() {
+  SCHEME_RULE_SCOPE_OPTIONS = await fetchAllRows(
+    () =>
+      costingFrom("v_costing_scheme_policy_scope_options")
+        .select("*")
+        .order("policy_scope", { ascending: true })
+        .order("display_name", { ascending: true }),
+    1000,
+  );
 }
 
 function escapeHtml(value) {
@@ -132,6 +240,13 @@ function formatMoney(value) {
   const n = Number(value);
   if (!Number.isFinite(n)) return text(value);
   return `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function formatOptionalMoney(value) {
+  if (value === null || value === undefined || value === "") {
+    return '<span class="cp-muted-text">Not set</span>';
+  }
+  return formatMoney(value);
 }
 
 function formatPercent(value) {
@@ -174,12 +289,49 @@ function normalizeStatus(value) {
 
 function statusClass(status) {
   const s = normalizeStatus(status);
-  if (s === "READY" || s === "SUCCESS" || s === "OK") return "green";
-  if (s === "REVIEW_REQUIRED" || s === "WARNING" || s.includes("REVIEW"))
+  if (
+    s === "READY" ||
+    s === "SUCCESS" ||
+    s === "OK" ||
+    s === "ACCEPTABLE" ||
+    s === "COMMERCIALLY_ACCEPTABLE"
+  )
+    return "green";
+  if (
+    s === "REVIEW_REQUIRED" ||
+    s === "REVIEW_COST_INPUTS" ||
+    s === "LOW_MARGIN" ||
+    s === "REVIEW_COMMERCIAL_MARGIN" ||
+    s === "WARNING" ||
+    s.includes("REVIEW")
+  )
     return "amber";
-  if (s === "BLOCKED" || s === "FAILED" || s === "ERROR") return "red";
+  if (
+    s === "BLOCKED" ||
+    s === "FAILED" ||
+    s === "ERROR" ||
+    s === "COMPLETE_MISSING_COST_DATA" ||
+    s === "NOT_ACCEPTABLE" ||
+    s === "REJECT_OR_REPRICE"
+  )
+    return "red";
+  if (s === "NOT_EVALUATED") return "gray";
   if (s.includes("SCHEME")) return "indigo";
   return "gray";
+}
+
+function formatStatusLabel(status) {
+  if (!status) return "--";
+  return String(status)
+    .toLowerCase()
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function getStatusClass(status) {
+  return statusClass(status);
 }
 
 function laneClass(row) {
@@ -194,13 +346,13 @@ function laneClass(row) {
 
 function statusChip(status) {
   if (!status) return '<span class="status-chip gray">--</span>';
-  return `<span class="status-chip ${statusClass(status)}">${text(status)}</span>`;
+  return `<span class="status-chip ${getStatusClass(status)}">${text(status)}</span>`;
 }
 
 function compactStatusText(status) {
-  if (!status) return '<span class="cp-status-text">--</span>';
-  const cls = statusClass(status);
-  return `<span class="cp-status-text cp-status-text--${cls}">${text(status)}</span>`;
+  if (!status) return '<span class="status-chip gray cp-status-chip-compact">--</span>';
+  const cls = getStatusClass(status);
+  return `<span class="status-chip ${cls} cp-status-chip-compact">${text(status)}</span>`;
 }
 
 function marginBandChip(value) {
@@ -350,15 +502,18 @@ async function loadDashboardSummary() {
   renderKpiStrip();
 }
 
-async function loadWorkbenchSummary() {
-  if (CURRENT_LENS !== "costing-review-workbench") return;
+async function loadBusinessKpiSummary() {
   const { data, error } = await costingFrom(
-    "v_costing_pricing_review_workbench_summary",
+    "v_costing_pricing_business_kpi_summary",
   )
     .select("*")
-    .limit(250);
+    .eq("period_start", ACTIVE_PERIOD_START)
+    .limit(1);
+
   if (error) throw error;
-  WORKBENCH_SUMMARY = data || [];
+
+  BUSINESS_KPI_SUMMARY = data?.[0] || null;
+  renderKpiStrip();
 }
 
 async function fetchAllPrintableLinesForPeriod(periodStart) {
@@ -410,6 +565,39 @@ async function fetchAllRows(queryBuilderFactory, pageSize = 1000) {
   return all;
 }
 
+async function loadSkuStatusDiagnosis(periodStart) {
+  try {
+    SKU_STATUS_DIAGNOSIS = await fetchAllRows(
+      () =>
+        costingFrom("v_costing_pricing_sku_status_diagnosis")
+          .select("*")
+          .eq("period_start", periodStart)
+          .order("product_name", { ascending: true })
+          .order("pack_size", { ascending: true }),
+      1000,
+    );
+    DIAGNOSIS_BY_SKU_ID = new Map(
+      SKU_STATUS_DIAGNOSIS.map((row) => [Number(row.sku_id), row]),
+    );
+  } catch (err) {
+    SKU_STATUS_DIAGNOSIS = [];
+    DIAGNOSIS_BY_SKU_ID = new Map();
+    console.error("Costing diagnosis could not be loaded", err);
+    showToast(
+      "Costing diagnosis could not be loaded. Existing cost and scheme data are still displayed.",
+      "warning",
+      5200,
+    );
+  }
+}
+
+function getSkuDiagnosis(skuId, periodStart = ACTIVE_PERIOD_START) {
+  const row = DIAGNOSIS_BY_SKU_ID.get(Number(skuId));
+  if (!row) return null;
+  if (periodStart && String(row.period_start) !== String(periodStart)) return null;
+  return row;
+}
+
 async function loadRowsForLens() {
   const lensLabel = LENSES.find((l) => l.id === CURRENT_LENS)?.label || "view";
   setLoadingMask(true, `Loading ${lensLabel}...`);
@@ -423,7 +611,8 @@ async function loadRowsForLens() {
     CURRENT_PAGE = 1;
 
     await loadDashboardSummary();
-    await loadWorkbenchSummary();
+    await loadBusinessKpiSummary();
+    await loadSkuStatusDiagnosis(ACTIVE_PERIOD_START);
 
     const viewName = VIEW_BY_LENS[CURRENT_LENS];
     if (CURRENT_LENS === "printable-cost-sheet") {
@@ -449,12 +638,71 @@ async function loadRowsForLens() {
       return;
     }
 
+    if (CURRENT_LENS === "costing-review-workbench") {
+      ALL_ROWS = [...SKU_STATUS_DIAGNOSIS];
+
+      applyFilters();
+      LAST_REFRESH_TIME = new Date();
+      updateFreshnessIndicator();
+      return;
+    }
+
+    if (CURRENT_LENS === "manual-rate-manager") {
+      if (MANUAL_RATE_MANAGER_TAB === "register") {
+        ALL_ROWS = await fetchManualRateManagerRegisterRows();
+      } else if (MANUAL_RATE_MANAGER_TAB === "history") {
+        ALL_ROWS = await fetchManualRateManagerHistoryRows();
+      } else {
+        ALL_ROWS = await fetchAllRows(
+          () =>
+            costingFrom("v_costing_manual_rate_manager_action_queue")
+              .select("*")
+              .order("priority_sort", { ascending: true })
+              .order("material_issue_code", { ascending: true })
+              .order("stock_item_name", { ascending: true }),
+          1000,
+        );
+      }
+
+      applyFilters();
+      LAST_REFRESH_TIME = new Date();
+      updateFreshnessIndicator();
+      return;
+    }
+
+    if (CURRENT_LENS === "policy-manager") {
+      if (POLICY_MANAGER_TAB === "scheme-rule-register") {
+        ALL_ROWS = await fetchAllRows(
+          () =>
+            costingFrom("v_costing_scheme_policy_rule_register")
+              .select("*")
+              .order("rule_status", { ascending: true })
+              .order("policy_rule_id", { ascending: false }),
+          1000,
+        );
+      } else {
+        ALL_ROWS = await fetchAllRows(
+          () =>
+            costingFrom("v_costing_policy_manager_sku_overview")
+              .select("*")
+              .order("product_name", { ascending: true })
+              .order("pack_size", { ascending: true }),
+          1000,
+        );
+      }
+
+      applyFilters();
+      LAST_REFRESH_TIME = new Date();
+      updateFreshnessIndicator();
+      return;
+    }
+
     let query = costingFrom(viewName).select("*");
     if (CURRENT_LENS === "dashboard") {
       query = query.eq("period_start", ACTIVE_PERIOD_START).limit(1);
     } else if (CURRENT_LENS === "cost-comparison") {
       query = query.eq("snapshot_period_start", ACTIVE_PERIOD_START);
-    } else if (CURRENT_LENS !== "costing-review-workbench") {
+    } else {
       query = query.eq("period_start", ACTIVE_PERIOD_START);
     }
 
@@ -468,10 +716,11 @@ async function loadRowsForLens() {
         .order("sku_column_label", { ascending: true });
     if (CURRENT_LENS === "scheme-comparison")
       query = query.order("sku_display_name", { ascending: true });
-    if (CURRENT_LENS === "pricing-diagnostics")
-      query = query.order("product_name", { ascending: true });
-    if (CURRENT_LENS === "costing-review-workbench")
-      query = query.order("affected_sku_count", { ascending: false });
+    if (CURRENT_LENS === "costing-review-workbench") {
+      query = query
+        .order("priority_sort", { ascending: true })
+        .order("affected_sku_count", { ascending: false });
+    }
 
     const { data, error } = await query.limit(2000);
     if (error) throw error;
@@ -538,29 +787,168 @@ function groupPrintableLinesByProduct(lines) {
     );
 }
 
+function coverageValue(done, total) {
+  return `${formatNumber(done)} / ${formatNumber(total)}`;
+}
+
+function riskTotal(...values) {
+  return values.reduce((sum, value) => sum + Number(value || 0), 0);
+}
+
 function renderKpiStrip() {
   if (!kpiStrip) return;
-  const r = DASHBOARD_SUMMARY || {};
+
+  const r = BUSINESS_KPI_SUMMARY || DASHBOARD_SUMMARY || {};
+  const totalSkus = Number(r.total_pricing_sku_count || 0);
+
+  const schemeRiskRows = riskTotal(
+    r.scheme_blocked_row_count,
+    r.scheme_review_row_count,
+  );
+
+  const workbenchActions = riskTotal(
+    r.workbench_blocked_item_count,
+    r.workbench_review_item_count,
+  );
+
+  const costingReadyCount = Number(r.costing_ready_sku_count || 0);
+  const readyClass = costingReadyCount === totalSkus && totalSkus > 0
+    ? "ready"
+    : costingReadyCount > 0
+      ? "review"
+      : "blocked";
+
   const cards = [
-    ["Pricing SKUs", r.pricing_bridge_sku_count, "total"],
-    ["Pricing Blocked", r.pricing_bridge_blocked_count, "blocked"],
-    ["Pricing Review", r.pricing_bridge_review_required_count, "review"],
-    ["Selling Price SKUs", r.selling_price_sku_count, "ready"],
-    ["Scheme Rows", r.scheme_viability_row_count, "scheme"],
-    ["Scheme Blocked", r.scheme_blocked_count, "blocked"],
-    ["Scheme Review", r.scheme_review_required_count, "review"],
-    [
-      "Refresh Status",
-      r.latest_refresh_status || "--",
-      statusClass(r.latest_refresh_status) === "green" ? "ready" : "total",
-    ],
+    {
+      label: "Costing Readiness",
+      value: coverageValue(r.costing_ready_sku_count, totalSkus),
+      cls: readyClass,
+      title: "SKUs that are ready for reliable cost sheet and pricing decisions.",
+      action: "costing-ready",
+    },
+    {
+      label: "Costing Blocked",
+      value: r.costing_blocked_sku_count,
+      cls: Number(r.costing_blocked_sku_count || 0) > 0 ? "blocked" : "ready",
+      title: "SKUs where costing cannot be approved until blocking issues are corrected.",
+      action: "costing-blocked",
+    },
+    {
+      label: "Costing Review",
+      value: r.costing_review_sku_count,
+      cls: Number(r.costing_review_sku_count || 0) > 0 ? "review" : "ready",
+      title: "SKUs where costing exists but requires review before use.",
+      action: "costing-review",
+    },
+    {
+      label: "Selling Policy Coverage",
+      value: coverageValue(r.selling_policy_complete_count, totalSkus),
+      cls: Number(r.selling_policy_missing_count || 0) > 0 ? "review" : "ready",
+      title: "SKUs with GST, discount, and contingency policy coverage.",
+      action: "selling-policy",
+    },
+    {
+      label: "Scheme Policy Coverage",
+      value: coverageValue(r.scheme_policy_complete_count, totalSkus),
+      cls: Number(r.scheme_policy_missing_count || 0) > 0 ? "review" : "ready",
+      title: "SKUs with selected scheme policy for both IK and OK.",
+      action: "scheme-policy",
+    },
+    {
+      label: "Scheme / Margin Risk",
+      value: schemeRiskRows,
+      cls: schemeRiskRows > 0 ? "review" : "ready",
+      title: "Scheme viability rows that are blocked or require review.",
+      action: "scheme-risk",
+    },
+    {
+      label: "Workbench Actions",
+      value: workbenchActions,
+      cls: Number(r.workbench_blocked_item_count || 0) > 0
+        ? "blocked"
+        : workbenchActions > 0
+          ? "review"
+          : "ready",
+      title: "Material/rate/valuation items requiring correction or review.",
+      action: "workbench-actions",
+    },
   ];
+
   kpiStrip.innerHTML = cards
     .map(
-      ([label, value, cls]) =>
-        `<div class="kpi ${cls}"><div>${label}</div><div>${typeof value === "number" ? formatNumber(value) : text(value)}</div></div>`,
+      ({ label, value, cls, title, action }) =>
+        `<button
+          type="button"
+          class="kpi ${cls} cp-kpi-action"
+          data-kpi-action="${escapeHtml(action)}"
+          title="${escapeHtml(title || label)}"
+        >
+          <div>${text(label)}</div>
+          <div>${typeof value === "number" ? formatNumber(value) : text(value)}</div>
+        </button>`,
     )
     .join("");
+
+  kpiStrip.querySelectorAll("[data-kpi-action]").forEach((card) => {
+    card.addEventListener("click", () => handleKpiAction(card.dataset.kpiAction));
+  });
+}
+
+async function handleKpiAction(action) {
+  const go = async (lensId, filters = { status: [], issue: [], source: [] }) => {
+    ACTIVE_FILTERS = {
+      status: filters.status || [],
+      issue: filters.issue || [],
+      source: filters.source || [],
+    };
+    syncFilterCheckboxes();
+
+    if (CURRENT_LENS !== lensId) {
+      await switchLens(lensId);
+    } else {
+      applyFilters();
+    }
+
+    searchBox?.focus();
+  };
+
+  try {
+    if (action === "costing-ready") {
+      await go("sku-cost-sheet", { status: ["READY"] });
+      return;
+    }
+
+    if (action === "costing-blocked") {
+      await go("sku-cost-sheet", { status: ["BLOCKED"] });
+      return;
+    }
+
+    if (action === "costing-review") {
+      await go("sku-cost-sheet", { status: ["REVIEW_REQUIRED"] });
+      return;
+    }
+
+    if (action === "selling-policy" || action === "scheme-policy") {
+      await go("policy-manager");
+      return;
+    }
+
+    if (action === "scheme-risk") {
+      await go("scheme-comparison", {
+        status: ["BLOCKED", "REVIEW_REQUIRED"],
+      });
+      return;
+    }
+
+    if (action === "workbench-actions") {
+      await go("costing-review-workbench", {
+        status: ["BLOCKED", "REVIEW_REQUIRED"],
+      });
+      return;
+    }
+  } catch (err) {
+    handleError("Failed to open KPI drilldown", err);
+  }
 }
 
 function renderLensPills() {
@@ -605,7 +993,11 @@ function getRowStatus(row) {
     row.pricing_bridge_status ||
     row.selling_price_bridge_status ||
     row.scheme_viability_status ||
+    row.final_action_status ||
+    row.costing_confidence_status ||
+    row.commercial_viability_status ||
     row.material_line_status ||
+    row.manager_action_code ||
     row.latest_refresh_status ||
     ""
   );
@@ -626,7 +1018,24 @@ function getSearchBlob(row) {
     row.sku_column_labels,
     row.stock_item_name,
     row.material_issue_code,
+    row.manager_action_code,
+    row.action_source,
+    row.latest_purchase_rate,
+    row.latest_purchase_date,
+    row.register_status,
+    row.reason,
+    row.recommended_action,
+    row.manual_rate_id,
+    row.rate_value,
     row.primary_diagnostic_code,
+    row.primary_diagnostic_layer,
+    row.primary_diagnostic_note,
+    row.costing_confidence_status,
+    row.commercial_viability_status,
+    row.final_action_status,
+    row.material_costing_status,
+    row.rm_costing_status,
+    row.pm_costing_status,
     row.scheme_name,
   ]
     .filter(Boolean)
@@ -646,13 +1055,21 @@ function filterMatch(row, group, selected) {
       row.pricing_bridge_status,
       row.selling_price_bridge_status,
       row.scheme_viability_status,
+      row.costing_confidence_status,
+      row.commercial_viability_status,
+      row.final_action_status,
+      row.material_costing_status,
+      row.rm_costing_status,
+      row.pm_costing_status,
       row.internal_loaded_cost_status,
       row.manufacturing_cop_status,
       row.material_line_status,
+      row.manager_action_code,
     ],
     issue: [
       row.material_issue_code,
       row.primary_diagnostic_code,
+      row.final_action_status,
       row.warning_code,
     ],
     source: [row.bom_source, row.source],
@@ -694,21 +1111,113 @@ function updateSearchClear() {
 }
 
 function renderTableHeaderForLens() {
+  if (CURRENT_LENS === "manual-rate-manager") {
+    const headersByTab = {
+      "action-queue": [
+        "",
+        "Action",
+        "Issue Code",
+        "Stock Item",
+        "Selected Rate",
+        "Rate Source",
+        "Latest Purchase Rate",
+        "Affected Products",
+        "Affected SKUs",
+        "Recommended Action",
+      ],
+      register: [
+        "",
+        "Stock Item",
+        "Manual Rate",
+        "Effective From",
+        "Effective To",
+        "Status",
+        "Register Status",
+        "Latest Purchase Rate",
+        "Latest Purchase Date",
+        "Recommended Action",
+        "Action",
+      ],
+      history: [
+        "",
+        "Manual Rate ID",
+        "Stock Item",
+        "Rate",
+        "Effective From",
+        "Effective To",
+        "Status",
+        "Reason / Approval Reference",
+        "Created At",
+        "Last Updated At",
+      ],
+    };
+
+    const alignmentsByTab = {
+      "action-queue": [
+        "c-center",
+        "c-left",
+        "c-left",
+        "c-left",
+        "c-right",
+        "c-left",
+        "c-right",
+        "c-right",
+        "c-right",
+        "c-left",
+      ],
+      register: [
+        "c-center",
+        "c-left",
+        "c-right",
+        "c-left",
+        "c-left",
+        "c-left",
+        "c-left",
+        "c-right",
+        "c-left",
+        "c-left",
+        "c-center",
+      ],
+      history: [
+        "c-center",
+        "c-left",
+        "c-left",
+        "c-right",
+        "c-left",
+        "c-left",
+        "c-left",
+        "c-left",
+        "c-left",
+        "c-left",
+      ],
+    };
+
+    const headers =
+      headersByTab[MANUAL_RATE_MANAGER_TAB] || headersByTab["action-queue"];
+    const alignments =
+      alignmentsByTab[MANUAL_RATE_MANAGER_TAB] ||
+      alignmentsByTab["action-queue"];
+
+    tableHead.innerHTML = `<tr>${headers
+      .map((h, i) => {
+        const classes = [alignments[i] || "c-left"];
+        if (i === 0 && h === "") classes.push("lane-col");
+        return `<th class="${classes.join(" ")}">${text(h, "")}</th>`;
+      })
+      .join("")}</tr>`;
+
+    return;
+  }
+
   const headers = {
     dashboard: [
       "Period",
-      "Pricing SKUs",
-      "Pricing Blocked",
-      "Pricing Review",
-      "Selling Price SKUs",
-      "Selling Blocked",
-      "Selling Review",
-      "Scheme Rows",
-      "Scheme Blocked",
-      "Scheme Review",
-      "Refresh Status",
-      "Scope",
-      "Finished At",
+      "Costing Readiness",
+      "Costing Risk",
+      "Policy Coverage",
+      "Scheme / Margin Risk",
+      "Workbench Actions",
+      "Last Refresh",
     ],
     "sku-cost-sheet": [
       "",
@@ -742,6 +1251,33 @@ function renderTableHeaderForLens() {
       "Profit OK",
       "MoM Profit OK Change",
     ],
+    "policy-manager":
+      POLICY_MANAGER_TAB === "scheme-rule-register"
+        ? [
+            "Rule",
+            "Scope",
+            "Region",
+            "Scheme",
+            "Apply Mode",
+            "Effective From",
+            "Effective To",
+            "Status",
+            "Remarks",
+            "Action",
+          ]
+        : [
+            "Product / SKU",
+            "MRP IK",
+            "MRP OK",
+            "GST %",
+            "Discount IK %",
+            "Discount OK %",
+            "Contingency %",
+            "Scheme IK",
+            "Scheme OK",
+            "Pricing Status",
+            "Selling Price Status",
+          ],
     "scheme-comparison": [
       "Product / SKU",
       "Scheme",
@@ -753,42 +1289,29 @@ function renderTableHeaderForLens() {
       "OK Margin Band",
       "Status",
     ],
-    "pricing-diagnostics": [
-      "Product",
-      "SKU",
-      "Pack",
-      "Pricing Status",
-      "Selling Price Status",
-      "Internal Loaded Cost Status",
-      "Manufacturing COP Status",
-      "Primary Diagnostic Code",
-      "Primary Diagnostic Note",
-    ],
     "costing-review-workbench": [
-      "",
-      "Issue Code",
-      "Source",
-      "Stock Item",
-      "Selected Rate",
-      "Rate Source",
-      "Rate Date",
-      "Affected Products",
-      "Affected SKUs",
+      "SKU",
+      "Costing Confidence",
+      "Commercial Viability",
+      "Final Action",
+      "Primary Diagnostic Code",
+      "Primary Reason",
       "Recommended Action",
+      "RM Blocking Lines",
+      "PM Blocking Lines",
+      "RM Review Lines",
+      "PM Review Lines",
+      "RM Stale Purchase Rate Lines",
+      "RM Stock Valuation Fallback Lines",
+      "PM Stock Valuation Fallback Lines",
     ],
   }[CURRENT_LENS];
   const alignments = {
     dashboard: [
       "c-left",
-      "c-right",
-      "c-right",
-      "c-right",
-      "c-right",
-      "c-right",
-      "c-right",
-      "c-right",
-      "c-right",
-      "c-right",
+      "c-left",
+      "c-left",
+      "c-left",
       "c-left",
       "c-left",
       "c-left",
@@ -825,6 +1348,33 @@ function renderTableHeaderForLens() {
       "c-right",
       "c-right",
     ],
+    "policy-manager":
+      POLICY_MANAGER_TAB === "scheme-rule-register"
+        ? [
+            "c-left",
+            "c-left",
+            "c-left",
+            "c-left",
+            "c-left",
+            "c-left",
+            "c-left",
+            "c-left",
+            "c-left",
+            "c-center",
+          ]
+        : [
+            "c-left",
+            "c-right",
+            "c-right",
+            "c-right",
+            "c-right",
+            "c-right",
+            "c-right",
+            "c-left",
+            "c-left",
+            "c-left",
+            "c-left",
+          ],
     "scheme-comparison": [
       "c-left",
       "c-left",
@@ -836,18 +1386,20 @@ function renderTableHeaderForLens() {
       "c-left",
       "c-left",
     ],
-    "pricing-diagnostics": Array(9).fill("c-left"),
     "costing-review-workbench": [
-      "c-center",
+      "c-left",
+      "c-left",
+      "c-left",
       "c-left",
       "c-left",
       "c-left",
       "c-right",
-      "c-left",
-      "c-left",
       "c-right",
       "c-right",
-      "c-left",
+      "c-right",
+      "c-right",
+      "c-right",
+      "c-right",
     ],
   }[CURRENT_LENS] || [];
   tableHead.innerHTML = `<tr>${headers
@@ -868,20 +1420,64 @@ function productSkuLabel(row) {
 function renderRowForLens(row, idx) {
   const trAttrs = `class="clickable" data-row-index="${idx}"`;
   if (CURRENT_LENS === "dashboard") {
+    const b = BUSINESS_KPI_SUMMARY || {};
+    const totalSkus = Number(
+      b.total_pricing_sku_count || row.pricing_bridge_sku_count || 0,
+    );
+    const costingBlocked = Number(
+      b.costing_blocked_sku_count ?? row.pricing_bridge_blocked_count ?? 0,
+    );
+    const costingReview = Number(
+      b.costing_review_sku_count ??
+        row.pricing_bridge_review_required_count ??
+        0,
+    );
+    const costingReady = b.costing_ready_sku_count ??
+      Math.max(totalSkus - costingBlocked - costingReview, 0);
+    const sellingComplete =
+      b.selling_policy_complete_count ?? row.selling_price_sku_count;
+    const schemeComplete = b.scheme_policy_complete_count;
+    const schemeRiskRows = riskTotal(
+      b.scheme_blocked_row_count ?? row.scheme_blocked_count,
+      b.scheme_review_row_count ?? row.scheme_review_required_count,
+    );
+    const workbenchActions = riskTotal(
+      b.workbench_blocked_item_count,
+      b.workbench_review_item_count,
+    );
+    const refreshStatus = b.latest_refresh_status || row.latest_refresh_status;
+    const refreshFinished =
+      b.latest_refresh_finished_at || row.latest_refresh_finished_at;
+
     return `<tr ${trAttrs}>
-      <td>${formatDate(row.period_start)}</td>
-      <td class="c-right">${formatNumber(row.pricing_bridge_sku_count)}</td>
-      <td class="c-right">${formatNumber(row.pricing_bridge_blocked_count)}</td>
-      <td class="c-right">${formatNumber(row.pricing_bridge_review_required_count)}</td>
-      <td class="c-right">${formatNumber(row.selling_price_sku_count)}</td>
-      <td class="c-right">${formatNumber(row.selling_price_blocked_count)}</td>
-      <td class="c-right">${formatNumber(row.selling_price_review_required_count)}</td>
-      <td class="c-right">${formatNumber(row.scheme_viability_row_count)}</td>
-      <td class="c-right">${formatNumber(row.scheme_blocked_count)}</td>
-      <td class="c-right">${formatNumber(row.scheme_review_required_count)}</td>
-      <td>${statusChip(row.latest_refresh_status)}</td>
-      <td>${text(row.latest_refresh_scope)}</td>
-      <td>${formatDateTime(row.latest_refresh_finished_at)}</td>
+      <td>
+        <div class="cp-dashboard-main">${formatDate(row.period_start)}</div>
+        <div class="cp-dashboard-sub">Active costing period</div>
+      </td>
+      <td>
+        <div class="cp-dashboard-main">${coverageValue(costingReady, totalSkus)}</div>
+        <div class="cp-dashboard-sub">Ready SKUs</div>
+      </td>
+      <td>
+        <div class="cp-dashboard-main">${formatNumber(costingBlocked)} blocked</div>
+        <div class="cp-dashboard-sub">${formatNumber(costingReview)} need review</div>
+      </td>
+      <td>
+        <div class="cp-dashboard-main">Selling ${coverageValue(sellingComplete, totalSkus)}</div>
+        <div class="cp-dashboard-sub">Scheme ${coverageValue(schemeComplete, totalSkus)}</div>
+      </td>
+      <td>
+        <div class="cp-dashboard-main">${formatNumber(schemeRiskRows)} rows</div>
+        <div class="cp-dashboard-sub">Blocked or review</div>
+      </td>
+      <td>
+        <div class="cp-dashboard-main">${formatNumber(workbenchActions)} actions</div>
+        <div class="cp-dashboard-sub">Material/rate issues</div>
+      </td>
+      <td>
+        <div class="cp-dashboard-main">${statusChip(refreshStatus)}</div>
+        <div class="cp-dashboard-sub">${formatDateTime(refreshFinished)}</div>
+      </td>
     </tr>`;
   }
   if (CURRENT_LENS === "sku-cost-sheet") {
@@ -922,6 +1518,74 @@ function renderRowForLens(row, idx) {
       ${comparisonCell(costComparisonValue(row, "momProfitOkChange"), formatMoney, "money")}
     </tr>`;
   }
+  if (CURRENT_LENS === "policy-manager") {
+    if (POLICY_MANAGER_TAB === "scheme-rule-register") {
+      return `<tr ${trAttrs}>
+        <td>
+          <strong>#${text(row.policy_rule_id)}</strong>
+          <div class="cp-muted-text">${text(row.rule_status)}</div>
+        </td>
+        <td>
+          <strong>${text(row.policy_scope)}</strong>
+          <div class="cp-muted-text">${text(row.scope_name)}</div>
+        </td>
+        <td>${text(row.region_code)}</td>
+        <td>
+          <strong>${text(row.scheme_name)}</strong>
+          <div class="cp-muted-text">
+            ${formatNumber(row.paid_qty)} + ${formatNumber(row.free_qty)}
+          </div>
+        </td>
+        <td>
+          ${text(row.apply_mode)}
+          ${
+            row.replace_from_scheme_name
+              ? `<div class="cp-muted-text">From: ${text(row.replace_from_scheme_name)}</div>`
+              : ""
+          }
+        </td>
+        <td>${formatDate(row.effective_from)}</td>
+        <td>${formatDate(row.effective_to)}</td>
+        <td>${compactStatusText(row.rule_status)}</td>
+        <td>${text(row.remarks)}</td>
+        <td class="c-center">
+          ${
+            normalizeStatus(row.rule_status) === "ACTIVE"
+              ? `<button
+                  type="button"
+                  class="icon-btn cp-danger-icon-btn"
+                  data-close-scheme-rule-id="${text(row.policy_rule_id)}"
+                  title="Close Scheme Rule"
+                  aria-label="Close Scheme Rule"
+                >
+                  ×
+                </button>`
+              : `<span class="cp-muted-text">--</span>`
+          }
+        </td>
+      </tr>`;
+    }
+
+    return `<tr ${trAttrs}>
+      <td>${productSkuLabel(row)}</td>
+      <td class="c-right">${formatMoney(row.mrp_ik)}</td>
+      <td class="c-right">${formatMoney(row.mrp_ok)}</td>
+      <td class="c-right">${formatPercent(row.gst_percent)}</td>
+      <td class="c-right">${formatPercent(row.ik_discount_percent)}</td>
+      <td class="c-right">${formatPercent(row.ok_discount_percent)}</td>
+      <td class="c-right">${formatPercent(row.contingency_percent)}</td>
+      <td>
+        <strong>${text(row.ik_selected_scheme_name)}</strong>
+        <div class="cp-muted-text">${text(row.ik_policy_source_label)}</div>
+      </td>
+      <td>
+        <strong>${text(row.ok_selected_scheme_name)}</strong>
+        <div class="cp-muted-text">${text(row.ok_policy_source_label)}</div>
+      </td>
+      <td>${compactStatusText(row.pricing_bridge_status)}</td>
+      <td>${compactStatusText(row.selling_price_bridge_status)}</td>
+    </tr>`;
+  }
   if (CURRENT_LENS === "scheme-comparison") {
     return `<tr ${trAttrs}>
       <td>${productSkuLabel(row)}</td>
@@ -935,36 +1599,120 @@ function renderRowForLens(row, idx) {
       <td>${compactStatusText(row.scheme_viability_status)}</td>
     </tr>`;
   }
-  if (CURRENT_LENS === "pricing-diagnostics") {
+  if (CURRENT_LENS === "manual-rate-manager") {
+    if (MANUAL_RATE_MANAGER_TAB === "register") {
+      return `<tr ${trAttrs}>
+        <td class="lane-col"><span class="lane ${laneClass(row)}"></span></td>
+        <td>
+          <strong>${text(row.stock_item_name || row.stock_item_id)}</strong>
+          <div class="cp-muted-text">${text(row.stock_item_code || "")}</div>
+        </td>
+        <td class="c-right">${formatMoney(row.rate_value)}</td>
+        <td>${formatDate(row.effective_from)}</td>
+        <td>${formatDate(row.effective_to)}</td>
+        <td>${statusChip(row.status)}</td>
+        <td>${compactStatusText(row.register_status)}</td>
+        <td class="c-right">${formatMoney(row.latest_purchase_rate)}</td>
+        <td>${formatDate(row.latest_purchase_date)}</td>
+        <td>${text(row.recommended_action)}</td>
+        <td class="c-center">
+          ${
+            normalizeStatus(row.status) === "ACTIVE"
+              ? `<button
+                  type="button"
+                  class="icon-btn cp-danger-icon-btn"
+                  data-manager-close-manual-rate-id="${text(row.manual_rate_id)}"
+                  title="Close Manual Rate"
+                  aria-label="Close Manual Rate"
+                >
+                  <svg
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="M15 9l-6 6"></path>
+                    <path d="M9 9l6 6"></path>
+                  </svg>
+                </button>`
+              : `<span class="cp-muted-text">--</span>`
+          }
+        </td>
+      </tr>`;
+    }
+
+    if (MANUAL_RATE_MANAGER_TAB === "history") {
+      return `<tr ${trAttrs}>
+        <td class="lane-col"><span class="lane ${laneClass(row)}"></span></td>
+        <td>${text(row.manual_rate_id)}</td>
+        <td>
+          <strong>${text(row.stock_item_name || row.stock_item_id)}</strong>
+          <div class="cp-muted-text">${text(row.stock_item_code || "")}</div>
+        </td>
+        <td class="c-right">${formatMoney(row.rate_value)}</td>
+        <td>${formatDate(row.effective_from)}</td>
+        <td>${formatDate(row.effective_to)}</td>
+        <td>${statusChip(row.status)}</td>
+        <td>${text(row.reason)}</td>
+        <td>${formatDateTime(row.created_at)}</td>
+        <td>${formatDateTime(row.last_updated_at)}</td>
+      </tr>`;
+    }
+
     return `<tr ${trAttrs}>
-      <td>${text(row.product_name)}</td>
-      <td>${text(row.sku_display_name || row.sku_id)}</td>
-      <td>${text(row.pack_size || row.sku_uom)}</td>
-      <td>${compactStatusText(row.pricing_bridge_status)}</td>
-      <td>${compactStatusText(row.selling_price_bridge_status)}</td>
-      <td>${compactStatusText(row.internal_loaded_cost_status)}</td>
-      <td>${compactStatusText(row.manufacturing_cop_status)}</td>
-      <td>${text(issueCodeLabel(row.primary_diagnostic_code))}</td>
-      <td>${text(row.primary_diagnostic_note)}</td>
+      <td class="lane-col"><span class="lane ${laneClass(row)}"></span></td>
+      <td>${compactStatusText(row.manager_action_code)}</td>
+      <td>${text(issueCodeLabel(row.material_issue_code))}</td>
+      <td>
+        <strong>${text(row.stock_item_name || row.stock_item_id)}</strong>
+        <div class="cp-muted-text">${text(row.stock_item_code || "")}</div>
+      </td>
+      <td class="c-right">${formatMoney(row.selected_rate)}</td>
+      <td>${text(row.rate_source)}</td>
+      <td class="c-right">${formatMoney(row.latest_purchase_rate)}</td>
+      <td class="c-right">${formatNumber(row.affected_product_count)}</td>
+      <td class="c-right">${formatNumber(row.affected_sku_count)}</td>
+      <td>${text(row.recommended_action)}</td>
     </tr>`;
   }
   return `<tr ${trAttrs}>
-    <td class="lane-col"><span class="lane ${laneClass(row)}"></span></td>
-    <td>${text(issueCodeLabel(row.material_issue_code))}</td>
-    <td>${text(row.bom_source)}</td>
-    <td>${text(row.stock_item_name || row.stock_item_id)}</td>
-    <td class="c-right">${formatMoney(row.selected_rate)}</td>
-    <td>${text(row.rate_source)}</td>
-    <td>${formatDate(row.rate_date)}</td>
-    <td class="c-right">${formatNumber(row.affected_product_count)}</td>
-    <td class="c-right">${formatNumber(row.affected_sku_count)}</td>
+    <td>${productSkuLabel(row)}</td>
+    <td>${compactStatusText(row.costing_confidence_status)}</td>
+    <td>${compactStatusText(row.commercial_viability_status)}</td>
+    <td>${compactStatusText(row.final_action_status)}</td>
+    <td>${text(row.primary_diagnostic_code)}</td>
+    <td>${text(row.primary_diagnostic_note)}</td>
     <td>${text(row.recommended_action)}</td>
+    <td class="c-right">${formatNumber(row.rm_blocking_line_count)}</td>
+    <td class="c-right">${formatNumber(row.pm_blocking_line_count)}</td>
+    <td class="c-right">${formatNumber(row.rm_review_rate_line_count)}</td>
+    <td class="c-right">${formatNumber(row.pm_review_rate_line_count)}</td>
+    <td class="c-right">${formatNumber(row.rm_stale_purchase_rate_line_count)}</td>
+    <td class="c-right">${formatNumber(row.rm_stock_valuation_fallback_line_count)}</td>
+    <td class="c-right">${formatNumber(row.pm_stock_valuation_fallback_line_count)}</td>
   </tr>`;
 }
 
 function renderTable() {
   renderTableHeaderForLens();
-  renderWorkbenchSummary();
+  if (tableWrap) {
+    tableWrap.dataset.lens = CURRENT_LENS;
+    tableWrap.dataset.managerTab =
+      CURRENT_LENS === "manual-rate-manager" ? MANUAL_RATE_MANAGER_TAB : "";
+  }
+  if (CURRENT_LENS === "manual-rate-manager") {
+    renderManualRateManagerTabs();
+  } else if (CURRENT_LENS === "policy-manager") {
+    renderPolicyManagerTabs();
+  } else {
+    renderWorkbenchSummary();
+  }
   const totalPages = Math.max(1, Math.ceil(VIEW.length / PAGE_SIZE));
   if (CURRENT_PAGE > totalPages) CURRENT_PAGE = totalPages;
   const start = (CURRENT_PAGE - 1) * PAGE_SIZE;
@@ -987,19 +1735,73 @@ function renderTable() {
   tableBody.querySelectorAll("tr[data-row-index]").forEach((tr) => {
     tr.addEventListener("click", () => {
       const row = VIEW[Number(tr.dataset.rowIndex)];
+      if (
+        CURRENT_LENS === "policy-manager" &&
+        POLICY_MANAGER_TAB === "scheme-rule-register"
+      ) {
+        return;
+      }
       if (CURRENT_LENS === "printable-cost-sheet") {
         openCostSheetModal(row.product_id);
         return;
       }
-      const preferred =
-        CURRENT_LENS === "scheme-comparison"
-          ? "scheme"
-          : CURRENT_LENS === "pricing-diagnostics"
-            ? "diagnostics"
-            : undefined;
+      let preferred = undefined;
+
+      if (CURRENT_LENS === "scheme-comparison") {
+        preferred = "scheme";
+      }
+
+      if (CURRENT_LENS === "manual-rate-manager") {
+        if (MANUAL_RATE_MANAGER_TAB === "register") {
+          preferred = "manual-rate-register";
+        } else if (MANUAL_RATE_MANAGER_TAB === "history") {
+          preferred = "manual-rate-history";
+        } else {
+          preferred = "manual-rate-action";
+        }
+      }
+
       openDetails(row, preferred);
     });
   });
+
+  if (
+    CURRENT_LENS === "manual-rate-manager" &&
+    MANUAL_RATE_MANAGER_TAB === "register"
+  ) {
+    tableBody
+      .querySelectorAll("[data-manager-close-manual-rate-id]")
+      .forEach((btn) => {
+        btn.addEventListener("click", (event) => {
+          event.stopPropagation();
+
+          const manualRateId = btn.dataset.managerCloseManualRateId;
+          const row = VIEW.find(
+            (r) => String(r.manual_rate_id) === String(manualRateId),
+          );
+
+          if (row) openManualRateCloseModal(row);
+        });
+      });
+  }
+
+  if (
+    CURRENT_LENS === "policy-manager" &&
+    POLICY_MANAGER_TAB === "scheme-rule-register"
+  ) {
+    tableBody.querySelectorAll("[data-close-scheme-rule-id]").forEach((btn) => {
+      btn.addEventListener("click", (event) => {
+        event.stopPropagation();
+
+        const policyRuleId = btn.dataset.closeSchemeRuleId;
+        const row = VIEW.find(
+          (r) => String(r.policy_rule_id) === String(policyRuleId),
+        );
+
+        if (row) openSchemeRuleCloseModal(row);
+      });
+    });
+  }
 
   if (rowCount) {
     rowCount.style.display = "";
@@ -1018,26 +1820,178 @@ function renderWorkbenchSummary() {
     return;
   }
   workbenchSummary.classList.add("is-visible");
-  if (!WORKBENCH_SUMMARY.length) {
-    workbenchSummary.innerHTML = `<div class="status" style="padding:4px 6px">No issue summary rows for this period.</div>`;
+  if (!SKU_STATUS_DIAGNOSIS.length) {
+    workbenchSummary.innerHTML = `<div class="status" style="padding:4px 6px">No SKU diagnosis rows for this period.</div>`;
     return;
   }
+
+  const confidenceCounts = countDiagnosisBy("costing_confidence_status", [
+    "BLOCKED",
+    "REVIEW_REQUIRED",
+    "READY",
+  ]);
+  const topReason = getTopOperationalReasons(1)[0] || {};
+
   workbenchSummary.innerHTML = `
-    <div class="cp-section-title">Issue Summary</div>
-    ${simpleTable(
-      [
-        "Issue Code",
-        "Source",
-        "Status",
-        "Affected Products",
-        "Affected SKUs",
-        "Recommended Action",
-      ],
-      WORKBENCH_SUMMARY,
-      (r) =>
-        `<tr><td>${text(issueCodeLabel(r.material_issue_code))}</td><td>${text(r.bom_source)}</td><td>${statusChip(r.material_line_status || r.status)}</td><td class="c-right">${formatNumber(r.affected_product_count)}</td><td class="c-right">${formatNumber(r.affected_sku_count)}</td><td>${text(r.recommended_action)}</td></tr>`,
-    )}
+    <div class="cp-workbench-compact-summary">
+      <div class="cp-workbench-summary-card">
+        <div class="cp-card-label">Blocked SKUs</div>
+        <div class="cp-card-value">${formatNumber(confidenceCounts.BLOCKED || 0)}</div>
+      </div>
+
+      <div class="cp-workbench-summary-card">
+        <div class="cp-card-label">Review SKUs</div>
+        <div class="cp-card-value">${formatNumber(confidenceCounts.REVIEW_REQUIRED || 0)}</div>
+      </div>
+
+      <div class="cp-workbench-summary-card cp-workbench-summary-wide">
+        <div class="cp-card-label">Top Priority</div>
+        <div class="cp-card-value">
+          ${text(topReason.primary_diagnostic_code)}
+          <span class="cp-muted-text"> / ${formatNumber(topReason.sku_count)} SKUs</span>
+        </div>
+      </div>
+    </div>
+
+    ${renderTopOperationalReasons(5)}
   `;
+}
+
+function renderManualRateManagerTabs() {
+  if (!workbenchSummary) return;
+
+  if (CURRENT_LENS !== "manual-rate-manager") {
+    return;
+  }
+
+  const tabs = [
+    ["action-queue", "Action Queue"],
+    ["register", "Register"],
+    ["history", "History"],
+  ];
+
+  workbenchSummary.classList.add("is-visible");
+  workbenchSummary.innerHTML = `
+    <div class="cp-workbench-compact-summary" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
+      ${tabs
+        .map(
+          ([id, label]) => `
+            <button
+              type="button"
+              class="cp-workbench-summary-card cp-manager-tab-card ${MANUAL_RATE_MANAGER_TAB === id ? "active" : ""}"
+              data-manual-rate-manager-tab="${id}"
+            >
+              <div class="cp-card-label">${text(label)}</div>
+              <div class="cp-card-value">
+                ${
+                  id === "action-queue"
+                    ? "Rate correction queue"
+                    : id === "register"
+                      ? "Current control view"
+                      : "Audit trail"
+                }
+              </div>
+            </button>
+          `,
+        )
+        .join("")}
+    </div>
+  `;
+
+  workbenchSummary
+    .querySelectorAll("[data-manual-rate-manager-tab]")
+    .forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const nextTab = btn.dataset.manualRateManagerTab;
+        if (!nextTab || nextTab === MANUAL_RATE_MANAGER_TAB) return;
+
+        MANUAL_RATE_MANAGER_TAB = nextTab;
+        CURRENT_PAGE = 1;
+
+        try {
+          await loadRowsForLens();
+        } catch (err) {
+          handleError("Failed to load Manual Rate Manager tab", err);
+        }
+      });
+    });
+}
+
+function renderPolicyManagerTabs() {
+  if (!workbenchSummary) return;
+
+  if (CURRENT_LENS !== "policy-manager") {
+    return;
+  }
+
+  const tabs = [
+    ["sku-overview", "SKU Policy Overview"],
+    ["scheme-rule-register", "Scheme Rule Register"],
+  ];
+
+  workbenchSummary.classList.add("is-visible");
+  workbenchSummary.innerHTML = `
+    <div class="cp-workbench-compact-summary" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
+      ${tabs
+        .map(
+          ([id, label]) => `
+            <button
+              type="button"
+              class="cp-workbench-summary-card cp-manager-tab-card ${POLICY_MANAGER_TAB === id ? "active" : ""}"
+              data-policy-manager-tab="${id}"
+            >
+              <div class="cp-card-label">${text(label)}</div>
+              <div class="cp-card-value">
+                ${
+                  id === "sku-overview"
+                    ? "Final selected policy per SKU"
+                    : "Hierarchy scheme rule master"
+                }
+              </div>
+            </button>
+          `,
+        )
+        .join("")}
+    </div>
+
+    ${
+      POLICY_MANAGER_TAB === "scheme-rule-register"
+        ? `<div style="display:flex;justify-content:flex-end;margin-top:8px">
+            <button
+              type="button"
+              id="createSchemeRuleFromRegisterBtn"
+              class="icon-btn icon-btn-primary"
+            >
+              Create Scheme Rule
+            </button>
+          </div>`
+        : ""
+    }
+  `;
+
+  workbenchSummary
+    .querySelectorAll("[data-policy-manager-tab]")
+    .forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const nextTab = btn.dataset.policyManagerTab;
+        if (!nextTab || nextTab === POLICY_MANAGER_TAB) return;
+
+        POLICY_MANAGER_TAB = nextTab;
+        CURRENT_PAGE = 1;
+        SELECTED_ROW = null;
+        closeDetails();
+
+        try {
+          await loadRowsForLens();
+        } catch (err) {
+          handleError("Failed to load Policy Manager tab", err);
+        }
+      });
+    });
+
+  $("createSchemeRuleFromRegisterBtn")?.addEventListener("click", () => {
+    openSchemeRuleEditModal(null);
+  });
 }
 
 function kvCards(items) {
@@ -1260,22 +2214,134 @@ async function fetchSkuDiagnostics(row) {
   return data?.[0] || null;
 }
 
-async function fetchActionDrilldown(row) {
+async function fetchSellingPolicyHistory(row) {
+  if (!row?.sku_id) return [];
+
   const { data, error } = await costingFrom(
-    "v_costing_pricing_review_action_item_drilldown",
+    "v_costing_policy_manager_selling_policy_history",
   )
     .select("*")
-    .eq("stock_item_id", row.stock_item_id)
-    .eq("material_issue_code", row.material_issue_code)
-    .eq("bom_source", row.bom_source)
-    .limit(1000);
+    .eq("sku_id", row.sku_id)
+    .order("effective_from", { ascending: false })
+    .order("policy_id", { ascending: false })
+    .limit(100);
+
   if (error) throw error;
   return data || [];
 }
 
+async function fetchSchemePolicyHistory(row) {
+  if (!row?.sku_id) return [];
+
+  const { data, error } = await costingFrom(
+    "v_costing_policy_manager_scheme_policy_history",
+  )
+    .select("*")
+    .eq("sku_id", row.sku_id)
+    .order("region_code", { ascending: true })
+    .order("effective_from", { ascending: false })
+    .order("policy_id", { ascending: false })
+    .limit(200);
+
+  if (error) throw error;
+  return data || [];
+}
+
+async function fetchActionDrilldown(row) {
+  const readSnapshot = async () => {
+    const { data, error } = await costingFrom(
+      "v_costing_pricing_review_action_item_drilldown_snapshot",
+    )
+      .select("*")
+      .eq("period_start", ACTIVE_PERIOD_START)
+      .eq("stock_item_id", row.stock_item_id)
+      .eq("material_issue_code", row.material_issue_code)
+      .eq("bom_source", row.bom_source)
+      .limit(1000);
+
+    if (error) throw error;
+    return data || [];
+  };
+
+  const rows = await readSnapshot();
+  if (rows.length) return rows;
+
+  /*
+    Fallback only:
+    This is useful if the user opens a row before the full Workbench snapshot exists.
+  */
+  const { error: refreshError } = await costingRpc(
+    "rpc_refresh_costing_review_action_drilldown_snapshot",
+    {
+      p_period_start: ACTIVE_PERIOD_START,
+      p_stock_item_id: row.stock_item_id,
+      p_material_issue_code: row.material_issue_code,
+      p_bom_source: row.bom_source,
+    },
+  );
+
+  if (refreshError) throw refreshError;
+
+  return readSnapshot();
+}
+
+async function fetchManualRateHistory(row) {
+  if (!row?.stock_item_id) return [];
+
+  const { data, error } = await costingFrom(
+    "v_costing_material_manual_rate_history",
+  )
+    .select("*")
+    .eq("stock_item_id", row.stock_item_id)
+    .order("effective_from", { ascending: false })
+    .order("manual_rate_id", { ascending: false })
+    .limit(100);
+
+  if (error) throw error;
+  return data || [];
+}
+
+async function fetchManualRateManagerRegisterRows() {
+  return fetchAllRows(
+    () =>
+      costingFrom("v_costing_material_manual_rate_register")
+        .select("*")
+        .order("register_status", { ascending: true })
+        .order("stock_item_name", { ascending: true })
+        .order("manual_rate_id", { ascending: false }),
+    1000,
+  );
+}
+
+async function fetchManualRateManagerHistoryRows() {
+  return fetchAllRows(
+    () =>
+      costingFrom("v_costing_material_manual_rate_history")
+        .select("*")
+        .order("stock_item_name", { ascending: true })
+        .order("effective_from", { ascending: false })
+        .order("manual_rate_id", { ascending: false }),
+    1000,
+  );
+}
+
+async function fetchManualRateReview(row) {
+  if (!row?.stock_item_id) return null;
+
+  const { data, error } = await costingFrom(
+    "v_costing_material_manual_rate_review",
+  )
+    .select("*")
+    .eq("stock_item_id", row.stock_item_id)
+    .limit(1);
+
+  if (error) throw error;
+  return data?.[0] || null;
+}
+
 function renderDashboardOverview() {
   const r = SELECTED_ROW || DASHBOARD_SUMMARY || {};
-  return kvCards([
+  const summaryCards = kvCards([
     ["Period", formatDate(r.period_start)],
     ["Pricing SKUs", formatNumber(r.pricing_bridge_sku_count)],
     ["Pricing Blocked", formatNumber(r.pricing_bridge_blocked_count)],
@@ -1290,6 +2356,146 @@ function renderDashboardOverview() {
     ["Refresh Scope", text(r.latest_refresh_scope)],
     ["Finished At", formatDateTime(r.latest_refresh_finished_at)],
   ]);
+
+  return `${summaryCards}${renderDiagnosisSummarySections()}`;
+}
+
+function countDiagnosisBy(field, statuses) {
+  const counts = Object.fromEntries(statuses.map((status) => [status, 0]));
+  SKU_STATUS_DIAGNOSIS.forEach((row) => {
+    const status = normalizeStatus(row[field]);
+    if (Object.prototype.hasOwnProperty.call(counts, status)) counts[status] += 1;
+  });
+  return counts;
+}
+
+function diagnosisCountCards(title, field, statuses) {
+  const counts = countDiagnosisBy(field, statuses);
+  return `
+    <h3 class="cp-section-title" style="margin-top:12px">${text(title)}</h3>
+    <div class="cp-summary-strip">
+      ${statuses
+        .map(
+          (status) =>
+            `<div class="cp-card">
+              <div class="cp-card-label">${formatStatusLabel(status)}</div>
+              <div class="cp-card-value">${formatNumber(counts[status] || 0)}</div>
+            </div>`,
+        )
+        .join("")}
+    </div>
+  `;
+}
+
+function getTopOperationalReasons(limit = 8) {
+  const grouped = new Map();
+  SKU_STATUS_DIAGNOSIS.forEach((row) => {
+    const key = [
+      row.primary_diagnostic_layer || "",
+      row.primary_diagnostic_code || "",
+      row.primary_diagnostic_note || "",
+      row.recommended_action || "",
+    ].join("||");
+    const existing = grouped.get(key) || {
+      primary_diagnostic_code: row.primary_diagnostic_code,
+      primary_diagnostic_note: row.primary_diagnostic_note,
+      recommended_action: row.recommended_action,
+      sku_count: 0,
+    };
+    existing.sku_count += 1;
+    grouped.set(key, existing);
+  });
+  return [...grouped.values()]
+    .sort((a, b) => b.sku_count - a.sku_count)
+    .slice(0, limit);
+}
+
+function renderTopOperationalReasons(limit = 8) {
+  const rows = getTopOperationalReasons(limit);
+  if (!rows.length) return "";
+  return `
+    <h3 class="cp-section-title" style="margin-top:12px">Top Operational Reasons</h3>
+    ${simpleTable(
+      ["Reason Code", "SKU Count", "Primary Reason", "Recommended Action"],
+      rows,
+      (row) =>
+        `<tr>
+          <td>${text(row.primary_diagnostic_code)}</td>
+          <td class="c-right">${formatNumber(row.sku_count)}</td>
+          <td>${text(row.primary_diagnostic_note)}</td>
+          <td>${text(row.recommended_action)}</td>
+        </tr>`,
+    )}
+  `;
+}
+
+function renderDiagnosisSummarySections() {
+  if (!SKU_STATUS_DIAGNOSIS.length) {
+    return `<div class="status" style="margin-top:12px">No SKU diagnosis rows available for this period.</div>`;
+  }
+  return `
+    ${diagnosisCountCards("Costing Confidence", "costing_confidence_status", [
+      "BLOCKED",
+      "REVIEW_REQUIRED",
+      "READY",
+    ])}
+    ${diagnosisCountCards("Commercial Viability", "commercial_viability_status", [
+      "ACCEPTABLE",
+      "LOW_MARGIN",
+      "NOT_ACCEPTABLE",
+      "NOT_EVALUATED",
+    ])}
+    ${diagnosisCountCards("Final Action", "final_action_status", [
+      "COMPLETE_MISSING_COST_DATA",
+      "REVIEW_COST_INPUTS",
+      "REVIEW_COMMERCIAL_MARGIN",
+      "REJECT_OR_REPRICE",
+      "COMMERCIALLY_ACCEPTABLE",
+    ])}
+    ${renderTopOperationalReasons()}
+  `;
+}
+
+function renderSkuDiagnosisPanel(rowOrSkuId) {
+  const skuId =
+    typeof rowOrSkuId === "object" ? rowOrSkuId?.sku_id : rowOrSkuId;
+  const d = getSkuDiagnosis(skuId);
+  if (!d) {
+    return `<div class="status">No diagnosis available for the selected SKU and period.</div>`;
+  }
+  return `
+    <h3 class="cp-section-title">SKU Diagnosis</h3>
+    ${kvCards([
+      ["Costing Confidence", statusChip(d.costing_confidence_status)],
+      ["Commercial Viability", statusChip(d.commercial_viability_status)],
+      ["Final Action", statusChip(d.final_action_status)],
+      ["Primary Diagnostic Code", text(d.primary_diagnostic_code)],
+      ["Primary Reason", text(d.primary_diagnostic_note)],
+      ["Recommended Action", text(d.recommended_action)],
+    ])}
+  `;
+}
+
+function renderMaterialEvidencePanel(rowOrSkuId) {
+  const skuId =
+    typeof rowOrSkuId === "object" ? rowOrSkuId?.sku_id : rowOrSkuId;
+  const d = getSkuDiagnosis(skuId);
+  if (!d) return "";
+  return `
+    <h3 class="cp-section-title" style="margin-top:12px">Material Evidence</h3>
+    ${kvCards([
+      ["RM Blocking Lines", formatNumber(d.rm_blocking_line_count)],
+      ["PM Blocking Lines", formatNumber(d.pm_blocking_line_count)],
+      ["RM Review Rate Lines", formatNumber(d.rm_review_rate_line_count)],
+      ["PM Review Rate Lines", formatNumber(d.pm_review_rate_line_count)],
+      ["RM Stale Purchase Rate Lines", formatNumber(d.rm_stale_purchase_rate_line_count)],
+      ["PM Stale Purchase Rate Lines", formatNumber(d.pm_stale_purchase_rate_line_count)],
+      ["RM Stock Valuation Fallback Lines", formatNumber(d.rm_stock_valuation_fallback_line_count)],
+      ["PM Stock Valuation Fallback Lines", formatNumber(d.pm_stock_valuation_fallback_line_count)],
+      ["RM Manual Rate Lines", formatNumber(d.rm_manual_rate_line_count)],
+      ["PM Manual Rate Lines", formatNumber(d.pm_manual_rate_line_count)],
+    ])}
+  `;
 }
 
 function printableRowsForProduct(productId) {
@@ -1411,6 +2617,1066 @@ function closeCostSheetSignModal() {
 
   if (returnTarget && typeof returnTarget.focus === "function") {
     setTimeout(() => returnTarget.focus(), 0);
+  }
+}
+
+function activePeriodIso() {
+  return ACTIVE_PERIOD_START || getCurrentMonthStart();
+}
+
+function numberOrNullFromInput(input) {
+  const raw = String(input?.value ?? "").trim();
+  if (raw === "") return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+function numberOrZeroFromInput(input) {
+  const n = numberOrNullFromInput(input);
+  return n === null ? 0 : n;
+}
+
+function normalizePolicyNumber(value, fallback = 0) {
+  if (value === null || value === undefined || value === "") return fallback;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function samePolicyNumber(a, b) {
+  const an = a === null || a === undefined || a === "" ? null : Number(a);
+  const bn = b === null || b === undefined || b === "" ? null : Number(b);
+
+  if (an === null && bn === null) return true;
+  if (!Number.isFinite(an) || !Number.isFinite(bn)) return false;
+
+  return Math.abs(an - bn) < 0.000001;
+}
+
+function readSellingPolicyFormValues() {
+  return {
+    gstPercent: numberOrZeroFromInput(sellingPolicyGstPercent),
+    ikDiscountPercent: numberOrZeroFromInput(sellingPolicyIkDiscountPercent),
+    okDiscountPercent: numberOrZeroFromInput(sellingPolicyOkDiscountPercent),
+    ikDiscountAmount: numberOrNullFromInput(sellingPolicyIkDiscountAmount),
+    okDiscountAmount: numberOrNullFromInput(sellingPolicyOkDiscountAmount),
+    contingencyPercent: numberOrZeroFromInput(sellingPolicyContingencyPercent),
+    effectiveFrom: sellingPolicyEffectiveFrom?.value || activePeriodIso(),
+    remarks: sellingPolicyRemarks?.value?.trim() || null,
+  };
+}
+
+function setSellingPolicySaveState() {
+  if (!sellingPolicyEditSaveBtn || !SELLING_POLICY_INITIAL) return;
+
+  const current = readSellingPolicyFormValues();
+
+  const changed =
+    !samePolicyNumber(current.gstPercent, SELLING_POLICY_INITIAL.gstPercent) ||
+    !samePolicyNumber(
+      current.ikDiscountPercent,
+      SELLING_POLICY_INITIAL.ikDiscountPercent,
+    ) ||
+    !samePolicyNumber(
+      current.okDiscountPercent,
+      SELLING_POLICY_INITIAL.okDiscountPercent,
+    ) ||
+    !samePolicyNumber(
+      current.ikDiscountAmount,
+      SELLING_POLICY_INITIAL.ikDiscountAmount,
+    ) ||
+    !samePolicyNumber(
+      current.okDiscountAmount,
+      SELLING_POLICY_INITIAL.okDiscountAmount,
+    ) ||
+    !samePolicyNumber(
+      current.contingencyPercent,
+      SELLING_POLICY_INITIAL.contingencyPercent,
+    );
+
+  sellingPolicyEditSaveBtn.disabled = !changed;
+}
+
+function openSellingPolicyEditModal(row) {
+  if (!row || !sellingPolicyEditModal) return;
+
+  SELLING_POLICY_EDIT_ROW = row;
+  SELLING_POLICY_RETURN_FOCUS = document.activeElement;
+
+  const skuLabel =
+    row.sku_display_name || row.sku_column_label || row.sku_id || "--";
+
+  if (sellingPolicyEditSkuLabel) {
+    sellingPolicyEditSkuLabel.textContent = skuLabel;
+  }
+
+  const initial = {
+    gstPercent: normalizePolicyNumber(row.gst_percent, 12),
+    ikDiscountPercent: normalizePolicyNumber(row.ik_discount_percent, 0),
+    okDiscountPercent: normalizePolicyNumber(row.ok_discount_percent, 0),
+    ikDiscountAmount:
+      row.ik_discount_amount === null || row.ik_discount_amount === undefined
+        ? null
+        : Number(row.ik_discount_amount),
+    okDiscountAmount:
+      row.ok_discount_amount === null || row.ok_discount_amount === undefined
+        ? null
+        : Number(row.ok_discount_amount),
+    contingencyPercent: normalizePolicyNumber(row.contingency_percent, 2),
+  };
+
+  SELLING_POLICY_INITIAL = initial;
+
+  if (sellingPolicyGstPercent) sellingPolicyGstPercent.value = initial.gstPercent;
+  if (sellingPolicyIkDiscountPercent)
+    sellingPolicyIkDiscountPercent.value = initial.ikDiscountPercent;
+  if (sellingPolicyOkDiscountPercent)
+    sellingPolicyOkDiscountPercent.value = initial.okDiscountPercent;
+  if (sellingPolicyIkDiscountAmount)
+    sellingPolicyIkDiscountAmount.value =
+      initial.ikDiscountAmount === null ? "" : initial.ikDiscountAmount;
+  if (sellingPolicyOkDiscountAmount)
+    sellingPolicyOkDiscountAmount.value =
+      initial.okDiscountAmount === null ? "" : initial.okDiscountAmount;
+  if (sellingPolicyContingencyPercent)
+    sellingPolicyContingencyPercent.value = initial.contingencyPercent;
+  if (sellingPolicyEffectiveFrom) {
+    sellingPolicyEffectiveFrom.value =
+      row.selling_price_effective_from || activePeriodIso();
+  }
+  if (sellingPolicyRemarks) sellingPolicyRemarks.value = "";
+
+  sellingPolicyEditModal.classList.remove("hidden");
+  sellingPolicyEditModal.setAttribute("aria-hidden", "false");
+
+  setSellingPolicySaveState();
+
+  setTimeout(() => sellingPolicyGstPercent?.focus(), 0);
+}
+
+function closeSellingPolicyEditModal() {
+  if (!sellingPolicyEditModal) return;
+
+  const active = document.activeElement;
+  if (active && sellingPolicyEditModal.contains(active)) {
+    active.blur();
+  }
+
+  sellingPolicyEditModal.classList.add("hidden");
+  sellingPolicyEditModal.setAttribute("aria-hidden", "true");
+
+  const returnTarget =
+    SELLING_POLICY_RETURN_FOCUS &&
+    SELLING_POLICY_RETURN_FOCUS !== document.body &&
+    document.contains(SELLING_POLICY_RETURN_FOCUS)
+      ? SELLING_POLICY_RETURN_FOCUS
+      : drawerClose;
+
+  SELLING_POLICY_RETURN_FOCUS = null;
+  SELLING_POLICY_EDIT_ROW = null;
+  SELLING_POLICY_INITIAL = null;
+
+  if (returnTarget && typeof returnTarget.focus === "function") {
+    setTimeout(() => returnTarget.focus(), 0);
+  }
+}
+
+async function saveSellingPolicyEdit() {
+  const row = SELLING_POLICY_EDIT_ROW;
+  if (!row?.sku_id) {
+    showToast("SKU ID missing for selected row.", "error");
+    return;
+  }
+
+  const values = readSellingPolicyFormValues();
+
+  const changed =
+    !samePolicyNumber(values.gstPercent, SELLING_POLICY_INITIAL?.gstPercent) ||
+    !samePolicyNumber(
+      values.ikDiscountPercent,
+      SELLING_POLICY_INITIAL?.ikDiscountPercent,
+    ) ||
+    !samePolicyNumber(
+      values.okDiscountPercent,
+      SELLING_POLICY_INITIAL?.okDiscountPercent,
+    ) ||
+    !samePolicyNumber(
+      values.ikDiscountAmount,
+      SELLING_POLICY_INITIAL?.ikDiscountAmount,
+    ) ||
+    !samePolicyNumber(
+      values.okDiscountAmount,
+      SELLING_POLICY_INITIAL?.okDiscountAmount,
+    ) ||
+    !samePolicyNumber(
+      values.contingencyPercent,
+      SELLING_POLICY_INITIAL?.contingencyPercent,
+    );
+
+  if (!changed) {
+    showToast("No selling policy change detected.", "info");
+    setSellingPolicySaveState();
+    return;
+  }
+
+  sellingPolicyEditSaveBtn.disabled = true;
+  setLoadingMask(true, "Saving selling price policy...");
+
+  try {
+    const { error } = await costingRpc("rpc_set_sku_selling_price_policy", {
+      p_sku_id: row.sku_id,
+      p_gst_percent: values.gstPercent,
+      p_ik_discount_percent: values.ikDiscountPercent,
+      p_ok_discount_percent: values.okDiscountPercent,
+      p_ik_discount_amount: values.ikDiscountAmount,
+      p_ok_discount_amount: values.okDiscountAmount,
+      p_contingency_percent: values.contingencyPercent,
+      p_effective_from: values.effectiveFrom,
+      p_remarks: values.remarks,
+    });
+
+    if (error) throw error;
+
+    closeSellingPolicyEditModal();
+    showToast(
+      "Selling policy saved. Use Refresh Live Costing to recalculate values.",
+      "success",
+      5200,
+    );
+
+    await loadRowsForLens();
+
+    if (SELECTED_ROW?.sku_id) {
+      const updated = ALL_ROWS.find(
+        (r) => String(r.sku_id) === String(row.sku_id),
+      );
+      if (updated) {
+        SELECTED_ROW = updated;
+        await setDrawerTab("selling-policy");
+      }
+    }
+  } catch (err) {
+    handleError("Failed to save selling price policy", err);
+  } finally {
+    setLoadingMask(false);
+    sellingPolicyEditSaveBtn.disabled = false;
+    setSellingPolicySaveState();
+  }
+}
+
+function readManualRateFormValues() {
+  return {
+    rateValue: numberOrNullFromInput(manualRateValue),
+    effectiveFrom: manualRateEffectiveFrom?.value || activePeriodIso(),
+    reason: manualRateReason?.value?.trim() || "",
+  };
+}
+
+function setManualRateSaveState() {
+  if (!manualRateEditSaveBtn) return;
+
+  const values = readManualRateFormValues();
+  const validRate = Number(values.rateValue || 0) > 0;
+  const validReason = values.reason.length >= 5;
+
+  manualRateEditSaveBtn.disabled = !(validRate && validReason);
+}
+
+function openManualRateEditModal(row) {
+  if (!row || !manualRateEditModal) return;
+
+  MANUAL_RATE_EDIT_ROW = row;
+  MANUAL_RATE_RETURN_FOCUS = document.activeElement;
+
+  if (manualRateStockItemLabel) {
+    manualRateStockItemLabel.textContent =
+      row.stock_item_name || row.stock_item_id || "--";
+  }
+
+  const currentRate =
+    row.selected_rate ?? row.manual_rate_value ?? row.rate_value ?? null;
+
+  const currentSource =
+    row.rate_source ||
+    (row.manual_rate_value !== undefined || row.rate_value !== undefined
+      ? "MANUAL_RATE"
+      : "--");
+
+  const currentDate =
+    row.rate_date || row.manual_rate_effective_from || row.effective_from || null;
+
+  if (manualRateCurrentRate) {
+    manualRateCurrentRate.textContent = formatMoney(currentRate);
+  }
+
+  if (manualRateCurrentSource) {
+    manualRateCurrentSource.textContent = currentSource;
+  }
+
+  if (manualRateCurrentDate) {
+    manualRateCurrentDate.textContent = formatDate(currentDate);
+  }
+
+  if (manualRateValue) {
+    manualRateValue.value =
+      currentRate !== null && currentRate !== undefined
+        ? Number(currentRate)
+        : "";
+  }
+
+  if (manualRateEffectiveFrom) {
+    manualRateEffectiveFrom.value = activePeriodIso();
+  }
+
+  if (manualRateReason) {
+    manualRateReason.value = "";
+  }
+
+  manualRateEditModal.classList.remove("hidden");
+  manualRateEditModal.setAttribute("aria-hidden", "false");
+
+  setManualRateSaveState();
+
+  setTimeout(() => manualRateValue?.focus(), 0);
+}
+
+function closeManualRateEditModal() {
+  if (!manualRateEditModal) return;
+
+  const active = document.activeElement;
+  if (active && manualRateEditModal.contains(active)) {
+    active.blur();
+  }
+
+  manualRateEditModal.classList.add("hidden");
+  manualRateEditModal.setAttribute("aria-hidden", "true");
+
+  const returnTarget =
+    MANUAL_RATE_RETURN_FOCUS &&
+    MANUAL_RATE_RETURN_FOCUS !== document.body &&
+    document.contains(MANUAL_RATE_RETURN_FOCUS)
+      ? MANUAL_RATE_RETURN_FOCUS
+      : drawerClose;
+
+  MANUAL_RATE_RETURN_FOCUS = null;
+  MANUAL_RATE_EDIT_ROW = null;
+
+  if (returnTarget && typeof returnTarget.focus === "function") {
+    setTimeout(() => returnTarget.focus(), 0);
+  }
+}
+
+async function saveManualRateEdit() {
+  const row = MANUAL_RATE_EDIT_ROW;
+
+  if (!row?.stock_item_id) {
+    showToast("Stock item ID missing for selected Workbench row.", "error");
+    return;
+  }
+
+  const values = readManualRateFormValues();
+
+  if (!values.rateValue || values.rateValue <= 0) {
+    showToast("Manual rate must be greater than zero.", "error");
+    setManualRateSaveState();
+    return;
+  }
+
+  if (!values.reason || values.reason.length < 5) {
+    showToast("Reason / approval reference is required.", "error");
+    setManualRateSaveState();
+    return;
+  }
+
+  manualRateEditSaveBtn.disabled = true;
+  setLoadingMask(true, "Saving manual material rate...");
+
+  try {
+    const { error } = await costingRpc("rpc_set_material_manual_rate", {
+      p_stock_item_id: row.stock_item_id,
+      p_rate_value: values.rateValue,
+      p_effective_from: values.effectiveFrom,
+      p_reason: values.reason,
+    });
+
+    if (error) throw error;
+
+    closeManualRateEditModal();
+
+    showToast(
+      "Manual rate saved. Use Refresh Live Costing to recalculate costing.",
+      "success",
+      5200,
+    );
+
+    await loadRowsForLens();
+
+    if (SELECTED_ROW?.stock_item_id) {
+      const updated = ALL_ROWS.find(
+        (r) =>
+          String(r.stock_item_id) === String(row.stock_item_id) &&
+          (!row.material_issue_code ||
+            String(r.material_issue_code) === String(row.material_issue_code)) &&
+          (!row.bom_source || String(r.bom_source) === String(row.bom_source)),
+      );
+
+      if (updated) {
+        SELECTED_ROW = updated;
+      }
+
+      if (CURRENT_LENS === "manual-rate-manager") {
+        const nextTab =
+          MANUAL_RATE_MANAGER_TAB === "register"
+            ? "manual-rate-register"
+            : MANUAL_RATE_MANAGER_TAB === "history"
+              ? "manual-rate-history"
+              : "manual-rate-action";
+
+        await setDrawerTab(nextTab);
+      } else {
+        await setDrawerTab("action");
+      }
+    }
+  } catch (err) {
+    handleError("Failed to save manual material rate", err);
+  } finally {
+    setLoadingMask(false);
+    manualRateEditSaveBtn.disabled = false;
+    setManualRateSaveState();
+  }
+}
+
+function readManualRateCloseFormValues() {
+  return {
+    effectiveTo: manualRateCloseEffectiveTo?.value || activePeriodIso(),
+    reason: manualRateCloseReason?.value?.trim() || "",
+  };
+}
+
+function setManualRateCloseSaveState() {
+  if (!manualRateCloseSaveBtn) return;
+
+  const values = readManualRateCloseFormValues();
+  manualRateCloseSaveBtn.disabled = values.reason.length < 5;
+}
+
+function openManualRateCloseModal(row) {
+  if (!row || !manualRateCloseModal) return;
+
+  MANUAL_RATE_CLOSE_ROW = row;
+  MANUAL_RATE_CLOSE_RETURN_FOCUS = document.activeElement;
+
+  if (manualRateCloseLabel) {
+    manualRateCloseLabel.textContent =
+      `${row.stock_item_name || row.stock_item_id || "--"} | ${formatMoney(row.rate_value)}`;
+  }
+
+  if (manualRateCloseEffectiveTo) {
+    manualRateCloseEffectiveTo.value = activePeriodIso();
+  }
+
+  if (manualRateCloseReason) {
+    manualRateCloseReason.value = "";
+  }
+
+  manualRateCloseModal.classList.remove("hidden");
+  manualRateCloseModal.setAttribute("aria-hidden", "false");
+
+  setManualRateCloseSaveState();
+
+  setTimeout(() => manualRateCloseReason?.focus(), 0);
+}
+
+function closeManualRateCloseModal() {
+  if (!manualRateCloseModal) return;
+
+  const active = document.activeElement;
+  if (active && manualRateCloseModal.contains(active)) {
+    active.blur();
+  }
+
+  manualRateCloseModal.classList.add("hidden");
+  manualRateCloseModal.setAttribute("aria-hidden", "true");
+
+  const returnTarget =
+    MANUAL_RATE_CLOSE_RETURN_FOCUS &&
+    MANUAL_RATE_CLOSE_RETURN_FOCUS !== document.body &&
+    document.contains(MANUAL_RATE_CLOSE_RETURN_FOCUS)
+      ? MANUAL_RATE_CLOSE_RETURN_FOCUS
+      : drawerClose;
+
+  MANUAL_RATE_CLOSE_ROW = null;
+  MANUAL_RATE_CLOSE_RETURN_FOCUS = null;
+
+  if (returnTarget && typeof returnTarget.focus === "function") {
+    setTimeout(() => returnTarget.focus(), 0);
+  }
+}
+
+async function saveManualRateClose() {
+  const row = MANUAL_RATE_CLOSE_ROW;
+
+  if (!row?.manual_rate_id) {
+    showToast("Manual rate ID missing.", "error");
+    return;
+  }
+
+  const values = readManualRateCloseFormValues();
+
+  if (!values.reason || values.reason.length < 5) {
+    showToast("Close reason is required.", "error");
+    setManualRateCloseSaveState();
+    return;
+  }
+
+  manualRateCloseSaveBtn.disabled = true;
+  setLoadingMask(true, "Closing manual material rate...");
+
+  try {
+    const { error } = await costingRpc("rpc_close_material_manual_rate", {
+      p_manual_rate_id: row.manual_rate_id,
+      p_effective_to: values.effectiveTo,
+      p_close_reason: values.reason,
+    });
+
+    if (error) throw error;
+
+    closeManualRateCloseModal();
+
+    showToast(
+      "Manual rate closed. Use Refresh Live Costing to recalculate costing.",
+      "success",
+      5200,
+    );
+
+    if (CURRENT_LENS === "manual-rate-manager") {
+      await loadRowsForLens();
+    } else {
+      await setDrawerTab("manual-rate-history");
+    }
+  } catch (err) {
+    handleError("Failed to close manual material rate", err);
+  } finally {
+    setLoadingMask(false);
+    manualRateCloseSaveBtn.disabled = false;
+    setManualRateCloseSaveState();
+  }
+}
+
+function schemeIdForRegion(row, region) {
+  if (!row) return null;
+  const r = String(region || "").toUpperCase();
+  if (r === "IK") return row.ik_selected_scheme_id ?? null;
+  if (r === "OK") return row.ok_selected_scheme_id ?? null;
+  return null;
+}
+
+function schemeNameForRegion(row, region) {
+  if (!row) return "";
+  const r = String(region || "").toUpperCase();
+  if (r === "IK") return row.ik_selected_scheme_name || "";
+  if (r === "OK") return row.ok_selected_scheme_name || "";
+  return "";
+}
+
+function setSchemePolicySaveState() {
+  if (!schemePolicyEditSaveBtn) return;
+
+  const currentSchemeId = Number(schemePolicyEditScheme?.value || 0);
+  const initialSchemeId = Number(SCHEME_POLICY_INITIAL.schemeId || 0);
+
+  const hasSchemeChange =
+    currentSchemeId > 0 &&
+    initialSchemeId > 0 &&
+    currentSchemeId !== initialSchemeId;
+
+  schemePolicyEditSaveBtn.disabled = !hasSchemeChange;
+}
+
+function populateSchemePolicySelectionForRegion(region) {
+  const row = SCHEME_POLICY_EDIT_ROW;
+  if (!row || !schemePolicyEditScheme) return;
+
+  const currentSchemeName = schemeNameForRegion(row, region);
+  const currentSchemeId =
+    schemeIdForRegion(row, region) ??
+    SCHEME_OPTIONS.find(
+      (s) => String(s.scheme_name || "") === String(currentSchemeName || ""),
+    )?.scheme_id ??
+    null;
+  SCHEME_POLICY_INITIAL = {
+    region,
+    schemeId: currentSchemeId,
+  };
+
+  if (currentSchemeId) {
+    schemePolicyEditScheme.value = String(currentSchemeId);
+  }
+
+  setSchemePolicySaveState();
+}
+
+function populateSchemeRuleSchemeOptions() {
+  if (!schemeRuleScheme || !schemeRuleReplaceFromScheme) return;
+
+  const options = SCHEME_OPTIONS.map(
+    (s) =>
+      `<option value="${text(s.scheme_id)}">
+        ${text(s.scheme_name)} (${formatNumber(s.paid_qty)} + ${formatNumber(s.free_qty)})
+      </option>`,
+  ).join("");
+
+  schemeRuleScheme.innerHTML = options;
+  schemeRuleReplaceFromScheme.innerHTML = options;
+}
+
+function populateSchemeRuleScopeOptions() {
+  if (!schemeRuleScope || !schemeRuleScopeSearch || !schemeRuleScopeSelect) {
+    return;
+  }
+
+  const selectedScope = schemeRuleScope.value || "PRODUCT";
+  const q = String(schemeRuleScopeSearch.value || "")
+    .trim()
+    .toLowerCase();
+
+  let rows = SCHEME_RULE_SCOPE_OPTIONS.filter(
+    (row) => row.policy_scope === selectedScope,
+  );
+
+  if (q) {
+    rows = rows.filter((row) =>
+      [
+        row.display_name,
+        row.scope_name,
+        row.category_name,
+        row.subcategory_name,
+        row.group_name,
+        row.sub_group_name,
+        row.product_name,
+        row.scope_key,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(q),
+    );
+  }
+
+  rows = rows.slice(0, 250);
+
+  schemeRuleScopeSelect.innerHTML = rows.length
+    ? rows
+        .map(
+          (row) =>
+            `<option value="${text(row.scope_key)}" data-scope-id="${text(row.scope_id)}">
+              ${text(row.display_name)}
+            </option>`,
+        )
+        .join("")
+    : `<option value="">No matching scope found</option>`;
+}
+
+function syncSchemeRuleApplyModeUi() {
+  if (!schemeRuleApplyMode || !schemeRuleReplaceFromWrap) return;
+
+  const isReplace =
+    schemeRuleApplyMode.value === "REPLACE_EXISTING_SCHEME";
+
+  schemeRuleReplaceFromWrap.style.display = isReplace ? "" : "none";
+}
+
+function readSchemeRuleFormValues() {
+  const selectedOption =
+    schemeRuleScopeSelect?.selectedOptions?.[0] || null;
+
+  return {
+    policyScope: schemeRuleScope?.value || "",
+    scopeKey: schemeRuleScopeSelect?.value || "",
+    scopeId: selectedOption?.dataset?.scopeId
+      ? Number(selectedOption.dataset.scopeId)
+      : null,
+    regionCode: schemeRuleRegion?.value || "",
+    schemeId: schemeRuleScheme?.value ? Number(schemeRuleScheme.value) : null,
+    applyMode: schemeRuleApplyMode?.value || "ALL_MATCHING",
+    replaceFromSchemeId:
+      schemeRuleApplyMode?.value === "REPLACE_EXISTING_SCHEME" &&
+      schemeRuleReplaceFromScheme?.value
+        ? Number(schemeRuleReplaceFromScheme.value)
+        : null,
+    effectiveFrom: schemeRuleEffectiveFrom?.value || activePeriodIso(),
+    remarks: schemeRuleRemarks?.value?.trim() || "",
+  };
+}
+
+function setSchemeRuleSaveState() {
+  if (!schemeRuleEditSaveBtn) return;
+
+  const values = readSchemeRuleFormValues();
+
+  const valid =
+    values.policyScope &&
+    values.scopeId &&
+    values.regionCode &&
+    values.schemeId &&
+    values.effectiveFrom &&
+    values.remarks.length >= 5 &&
+    (
+      values.applyMode !== "REPLACE_EXISTING_SCHEME" ||
+      values.replaceFromSchemeId
+    );
+
+  schemeRuleEditSaveBtn.disabled = !valid;
+}
+
+function openSchemeRuleEditModal(row = null) {
+  if (!schemeRuleEditModal) return;
+
+  SCHEME_RULE_EDIT_RETURN_FOCUS = document.activeElement;
+
+  populateSchemeRuleSchemeOptions();
+
+  if (schemeRuleScope) {
+    schemeRuleScope.value = row?.sku_id ? "SKU" : "PRODUCT";
+  }
+
+  if (schemeRuleScopeSearch) {
+    schemeRuleScopeSearch.value =
+      row?.product_name || row?.sku_display_name || "";
+  }
+
+  if (schemeRuleRegion) {
+    schemeRuleRegion.value = "IK";
+  }
+
+  if (schemeRuleApplyMode) {
+    schemeRuleApplyMode.value = "MISSING_ONLY";
+  }
+
+  if (schemeRuleEffectiveFrom) {
+    schemeRuleEffectiveFrom.value = activePeriodIso();
+  }
+
+  if (schemeRuleRemarks) {
+    schemeRuleRemarks.value = "";
+  }
+
+  populateSchemeRuleScopeOptions();
+
+  if (row?.sku_id && schemeRuleScopeSelect) {
+    const skuKey = `SKU:${row.sku_id}`;
+    if ([...schemeRuleScopeSelect.options].some((opt) => opt.value === skuKey)) {
+      schemeRuleScopeSelect.value = skuKey;
+    }
+  } else if (row?.product_id && schemeRuleScopeSelect) {
+    const productKey = `PRODUCT:${row.product_id}`;
+    if (
+      [...schemeRuleScopeSelect.options].some((opt) => opt.value === productKey)
+    ) {
+      schemeRuleScopeSelect.value = productKey;
+    }
+  }
+
+  syncSchemeRuleApplyModeUi();
+  setSchemeRuleSaveState();
+
+  schemeRuleEditModal.classList.remove("hidden");
+  schemeRuleEditModal.setAttribute("aria-hidden", "false");
+
+  setTimeout(() => schemeRuleScopeSearch?.focus(), 0);
+}
+
+function closeSchemeRuleEditModal() {
+  if (!schemeRuleEditModal) return;
+
+  const active = document.activeElement;
+  if (active && schemeRuleEditModal.contains(active)) {
+    active.blur();
+  }
+
+  schemeRuleEditModal.classList.add("hidden");
+  schemeRuleEditModal.setAttribute("aria-hidden", "true");
+
+  const returnTarget =
+    SCHEME_RULE_EDIT_RETURN_FOCUS &&
+    SCHEME_RULE_EDIT_RETURN_FOCUS !== document.body &&
+    document.contains(SCHEME_RULE_EDIT_RETURN_FOCUS)
+      ? SCHEME_RULE_EDIT_RETURN_FOCUS
+      : drawerClose;
+
+  SCHEME_RULE_EDIT_RETURN_FOCUS = null;
+
+  if (returnTarget && typeof returnTarget.focus === "function") {
+    setTimeout(() => returnTarget.focus(), 0);
+  }
+}
+
+async function saveSchemeRuleEdit() {
+  const values = readSchemeRuleFormValues();
+
+  if (!values.scopeId) {
+    showToast("Please select a valid scope.", "error");
+    setSchemeRuleSaveState();
+    return;
+  }
+
+  if (!values.schemeId) {
+    showToast("Please select a scheme.", "error");
+    setSchemeRuleSaveState();
+    return;
+  }
+
+  if (!values.remarks || values.remarks.length < 5) {
+    showToast("Remarks / approval reference is required.", "error");
+    setSchemeRuleSaveState();
+    return;
+  }
+
+  if (
+    values.applyMode === "REPLACE_EXISTING_SCHEME" &&
+    !values.replaceFromSchemeId
+  ) {
+    showToast("Please select the scheme to replace.", "error");
+    setSchemeRuleSaveState();
+    return;
+  }
+
+  schemeRuleEditSaveBtn.disabled = true;
+  setLoadingMask(true, "Saving hierarchy scheme rule...");
+
+  try {
+    const { error } = await costingRpc("rpc_set_scheme_policy_rule", {
+      p_policy_scope: values.policyScope,
+      p_scope_id: values.scopeId,
+      p_region_code: values.regionCode,
+      p_scheme_id: values.schemeId,
+      p_effective_from: values.effectiveFrom,
+      p_apply_mode: values.applyMode,
+      p_replace_from_scheme_id: values.replaceFromSchemeId,
+      p_remarks: values.remarks,
+    });
+
+    if (error) throw error;
+
+    closeSchemeRuleEditModal();
+    showToast(
+      "Hierarchy scheme rule saved. Refresh live costing if downstream pricing needs recalculation.",
+      "success",
+      5200,
+    );
+
+    await loadRowsForLens();
+
+    if (CURRENT_LENS === "policy-manager" && SELECTED_ROW?.sku_id) {
+      const updated = ALL_ROWS.find(
+        (r) => String(r.sku_id) === String(SELECTED_ROW.sku_id),
+      );
+
+      if (updated) {
+        SELECTED_ROW = updated;
+        await setDrawerTab("scheme-policy");
+      }
+    }
+  } catch (err) {
+    handleError("Failed to save hierarchy scheme rule", err);
+  } finally {
+    setLoadingMask(false);
+    schemeRuleEditSaveBtn.disabled = false;
+    setSchemeRuleSaveState();
+  }
+}
+
+function readSchemeRuleCloseFormValues() {
+  return {
+    effectiveTo: schemeRuleCloseEffectiveTo?.value || activePeriodIso(),
+    remarks: schemeRuleCloseRemarks?.value?.trim() || "",
+  };
+}
+
+function setSchemeRuleCloseSaveState() {
+  if (!schemeRuleCloseSaveBtn) return;
+
+  const values = readSchemeRuleCloseFormValues();
+  schemeRuleCloseSaveBtn.disabled = values.remarks.length < 5;
+}
+
+function openSchemeRuleCloseModal(row) {
+  if (!row || !schemeRuleCloseModal) return;
+
+  SCHEME_RULE_CLOSE_ROW = row;
+  SCHEME_RULE_CLOSE_RETURN_FOCUS = document.activeElement;
+
+  if (schemeRuleCloseLabel) {
+    schemeRuleCloseLabel.textContent =
+      `#${row.policy_rule_id} | ${row.policy_scope} | ${row.scope_name} | ${row.region_code} | ${row.scheme_name}`;
+  }
+
+  if (schemeRuleCloseEffectiveTo) {
+    schemeRuleCloseEffectiveTo.value = activePeriodIso();
+  }
+
+  if (schemeRuleCloseRemarks) {
+    schemeRuleCloseRemarks.value = "";
+  }
+
+  schemeRuleCloseModal.classList.remove("hidden");
+  schemeRuleCloseModal.setAttribute("aria-hidden", "false");
+
+  setSchemeRuleCloseSaveState();
+
+  setTimeout(() => schemeRuleCloseRemarks?.focus(), 0);
+}
+
+function closeSchemeRuleCloseModal() {
+  if (!schemeRuleCloseModal) return;
+
+  const active = document.activeElement;
+  if (active && schemeRuleCloseModal.contains(active)) {
+    active.blur();
+  }
+
+  schemeRuleCloseModal.classList.add("hidden");
+  schemeRuleCloseModal.setAttribute("aria-hidden", "true");
+
+  const returnTarget =
+    SCHEME_RULE_CLOSE_RETURN_FOCUS &&
+    SCHEME_RULE_CLOSE_RETURN_FOCUS !== document.body &&
+    document.contains(SCHEME_RULE_CLOSE_RETURN_FOCUS)
+      ? SCHEME_RULE_CLOSE_RETURN_FOCUS
+      : drawerClose;
+
+  SCHEME_RULE_CLOSE_ROW = null;
+  SCHEME_RULE_CLOSE_RETURN_FOCUS = null;
+
+  if (returnTarget && typeof returnTarget.focus === "function") {
+    setTimeout(() => returnTarget.focus(), 0);
+  }
+}
+
+async function saveSchemeRuleClose() {
+  const row = SCHEME_RULE_CLOSE_ROW;
+
+  if (!row?.policy_rule_id) {
+    showToast("Scheme rule ID missing.", "error");
+    return;
+  }
+
+  const values = readSchemeRuleCloseFormValues();
+
+  if (!values.remarks || values.remarks.length < 5) {
+    showToast("Close remarks / approval reference is required.", "error");
+    setSchemeRuleCloseSaveState();
+    return;
+  }
+
+  schemeRuleCloseSaveBtn.disabled = true;
+  setLoadingMask(true, "Closing scheme rule...");
+
+  try {
+    const { error } = await costingRpc("rpc_close_scheme_policy_rule", {
+      p_policy_rule_id: row.policy_rule_id,
+      p_effective_to: values.effectiveTo,
+      p_remarks: values.remarks,
+    });
+
+    if (error) throw error;
+
+    closeSchemeRuleCloseModal();
+
+    showToast("Scheme rule closed successfully.", "success", 4200);
+
+    await loadRowsForLens();
+  } catch (err) {
+    handleError("Failed to close scheme rule", err);
+  } finally {
+    setLoadingMask(false);
+    schemeRuleCloseSaveBtn.disabled = false;
+    setSchemeRuleCloseSaveState();
+  }
+}
+
+function closeSchemePolicyEditModal() {
+  if (!schemePolicyEditModal) return;
+
+  const active = document.activeElement;
+  if (active && schemePolicyEditModal.contains(active)) {
+    active.blur();
+  }
+
+  schemePolicyEditModal.classList.add("hidden");
+  schemePolicyEditModal.setAttribute("aria-hidden", "true");
+
+  const returnTarget =
+    SCHEME_POLICY_RETURN_FOCUS &&
+    SCHEME_POLICY_RETURN_FOCUS !== document.body &&
+    document.contains(SCHEME_POLICY_RETURN_FOCUS)
+      ? SCHEME_POLICY_RETURN_FOCUS
+      : drawerClose;
+
+  SCHEME_POLICY_RETURN_FOCUS = null;
+  SCHEME_POLICY_EDIT_ROW = null;
+
+  if (returnTarget && typeof returnTarget.focus === "function") {
+    setTimeout(() => returnTarget.focus(), 0);
+  }
+}
+
+async function saveSchemePolicyEdit() {
+  const row = SCHEME_POLICY_EDIT_ROW;
+  if (!row?.sku_id) {
+    showToast("SKU ID missing for selected row.", "error");
+    return;
+  }
+
+  const region = schemePolicyEditRegion?.value;
+  const schemeId = Number(schemePolicyEditScheme?.value);
+  const initialSchemeId = Number(SCHEME_POLICY_INITIAL.schemeId || 0);
+  const effectiveFrom = schemePolicyEditEffectiveFrom?.value || activePeriodIso();
+  const remarks = schemePolicyEditRemarks?.value?.trim() || null;
+
+  if (schemeId === initialSchemeId) {
+    showToast("No scheme change detected.", "info");
+    setSchemePolicySaveState();
+    return;
+  }
+
+  if (!region || !schemeId) {
+    showToast("Region and scheme are required.", "error");
+    return;
+  }
+
+  schemePolicyEditSaveBtn.disabled = true;
+  setLoadingMask(true, "Saving scheme policy...");
+
+  try {
+    const { error } = await costingRpc("rpc_set_sku_scheme_policy", {
+      p_sku_id: row.sku_id,
+      p_region_code: region,
+      p_scheme_id: schemeId,
+      p_effective_from: effectiveFrom,
+      p_remarks: remarks,
+    });
+
+    if (error) throw error;
+
+    closeSchemePolicyEditModal();
+    showToast("Scheme policy saved. Refreshing policy view...", "success");
+
+    await loadRowsForLens();
+
+    if (SELECTED_ROW?.sku_id) {
+      const updated = ALL_ROWS.find(
+        (r) => String(r.sku_id) === String(row.sku_id),
+      );
+      if (updated) {
+        SELECTED_ROW = updated;
+        await setDrawerTab("scheme-policy");
+      }
+    }
+  } catch (err) {
+    handleError("Failed to save scheme policy", err);
+  } finally {
+    setLoadingMask(false);
+    schemePolicyEditSaveBtn.disabled = false;
   }
 }
 
@@ -2315,25 +4581,248 @@ async function renderCostComparisonTab(tabId) {
   );
 }
 
-async function renderSkuTab(tabId) {
-  const detail = await fetchSkuDetail(SELECTED_ROW);
+async function renderPolicyManagerTab(tabId) {
+  const row = SELECTED_ROW || {};
+
   if (tabId === "overview") {
     return kvCards([
-      ["Product", text(detail.product_name || detail.product_id)],
-      ["SKU", text(detail.sku_display_name || detail.sku_id)],
+      ["Product", text(row.product_name || row.product_id)],
+      ["SKU", text(row.sku_column_label || row.sku_display_name || row.sku_id)],
+      ["MRP IK / OK", `${formatMoney(row.mrp_ik)} / ${formatMoney(row.mrp_ok)}`],
+      ["GST %", formatPercent(row.gst_percent)],
+      ["IK Discount %", formatPercent(row.ik_discount_percent)],
+      ["OK Discount %", formatPercent(row.ok_discount_percent)],
+      ["Contingency %", formatPercent(row.contingency_percent)],
       [
-        "MRP IK / OK",
-        `${formatMoney(detail.mrp_ik)} / ${formatMoney(detail.mrp_ok)}`,
+        "IK Scheme",
+        `${text(row.ik_selected_scheme_name)}<div class="cp-muted-text">${text(row.ik_policy_source_label)}</div>`,
       ],
       [
-        "Internal Loaded Cost",
-        formatMoney(detail.internal_loaded_cost_per_sku),
+        "OK Scheme",
+        `${text(row.ok_selected_scheme_name)}<div class="cp-muted-text">${text(row.ok_policy_source_label)}</div>`,
       ],
-      ["Pricing Cost", formatMoney(detail.pricing_cost_per_sku)],
-      ["IK Selling Price", formatMoney(detail.ik_selling_price)],
-      ["OK Selling Price", formatMoney(detail.ok_selling_price)],
-      ["Status", statusChip(getRowStatus(detail))],
     ]);
+  }
+
+  if (tabId === "selling-policy") {
+    const editButton = `
+      <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+        <button
+          type="button"
+          class="icon-btn icon-btn-primary"
+          id="editSellingPolicyBtn"
+          title="Edit Selling Policy"
+          aria-label="Edit Selling Policy"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M12 20h9"></path>
+            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+          </svg>
+        </button>
+      </div>
+    `;
+
+    return (
+      editButton +
+      kvCards([
+        ["Selling Price Policy ID", text(row.selling_price_policy_id)],
+        ["GST %", formatPercent(row.gst_percent)],
+        ["IK Discount %", formatPercent(row.ik_discount_percent)],
+        ["OK Discount %", formatPercent(row.ok_discount_percent)],
+        ["IK Fixed Discount Amount", formatOptionalMoney(row.ik_discount_amount)],
+        ["OK Fixed Discount Amount", formatOptionalMoney(row.ok_discount_amount)],
+        ["Contingency %", formatPercent(row.contingency_percent)],
+        ["Effective From", formatDate(row.selling_price_effective_from)],
+        ["Effective To", formatDate(row.selling_price_effective_to)],
+        ["Active", text(row.selling_price_policy_active)],
+        ["Remarks", text(row.selling_price_policy_remarks)],
+      ])
+    );
+  }
+
+  if (tabId === "scheme-policy") {
+    return simpleTable(
+      [
+        "Region",
+        "Scheme",
+        "Source",
+        "Scope",
+        "Apply Mode",
+        "Paid Qty",
+        "Free Qty",
+        "Effective From",
+        "Effective To",
+        "Active",
+      ],
+      [
+        {
+          region: "IK",
+          scheme: row.ik_selected_scheme_name,
+          source: row.ik_policy_source_label,
+          scope: row.ik_policy_scope,
+          applyMode: row.ik_apply_mode,
+          paid: row.ik_scheme_paid_qty,
+          free: row.ik_scheme_free_qty,
+          from: row.ik_scheme_effective_from,
+          to: row.ik_scheme_effective_to,
+          active: row.ik_scheme_policy_active,
+        },
+        {
+          region: "OK",
+          scheme: row.ok_selected_scheme_name,
+          source: row.ok_policy_source_label,
+          scope: row.ok_policy_scope,
+          applyMode: row.ok_apply_mode,
+          paid: row.ok_scheme_paid_qty,
+          free: row.ok_scheme_free_qty,
+          from: row.ok_scheme_effective_from,
+          to: row.ok_scheme_effective_to,
+          active: row.ok_scheme_policy_active,
+        },
+      ],
+      (r) =>
+        `<tr>
+          <td>${text(r.region)}</td>
+          <td>${text(r.scheme)}</td>
+          <td>${text(r.source)}</td>
+          <td>${text(r.scope)}</td>
+          <td>${text(r.applyMode)}</td>
+          <td class="c-right">${formatNumber(r.paid)}</td>
+          <td class="c-right">${formatNumber(r.free)}</td>
+          <td>${formatDate(r.from)}</td>
+          <td>${formatDate(r.to)}</td>
+          <td>${text(r.active)}</td>
+        </tr>`,
+    );
+  }
+
+  if (tabId === "policy-history") {
+    const sellingRows = await fetchSellingPolicyHistory(row);
+    const schemeRows = await fetchSchemePolicyHistory(row);
+
+    const sellingTable = simpleTable(
+      [
+        "Policy ID",
+        "GST %",
+        "IK Discount %",
+        "OK Discount %",
+        "IK Fixed Discount",
+        "OK Fixed Discount",
+        "Contingency %",
+        "Effective From",
+        "Effective To",
+        "Active",
+        "Remarks",
+        "Updated At",
+      ],
+      sellingRows,
+      (r) =>
+        `<tr>
+          <td>${text(r.policy_id)}</td>
+          <td class="c-right">${formatPercent(r.gst_percent)}</td>
+          <td class="c-right">${formatPercent(r.ik_discount_percent)}</td>
+          <td class="c-right">${formatPercent(r.ok_discount_percent)}</td>
+          <td class="c-right">${formatOptionalMoney(r.ik_discount_amount)}</td>
+          <td class="c-right">${formatOptionalMoney(r.ok_discount_amount)}</td>
+          <td class="c-right">${formatPercent(r.contingency_percent)}</td>
+          <td>${formatDate(r.effective_from)}</td>
+          <td>${formatDate(r.effective_to)}</td>
+          <td>${r.is_active ? statusChip("ACTIVE") : statusChip("CLOSED")}</td>
+          <td>${text(r.remarks)}</td>
+          <td>${formatDateTime(r.updated_at)}</td>
+        </tr>`,
+    );
+
+    const schemeTable = simpleTable(
+      [
+        "Policy ID",
+        "Level",
+        "Region",
+        "Scheme",
+        "Paid Qty",
+        "Free Qty",
+        "Effective From",
+        "Effective To",
+        "Active",
+        "Remarks",
+        "Updated At",
+      ],
+      schemeRows,
+      (r) =>
+        `<tr>
+          <td>${text(r.policy_id)}</td>
+          <td>${text(r.policy_level)}</td>
+          <td>${text(r.region_code)}</td>
+          <td>${text(r.scheme_name)}</td>
+          <td class="c-right">${formatNumber(r.paid_qty)}</td>
+          <td class="c-right">${formatNumber(r.free_qty)}</td>
+          <td>${formatDate(r.effective_from)}</td>
+          <td>${formatDate(r.effective_to)}</td>
+          <td>${r.is_active ? statusChip("ACTIVE") : statusChip("CLOSED")}</td>
+          <td>${text(r.remarks)}</td>
+          <td>${formatDateTime(r.updated_at)}</td>
+        </tr>`,
+    );
+
+    return `
+      <div class="cp-card" style="margin-bottom:10px">
+        <div class="cp-card-label">Policy History</div>
+        <div class="cp-card-value">
+          This section shows the audit trail of selling price and scheme policy changes for the selected SKU.
+        </div>
+      </div>
+
+      <h3 class="cp-section-title">Selling Price Policy History</h3>
+      ${sellingTable}
+
+      <h3 class="cp-section-title" style="margin-top:14px">Scheme Policy History</h3>
+      ${schemeTable}
+    `;
+  }
+
+  return kvCards([
+    ["Pricing Bridge Status", compactStatusText(row.pricing_bridge_status)],
+    ["Selling Price Bridge Status", compactStatusText(row.selling_price_bridge_status)],
+    ["Selling Price Bridge Note", text(row.selling_price_bridge_note)],
+    ["Refreshed At", formatDateTime(row.refreshed_at)],
+  ]);
+}
+
+async function renderSkuTab(tabId) {
+  const detail = await fetchSkuDetail(SELECTED_ROW);
+  const diagnosisPanel = renderSkuDiagnosisPanel(detail);
+  const evidencePanel = renderMaterialEvidencePanel(detail);
+  if (tabId === "overview") {
+    return (
+      diagnosisPanel +
+      evidencePanel +
+      kvCards([
+        ["Product", text(detail.product_name || detail.product_id)],
+        ["SKU", text(detail.sku_display_name || detail.sku_id)],
+        [
+          "MRP IK / OK",
+          `${formatMoney(detail.mrp_ik)} / ${formatMoney(detail.mrp_ok)}`,
+        ],
+        [
+          "Internal Loaded Cost",
+          formatMoney(detail.internal_loaded_cost_per_sku),
+        ],
+        ["Pricing Cost", formatMoney(detail.pricing_cost_per_sku)],
+        ["IK Selling Price", formatMoney(detail.ik_selling_price)],
+        ["OK Selling Price", formatMoney(detail.ok_selling_price)],
+        ["Status", statusChip(getRowStatus(detail))],
+      ])
+    );
   }
   if (tabId === "cost-layers") {
     const layers = [
@@ -2356,11 +4845,14 @@ async function renderSkuTab(tabId) {
       ["Marketing Expense", detail.marketing_expense_cost_per_sku],
       ["Pricing Cost", detail.pricing_cost_per_sku],
     ];
-    return simpleTable(
-      ["Layer", "Amount"],
-      layers,
-      ([label, value]) =>
-        `<tr><td>${text(label)}</td><td class="c-right">${formatMoney(value)}</td></tr>`,
+    return (
+      diagnosisPanel +
+      simpleTable(
+        ["Layer", "Amount"],
+        layers,
+        ([label, value]) =>
+          `<tr><td>${text(label)}</td><td class="c-right">${formatMoney(value)}</td></tr>`,
+      )
     );
   }
   if (tabId === "selling-price") {
@@ -2387,24 +4879,27 @@ async function renderSkuTab(tabId) {
   }
   if (tabId === "scheme") {
     const rows = await fetchSkuSchemes(SELECTED_ROW);
-    return simpleTable(
-      [
-        "Scheme",
-        "IK Effective SP",
-        "IK Net Sales",
-        "IK Margin",
-        "IK Margin %",
-        "IK Band",
-        "OK Effective SP",
-        "OK Net Sales",
-        "OK Margin",
-        "OK Margin %",
-        "OK Band",
-        "Status",
-      ],
-      rows,
-      (r) =>
-        `<tr><td>${text(r.scheme_name)}</td><td class="c-right">${formatMoney(r.ik_scheme_effective_selling_price)}</td><td class="c-right">${formatMoney(r.ik_net_sales_realisation)}</td><td class="c-right">${formatMoney(r.ik_margin_amount_after_scheme)}</td><td class="c-right">${formatPercent(r.ik_margin_percent_after_scheme)}</td><td>${marginBandChip(r.ik_scheme_margin_band)}</td><td class="c-right">${formatMoney(r.ok_scheme_effective_selling_price)}</td><td class="c-right">${formatMoney(r.ok_net_sales_realisation)}</td><td class="c-right">${formatMoney(r.ok_margin_amount_after_scheme)}</td><td class="c-right">${formatPercent(r.ok_margin_percent_after_scheme)}</td><td>${marginBandChip(r.ok_scheme_margin_band)}</td><td>${statusChip(r.scheme_viability_status)}</td></tr>`,
+    return (
+      diagnosisPanel +
+      simpleTable(
+        [
+          "Scheme",
+          "IK Effective SP",
+          "IK Net Sales",
+          "IK Margin",
+          "IK Margin %",
+          "IK Scheme Margin Band",
+          "OK Effective SP",
+          "OK Net Sales",
+          "OK Margin",
+          "OK Margin %",
+          "OK Scheme Margin Band",
+          "Scheme Calculation Status",
+        ],
+        rows,
+        (r) =>
+          `<tr><td>${text(r.scheme_name)}</td><td class="c-right">${formatMoney(r.ik_scheme_effective_selling_price)}</td><td class="c-right">${formatMoney(r.ik_net_sales_realisation)}</td><td class="c-right">${formatMoney(r.ik_margin_amount_after_scheme)}</td><td class="c-right">${formatPercent(r.ik_margin_percent_after_scheme)}</td><td>${marginBandChip(r.ik_scheme_margin_band)}</td><td class="c-right">${formatMoney(r.ok_scheme_effective_selling_price)}</td><td class="c-right">${formatMoney(r.ok_net_sales_realisation)}</td><td class="c-right">${formatMoney(r.ok_margin_amount_after_scheme)}</td><td class="c-right">${formatPercent(r.ok_margin_percent_after_scheme)}</td><td>${marginBandChip(r.ok_scheme_margin_band)}</td><td>${compactStatusText(r.scheme_viability_status)}</td></tr>`,
+      )
     );
   }
   const d = await fetchSkuDiagnostics(SELECTED_ROW);
@@ -2425,53 +4920,242 @@ async function renderSkuTab(tabId) {
 
 async function renderWorkbenchTab(tabId) {
   const r = SELECTED_ROW;
-  if (tabId === "action") {
-    return kvCards([
-      ["Status", statusChip(r.material_line_status)],
-      ["Issue Code", text(issueCodeLabel(r.material_issue_code))],
-      ["Source", text(r.bom_source)],
-      ["Stock Item ID", text(r.stock_item_id)],
-      ["Stock Item", text(r.stock_item_name)],
-      ["Selected Rate", formatMoney(r.selected_rate)],
-      ["Rate Source", text(r.rate_source)],
-      ["Rate Date", formatDate(r.rate_date)],
-      ["Affected Products", formatNumber(r.affected_product_count)],
-      ["Affected SKUs", formatNumber(r.affected_sku_count)],
-      ["Recommended Action", text(r.recommended_action)],
-    ]);
-  }
-  const rows = await fetchActionDrilldown(r);
-  if (tabId === "affected") {
-    return simpleTable(
-      [
-        "Product",
-        "SKU",
-        "Pack",
-        "UOM",
-        "Line",
-        "Qty / Ref Output",
-        "Optional",
-        "Action Required",
-        "Warning",
-      ],
-      rows,
-      (x) =>
-        `<tr><td>${text(x.product_name)}</td><td>${text(x.sku_id || "Product-level RM")}</td><td>${text(x.pack_size)}</td><td>${text(x.sku_uom)}</td><td>${text(x.line_no)}</td><td class="c-right">${formatNumber(x.qty_per_reference_output)}</td><td>${text(x.is_optional)}</td><td>${text(x.action_required)}</td><td>${text(x.warning_text)}</td></tr>`,
+  const workbenchTabId = {
+    "manual-rate-action": "action",
+    "affected-products": "affected",
+    "raw-lines": "raw",
+  }[tabId] || tabId;
+
+  if (workbenchTabId === "action") {
+    if (
+      CURRENT_LENS === "costing-review-workbench" &&
+      (r?.final_action_status ||
+        r?.costing_confidence_status ||
+        r?.commercial_viability_status)
+    ) {
+      return renderSkuDiagnosisPanel(r) + renderMaterialEvidencePanel(r);
+    }
+
+    const manualRateButton = `
+      <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+        <button
+          type="button"
+          class="icon-btn icon-btn-primary"
+          id="setManualRateBtn"
+          title="Set Manual Material Rate"
+          aria-label="Set Manual Material Rate"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M12 20h9"></path>
+            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+          </svg>
+        </button>
+      </div>
+    `;
+
+    return (
+      manualRateButton +
+      kvCards([
+        ["Status", statusChip(r.material_line_status)],
+        ["Issue Code", text(issueCodeLabel(r.material_issue_code))],
+        ["Source", text(r.bom_source)],
+        ["Stock Item ID", text(r.stock_item_id)],
+        ["Stock Item", text(r.stock_item_name)],
+        ["Selected Rate", formatMoney(r.selected_rate)],
+        ["Rate Source", text(r.rate_source)],
+        [
+          "Manual Rate Status",
+          r.rate_source === "MANUAL_RATE" ? statusChip("MANUAL RATE USED") : text("--"),
+        ],
+        ["Rate Date", formatDate(r.rate_date)],
+        ["Affected Products", formatNumber(r.affected_product_count)],
+        ["Affected SKUs", formatNumber(r.affected_sku_count)],
+        ["Recommended Action", text(r.recommended_action)],
+      ])
     );
   }
-  return simpleTable(
-    [
-      "Selected Rate",
-      "Rate Source",
-      "Rate Date",
-      "Warning Code",
-      "Warning Text",
-      "Approval Block",
-    ],
-    rows,
-    (x) =>
-      `<tr><td class="c-right">${formatMoney(x.selected_rate)}</td><td>${text(x.rate_source)}</td><td>${formatDate(x.rate_date)}</td><td>${text(x.warning_code)}</td><td>${text(x.warning_text)}</td><td>${text(x.approval_block_flag)}</td></tr>`,
-  );
+  if (workbenchTabId === "manual-rate-register") {
+    const managerRegisterRows = await fetchManualRateManagerRegisterRows();
+    const registerRows = managerRegisterRows.filter(
+      (row) => String(row.stock_item_id) === String(r.stock_item_id),
+    );
+
+    return simpleTable(
+      [
+        "Manual Rate ID",
+        "Rate",
+        "Effective From",
+        "Effective To",
+        "Status",
+        "Register Status",
+        "Latest Purchase Rate",
+        "Latest Purchase Date",
+        "Recommended Action",
+      ],
+      registerRows,
+      (row) =>
+        `<tr>
+          <td>${text(row.manual_rate_id)}</td>
+          <td class="c-right">${formatMoney(row.rate_value)}</td>
+          <td>${formatDate(row.effective_from)}</td>
+          <td>${formatDate(row.effective_to)}</td>
+          <td>${statusChip(row.status)}</td>
+          <td>${compactStatusText(row.register_status)}</td>
+          <td class="c-right">${formatMoney(row.latest_purchase_rate)}</td>
+          <td>${formatDate(row.latest_purchase_date)}</td>
+          <td>${text(row.recommended_action)}</td>
+        </tr>`,
+    );
+  }
+  if (workbenchTabId === "affected" || workbenchTabId === "raw") {
+    const hasWorkbenchDrilldownContext =
+      r?.stock_item_id && r?.material_issue_code && r?.bom_source;
+
+    if (!hasWorkbenchDrilldownContext) {
+      return `
+        <div class="cp-card">
+          <div class="cp-card-label">Workbench Drilldown</div>
+          <div class="cp-card-value">
+            Drilldown is available only for Action Queue / Workbench issue rows.
+          </div>
+          <div class="cp-muted-text" style="margin-top:6px">
+            This selected row belongs to the Manual Rate Register or History, so it does not carry a Workbench issue code and BOM source.
+          </div>
+        </div>
+      `;
+    }
+
+    const rows = await fetchActionDrilldown(r);
+
+    if (workbenchTabId === "affected") {
+      return simpleTable(
+        [
+          "Product",
+          "SKU",
+          "Pack",
+          "UOM",
+          "Line",
+          "Qty / Ref Output",
+          "Optional",
+          "Action Required",
+          "Warning",
+        ],
+        rows,
+        (x) =>
+          `<tr>
+            <td>${text(x.product_name)}</td>
+            <td>${text(x.sku_id || "Product-level RM")}</td>
+            <td>${text(x.pack_size)}</td>
+            <td>${text(x.sku_uom)}</td>
+            <td>${text(x.line_no)}</td>
+            <td class="c-right">${formatNumber(x.qty_per_reference_output)}</td>
+            <td>${text(x.is_optional)}</td>
+            <td>${text(x.action_required)}</td>
+            <td>${text(x.warning_text)}</td>
+          </tr>`,
+      );
+    }
+
+    return simpleTable(
+      [
+        "Selected Rate",
+        "Rate Source",
+        "Rate Date",
+        "Warning Code",
+        "Warning Text",
+        "Approval Block",
+      ],
+      rows,
+      (x) => {
+        const selectedRate = x.selected_rate ?? r.selected_rate;
+        const rateSource = x.rate_source ?? r.rate_source;
+        const rateDate = x.rate_date ?? r.rate_date;
+
+        return `<tr>
+          <td class="c-right">${formatMoney(selectedRate)}</td>
+          <td class="c-center">${text(rateSource)}</td>
+          <td class="c-center">${formatDate(rateDate)}</td>
+          <td class="c-center">${text(x.warning_code)}</td>
+          <td>${text(x.warning_text)}</td>
+          <td class="c-center">${text(x.approval_block_flag)}</td>
+        </tr>`;
+      },
+    );
+  }
+  if (workbenchTabId === "manual-rate-history") {
+    const historyRows = await fetchManualRateHistory(r);
+    const review = await fetchManualRateReview(r);
+
+    const reviewCard = review
+      ? `<div class="cp-card" style="margin-bottom:10px">
+          <div class="cp-card-label">Manual Rate Review</div>
+          <div class="cp-card-value">
+            ${
+              review.manual_rate_overrides_purchase_rate
+                ? statusChip("REVIEW_REQUIRED")
+                : statusChip("INFO")
+            }
+            <span style="margin-left:8px">${text(review.review_message)}</span>
+          </div>
+          <div class="cp-muted-text" style="margin-top:6px">
+            Manual Rate: ${formatMoney(review.manual_rate_value)}
+            |
+            Latest Purchase Rate: ${formatMoney(review.latest_purchase_rate)}
+            |
+            Latest Purchase Date: ${formatDate(review.latest_purchase_date)}
+          </div>
+        </div>`
+      : "";
+
+    if (!historyRows.length) {
+      return (
+        reviewCard +
+        `<div class="cp-card">
+          <div class="cp-card-label">Manual Rate History</div>
+          <div class="cp-card-value">No manual rate history found for this stock item.</div>
+        </div>`
+      );
+    }
+
+    return (
+      reviewCard +
+      simpleTable(
+        [
+          "Manual Rate ID",
+          "Rate",
+          "Effective From",
+          "Effective To",
+          "Status",
+          "Reason / Approval Reference",
+          "Created At",
+          "Last Updated At",
+        ],
+        historyRows,
+        (x) =>
+          `<tr>
+            <td>${text(x.manual_rate_id)}</td>
+            <td class="c-right">${formatMoney(x.rate_value)}</td>
+            <td>${formatDate(x.effective_from)}</td>
+            <td>${formatDate(x.effective_to)}</td>
+            <td>${statusChip(x.status)}</td>
+            <td>${text(x.reason)}</td>
+            <td>${formatDateTime(x.created_at)}</td>
+            <td>${formatDateTime(x.last_updated_at)}</td>
+          </tr>`,
+      )
+    );
+  }
+  return "";
 }
 
 function setModalTabs(tabs, activeId) {
@@ -2499,10 +5183,25 @@ async function setDrawerTab(tabId) {
   try {
     if (CURRENT_LENS === "dashboard") {
       drawerContent.innerHTML = renderDashboardOverview();
-    } else if (CURRENT_LENS === "costing-review-workbench") {
+    } else if (
+      CURRENT_LENS === "costing-review-workbench" ||
+      CURRENT_LENS === "manual-rate-manager"
+    ) {
       drawerContent.innerHTML = await renderWorkbenchTab(tabId);
+      if (tabId === "action" || tabId === "manual-rate-action") {
+        $("setManualRateBtn")?.addEventListener("click", () =>
+          openManualRateEditModal(SELECTED_ROW),
+        );
+      }
     } else if (CURRENT_LENS === "cost-comparison") {
       drawerContent.innerHTML = await renderCostComparisonTab(tabId);
+    } else if (CURRENT_LENS === "policy-manager") {
+      drawerContent.innerHTML = await renderPolicyManagerTab(tabId);
+      if (tabId === "selling-policy") {
+        $("editSellingPolicyBtn")?.addEventListener("click", () =>
+          openSellingPolicyEditModal(SELECTED_ROW),
+        );
+      }
     } else {
       drawerContent.innerHTML = await renderSkuTab(tabId);
     }
@@ -2517,18 +5216,72 @@ function openDetails(row, preferredTab) {
   if (!detailsModal) return;
   const title = $("drawerTitle");
   const subtitle = $("drawerSubtitle");
-  if (CURRENT_LENS === "costing-review-workbench") {
-    title.textContent = issueCodeLabel(row.material_issue_code);
-    subtitle.textContent = row.stock_item_name || row.stock_item_id || "";
-    setModalTabs(
-      [
-        { id: "action", label: "Action Item" },
-        { id: "affected", label: "Affected Products/SKUs" },
-        { id: "raw", label: "Raw Issue Lines" },
-      ],
-      preferredTab || "action",
-    );
-    setDrawerTab(preferredTab || "action");
+  if (CURRENT_LENS === "manual-rate-manager") {
+    title.textContent =
+      row.stock_item_name || row.stock_item_id || "Manual Rate Manager";
+
+    subtitle.textContent = row.material_issue_code
+      ? issueCodeLabel(row.material_issue_code)
+      : row.register_status || row.status || "";
+
+    let managerTabs = [];
+
+    if (MANUAL_RATE_MANAGER_TAB === "action-queue") {
+      managerTabs = [
+        { id: "manual-rate-action", label: "Action" },
+        { id: "manual-rate-register", label: "Register" },
+        { id: "manual-rate-history", label: "History" },
+        { id: "affected-products", label: "Affected Products/SKUs" },
+        { id: "raw-lines", label: "Raw Issue Lines" },
+      ];
+    } else if (MANUAL_RATE_MANAGER_TAB === "register") {
+      managerTabs = [
+        { id: "manual-rate-action", label: "Action" },
+        { id: "manual-rate-register", label: "Register" },
+        { id: "manual-rate-history", label: "History" },
+      ];
+    } else {
+      managerTabs = [
+        { id: "manual-rate-register", label: "Register" },
+        { id: "manual-rate-history", label: "History" },
+      ];
+    }
+
+    const validPreferred = managerTabs.some((t) => t.id === preferredTab)
+      ? preferredTab
+      : managerTabs[0].id;
+
+    setModalTabs(managerTabs, validPreferred);
+    setDrawerTab(validPreferred);
+
+    detailsModal.classList.remove("hidden");
+    detailsModal.setAttribute("aria-hidden", "false");
+    return;
+  } else if (CURRENT_LENS === "costing-review-workbench") {
+    if (
+      row?.final_action_status ||
+      row?.costing_confidence_status ||
+      row?.commercial_viability_status
+    ) {
+      title.textContent =
+        row.sku_display_name || row.sku_column_label || row.sku_id || "SKU Diagnosis";
+      subtitle.textContent = row.product_name || row.product_id || "";
+      setModalTabs([{ id: "action", label: "Diagnosis" }], "action");
+      setDrawerTab("action");
+    } else {
+      title.textContent = issueCodeLabel(row.material_issue_code);
+      subtitle.textContent = row.stock_item_name || row.stock_item_id || "";
+      setModalTabs(
+        [
+          { id: "action", label: "Action Item" },
+          { id: "affected", label: "Affected Products/SKUs" },
+          { id: "raw", label: "Raw Issue Lines" },
+          { id: "manual-rate-history", label: "Manual Rate History" },
+        ],
+        preferredTab || "action",
+      );
+      setDrawerTab(preferredTab || "action");
+    }
   } else if (CURRENT_LENS === "dashboard") {
     title.textContent = "Dashboard Summary";
     subtitle.textContent = `Period ${ACTIVE_PERIOD_START || "--"}`;
@@ -2544,6 +5297,23 @@ function openDetails(row, preferredTab) {
         { id: "overview", label: "Overview" },
         { id: "month-on-month", label: "Month-on-Month" },
         { id: "year-on-year", label: "Year-on-Year" },
+      ],
+      active,
+    );
+    setDrawerTab(active);
+  } else if (CURRENT_LENS === "policy-manager") {
+    title.textContent =
+      row.product_name || row.product_id || "Policy Manager";
+    subtitle.textContent =
+      row.sku_column_label || row.sku_display_name || row.sku_id || "";
+    const active = preferredTab || "overview";
+    setModalTabs(
+      [
+        { id: "overview", label: "Overview" },
+        { id: "selling-policy", label: "Selling Policy" },
+        { id: "scheme-policy", label: "Scheme Policy" },
+        { id: "policy-history", label: "Policy History" },
+        { id: "status", label: "Status" },
       ],
       active,
     );
@@ -2594,18 +5364,43 @@ function closeDetails() {
 
 async function refreshCostingChain() {
   if (!ACTIVE_PERIOD_START) ACTIVE_PERIOD_START = getCurrentMonthStart();
+
   refreshBtn.disabled = true;
   setLoadingMask(true, "Refreshing costing/pricing snapshots...");
   setStatus("Refreshing costing/pricing snapshots...");
+
   try {
+    setLoadingMask(true, "Refreshing costing/pricing chain...");
+    setStatus("Refreshing costing/pricing chain...");
+
     const { error } = await costingRpc("rpc_refresh_costing_pricing_chain", {
       p_period_start: ACTIVE_PERIOD_START,
     });
-    if (error) throw error;
+
+    if (error) {
+      throw new Error(`Costing/pricing chain failed: ${error.message}`);
+    }
+
+    setLoadingMask(true, "Refreshing costing review workbench snapshot...");
+    setStatus("Refreshing costing review workbench snapshot...");
+
+    const { error: workbenchError } = await costingRpc(
+      "rpc_refresh_costing_review_workbench_snapshot",
+      {
+        p_period_start: ACTIVE_PERIOD_START,
+      },
+    );
+
+    if (workbenchError) {
+      throw new Error(`Workbench snapshot failed: ${workbenchError.message}`);
+    }
+
     await loadRowsForLens();
+
     LAST_REFRESH_TIME = new Date();
     updateFreshnessIndicator();
-    showToast("Costing/pricing snapshots refreshed", "success");
+
+    showToast("Costing/pricing and Workbench snapshots refreshed", "success");
   } catch (err) {
     handleError("Refresh failed", err);
   } finally {
@@ -2752,6 +5547,22 @@ function updateFreshnessIndicator() {
   lastRefreshed.setAttribute("aria-label", detailText);
 }
 
+function closeFreshnessDetail() {
+  const detail = $("sc-status-detail");
+  if (!lastRefreshed || !detail) return;
+  lastRefreshed.classList.remove("sc-status-expanded");
+  lastRefreshed.setAttribute("aria-expanded", "false");
+  detail.style.display = "none";
+}
+
+function toggleFreshnessDetail() {
+  const detail = $("sc-status-detail");
+  if (!lastRefreshed || !detail) return;
+  const expanded = lastRefreshed.classList.toggle("sc-status-expanded");
+  lastRefreshed.setAttribute("aria-expanded", String(expanded));
+  detail.style.display = expanded ? "block" : "none";
+}
+
 function showToast(message, type = "info", duration = 3200) {
   const container = $("peqToastContainer");
   if (!container) return;
@@ -2875,6 +5686,8 @@ async function init() {
     renderLensPills();
     wireFilterDrawer();
     syncFilterCheckboxes();
+    await loadSchemeOptions();
+    await loadSchemeRuleScopeOptions();
     await loadRowsForLens();
   } catch (err) {
     handleError("Initialization error", err);
@@ -2928,27 +5741,130 @@ costSheetSignConfirmBtn?.addEventListener("click", confirmCostSheetSignatories);
 costSheetSignModal?.addEventListener("click", (e) => {
   if (e.target === costSheetSignModal) closeCostSheetSignModal();
 });
+sellingPolicyEditCloseBtn?.addEventListener("click", closeSellingPolicyEditModal);
+sellingPolicyEditCancelBtn?.addEventListener("click", closeSellingPolicyEditModal);
+sellingPolicyEditSaveBtn?.addEventListener("click", saveSellingPolicyEdit);
+sellingPolicyEditModal?.addEventListener("click", (e) => {
+  if (e.target === sellingPolicyEditModal) closeSellingPolicyEditModal();
+});
+[
+  sellingPolicyGstPercent,
+  sellingPolicyIkDiscountPercent,
+  sellingPolicyOkDiscountPercent,
+  sellingPolicyIkDiscountAmount,
+  sellingPolicyOkDiscountAmount,
+  sellingPolicyContingencyPercent,
+].forEach((input) => {
+  input?.addEventListener("input", setSellingPolicySaveState);
+});
+schemePolicyEditCloseBtn?.addEventListener("click", closeSchemePolicyEditModal);
+schemePolicyEditCancelBtn?.addEventListener("click", closeSchemePolicyEditModal);
+schemePolicyEditSaveBtn?.addEventListener("click", saveSchemePolicyEdit);
+schemePolicyEditRegion?.addEventListener("change", () => {
+  populateSchemePolicySelectionForRegion(schemePolicyEditRegion.value);
+});
+schemePolicyEditScheme?.addEventListener("change", setSchemePolicySaveState);
+schemePolicyEditModal?.addEventListener("click", (e) => {
+  if (e.target === schemePolicyEditModal) closeSchemePolicyEditModal();
+});
+schemeRuleEditCloseBtn?.addEventListener("click", closeSchemeRuleEditModal);
+schemeRuleEditCancelBtn?.addEventListener("click", closeSchemeRuleEditModal);
+schemeRuleEditSaveBtn?.addEventListener("click", saveSchemeRuleEdit);
+schemeRuleScope?.addEventListener("change", () => {
+  if (schemeRuleScopeSearch) {
+    schemeRuleScopeSearch.value = "";
+  }
+
+  populateSchemeRuleScopeOptions();
+  setSchemeRuleSaveState();
+});
+schemeRuleScopeSearch?.addEventListener("input", () => {
+  populateSchemeRuleScopeOptions();
+  setSchemeRuleSaveState();
+});
+schemeRuleScopeSelect?.addEventListener("change", setSchemeRuleSaveState);
+schemeRuleRegion?.addEventListener("change", setSchemeRuleSaveState);
+schemeRuleScheme?.addEventListener("change", setSchemeRuleSaveState);
+schemeRuleReplaceFromScheme?.addEventListener("change", setSchemeRuleSaveState);
+schemeRuleEffectiveFrom?.addEventListener("change", setSchemeRuleSaveState);
+schemeRuleRemarks?.addEventListener("input", setSchemeRuleSaveState);
+schemeRuleApplyMode?.addEventListener("change", () => {
+  syncSchemeRuleApplyModeUi();
+  setSchemeRuleSaveState();
+});
+schemeRuleEditModal?.addEventListener("click", (e) => {
+  if (e.target === schemeRuleEditModal) closeSchemeRuleEditModal();
+});
+schemeRuleCloseCloseBtn?.addEventListener("click", closeSchemeRuleCloseModal);
+schemeRuleCloseCancelBtn?.addEventListener("click", closeSchemeRuleCloseModal);
+schemeRuleCloseSaveBtn?.addEventListener("click", saveSchemeRuleClose);
+schemeRuleCloseEffectiveTo?.addEventListener(
+  "change",
+  setSchemeRuleCloseSaveState,
+);
+schemeRuleCloseRemarks?.addEventListener("input", setSchemeRuleCloseSaveState);
+manualRateEditCloseBtn?.addEventListener("click", closeManualRateEditModal);
+manualRateEditCancelBtn?.addEventListener("click", closeManualRateEditModal);
+manualRateEditSaveBtn?.addEventListener("click", saveManualRateEdit);
+manualRateEditModal?.addEventListener("click", (e) => {
+  if (e.target === manualRateEditModal) closeManualRateEditModal();
+});
+[manualRateValue, manualRateReason, manualRateEffectiveFrom].forEach((input) => {
+  input?.addEventListener("input", setManualRateSaveState);
+});
+manualRateCloseCloseBtn?.addEventListener("click", closeManualRateCloseModal);
+manualRateCloseCancelBtn?.addEventListener("click", closeManualRateCloseModal);
+manualRateCloseSaveBtn?.addEventListener("click", saveManualRateClose);
+manualRateCloseModal?.addEventListener("click", (e) => {
+  if (e.target === manualRateCloseModal) closeManualRateCloseModal();
+});
+[manualRateCloseReason, manualRateCloseEffectiveTo].forEach((input) => {
+  input?.addEventListener("input", setManualRateCloseSaveState);
+});
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     closeFilterDrawer();
+    closeFreshnessDetail();
     if (!costSheetSignModal?.classList.contains("hidden")) {
       closeCostSheetSignModal();
       return;
     }
-    if (!detailsModal?.classList.contains("hidden")) closeDetails();
     if (!snapshotConfirmModal?.classList.contains("hidden")) {
       closeSnapshotConfirmModal();
       return;
     }
+    if (!sellingPolicyEditModal?.classList.contains("hidden")) {
+      closeSellingPolicyEditModal();
+      return;
+    }
+    if (!schemePolicyEditModal?.classList.contains("hidden")) {
+      closeSchemePolicyEditModal();
+      return;
+    }
+    if (!schemeRuleEditModal?.classList.contains("hidden")) {
+      closeSchemeRuleEditModal();
+      return;
+    }
+    if (!manualRateEditModal?.classList.contains("hidden")) {
+      closeManualRateEditModal();
+      return;
+    }
+    if (!manualRateCloseModal?.classList.contains("hidden")) {
+      closeManualRateCloseModal();
+      return;
+    }
+    if (!detailsModal?.classList.contains("hidden")) closeDetails();
     if (!costSheetModal?.classList.contains("hidden")) closeCostSheetModal();
   }
 });
-lastRefreshed?.addEventListener("click", () => {
-  const detail = $("sc-status-detail");
-  if (!detail) return;
-  const expanded = lastRefreshed.classList.toggle("sc-status-expanded");
-  lastRefreshed.setAttribute("aria-expanded", String(expanded));
-  detail.style.display = expanded ? "block" : "none";
+lastRefreshed?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  toggleFreshnessDetail();
+});
+document.addEventListener("click", (e) => {
+  if (lastRefreshed && !lastRefreshed.contains(e.target)) {
+    closeFreshnessDetail();
+  }
 });
 setInterval(updateFreshnessIndicator, 60000);
 

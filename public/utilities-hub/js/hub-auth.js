@@ -59,7 +59,12 @@ function setBusy(on) {
 }
 
 function safeText(value) {
-  return String(value ?? "");
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function guessNameFromEmail(email) {
@@ -114,12 +119,8 @@ function renderMessageCard(title, message) {
 }
 
 function renderUtilitiesSectioned(utilities, accessMap) {
-  const visible = utilities.filter(
-    (utility) => (accessMap[utility.id] || "none") !== "none",
-  );
-
   const bySection = new Map();
-  visible
+  utilities
     .map((utility) => ({
       ...utility,
       sectionLabel:
@@ -128,6 +129,7 @@ function renderUtilitiesSectioned(utilities, accessMap) {
       order: utility.order ?? 999,
       accessLevel: accessMap[utility.id] || "none",
     }))
+    .filter((utility) => utility.accessLevel !== "none")
     .forEach((utility) => {
       if (!bySection.has(utility.sectionLabel)) {
         bySection.set(utility.sectionLabel, {
@@ -166,10 +168,15 @@ function renderUtilitiesSectioned(utilities, accessMap) {
       const title = isViewOnly
         ? "View-only access. Contact admin for full access."
         : "";
+      const action = isViewOnly
+        ? '<span class="hub-card-note">View only</span>'
+        : "";
+
       html += `
         <article class="hub-card${isViewOnly ? " muted" : ""}" tabindex="-1">
           <h3><a href="${safeText(href)}" data-href="${safeText(utility.href)}" data-module-key="${safeText(utility.moduleKey)}"${isViewOnly ? ' aria-disabled="true"' : ""}${title ? ` title="${safeText(title)}"` : ""}>${safeText(utility.label)}</a></h3>
           <p>${safeText(utility.description || "")}</p>
+          ${action}
         </article>`;
     });
 
@@ -407,6 +414,18 @@ async function performRender() {
   updateAuthUI(session);
   await showGreeting(session);
 
+  if (!session?.user) {
+    if (elRoot) {
+      elRoot.innerHTML = renderMessageCard(
+        "Sign in required",
+        "Sign in to view available utilities and request access.",
+      );
+    }
+    if (elEmpty) elEmpty.style.display = "none";
+    setBusy(false);
+    return;
+  }
+
   let utilities;
   let accessMap;
   try {
@@ -430,7 +449,6 @@ async function performRender() {
     elRoot.classList.remove("hub-grid");
     elRoot.classList.add("hub-root-sectioned");
   }
-
   const hasVisible = utilities.some(
     (utility) => (accessMap[utility.id] || "none") !== "none",
   );
