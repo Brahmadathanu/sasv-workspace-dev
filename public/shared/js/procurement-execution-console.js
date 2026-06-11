@@ -14,8 +14,9 @@ let prLineFilterValue = "all";
 let pendingPrQtyFocusLineId = null;
 let iLineQuery = "";
 let iLineFilter = "all";
-let iLinePage = 0;
 const iLinePageSize = 75;
+let iLineVisibleCount = 0;
+let iLineFilteredRows = [];
 let aqRawRows = [];
 let aqFilteredRows = [];
 let aqSelectedOnly = false;
@@ -568,6 +569,32 @@ function setLoading(active) {
   if (!panel) return;
   panel.style.opacity = active ? "0.6" : "";
   panel.style.pointerEvents = active ? "none" : "";
+}
+
+function setModalProcessing(backdropId, active, text = "Processing…") {
+  const backdrop = qs(backdropId);
+  if (!backdrop) return;
+  const modal = backdrop.querySelector(":scope > .modal");
+  if (!modal) return;
+
+  let mask = modal.querySelector(":scope > .modal-processing-mask");
+  if (active) {
+    if (!mask) {
+      mask = document.createElement("div");
+      mask.className = "modal-processing-mask";
+      mask.style.cssText =
+        "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,.18);backdrop-filter:blur(1px);z-index:20;";
+      mask.innerHTML =
+        '<div style="display:flex;align-items:center;gap:8px;background:var(--panel-bg,#fff);border:1px solid var(--border,#e5e7eb);border-radius:10px;padding:8px 12px;font-size:13px;box-shadow:0 8px 22px rgba(0,0,0,.16)"><span class="spinner tiny"></span><span class="modal-processing-text"></span></div>';
+      modal.style.position = modal.style.position || "relative";
+      modal.appendChild(mask);
+    }
+    const txt = mask.querySelector(".modal-processing-text");
+    if (txt) txt.textContent = text;
+    return;
+  }
+
+  mask?.remove();
 }
 
 function setTabTableLoading(tabName, active, loadingText = "Loading...") {
@@ -1418,8 +1445,9 @@ function renderIndentModalHeader(indent) {
 
   const hints = {
     draft: "Draft — use PR revision and Resync for quantity corrections.",
-    approved: "Approved — issue to start fulfilment.",
-    issued: "Issued — lines are being fulfilled.",
+    approved: "Approved — recommend/accept vendors, then issue to purchase.",
+    issued:
+      "Issued — fulfilment is in progress. Unselected lines can still be assigned vendors.",
     closed: "Closed — read-only.",
     cancelled: "Cancelled — read-only.",
   };
@@ -1700,9 +1728,125 @@ function closeIndentViewModal() {
   closeAllExportMenus();
 }
 
+async function recommendAndAcceptVendorsForIndent(indentArg) {
+  const indent = indentArg || state.selectedIndent;
+
+  if (!indent?.indent_id) {
+    toast("Select an indent first.", "error");
+    return;
+  }
+
+  if (!["approved", "issued"].includes(indent.status)) {
+    toast(
+      "Vendor recommendation is available only for approved or issued indents.",
+      "error",
+    );
+    return;
+  }
+
+  const btn = qs("btnIndentRecommendAcceptVendors");
+
+  try {
+    if (btn) {
+      btn.disabled = true;
+    }
+    setModalProcessing(
+      "indentViewModalBackdrop",
+      true,
+      "Recommending and accepting vendors…",
+    );
+
+    let totalRecommended = 0;
+    let totalAccepted = 0;
+    let remainingUnselected = null;
+    let batchesRun = 0;
+
+    const batchSize = 25;
+    const maxBatches = 20;
+
+    for (let i = 0; i < maxBatches; i += 1) {
+      batchesRun += 1;
+      setModalProcessing(
+        "indentViewModalBackdrop",
+        true,
+        `Processing batch ${batchesRun}…`,
+      );
+
+      const { data, error } = await supabase.rpc(
+        "proc_indent_recommend_and_accept_vendors_step",
+        {
+          p_indent_id: indent.indent_id,
+          p_limit: batchSize,
+          p_reason:
+            "Recommended and accepted system L1 vendor from indent modal",
+        },
+      );
+
+      if (error) throw error;
+
+      const row = Array.isArray(data) ? data[0] : data;
+
+      const candidateBatch = Number(row?.candidate_batch_count || 0);
+      const recommended = Number(row?.recommended_count || 0);
+      const accepted = Number(row?.accepted_count || 0);
+      remainingUnselected = Number(row?.remaining_open_unselected_count || 0);
+
+      totalRecommended += recommended;
+      totalAccepted += accepted;
+
+      if (remainingUnselected === 0) break;
+      if (candidateBatch === 0 && accepted === 0) break;
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    toast(
+      `Vendor action completed. Accepted: ${totalAccepted}. ` +
+        `Recommended: ${totalRecommended}. ` +
+        `Remaining unselected: ${remainingUnselected ?? "—"}.`,
+      "success",
+    );
+
+    await loadIndents();
+
+    const updated = state.indentsRows.find(
+      (r) => Number(r.indent_id) === Number(indent.indent_id),
+    );
+
+    if (updated) {
+      state.selectedIndent = updated;
+      renderIndentModalHeader(updated);
+    }
+
+    await loadIndentLines(indent.indent_id);
+
+    if (typeof loadActionQueue === "function") {
+      await loadActionQueue();
+    }
+
+    if (
+      state.tab === "vendor-buylist" &&
+      state.vwl?.loaded &&
+      typeof reloadVendorBuylist === "function"
+    ) {
+      await reloadVendorBuylist();
+    }
+  } catch (e) {
+    console.error("Recommend & accept vendors failed", e);
+    toast(`Recommend & accept vendors failed: ${e.message || e}`, "error");
+  } finally {
+    setModalProcessing("indentViewModalBackdrop", false);
+
+    if (btn) {
+      btn.disabled = false;
+    }
+  }
+}
+
 function renderIndentLinesActions(indent) {
   // show/hide action buttons in the static iLinesActions toolbar
   const container = qs("iLinesActions");
+  if (!container) return;
   // Remove old dynamic buttons (legacy), keep the static ones
   container
     .querySelectorAll("button.dynamic-action")
@@ -1720,6 +1864,10 @@ function renderIndentLinesActions(indent) {
   // Status action buttons (approve / issue / close) — rendered dynamically
   // Remove previously injected status buttons
   container.querySelectorAll("button.status-action").forEach((b) => b.remove());
+  container
+    .querySelectorAll("button.vendor-bulk-action")
+    .forEach((b) => b.remove());
+
   const makeIcon = (label, act, iconName, variant = "primary", id = "") => {
     const b = document.createElement("button");
     b.type = "button";
@@ -1731,7 +1879,27 @@ function renderIndentLinesActions(indent) {
     b.addEventListener("click", () => openIndentActionModal(indent, act));
     container.appendChild(b);
   };
+  const makeBulkVendorButton = () => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.id = "btnIndentRecommendAcceptVendors";
+    b.classList.add("icon-btn", "primary", "vendor-bulk-action");
+    b.setAttribute("title", "Recommend & Accept Vendors");
+    b.setAttribute(
+      "aria-label",
+      "Recommend and accept vendors for this indent",
+    );
+    b.innerHTML = svgIcon("check");
+    b.addEventListener("click", () =>
+      openIndentActionModal(indent, "recommend_accept"),
+    );
+    container.appendChild(b);
+  };
+
   const s = indent.status;
+  if (s === "approved" || s === "issued") {
+    makeBulkVendorButton();
+  }
   if (s === "draft") makeIcon("Approve", "approve", "check", "primary");
   if (s === "approved") {
     makeIcon(
@@ -1817,6 +1985,116 @@ function renderIndentLines(rows) {
   });
 }
 
+function updateIndentLinesCountUi(total) {
+  const countEl = qs("iLinesCount");
+  if (!countEl) return;
+  const shown = total ? Math.min(iLineVisibleCount, total) : 0;
+  countEl.textContent = total ? `${shown} / ${total}` : "0 / 0";
+  countEl.title = total
+    ? `Showing ${shown} of ${total} lines`
+    : "No matching lines";
+}
+
+function resetIndentLinesInfiniteScroll(resetScrollTop = true) {
+  iLineVisibleCount = Math.max(0, iLinePageSize);
+  if (!resetScrollTop) return;
+  const scroller = qs("iLinesScroll");
+  if (scroller) scroller.scrollTop = 0;
+}
+
+function renderIndentLinesInfinite(options = {}) {
+  const { appendOnly = false } = options;
+  const empty = qs("iLinesEmpty");
+  const table = qs("iLinesTable");
+  const tbody = qs("iLinesTbody");
+  const total = iLineFilteredRows.length;
+  if (iLineVisibleCount <= 0) {
+    iLineVisibleCount = Math.max(0, iLinePageSize);
+  }
+  const shown = total ? Math.min(iLineVisibleCount, total) : 0;
+  const rows = shown ? iLineFilteredRows.slice(0, shown) : [];
+
+  if (!total) {
+    empty.style.display = "";
+    empty.textContent = state.indentLinesRows.length
+      ? "No matching lines."
+      : "No lines for this indent.";
+    table.style.display = "none";
+    tbody.innerHTML = "";
+    updateIndentLinesCountUi(0);
+    return;
+  }
+
+  empty.style.display = "none";
+  table.style.display = "";
+
+  const shouldAppend =
+    appendOnly &&
+    tbody.children.length > 0 &&
+    tbody.children.length < rows.length;
+  if (!shouldAppend) {
+    renderIndentLines(rows);
+  } else {
+    const startAt = tbody.children.length;
+    rows.slice(startAt).forEach((row, idx) => {
+      const lineNo = startAt + idx + 1;
+      const tr = document.createElement("tr");
+      tr.style.cursor = "pointer";
+      if (state.selectedIndentLine?.indent_line_id === row.indent_line_id) {
+        tr.style.background = "rgba(10,100,200,.06)";
+      }
+      const recVendor = esc(row.recommended_vendor_name ?? "-");
+      const recRate =
+        row.recommended_rate != null ? fmt(row.recommended_rate) : "-";
+      const selVendor = esc(row.selected_vendor_name ?? "-");
+      const selRate = row.selected_rate != null ? fmt(row.selected_rate) : "-";
+      const resolvedVendor = row.resolved_vendor_name
+        ? esc(row.resolved_vendor_name)
+        : "&mdash;";
+      const resolvedRate =
+        row.resolved_rate != null ? fmt(row.resolved_rate) : "&mdash;";
+      tr.innerHTML = `
+      <td class="muted" style="text-align:center">${lineNo}</td>
+      <td>${esc(row.stock_item_name)}</td>
+      <td>${esc(row.material_class_code ?? "")}</td>
+      <td>${esc(row.uom_code ?? "")}</td>
+      <td>${fmt(row.requested_qty)}</td>
+      <td>${fmt(row.allocated_qty)}</td>
+      <td><span class="pill">${Number(row.remaining_qty) <= 0 ? "fulfilled" : fmt(row.remaining_qty)}</span></td>
+      <td>${resolvedVendor}</td>
+      <td class="muted">${resolvedRate}</td>
+      <td>${recVendor}</td>
+      <td class="muted">${recRate}</td>
+      <td>${selVendor}</td>
+      <td class="muted">${selRate}</td>
+    `;
+      tr.addEventListener("click", () => {
+        state.selectedIndentLine = row;
+        const btnEditQty = qs("iBtnEditLineQty");
+        if (btnEditQty)
+          btnEditQty.disabled = state.selectedIndent?.status === "draft";
+        tbody.querySelectorAll("tr").forEach((r) => (r.style.background = ""));
+        tr.style.background = "rgba(10,100,200,.06)";
+      });
+      tbody.appendChild(tr);
+    });
+  }
+
+  updateIndentLinesCountUi(total);
+}
+
+function maybeLoadMoreIndentLines() {
+  const scroller = qs("iLinesScroll");
+  if (!scroller) return;
+  const total = iLineFilteredRows.length;
+  if (!total || iLineVisibleCount >= total) return;
+  const nearBottom =
+    scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 80;
+  if (!nearBottom) return;
+  iLineVisibleCount = Math.min(iLineVisibleCount + iLinePageSize, total);
+  renderIndentLinesInfinite({ appendOnly: true });
+}
+
 function syncIndentLineFilterBadge() {
   const badge = qs("iLineFilterBadge");
   const btn = qs("iLineFilterBtn");
@@ -1857,25 +2135,9 @@ function applyIndentLineFiltersAndRender() {
   } else if (iLineFilter === "zero_requested") {
     rows = rows.filter((r) => Number(r.requested_qty || 0) === 0);
   }
-
-  const pager = qs("iLinesPager");
-  const pageInfo = qs("iLinesPageInfo");
-  const prevBtn = qs("iLinesPrev");
-  const nextBtn = qs("iLinesNext");
-  const total = rows.length;
-  const totalPages = Math.max(1, Math.ceil(total / iLinePageSize));
-  if (iLinePage > totalPages - 1) iLinePage = totalPages - 1;
-  const start = iLinePage * iLinePageSize;
-  const end = Math.min(start + iLinePageSize, total);
-  const pageRows = rows.slice(start, end);
-
-  renderIndentLines(pageRows);
-
-  if (pager) pager.style.display = total > iLinePageSize ? "" : "none";
-  if (pageInfo)
-    pageInfo.textContent = total ? `${start + 1}-${end} of ${total}` : "0";
-  if (prevBtn) prevBtn.disabled = iLinePage <= 0;
-  if (nextBtn) nextBtn.disabled = end >= total;
+  iLineFilteredRows = rows;
+  resetIndentLinesInfiniteScroll(true);
+  renderIndentLinesInfinite();
 }
 
 async function loadIndentLines(indentId) {
@@ -1895,12 +2157,15 @@ async function loadIndentLines(indentId) {
   state.indentLinesRows = data || [];
   iLineQuery = "";
   iLineFilter = "all";
-  iLinePage = 0;
+  iLineVisibleCount = 0;
+  iLineFilteredRows = [];
   const searchInput = qs("iLineSearch");
+  const searchClear = qs("iLineSearchClear");
   const filterSelect = qs("iLineFilterSelect");
   const filterDrawer = qs("iLineFilterDrawer");
   const filterBtn = qs("iLineFilterBtn");
   if (searchInput) searchInput.value = "";
+  if (searchClear) searchClear.style.display = "none";
   if (filterSelect) filterSelect.value = "all";
   if (filterDrawer) filterDrawer.classList.remove("open");
   if (filterBtn) filterBtn.setAttribute("aria-expanded", "false");
@@ -1978,6 +2243,7 @@ function openIndentActionModal(indent, action) {
   const titles = {
     approve: "Approve Indent",
     issue: "Issue Indent",
+    recommend_accept: "Recommend & Accept Vendors",
     close_strict: "Close Indent (Strict)",
     close_override: "Close Indent with Override",
   };
@@ -1986,6 +2252,8 @@ function openIndentActionModal(indent, action) {
       "Confirming will mark this indent as approved with the selected approval date.",
     issue:
       "Confirming will mark this indent as issued and allow purchase fulfilment to proceed.",
+    recommend_accept:
+      "Confirming will recommend and accept available system L1 vendors for this indent. Existing selected vendors will not be overwritten, and lines without candidates remain for manual action.",
     close_strict:
       "Confirming will attempt strict close. This succeeds only when all lines are fully satisfied.",
     close_override:
@@ -2045,6 +2313,13 @@ async function confirmIndentAction() {
       p_indent_id: indentId,
       p_reason: reason,
     }));
+  } else if (action === "recommend_accept") {
+    closeIndentActionModal();
+    const indent =
+      state.indentsRows.find((r) => Number(r.indent_id) === indentId) ||
+      state.selectedIndent;
+    await recommendAndAcceptVendorsForIndent(indent);
+    return;
   }
   if (error) {
     toast(`Action failed: ${error.message}`, "error");
@@ -2090,17 +2365,21 @@ function wireIndentControls() {
     },
   });
 
-  const iLineSearchEl = qs("iLineSearch");
   const iLineFilterBtn = qs("iLineFilterBtn");
   const iLineFilterDrawer = qs("iLineFilterDrawer");
   const iLineFilterSelect = qs("iLineFilterSelect");
-  const iLinesPrev = qs("iLinesPrev");
-  const iLinesNext = qs("iLinesNext");
+  const iLinesScroll = qs("iLinesScroll");
 
-  iLineSearchEl?.addEventListener("input", (e) => {
-    iLineQuery = e.target.value.trim().toLowerCase();
-    iLinePage = 0;
-    applyIndentLineFiltersAndRender();
+  wireLiveSearchInput({
+    inputId: "iLineSearch",
+    clearId: "iLineSearchClear",
+    onSearch: (query) => {
+      iLineQuery = String(query || "")
+        .trim()
+        .toLowerCase();
+      applyIndentLineFiltersAndRender();
+    },
+    debounceMs: 150,
   });
 
   if (iLineFilterBtn && iLineFilterDrawer) {
@@ -2133,47 +2412,14 @@ function wireIndentControls() {
   iLineFilterSelect?.addEventListener("change", () => {
     iLineFilter = iLineFilterSelect.value;
     syncIndentLineFilterBadge();
-    iLinePage = 0;
     applyIndentLineFiltersAndRender();
   });
-
-  iLinesPrev?.addEventListener("click", () => {
-    if (iLinePage <= 0) return;
-    iLinePage -= 1;
-    applyIndentLineFiltersAndRender();
-  });
-  iLinesNext?.addEventListener("click", () => {
-    const all = state.indentLinesRows || [];
-    let rows = all;
-    if (iLineQuery) {
-      rows = rows.filter((r) => {
-        const hay = [
-          r.stock_item_name,
-          r.stock_item_code,
-          r.code,
-          r.uom_code,
-          r.material_class_code,
-          r.material_class_label,
-          String(r.stock_item_id ?? ""),
-          String(r.uom_id ?? ""),
-        ]
-          .join(" ")
-          .toLowerCase();
-        return hay.includes(iLineQuery);
-      });
-    }
-    if (iLineFilter === "remaining_only") {
-      rows = rows.filter((r) => Number(r.remaining_qty || 0) > 0);
-    } else if (iLineFilter === "allocated_only") {
-      rows = rows.filter((r) => Number(r.allocated_qty || 0) > 0);
-    } else if (iLineFilter === "zero_requested") {
-      rows = rows.filter((r) => Number(r.requested_qty || 0) === 0);
-    }
-    const hasNext = (iLinePage + 1) * iLinePageSize < rows.length;
-    if (!hasNext) return;
-    iLinePage += 1;
-    applyIndentLineFiltersAndRender();
-  });
+  if (iLinesScroll && iLinesScroll.dataset.boundInfinite !== "1") {
+    iLinesScroll.dataset.boundInfinite = "1";
+    iLinesScroll.addEventListener("scroll", () => {
+      maybeLoadMoreIndentLines();
+    });
+  }
 
   qs("btnIndentActionCancel").addEventListener("click", closeIndentActionModal);
   qs("btnIndentActionConfirm").addEventListener("click", confirmIndentAction);
@@ -5191,7 +5437,34 @@ function getExcessMetaSummary() {
 function applyExcessFilterChange(patch = {}) {
   Object.assign(state.excessFilters, patch);
   state.excessPage = 0;
+  syncExcessFilterBadge();
   loadExcess();
+}
+
+function getExcessActiveFilterCount() {
+  const filters = state.excessFilters || {};
+  let count = 0;
+  if (filters.materialClassId) count += 1;
+  if ((filters.datePreset || "30d") !== "30d") count += 1;
+  if (filters.dateFrom) count += 1;
+  if (filters.dateTo) count += 1;
+  if (Number(filters.minQty || 0) > 0) count += 1;
+  if ((filters.vendorQ || "").trim()) count += 1;
+  if ((filters.itemQ || "").trim()) count += 1;
+  if (filters.unmappedOnly) count += 1;
+  return count;
+}
+
+function syncExcessFilterBadge() {
+  const badge = qs("eFilterBadge");
+  const btn = qs("eFilterBtn");
+  if (!btn) return;
+  const count = getExcessActiveFilterCount();
+  if (badge) {
+    badge.textContent = String(count);
+    badge.style.display = count > 0 ? "" : "none";
+  }
+  btn.classList.toggle("pec-filter-btn--active", count > 0);
 }
 
 function closeExcessFilterPanel() {
@@ -5484,6 +5757,8 @@ function wireExcessControls() {
     }
   });
   window.addEventListener("resize", closeExcessFilterPanel);
+
+  syncExcessFilterBadge();
 
   qs("eFMaterialClass")?.addEventListener("change", (e) => {
     applyExcessFilterChange({ materialClassId: e.target.value });
