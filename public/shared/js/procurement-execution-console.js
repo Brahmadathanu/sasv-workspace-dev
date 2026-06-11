@@ -202,7 +202,7 @@ function upgradePrModalButtons(row) {
     "x",
   );
   toIconBtn(qs("btnPrCreateIndent"), "primary", "Create Indent", "arrowRight");
-  toIconBtn(qs("btnPrExportForm"), "primary", "Export Form", "download");
+  toIconBtn(qs("btnPrExportMenu"), "primary", "Export Form", "download");
 }
 
 async function requireSession() {
@@ -307,6 +307,25 @@ function normalize(value) {
     .trim();
 }
 
+function prClassText(row) {
+  return (
+    row?.material_class_display ||
+    [row?.material_class_code, row?.material_class_label]
+      .filter(Boolean)
+      .join(" - ") ||
+    (row?.material_class_id ? `Class ID: ${row.material_class_id}` : "—")
+  );
+}
+
+function prScopeText(row) {
+  return (
+    row?.rm_scope_label ||
+    row?.rm_scope ||
+    row?.generation_filters?.rm_scope ||
+    "—"
+  );
+}
+
 function extractRpcId(payload) {
   if (payload == null) return null;
   if (typeof payload === "number") return payload;
@@ -392,6 +411,120 @@ function toggleExportMenu(menuId, btnEl) {
     menu.classList.add("open");
     btnEl.setAttribute("aria-expanded", "true");
   }
+}
+
+function positionFloatingFilterDrawer(btn, drawer) {
+  if (!btn || !drawer) return;
+  const rect = btn.getBoundingClientRect();
+  const isInsideModal = !!btn.closest(".modal");
+  drawer.style.position = "fixed";
+  drawer.style.right = "auto";
+  drawer.style.bottom = "auto";
+  drawer.style.zIndex = "2147483647";
+
+  const margin = 4;
+  const dropW = drawer.offsetWidth || 220;
+
+  let left = rect.left;
+  if (left + dropW > window.innerWidth - margin) {
+    left = Math.max(margin, rect.right - dropW);
+  }
+
+  let top = rect.bottom + margin;
+  if (!isInsideModal) {
+    const dropH = drawer.offsetHeight || 220;
+    if (top + dropH > window.innerHeight - margin) {
+      const up = rect.top - margin - dropH;
+      if (up >= margin) top = up;
+    }
+  }
+
+  if (isInsideModal) {
+    const availableBelow = Math.max(140, window.innerHeight - top - margin);
+    drawer.style.maxHeight = `${Math.floor(availableBelow)}px`;
+  } else {
+    drawer.style.maxHeight = "";
+  }
+
+  drawer.style.left = `${Math.round(left)}px`;
+  drawer.style.top = `${Math.round(top)}px`;
+}
+
+function stopFloatingFilterDrawerTracking(drawer) {
+  if (!drawer) return;
+  if (typeof drawer._stopFollowPosition === "function") {
+    drawer._stopFollowPosition();
+    drawer._stopFollowPosition = null;
+  }
+}
+
+function startFloatingFilterDrawerTracking(btn, drawer) {
+  if (!btn || !drawer) return;
+  stopFloatingFilterDrawerTracking(drawer);
+
+  let rafId = 0;
+  const tick = () => {
+    if (!drawer.classList.contains("open")) {
+      rafId = 0;
+      return;
+    }
+    positionFloatingFilterDrawer(btn, drawer);
+    rafId = requestAnimationFrame(tick);
+  };
+
+  rafId = requestAnimationFrame(tick);
+  drawer._stopFollowPosition = () => {
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = 0;
+  };
+}
+
+function openFloatingFilterDrawer(btn, drawer, focusEl) {
+  if (!btn || !drawer) return;
+  document.querySelectorAll(".pec-filter-drawer.open").forEach((d) => {
+    if (d !== drawer) closeFloatingFilterDrawer(null, d);
+  });
+
+  if (!drawer._portalPlaceholder) {
+    drawer._portalPlaceholder = document.createComment("pec-filter-drawer");
+  }
+  if (drawer.parentNode !== document.body) {
+    const parent = drawer.parentNode;
+    if (parent) {
+      drawer._portalParent = parent;
+      parent.insertBefore(drawer._portalPlaceholder, drawer);
+      document.body.appendChild(drawer);
+    }
+  }
+
+  drawer.classList.add("open");
+  drawer._ownerBtn = btn;
+  btn.setAttribute("aria-expanded", "true");
+  positionFloatingFilterDrawer(btn, drawer);
+  startFloatingFilterDrawerTracking(btn, drawer);
+  focusEl?.focus?.();
+}
+
+function closeFloatingFilterDrawer(btn, drawer) {
+  if (!drawer) return;
+  const ownerBtn = btn || drawer._ownerBtn;
+  drawer.classList.remove("open");
+  if (ownerBtn) ownerBtn.setAttribute("aria-expanded", "false");
+  stopFloatingFilterDrawerTracking(drawer);
+
+  if (
+    drawer._portalPlaceholder &&
+    drawer._portalPlaceholder.parentNode instanceof Node
+  ) {
+    drawer._portalPlaceholder.parentNode.insertBefore(
+      drawer,
+      drawer._portalPlaceholder,
+    );
+    drawer._portalPlaceholder.remove();
+    drawer._portalPlaceholder = null;
+  }
+  drawer._portalParent = null;
+  drawer._ownerBtn = null;
 }
 
 function esc(s) {
@@ -1946,31 +2079,14 @@ function wireIndentControls() {
     iLineFilterBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       const isOpen = iLineFilterDrawer.classList.contains("open");
-      document.querySelectorAll(".pec-filter-drawer.open").forEach((drawer) => {
-        if (drawer !== iLineFilterDrawer) {
-          drawer.classList.remove("open");
-          drawer
-            .closest(".pec-filter-wrap")
-            ?.querySelector(".pec-filter-btn")
-            ?.setAttribute("aria-expanded", "false");
-        }
-      });
-      iLineFilterDrawer.classList.toggle("open", !isOpen);
-      iLineFilterBtn.setAttribute("aria-expanded", String(!isOpen));
-      if (!isOpen) {
-        const rect = iLineFilterBtn.getBoundingClientRect();
-        iLineFilterDrawer.style.position = "fixed";
-        iLineFilterDrawer.style.top = rect.bottom + 4 + "px";
-        iLineFilterDrawer.style.left = rect.left + "px";
-        iLineFilterDrawer.style.zIndex = "10001";
-        requestAnimationFrame(() => {
-          const dropW = iLineFilterDrawer.offsetWidth || 220;
-          if (rect.left + dropW > window.innerWidth) {
-            iLineFilterDrawer.style.left =
-              Math.max(4, rect.right - dropW) + "px";
-          }
-        });
-        iLineFilterSelect?.focus();
+      if (isOpen) {
+        closeFloatingFilterDrawer(iLineFilterBtn, iLineFilterDrawer);
+      } else {
+        openFloatingFilterDrawer(
+          iLineFilterBtn,
+          iLineFilterDrawer,
+          iLineFilterSelect,
+        );
       }
     });
     iLineFilterDrawer.addEventListener("click", (e) => e.stopPropagation());
@@ -1981,8 +2097,7 @@ function wireIndentControls() {
         e.target !== iLineFilterBtn &&
         !iLineFilterBtn.contains(e.target)
       ) {
-        iLineFilterDrawer.classList.remove("open");
-        iLineFilterBtn.setAttribute("aria-expanded", "false");
+        closeFloatingFilterDrawer(iLineFilterBtn, iLineFilterDrawer);
       }
     });
   }
@@ -2924,7 +3039,7 @@ async function openIndentFromPrModal() {
   const { data, error } = await supabase
     .from(PR_HEADER_VIEW)
     .select(
-      "pr_id, pr_number, effective_from_date, horizon_start_month, horizon_end_month, material_class_id",
+      "pr_id, pr_number, effective_from_date, horizon_start_month, horizon_end_month, material_class_id, material_class_code, material_class_label, material_class_display, rm_scope, rm_scope_label",
     )
     .eq("status", "active")
     .order("pr_number", { ascending: true });
@@ -2939,7 +3054,7 @@ async function openIndentFromPrModal() {
   for (const pr of data || []) {
     const opt = document.createElement("option");
     opt.value = String(pr.pr_id);
-    opt.textContent = `${pr.pr_number} | ${pr.effective_from_date ?? ""} | Class:${pr.material_class_id ?? "All"}`;
+    opt.textContent = `${pr.pr_number} | ${pr.effective_from_date ?? ""} | Class: ${prClassText(pr)}`;
     pick.appendChild(opt);
   }
   if (!pick.options.length) {
@@ -3587,7 +3702,8 @@ function renderPrHeaders() {
       <td><span class="pill">${esc(row.status ?? "")}</span></td>
       <td>${esc(row.effective_from_date ?? "")}</td>
       <td class="muted">${esc(horizonStr)}</td>
-      <td>${esc(row.material_class_id ? String(row.material_class_id) : "All")}</td>
+      <td>${esc(prClassText(row))}</td>
+      <td>${esc(prScopeText(row))}</td>
       <td>${fmt(row.line_count ?? "")}</td>
     `;
     tr.addEventListener("click", () => {
@@ -3824,32 +3940,10 @@ function wirePrLineTableActions() {
     filterBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       const isOpen = filterDrawer.classList.contains("open");
-      // Close any other open drawers
-      document.querySelectorAll(".pec-filter-drawer.open").forEach((d) => {
-        if (d !== filterDrawer) {
-          d.classList.remove("open");
-          d.closest(".pec-filter-wrap")
-            ?.querySelector(".pec-filter-btn")
-            ?.setAttribute("aria-expanded", "false");
-        }
-      });
-      filterDrawer.classList.toggle("open", !isOpen);
-      filterBtn.setAttribute("aria-expanded", String(!isOpen));
-      if (!isOpen) {
-        // Use position:fixed so the drawer escapes modal-body overflow:auto clipping
-        const rect = filterBtn.getBoundingClientRect();
-        filterDrawer.style.position = "fixed";
-        filterDrawer.style.top = rect.bottom + 4 + "px";
-        filterDrawer.style.left = rect.left + "px";
-        filterDrawer.style.zIndex = "10001";
-        // Prevent clipping off right edge
-        requestAnimationFrame(() => {
-          const dropW = filterDrawer.offsetWidth || 220;
-          if (rect.left + dropW > window.innerWidth) {
-            filterDrawer.style.left = Math.max(4, rect.right - dropW) + "px";
-          }
-        });
-        if (filterSelect) filterSelect.focus();
+      if (isOpen) {
+        closeFloatingFilterDrawer(filterBtn, filterDrawer);
+      } else {
+        openFloatingFilterDrawer(filterBtn, filterDrawer, filterSelect);
       }
     });
     filterDrawer.addEventListener("click", (e) => e.stopPropagation());
@@ -3861,8 +3955,7 @@ function wirePrLineTableActions() {
         e.target !== filterBtn &&
         !filterBtn.contains(e.target)
       ) {
-        filterDrawer.classList.remove("open");
-        filterBtn.setAttribute("aria-expanded", "false");
+        closeFloatingFilterDrawer(filterBtn, filterDrawer);
       }
     });
   }
@@ -3977,6 +4070,8 @@ function applyPrLineFiltersAndRender() {
       if (!delta && !row.manual_reason) return false;
     } else if (filter === "zero_suggested") {
       if (Number(row.system_suggested_qty ?? 0) !== 0) return false;
+    } else if (filter === "nonzero_suggested") {
+      if (Number(row.system_suggested_qty ?? 0) === 0) return false;
     } else if (filter === "jit_only") {
       const mode = String(
         row.rm_procurement_mode ?? row.stock_item_rm_procurement_mode ?? "",
@@ -4079,7 +4174,8 @@ function refreshPrViewModal(row) {
   if (row.effective_from_date)
     metaParts.push(`Eff. from: ${row.effective_from_date}`);
   if (horizonStr) metaParts.push(`Horizon: ${horizonStr}`);
-  if (row.material_class_id) metaParts.push(`Class: ${row.material_class_id}`);
+  metaParts.push(`Class: ${prClassText(row)}`);
+  metaParts.push(`Scope: ${prScopeText(row)}`);
   qs("prDetailMeta").textContent = metaParts.join(" \u00b7 ");
   const isDraft = row.status === "draft";
   const isActive = row.status === "active";
@@ -4153,66 +4249,224 @@ function openPrViewModal(row, options = {}) {
   }
 }
 
-function exportPrForm(pr) {
-  const lines = state.prLinesRows;
+function toSafeFilenamePart(value, fallback = "export") {
+  const raw = String(value ?? "").trim();
+  const cleaned = raw.replace(/[^a-zA-Z0-9._-]+/g, "_").replace(/^_+|_+$/g, "");
+  return cleaned || fallback;
+}
+
+function buildPrFormExportRows(pr) {
+  const lines = Array.isArray(prLineFiltered) ? prLineFiltered : [];
   const horizonStr = pr.horizon_start_month
     ? `${pr.horizon_start_month.slice(0, 7)}${pr.horizon_end_month ? ` – ${pr.horizon_end_month.slice(0, 7)}` : ""}`
     : "—";
-  const rowsHtml = lines
-    .map(
-      (row, i) => `
-    <tr>
-      <td>${i + 1}</td>
-      <td>${esc(row.stock_item_name ?? String(row.stock_item_id ?? ""))}</td>
-      <td>${esc(row.material_class_code ?? "")}</td>
-      <td>${esc(row.uom_code ?? "")}</td>
-      <td style="text-align:right">${fmt(row.system_suggested_qty)}</td>
-      <td style="text-align:right">${fmt(row.requested_qty)}</td>
-      <td style="text-align:right">${fmt(row.manual_delta_qty)}</td>
-      <td style="text-align:right">${fmt(row.final_requested_qty)}</td>
-      <td>${esc(row.manual_reason ?? "")}</td>
-    </tr>`,
-    )
-    .join("");
-  const html = `<!DOCTYPE html>
-<html><head><meta charset="UTF-8">
-<title>PR ${esc(pr.pr_number)}</title>
-<style>
-  body{font-family:Arial,sans-serif;font-size:12px;margin:24px;color:#222}
-  h1{font-size:18px;margin:0 0 4px}
-  .meta{color:#555;margin-bottom:18px;font-size:11px;line-height:1.7}
-  table{border-collapse:collapse;width:100%}
-  th,td{border:1px solid #ccc;padding:6px 8px}
-  th{background:#f2f2f2;text-align:left;font-weight:600}
-  tfoot td{background:#f9f9f9;font-weight:600}
-  @media print{.no-print{display:none}}
-</style>
-</head><body>
-<h1>Purchase Requisition: ${esc(pr.pr_number)}</h1>
-<div class="meta">
-  Status: <b>${esc(pr.status ?? "")}</b> &nbsp;|&nbsp;
-  Effective from: ${esc(pr.effective_from_date ?? "—")} &nbsp;|&nbsp;
-  Horizon: ${esc(horizonStr)} &nbsp;|&nbsp;
-  Class: ${esc(pr.material_class_id ? String(pr.material_class_id) : "All")} &nbsp;|&nbsp;
-  Generated: ${new Date().toLocaleString()}
-  ${pr.notes ? `<br>Notes: ${esc(pr.notes)}` : ""}
-</div>
-<table>
-  <thead><tr>
-    <th>#</th><th>Item</th><th>Class</th><th>UOM</th>
-    <th>Sys. Sug.</th><th>Requested</th><th>Delta</th><th>Final</th><th>Reason</th>
-  </tr></thead>
-  <tbody>${rowsHtml || "<tr><td colspan='9' style='color:#999;text-align:center'>No lines</td></tr>"}</tbody>
-</table>
-<br><br>
-<button class="no-print" onclick="window.print()" style="padding:8px 16px;font-size:13px;cursor:pointer">Print / Save PDF</button>
-</body></html>`;
-  const w = window.open("", "_blank");
-  if (w) {
-    w.document.write(html);
-    w.document.close();
-  } else {
-    toast("Pop-up blocked — allow pop-ups for this page to export.", "error");
+  const classText = prClassText(pr);
+  const scopeText = prScopeText(pr);
+
+  const tableRows = lines.map((row, i) => ({
+    sn: i + 1,
+    item: row.stock_item_name ?? String(row.stock_item_id ?? ""),
+    materialClass: row.material_class_code ?? "",
+    uom: row.uom_code ?? "",
+    systemSuggested: fmt(row.system_suggested_qty),
+    requested: fmt(row.requested_qty),
+    delta: fmt(row.manual_delta_qty),
+    finalRequested: fmt(row.final_requested_qty),
+    reason: row.manual_reason ?? "",
+  }));
+
+  return {
+    horizonStr,
+    classText,
+    scopeText,
+    tableRows,
+    generatedAt: new Date().toLocaleString(),
+  };
+}
+
+function exportPrFormCsv(pr) {
+  const { tableRows, classText, scopeText } = buildPrFormExportRows(pr);
+  if (!tableRows.length) {
+    toast("No PR lines available to export.", "error");
+    return;
+  }
+
+  const rows = tableRows.map((row) => ({
+    PR_Number: pr.pr_number ?? "",
+    Material_Class: classText,
+    Scope: scopeText,
+    SN: row.sn,
+    Item: row.item,
+    Class: row.materialClass,
+    UOM: row.uom,
+    Sys_Suggested: row.systemSuggested,
+    Requested: row.requested,
+    Delta: row.delta,
+    Final: row.finalRequested,
+    Reason: row.reason,
+  }));
+  const headers = [
+    "PR_Number",
+    "Material_Class",
+    "Scope",
+    "SN",
+    "Item",
+    "Class",
+    "UOM",
+    "Sys_Suggested",
+    "Requested",
+    "Delta",
+    "Final",
+    "Reason",
+  ];
+
+  const stamp = makeExportTimestamp();
+  const namePart = toSafeFilenamePart(pr.pr_number, `pr_${pr.pr_id ?? "form"}`);
+  downloadText(
+    `${namePart}_${stamp}.csv`,
+    toCsv(rows, headers),
+    "text/csv;charset=utf-8;",
+  );
+  toast("PR CSV exported.", "success");
+}
+
+function exportPrFormPdf(pr) {
+  if (typeof jspdf === "undefined") {
+    toast("PDF library not available. Please reload the page.", "error");
+    return;
+  }
+
+  const { horizonStr, classText, scopeText, tableRows, generatedAt } =
+    buildPrFormExportRows(pr);
+  if (!tableRows.length) {
+    toast("No PR lines available to export.", "error");
+    return;
+  }
+
+  try {
+    const { jsPDF } = jspdf;
+    const doc = new jsPDF({
+      unit: "mm",
+      format: "a4",
+      orientation: "portrait",
+    });
+
+    const margin = 12;
+    let y = 14;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text(`Purchase Requisition: ${pr.pr_number ?? ""}`, margin, y);
+
+    y += 6;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text(
+      `Status: ${pr.status ?? ""} | Effective from: ${pr.effective_from_date ?? "—"} | Horizon: ${horizonStr}`,
+      margin,
+      y,
+    );
+
+    y += 4.5;
+    doc.text(
+      `Material Class: ${classText} | Scope: ${scopeText} | Generated: ${generatedAt}`,
+      margin,
+      y,
+    );
+
+    if (pr.notes) {
+      y += 4.5;
+      const notes = doc.splitTextToSize(`Notes: ${String(pr.notes)}`, 180);
+      doc.text(notes, margin, y);
+      y += notes.length * 3.8;
+    }
+
+    doc.autoTable({
+      head: [
+        [
+          "#",
+          "Item",
+          "Class",
+          "UOM",
+          "Sys. Sug.",
+          "Requested",
+          "Delta",
+          "Final",
+          "Reason",
+        ],
+      ],
+      body: tableRows.map((row) => [
+        String(row.sn),
+        String(row.item ?? ""),
+        String(row.materialClass ?? ""),
+        String(row.uom ?? ""),
+        String(row.systemSuggested ?? ""),
+        String(row.requested ?? ""),
+        String(row.delta ?? ""),
+        String(row.finalRequested ?? ""),
+        String(row.reason ?? ""),
+      ]),
+      startY: y + 4,
+      margin: { left: margin, right: margin },
+      tableWidth: "auto",
+      styles: {
+        fontSize: 7.6,
+        cellPadding: 1.6,
+        lineColor: [60, 60, 60],
+        lineWidth: 0.1,
+        textColor: [20, 20, 20],
+        overflow: "linebreak",
+        valign: "middle",
+      },
+      headStyles: {
+        fillColor: false,
+        textColor: [20, 20, 20],
+        lineColor: [60, 60, 60],
+        lineWidth: 0.1,
+        fontStyle: "bold",
+        valign: "middle",
+        minCellHeight: 7,
+      },
+      rowPageBreak: "avoid",
+      theme: "grid",
+      columnStyles: {
+        0: { halign: "center", cellWidth: 8 },
+        1: { cellWidth: 41 },
+        2: { cellWidth: 14 },
+        3: { cellWidth: 12 },
+        4: { halign: "right", cellWidth: 16 },
+        5: { halign: "right", cellWidth: 18 },
+        6: { halign: "right", cellWidth: 14 },
+        7: { halign: "right", cellWidth: 14 },
+        8: { cellWidth: 41 },
+      },
+    });
+
+    const pageCount = doc.internal.getNumberOfPages();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(90, 90, 90);
+    for (let pageNum = 1; pageNum <= pageCount; pageNum += 1) {
+      doc.setPage(pageNum);
+      doc.text(
+        `Page ${pageNum} of ${pageCount}`,
+        pageWidth - margin,
+        pageHeight - 6,
+        { align: "right" },
+      );
+    }
+
+    const stamp = makeExportTimestamp();
+    const namePart = toSafeFilenamePart(
+      pr.pr_number,
+      `pr_${pr.pr_id ?? "form"}`,
+    );
+    doc.save(`${namePart}_${stamp}.pdf`);
+    toast("PR PDF exported.", "success");
+  } catch (err) {
+    toast(`Failed to export PR PDF: ${err.message || err}`, "error");
   }
 }
 
@@ -4532,9 +4786,19 @@ function wirePrControls() {
   qs("btnGeneratePr").addEventListener("click", openGeneratePrModal);
   // PR detail modal
   qs("btnPrViewClose").addEventListener("click", closePrViewModal);
-  qs("btnPrExportForm").addEventListener("click", () => {
+  qs("btnPrExportMenu")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleExportMenu("prExportMenu", qs("btnPrExportMenu"));
+  });
+  qs("btnPrExportPdf")?.addEventListener("click", () => {
+    closeAllExportMenus();
     if (!state.selectedPr) return;
-    exportPrForm(state.selectedPr);
+    exportPrFormPdf(state.selectedPr);
+  });
+  qs("btnPrExportCsv")?.addEventListener("click", () => {
+    closeAllExportMenus();
+    if (!state.selectedPr) return;
+    exportPrFormCsv(state.selectedPr);
   });
   wirePrLineTableActions();
   const applyPrLineSearchDebounced = debounce(() => {

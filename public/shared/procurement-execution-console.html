@@ -1680,6 +1680,7 @@
                     <th>Eff. From</th>
                     <th>Horizon</th>
                     <th>Class</th>
+                    <th>Scope</th>
                     <th>Lines</th>
                   </tr>
                 </thead>
@@ -3865,30 +3866,44 @@
                 <polyline points="12 5 19 12 12 19"></polyline>
               </svg>
             </button>
-            <button
-              id="btnPrExportForm"
-              type="button"
-              class="icon-btn primary"
-              title="Export Form"
-              aria-label="Export Form"
+            <div
+              class="export-menu"
+              id="prExportMenu"
               style="margin-left: auto"
             >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
+              <button
+                id="btnPrExportMenu"
+                type="button"
+                class="icon-btn primary"
+                title="Export Form"
+                aria-label="Export Form"
+                aria-expanded="false"
               >
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="7 10 12 15 17 10"></polyline>
-                <line x1="12" y1="15" x2="12" y2="3"></line>
-              </svg>
-            </button>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+              </button>
+              <div class="export-dropdown" id="prExportDropdown" role="menu">
+                <button id="btnPrExportPdf" type="button" role="menuitem">
+                  Export PDF
+                </button>
+                <button id="btnPrExportCsv" type="button" role="menuitem">
+                  Export CSV
+                </button>
+              </div>
+            </div>
             <div
               id="prDetailHint"
               class="muted"
@@ -3958,6 +3973,9 @@
                     <option value="all">All lines</option>
                     <option value="edited_only">Edited only</option>
                     <option value="zero_suggested">System suggested = 0</option>
+                    <option value="nonzero_suggested">
+                      System suggested &lt;&gt; 0
+                    </option>
                     <option value="jit_only">RM – JIT only</option>
                     <option value="normal_only">RM – Normal only</option>
                   </select>
