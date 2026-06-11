@@ -4,12 +4,14 @@ import { Platform } from "./platform.js";
 
 // ─── View / RPC name constants (adjust here if DB names differ) ───────────────
 const PR_HEADER_VIEW = "v_proc_pr_header";
+const ERP_QTY_DECIMALS = 3;
 
 let prLineAll = [];
 let prLineFiltered = [];
-let prLinePage = 0;
 let prLinePageSize = 50;
+let prLineVisibleCount = 0;
 let prLineFilterValue = "all";
+let pendingPrQtyFocusLineId = null;
 let iLineQuery = "";
 let iLineFilter = "all";
 let iLinePage = 0;
@@ -241,6 +243,32 @@ function fmt(n) {
   const x = Number(n);
   if (Number.isNaN(x)) return String(n);
   return x.toLocaleString(undefined, { maximumFractionDigits: 6 });
+}
+
+function truncateToDecimals(value, decimals = ERP_QTY_DECIMALS) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return NaN;
+  const factor = 10 ** Math.max(0, decimals);
+  return Math.trunc(num * factor) / factor;
+}
+
+function fmtQty(n, decimals = ERP_QTY_DECIMALS) {
+  if (n === null || n === undefined || n === "") return "";
+  const truncated = truncateToDecimals(n, decimals);
+  if (Number.isNaN(truncated)) return String(n);
+  return truncated.toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: decimals,
+  });
+}
+
+function qtyInputValue(n, decimals = ERP_QTY_DECIMALS) {
+  const truncated = truncateToDecimals(n, decimals);
+  if (Number.isNaN(truncated)) return "";
+  return truncated
+    .toFixed(decimals)
+    .replace(/\.0+$/, "")
+    .replace(/(\.\d*?)0+$/, "$1");
 }
 
 function formatMoney(n, withCurrency = false) {
@@ -3760,9 +3788,9 @@ function renderPrLineRowHtml(row, isDraft) {
       <td>${esc(row.stock_item_name ?? row.stock_item_code ?? row.code ?? String(row.stock_item_id ?? ""))}</td>
       <td>${esc(row.material_class_code ?? row.category_label ?? row.subcategory_label ?? "")}</td>
       <td>${esc(row.uom_code ?? "")}</td>
-      <td>${fmt(row.system_suggested_qty)}</td>
-      <td>${fmt(requestedQtyNum)}</td>
-      <td data-col="delta">${fmt(deltaQtyNum)}</td>
+      <td>${fmtQty(row.system_suggested_qty)}</td>
+      <td>${fmtQty(requestedQtyNum)}</td>
+      <td data-col="delta">${fmtQty(deltaQtyNum)}</td>
       <td>
         ${
           isDraft
@@ -3774,10 +3802,10 @@ function renderPrLineRowHtml(row, isDraft) {
                 data-field="final_qty"
                 data-line-id="${esc(row.pr_line_id)}"
                 data-requested="${esc(requestedQtyNum)}"
-                data-old="${esc(finalQtyNum)}"
-                value="${esc(finalQtyNum)}"
+                data-old="${esc(qtyInputValue(finalQtyNum))}"
+                value="${esc(qtyInputValue(finalQtyNum))}"
               />`
-            : `<span>${fmt(finalQtyNum)}</span>`
+            : `<span>${fmtQty(finalQtyNum)}</span>`
         }
       </td>
       <td>
@@ -3802,30 +3830,48 @@ function updatePrLinePagingUi(total) {
   const rangeEl = qs("prLineRange");
   const prevBtn = qs("prLinePrev");
   const nextBtn = qs("prLineNext");
-  const pageCount = prLinePageSize > 0 ? Math.ceil(total / prLinePageSize) : 0;
-  const totalPages = Math.max(1, pageCount);
-  if (prLinePage > totalPages - 1) prLinePage = totalPages - 1;
-  const start = total ? prLinePage * prLinePageSize + 1 : 0;
-  const end = total ? Math.min((prLinePage + 1) * prLinePageSize, total) : 0;
+  const shown = total ? Math.min(prLineVisibleCount, total) : 0;
   if (rangeEl) {
-    rangeEl.textContent = total ? `${start}–${end} / ${total}` : "0 / 0";
+    rangeEl.textContent = total ? `${shown} / ${total}` : "0 / 0";
     rangeEl.title = total
-      ? `Showing ${start} to ${end} of ${total} lines`
+      ? `Showing ${shown} of ${total} lines`
       : "No matching lines";
   }
-  if (prevBtn) prevBtn.disabled = prLinePage <= 0;
-  if (nextBtn) nextBtn.disabled = total === 0 || prLinePage >= totalPages - 1;
+  if (prevBtn) prevBtn.disabled = true;
+  if (nextBtn) nextBtn.disabled = shown >= total;
 }
 
-function renderPrLinesPage() {
+function resetPrLinesInfiniteScroll(resetScrollTop = true) {
+  prLineVisibleCount = Math.max(0, prLinePageSize);
+  if (!resetScrollTop) return;
+  const scroller = qs("prLinesScroll");
+  if (scroller) scroller.scrollTop = 0;
+}
+
+function maybeLoadMorePrLines() {
+  const scroller = qs("prLinesScroll");
+  if (!scroller) return;
+  const total = prLineFiltered.length;
+  if (!total || prLineVisibleCount >= total) return;
+  const nearBottom =
+    scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 80;
+  if (!nearBottom) return;
+  prLineVisibleCount = Math.min(prLineVisibleCount + prLinePageSize, total);
+  renderPrLinesPage({ appendOnly: true });
+}
+
+function renderPrLinesPage(options = {}) {
+  const { appendOnly = false } = options;
   const empty = qs("prLinesEmpty");
   const table = qs("prLinesTable");
   const tbody = qs("prLinesTbody");
   const isDraft = state.selectedPr?.status === "draft";
   const total = prLineFiltered.length;
-  const start = total ? prLinePage * prLinePageSize : 0;
-  const end = total ? Math.min(start + prLinePageSize, total) : 0;
-  const rows = total ? prLineFiltered.slice(start, end) : [];
+  if (prLineVisibleCount <= 0) {
+    prLineVisibleCount = Math.max(0, prLinePageSize);
+  }
+  const shown = total ? Math.min(prLineVisibleCount, total) : 0;
+  const rows = shown ? prLineFiltered.slice(0, shown) : [];
   if (!total) {
     empty.style.display = "";
     empty.textContent = prLineAll.length
@@ -3838,9 +3884,39 @@ function renderPrLinesPage() {
   }
   empty.style.display = "none";
   table.style.display = "";
-  tbody.innerHTML = rows
-    .map((row) => renderPrLineRowHtml(row, isDraft))
-    .join("");
+  const shouldAppend =
+    appendOnly &&
+    tbody.children.length > 0 &&
+    tbody.children.length < rows.length &&
+    Array.isArray(rows);
+  if (shouldAppend) {
+    const startAt = tbody.children.length;
+    const appendRows = rows.slice(startAt);
+    if (appendRows.length) {
+      tbody.insertAdjacentHTML(
+        "beforeend",
+        appendRows.map((row) => renderPrLineRowHtml(row, isDraft)).join(""),
+      );
+    }
+  } else {
+    tbody.innerHTML = rows
+      .map((row) => renderPrLineRowHtml(row, isDraft))
+      .join("");
+  }
+
+  if (pendingPrQtyFocusLineId) {
+    requestAnimationFrame(() => {
+      const target = document.querySelector(
+        `.pr-line-inline-input.qty[data-line-id="${pendingPrQtyFocusLineId}"]`,
+      );
+      if (target instanceof HTMLInputElement) {
+        target.focus();
+        target.select();
+        target.scrollIntoView({ block: "nearest" });
+      }
+      pendingPrQtyFocusLineId = null;
+    });
+  }
   updatePrLinePagingUi(total);
 }
 
@@ -3911,6 +3987,60 @@ async function commitReason(prLineId, reasonText) {
   row.manual_reason = (reasonText || "").trim();
 }
 
+function setPrActiveQtyRow(inputEl) {
+  const tbody = qs("prLinesTbody");
+  if (!tbody) return;
+  tbody
+    .querySelectorAll("tr.pr-active-qty-row")
+    .forEach((row) => row.classList.remove("pr-active-qty-row"));
+  if (!(inputEl instanceof HTMLInputElement)) return;
+  if (inputEl.dataset.field !== "final_qty") return;
+  const row = inputEl.closest("tr");
+  if (row) row.classList.add("pr-active-qty-row");
+}
+
+function focusAdjacentPrFinalQty(currentInput, direction) {
+  if (!(currentInput instanceof HTMLInputElement)) return;
+  if (currentInput.dataset.field !== "final_qty") return;
+  const currentLineId = Number(currentInput.dataset.lineId || "0");
+  if (
+    !currentLineId ||
+    !Array.isArray(prLineFiltered) ||
+    !prLineFiltered.length
+  ) {
+    return;
+  }
+
+  const currentIndex = prLineFiltered.findIndex(
+    (row) => Number(row.pr_line_id) === currentLineId,
+  );
+  if (currentIndex < 0) return;
+
+  const targetIndex = currentIndex + direction;
+  if (targetIndex < 0 || targetIndex >= prLineFiltered.length) return;
+
+  const targetLineId = Number(prLineFiltered[targetIndex]?.pr_line_id || "0");
+  if (!targetLineId) return;
+  pendingPrQtyFocusLineId = targetLineId;
+
+  if (targetIndex >= prLineVisibleCount) {
+    prLineVisibleCount = Math.min(prLineFiltered.length, targetIndex + 1);
+    renderPrLinesPage({ appendOnly: true });
+  }
+
+  requestAnimationFrame(() => {
+    const target = document.querySelector(
+      `.pr-line-inline-input.qty[data-line-id="${targetLineId}"]`,
+    );
+    if (target instanceof HTMLInputElement) {
+      target.focus();
+      target.select();
+      target.scrollIntoView({ block: "nearest" });
+      pendingPrQtyFocusLineId = null;
+    }
+  });
+}
+
 function wirePrLineTableActions() {
   const tbody = qs("prLinesTbody");
   if (!tbody || tbody.dataset.bound === "1") return;
@@ -3965,7 +4095,6 @@ function wirePrLineTableActions() {
     filterSelect.addEventListener("change", () => {
       prLineFilterValue = filterSelect.value;
       syncPrLineFilterBadge();
-      prLinePage = 0;
       applyPrLineFiltersAndRender();
     });
   }
@@ -3999,8 +4128,8 @@ function wirePrLineTableActions() {
             : "";
         // commitFinalQty handles auto-fill/auto-clear of reason based on delta
         await commitFinalQty(rowId, requestedQty, newFinalQty, reasonText);
-        inputEl.value = String(newFinalQty);
-        inputEl.dataset.old = String(newFinalQty);
+        inputEl.value = qtyInputValue(newFinalQty);
+        inputEl.dataset.old = qtyInputValue(newFinalQty);
         // Sync reason input's data-old so change-detection stays accurate
         if (reasonInput instanceof HTMLInputElement) {
           reasonInput.dataset.old = reasonInput.value;
@@ -4023,12 +4152,14 @@ function wirePrLineTableActions() {
     const inputEl = e.target.closest("input[data-field]");
     if (!inputEl) return;
     inputEl.dataset.old = inputEl.value;
+    setPrActiveQtyRow(inputEl);
   });
 
   tbody.addEventListener("focusout", (e) => {
     const inputEl = e.target.closest("input[data-field]");
     if (!inputEl) return;
     commitInlineEdit(inputEl);
+    requestAnimationFrame(() => setPrActiveQtyRow(document.activeElement));
   });
 
   tbody.addEventListener("keydown", (e) => {
@@ -4036,7 +4167,12 @@ function wirePrLineTableActions() {
     if (!inputEl) return;
     if (e.key === "Enter") {
       e.preventDefault();
+      const isFinalQty = inputEl.dataset.field === "final_qty";
+      const dir = e.shiftKey ? -1 : 1;
       inputEl.blur();
+      if (isFinalQty) {
+        focusAdjacentPrFinalQty(inputEl, dir);
+      }
     } else if (e.key === "Escape") {
       inputEl.value = inputEl.dataset.old ?? "";
       inputEl.blur();
@@ -4087,6 +4223,7 @@ function applyPrLineFiltersAndRender() {
     return true;
   });
 
+  resetPrLinesInfiniteScroll(true);
   renderPrLinesPage();
 }
 
@@ -4105,7 +4242,7 @@ async function loadPrLines(prId) {
   }
   prLineAll = data || [];
   state.prLinesRows = prLineAll;
-  prLinePage = 0;
+  resetPrLinesInfiniteScroll(true);
   applyPrLineFiltersAndRender();
 }
 
@@ -4218,13 +4355,15 @@ function openPrViewModal(row, options = {}) {
       : null;
   refreshPrViewModal(row);
   const prLineSearch = qs("prLineSearch");
+  const prLineSearchClear = qs("prLineSearchClear");
   const prLineFilter = qs("prLineFilter");
   const prLinePageSizeEl = qs("prLinePageSize");
   if (prLineSearch) prLineSearch.value = "";
+  if (prLineSearchClear) prLineSearchClear.style.display = "none";
   if (prLineFilter) prLineFilter.value = "all";
   if (prLinePageSizeEl) prLinePageSizeEl.value = "50";
-  prLinePage = 0;
   prLinePageSize = 50;
+  prLineVisibleCount = 0;
   prLineAll = [];
   prLineFiltered = [];
   qs("prLinesEmpty").style.display = "";
@@ -4268,10 +4407,10 @@ function buildPrFormExportRows(pr) {
     item: row.stock_item_name ?? String(row.stock_item_id ?? ""),
     materialClass: row.material_class_code ?? "",
     uom: row.uom_code ?? "",
-    systemSuggested: fmt(row.system_suggested_qty),
-    requested: fmt(row.requested_qty),
-    delta: fmt(row.manual_delta_qty),
-    finalRequested: fmt(row.final_requested_qty),
+    systemSuggested: fmtQty(row.system_suggested_qty),
+    requested: fmtQty(row.requested_qty),
+    delta: fmtQty(row.manual_delta_qty),
+    finalRequested: fmtQty(row.final_requested_qty),
     reason: row.manual_reason ?? "",
   }));
 
@@ -4801,32 +4940,35 @@ function wirePrControls() {
     exportPrFormCsv(state.selectedPr);
   });
   wirePrLineTableActions();
-  const applyPrLineSearchDebounced = debounce(() => {
-    prLinePage = 0;
-    applyPrLineFiltersAndRender();
-  }, 150);
-  qs("prLineSearch")?.addEventListener("input", applyPrLineSearchDebounced);
+  wireLiveSearchInput({
+    inputId: "prLineSearch",
+    clearId: "prLineSearchClear",
+    onSearch: () => {
+      applyPrLineFiltersAndRender();
+    },
+    debounceMs: 150,
+  });
   qs("prLineFilter")?.addEventListener("change", () => {
-    prLinePage = 0;
     applyPrLineFiltersAndRender();
   });
   qs("prLinePageSize")?.addEventListener("change", () => {
-    prLinePage = 0;
+    const sizeVal = Number(qs("prLinePageSize")?.value || "50");
+    prLinePageSize = Number.isFinite(sizeVal) && sizeVal > 0 ? sizeVal : 50;
     applyPrLineFiltersAndRender();
   });
   qs("prLinePrev")?.addEventListener("click", () => {
-    if (prLinePage <= 0) return;
-    prLinePage -= 1;
-    renderPrLinesPage();
+    // Infinite scroll mode: Prev paging is intentionally disabled.
   });
   qs("prLineNext")?.addEventListener("click", () => {
-    const totalPages = Math.max(
-      1,
-      Math.ceil(prLineFiltered.length / prLinePageSize),
-    );
-    if (prLinePage >= totalPages - 1) return;
-    prLinePage += 1;
+    const total = prLineFiltered.length;
+    if (prLineVisibleCount >= total) return;
+    prLineVisibleCount = Math.min(prLineVisibleCount + prLinePageSize, total);
     renderPrLinesPage();
+  });
+  qs("prLinePrev")?.setAttribute("aria-disabled", "true");
+  qs("prLinePrev")?.setAttribute("title", "Disabled in infinite scroll mode");
+  qs("prLinesScroll")?.addEventListener("scroll", () => {
+    maybeLoadMorePrLines();
   });
   qs("prViewModalBackdrop").addEventListener("click", (e) => {
     if (e.target.id === "prViewModalBackdrop") closePrViewModal();

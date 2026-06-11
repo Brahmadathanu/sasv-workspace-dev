@@ -84,11 +84,24 @@
         const accessToken = hashParams.get("access_token");
         const refreshToken = hashParams.get("refresh_token");
         const authCode = searchParams.get("code");
+        const tokenHash =
+          searchParams.get("token_hash") || hashParams.get("token_hash");
+        const otpType =
+          searchParams.get("type") || hashParams.get("type") || "signup";
 
         if (accessToken && refreshToken) {
           const { error } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
+          });
+          if (error) throw error;
+          return;
+        }
+
+        if (tokenHash) {
+          const { error } = await supabase.auth.verifyOtp({
+            token_hash: tokenHash,
+            type: otpType,
           });
           if (error) throw error;
           return;

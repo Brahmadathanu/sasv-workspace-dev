@@ -643,6 +643,27 @@
         flex-direction: column;
         max-height: calc(100vh - 60px);
       }
+      #prViewModalBackdrop {
+        padding: 0;
+        align-items: stretch;
+        justify-content: stretch;
+      }
+      #prViewModalBackdrop .modal-fullpage {
+        width: 100%;
+        max-width: none !important;
+        height: 100%;
+        max-height: 100vh;
+        border-radius: 0;
+        border-left: 0;
+        border-right: 0;
+        padding: 14px 16px;
+      }
+      #prViewModalBackdrop .modal-fullpage .modal-body {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow: hidden;
+      }
       .modal-header {
         display: flex;
         justify-content: space-between;
@@ -926,6 +947,11 @@
         overflow: auto;
         max-height: 55vh; /* safe inside modal body */
       }
+      #prViewModalBackdrop .modal-fullpage #prLinesScroll.table-scroll {
+        flex: 1;
+        min-height: 0;
+        max-height: none;
+      }
       .pr-line-inline-input {
         width: 100%;
         min-width: 88px;
@@ -1092,6 +1118,9 @@
       /* Locked row style */
       tr.locked-row td {
         opacity: 0.55;
+      }
+      #prLinesTable tbody tr.pr-active-qty-row td {
+        background: rgba(37, 99, 235, 0.1);
       }
 
       /* ── pec-search-card: filter-button + search input row ──────── */
@@ -1329,6 +1358,13 @@
 
         .modal-body {
           padding-top: 10px;
+        }
+        #prViewModalBackdrop {
+          padding: 0;
+        }
+        #prViewModalBackdrop .modal-fullpage {
+          border-radius: 0;
+          padding: 10px;
         }
 
         .detail-shell {
@@ -3682,7 +3718,7 @@
 
     <!-- PR Detail modal -->
     <div class="modal-backdrop" id="prViewModalBackdrop" aria-hidden="true">
-      <div class="modal" style="max-width: 900px">
+      <div class="modal modal-fullpage">
         <div class="modal-header page-header">
           <div>
             <h3
@@ -3916,31 +3952,67 @@
               style="
                 display: flex;
                 align-items: center;
-                gap: 10px;
+                gap: 8px;
                 width: 100%;
                 flex-wrap: wrap;
               "
             >
-              <input
-                id="prLineSearch"
-                class="erp-search-input"
-                type="search"
-                placeholder="Search items (name/code/category)..."
-                style="flex: 1 1 0; min-width: 180px; max-width: 340px"
-              />
+              <div class="pec-search-wrap">
+                <input
+                  id="prLineSearch"
+                  class="pec-search-input"
+                  type="text"
+                  placeholder="Search items (name/code/category)..."
+                  aria-label="Search PR lines"
+                />
+                <button
+                  id="prLineSearchClear"
+                  type="button"
+                  class="pec-input-clear"
+                  title="Clear search"
+                  aria-label="Clear search"
+                  style="display: none"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="13"
+                    height="13"
+                    aria-hidden="true"
+                  >
+                    <line
+                      x1="18"
+                      y1="6"
+                      x2="6"
+                      y2="18"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                    />
+                    <line
+                      x1="6"
+                      y1="6"
+                      x2="18"
+                      y2="18"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </button>
+              </div>
               <div class="pec-filter-wrap" id="prLineFilterWrap">
                 <button
                   id="prLineFilterBtn"
                   class="pec-filter-btn"
-                  title="Filter lines"
-                  aria-label="Filter lines"
+                  title="Filters"
+                  aria-label="Filters"
                   aria-haspopup="true"
                   aria-expanded="false"
                   type="button"
                 >
                   <svg
-                    width="16"
-                    height="16"
+                    width="15"
+                    height="15"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -3996,33 +4068,6 @@
                   margin-left: auto;
                 "
               >
-                <label class="muted" for="prLinePageSize">Rows</label>
-                <select id="prLinePageSize" style="min-width: 48px">
-                  <option value="25">25</option>
-                  <option value="50" selected>50</option>
-                  <option value="100">100</option>
-                </select>
-                <button
-                  id="prLinePrev"
-                  type="button"
-                  class="icon-btn ghost"
-                  title="Previous page"
-                  aria-label="Previous page"
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <polyline points="15 18 9 12 15 6" />
-                  </svg>
-                </button>
                 <span
                   id="prLineRange"
                   class="muted"
@@ -4034,27 +4079,6 @@
                     letter-spacing: 0.01em;
                   "
                 ></span>
-                <button
-                  id="prLineNext"
-                  type="button"
-                  class="icon-btn ghost"
-                  title="Next page"
-                  aria-label="Next page"
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <polyline points="9 18 15 12 9 6" />
-                  </svg>
-                </button>
               </div>
             </div>
           </div>
