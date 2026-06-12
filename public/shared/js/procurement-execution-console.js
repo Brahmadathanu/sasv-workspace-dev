@@ -4345,16 +4345,16 @@ function wirePrLineTableActions() {
     });
   }
   const commitInlineEdit = async (inputEl) => {
-    if (!(inputEl instanceof HTMLInputElement)) return;
-    if (inputEl.disabled) return;
+    if (!(inputEl instanceof HTMLInputElement)) return false;
+    if (inputEl.disabled) return false;
     const rowId = Number(inputEl.dataset.lineId || "0");
     const field = inputEl.dataset.field || "";
     const row = prLineAll.find((item) => Number(item.pr_line_id) === rowId);
-    if (!row || !field) return;
+    if (!row || !field) return false;
 
     const oldValue = inputEl.dataset.old ?? "";
     const newValue = inputEl.value.trim();
-    if (normalize(oldValue) === normalize(newValue)) return;
+    if (normalize(oldValue) === normalize(newValue)) return true;
 
     try {
       setInlineCellSaving(inputEl, true);
@@ -4385,10 +4385,12 @@ function wirePrLineTableActions() {
         inputEl.dataset.old = newValue;
       }
       renderPrLinesPage();
+      return true;
     } catch (err) {
       inputEl.value = oldValue;
       const message = err?.message || "Save failed.";
       toast(message, "error");
+      return false;
     } finally {
       setInlineCellSaving(inputEl, false);
     }
@@ -4408,16 +4410,20 @@ function wirePrLineTableActions() {
     requestAnimationFrame(() => setPrActiveQtyRow(document.activeElement));
   });
 
-  tbody.addEventListener("keydown", (e) => {
+  tbody.addEventListener("keydown", async (e) => {
     const inputEl = e.target.closest("input[data-field]");
     if (!inputEl) return;
     if (e.key === "Enter") {
       e.preventDefault();
       const isFinalQty = inputEl.dataset.field === "final_qty";
       const dir = e.shiftKey ? -1 : 1;
-      inputEl.blur();
       if (isFinalQty) {
-        focusAdjacentPrFinalQty(inputEl, dir);
+        const ok = await commitInlineEdit(inputEl);
+        if (ok) {
+          focusAdjacentPrFinalQty(inputEl, dir);
+        }
+      } else {
+        inputEl.blur();
       }
     } else if (e.key === "Escape") {
       inputEl.value = inputEl.dataset.old ?? "";
