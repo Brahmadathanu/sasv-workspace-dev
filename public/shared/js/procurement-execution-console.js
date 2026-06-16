@@ -83,6 +83,17 @@ const state = {
   vendorList: [],
 };
 
+state.vwlFilters = state.vwlFilters || {
+  materialClassId: "",
+  materialClassCode: "",
+  rmScope: "",
+  rateStatus: "",
+  assignmentStatus: "",
+};
+
+state.vwlMaterialClassOptions = state.vwlMaterialClassOptions || [];
+state.vwlRmScopeOptions = state.vwlRmScopeOptions || [];
+
 // Column headers for the PDF/CSV/TSV requisition form (single source of truth)
 const INDENT_REQUISITION_HEADERS = [
   "SN",
@@ -234,7 +245,13 @@ function setTab(tab) {
   if (tab === "vendor-buylist") {
     if (!state.vwl.loaded) {
       state.vwl.loaded = true;
-      loadVendorBuylist();
+      if (!state.vwlMaterialClassOptions?.length) {
+        loadVendorBuylistFilterOptions()
+          .catch((e) => toastError("Failed to load vendor-wise filters", e))
+          .finally(() => loadVendorBuylist());
+      } else {
+        loadVendorBuylist();
+      }
     }
   }
 }
@@ -278,6 +295,41 @@ function formatMoney(n, withCurrency = false) {
   if (Number.isNaN(x)) return String(n);
   const val = x.toFixed(2);
   return withCurrency ? `₹${val}` : val;
+}
+
+const PILL_VARIANTS = [
+  "pill-info",
+  "pill-success",
+  "pill-warning",
+  "pill-danger",
+  "pill-neutral",
+  "pill-band-p1",
+  "pill-band-p2",
+  "pill-band-p3",
+];
+
+function statusPillClass(status) {
+  const s = String(status || "").toLowerCase();
+  if (["approved", "issued", "active", "open"].includes(s))
+    return "pill-success";
+  if (["draft", "pending"].includes(s)) return "pill-warning";
+  if (["closed", "cancelled", "inactive", "rejected"].includes(s))
+    return "pill-neutral";
+  return "pill-info";
+}
+
+function priorityBandPillClass(band) {
+  const b = String(band || "").toUpperCase();
+  if (b === "P1") return "pill-band-p1";
+  if (b === "P2") return "pill-band-p2";
+  if (b === "P3") return "pill-band-p3";
+  return "pill-neutral";
+}
+
+function setPillVariant(el, variant) {
+  if (!el) return;
+  el.classList.remove(...PILL_VARIANTS);
+  if (variant) el.classList.add(variant);
 }
 
 function escapeCsv(value) {
@@ -429,6 +481,28 @@ function closeAllExportMenus() {
     const btn = m.querySelector("[aria-expanded]");
     if (btn) btn.setAttribute("aria-expanded", "false");
   });
+  closeVendorBuylistDrawers();
+}
+
+function closeVendorBuylistDrawers(exceptId = null) {
+  ["vwlExportDrawer", "vwlFilterDrawer"].forEach((id) => {
+    if (id === exceptId) return;
+
+    const el = qs(id);
+    if (!el) return;
+
+    el.classList.remove("open", "show", "active");
+    el.setAttribute("hidden", "hidden");
+  });
+
+  if (exceptId !== "vwlExportDrawer") {
+    const menu = qs("vwlExportMenu");
+    menu?.classList.remove("open");
+    qs("vwlExportBtn")?.setAttribute("aria-expanded", "false");
+  }
+  if (exceptId !== "vwlFilterDrawer") {
+    qs("vwlFilterBtn")?.setAttribute("aria-expanded", "false");
+  }
 }
 
 function toggleExportMenu(menuId, btnEl) {
@@ -597,9 +671,56 @@ function setModalProcessing(backdropId, active, text = "Processing…") {
   mask?.remove();
 }
 
+const tabLoadingControlStates = new WeakMap();
+
+function setTabPanelControlsLoading(panel, active) {
+  if (!(panel instanceof HTMLElement)) return;
+
+  const controls = panel.querySelectorAll("button, input, select, textarea");
+  controls.forEach((control) => {
+    if (
+      !(
+        control instanceof HTMLButtonElement ||
+        control instanceof HTMLInputElement ||
+        control instanceof HTMLSelectElement ||
+        control instanceof HTMLTextAreaElement
+      )
+    ) {
+      return;
+    }
+
+    if (active) {
+      if (!tabLoadingControlStates.has(control)) {
+        tabLoadingControlStates.set(control, {
+          disabled: control.disabled,
+          ariaDisabled: control.getAttribute("aria-disabled"),
+        });
+      }
+      control.disabled = true;
+      control.setAttribute("aria-disabled", "true");
+      return;
+    }
+
+    const previous = tabLoadingControlStates.get(control);
+    if (!previous) return;
+
+    control.disabled = previous.disabled;
+    if (previous.ariaDisabled == null) {
+      control.removeAttribute("aria-disabled");
+    } else {
+      control.setAttribute("aria-disabled", previous.ariaDisabled);
+    }
+    tabLoadingControlStates.delete(control);
+  });
+}
+
 function setTabTableLoading(tabName, active, loadingText = "Loading...") {
   const panel = qs(`tab-${tabName}`);
   if (!panel) return;
+
+  panel.setAttribute("aria-busy", active ? "true" : "false");
+  panel.classList.toggle("is-table-loading", Boolean(active));
+  setTabPanelControlsLoading(panel, active);
 
   const scrollAreas = panel.querySelectorAll(".card .table-scroll");
   if (!scrollAreas.length) return;
@@ -775,10 +896,19 @@ function openDetailModal(row) {
     `${row.indent_number ?? ""} — ${row.stock_item_name ?? ""}`;
   qs("detailBand").textContent = `Band: ${row.priority_band_final ?? "-"}`;
   qs("detailBand").style.display = row.priority_band_final ? "" : "none";
+  setPillVariant(
+    qs("detailBand"),
+    priorityBandPillClass(row.priority_band_final),
+  );
   qs("detailMos").textContent = `MOS: ${row.mos_months ?? "-"}`;
   qs("detailMos").style.display = row.mos_months != null ? "" : "none";
+  setPillVariant(
+    qs("detailMos"),
+    Number(row.mos_months ?? 999) < 1 ? "pill-danger" : "pill-info",
+  );
   qs("detailLead").textContent = `Lead: ${row.lead_time_days ?? 0} d`;
   qs("detailLead").style.display = row.lead_time_days != null ? "" : "none";
+  setPillVariant(qs("detailLead"), "pill-neutral");
 
   // flags
   const hasSelectedF = Boolean(
@@ -793,13 +923,13 @@ function openDetailModal(row) {
   if (flagsEl) {
     flagsEl.innerHTML = [
       hasSelectedF
-        ? '<span class="pill pill-flag" title="Selected vendor exists">S</span>'
+        ? '<span class="pill pill-flag pill-success" title="Selected vendor exists">S</span>'
         : "",
       hasExcessF
-        ? '<span class="pill pill-flag" title="Has net excess">E</span>'
+        ? '<span class="pill pill-flag pill-warning" title="Has net excess">E</span>'
         : "",
       mosRiskLowF
-        ? '<span class="pill pill-flag" title="MOS risk low">!</span>'
+        ? '<span class="pill pill-flag pill-danger" title="MOS risk low">!</span>'
         : "",
     ]
       .filter(Boolean)
@@ -966,7 +1096,7 @@ function renderRows() {
       <td title="Indent ID: ${esc(row.indent_id ?? "")}">${esc(row.indent_number ?? "")}</td>
       <td title="${esc(row.material_class_code ?? "")} | ${esc(row.uom_code ?? "")}">${esc(row.stock_item_name ?? "")}</td>
       <td>${fmt(row.remaining_qty)}</td>
-      <td><span class="pill">${esc(row.priority_band_final ?? "-")}</span></td>
+      <td><span class="pill ${priorityBandPillClass(row.priority_band_final)}">${esc(row.priority_band_final ?? "-")}</span></td>
       <td>${fmt(row.priority_score_system)}</td>
       <td title="${esc(vendorName)}">${esc(vendorName)}</td>
       <td>${vendorRate != null ? fmt(vendorRate) : "-"}</td>
@@ -977,10 +1107,7 @@ function renderRows() {
     tbody.appendChild(tr);
   }
 
-  const _aqTotalPages = Math.max(
-    1,
-    Math.ceil(aqTotalCount / state.pageSize),
-  );
+  const _aqTotalPages = Math.max(1, Math.ceil(aqTotalCount / state.pageSize));
 
   const pageStart = aqTotalCount === 0 ? 0 : state.page * state.pageSize + 1;
 
@@ -1421,17 +1548,20 @@ function setIndentSourcePrBadge(indentRow) {
   if (prNo) {
     el.textContent = `Source PR: ${prNo}`;
     el.title = `Source PR ID: ${prId ?? "—"}`;
+    setPillVariant(el, "pill-info");
     return;
   }
 
   if (prId) {
     el.textContent = `Source PR ID: ${prId}`;
     el.title = "Source PR number not loaded";
+    setPillVariant(el, "pill-info");
     return;
   }
 
   el.textContent = "Source PR: —";
   el.title = "";
+  setPillVariant(el, "pill-neutral");
 }
 
 function updateIndentDraftWorkflowControls(indent) {
@@ -1450,6 +1580,7 @@ function updateIndentDraftWorkflowControls(indent) {
 function renderIndentModalHeader(indent) {
   qs("iLinesTitle").textContent = `Lines — ${indent.indent_number}`;
   qs("indentViewStatus").textContent = indent.status ?? "";
+  setPillVariant(qs("indentViewStatus"), statusPillClass(indent.status));
   const metaParts = [];
   if (indent.approved_date) metaParts.push(`Approved: ${indent.approved_date}`);
   if (indent.material_class_code)
@@ -1995,7 +2126,9 @@ function renderIndentLinesActions(indent) {
       </svg>
     `;
 
-    b.addEventListener("click", () => recommendAndAcceptVendorsForIndent(indent));
+    b.addEventListener("click", () =>
+      recommendAndAcceptVendorsForIndent(indent),
+    );
     container.appendChild(b);
   };
 
@@ -2068,7 +2201,7 @@ function renderIndentLines(rows) {
       <td>${esc(row.uom_code ?? "")}</td>
       <td>${fmt(row.requested_qty)}</td>
       <td>${fmt(row.allocated_qty)}</td>
-      <td><span class="pill">${Number(row.remaining_qty) <= 0 ? "fulfilled" : fmt(row.remaining_qty)}</span></td>
+      <td>${fmt(row.remaining_qty)}</td>
       <td>${resolvedVendor}</td>
       <td class="muted">${resolvedRate}</td>
       <td>${recVendor}</td>
@@ -2163,7 +2296,7 @@ function renderIndentLinesInfinite(options = {}) {
       <td>${esc(row.uom_code ?? "")}</td>
       <td>${fmt(row.requested_qty)}</td>
       <td>${fmt(row.allocated_qty)}</td>
-      <td><span class="pill">${Number(row.remaining_qty) <= 0 ? "fulfilled" : fmt(row.remaining_qty)}</span></td>
+      <td>${fmt(row.remaining_qty)}</td>
       <td>${resolvedVendor}</td>
       <td class="muted">${resolvedRate}</td>
       <td>${recVendor}</td>
@@ -2290,7 +2423,7 @@ function renderIndents() {
       <td>${esc(String(row.indent_id ?? ""))}</td>
       <td>${esc(row.indent_number ?? "")}</td>
       <td>${esc(row.approved_date ?? "")}</td>
-      <td><span class="pill">${esc(row.status ?? "")}</span></td>
+      <td><span class="pill ${statusPillClass(row.status)}">${esc(row.status ?? "")}</span></td>
       <td>${esc(row.material_class_code ?? "")}</td>
       <td>${fmt(row.line_count ?? "")}</td>
     `;
@@ -2884,7 +3017,7 @@ async function buildIndentRequisitionRows(indentId) {
     });
   }
 
-  // Build canonical pdfLines (named props, fmt() for PDF renderer)
+  // Build canonical pdfLines (named props for PDF renderer)
   const pdfLines = lines.map((l) => {
     const dec = decisionMap[l.indent_line_id] ?? {};
     const vendorId = dec.selected_vendor_id ?? dec.recommended_vendor_id;
@@ -2895,13 +3028,12 @@ async function buildIndentRequisitionRows(indentId) {
       category: cat.category || l.material_class_label || "",
       materialDescription: l.stock_item_name ?? "",
       uom: l.uom_code ?? String(l.uom_id ?? ""),
-      qtyRequested: fmt(l.requested_qty ?? ""),
-      qtyInStock: fmt(qtyInStock),
-      qtyToPurchase: fmt(l.remaining_qty ?? l.requested_qty ?? ""),
-      // fmt() for PDF display; formatMoney() (2dp, no symbol) for CSV/TSV
+      qtyRequested: fmtFixed(l.requested_qty ?? "", 2),
+      qtyInStock: fmtFixed(qtyInStock, 2),
+      qtyToPurchase: fmtFixed(l.remaining_qty ?? l.requested_qty ?? "", 2),
       unitPrice:
         unitPriceRaw !== null && unitPriceRaw !== undefined
-          ? fmt(unitPriceRaw)
+          ? fmtFixed(unitPriceRaw, 2)
           : "",
       unitPriceCsv:
         unitPriceRaw !== null && unitPriceRaw !== undefined
@@ -3239,10 +3371,11 @@ async function exportIndentToPdf() {
       line.remarks || "",
     ]);
 
-    // Fill table across printable width using relative column weights
+    // Keep SN as a fixed code column so row numbers never wrap.
     const availableWidth = ctx.pageWidth - ctx.margin * 2;
+    const snColWidth = 9;
+    const remainingWidth = availableWidth - snColWidth;
     const weights = [
-      0.7, // SN
       2.2, // Category
       6.6, // Material Description
       1.4, // Brand/Part No
@@ -3255,18 +3388,46 @@ async function exportIndentToPdf() {
       2.3, // Remarks
     ];
     const weightSum = weights.reduce((a, b) => a + b, 0);
-    const colW = weights.map((w) => (availableWidth * w) / weightSum);
+    const colW = [
+      snColWidth,
+      ...weights.map((w) => (remainingWidth * w) / weightSum),
+    ];
 
     const columnStyles = {
-      0: { cellWidth: colW[0], halign: "center" },
+      0: {
+        cellWidth: colW[0],
+        halign: "center",
+        overflow: "visible",
+        cellPadding: { top: 1.4, right: 0.6, bottom: 1.4, left: 0.6 },
+      },
       1: { cellWidth: colW[1] },
       2: { cellWidth: colW[2] },
       3: { cellWidth: colW[3], halign: "center" },
       4: { cellWidth: colW[4], halign: "center" },
-      5: { cellWidth: colW[5], halign: "right" },
-      6: { cellWidth: colW[6], halign: "right" },
-      7: { cellWidth: colW[7], halign: "right" },
-      8: { cellWidth: colW[8], halign: "right" },
+      5: {
+        cellWidth: colW[5],
+        halign: "right",
+        overflow: "visible",
+        cellPadding: { top: 1.4, right: 1, bottom: 1.4, left: 0.6 },
+      },
+      6: {
+        cellWidth: colW[6],
+        halign: "right",
+        overflow: "visible",
+        cellPadding: { top: 1.4, right: 1, bottom: 1.4, left: 0.6 },
+      },
+      7: {
+        cellWidth: colW[7],
+        halign: "right",
+        overflow: "visible",
+        cellPadding: { top: 1.4, right: 1, bottom: 1.4, left: 0.6 },
+      },
+      8: {
+        cellWidth: colW[8],
+        halign: "right",
+        overflow: "visible",
+        cellPadding: { top: 1.4, right: 1, bottom: 1.4, left: 0.6 },
+      },
       9: { cellWidth: colW[9] },
       10: { cellWidth: colW[10] },
     };
@@ -3275,16 +3436,19 @@ async function exportIndentToPdf() {
       formatHeaderLabel(label, colW[index]),
     );
 
-    // Draw table — didDrawPage fires for every page including page 1
+    // Draw table. AutoTable repeats only the column header on later pages.
+    headerEngine.drawHeader(doc, ctx);
+
     doc.autoTable({
       theme: "grid",
       showHead: "everyPage",
       head: tableHead,
       body: tableBody,
-      margin: { top: HEADER_H, left: margin, right: margin, bottom: FOOTER_H },
+      startY: HEADER_H,
+      margin: { top: margin, left: margin, right: margin, bottom: FOOTER_H },
       styles: {
-        fontSize: 8,
-        cellPadding: 1.8,
+        fontSize: 7.6,
+        cellPadding: 1.45,
         overflow: "linebreak",
         valign: "middle",
         lineWidth: 0.2,
@@ -3297,14 +3461,11 @@ async function exportIndentToPdf() {
         fontStyle: "bold",
         lineWidth: 0.2,
         lineColor: 0,
-        fontSize: 8,
+        fontSize: 7.6,
         halign: "center",
         valign: "middle",
       },
       columnStyles,
-      didDrawPage: () => {
-        headerEngine.drawHeader(doc, ctx);
-      },
     });
 
     // Stamp accurate page numbers on every page after table is complete
@@ -4095,7 +4256,7 @@ function renderPrHeaders() {
       : "";
     tr.innerHTML = `
       <td>${esc(row.pr_number ?? "")}</td>
-      <td><span class="pill">${esc(row.status ?? "")}</span></td>
+      <td><span class="pill ${statusPillClass(row.status)}">${esc(row.status ?? "")}</span></td>
       <td>${esc(row.effective_from_date ?? "")}</td>
       <td class="muted">${esc(horizonStr)}</td>
       <td>${esc(prClassText(row))}</td>
@@ -4678,6 +4839,7 @@ function refreshPrViewModal(row) {
   upgradePrModalButtons(row);
   qs("prLinesTitle").textContent = row.pr_number ?? "";
   qs("prDetailStatus").textContent = row.status ?? "";
+  setPillVariant(qs("prDetailStatus"), statusPillClass(row.status));
   const horizonStr = row.horizon_start_month
     ? `${row.horizon_start_month.slice(0, 7)}${row.horizon_end_month ? ` – ${row.horizon_end_month.slice(0, 7)}` : ""}`
     : "";
@@ -6106,38 +6268,179 @@ async function ensureVendorBuylistVendorsLoaded() {
   state.vwl.vendorsLoaded = true;
 }
 
+async function loadVendorBuylistFilterOptions() {
+  const [
+    { data: classRows, error: classError },
+    { data: rmRows, error: rmError },
+  ] = await Promise.all([
+    supabase
+      .from("v_proc_vendorwise_buylist_material_class_options")
+      .select("*")
+      .order("material_class_code", { ascending: true }),
+    supabase
+      .from("v_proc_vendorwise_buylist_rm_scope_options")
+      .select("*")
+      .order("rm_scope_label", { ascending: true }),
+  ]);
+
+  if (classError) throw classError;
+  if (rmError) throw rmError;
+
+  state.vwlMaterialClassOptions = classRows || [];
+  state.vwlRmScopeOptions = rmRows || [];
+
+  populateVwlMaterialClassFilter();
+  populateVwlRmScopeFilter();
+  refreshVwlRmScopeAvailability();
+}
+
+function populateVwlMaterialClassFilter() {
+  const sel = qs("vwlMaterialClassFilter");
+  if (!sel) return;
+
+  const current = state.vwlFilters?.materialClassId || sel.value || "";
+
+  sel.innerHTML = '<option value="">All Material Classes</option>';
+
+  (state.vwlMaterialClassOptions || []).forEach((row) => {
+    const opt = document.createElement("option");
+    opt.value = String(row.material_class_id ?? "");
+    opt.dataset.code = row.material_class_code || "";
+    opt.textContent =
+      row.material_class_display ||
+      `${row.material_class_code || ""} - ${row.material_class_label || ""}`.trim();
+    sel.appendChild(opt);
+  });
+
+  sel.value = current;
+  state.vwlFilters.materialClassId = sel.value || "";
+  state.vwlFilters.materialClassCode =
+    sel.selectedOptions?.[0]?.dataset?.code || "";
+}
+
+function populateVwlRmScopeFilter() {
+  const sel = qs("vwlRmScopeFilter");
+  if (!sel) return;
+
+  const current = state.vwlFilters?.rmScope || sel.value || "";
+
+  sel.innerHTML = '<option value="">All RM Scope</option>';
+
+  (state.vwlRmScopeOptions || []).forEach((row) => {
+    const opt = document.createElement("option");
+    opt.value = row.rm_scope || "";
+    opt.textContent = row.rm_scope_label || row.rm_scope || "";
+    sel.appendChild(opt);
+  });
+
+  sel.value = current;
+}
+
+function getSelectedVwlMaterialClassCode() {
+  const sel = qs("vwlMaterialClassFilter");
+  return sel?.selectedOptions?.[0]?.dataset?.code || "";
+}
+
+function refreshVwlRmScopeAvailability() {
+  const rmSel = qs("vwlRmScopeFilter");
+  if (!rmSel) return;
+
+  const isRm = getSelectedVwlMaterialClassCode().toUpperCase() === "RM";
+
+  rmSel.disabled = !isRm;
+
+  if (!isRm) {
+    rmSel.value = "";
+    state.vwlFilters.rmScope = "";
+  }
+}
+
+function getVwlActiveFilterCount() {
+  const filters = state.vwlFilters || {};
+  let count = 0;
+  if ((state.vwl.vendorId || "").trim()) count += 1;
+  if ((filters.materialClassId || "").trim()) count += 1;
+  if ((filters.rmScope || "").trim()) count += 1;
+  if ((filters.rateStatus || "").trim()) count += 1;
+  if ((filters.assignmentStatus || "").trim()) count += 1;
+  return count;
+}
+
+function syncVwlFilterBadge() {
+  const badge = qs("vwlFilterBadge");
+  const btn = qs("vwlFilterBtn");
+  if (!btn) return;
+
+  const count = getVwlActiveFilterCount();
+  if (badge) {
+    badge.textContent = String(count);
+    badge.style.display = count > 0 ? "" : "none";
+  }
+  btn.classList.toggle("pec-filter-btn--active", count > 0);
+}
+
+function sortVendorBuylistRows(rows) {
+  return [...(rows || [])].sort((a, b) => {
+    const vendorCmp = String(a.vendor_name || "").localeCompare(
+      String(b.vendor_name || ""),
+    );
+    if (vendorCmp !== 0) return vendorCmp;
+    return String(a.stock_item_name || "").localeCompare(
+      String(b.stock_item_name || ""),
+    );
+  });
+}
+
+async function fetchVendorBuylistFilteredRows() {
+  const f = state.vwlFilters || {};
+
+  const q =
+    qs("vwlSearch")?.value?.trim() ||
+    state.vendorBuylistSearch ||
+    state.vwl.search ||
+    "";
+
+  const materialClassId = f.materialClassId ? Number(f.materialClassId) : null;
+
+  const { data, error } = await supabase.rpc(
+    "proc_vendorwise_buylist_filtered",
+    {
+      p_material_class_id: materialClassId,
+      p_rm_scope: f.rmScope || null,
+      p_rate_status: f.rateStatus || null,
+      p_assignment_status: f.assignmentStatus || null,
+      p_q: q || null,
+    },
+  );
+
+  if (error) throw error;
+
+  return data || [];
+}
+
 async function loadVendorBuylist() {
   showLoadingMask();
   try {
     await ensureVendorBuylistVendorsLoaded();
 
-    const from = state.vwl.page * state.vwl.pageSize;
-    const to = from + state.vwl.pageSize - 1;
-
-    let q = supabase
-      .from("v_proc_vendorwise_buylist")
-      .select(
-        "vendor_id,vendor_name,stock_item_id,stock_item_name,uom_code,total_qty_to_buy,rate_value,total_amount,indent_breakdown",
-        { count: "exact" },
-      )
-      .order("vendor_name", { ascending: true })
-      .order("stock_item_name", { ascending: true })
-      .range(from, to);
-
-    if (state.vwl.vendorId) q = q.eq("vendor_id", Number(state.vwl.vendorId));
-
-    const term = (state.vwl.search || "").trim();
-    if (term) {
-      q = q.or(`vendor_name.ilike.%${term}%,stock_item_name.ilike.%${term}%`);
+    if (!state.vwlMaterialClassOptions?.length) {
+      await loadVendorBuylistFilterOptions();
     }
 
-    const { data, error, count } = await q;
-    if (error) throw error;
+    const rows = sortVendorBuylistRows(await fetchVendorBuylistFilteredRows());
+    const total = rows.length;
+    const from = state.vwl.page * state.vwl.pageSize;
+    if (from >= total && state.vwl.page > 0) {
+      state.vwl.page = Math.max(0, Math.ceil(total / state.vwl.pageSize) - 1);
+    }
+    const start = state.vwl.page * state.vwl.pageSize;
+    const end = start + state.vwl.pageSize;
 
-    state.vwl.totalCount = count ?? (data || []).length;
-    state.vwl.rows = data || [];
+    state.vwl.totalCount = total;
+    state.vwl.rows = rows.slice(start, end);
     renderVendorBuylistTable();
     updateVendorBuylistPager();
+    syncVwlFilterBadge();
   } catch (e) {
     toastError("Failed to load vendor-wise list", e);
     state.vwl.totalCount = 0;
@@ -6163,41 +6466,7 @@ function makeDateStamp() {
 }
 
 async function fetchAllVendorBuylistRows() {
-  const all = [];
-  const pageSize = state.vwl.pageSize || 75;
-  let page = 0;
-
-  while (true) {
-    const from = page * pageSize;
-    const to = from + pageSize - 1;
-
-    let q = supabase
-      .from("v_proc_vendorwise_buylist")
-      .select(
-        "vendor_id,vendor_name,stock_item_id,stock_item_name,uom_code,total_qty_to_buy,rate_value,total_amount,indent_breakdown",
-      )
-      .order("vendor_name", { ascending: true })
-      .order("stock_item_name", { ascending: true })
-      .range(from, to);
-
-    if (state.vwl.vendorId) q = q.eq("vendor_id", Number(state.vwl.vendorId));
-
-    const term = (state.vwl.search || "").trim();
-    if (term) {
-      q = q.or(`vendor_name.ilike.%${term}%,stock_item_name.ilike.%${term}%`);
-    }
-
-    const { data, error } = await q;
-    if (error) throw error;
-
-    const rows = data || [];
-    all.push(...rows);
-
-    if (rows.length < pageSize) break;
-    page += 1;
-  }
-
-  return all;
+  return sortVendorBuylistRows(await fetchVendorBuylistFilteredRows());
 }
 
 async function exportVendorBuylist(format) {
@@ -6251,15 +6520,490 @@ async function exportVendorBuylist(format) {
   }
 }
 
+function getJsPdfApi() {
+  const api = window.jspdf || window.jsPDF || null;
+  return api?.jsPDF || api || null;
+}
+
+function pdfSafeText(value) {
+  return String(value ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function pdfMoney(value) {
+  const n = Number(value || 0);
+  return n.toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function pdfQty(value) {
+  const n = Number(value || 0);
+  return n.toLocaleString("en-IN", {
+    minimumFractionDigits: 3,
+    maximumFractionDigits: 3,
+  });
+}
+
+function pdfDateStamp() {
+  const d = new Date();
+  return [
+    d.getFullYear(),
+    String(d.getMonth() + 1).padStart(2, "0"),
+    String(d.getDate()).padStart(2, "0"),
+  ].join("");
+}
+
+function getVwlPdfVendorName(row) {
+  return pdfSafeText(
+    row.vendor_display_name ||
+      row.vendor_name ||
+      row.resolved_vendor_name ||
+      row.selected_vendor_name ||
+      "",
+  );
+}
+
+function getVwlPdfItemName(row) {
+  return pdfSafeText(
+    row.stock_item_name || row.item_name || row.item || row.stock_item || "",
+  );
+}
+
+function getVwlPdfQty(row) {
+  return Number(
+    row.total_qty_to_buy ?? row.qty_to_buy ?? row.remaining_qty ?? row.qty ?? 0,
+  );
+}
+
+function getVwlPdfRate(row) {
+  return Number(row.rate_value ?? row.rate ?? row.selected_rate ?? 0);
+}
+
+function formatVwlIndentSplitQty(value) {
+  const text = pdfSafeText(value);
+  if (!text) return "";
+
+  const numericText = text.match(/-?\d[\d,]*(?:\.\d+)?/)?.[0] || "";
+  if (!numericText) return text;
+
+  const n = Number(numericText.replace(/,/g, ""));
+  if (!Number.isFinite(n)) return text;
+
+  const formatted = fmtQty(n, 2);
+  return text.replace(numericText, formatted);
+}
+
+function formatVwlIndentSplit(row) {
+  const source = row.indent_breakdown || row.indent_split || "";
+  const normalized = normalizeVwlBreakdown(source);
+
+  if (normalized.length) {
+    const text = normalized
+      .map((entry) => {
+        const indent = pdfSafeText(entry.indent_number);
+        const qty = formatVwlIndentSplitQty(entry.qty_to_buy);
+        if (!indent || !qty) return "";
+        return `${qty} [${indent}]`;
+      })
+      .filter(Boolean)
+      .join("; ");
+
+    if (text.length <= 120) return text;
+    return text.slice(0, 117) + "...";
+  }
+
+  const raw = pdfSafeText(source);
+
+  if (!raw) return "";
+
+  /*
+    Expected source examples may vary:
+    - Ind-84: 20 Kg; Ind-156: 80 Kg
+    - 84: 20 Kg, 156: 80 Kg
+    - Ind-84 - 20 Kg | Ind-156 - 80 Kg
+
+    Output required:
+    20 Kg [Ind-84], 80 Kg [Ind-156]
+  */
+
+  const parts = raw
+    .split(/[;,|]/)
+    .map((p) => pdfSafeText(p))
+    .filter(Boolean);
+
+  const formatted = parts.map((part) => {
+    let indent = "";
+    let qty = "";
+
+    if (part.includes(":")) {
+      const pieces = part.split(":");
+      indent = pdfSafeText(pieces[0]);
+      qty = pdfSafeText(pieces.slice(1).join(":"));
+    } else if (part.includes(" - ")) {
+      const pieces = part.split(" - ");
+      indent = pdfSafeText(pieces[0]);
+      qty = pdfSafeText(pieces.slice(1).join(" - "));
+    } else {
+      return part;
+    }
+
+    if (!indent || !qty) return part;
+
+    return `${formatVwlIndentSplitQty(qty)} [${indent}]`;
+  });
+
+  const text = formatted.join("; ");
+
+  /*
+    Keep the PDF compact. Very long split text can expand rows heavily.
+    The full breakdown remains available in CSV/TSV.
+  */
+  if (text.length <= 120) return text;
+
+  return text.slice(0, 117) + "...";
+}
+
+function buildVendorBuylistPdfFileName() {
+  return `VENDOR_WISE_BUYING_LIST_${pdfDateStamp()}.pdf`;
+}
+
+async function exportVendorBuylistPdf() {
+  const JsPDF = getJsPdfApi();
+
+  if (!JsPDF) {
+    toast(
+      "PDF export library is not loaded. Please check jsPDF loading.",
+      "error",
+    );
+    return;
+  }
+
+  showLoadingMask("Preparing Vendor-wise PDF...");
+  try {
+    toast("Preparing Vendor-wise PDF export...", "info");
+    const rows = await fetchAllVendorBuylistRows();
+
+    if (!rows?.length) {
+      toast(
+        "No vendor-wise buying list rows available for PDF export.",
+        "error",
+      );
+      return;
+    }
+
+    const doc = new JsPDF({
+      orientation: "portrait",
+      unit: "pt",
+      format: "a4",
+      compress: true,
+    });
+
+    if (typeof doc.autoTable !== "function") {
+      toast(
+        "PDF table plugin is not loaded. Please check jsPDF AutoTable loading.",
+        "error",
+      );
+      return;
+    }
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    /*
+      Keep left/right margins visually equal.
+      AutoTable width is fixed below so it does not leave a larger right gap.
+    */
+    const marginX = 30;
+    const tableWidth = pageWidth - marginX * 2;
+    const generatedOn = new Date().toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    function drawVwlPdfFooter() {
+      const pageNo = doc.internal.getCurrentPageInfo().pageNumber;
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.setTextColor(0);
+
+      /*
+          Generated date/time moved to left footer.
+        */
+      doc.text(`Generated: ${generatedOn}`, marginX, pageHeight - 14);
+
+      doc.text(`Page ${pageNo}`, pageWidth - marginX, pageHeight - 14, {
+        align: "right",
+      });
+    }
+
+    const vendorFilter = pdfSafeText(
+      qs("vwlVendorFilter")?.selectedOptions?.[0]?.textContent || "",
+    );
+    const searchFilter = pdfSafeText(qs("vwlSearch")?.value || "");
+
+    const groups = new Map();
+    rows.forEach((r) => {
+      const rawVendor = getVwlPdfVendorName(r);
+      const vendorName = rawVendor || "Unassigned Vendor";
+      if (!groups.has(vendorName)) groups.set(vendorName, []);
+      groups.get(vendorName).push(r);
+    });
+
+    const vendorNames = Array.from(groups.keys()).sort((a, b) => {
+      const au = a === "Unassigned Vendor";
+      const bu = b === "Unassigned Vendor";
+      if (au && !bu) return 1;
+      if (!au && bu) return -1;
+      return a.localeCompare(b);
+    });
+    let valuedTotal = 0;
+    let rowsWithoutRate = 0;
+
+    rows.forEach((r) => {
+      const qty = getVwlPdfQty(r);
+      const rate = getVwlPdfRate(r);
+      const rawAmount = Number(
+        r.total_amount ?? r.amount ?? r.estimated_amount ?? 0,
+      );
+      const hasRate = Number.isFinite(rate) && rate > 0;
+      const hasAmount = Number.isFinite(rawAmount) && rawAmount > 0;
+      const amount = hasAmount ? rawAmount : hasRate ? qty * rate : 0;
+
+      if (!hasRate) rowsWithoutRate += 1;
+
+      valuedTotal += amount;
+    });
+
+    const body = [];
+    vendorNames.forEach((vendorName) => {
+      const vendorRows = groups.get(vendorName) || [];
+      let vendorAmount = 0;
+      let vendorRowsWithoutRate = 0;
+
+      vendorRows.forEach((r) => {
+        const qty = getVwlPdfQty(r);
+        const rate = getVwlPdfRate(r);
+        const rawAmount = Number(
+          r.total_amount ?? r.amount ?? r.estimated_amount ?? 0,
+        );
+        const hasRate = Number.isFinite(rate) && rate > 0;
+        const hasAmount = Number.isFinite(rawAmount) && rawAmount > 0;
+        const amount = hasAmount ? rawAmount : hasRate ? qty * rate : 0;
+
+        if (!hasRate) vendorRowsWithoutRate += 1;
+        vendorAmount += amount;
+      });
+
+      body.push([
+        "",
+        vendorName,
+        "",
+        "",
+        vendorRowsWithoutRate ? `${vendorRowsWithoutRate} rate missing` : "",
+        vendorAmount ? pdfMoney(vendorAmount) : "",
+        "",
+      ]);
+
+      vendorRows
+        .slice()
+        .sort((a, b) =>
+          getVwlPdfItemName(a).localeCompare(getVwlPdfItemName(b)),
+        )
+        .forEach((r, idx) => {
+          const qty = getVwlPdfQty(r);
+          const rate = getVwlPdfRate(r);
+          const rawAmount = Number(
+            r.total_amount ?? r.amount ?? r.estimated_amount ?? 0,
+          );
+          const hasRate = Number.isFinite(rate) && rate > 0;
+          const hasAmount = Number.isFinite(rawAmount) && rawAmount > 0;
+          const amount = hasAmount ? rawAmount : hasRate ? qty * rate : 0;
+
+          body.push([
+            String(idx + 1),
+            getVwlPdfItemName(r),
+            pdfSafeText(r.uom_code || r.uom || ""),
+            pdfQty(qty),
+            hasRate ? pdfMoney(rate) : "Rate missing",
+            amount ? pdfMoney(amount) : "",
+            formatVwlIndentSplit(r),
+          ]);
+        });
+    });
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(0);
+    doc.text("Santhigiri Ayurveda Siddha Vaidyasala", marginX, 30);
+
+    doc.setFontSize(10);
+    doc.text("Vendor-wise Buying List", marginX, 46);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(0);
+
+    const filterLine = [
+      vendorFilter && vendorFilter !== "All Vendors"
+        ? `Vendor: ${vendorFilter}`
+        : "Vendor: All",
+      searchFilter ? `Search: ${searchFilter}` : "Search: None",
+      `Vendors: ${vendorNames.length}`,
+      `Rows: ${rows.length}`,
+      `Valued total: Rs. ${pdfMoney(valuedTotal)}`,
+      rowsWithoutRate ? `Rows without rate: ${rowsWithoutRate}` : "",
+    ]
+      .filter(Boolean)
+      .join("   |   ");
+
+    doc.text(filterLine, marginX, 63);
+
+    doc.autoTable({
+      startY: 78,
+      margin: { left: marginX, right: marginX, bottom: 28 },
+      tableWidth,
+      theme: "grid",
+      head: [
+        ["SN", "Item", "UOM", "Qty to Buy", "Rate", "Amount", "Indent Split"],
+      ],
+      body,
+      styles: {
+        font: "helvetica",
+        fontSize: 7.1,
+        cellPadding: 2,
+        overflow: "linebreak",
+        valign: "top",
+        lineColor: [0, 0, 0],
+        lineWidth: 0.1,
+        textColor: [0, 0, 0],
+        fillColor: false,
+      },
+      headStyles: {
+        fillColor: false,
+        textColor: [0, 0, 0],
+        fontStyle: "bold",
+        fontSize: 7.4,
+        halign: "center",
+        lineColor: [0, 0, 0],
+        lineWidth: 0.1,
+      },
+      bodyStyles: {
+        textColor: [0, 0, 0],
+        fillColor: false,
+        lineColor: [0, 0, 0],
+        lineWidth: 0.1,
+      },
+      alternateRowStyles: {
+        fillColor: false,
+      },
+      columnStyles: {
+        0: { cellWidth: 24, halign: "center" },
+        1: { cellWidth: 185 },
+        2: { cellWidth: 34, halign: "center" },
+        3: { cellWidth: 62, halign: "right" },
+        4: { cellWidth: 58, halign: "right" },
+        5: { cellWidth: 66, halign: "right" },
+        6: {
+          cellWidth: tableWidth - 24 - 185 - 34 - 62 - 58 - 66,
+          halign: "left",
+        },
+      },
+      didParseCell: function (data) {
+        /*
+          Vendor rows are detected by blank SN, blank UOM, blank Qty.
+          Use medium weight by using bold only for vendor name and amount,
+          but no background fill and no merged cells.
+        */
+        if (
+          data.section === "body" &&
+          data.row.raw &&
+          data.row.raw[0] === "" &&
+          data.row.raw[2] === "" &&
+          data.row.raw[3] === ""
+        ) {
+          data.cell.styles.fontStyle = "bold";
+          data.cell.styles.fillColor = false;
+          data.cell.styles.textColor = [0, 0, 0];
+          data.cell.styles.lineColor = [0, 0, 0];
+          data.cell.styles.lineWidth = 0.1;
+
+          /*
+            Keep vendor row visually lighter by reducing font size slightly.
+          */
+          data.cell.styles.fontSize = 7.0;
+        }
+
+        if (data.section === "head") {
+          data.cell.styles.halign = "center";
+        }
+      },
+      didDrawPage: function () {
+        drawVwlPdfFooter();
+      },
+    });
+
+    let finalY = doc.lastAutoTable?.finalY || 100;
+
+    if (finalY > pageHeight - 85) {
+      doc.addPage();
+      drawVwlPdfFooter();
+      finalY = 50;
+    }
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+
+    const signY = finalY + 28;
+
+    doc.text("Prepared by:", marginX, signY);
+    doc.line(marginX + 62, signY, marginX + 170, signY);
+
+    doc.text("Checked by:", marginX + 200, signY);
+    doc.line(marginX + 260, signY, marginX + 370, signY);
+
+    doc.text("Approved by:", marginX + 400, signY);
+    doc.line(marginX + 465, signY, pageWidth - marginX, signY);
+
+    doc.save(buildVendorBuylistPdfFileName());
+
+    toast(
+      rowsWithoutRate
+        ? `Vendor-wise PDF exported. ${rowsWithoutRate} row(s) have missing rate; valued total is partial.`
+        : "Vendor-wise PDF exported.",
+      "success",
+    );
+  } catch (e) {
+    console.error("Vendor-wise PDF export failed", e);
+    toast(`Vendor-wise PDF export failed: ${e.message || e}`, "error");
+  } finally {
+    hideLoadingMask();
+  }
+}
+
 function wireVendorBuylistControls() {
   const vwlFilterBtn = qs("vwlFilterBtn");
   const vwlFilterDrawer = qs("vwlFilterDrawer");
   const vwlVendorFilter = qs("vwlVendorFilter");
 
+  const closeVwlFilterDrawer = () => {
+    vwlFilterDrawer?.classList.remove("open", "show", "active");
+    vwlFilterDrawer?.setAttribute("hidden", "hidden");
+    vwlFilterBtn?.setAttribute("aria-expanded", "false");
+  };
+
+  closeVwlFilterDrawer();
+
   if (vwlFilterBtn && vwlFilterDrawer) {
     vwlFilterBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       const isOpen = vwlFilterDrawer.classList.contains("open");
+      closeVendorBuylistDrawers("vwlFilterDrawer");
       document.querySelectorAll(".pec-filter-drawer.open").forEach((drawer) => {
         if (drawer !== vwlFilterDrawer) {
           drawer.classList.remove("open");
@@ -6270,6 +7014,11 @@ function wireVendorBuylistControls() {
         }
       });
       vwlFilterDrawer.classList.toggle("open", !isOpen);
+      if (!isOpen) {
+        vwlFilterDrawer.removeAttribute("hidden");
+      } else {
+        vwlFilterDrawer.setAttribute("hidden", "hidden");
+      }
       vwlFilterBtn.setAttribute("aria-expanded", String(!isOpen));
       if (!isOpen) {
         const rect = vwlFilterBtn.getBoundingClientRect();
@@ -6293,8 +7042,7 @@ function wireVendorBuylistControls() {
         !vwlFilterDrawer.contains(e.target) &&
         !vwlFilterBtn.contains(e.target)
       ) {
-        vwlFilterDrawer.classList.remove("open");
-        vwlFilterBtn.setAttribute("aria-expanded", "false");
+        closeVwlFilterDrawer();
       }
     });
   }
@@ -6306,6 +7054,7 @@ function wireVendorBuylistControls() {
     onSearch: (query) => {
       state.vwl.search = query;
       state.vwl.page = 0;
+      syncVwlFilterBadge();
       loadVendorBuylist();
     },
   });
@@ -6313,6 +7062,41 @@ function wireVendorBuylistControls() {
   qs("vwlVendorFilter")?.addEventListener("change", (e) => {
     state.vwl.vendorId = e.target.value || "";
     state.vwl.page = 0;
+    syncVwlFilterBadge();
+    loadVendorBuylist();
+  });
+
+  qs("vwlMaterialClassFilter")?.addEventListener("change", () => {
+    const sel = qs("vwlMaterialClassFilter");
+    state.vwlFilters.materialClassId = sel?.value || "";
+    state.vwlFilters.materialClassCode =
+      sel?.selectedOptions?.[0]?.dataset?.code || "";
+
+    refreshVwlRmScopeAvailability();
+    state.vwl.page = 0;
+    syncVwlFilterBadge();
+    loadVendorBuylist();
+  });
+
+  qs("vwlRmScopeFilter")?.addEventListener("change", () => {
+    state.vwlFilters.rmScope = qs("vwlRmScopeFilter")?.value || "";
+    state.vwl.page = 0;
+    syncVwlFilterBadge();
+    loadVendorBuylist();
+  });
+
+  qs("vwlRateStatusFilter")?.addEventListener("change", () => {
+    state.vwlFilters.rateStatus = qs("vwlRateStatusFilter")?.value || "";
+    state.vwl.page = 0;
+    syncVwlFilterBadge();
+    loadVendorBuylist();
+  });
+
+  qs("vwlAssignmentStatusFilter")?.addEventListener("change", () => {
+    state.vwlFilters.assignmentStatus =
+      qs("vwlAssignmentStatusFilter")?.value || "";
+    state.vwl.page = 0;
+    syncVwlFilterBadge();
     loadVendorBuylist();
   });
 
@@ -6330,7 +7114,19 @@ function wireVendorBuylistControls() {
 
   qs("vwlExportBtn")?.addEventListener("click", (e) => {
     e.stopPropagation();
+    closeVendorBuylistDrawers("vwlExportDrawer");
+    const drawer = qs("vwlExportDrawer");
+    const menu = qs("vwlExportMenu");
+    const willOpen = !menu?.classList.contains("open");
     toggleExportMenu("vwlExportMenu", qs("vwlExportBtn"));
+    if (drawer) {
+      if (willOpen) drawer.removeAttribute("hidden");
+      else drawer.setAttribute("hidden", "hidden");
+    }
+  });
+  qs("vwlExportPdf")?.addEventListener("click", () => {
+    closeAllExportMenus();
+    exportVendorBuylistPdf();
   });
   qs("vwlExportCsv")?.addEventListener("click", () => {
     exportVendorBuylist("csv");
@@ -6340,6 +7136,29 @@ function wireVendorBuylistControls() {
     exportVendorBuylist("tsv");
     closeAllExportMenus();
   });
+
+  const vwlClearFilterBtn =
+    qs("vwlFilterClear") || qs("vwlClearFilters") || qs("btnVwlClearFilters");
+  vwlClearFilterBtn?.addEventListener("click", () => {
+    state.vwlFilters.materialClassId = "";
+    state.vwlFilters.materialClassCode = "";
+    state.vwlFilters.rmScope = "";
+    state.vwlFilters.rateStatus = "";
+    state.vwlFilters.assignmentStatus = "";
+
+    if (qs("vwlMaterialClassFilter")) qs("vwlMaterialClassFilter").value = "";
+    if (qs("vwlRmScopeFilter")) qs("vwlRmScopeFilter").value = "";
+    if (qs("vwlRateStatusFilter")) qs("vwlRateStatusFilter").value = "";
+    if (qs("vwlAssignmentStatusFilter"))
+      qs("vwlAssignmentStatusFilter").value = "";
+
+    refreshVwlRmScopeAvailability();
+    state.vwl.page = 0;
+    syncVwlFilterBadge();
+    loadVendorBuylist();
+  });
+
+  syncVwlFilterBadge();
 
   qs("btnVwlBdClose")?.addEventListener("click", closeVwlBreakdownModal);
   qs("vwlBreakdownModalBackdrop")?.addEventListener("click", (e) => {

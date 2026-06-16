@@ -567,6 +567,48 @@
         border-radius: 999px;
         border: 1px solid var(--border, #e5e7eb);
         font-size: 12px;
+        background: rgba(15, 23, 42, 0.04);
+        color: var(--text-color, #111);
+      }
+      .pill-info {
+        border-color: rgba(0, 90, 141, 0.28);
+        background: rgba(0, 90, 141, 0.08);
+        color: #005a8d;
+      }
+      .pill-success {
+        border-color: rgba(22, 163, 74, 0.28);
+        background: rgba(22, 163, 74, 0.1);
+        color: #166534;
+      }
+      .pill-warning {
+        border-color: rgba(217, 119, 6, 0.32);
+        background: rgba(245, 158, 11, 0.12);
+        color: #92400e;
+      }
+      .pill-danger {
+        border-color: rgba(220, 38, 38, 0.28);
+        background: rgba(220, 38, 38, 0.1);
+        color: #991b1b;
+      }
+      .pill-neutral {
+        border-color: rgba(100, 116, 139, 0.26);
+        background: rgba(100, 116, 139, 0.1);
+        color: #475569;
+      }
+      .pill-band-p1 {
+        border-color: rgba(220, 38, 38, 0.35);
+        background: rgba(220, 38, 38, 0.11);
+        color: #991b1b;
+      }
+      .pill-band-p2 {
+        border-color: rgba(217, 119, 6, 0.35);
+        background: rgba(245, 158, 11, 0.13);
+        color: #92400e;
+      }
+      .pill-band-p3 {
+        border-color: rgba(0, 90, 141, 0.3);
+        background: rgba(0, 90, 141, 0.09);
+        color: #005a8d;
       }
       .row-actions button {
         margin-right: 6px;
@@ -1322,6 +1364,18 @@
       .pec-filter-section:last-child {
         margin-bottom: 0;
       }
+      .pec-filter-section > label {
+        display: block;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted, #6b7280);
+      }
+      .pec-filter-section > label .pec-filter-select,
+      .pec-filter-section > label .pec-filter-input {
+        margin-top: 5px;
+      }
       .pec-filter-section-title {
         font-size: 11px;
         font-weight: 700;
@@ -1329,6 +1383,28 @@
         letter-spacing: 0.05em;
         color: var(--muted, #6b7280);
         margin-bottom: 5px;
+      }
+      .pec-filter-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 2px;
+      }
+      .pec-filter-clear-btn {
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+        background: var(--panel-bg, #fff);
+        color: var(--text-color, #374151);
+        padding: 6px 10px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .pec-filter-clear-btn:hover,
+      .pec-filter-clear-btn:focus-visible {
+        background: #f3f4f6;
+        border-color: var(--primary, #005a8d);
+        color: var(--primary, #005a8d);
+        outline: none;
       }
       .pec-filter-select {
         width: 100%;
@@ -1860,8 +1936,8 @@
                   />
                 </svg>
                 <span
-                  class="pec-filter-badge"
                   id="aqFilterBadge"
+                  class="pec-filter-badge"
                   style="display: none"
                 ></span>
               </button>
@@ -1910,18 +1986,11 @@
                 </div>
                 <div class="pec-filter-section">
                   <div class="pec-filter-section-title">Quick toggles</div>
-                  <label style="display: flex; gap: 8px; align-items: center">
+                  <label class="pec-filter-check">
                     <input id="fSelectedOnly" type="checkbox" />
                     Selected vendor only
                   </label>
-                  <label
-                    style="
-                      display: flex;
-                      gap: 8px;
-                      align-items: center;
-                      margin-top: 6px;
-                    "
-                  >
+                  <label class="pec-filter-check" style="margin-top: 6px">
                     <input id="fUnselectedOnly" type="checkbox" />
                     Unselected only
                   </label>
@@ -2292,13 +2361,13 @@
                     points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"
                   />
                 </svg>
+                <span
+                  id="vwlFilterBadge"
+                  class="pec-filter-badge"
+                  style="display: none"
+                  title="Filter active"
+                ></span>
               </button>
-              <span
-                id="vwlFilterBadge"
-                class="pec-filter-badge"
-                style="display: none"
-                title="Filter active"
-              ></span>
               <div
                 id="vwlFilterDrawer"
                 class="pec-filter-drawer"
@@ -2309,15 +2378,67 @@
                   Filter vendor-wise list
                 </div>
                 <div class="pec-filter-section">
-                  <div
-                    class="muted"
-                    style="font-size: 12px; margin-bottom: 4px"
+                  <label class="pec-filter-label" for="vwlVendorFilter"
+                    >Vendor</label
                   >
-                    Vendor
-                  </div>
                   <select id="vwlVendorFilter" class="pec-filter-select">
                     <option value="">All vendors</option>
                   </select>
+                </div>
+                <div class="pec-filter-section">
+                  <label class="pec-filter-label" for="vwlMaterialClassFilter">
+                    Material Class
+                  </label>
+                  <select id="vwlMaterialClassFilter" class="pec-filter-select">
+                    <option value="">All Material Classes</option>
+                  </select>
+                </div>
+                <div class="pec-filter-section">
+                  <label class="pec-filter-label" for="vwlRmScopeFilter">
+                    RM Scope
+                  </label>
+                  <select
+                    id="vwlRmScopeFilter"
+                    class="pec-filter-select"
+                    disabled
+                  >
+                    <option value="">All RM Scope</option>
+                  </select>
+                </div>
+                <div class="pec-filter-section">
+                  <label class="pec-filter-label" for="vwlRateStatusFilter">
+                    Rate Status
+                  </label>
+                  <select id="vwlRateStatusFilter" class="pec-filter-select">
+                    <option value="">All Rate Status</option>
+                    <option value="with_rate">With Rate</option>
+                    <option value="missing_rate">Missing Rate</option>
+                  </select>
+                </div>
+                <div class="pec-filter-section">
+                  <label
+                    class="pec-filter-label"
+                    for="vwlAssignmentStatusFilter"
+                  >
+                    Assignment Status
+                  </label>
+                  <select
+                    id="vwlAssignmentStatusFilter"
+                    class="pec-filter-select"
+                  >
+                    <option value="">All Assignment Status</option>
+                    <option value="assigned">Assigned Vendor</option>
+                    <option value="unassigned">Unassigned Vendor</option>
+                  </select>
+                </div>
+                <div class="pec-filter-actions">
+                  <button
+                    id="vwlFilterClear"
+                    class="pec-filter-clear-btn"
+                    type="button"
+                  >
+                    Clear Filters
+                  </button>
                 </div>
               </div>
             </div>
@@ -2399,6 +2520,9 @@
                     </svg>
                   </button>
                   <div id="vwlExportDrawer" class="export-dropdown" role="menu">
+                    <button id="vwlExportPdf" role="menuitem" type="button">
+                      Export Vendor-wise PDF
+                    </button>
                     <button id="vwlExportCsv" role="menuitem" type="button">
                       Export Vendor-wise CSV
                     </button>
@@ -2479,49 +2603,6 @@
         <!-- EXCESS -->
         <div class="tab-panel" id="tab-excess">
           <div class="pec-search-card">
-            <div class="pec-search-wrap">
-              <input
-                id="eSearch"
-                class="pec-search-input"
-                type="text"
-                placeholder="Search item…"
-                aria-label="Search excess purchases"
-              />
-              <button
-                id="eSearchClear"
-                type="button"
-                class="pec-input-clear"
-                title="Clear search"
-                aria-label="Clear search"
-                style="display: none"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  width="13"
-                  height="13"
-                  aria-hidden="true"
-                >
-                  <line
-                    x1="18"
-                    y1="6"
-                    x2="6"
-                    y2="18"
-                    stroke="currentColor"
-                    stroke-width="2.5"
-                    stroke-linecap="round"
-                  />
-                  <line
-                    x1="6"
-                    y1="6"
-                    x2="18"
-                    y2="18"
-                    stroke="currentColor"
-                    stroke-width="2.5"
-                    stroke-linecap="round"
-                  />
-                </svg>
-              </button>
-            </div>
             <div class="pec-filter-wrap">
               <button
                 id="eFilterBtn"
@@ -2634,6 +2715,49 @@
                   </label>
                 </div>
               </div>
+            </div>
+            <div class="pec-search-wrap">
+              <input
+                id="eSearch"
+                class="pec-search-input"
+                type="text"
+                placeholder="Search item…"
+                aria-label="Search excess purchases"
+              />
+              <button
+                id="eSearchClear"
+                type="button"
+                class="pec-input-clear"
+                title="Clear search"
+                aria-label="Clear search"
+                style="display: none"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="13"
+                  height="13"
+                  aria-hidden="true"
+                >
+                  <line
+                    x1="18"
+                    y1="6"
+                    x2="6"
+                    y2="18"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                  />
+                  <line
+                    x1="6"
+                    y1="6"
+                    x2="18"
+                    y2="18"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </button>
             </div>
           </div>
           <div class="card" style="margin-bottom: 12px">
@@ -3560,7 +3684,12 @@
           </p>
           <div class="erp-choice-list">
             <label class="erp-choice-row">
-              <input type="radio" name="vendorAcceptMode" value="false" checked />
+              <input
+                type="radio"
+                name="vendorAcceptMode"
+                value="false"
+                checked
+              />
               <span>
                 <strong class="erp-choice-title">
                   Clear inactive recommendations only
