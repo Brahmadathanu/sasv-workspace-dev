@@ -94,17 +94,34 @@ const line1El = $("line1");
 const line2El = $("line2");
 
 const typePills = $("typePills");
+const receiptDetailsBtn = $("receiptDetailsBtn");
+const receiptDetailsSub = $("receiptDetailsSub");
+const receiptDetailsStatus = $("receiptDetailsStatus");
 const fgFields = $("fgFields");
 const rmFields = $("rmFields");
+const rmPmDrawerTitle = $("rmPmDrawerTitle");
+const rmPmDrawerSub = $("rmPmDrawerSub");
 const commonFields = $("commonFields");
+const mobileReceiptDrawer = $("mobileReceiptDrawer");
+const mobileReceiptDrawerBody = $("mobileReceiptDrawerBody");
+const mobileReceiptDrawerTitle = $("mobileReceiptDrawerTitle");
+const mobileReceiptDrawerSub = $("mobileReceiptDrawerSub");
+const mobileReceiptDrawerClose = $("mobileReceiptDrawerClose");
+const mobileReceiptDrawerDone = $("mobileReceiptDrawerDone");
 const readinessSection = $("readinessSection");
 const formActionsBar = $("formActionsBar");
 
 const productSelect = $("productSelect");
+const productSearchInput = $("productSearchInput");
+const productSearchList = $("productSearchList");
 const batchNoSelect = $("batchNoSelect");
+const batchSearchInput = $("batchSearchInput");
+const batchSearchList = $("batchSearchList");
 const batchSizeDisplay = $("batchSizeDisplay");
 const batchUomDisplay = $("batchUomDisplay");
 const stockItemSelect = $("stockItemSelect");
+const stockItemSearchInput = $("stockItemSearchInput");
+const stockItemSearchList = $("stockItemSearchList");
 const systemLotNo = $("systemLotNo");
 const sampleDate = $("sampleDate");
 const physRegRef = $("physRegRef");
@@ -296,11 +313,8 @@ async function loadPickers() {
   setStatusLoading("Loading pickers…");
 
   try {
-    const [fgRes, rmRes, staffRes] = await Promise.all([
-      labSupabase
-        .from("v_sample_receipt_fg_picker")
-        .select("product_id, product_name")
-        .order("product_name"),
+    const [fgRows, rmRes, staffRes] = await Promise.all([
+      loadAllFgProductsPaged(),
       labSupabase
         .from("v_rm_pm_item_with_group")
         .select("stock_item_id, stock_item_name, category_code")
@@ -311,7 +325,6 @@ async function loadPickers() {
         .order("full_name"),
     ]);
 
-    if (fgRes.error) throw new Error(`FG picker: ${fgRes.error.message}`);
     if (rmRes.error) throw new Error(`RM picker: ${rmRes.error.message}`);
     if (staffRes.error)
       throw new Error(`Staff picker: ${staffRes.error.message}`);
@@ -319,7 +332,7 @@ async function loadPickers() {
     // Populate FG product dropdown
     populateSelect(
       productSelect,
-      fgRes.data ?? [],
+      fgRows,
       (r) => r.product_id,
       (r) => r.product_name,
       "— Select Product —",
@@ -362,6 +375,33 @@ async function loadPickers() {
       `Could not load form data: ${err.message}. Please refresh the page.`,
     );
   }
+}
+
+async function loadAllFgProductsPaged() {
+  const rows = [];
+  const pageSize = 1000;
+
+  for (let from = 0; ; ) {
+    const { data, error, count } = await labSupabase
+      .from("v_sample_receipt_fg_picker")
+      .select("product_id, product_name", { count: "exact" })
+      .order("product_name")
+      .order("product_id")
+      .range(from, from + pageSize - 1);
+
+    if (error) throw new Error(`FG picker: ${error.message}`);
+
+    const page = data ?? [];
+    rows.push(...page);
+
+    if (page.length === 0 || (count !== null && rows.length >= count)) {
+      break;
+    }
+
+    from += page.length;
+  }
+
+  return rows;
 }
 
 // ── Resolve current user → staff context ────────────────────────────────────
@@ -409,6 +449,13 @@ async function applyDefaultStaffSelections() {
 }
 
 function wireEvents() {
+  bindSearchInputToSelect(productSearchInput, productSelect, productMsg);
+  bindSearchInputToSelect(batchSearchInput, batchNoSelect, batchSelectMsg);
+  bindSearchInputToSelect(stockItemSearchInput, stockItemSelect, stockItemMsg);
+  syncSearchUiForSelect(productSelect);
+  syncSearchUiForSelect(batchNoSelect);
+  syncSearchUiForSelect(stockItemSelect);
+
   // Home navigation
   homeBtn.addEventListener("click", () => Platform.goHome());
 
@@ -416,7 +463,11 @@ function wireEvents() {
   typePills.querySelectorAll(".type-pill").forEach((pill) => {
     pill.addEventListener("click", () => {
       const type = pill.dataset.type;
-      if (!type || type === currentSampleType) return;
+      if (!type) return;
+      if (type === currentSampleType) {
+        openMobileFieldDrawer();
+        return;
+      }
       if (isFormDirty()) {
         pendingSwitchType = type;
         switchTypeModal.classList.remove("hidden");
@@ -446,20 +497,47 @@ function wireEvents() {
     }
   });
 
+  document.querySelectorAll("[data-close-mobile-fields]").forEach((btn) => {
+    btn.addEventListener("click", closeMobileFieldDrawer);
+  });
+  if (receiptDetailsBtn) {
+    receiptDetailsBtn.addEventListener("click", openMobileFieldDrawer);
+  }
+  if (mobileReceiptDrawerClose) {
+    mobileReceiptDrawerClose.addEventListener("click", closeMobileFieldDrawer);
+  }
+  if (mobileReceiptDrawerDone) {
+    mobileReceiptDrawerDone.addEventListener("click", closeMobileFieldDrawer);
+  }
+  document.addEventListener("keydown", (e) => {
+    if (
+      e.key === "Escape" &&
+      document.body.classList.contains("mobile-field-drawer-open")
+    ) {
+      closeMobileFieldDrawer();
+    }
+  });
+  window.addEventListener("resize", () => {
+    if (!isMobileEntryLayout()) closeMobileFieldDrawer();
+  });
+
   // Product change → repopulate FG batch dropdown; protocol check deferred to batch selection
   productSelect.addEventListener("change", async () => {
-    clearFieldError(batchNoSelect, batchSelectMsg);
+    syncSearchInputFromSelect(productSelect);
+    clearFieldError(batchSearchInput, batchSelectMsg);
     clearMappingState();
     await populateFgBatchDropdown(productSelect.value);
+    updateSampleTypeSummary();
   });
 
   // Batch No dropdown → populate read-only fields + trigger mapping check
   batchNoSelect.addEventListener("change", () => {
+    syncSearchInputFromSelect(batchNoSelect);
     const opt = batchNoSelect.options[batchNoSelect.selectedIndex];
     if (batchNoSelect.value && opt) {
       batchSizeDisplay.value = opt.dataset.batchSize ?? "";
       batchUomDisplay.value = opt.dataset.uom ?? "";
-      clearFieldError(batchNoSelect, batchSelectMsg);
+      clearFieldError(batchSearchInput, batchSelectMsg);
       if (productSelect.value) scheduleProtocolCheck();
     } else {
       batchSizeDisplay.value = "";
@@ -467,12 +545,15 @@ function wireEvents() {
       clearMappingState();
     }
     updateStartButton();
+    updateSampleTypeSummary();
   });
 
   // Stock item change → trigger mapping check
   stockItemSelect.addEventListener("change", () => {
+    syncSearchInputFromSelect(stockItemSelect);
     clearMappingState();
     if (stockItemSelect.value) scheduleProtocolCheck();
+    updateSampleTypeSummary();
   });
 
   // Effective specifications are date-sensitive. Keep readiness aligned with
@@ -520,6 +601,8 @@ function wireEvents() {
   ].forEach((el) => {
     el.addEventListener("change", updateStartButton);
     el.addEventListener("input", updateStartButton);
+    el.addEventListener("change", updateSampleTypeSummary);
+    el.addEventListener("input", updateSampleTypeSummary);
   });
 
   // Start analysis
@@ -568,6 +651,8 @@ function clearFormData() {
   productSelect.value = "";
   populateFgBatchDropdown(null);
   stockItemSelect.value = "";
+  syncSearchInputFromSelect(productSelect);
+  syncSearchInputFromSelect(stockItemSelect);
   systemLotNo.value = "";
   physRegRef.value = "";
   remarks.value = "";
@@ -575,6 +660,7 @@ function clearFormData() {
   startError.classList.add("hidden");
   startError.textContent = "";
   clearMappingState();
+  updateSampleTypeSummary();
 }
 
 // ── Sample type change ────────────────────────────────────────────────────────
@@ -602,7 +688,7 @@ function handleSampleTypeChange(type) {
     // Update label and populate dropdown for chosen type
     const isPM = type === "PM_LOT";
     const stockItemLabel = document.querySelector(
-      "label[for='stockItemSelect']",
+      "label[for='stockItemSearchInput']",
     );
     if (stockItemLabel) {
       stockItemLabel.innerHTML = isPM
@@ -616,6 +702,12 @@ function handleSampleTypeChange(type) {
       (r) => r.stock_item_name,
       isPM ? "— Select Packing Material —" : "— Select Raw Material —",
     );
+    if (stockItemSearchInput) {
+      stockItemSearchInput.placeholder = isPM
+        ? "Type to search packing material"
+        : "Type to search raw material";
+    }
+    updateRmPmDrawerCopy(isPM);
   }
 
   // Common fields always visible after type is chosen
@@ -641,6 +733,130 @@ function handleSampleTypeChange(type) {
   }
 
   updateStartButton();
+  updateSampleTypeSummary();
+  openMobileFieldDrawer();
+}
+
+function isMobileEntryLayout() {
+  return window.matchMedia("(max-width: 600px)").matches;
+}
+
+function updateRmPmDrawerCopy(isPM = currentSampleType === "PM_LOT") {
+  if (rmPmDrawerTitle) {
+    rmPmDrawerTitle.textContent = isPM ? "PM Lot Details" : "RM Lot Details";
+  }
+  if (rmPmDrawerSub) {
+    rmPmDrawerSub.textContent = isPM
+      ? "Select packing material lot details for the sample."
+      : "Select raw material lot details for the sample.";
+  }
+}
+
+function openMobileFieldDrawer() {
+  if (!currentSampleType || !isMobileEntryLayout()) return;
+  prepareMobileReceiptDrawer();
+  moveStep1SectionsToMobileDrawer();
+  if (mobileReceiptDrawer) mobileReceiptDrawer.classList.remove("hidden");
+  document.body.classList.add("mobile-field-drawer-open");
+
+  const focusTarget =
+    currentSampleType === "FG_BATCH" ? productSearchInput : stockItemSearchInput;
+  setTimeout(() => {
+    try {
+      focusTarget?.focus();
+    } catch {
+      /* ignore focus failures */
+    }
+  }, 0);
+}
+
+function closeMobileFieldDrawer() {
+  restoreStep1SectionsFromMobileDrawer();
+  if (mobileReceiptDrawer) mobileReceiptDrawer.classList.add("hidden");
+  document.body.classList.remove("mobile-field-drawer-open");
+  updateSampleTypeSummary();
+}
+
+function moveStep1SectionsToMobileDrawer() {
+  if (!mobileReceiptDrawerBody) return;
+  const activeTypeFields =
+    currentSampleType === "FG_BATCH" ? fgFields : rmFields;
+  if (activeTypeFields) mobileReceiptDrawerBody.appendChild(activeTypeFields);
+  if (commonFields) mobileReceiptDrawerBody.appendChild(commonFields);
+}
+
+function restoreStep1SectionsFromMobileDrawer() {
+  const mainCard = $("mainCard");
+  if (!mainCard || !readinessSection) return;
+  mainCard.insertBefore(fgFields, readinessSection);
+  mainCard.insertBefore(rmFields, readinessSection);
+  mainCard.insertBefore(commonFields, readinessSection);
+}
+
+function prepareMobileReceiptDrawer() {
+  const typeLabel = sampleTypeLabel();
+  if (mobileReceiptDrawerTitle) {
+    mobileReceiptDrawerTitle.textContent = `${typeLabel} Receipt Details`;
+  }
+  if (mobileReceiptDrawerSub) {
+    mobileReceiptDrawerSub.textContent =
+      "Complete sample reference and receipt details for analysis entry.";
+  }
+}
+
+function sampleTypeLabel(type = currentSampleType) {
+  if (type === "FG_BATCH") return "FG Batch";
+  if (type === "PM_LOT") return "PM Lot";
+  if (type === "RM_LOT") return "RM Lot";
+  return "";
+}
+
+function updateSampleTypeSummary() {
+  if (!receiptDetailsBtn || !currentSampleType) return;
+
+  let detail = "";
+  if (currentSampleType === "FG_BATCH") {
+    const product = productSelect.value ? selectedOptionText(productSelect) : "";
+    const batch = batchNoSelect.value ? selectedOptionText(batchNoSelect) : "";
+    detail = [product, batch].filter(Boolean).join(" / ");
+  } else {
+    detail = stockItemSelect.value ? selectedOptionText(stockItemSelect) : "";
+  }
+
+  const isComplete = isReceiptDetailsComplete();
+  if (receiptDetailsSub) {
+    receiptDetailsSub.textContent = detail
+      ? `${sampleTypeLabel()}: ${detail}`
+      : `${sampleTypeLabel()} selected. Details pending.`;
+  }
+  receiptDetailsBtn.classList.toggle("is-complete", isComplete);
+  receiptDetailsBtn.classList.remove("hidden");
+  receiptDetailsBtn.setAttribute(
+    "aria-label",
+    isComplete
+      ? "Receipt details complete. Open receipt details."
+      : "Receipt details incomplete. Open receipt details.",
+  );
+  if (receiptDetailsStatus) {
+    receiptDetailsStatus.innerHTML = isComplete
+      ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`
+      : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+  }
+}
+
+function isReceiptDetailsComplete() {
+  if (!currentSampleType) return false;
+  const hasSubjectDetails =
+    currentSampleType === "FG_BATCH"
+      ? !!(productSelect.value && batchNoSelect.value)
+      : !!stockItemSelect.value;
+  return !!(
+    hasSubjectDetails &&
+    sampleDate.value &&
+    physRegRef.value.trim() &&
+    analysedBy.value &&
+    personInCharge.value
+  );
 }
 
 // ── Protocol mapping ──────────────────────────────────────────────────────────
@@ -1175,11 +1391,13 @@ async function populateFgBatchDropdown(productId) {
     batchNoSelect.innerHTML =
       '<option value="">— Select Product first —</option>';
     batchNoSelect.disabled = true;
+    syncSearchUiForSelect(batchNoSelect);
     return;
   }
 
   batchNoSelect.innerHTML = '<option value="">— Loading batches… —</option>';
   batchNoSelect.disabled = true;
+  syncSearchUiForSelect(batchNoSelect);
   updateStartButton();
 
   const rows = [];
@@ -1211,8 +1429,9 @@ async function populateFgBatchDropdown(productId) {
     batchNoSelect.innerHTML =
       '<option value="">— Could not load batches —</option>';
     batchNoSelect.disabled = true;
+    syncSearchUiForSelect(batchNoSelect);
     setFieldError(
-      batchNoSelect,
+      batchSearchInput,
       batchSelectMsg,
       "Could not load batches for the selected product.",
     );
@@ -1238,6 +1457,7 @@ async function populateFgBatchDropdown(productId) {
     });
     batchNoSelect.disabled = false;
   }
+  syncSearchUiForSelect(batchNoSelect);
   updateStartButton();
 }
 
@@ -1298,11 +1518,11 @@ function validateForm() {
 
   if (currentSampleType === "FG_BATCH") {
     if (!productSelect.value) {
-      setFieldError(productSelect, productMsg, "Product is required");
+      setFieldError(productSearchInput, productMsg, "Product is required");
       errors.push("Product is required");
     }
     if (!batchNoSelect.value) {
-      setFieldError(batchNoSelect, batchSelectMsg, "Batch No is required");
+      setFieldError(batchSearchInput, batchSelectMsg, "Batch No is required");
       errors.push("Batch No is required");
     }
   }
@@ -1311,7 +1531,11 @@ function validateForm() {
     const itemLabel =
       currentSampleType === "PM_LOT" ? "Packing Material" : "Raw Material";
     if (!stockItemSelect.value) {
-      setFieldError(stockItemSelect, stockItemMsg, `${itemLabel} is required`);
+      setFieldError(
+        stockItemSearchInput,
+        stockItemMsg,
+        `${itemLabel} is required`,
+      );
       errors.push(`${itemLabel} is required`);
     }
   }
@@ -1390,9 +1614,9 @@ function clearFieldError(input, msgEl) {
 
 function clearAllFieldErrors() {
   [
-    [productSelect, productMsg],
-    [batchNoSelect, batchSelectMsg],
-    [stockItemSelect, stockItemMsg],
+    [productSearchInput, productMsg],
+    [batchSearchInput, batchSelectMsg],
+    [stockItemSearchInput, stockItemMsg],
     [systemLotNo, lotMsg],
     [sampleDate, dateMsg],
     [physRegRef, physRegMsg],
@@ -1703,6 +1927,8 @@ function resetForm() {
   productSelect.value = "";
   populateFgBatchDropdown(null);
   stockItemSelect.value = "";
+  syncSearchInputFromSelect(productSelect);
+  syncSearchInputFromSelect(stockItemSelect);
   systemLotNo.value = "";
   sampleDate.value = todayISO();
   physRegRef.value = "";
@@ -1725,6 +1951,14 @@ function resetForm() {
   readinessSection.classList.add("hidden");
   formActionsBar.classList.add("hidden");
   clearMappingState();
+  closeMobileFieldDrawer();
+  if (receiptDetailsBtn) {
+    receiptDetailsBtn.classList.add("hidden");
+    receiptDetailsBtn.classList.remove("is-complete");
+  }
+  if (receiptDetailsSub) {
+    receiptDetailsSub.textContent = "Select a sample type to continue";
+  }
 
   // Show main card / hide success panel
   $("mainCard").classList.remove("hidden");
@@ -1809,6 +2043,100 @@ function selectedOptionText(selectEl) {
   return opt ? opt.text : "—";
 }
 
+function getSearchBindingForSelect(selectEl) {
+  if (!selectEl) return null;
+  if (selectEl.id === "productSelect") {
+    return { input: productSearchInput, datalist: productSearchList };
+  }
+  if (selectEl.id === "batchNoSelect") {
+    return { input: batchSearchInput, datalist: batchSearchList };
+  }
+  if (selectEl.id === "stockItemSelect") {
+    return { input: stockItemSearchInput, datalist: stockItemSearchList };
+  }
+  return null;
+}
+
+function rebuildSearchListFromSelect(selectEl) {
+  const binding = getSearchBindingForSelect(selectEl);
+  if (!binding?.datalist) return;
+  binding.datalist.innerHTML = "";
+  Array.from(selectEl.options).forEach((opt) => {
+    if (!opt.value) return;
+    const datalistOpt = document.createElement("option");
+    datalistOpt.value = opt.textContent ?? "";
+    binding.datalist.appendChild(datalistOpt);
+  });
+}
+
+function syncSearchInputFromSelect(selectEl) {
+  const binding = getSearchBindingForSelect(selectEl);
+  if (!binding?.input) return;
+  const opt = selectEl.options[selectEl.selectedIndex];
+  binding.input.value = selectEl.value ? (opt?.text ?? "") : "";
+  binding.input.disabled = !!selectEl.disabled;
+}
+
+function syncSearchUiForSelect(selectEl) {
+  rebuildSearchListFromSelect(selectEl);
+  syncSearchInputFromSelect(selectEl);
+}
+
+function findOptionByLabel(selectEl, labelText) {
+  const needle = String(labelText ?? "")
+    .trim()
+    .toLowerCase();
+  if (!needle) return null;
+  return (
+    Array.from(selectEl.options).find(
+      (o) =>
+        !!o.value &&
+        String(o.textContent ?? "")
+          .trim()
+          .toLowerCase() === needle,
+    ) ?? null
+  );
+}
+
+function bindSearchInputToSelect(inputEl, selectEl, msgEl) {
+  if (!inputEl || !selectEl) return;
+
+  const applyInput = (strict) => {
+    const typed = String(inputEl.value ?? "").trim();
+    if (!typed) {
+      if (selectEl.value) {
+        selectEl.value = "";
+        selectEl.dispatchEvent(new Event("change", { bubbles: true }));
+      } else {
+        syncSearchInputFromSelect(selectEl);
+      }
+      clearFieldError(inputEl, msgEl);
+      return;
+    }
+
+    const match = findOptionByLabel(selectEl, typed);
+
+    if (match) {
+      if (selectEl.value !== match.value) {
+        selectEl.value = match.value;
+        selectEl.dispatchEvent(new Event("change", { bubbles: true }));
+      } else {
+        syncSearchInputFromSelect(selectEl);
+      }
+      clearFieldError(inputEl, msgEl);
+      return;
+    }
+
+    if (strict && selectEl.value) {
+      syncSearchInputFromSelect(selectEl);
+    }
+  };
+
+  inputEl.addEventListener("input", () => applyInput(false));
+  inputEl.addEventListener("change", () => applyInput(false));
+  inputEl.addEventListener("blur", () => applyInput(true));
+}
+
 function populateSelect(selectEl, rows, valueFn, labelFn, placeholder) {
   // Keep the first placeholder option
   selectEl.innerHTML = `<option value="">${esc(placeholder)}</option>`;
@@ -1818,6 +2146,7 @@ function populateSelect(selectEl, rows, valueFn, labelFn, placeholder) {
     opt.textContent = labelFn(row);
     selectEl.appendChild(opt);
   });
+  syncSearchUiForSelect(selectEl);
 }
 
 function formatStatus(status) {

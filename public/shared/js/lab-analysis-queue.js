@@ -649,16 +649,19 @@ function renderTable(displayRows) {
     const secondaryLine = secondaryParts.length
       ? `<span class="item-secondary">${secondaryParts.join(" · ")}</span>`
       : "";
+    const sampleRef = formatSampleRef(r);
+    const registerNo = r.analysis_register_no || "—";
 
     tr.innerHTML = `
-      <td>${formatSubjectChip(r.analysis_subject_type)}</td>
-      <td>${escHtml(r.analysis_register_no || "—")}</td>
-      <td>
+      <td class="mobile-subject-cell">${formatSubjectChip(r.analysis_subject_type)}</td>
+      <td class="mobile-register-cell">${escHtml(registerNo)}</td>
+      <td class="mobile-item-cell">
         <span class="item-primary">${escHtml(itemName(r))}</span>
+        <span class="mobile-sample-ref">Sample Ref: ${escHtml(sampleRef)}</span>
         ${secondaryLine}
       </td>
-      <td class="col-hide-mobile">${escHtml(formatSampleRef(r))}</td>
-      <td>${formatStatusChip(r.status)}</td>
+      <td class="col-hide-mobile">${escHtml(sampleRef)}</td>
+      <td class="mobile-status-cell">${formatStatusChip(r.status)}</td>
       <td class="col-hide-mobile">${formatModeChip(r.analysis_mode)}</td>
       <td class="c-center col-hide-mobile">${formatCountBadge(r.missing_result_count, "missing")}</td>
       <td class="c-center col-hide-mobile">${formatCountBadge(r.fail_count, "fail")}</td>

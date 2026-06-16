@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Laboratory Analysis Work Queue</title>
+    <title>Laboratory Analysis Queue</title>
     <link rel="stylesheet" href="../shared/css/style.css" />
     <style>
       html,
@@ -192,6 +192,11 @@
         }
         .kpi > .kpi-value {
           font-size: 12px;
+        }
+      }
+      @media (max-width: 520px) {
+        .kpi-strip {
+          display: none;
         }
       }
 
@@ -487,6 +492,11 @@
         color: var(--muted, #7a8696);
         font-size: 11px;
         margin-top: 2px;
+      }
+      .mobile-card-meta,
+      .mobile-exception-meta,
+      .mobile-sample-ref {
+        display: none;
       }
 
       /* Status chips */
@@ -951,6 +961,22 @@
           padding-left: 8px;
           padding-right: 8px;
         }
+        .page-header {
+          gap: 8px;
+        }
+        .page-header > div:last-child {
+          gap: 5px !important;
+        }
+        .sc-snapshot {
+          max-width: 74px;
+          padding-left: 7px;
+          padding-right: 7px;
+        }
+        .sc-snapshot-label {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
       }
       /* empty state card */
       .empty-state-card {
@@ -960,6 +986,149 @@
         align-items: flex-start;
       }
       @media (max-width: 520px) {
+        body {
+          gap: 6px;
+        }
+        .search-card,
+        .tab-select {
+          min-height: 34px;
+        }
+        #labSearch {
+          padding-top: 7px;
+          padding-bottom: 7px;
+          font-size: 13px;
+        }
+        .tab-select {
+          padding-top: 7px;
+          padding-bottom: 7px;
+          font-size: 13px;
+        }
+        .table-card {
+          border: none;
+          padding: 0;
+          background: transparent;
+        }
+        .table-controls {
+          padding: 0 2px 4px;
+        }
+        #labRowCount {
+          font-size: 11px;
+        }
+        #tableWrap {
+          overflow-x: hidden;
+          overflow-y: auto;
+        }
+        table,
+        tbody {
+          display: block;
+          width: 100%;
+        }
+        thead {
+          display: none;
+        }
+        tbody tr.lab-row {
+          position: relative;
+          display: grid;
+          grid-template-columns: 1fr auto;
+          gap: 6px 8px;
+          margin-bottom: 7px;
+          padding: 9px 10px;
+          border: 1px solid var(--border, #e5e7eb);
+          border-radius: 8px;
+          background: var(--panel-bg, #fff);
+          box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+        }
+        tbody tr.lab-row:nth-child(even) {
+          background: var(--panel-bg, #fff);
+        }
+        tbody tr.lab-row:hover,
+        tbody tr.lab-row:nth-child(even):hover {
+          background: #f8fbff;
+        }
+        tbody tr.lab-row.row-missing {
+          border-color: rgba(245, 158, 11, 0.35);
+          background: linear-gradient(
+            90deg,
+            rgba(255, 243, 232, 0.72),
+            rgba(255, 247, 237, 0.52)
+          );
+        }
+        tbody tr.lab-row.row-fail {
+          border-color: rgba(239, 68, 68, 0.35);
+          background: linear-gradient(
+            90deg,
+            rgba(254, 226, 226, 0.9),
+            rgba(255, 239, 239, 0.85)
+          );
+        }
+        tbody tr.lab-row.row-missing:hover {
+          background: linear-gradient(
+            90deg,
+            rgba(255, 237, 213, 0.82),
+            rgba(255, 247, 237, 0.68)
+          );
+        }
+        tbody tr.lab-row.row-fail:hover {
+          background: linear-gradient(
+            90deg,
+            rgba(254, 210, 210, 0.95),
+            rgba(255, 230, 230, 0.95)
+          );
+        }
+        tbody tr.lab-row.row-missing td,
+        tbody tr.lab-row.row-fail td,
+        tbody tr.lab-row.row-fail:hover td {
+          background: transparent;
+        }
+        tbody td {
+          display: block;
+          padding: 0;
+          border-bottom: none;
+          min-width: 0;
+        }
+        tbody td.mobile-subject-cell,
+        tbody td.mobile-register-cell {
+          display: none;
+        }
+        tbody td.mobile-status-cell {
+          grid-column: 2;
+          grid-row: 1;
+          align-self: start;
+          text-align: right;
+        }
+        tbody td.mobile-item-cell {
+          grid-column: 1;
+          grid-row: 1;
+        }
+        .item-primary {
+          display: block;
+          font-size: 13px;
+          line-height: 1.25;
+        }
+        .item-secondary {
+          display: none;
+        }
+        .mobile-sample-ref,
+        .mobile-exception-meta,
+        .mobile-card-meta {
+          display: block;
+          color: var(--muted, #6b7280);
+          font-size: 11.5px;
+          line-height: 1.35;
+        }
+        .mobile-sample-ref {
+          margin-top: 3px;
+          color: #334155;
+          font-weight: 600;
+        }
+        .mobile-card-meta {
+          margin-top: 2px;
+        }
+        .mobile-exception-meta {
+          margin-top: 3px;
+          color: #b91c1c;
+          font-weight: 700;
+        }
         .lab-status-chip,
         .lab-mode-chip {
           padding: 2px 6px;
@@ -976,7 +1145,7 @@
     <!-- ── Header ─────────────────────────────────────────────────────── -->
     <div class="page-header">
       <div>
-        <h1>Laboratory Analysis Work Queue</h1>
+        <h1>Laboratory Analysis Queue</h1>
         <div class="page-sub">
           Daily queue for analysis entry, scrutiny, approval, and COA readiness
         </div>

@@ -1,0 +1,1756 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Control Sample Register</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <style>
+      html,
+      body {
+        height: 100vh;
+        min-height: 100vh;
+        margin: 0;
+        overflow: hidden;
+        box-sizing: border-box;
+        font-family: system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        padding: 20px;
+        gap: 10px;
+      }
+      @media (max-width: 1080px) {
+        body {
+          padding: 10px;
+        }
+      }
+      @media (max-width: 520px) {
+        body {
+          padding: 6px;
+        }
+      }
+
+      .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        flex-shrink: 0;
+      }
+      .page-header h1 {
+        margin: 0;
+        font-size: 1.3rem;
+        color: var(--primary, #2563eb);
+        line-height: 1.2;
+      }
+      .page-sub {
+        color: var(--muted, #6b7280);
+        font-size: 0.88rem;
+        margin-top: 3px;
+      }
+      .header-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-shrink: 0;
+      }
+      .icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 7px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+        background: var(--panel-bg, #fff);
+        cursor: pointer;
+        color: inherit;
+      }
+      .icon-btn:hover {
+        background: #f3f4f6;
+      }
+      #homeBtn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 7px 12px;
+        border: 1px solid #fdba74;
+        border-radius: 6px;
+        background: #fed7aa;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        color: #9a3412;
+      }
+      #homeBtn:hover {
+        background: #fdba74;
+        border-color: #fb923c;
+      }
+      @media (max-width: 520px) {
+        .page-header h1 {
+          font-size: 15px;
+          line-height: 1.1;
+        }
+        .page-sub,
+        #homeBtn .home-label {
+          display: none;
+        }
+        #homeBtn {
+          padding: 7px 8px;
+        }
+      }
+
+      #statusArea {
+        padding: 12px 14px;
+        border-radius: 7px;
+        font-size: 13.5px;
+        color: var(--muted, #6b7280);
+        display: none;
+        flex-shrink: 0;
+      }
+      #statusArea[data-type="loading"] {
+        background: #f0f9ff;
+        color: #0369a1;
+        border: 1px solid #bae6fd;
+        display: block;
+      }
+      #statusArea[data-type="error"] {
+        background: #fef2f2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
+        display: block;
+      }
+
+      .kpi-strip {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 6px;
+        align-items: stretch;
+        justify-content: space-between;
+        scrollbar-width: none;
+        flex-shrink: 0;
+      }
+      .kpi-strip::-webkit-scrollbar {
+        display: none;
+      }
+      .kpi {
+        background: var(--panel-bg, #fff);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        padding: 5px 10px;
+        border-radius: 7px;
+        min-width: fit-content;
+        flex: 1 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+      }
+      .kpi-label {
+        font-weight: 600;
+        font-size: 10.5px;
+        color: var(--muted, #6b7280);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .kpi-value {
+        font-size: 13px;
+        color: var(--text, #0f172a);
+        font-weight: 600;
+      }
+      .kpi-pending {
+        border-left: 4px solid #f59e0b;
+        background: linear-gradient(
+          135deg,
+          rgba(245, 158, 11, 0.08),
+          rgba(245, 158, 11, 0.02)
+        );
+      }
+      .kpi-collected {
+        border-left: 4px solid #16a34a;
+        background: linear-gradient(
+          135deg,
+          rgba(22, 163, 74, 0.07),
+          rgba(22, 163, 74, 0.02)
+        );
+      }
+      .kpi-ready {
+        border-left: 4px solid #d97706;
+        background: linear-gradient(
+          135deg,
+          rgba(217, 119, 6, 0.08),
+          rgba(217, 119, 6, 0.02)
+        );
+      }
+      .kpi-removed {
+        border-left: 4px solid #9ca3af;
+        background: linear-gradient(
+          135deg,
+          rgba(156, 163, 175, 0.07),
+          rgba(156, 163, 175, 0.02)
+        );
+      }
+      @media (max-width: 800px) {
+        .kpi-strip {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          overflow-x: visible;
+          gap: 5px;
+        }
+        .kpi {
+          min-width: 0;
+          white-space: normal;
+        }
+      }
+
+      .tabs-card {
+        background: linear-gradient(
+          180deg,
+          var(--panel-bg, #fff),
+          var(--panel-bg, #fff)
+        );
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        padding: 8px 10px;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.03);
+        flex-shrink: 0;
+      }
+      .tab-select-wrap {
+        position: relative;
+        display: none;
+        width: 100%;
+      }
+      .tab-select {
+        display: inline-block;
+        width: 100%;
+        padding: 8px 42px 8px 10px;
+        border: 1px solid var(--erp-accent, #2563eb);
+        border-radius: 8px;
+        background: linear-gradient(
+          135deg,
+          rgba(37, 99, 235, 0.12) 0%,
+          rgba(37, 99, 235, 0.06) 100%
+        );
+        color: #0f172a;
+        font-size: 14px;
+        font-weight: 600;
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        cursor: pointer;
+      }
+      .tab-select-icon {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #2563eb;
+        pointer-events: none;
+      }
+      .lens-pills {
+        display: flex;
+        gap: 6px;
+        padding: 8px;
+        background: linear-gradient(
+          135deg,
+          rgba(37, 99, 235, 0.05) 0%,
+          rgba(37, 99, 235, 0.02) 100%
+        );
+        border: 1px solid var(--erp-border, var(--border, #e5e7eb));
+        border-radius: 10px;
+        align-items: center;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        flex: 0 0 auto;
+        scrollbar-width: none;
+      }
+      .lens-pills::-webkit-scrollbar {
+        display: none;
+      }
+      .tab-btn {
+        padding: 8px 16px;
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--erp-muted, var(--muted, #6b7280));
+        font-size: 13px;
+        font-weight: 600;
+        border-radius: 8px;
+        transition: all 0.16s ease;
+        cursor: pointer;
+        white-space: nowrap;
+        box-shadow: none;
+        line-height: 1.2;
+      }
+      .tab-btn:hover {
+        color: var(--erp-text, #0f172a);
+        background: rgba(37, 99, 235, 0.05);
+        border-color: rgba(37, 99, 235, 0.12);
+      }
+      .tab-btn:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+      }
+      .tab-btn.active {
+        color: #fff;
+        background: var(--erp-accent, var(--primary, #2563eb));
+        border-color: var(--erp-accent, var(--primary, #2563eb));
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.22);
+      }
+      @media (max-width: 520px) {
+        .lens-pills {
+          display: none;
+        }
+        .tab-select-wrap {
+          display: block;
+        }
+      }
+
+      .filter-card {
+        width: 100%;
+        box-sizing: border-box;
+        display: grid;
+        grid-template-columns: 32px minmax(0, 1fr) 32px;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        background: var(--panel-bg, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        flex-shrink: 0;
+      }
+      .filter-drawer-wrap {
+        position: relative;
+        flex-shrink: 0;
+        grid-column: 1;
+        width: 32px;
+        min-width: 32px;
+        max-width: 32px;
+      }
+      .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+      .filter-group.search-group {
+        grid-column: 2;
+        display: block;
+        flex: initial;
+        min-width: 0;
+        width: 100%;
+        max-width: none;
+      }
+      .filter-group.search-group label {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      .filter-group.hidden {
+        display: none;
+      }
+      .filter-group label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--muted, #6b7280);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .filter-card input,
+      .filter-card select,
+      .filter-drawer select {
+        padding: 7px 10px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 7px;
+        font-size: 13px;
+        background: #fff;
+        color: #0f172a;
+        min-width: 0;
+      }
+      .search-wrap {
+        position: relative;
+        display: block;
+        flex: 1 1 0;
+        min-width: 0;
+        width: 100%;
+        max-width: none;
+      }
+      #searchInput {
+        display: block;
+        width: 100%;
+        min-width: 0;
+        max-width: none;
+        box-sizing: border-box;
+        padding-right: 34px;
+        border-color: rgba(14, 165, 233, 0.4);
+        background: #e6f7ff;
+      }
+      .input-clear-btn {
+        position: absolute;
+        right: 6px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border: none;
+        background: transparent;
+        color: var(--muted, #6b7280);
+        cursor: pointer;
+        padding: 0;
+        border-radius: 4px;
+      }
+      .input-clear-btn.visible {
+        display: inline-flex;
+      }
+      .filter-drawer-btn,
+      .filter-action-btn {
+        border-radius: 7px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .filter-action-btn {
+        border: 1px solid var(--border, #e5e7eb);
+        background: #fff;
+        color: #374151;
+      }
+      .filter-drawer-btn {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        flex-shrink: 0;
+        border: 1px solid var(--border, #e5e7eb);
+        background: var(--surface, #fff);
+        color: var(--erp-text, #374151);
+        transition:
+          background 0.15s,
+          border-color 0.15s,
+          color 0.15s;
+      }
+      .filter-drawer-btn:hover,
+      .filter-drawer-btn:focus-visible {
+        background: var(--erp-hover, #f3f4f6);
+        border-color: var(--erp-accent, #2563eb);
+        color: var(--erp-accent, #2563eb);
+        outline: none;
+      }
+      .filter-drawer-btn.active {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+        color: #2563eb;
+      }
+      .filter-badge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        display: none;
+        min-width: 14px;
+        height: 14px;
+        padding: 0 3px;
+        border-radius: 999px;
+        background: #2563eb;
+        color: #fff;
+        font-size: 9px;
+        font-weight: 700;
+        line-height: 14px;
+        text-align: center;
+        pointer-events: none;
+      }
+      .filter-drawer {
+        display: none;
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        z-index: 300;
+        width: 280px;
+        max-width: min(280px, calc(100vw - 24px));
+        max-height: min(480px, 80vh);
+        overflow-y: auto;
+        padding: 12px 14px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: var(--surface, #fff);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+        box-sizing: border-box;
+      }
+      .filter-drawer.open {
+        display: block;
+      }
+      .filter-drawer-title {
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted, #6b7280);
+        margin-bottom: 8px;
+      }
+      .filter-drawer .filter-group {
+        margin-bottom: 10px;
+      }
+      .filter-drawer-actions {
+        display: flex;
+        gap: 8px;
+        padding-top: 8px;
+        border-top: 1px solid var(--border, #e5e7eb);
+        margin-top: 2px;
+      }
+      .filter-action-btn {
+        flex: 1;
+        padding: 5px 8px;
+        font-size: 12px;
+        border-radius: 6px;
+        background: var(--surface, #fff);
+        color: var(--erp-text, #374151);
+        transition:
+          background 0.12s,
+          border-color 0.12s;
+      }
+      .filter-action-btn:hover {
+        background: var(--erp-hover, #f3f4f6);
+        border-color: var(--erp-accent, #2563eb);
+        color: var(--erp-accent, #2563eb);
+      }
+      .register-add-btn {
+        visibility: hidden;
+        pointer-events: none;
+        grid-column: 3;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        justify-self: end;
+      }
+      .register-add-btn.visible {
+        visibility: visible;
+        pointer-events: auto;
+        display: inline-flex;
+      }
+      @media (max-width: 480px) {
+        .filter-drawer {
+          position: fixed;
+          left: 8px;
+          right: 8px;
+          top: auto;
+          bottom: 12px;
+          width: auto;
+          max-width: none;
+          max-height: 72vh;
+        }
+      }
+
+      .table-card {
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        padding: 8px;
+        background: var(--panel-bg, #fff);
+      }
+      .table-controls {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        padding-bottom: 6px;
+        flex-shrink: 0;
+      }
+      #rowCount {
+        font-size: 12px;
+        color: var(--muted, #6b7280);
+        white-space: nowrap;
+      }
+      #tableWrap {
+        flex: 1 1 0;
+        min-height: 0;
+        overflow: auto;
+        display: none;
+      }
+      #tableWrap.tw-visible {
+        display: block;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      thead th {
+        position: sticky;
+        top: 0;
+        background: var(--table-header, #fafafa);
+        z-index: 3;
+        padding: 8px;
+        text-align: left;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+        font-size: 11.5px;
+        white-space: nowrap;
+        color: var(--muted, #6b7280);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      tbody td {
+        padding: 7px 8px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+        font-size: 13px;
+        vertical-align: middle;
+      }
+      tbody tr.data-row {
+        cursor: pointer;
+        transition:
+          background 0.12s ease,
+          box-shadow 0.12s ease;
+      }
+      tbody tr.data-row:nth-child(odd) {
+        background: var(--csr-row-odd, #ffffff);
+      }
+      tbody tr.data-row:nth-child(even) {
+        background: var(--csr-row-even, #f8fafc);
+      }
+      tbody tr.data-row:hover,
+      tbody tr.data-row:nth-child(even):hover {
+        background: var(--csr-row-hover, #eef4ff);
+      }
+      tbody tr.data-row:focus-visible {
+        outline: 2px solid rgba(37, 99, 235, 0.45);
+        outline-offset: -2px;
+      }
+      .item-primary {
+        font-weight: 500;
+        line-height: 1.35;
+      }
+      .item-secondary {
+        display: block;
+        color: var(--muted, #7a8696);
+        font-size: 11px;
+        margin-top: 2px;
+      }
+      .mobile-card-meta {
+        display: none;
+      }
+      .mobile-only-meta {
+        display: none;
+      }
+      .badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 600;
+        white-space: nowrap;
+        letter-spacing: 0.02em;
+      }
+      .badge-blue {
+        background: #dbeafe;
+        color: #1d4ed8;
+        border: 1px solid #93c5fd;
+      }
+      .badge-green {
+        background: #dcfce7;
+        color: #15803d;
+        border: 1px solid #86efac;
+      }
+      .badge-amber {
+        background: #fef3c7;
+        color: #92400e;
+        border: 1px solid #fcd34d;
+      }
+      .badge-grey {
+        background: #f3f4f6;
+        color: #6b7280;
+        border: 1px solid #e5e7eb;
+      }
+      .badge-red {
+        background: #fef2f2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
+      }
+      .action-btns {
+        display: flex;
+        gap: 5px;
+        align-items: center;
+        flex-wrap: nowrap;
+      }
+      .btn-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 9px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        border: 1px solid transparent;
+        white-space: nowrap;
+      }
+      .btn-action:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .btn-view {
+        background: #eff6ff;
+        color: #1d4ed8;
+        border-color: #bfdbfe;
+      }
+      .btn-collect,
+      .btn-create {
+        background: #f0fdf4;
+        color: #166534;
+        border-color: #86efac;
+      }
+      .btn-remove,
+      .btn-deactivate {
+        background: #fff7ed;
+        color: #9a3412;
+        border-color: #fdba74;
+      }
+      .empty-state {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        min-height: 170px;
+        padding: 40px 20px;
+        color: var(--muted, #6b7280);
+        font-size: 14px;
+      }
+      .empty-state.visible {
+        display: flex;
+      }
+
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.42);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+        padding: 12px;
+      }
+      .modal-overlay.hidden {
+        display: none;
+      }
+      .modal-box {
+        width: min(720px, 96vw);
+        max-height: 86vh;
+        display: flex;
+        flex-direction: column;
+        background: var(--panel-bg, #fff);
+        border-radius: 10px;
+        border: 1px solid var(--border, #e5e7eb);
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+        overflow: hidden;
+      }
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 16px 18px 12px;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+      }
+      .modal-title {
+        font-size: 15px;
+        font-weight: 800;
+        color: #0f172a;
+      }
+      .modal-subtitle {
+        font-size: 12px;
+        color: var(--muted, #6b7280);
+        margin-top: 3px;
+      }
+      .modal-close {
+        width: 30px;
+        height: 30px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+        background: transparent;
+        cursor: pointer;
+        color: var(--muted, #6b7280);
+        flex-shrink: 0;
+      }
+      .modal-body {
+        overflow-y: auto;
+        padding: 14px 18px;
+      }
+      .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        padding: 12px 18px 16px;
+        border-top: 1px solid var(--border, #e5e7eb);
+      }
+      .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .form-group-full {
+        grid-column: 1 / -1;
+      }
+      .form-group-modal {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .form-group-modal label {
+        font-size: 12.5px;
+        font-weight: 700;
+        color: #374151;
+      }
+      .req {
+        color: #dc2626;
+      }
+      .form-control {
+        padding: 8px 10px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 7px;
+        font-size: 13px;
+        font-family: inherit;
+        background: #fff;
+        color: #0f172a;
+        box-sizing: border-box;
+        width: 100%;
+      }
+      textarea.form-control {
+        resize: vertical;
+      }
+      .form-control[readonly] {
+        background: #f9fafb;
+        color: #374151;
+      }
+      .detail-actions {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+        margin-top: 14px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border, #e5e7eb);
+      }
+      .modal-action-row {
+        display: flex;
+        justify-content: flex-end;
+        width: 100%;
+      }
+      .detail-action-note {
+        width: 100%;
+        padding: 9px 10px;
+        border: 1px solid #fde68a;
+        border-radius: 7px;
+        background: #fffbeb;
+        color: #92400e;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .detail-action-note.warning {
+        border-color: #fde68a;
+        background: #fffbeb;
+        color: #92400e;
+      }
+      .checkbox-list {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+      }
+      .checkbox-option {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 7px 8px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 7px;
+        font-size: 13px;
+      }
+      .btn-modal {
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 7px;
+        padding: 8px 13px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+      }
+      .btn-modal-cancel {
+        background: #fff;
+        color: #374151;
+      }
+      .btn-modal-save {
+        background: var(--primary, #2563eb);
+        border-color: var(--primary, #2563eb);
+        color: #fff;
+      }
+
+      #toastContainer {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-end;
+        pointer-events: none;
+      }
+      .cr-toast {
+        padding: 10px 14px;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        font-size: 13px;
+        font-weight: 600;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+        pointer-events: auto;
+        animation: toast-in 0.2s ease forwards;
+        max-width: 320px;
+        line-height: 1.4;
+      }
+      .toast-success {
+        background: #f0fdf4;
+        border-color: #86efac;
+        color: #166534;
+      }
+      .toast-info {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+        color: #1e40af;
+      }
+      .toast-error {
+        background: #fef2f2;
+        border-color: #fca5a5;
+        color: #991b1b;
+      }
+      .toast-fade-out {
+        animation: toast-out 0.3s ease forwards;
+      }
+      @keyframes toast-in {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes toast-out {
+        to {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+      }
+
+      @media (max-width: 900px) {
+        .col-hide-tablet {
+          display: none;
+        }
+      }
+      @media (max-width: 650px) {
+        .col-hide-mobile {
+          display: none;
+        }
+        .search-wrap {
+          min-width: 0;
+        }
+        .filter-card,
+        .tab-select {
+          min-height: 34px;
+        }
+        .filter-group {
+          min-width: 0;
+        }
+        .filter-group.search-group {
+          width: 100%;
+          min-width: 0;
+          max-width: none;
+          flex: none;
+        }
+        .table-card {
+          border: none;
+          padding: 0;
+          background: transparent;
+        }
+        .table-controls {
+          padding: 0 2px 4px;
+        }
+        #rowCount {
+          font-size: 11px;
+        }
+        #tableWrap {
+          overflow-x: hidden;
+          overflow-y: auto;
+        }
+        table,
+        tbody {
+          display: block;
+          width: 100%;
+        }
+        thead {
+          display: none;
+        }
+        tbody tr.data-row {
+          position: relative;
+          display: grid;
+          grid-template-columns: 1fr auto;
+          gap: 6px 8px;
+          margin-bottom: 7px;
+          padding: 9px 10px;
+          border: 1px solid var(--border, #e5e7eb);
+          border-radius: 8px;
+          box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+        }
+        tbody tr.data-row:nth-child(odd) {
+          background: var(--csr-card-odd, #ffffff);
+          border-left: 3px solid transparent;
+        }
+        tbody tr.data-row:nth-child(even) {
+          background: var(--csr-card-even, #f8fafc);
+          border-left: 3px solid rgba(37, 99, 235, 0.18);
+        }
+        tbody tr.data-row:hover,
+        tbody tr.data-row:nth-child(even):hover {
+          background: var(--csr-card-hover, #f8fbff);
+        }
+        tbody td {
+          display: block;
+          padding: 0;
+          border-bottom: none;
+          min-width: 0;
+        }
+        tbody td.mobile-primary-cell {
+          grid-column: 1;
+          grid-row: 1;
+        }
+        tbody td.mobile-status-cell {
+          grid-column: 2;
+          grid-row: 1;
+          align-self: start;
+          text-align: right;
+        }
+        tbody td.mobile-meta-cell {
+          grid-column: 1 / -1;
+        }
+        tbody td.mobile-action-cell {
+          grid-column: 1 / -1;
+          margin-top: 2px;
+        }
+        tbody td.mobile-hide {
+          display: none;
+        }
+        .item-primary {
+          display: block;
+          font-size: 13px;
+          line-height: 1.25;
+        }
+        .item-secondary,
+        .mobile-card-meta {
+          display: block;
+          color: var(--muted, #6b7280);
+          font-size: 11.5px;
+          line-height: 1.35;
+        }
+        .mobile-card-meta {
+          margin-top: 2px;
+        }
+        .mobile-only-meta {
+          display: block;
+          color: var(--muted, #6b7280);
+          font-size: 11.5px;
+          line-height: 1.35;
+          margin-top: 2px;
+        }
+        .badge {
+          padding: 2px 6px;
+          font-size: 10px;
+        }
+        .action-btns {
+          flex-wrap: wrap;
+        }
+        .btn-action {
+          padding: 4px 8px;
+          font-size: 11.5px;
+        }
+        .form-grid,
+        .checkbox-list {
+          grid-template-columns: 1fr;
+        }
+        .modal-footer {
+          flex-direction: column-reverse;
+        }
+        .btn-modal {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-header">
+      <div>
+        <h1>Control Sample Register</h1>
+        <div class="page-sub">
+          Approved analysis control sample collection, retention tracking, and
+          removal register
+        </div>
+      </div>
+      <div class="header-actions">
+        <button
+          id="refreshBtn"
+          type="button"
+          title="Refresh"
+          aria-label="Refresh register"
+          class="icon-btn"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0114.13-3.36L23 10"></path>
+            <path d="M20.49 15a9 9 0 01-14.13 3.36L1 14"></path>
+          </svg>
+        </button>
+        <button id="homeBtn" type="button" title="Home" aria-label="Home">
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9,22 9,12 15,12 15,22" />
+          </svg>
+          <span class="home-label">HOME</span>
+        </button>
+      </div>
+    </div>
+
+    <div id="statusArea" role="status" aria-live="polite"></div>
+
+    <div class="kpi-strip" aria-label="Summary metrics">
+      <div class="kpi kpi-pending">
+        <span class="kpi-label">Pending Collection</span
+        ><span class="kpi-value" id="kpiPending">-</span>
+      </div>
+      <div class="kpi kpi-collected">
+        <span class="kpi-label">Collected</span
+        ><span class="kpi-value" id="kpiCollected">-</span>
+      </div>
+      <div class="kpi kpi-ready">
+        <span class="kpi-label">Ready for Removal</span
+        ><span class="kpi-value" id="kpiReady">-</span>
+      </div>
+      <div class="kpi kpi-removed">
+        <span class="kpi-label">Removed</span
+        ><span class="kpi-value" id="kpiRemoved">-</span>
+      </div>
+    </div>
+
+    <div class="tabs-card" aria-label="Control sample register navigation">
+      <div class="tab-select-wrap">
+        <select
+          id="tabSelect"
+          class="tab-select"
+          aria-label="Select register tab"
+        >
+          <option value="pending">Pending Collection</option>
+          <option value="register">Control Sample Register</option>
+          <option value="ready">Ready for Removal</option>
+          <option value="master">Register Master</option>
+        </select>
+        <svg
+          class="tab-select-icon"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      </div>
+      <div
+        class="lens-pills"
+        role="tablist"
+        aria-label="Control sample register tabs"
+      >
+        <button
+          class="tab-btn active"
+          type="button"
+          role="tab"
+          aria-selected="true"
+          data-tab="pending"
+        >
+          Pending Collection
+        </button>
+        <button
+          class="tab-btn"
+          type="button"
+          role="tab"
+          aria-selected="false"
+          data-tab="register"
+        >
+          Control Sample Register
+        </button>
+        <button
+          class="tab-btn"
+          type="button"
+          role="tab"
+          aria-selected="false"
+          data-tab="ready"
+        >
+          Ready for Removal
+        </button>
+        <button
+          class="tab-btn"
+          type="button"
+          role="tab"
+          aria-selected="false"
+          data-tab="master"
+        >
+          Register Master
+        </button>
+      </div>
+    </div>
+
+    <div
+      class="filter-card"
+      role="search"
+      aria-label="Filter control sample register"
+    >
+      <div class="filter-drawer-wrap" id="filterDrawerWrap">
+        <button
+          id="filterDrawerBtn"
+          class="filter-drawer-btn"
+          type="button"
+          title="Filters"
+          aria-label="Filters"
+          aria-haspopup="true"
+          aria-expanded="false"
+        >
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+          </svg>
+          <span class="filter-badge" id="filterBadge"></span>
+        </button>
+        <div
+          id="filterDrawer"
+          class="filter-drawer"
+          role="dialog"
+          aria-label="Control sample filters"
+        >
+          <div class="filter-drawer-title">Filters</div>
+          <div class="filter-group" id="productGroupFilterWrap">
+            <label for="productGroupFilter">Product Group</label>
+            <select id="productGroupFilter">
+              <option value="">All Product Groups</option>
+            </select>
+          </div>
+          <div class="filter-group" id="registerStatusFilterWrap">
+            <label for="registerStatusFilter">Register Status</label>
+            <select id="registerStatusFilter">
+              <option value="">All</option>
+              <option value="resolved">Active Register Available</option>
+              <option value="missing">No Active Register</option>
+            </select>
+          </div>
+          <div class="filter-group hidden" id="retentionStatusFilterWrap">
+            <label for="retentionStatusFilter">Retention Status</label>
+            <select id="retentionStatusFilter">
+              <option value="">All</option>
+              <option value="UNDER_RETENTION">UNDER_RETENTION</option>
+              <option value="READY_FOR_REMOVAL">READY_FOR_REMOVAL</option>
+              <option value="REMOVED">REMOVED</option>
+            </select>
+          </div>
+          <div class="filter-group hidden" id="sampleStatusFilterWrap">
+            <label for="sampleStatusFilter">Sample Status</label>
+            <select id="sampleStatusFilter">
+              <option value="">All</option>
+              <option value="COLLECTED">COLLECTED</option>
+              <option value="REMOVED">REMOVED</option>
+            </select>
+          </div>
+          <div class="filter-drawer-actions">
+            <button
+              type="button"
+              class="filter-action-btn"
+              id="clearFiltersBtn"
+            >
+              Clear
+            </button>
+            <button
+              type="button"
+              class="filter-action-btn"
+              id="closeFiltersBtn"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="filter-group search-group">
+        <label for="searchInput">Search</label>
+        <div class="search-wrap">
+          <input
+            id="searchInput"
+            type="search"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="Search analysis no, product, product group, batch"
+          />
+          <button
+            id="searchClear"
+            class="input-clear-btn"
+            type="button"
+            aria-label="Clear search"
+            title="Clear"
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <button
+        type="button"
+        class="icon-btn register-add-btn"
+        id="newRegisterBtn"
+        title="New control register"
+        aria-label="New control register"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </button>
+    </div>
+
+    <div class="table-card">
+      <div class="table-controls">
+        <span id="rowCount" aria-live="polite"></span>
+      </div>
+      <div id="tableWrap">
+        <table id="dataTable" aria-label="Control Sample Register">
+          <thead id="tableHead"></thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+        <div class="empty-state" id="emptyState" aria-live="polite"></div>
+      </div>
+    </div>
+
+    <div
+      id="collectionModal"
+      class="modal-overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="collectionModalTitle"
+    >
+      <form class="modal-box" id="collectionForm">
+        <div class="modal-header">
+          <div>
+            <div class="modal-title" id="collectionModalTitle">
+              Collect Control Sample
+            </div>
+            <div class="modal-subtitle">
+              Create a control sample from the approved analysis.
+            </div>
+          </div>
+          <button
+            type="button"
+            class="modal-close"
+            data-close-modal
+            aria-label="Close"
+          >
+            x
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="form-group-modal">
+              <label>Analysis Register No</label
+              ><input id="collectAnalysisNo" class="form-control" readonly />
+            </div>
+            <div class="form-group-modal">
+              <label>Product</label
+              ><input id="collectProduct" class="form-control" readonly />
+            </div>
+            <div class="form-group-modal">
+              <label>Batch</label
+              ><input id="collectBatch" class="form-control" readonly />
+            </div>
+            <div class="form-group-modal">
+              <label for="collectRegisterId"
+                >Register <span class="req">*</span></label
+              ><select
+                id="collectRegisterId"
+                class="form-control"
+                required
+              ></select>
+            </div>
+            <div class="form-group-modal">
+              <label for="collectPageNo"
+                >Page No <span class="req">*</span></label
+              ><input
+                id="collectPageNo"
+                class="form-control"
+                type="number"
+                min="1"
+                step="1"
+                required
+              />
+            </div>
+            <div class="form-group-modal">
+              <label for="collectSkuId"
+                >Pack Size <span class="req">*</span></label
+              ><select id="collectSkuId" class="form-control" required></select>
+            </div>
+            <div class="form-group-modal">
+              <label for="collectPackUom">UOM</label
+              ><input
+                id="collectPackUom"
+                class="form-control"
+                readonly
+              />
+            </div>
+            <div class="form-group-modal">
+              <label for="collectSampleCount"
+                >Count <span class="req">*</span></label
+              ><input
+                id="collectSampleCount"
+                class="form-control"
+                type="number"
+                min="1"
+                step="1"
+                value="1"
+                required
+              />
+            </div>
+            <div class="form-group-modal">
+              <label for="collectStorage">Storage Location</label
+              ><input
+                id="collectStorage"
+                class="form-control"
+                type="text"
+                autocomplete="off"
+              />
+            </div>
+            <div class="form-group-modal form-group-full">
+              <label for="collectRemarks">Remarks</label
+              ><textarea
+                id="collectRemarks"
+                class="form-control"
+                rows="3"
+              ></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn-modal btn-modal-cancel"
+            data-close-modal
+          >
+            Cancel
+          </button>
+          <button type="submit" class="btn-modal btn-modal-save">
+            Collect
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div
+      id="removeModal"
+      class="modal-overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="removeModalTitle"
+    >
+      <form class="modal-box" id="removeForm">
+        <div class="modal-header">
+          <div>
+            <div class="modal-title" id="removeModalTitle">
+              Remove Control Sample
+            </div>
+            <div class="modal-subtitle">
+              Mark the retained control sample as removed.
+            </div>
+          </div>
+          <button
+            type="button"
+            class="modal-close"
+            data-close-modal
+            aria-label="Close"
+          >
+            x
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="form-group-modal">
+              <label>Control Sample Ref</label
+              ><input id="removeRef" class="form-control" readonly />
+            </div>
+            <div class="form-group-modal">
+              <label>Batch No</label
+              ><input id="removeBatch" class="form-control" readonly />
+            </div>
+            <div class="form-group-modal">
+              <label>Retain Until</label
+              ><input id="removeRetainUntil" class="form-control" readonly />
+            </div>
+            <div class="form-group-modal">
+              <label for="removedDate"
+                >Removed Date <span class="req">*</span></label
+              ><input
+                id="removedDate"
+                class="form-control"
+                type="date"
+                required
+              />
+            </div>
+            <div class="form-group-modal form-group-full">
+              <label for="removalRemarks"
+                >Removal Remarks <span class="req">*</span></label
+              ><textarea
+                id="removalRemarks"
+                class="form-control"
+                rows="3"
+                required
+              ></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn-modal btn-modal-cancel"
+            data-close-modal
+          >
+            Cancel
+          </button>
+          <button type="submit" class="btn-modal btn-modal-save">Remove</button>
+        </div>
+      </form>
+    </div>
+
+    <div
+      id="detailsModal"
+      class="modal-overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="detailsModalTitle"
+    >
+      <div class="modal-box">
+        <div class="modal-header">
+          <div>
+            <div class="modal-title" id="detailsModalTitle">
+              Control Sample Details
+            </div>
+            <div class="modal-subtitle" id="detailsModalSubtitle"></div>
+          </div>
+          <button
+            type="button"
+            class="modal-close"
+            data-close-modal
+            aria-label="Close"
+          >
+            x
+          </button>
+        </div>
+        <div class="modal-body" id="detailsBody"></div>
+      </div>
+    </div>
+
+    <div
+      id="registerModal"
+      class="modal-overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="registerModalTitle"
+    >
+      <form class="modal-box" id="registerForm">
+        <div class="modal-header">
+          <div>
+            <div class="modal-title" id="registerModalTitle">
+              New Control Register
+            </div>
+            <div class="modal-subtitle">Create a physical register.</div>
+          </div>
+          <button
+            type="button"
+            class="modal-close"
+            data-close-modal
+            aria-label="Close"
+          >
+            x
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="form-group-modal form-group-full">
+              <label for="newRegisterCode"
+                >Register No <span class="req">*</span></label
+              >
+              <input
+                id="newRegisterCode"
+                class="form-control"
+                type="text"
+                required
+                autocomplete="off"
+                placeholder="SR026"
+              />
+              <span class="item-secondary"
+                >Enter only SR026. The common prefix SANTHIGIRI/QAD/ will be
+                added automatically.</span
+              >
+            </div>
+            <div class="form-group-modal form-group-full">
+              <label for="newRegisterRemarks">Remarks</label
+              ><textarea
+                id="newRegisterRemarks"
+                class="form-control"
+                rows="3"
+              ></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn-modal btn-modal-cancel"
+            data-close-modal
+          >
+            Cancel
+          </button>
+          <button type="submit" class="btn-modal btn-modal-save">
+            Create Register
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div
+      id="deactivateModal"
+      class="modal-overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="deactivateModalTitle"
+    >
+      <form class="modal-box" id="deactivateForm">
+        <div class="modal-header">
+          <div>
+            <div class="modal-title" id="deactivateModalTitle">Deactivate</div>
+            <div class="modal-subtitle" id="deactivateModalSubtitle"></div>
+          </div>
+          <button
+            type="button"
+            class="modal-close"
+            data-close-modal
+            aria-label="Close"
+          >
+            x
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="form-group-modal">
+              <label>Register No</label
+              ><input
+                id="deactivateRegisterCode"
+                class="form-control"
+                readonly
+              />
+            </div>
+            <div class="form-group-modal">
+              <label>Full Register Code</label
+              ><input
+                id="deactivateProductGroup"
+                class="form-control"
+                readonly
+              />
+            </div>
+            <div class="form-group-modal form-group-full">
+              <label for="deactivateRemarks"
+                >Remarks <span class="req">*</span></label
+              ><textarea
+                id="deactivateRemarks"
+                class="form-control"
+                rows="3"
+                required
+              ></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn-modal btn-modal-cancel"
+            data-close-modal
+          >
+            Cancel
+          </button>
+          <button type="submit" class="btn-modal btn-modal-save">
+            Deactivate
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div id="toastContainer" aria-live="assertive" aria-atomic="true"></div>
+    <script type="module" src="js/control-sample-register.js"></script>
+  </body>
+</html>

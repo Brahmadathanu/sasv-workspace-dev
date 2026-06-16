@@ -87,6 +87,7 @@
         grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
         gap: 10px 20px;
         flex-shrink: 0;
+        position: relative;
       }
       .detail-cell {
         display: flex;
@@ -105,9 +106,109 @@
         font-weight: 600;
         color: var(--text-color, #111827);
       }
+      /* Mobile pill strip — hidden above 520px */
+      .hdr-pill {
+        display: none;
+      }
+      /* Details popover */
+      .hdr-popover {
+        display: none;
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        right: 0;
+        z-index: 500;
+        background: var(--panel-bg, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 10px;
+        padding: 12px 14px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+        display: none;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .hdr-popover.open {
+        display: flex;
+      }
+      .hdr-popover-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 8px;
+        font-size: 12.5px;
+      }
+      .hdr-popover-label {
+        font-size: 10.5px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted, #6b7280);
+        white-space: nowrap;
+      }
+      .hdr-popover-value {
+        font-weight: 600;
+        color: var(--text-color, #111827);
+        text-align: right;
+        flex: 1;
+      }
       @media (max-width: 700px) {
         .analysis-header-card {
           grid-template-columns: 1fr 1fr;
+        }
+      }
+      @media (max-width: 520px) {
+        /* Hide the desktop grid on mobile */
+        .analysis-header-card {
+          display: block;
+          padding: 0;
+          background: none;
+          border: none;
+          border-radius: 0;
+          box-shadow: none;
+        }
+        .detail-cell {
+          display: none;
+        }
+        /* Show the pill instead */
+        .hdr-pill {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          background: #ecfccb;
+          border: 1px solid #bef264;
+          border-radius: 8px;
+          padding: 10px 11px;
+          cursor: pointer;
+          user-select: none;
+          -webkit-user-select: none;
+          width: 100%;
+          box-sizing: border-box;
+          transition:
+            background 0.14s,
+            border-color 0.14s;
+        }
+        .hdr-pill:active {
+          background: #d9f99d;
+        }
+        .hdr-pill-text {
+          flex: 1;
+          font-size: 13px;
+          font-weight: 700;
+          color: var(--text-color, #111827);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .hdr-pill-status {
+          flex-shrink: 0;
+        }
+        .hdr-pill-chevron {
+          flex-shrink: 0;
+          color: var(--muted, #6b7280);
+          transition: transform 0.18s ease;
+        }
+        .hdr-pill.open .hdr-pill-chevron {
+          transform: rotate(180deg);
         }
       }
 
@@ -116,27 +217,56 @@
         background: var(--panel-bg, #fff);
         border: 1px solid var(--border, #e5e7eb);
         border-radius: 8px;
-        padding: 8px 14px;
+        padding: 7px 10px;
         display: flex;
-        gap: 18px;
+        gap: 8px;
         align-items: center;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scrollbar-width: thin;
         flex-shrink: 0;
       }
-      .validation-panel #btnSyncFromSpec {
-        margin-left: auto;
+      .vp-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid #d1d5db;
+        background: #f8fafc;
+        white-space: nowrap;
+        flex: 1 1 0;
+        min-width: 110px;
+        cursor: help;
       }
-      .vp-label {
-        font-size: 10.5px;
-        font-weight: 700;
+      .vp-chip.vp-chip-warn {
+        background: #fffbeb;
+        border-color: #fde68a;
+      }
+      .vp-chip.vp-chip-danger {
+        background: #fef2f2;
+        border-color: #fecaca;
+      }
+      .vp-chip.vp-chip-ok {
+        background: #f0fdf4;
+        border-color: #bbf7d0;
+      }
+      .vp-chip-label-short {
+        display: none;
+      }
+      .vp-chip-label {
+        font-size: 10px;
+        font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.05em;
         color: var(--muted, #6b7280);
-        margin-right: 2px;
       }
       .vp-count {
-        font-size: 0.83rem;
+        font-size: 0.8rem;
         font-weight: 700;
+        min-width: 1ch;
+        line-height: 1;
       }
       .vp-count.vp-ok {
         color: #16a34a;
@@ -146,6 +276,29 @@
       }
       .vp-count.vp-danger {
         color: #b91c1c;
+      }
+      @media (max-width: 700px) {
+        .validation-panel {
+          gap: 6px;
+          padding: 6px 8px;
+        }
+        .vp-chip {
+          padding: 5px 8px;
+          min-width: 64px;
+          flex: 0 0 auto;
+          justify-content: center;
+        }
+        .vp-chip-label {
+          display: inline;
+          font-size: 9px;
+          letter-spacing: 0.03em;
+        }
+        .vp-chip-label-full {
+          display: none;
+        }
+        .vp-chip-label-short {
+          display: inline;
+        }
       }
 
       /* ── Workflow action bar ──────────────────────────────────────────────── */
@@ -243,6 +396,9 @@
       .action-bar-spacer {
         flex: 1;
       }
+      .action-bar .btn-workflow:disabled {
+        display: none;
+      }
 
       /* ── Results table wrapper ───────────────────────────────────────────── */
       .results-wrap {
@@ -286,6 +442,273 @@
       }
       .results-wrap tbody tr:hover td {
         background: #f5f8ff;
+      }
+      .results-wrap tbody tr.row-pass > td {
+        background: #ecfdf3 !important;
+      }
+      .results-wrap tbody tr.row-fail > td {
+        background: #fff1f2 !important;
+      }
+      .results-wrap tbody tr.row-not-eval > td {
+        background: #fffbeb !important;
+      }
+      .results-wrap tbody tr.row-unknown > td {
+        background: #f8fafc !important;
+      }
+      .results-wrap tbody tr.row-pass:hover > td {
+        background: #dcfce7 !important;
+      }
+      .results-wrap tbody tr.row-fail:hover > td {
+        background: #ffe4e6 !important;
+      }
+      .results-wrap tbody tr.row-not-eval:hover > td {
+        background: #fef3c7 !important;
+      }
+      .results-wrap tbody tr.row-unknown:hover > td {
+        background: #f1f5f9 !important;
+      }
+      .results-wrap tbody tr.row-pass > td:first-child {
+        box-shadow: inset 3px 0 0 #22c55e;
+      }
+      .results-wrap tbody tr.row-fail > td:first-child {
+        box-shadow: inset 3px 0 0 #ef4444;
+      }
+      .results-wrap tbody tr.row-not-eval > td:first-child {
+        box-shadow: inset 3px 0 0 #f59e0b;
+      }
+      .results-wrap tbody tr.row-unknown > td:first-child {
+        box-shadow: inset 3px 0 0 #94a3b8;
+      }
+
+      .mobile-results-list {
+        display: none;
+        flex: 1 1 0;
+        min-height: 0;
+        overflow: auto;
+        background: var(--panel-bg, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        padding: 8px;
+        gap: 8px;
+      }
+      .mobile-result-card {
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 10px;
+        padding: 10px 11px;
+        background: #f8fafc;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        cursor: pointer;
+        transition:
+          transform 0.14s ease,
+          box-shadow 0.16s ease,
+          background 0.16s ease;
+      }
+      .mobile-result-card:nth-child(even) {
+        background: #f1f5f9;
+      }
+      .mobile-result-card.row-locked {
+        background: #fff7f7 !important;
+      }
+      .mobile-result-card.mobile-pass {
+        background: #f0fdf4;
+        border-color: #bbf7d0;
+      }
+      .mobile-result-card.mobile-fail {
+        background: #fff1f2;
+        border-color: #fecdd3;
+      }
+      .mobile-result-card.mobile-not-eval {
+        background: #fffbeb;
+        border-color: #fde68a;
+      }
+      .mobile-result-card.mobile-unknown {
+        background: #f8fafc;
+        border-color: #dbe3ed;
+      }
+      .mobile-result-card:active {
+        transform: scale(0.993);
+      }
+      .mobile-result-card.mobile-tap-pulse {
+        animation: mobileCardTapPulse 140ms ease-out;
+      }
+      @keyframes mobileCardTapPulse {
+        0% {
+          transform: scale(1);
+        }
+        45% {
+          transform: scale(0.985);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+      .mobile-card-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        align-items: center;
+      }
+      .mobile-card-name {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text-color, #111827);
+        line-height: 1.25;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .mobile-card-result {
+        font-size: 12px;
+        color: var(--muted, #6b7280);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .mobile-card-badges {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      .editor-sheet-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.35);
+        z-index: 920;
+        align-items: center;
+        justify-content: center;
+      }
+      .editor-sheet-overlay.open {
+        display: flex;
+      }
+      .editor-sheet {
+        width: min(560px, 96vw);
+        max-height: 86vh;
+        background: #fff;
+        border-radius: 14px;
+        border: 1px solid var(--border, #e5e7eb);
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
+        display: flex;
+        flex-direction: column;
+      }
+      .editor-sheet-handle {
+        display: none;
+      }
+      .editor-sheet-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+      }
+      .editor-sheet-title {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text-color, #111827);
+      }
+      .editor-sheet-sub {
+        margin: 4px 0 0;
+        font-size: 11px;
+        color: var(--muted, #6b7280);
+      }
+      .editor-sheet-close {
+        border: 1px solid var(--border, #e5e7eb);
+        background: #f8fafc;
+        border-radius: 8px;
+        padding: 6px 8px;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .editor-sheet-body {
+        overflow: auto;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .editor-sheet-body.nav-left {
+        animation: editorNavLeft 170ms ease;
+      }
+      .editor-sheet-body.nav-right {
+        animation: editorNavRight 170ms ease;
+      }
+      @keyframes editorNavLeft {
+        from {
+          opacity: 0.6;
+          transform: translateX(12px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+      @keyframes editorNavRight {
+        from {
+          opacity: 0.6;
+          transform: translateX(-12px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+      .editor-sheet.swipe-ack {
+        animation: editorSwipeAck 120ms ease-out;
+      }
+      @keyframes editorSwipeAck {
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(0.992);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+      .editor-sheet-meta {
+        font-size: 12px;
+        color: var(--muted, #6b7280);
+      }
+      .editor-sheet-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .editor-sheet-actions .btn-sm {
+        padding: 6px 10px;
+      }
+      .editor-sheet-nav {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        border-top: 1px solid var(--border, #e5e7eb);
+        padding: 10px 12px 12px;
+      }
+      .editor-sheet-nav-center {
+        font-size: 12px;
+        color: var(--muted, #6b7280);
+        font-weight: 600;
+      }
+      .editor-nav-btn {
+        border: 1px solid var(--border, #d1d5db);
+        background: #f8fafc;
+        border-radius: 8px;
+        padding: 7px 12px;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .editor-nav-btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
       }
 
       /* ── Inline result inputs ────────────────────────────────────────────── */
@@ -340,6 +763,11 @@
         background: #fffbeb;
         color: #92400e;
         border: 1px solid #fde68a;
+      }
+      .badge-neutral {
+        background: #f3f4f6;
+        color: #475569;
+        border: 1px solid #d1d5db;
       }
       .badge-outsourced {
         background: #f3e8ff;
@@ -427,6 +855,15 @@
         color: #92400e;
         border-color: #fcd34d;
       }
+      .row-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .row-actions .btn-ref {
+        width: 142px;
+        justify-content: center;
+      }
       .btn-ref:not(:disabled):hover {
         background: #fef3c7;
       }
@@ -488,6 +925,34 @@
       .icon-btn:hover {
         background: #f3f4f6;
       }
+      .icon-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+      #btnSyncFromSpec {
+        color: #0c4a6e;
+        border-color: #bae6fd;
+        background: #e0f2fe;
+      }
+      #btnSyncFromSpec:hover:not(:disabled) {
+        background: #bae6fd;
+        border-color: #7dd3fc;
+      }
+      #btnAddOutsourcedTest {
+        gap: 5px;
+        padding: 7px 10px;
+        color: #6b21a8;
+        border-color: #e9d5ff;
+        background: #f3e8ff;
+      }
+      #btnAddOutsourcedTest:hover:not(:disabled) {
+        background: #ede9fe;
+      }
+      #btnAddOutsourcedTest .add-outsourced-label {
+        display: inline;
+        font-size: 12px;
+        font-weight: 700;
+      }
       #homeBtn {
         gap: 5px;
         padding: 7px 10px;
@@ -502,6 +967,13 @@
         #homeBtn {
           padding-left: 8px;
           padding-right: 8px;
+        }
+        #btnAddOutsourcedTest {
+          padding-left: 8px;
+          padding-right: 8px;
+        }
+        #btnAddOutsourcedTest .add-outsourced-label {
+          display: none;
         }
       }
 
@@ -628,6 +1100,15 @@
       }
       .modal-field select {
         resize: none;
+      }
+      #outMethodSelect.method-value-select {
+        display: none;
+      }
+      #outMethodDisplay {
+        background: #f8fafc;
+        color: #374151;
+        cursor: default;
+        opacity: 1;
       }
       .modal-field input:focus,
       .modal-field select:focus,
@@ -761,6 +1242,30 @@
         color: var(--muted, #6b7280);
         letter-spacing: 0.04em;
       }
+
+      @media (max-width: 520px) {
+        .results-wrap {
+          display: none;
+        }
+        .mobile-results-list {
+          display: flex;
+          flex-direction: column;
+        }
+        .action-bar {
+          padding: 6px 8px;
+          gap: 6px;
+          max-height: 122px;
+          overflow: auto;
+        }
+        .btn-workflow {
+          padding: 6px 10px;
+          font-size: 11px;
+        }
+        .editor-sheet {
+          width: min(560px, 95vw);
+          max-height: 88vh;
+        }
+      }
     </style>
   </head>
   <body>
@@ -771,6 +1276,54 @@
         <div class="page-sub" id="pageSubtitle">Loading analysis…</div>
       </div>
       <div style="display: flex; align-items: stretch; gap: 8px">
+        <button
+          id="btnSyncFromSpec"
+          type="button"
+          title="Sync from current spec"
+          aria-label="Sync from current spec"
+          class="icon-btn"
+          disabled
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M8 7l4-4 4 4" />
+            <path d="M12 3v18" />
+            <path d="M16 17l-4 4-4-4" />
+          </svg>
+        </button>
+        <button
+          id="btnAddOutsourcedTest"
+          type="button"
+          title="Add outsourced test"
+          aria-label="Add outsourced test"
+          class="icon-btn"
+          disabled
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M12 5v14" />
+            <path d="M5 12h14" />
+          </svg>
+          <span class="add-outsourced-label">Outsourced Test</span>
+        </button>
         <button
           id="refreshBtn"
           type="button"
@@ -789,10 +1342,8 @@
             stroke-linejoin="round"
             aria-hidden="true"
           >
-            <polyline points="23 4 23 10 17 10"></polyline>
-            <polyline points="1 20 1 14 7 14"></polyline>
-            <path d="M3.51 9a9 9 0 0114.13-3.36L23 10"></path>
-            <path d="M20.49 15a9 9 0 01-14.13 3.36L1 14"></path>
+            <path d="M21 12a9 9 0 1 1-4.03-7.46" />
+            <path d="M21 4v5h-5" />
           </svg>
         </button>
         <button
@@ -826,10 +1377,7 @@
 
     <!-- ── Analysis detail card ─────────────────────────────────────────────── -->
     <div class="analysis-header-card" id="analysisHeaderCard">
-      <div class="detail-cell">
-        <span class="dc-label">Register No</span>
-        <span class="dc-value" id="hdrRegisterNo">—</span>
-      </div>
+      <!-- Desktop grid cells (hidden on mobile via CSS) -->
       <div class="detail-cell">
         <span class="dc-label">Item</span>
         <span class="dc-value" id="hdrItemName">—</span>
@@ -843,6 +1391,10 @@
         <span class="dc-value" id="hdrStatus">—</span>
       </div>
       <div class="detail-cell">
+        <span class="dc-label">Register No</span>
+        <span class="dc-value" id="hdrRegisterNo">—</span>
+      </div>
+      <div class="detail-cell">
         <span class="dc-label">Mode</span>
         <span class="dc-value" id="hdrMode">—</span>
       </div>
@@ -850,34 +1402,90 @@
         <span class="dc-label">Sample Received</span>
         <span class="dc-value" id="hdrSampleDate">—</span>
       </div>
+
+      <!-- Mobile pill (shown only ≤520px) -->
+      <button
+        type="button"
+        class="hdr-pill"
+        id="hdrPillBtn"
+        aria-haspopup="true"
+        aria-expanded="false"
+      >
+        <span class="hdr-pill-text" id="hdrPillText">Loading…</span>
+        <span class="hdr-pill-status" id="hdrPillStatus"></span>
+        <svg
+          class="hdr-pill-chevron"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <polyline points="6 9 12 15 18 9" />
+          <polyline points="6 14 12 20 18 14" />
+        </svg>
+      </button>
+
+      <!-- Details popover (shown when pill is open) -->
+      <div class="hdr-popover" id="hdrPopover" role="tooltip">
+        <div class="hdr-popover-row">
+          <span class="hdr-popover-label">Status</span>
+          <span class="hdr-popover-value" id="hdrPopStatus">—</span>
+        </div>
+        <div class="hdr-popover-row">
+          <span class="hdr-popover-label">Register No</span>
+          <span class="hdr-popover-value" id="hdrPopRegisterNo">—</span>
+        </div>
+        <div class="hdr-popover-row">
+          <span class="hdr-popover-label">Mode</span>
+          <span class="hdr-popover-value" id="hdrPopMode">—</span>
+        </div>
+        <div class="hdr-popover-row">
+          <span class="hdr-popover-label">Sample Received</span>
+          <span class="hdr-popover-value" id="hdrPopSampleDate">—</span>
+        </div>
+      </div>
     </div>
 
     <!-- ── Validation panel ────────────────────────────────────────────────── -->
     <div class="validation-panel" id="validationPanel">
-      <span class="vp-label">Validation</span>
-      <span>
-        <span class="vp-label">Missing</span>
+      <span class="vp-chip" title="Missing" aria-label="Missing">
+        <span class="vp-chip-label vp-chip-label-full">Missing</span>
+        <span class="vp-chip-label vp-chip-label-short">Miss</span>
         <span class="vp-count" id="vpMissing">—</span>
       </span>
-      <span>
-        <span class="vp-label">Failed</span>
+      <span class="vp-chip" title="Failed" aria-label="Failed">
+        <span class="vp-chip-label vp-chip-label-full">Failed</span>
+        <span class="vp-chip-label vp-chip-label-short">Fail</span>
         <span class="vp-count" id="vpFailed">—</span>
       </span>
-      <span>
-        <span class="vp-label">Not Evaluated</span>
+      <span class="vp-chip" title="Not Evaluated" aria-label="Not Evaluated">
+        <span class="vp-chip-label vp-chip-label-full">Not Evaluated</span>
+        <span class="vp-chip-label vp-chip-label-short">N/E</span>
         <span class="vp-count" id="vpNotEval">—</span>
       </span>
-      <span>
-        <span class="vp-label">Ref. Missing</span>
+      <span
+        class="vp-chip"
+        title="Reference Missing"
+        aria-label="Reference Missing"
+      >
+        <span class="vp-chip-label vp-chip-label-full">Ref Missing</span>
+        <span class="vp-chip-label vp-chip-label-short">Ref</span>
         <span class="vp-count" id="vpRefMissing">—</span>
       </span>
-      <span>
-        <span class="vp-label">Pending Review Locks</span>
+      <span
+        class="vp-chip"
+        title="Pending Review Locks"
+        aria-label="Pending Review Locks"
+      >
+        <span class="vp-chip-label vp-chip-label-full">Pending Locks</span>
+        <span class="vp-chip-label vp-chip-label-short">Lock</span>
         <span class="vp-count" id="vpLocks">—</span>
       </span>
-      <button class="btn-workflow btn-sync-spec" id="btnSyncFromSpec" disabled>
-        Sync From Current Spec
-      </button>
     </div>
 
     <!-- ── Workflow action bar ───────────────────────────────────────────────── -->
@@ -950,6 +1558,51 @@
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <div class="mobile-results-list" id="mobileResultsList" aria-live="polite">
+      <div class="mobile-result-card">
+        <div class="mobile-card-name">Loading results…</div>
+      </div>
+    </div>
+
+    <div
+      class="editor-sheet-overlay"
+      id="mobileEditorSheetOverlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="mobileEditorTitle"
+    >
+      <div class="editor-sheet" id="mobileEditorSheet">
+        <div class="editor-sheet-handle" aria-hidden="true"></div>
+        <div class="editor-sheet-head">
+          <div>
+            <p class="editor-sheet-title" id="mobileEditorTitle">
+              Result Editor
+            </p>
+            <p class="editor-sheet-sub" id="mobileEditorSubtitle">—</p>
+          </div>
+          <button
+            type="button"
+            class="editor-sheet-close"
+            id="mobileEditorCloseBtn"
+          >
+            Close
+          </button>
+        </div>
+        <div class="editor-sheet-body" id="mobileEditorBody"></div>
+        <div class="editor-sheet-nav">
+          <button type="button" class="editor-nav-btn" id="mobileEditorPrevBtn">
+            Previous
+          </button>
+          <span class="editor-sheet-nav-center" id="mobileEditorCounter"
+            >—</span
+          >
+          <button type="button" class="editor-nav-btn" id="mobileEditorNextBtn">
+            Next
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- ── Reference proposal modal ─────────────────────────────────────────── -->
@@ -1123,6 +1776,29 @@
           Update laboratory and certificate details for this result.
         </p>
 
+        <div class="modal-field" id="outTestField" style="display: none">
+          <label for="outTestSelect">Test</label>
+          <select id="outTestSelect">
+            <option value="">— Select test —</option>
+          </select>
+        </div>
+        <div class="modal-field" id="outMethodField" style="display: none">
+          <label for="outMethodDisplay">Method</label>
+          <input
+            id="outMethodDisplay"
+            type="text"
+            value="Select a test first"
+            readonly
+          />
+          <select
+            id="outMethodSelect"
+            class="method-value-select"
+            aria-hidden="true"
+            tabindex="-1"
+          >
+            <option value="">— Select method —</option>
+          </select>
+        </div>
         <div class="modal-field">
           <label for="outLabName">Laboratory Name</label>
           <input

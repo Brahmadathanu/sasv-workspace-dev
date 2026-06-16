@@ -173,7 +173,19 @@ async function checkModuleAccess(userId) {
     /* canonical check failed */
   }
 
-  return false;
+  try {
+    const { data: rows } = await supabase
+      .from("user_permissions")
+      .select("can_view")
+      .eq("user_id", userId)
+      .eq("module_id", MODULE_ID)
+      .limit(1);
+    if (Array.isArray(rows) && rows.length) return !!rows[0].can_view;
+  } catch {
+    /* allow access */
+  }
+
+  return true;
 }
 
 // ── Tab controls ──────────────────────────────────────────────────────────────

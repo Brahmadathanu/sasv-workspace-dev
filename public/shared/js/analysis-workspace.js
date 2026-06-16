@@ -124,6 +124,16 @@ const hdrStatus = $("hdrStatus");
 const hdrMode = $("hdrMode");
 const hdrSampleDate = $("hdrSampleDate");
 const resultsBody = $("resultsBody");
+const mobileResultsList = $("mobileResultsList");
+const mobileEditorSheetOverlay = $("mobileEditorSheetOverlay");
+const mobileEditorSheet = $("mobileEditorSheet");
+const mobileEditorTitle = $("mobileEditorTitle");
+const mobileEditorSubtitle = $("mobileEditorSubtitle");
+const mobileEditorBody = $("mobileEditorBody");
+const mobileEditorCloseBtn = $("mobileEditorCloseBtn");
+const mobileEditorPrevBtn = $("mobileEditorPrevBtn");
+const mobileEditorNextBtn = $("mobileEditorNextBtn");
+const mobileEditorCounter = $("mobileEditorCounter");
 const vpMissing = $("vpMissing");
 const vpFailed = $("vpFailed");
 const vpNotEval = $("vpNotEval");
@@ -136,6 +146,7 @@ const btnIssueCoa = $("btnIssueCoa");
 const btnReturnForCorrection = $("btnReturnForCorrection");
 const btnReopenAfterApproval = $("btnReopenAfterApproval");
 const btnSyncFromSpec = $("btnSyncFromSpec");
+const btnAddOutsourcedTest = $("btnAddOutsourcedTest");
 const btnViewCoa = $("btnViewCoa");
 const actionBarStatus = $("actionBarStatus");
 const refreshBtn = $("refreshBtn");
@@ -170,6 +181,12 @@ const btnRefSave = $("btnRefSave");
 
 // Outsourced modal
 const outsourcedModal = $("outsourcedModal");
+const outModalTitle = $("outModalTitle");
+const outTestField = $("outTestField");
+const outMethodField = $("outMethodField");
+const outTestSelect = $("outTestSelect");
+const outMethodDisplay = $("outMethodDisplay");
+const outMethodSelect = $("outMethodSelect");
 const outLabName = $("outLabName");
 const outCoaNumber = $("outCoaNumber");
 const outCoaDate = $("outCoaDate");
@@ -202,6 +219,10 @@ let debounceTimers = {}; // { [analysis_result_id]: timeoutId }
 let analysisActionPermissions = new Map(); // key: `${analysisId}:${actionCode}`
 let analysisPermissionVerified = false;
 let analysisLocks = new Map(); // key: analysis_result_id
+let mobileEditorResultId = null;
+let mobileSwipeStartX = null;
+let mobileSwipeStartY = null;
+let mobileNavAnimTimer = null;
 
 // Staff data for Issue COA modal (role-filtered from lab.v_coa_signatory_picker)
 let preparedByList = []; // action_code = 'ENTER_RESULT'
@@ -213,6 +234,8 @@ let currentUserStaffId = null; // mapped staff_id for the logged-in user
 // Pending context for modals
 let pendingRefRow = null; // Row awaiting reference capture
 let pendingOutRow = null; // Row being edited (outsourced)
+let outsourcedModalMode = "EDIT_EXISTING"; // EDIT_EXISTING | MARK_EXISTING | ADD_EXTRA
+let outsourcedTestPickerRows = [];
 
 // ── Utility: escape HTML ───────────────────────────────────────────────────────
 function esc(str) {
@@ -302,13 +325,45 @@ function modeLabel(mode) {
 }
 
 // ── Compliance badge ────────────────────────────────────────────────────────────
+function normalizeComplianceStatus(status) {
+  const key = String(status || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, "_");
+
+  if (["PASS", "COMPLIANT", "WITHIN_SPEC"].includes(key)) return "PASS";
+  if (["FAIL", "NON_COMPLIANT", "OUT_OF_SPEC"].includes(key)) return "FAIL";
+  if (
+    ["NOT_EVALUATED", "NOT_EVAL", "PENDING", "PENDING_EVALUATION"].includes(key)
+  ) {
+    return "NOT_EVALUATED";
+  }
+  return "UNKNOWN";
+}
+
 function complianceBadge(status) {
-  const s = String(status || "").toUpperCase();
+  const s = normalizeComplianceStatus(status);
   if (s === "PASS") return `<span class="badge badge-pass">Pass</span>`;
   if (s === "FAIL") return `<span class="badge badge-fail">Fail</span>`;
   if (s === "NOT_EVALUATED")
     return `<span class="badge badge-not-eval">Not Eval</span>`;
-  return `<span class="badge badge-not-eval">${esc(status) || "—"}</span>`;
+  return `<span class="badge badge-neutral">${esc(status) || "Unknown"}</span>`;
+}
+
+function complianceRowClass(status) {
+  const s = normalizeComplianceStatus(status);
+  if (s === "PASS") return "row-pass";
+  if (s === "FAIL") return "row-fail";
+  if (s === "NOT_EVALUATED") return "row-not-eval";
+  return "row-unknown";
+}
+
+function complianceMobileCardClass(status) {
+  const s = normalizeComplianceStatus(status);
+  if (s === "PASS") return "mobile-pass";
+  if (s === "FAIL") return "mobile-fail";
+  if (s === "NOT_EVALUATED") return "mobile-not-eval";
+  return "mobile-unknown";
 }
 
 // ── Source badge ────────────────────────────────────────────────────────────────
@@ -368,16 +423,36 @@ function isRowLocked(resultId) {
 
 // ── Render header card ──────────────────────────────────────────────────────────
 function renderHeader(info) {
-  hdrRegisterNo.textContent = info.analysis_register_no ?? "—";
-  hdrItemName.textContent = info.item_name ?? "—";
-  hdrBatch.textContent = info.batch_no_snapshot || info.system_lot_no || "—";
+  const itemName = info.item_name ?? "—";
+  const batch = info.batch_no_snapshot || info.system_lot_no || "—";
+  const registerNo = info.analysis_register_no ?? "—";
+
+  hdrRegisterNo.textContent = registerNo;
+  hdrItemName.textContent = itemName;
+  hdrBatch.textContent = batch;
   hdrStatus.innerHTML = statusChip(info.status);
   hdrMode.textContent = modeLabel(info.analysis_mode);
   hdrSampleDate.textContent = formatDate(info.sample_received_date);
 
-  pageSubtitle.textContent = info.item_name
-    ? `${info.item_name} — ${info.analysis_register_no ?? ""}`
-    : (info.analysis_register_no ?? "");
+  // Mobile pill
+  const hdrPillText = $("hdrPillText");
+  const hdrPillStatus = $("hdrPillStatus");
+  if (hdrPillText) hdrPillText.textContent = `${itemName} — ${batch}`;
+  if (hdrPillStatus) hdrPillStatus.innerHTML = statusChip(info.status);
+
+  // Popover fields
+  const hdrPopStatus = $("hdrPopStatus");
+  const hdrPopRegisterNo = $("hdrPopRegisterNo");
+  const hdrPopMode = $("hdrPopMode");
+  const hdrPopSampleDate = $("hdrPopSampleDate");
+  if (hdrPopStatus) hdrPopStatus.innerHTML = statusChip(info.status);
+  if (hdrPopRegisterNo) hdrPopRegisterNo.textContent = registerNo;
+  if (hdrPopMode) hdrPopMode.textContent = modeLabel(info.analysis_mode);
+  if (hdrPopSampleDate)
+    hdrPopSampleDate.textContent = formatDate(info.sample_received_date);
+
+  pageSubtitle.textContent =
+    itemName !== "—" ? `${itemName} — ${registerNo}` : registerNo;
 }
 
 // ── Render results table ────────────────────────────────────────────────────────
@@ -393,6 +468,214 @@ function renderResultsTable(data) {
   }
 
   resultsBody.innerHTML = data.map((row) => buildResultRow(row)).join("");
+}
+
+function isMobileViewport() {
+  return window.matchMedia("(max-width: 520px)").matches;
+}
+
+function getRowByResultId(resultId) {
+  return rows.find((r) => String(r.analysis_result_id) === String(resultId));
+}
+
+function buildMobileResultCard(row) {
+  const rid = esc(row.analysis_result_id);
+  const rowLocked = isRowLocked(row.analysis_result_id);
+  const resultDisplay = row.result_display ?? "—";
+  const complianceClass = complianceMobileCardClass(row.compliance_status);
+
+  return `
+    <div class="mobile-result-card ${complianceClass} ${rowLocked ? "row-locked" : ""}" data-rid="${rid}" role="button" tabindex="0" aria-label="Open result editor for ${esc(row.test_name ?? "test")}">
+      <div class="mobile-card-head">
+        <div class="mobile-card-name">${esc(row.test_name ?? "—")}</div>
+        ${complianceBadge(row.compliance_status)}
+      </div>
+      <div class="mobile-card-result" title="${esc(String(resultDisplay))}"><strong>Result:</strong> ${esc(String(resultDisplay))}</div>
+    </div>`;
+}
+
+function renderMobileResults(data) {
+  if (!mobileResultsList) return;
+
+  if (!data.length) {
+    mobileResultsList.innerHTML = `
+      <div class="mobile-result-card">
+        <div class="mobile-card-name">No test results found for this analysis.</div>
+      </div>`;
+    return;
+  }
+
+  mobileResultsList.innerHTML = data
+    .map((row) => buildMobileResultCard(row))
+    .join("");
+}
+
+function renderMobileEditor() {
+  if (!mobileEditorBody || !mobileEditorResultId) return;
+
+  const row = getRowByResultId(mobileEditorResultId);
+  if (!row) {
+    closeMobileEditor();
+    return;
+  }
+
+  const idx = rows.findIndex(
+    (r) => String(r.analysis_result_id) === String(mobileEditorResultId),
+  );
+  const lockInfo = getRowLock(row.analysis_result_id);
+  const rowLocked = !!lockInfo;
+  const refRequired = row.reference_capture_required === true;
+  const src = String(row.result_source_type || "").toUpperCase();
+  const kind = String(row.result_kind_snapshot || "").toUpperCase();
+  const isOutsourced = src === "OUTSOURCED";
+  const canEnterResult = mayPerformAnalysisAction(analysisId, "ENTER_RESULT");
+  const canCreateRefException = mayPerformAnalysisAction(
+    analysisId,
+    "CREATE_REFERENCE_EXCEPTION",
+  );
+  const resultDisabled = rowLocked || isReadOnly || !canEnterResult;
+  const resultTitle = rowLocked
+    ? String(lockInfo?.lock_message || "Pending specification review exists.")
+    : !canEnterResult
+      ? PERMISSION_DENIED_MESSAGE
+      : "";
+  const canMarkOutsourced =
+    !rowLocked &&
+    !isReadOnly &&
+    canEnterResult &&
+    statusAllowsAnalysisAction("ENTER_RESULT");
+  const specDisplay =
+    row.reference_range_display ?? row.spec_display_snapshot ?? "—";
+  const resultDisplay = row.result_display ?? "—";
+
+  mobileEditorTitle.textContent = row.test_name ?? "Result Editor";
+  mobileEditorSubtitle.textContent = `Spec: ${specDisplay}`;
+  mobileEditorCounter.textContent = `${idx + 1} / ${rows.length}`;
+  mobileEditorPrevBtn.disabled = idx <= 0;
+  mobileEditorNextBtn.disabled = idx >= rows.length - 1;
+
+  let editorInputHtml = "";
+  if (isOutsourced) {
+    const labNameVal = esc(row.source_lab_name_snapshot ?? "—");
+    const coaNoVal = esc(row.source_coa_no_snapshot ?? "—");
+    const coaDateVal = formatDate(row.source_coa_date_snapshot);
+    editorInputHtml = `
+      <div class="outsourced-info">
+        <span><strong>Lab:</strong> ${labNameVal}</span>
+        <span><strong>COA:</strong> ${coaNoVal}</span>
+        <span><strong>Date:</strong> ${esc(coaDateVal)}</span>
+      </div>
+      <div class="editor-sheet-actions">
+        <button class="btn-sm btn-outsourced" data-mobile-action="edit-outsourced" data-rid="${esc(row.analysis_result_id)}">&#9998; Edit Source</button>
+      </div>`;
+  } else if (refRequired) {
+    editorInputHtml = `
+      <div class="editor-sheet-meta">Reference required before entering result.</div>
+      <div class="editor-sheet-actions">
+        <button class="btn-sm btn-ref ${canCreateRefException ? "btn-ref-add" : ""}" data-mobile-action="add-reference" data-rid="${esc(row.analysis_result_id)}" ${canCreateRefException ? "" : "disabled"} title="${esc(canCreateRefException ? "Add or review reference for this test" : PERMISSION_DENIED_MESSAGE)}">+ Add Reference</button>
+      </div>`;
+  } else if (kind === "NUMERIC") {
+    editorInputHtml = `
+      <label class="editor-sheet-meta" for="mobileResultNumericInput">Result Input</label>
+      <input
+        id="mobileResultNumericInput"
+        class="result-input"
+        type="number"
+        step="any"
+        data-rid="${esc(row.analysis_result_id)}"
+        data-kind="NUMERIC"
+        value="${esc(String(row.result_numeric ?? ""))}"
+        ${resultDisabled ? "disabled" : ""}
+        ${resultTitle ? `title="${esc(resultTitle)}"` : ""}
+      />`;
+  } else {
+    const currentText = normText(row.result_text);
+    const choices = buildChoiceList(row);
+    const options = choices
+      .map(
+        (c) =>
+          `<option value="${esc(c)}" ${currentText.toLowerCase() === c.toLowerCase() && currentText !== "" ? "selected" : ""}>${esc(c)}</option>`,
+      )
+      .join("");
+    editorInputHtml = `
+      <label class="editor-sheet-meta" for="mobileResultTextInput">Result Input</label>
+      <select
+        id="mobileResultTextInput"
+        class="result-select"
+        data-rid="${esc(row.analysis_result_id)}"
+        data-kind="TEXT"
+        ${resultDisabled ? "disabled" : ""}
+        ${resultTitle ? `title="${esc(resultTitle)}"` : ""}
+      >
+        <option value="">— Select —</option>
+        ${options}
+      </select>`;
+  }
+
+  mobileEditorBody.innerHTML = `
+    <div class="mobile-card-badges">
+      ${complianceBadge(row.compliance_status)}
+      ${sourceBadge(row.result_source_type)}
+      ${rowLocked ? `<span class="badge badge-lock" title="${esc(String(lockInfo?.lock_message || "Pending specification review exists."))}">Pending Spec Review</span>` : ""}
+      ${row.has_active_reference_exception === true ? '<span class="badge badge-temp">TEMP</span>' : ""}
+    </div>
+    <div class="editor-sheet-meta"><strong>Current Display:</strong> ${esc(String(resultDisplay))}</div>
+    ${editorInputHtml}
+    <div class="editor-sheet-actions">
+      ${!isOutsourced && !refRequired ? `<button class="btn-sm btn-ref btn-ref-modify" data-mobile-action="add-reference" data-rid="${esc(row.analysis_result_id)}" ${canCreateRefException ? "" : "disabled"}>Modify Reference</button>` : ""}
+      ${!isOutsourced ? `<button class="btn-sm btn-outsourced" data-mobile-action="mark-outsourced" data-rid="${esc(row.analysis_result_id)}" ${canMarkOutsourced ? "" : "disabled"}>Mark Outsourced</button>` : ""}
+      ${rowLocked ? `<span class="editor-sheet-meta">${esc(String(lockInfo?.lock_message || "Pending specification review exists."))}</span>` : ""}
+    </div>`;
+}
+
+function openMobileEditor(resultId) {
+  if (!isMobileViewport()) return;
+  mobileEditorResultId = String(resultId);
+  renderMobileEditor();
+  mobileEditorSheetOverlay?.classList.add("open");
+}
+
+function closeMobileEditor() {
+  mobileEditorResultId = null;
+  mobileEditorSheetOverlay?.classList.remove("open");
+}
+
+function animateMobileEditorTransition(direction) {
+  if (!mobileEditorBody) return;
+  mobileEditorBody.classList.remove("nav-left", "nav-right");
+  void mobileEditorBody.offsetWidth;
+  mobileEditorBody.classList.add(
+    direction === "left" ? "nav-left" : "nav-right",
+  );
+
+  if (mobileNavAnimTimer) clearTimeout(mobileNavAnimTimer);
+  mobileNavAnimTimer = setTimeout(() => {
+    mobileEditorBody.classList.remove("nav-left", "nav-right");
+    mobileNavAnimTimer = null;
+  }, 220);
+}
+
+function acknowledgeMobileSwipe() {
+  if (!mobileEditorSheet) return;
+  mobileEditorSheet.classList.remove("swipe-ack");
+  void mobileEditorSheet.offsetWidth;
+  mobileEditorSheet.classList.add("swipe-ack");
+  setTimeout(() => mobileEditorSheet.classList.remove("swipe-ack"), 150);
+}
+
+function navigateMobileEditor(step, source = "button") {
+  if (!mobileEditorResultId) return;
+  const idx = rows.findIndex(
+    (r) => String(r.analysis_result_id) === String(mobileEditorResultId),
+  );
+  if (idx < 0) return;
+  const nextIdx = idx + step;
+  if (nextIdx < 0 || nextIdx >= rows.length) return;
+
+  mobileEditorResultId = String(rows[nextIdx].analysis_result_id);
+  renderMobileEditor();
+  if (source === "swipe") acknowledgeMobileSwipe();
+  animateMobileEditorTransition(step > 0 ? "left" : "right");
 }
 
 /**
@@ -484,6 +767,21 @@ function buildResultRow(row) {
   const lockBadge = rowLocked
     ? `<span class="badge badge-lock" title="${esc(String(lockInfo?.lock_message || "Pending specification review exists."))}">Pending Spec Review</span>`
     : "";
+  const canMarkOutsourced =
+    !rowLocked &&
+    !isReadOnly &&
+    canEnterResult &&
+    statusAllowsAnalysisAction("ENTER_RESULT");
+  const markOutsourcedButton =
+    !isOutsourced && !isReadOnly
+      ? `<button
+          class="btn-sm btn-outsourced"
+          data-action="mark-outsourced"
+          data-rid="${rid}"
+          ${canMarkOutsourced ? "" : "disabled"}
+          title="${esc(canMarkOutsourced ? "Mark this test as outsourced" : resultTitle || PERMISSION_DENIED_MESSAGE)}"
+        >Mark Outsourced</button>`
+      : "";
 
   let actionCell;
   if (!isReadOnly && isOutsourced) {
@@ -522,14 +820,19 @@ function buildResultRow(row) {
         title="${esc(refActionTitle)}"
       >
         ${refActionLabel}
-      </button>`;
+      </button>
+      ${markOutsourcedButton}`;
   } else {
     // Reference satisfied (or read-only) — still show TEMP if exception active
-    actionCell = lockBadge || tempBadge || "—";
+    actionCell =
+      `${lockBadge}${tempBadge}${markOutsourcedButton}`.trim() || "—";
   }
 
+  const rowClass =
+    `${complianceRowClass(row.compliance_status)} ${rowLocked ? "row-locked" : ""}`.trim();
+
   return `
-    <tr data-rid="${rid}" class="${rowLocked ? "row-locked" : ""}">
+    <tr data-rid="${rid}" class="${rowClass}">
       <td>${esc(String(row.seq_no ?? ""))}</td>
       <td title="${esc(row.test_name)}">${esc(row.test_name ?? "—")}</td>
       <td title="${esc(row.method_name)}" style="color:var(--muted)">${esc(row.method_name ?? "—")}</td>
@@ -538,7 +841,7 @@ function buildResultRow(row) {
       <td style="color:var(--muted)">${esc(row.result_display ?? "—")}</td>
       <td>${complianceBadge(row.compliance_status)}</td>
       <td>${sourceBadge(row.result_source_type)}</td>
-      <td style="white-space:nowrap">${actionCell}</td>
+      <td style="white-space:nowrap"><div class="row-actions">${actionCell}</div></td>
     </tr>`;
 }
 
@@ -551,7 +854,7 @@ function updateValidationPanel(data) {
   const lockCount = analysisLocks.size;
 
   data.forEach((row) => {
-    const compliance = String(row.compliance_status || "").toUpperCase();
+    const compliance = normalizeComplianceStatus(row.compliance_status);
     const hasResult =
       row.result_numeric != null ||
       (row.result_text != null && row.result_text !== "");
@@ -561,16 +864,29 @@ function updateValidationPanel(data) {
     if (row.reference_capture_required === true) refMissing++;
   });
 
-  const fmt = (el, n, danger, warn) => {
-    el.textContent = String(n);
-    el.className = `vp-count ${n >= danger ? "vp-danger" : n >= warn ? "vp-warn" : "vp-ok"}`;
+  const resolveKpiState = (n, profile) => {
+    if (profile === "danger-if-positive") return n > 0 ? "danger" : "ok";
+    if (profile === "warn-if-positive") return n > 0 ? "warn" : "ok";
+    return "ok";
   };
 
-  fmt(vpMissing, missing, 1, 1);
-  fmt(vpFailed, failed, 1, 1);
-  fmt(vpNotEval, notEval, 1, 1);
-  fmt(vpRefMissing, refMissing, 1, 1);
-  if (vpLocks) fmt(vpLocks, lockCount, 1, 1);
+  const fmt = (el, n, profile) => {
+    el.textContent = String(n);
+    const state = resolveKpiState(n, profile);
+    el.className = `vp-count vp-${state}`;
+    const chip = el.closest(".vp-chip");
+    if (chip) {
+      chip.classList.remove("vp-chip-ok", "vp-chip-warn", "vp-chip-danger");
+      chip.classList.add(`vp-chip-${state}`);
+    }
+  };
+
+  // KPI severity profile (ERP-style): operational gaps warn, hard blockers fail.
+  fmt(vpMissing, missing, "warn-if-positive");
+  fmt(vpFailed, failed, "danger-if-positive");
+  fmt(vpNotEval, notEval, "warn-if-positive");
+  fmt(vpRefMissing, refMissing, "warn-if-positive");
+  if (vpLocks) fmt(vpLocks, lockCount, "danger-if-positive");
 }
 
 function parseNumericInput(value) {
@@ -654,9 +970,13 @@ function applyOptimisticResultState(resultId, kind, value) {
     if (cells[5]) cells[5].textContent = nextRow.result_display ?? "—";
     if (cells[6])
       cells[6].innerHTML = complianceBadge(nextRow.compliance_status);
+    tr.classList.remove("row-pass", "row-fail", "row-not-eval", "row-unknown");
+    tr.classList.add(complianceRowClass(nextRow.compliance_status));
   }
 
   updateValidationPanel(rows);
+  renderMobileResults(rows);
+  if (mobileEditorResultId) renderMobileEditor();
 }
 
 // ── Permission check for workflow buttons ───────────────────────────────────────
@@ -815,6 +1135,15 @@ function applyPermissions() {
       ? "Refresh analysis result lines from the current effective specification."
       : denyMsg;
   }
+  if (btnAddOutsourcedTest) {
+    const canAddOutsourced =
+      statusAllowsAnalysisAction("ENTER_RESULT") &&
+      mayPerformAnalysisAction(analysisId, "ENTER_RESULT");
+    btnAddOutsourcedTest.disabled = !canAddOutsourced;
+    btnAddOutsourcedTest.title = canAddOutsourced
+      ? "Add outsourced test"
+      : denyMsg;
+  }
 }
 
 async function syncFromCurrentSpec() {
@@ -949,8 +1278,54 @@ async function refreshSingleRow(resultId) {
   // result_display is col index 5, compliance is col index 6
   if (cells[5]) cells[5].textContent = data.result_display ?? "—";
   if (cells[6]) cells[6].innerHTML = complianceBadge(data.compliance_status);
+  tr.classList.remove("row-pass", "row-fail", "row-not-eval", "row-unknown");
+  tr.classList.add(complianceRowClass(data.compliance_status));
 
   updateValidationPanel(rows);
+  renderMobileResults(rows);
+  if (mobileEditorResultId) renderMobileEditor();
+}
+
+function handleResultRowAction(action, row) {
+  if (!row) return;
+
+  if (action === "add-reference") {
+    if (!analysisPermissionVerified) {
+      toast(PERMISSION_VERIFY_FAILED_MESSAGE, "error", 5000);
+      return;
+    }
+    if (!mayPerformAnalysisAction(analysisId, "CREATE_REFERENCE_EXCEPTION")) {
+      toast(PERMISSION_DENIED_MESSAGE, "warn", 4000);
+      return;
+    }
+    openReferenceModal(row);
+    return;
+  }
+
+  if (action === "edit-outsourced") {
+    if (!analysisPermissionVerified) {
+      toast(PERMISSION_VERIFY_FAILED_MESSAGE, "error", 5000);
+      return;
+    }
+    if (!mayPerformAnalysisAction(analysisId, "ENTER_RESULT")) {
+      toast(PERMISSION_DENIED_MESSAGE, "warn", 4000);
+      return;
+    }
+    openOutsourcedModal(row, "EDIT_EXISTING");
+    return;
+  }
+
+  if (action === "mark-outsourced") {
+    if (!analysisPermissionVerified) {
+      toast(PERMISSION_VERIFY_FAILED_MESSAGE, "error", 5000);
+      return;
+    }
+    if (!mayPerformAnalysisAction(analysisId, "ENTER_RESULT")) {
+      toast(PERMISSION_DENIED_MESSAGE, "warn", 4000);
+      return;
+    }
+    openOutsourcedModal(row, "MARK_EXISTING");
+  }
 }
 
 // ── Debounced result change handler ─────────────────────────────────────────────
@@ -1303,13 +1678,173 @@ async function grantException() {
 }
 
 // ── Outsourced modal ────────────────────────────────────────────────────────────
-function openOutsourcedModal(row) {
-  pendingOutRow = row;
+function setOutsourcedPickerVisibility(show) {
+  if (outTestField) outTestField.style.display = show ? "" : "none";
+  if (outMethodField) outMethodField.style.display = show ? "" : "none";
+}
+
+function setOutMethodDisplay(value, title = "") {
+  if (!outMethodDisplay) return;
+  outMethodDisplay.value = value;
+  outMethodDisplay.title = title;
+}
+
+function clearOutsourcedModalFields() {
+  if (outTestSelect) outTestSelect.value = "";
+  if (outMethodSelect) {
+    outMethodSelect.innerHTML =
+      '<option value="">— Select test first —</option>';
+    outMethodSelect.value = "";
+    outMethodSelect.title = "";
+    outMethodSelect.disabled = true;
+  }
+  setOutMethodDisplay("Select a test first");
+  outLabName.value = "";
+  outCoaNumber.value = "";
+  outCoaDate.value = "";
+  outResultValue.value = "";
+}
+
+async function loadOutsourcedTestPicker() {
+  if (outsourcedTestPickerRows.length) return outsourcedTestPickerRows;
+  const { data, error } = await labSupabase
+    .from("test_master")
+    .select("id, test_name, result_kind, default_uom_id")
+    .eq("is_active", true)
+    .order("test_name", { ascending: true });
+  if (error) throw error;
+  outsourcedTestPickerRows = Array.isArray(data) ? data : [];
+  populateOutsourcedTestSelect();
+  return outsourcedTestPickerRows;
+}
+
+function populateOutsourcedTestSelect() {
+  if (!outTestSelect) return;
+  outTestSelect.innerHTML = '<option value="">— Select test —</option>';
+  outsourcedTestPickerRows.forEach((row) => {
+    const opt = document.createElement("option");
+    opt.value = String(row.id);
+    opt.textContent = row.test_name ?? `Test ${row.id}`;
+    opt.dataset.resultKind = row.result_kind ?? "";
+    outTestSelect.appendChild(opt);
+  });
+}
+
+async function loadMethodsForOutsourcedTest(testId) {
+  if (!outMethodSelect) return;
+  outMethodSelect.innerHTML = '<option value="">Loading methods…</option>';
+  outMethodSelect.value = "";
+  outMethodSelect.disabled = true;
+  outMethodSelect.title = "";
+  setOutMethodDisplay("Loading methods…");
+
+  try {
+    const { data: mappings, error: mapError } = await labSupabase
+      .from("test_default_method_map")
+      .select("method_id")
+      .eq("test_id", Number(testId))
+      .eq("is_active", true);
+
+    if (mapError) throw mapError;
+
+    const methodIds = [
+      ...new Set((mappings ?? []).map((m) => m.method_id).filter(Boolean)),
+    ];
+    let methods = [];
+
+    if (methodIds.length > 0) {
+      const { data, error } = await labSupabase
+        .from("test_method")
+        .select("id, method_name")
+        .in("id", methodIds)
+        .eq("is_active", true)
+        .order("method_name", { ascending: true });
+
+      if (error) throw error;
+      methods = data ?? [];
+    } else {
+      const { data, error } = await labSupabase
+        .from("test_method")
+        .select("id, method_name")
+        .eq("is_active", true)
+        .order("method_name", { ascending: true });
+
+      if (error) throw error;
+      methods = data ?? [];
+    }
+
+    outMethodSelect.innerHTML = '<option value="">— Select method —</option>';
+    methods.forEach((row) => {
+      const opt = document.createElement("option");
+      opt.value = String(row.id);
+      opt.textContent = row.method_name ?? `Method ${row.id}`;
+      outMethodSelect.appendChild(opt);
+    });
+
+    if (methods.length > 0) {
+      const method = methods[0];
+      const methodName = method.method_name ?? `Method ${method.id}`;
+      outMethodSelect.value = String(method.id);
+      outMethodSelect.title = "Method auto-populated from the selected test.";
+      outMethodSelect.disabled = true;
+      setOutMethodDisplay(methodName, outMethodSelect.title);
+      return;
+    }
+
+    outMethodSelect.value = "";
+    outMethodSelect.title = "";
+    outMethodSelect.disabled = true;
+    setOutMethodDisplay("No active method found");
+  } catch (err) {
+    console.error("[AW] outsourced method load failed:", err);
+    outMethodSelect.value = "";
+    outMethodSelect.title = "";
+    outMethodSelect.disabled = true;
+    outMethodSelect.innerHTML =
+      '<option value="">Could not load methods</option>';
+    setOutMethodDisplay("Could not load methods");
+    toast(`Could not load methods: ${err.message}`, "error", 5000);
+  }
+}
+
+function selectedOutsourcedTest() {
+  if (!outTestSelect?.value) return null;
+  return outsourcedTestPickerRows.find(
+    (row) => String(row.id) === String(outTestSelect.value),
+  );
+}
+
+async function openOutsourcedModal(row = null, mode = "EDIT_EXISTING") {
+  outsourcedModalMode = mode;
+  pendingOutRow = mode === "ADD_EXTRA" ? null : row;
+  clearOutsourcedModalFields();
+  setOutsourcedPickerVisibility(mode === "ADD_EXTRA");
+  if (outModalTitle) {
+    outModalTitle.textContent =
+      mode === "ADD_EXTRA"
+        ? "Add Outsourced Test"
+        : mode === "MARK_EXISTING"
+          ? "Mark Test as Outsourced"
+          : "Edit Outsourced Source";
+  }
+
+  if (mode === "ADD_EXTRA") {
+    outsourcedModal.classList.add("open");
+    try {
+      await loadOutsourcedTestPicker();
+      outTestSelect?.focus();
+    } catch (err) {
+      toast(`Failed to load tests: ${err.message}`, "error", 5000);
+      outLabName.focus();
+    }
+    return;
+  }
+
+  if (!row) return;
   const kind = String(row.result_kind_snapshot || "").toUpperCase();
   outLabName.value = row.source_lab_name_snapshot ?? "";
   outCoaNumber.value = row.source_coa_no_snapshot ?? "";
   outCoaDate.value = row.source_coa_date_snapshot ?? "";
-  // Pre-fill result value from the correct field based on kind
   outResultValue.value =
     kind === "NUMERIC"
       ? row.result_numeric != null
@@ -1323,10 +1858,67 @@ function openOutsourcedModal(row) {
 function closeOutsourcedModal() {
   outsourcedModal.classList.remove("open");
   pendingOutRow = null;
+  outsourcedModalMode = "EDIT_EXISTING";
+  setOutsourcedPickerVisibility(false);
+}
+
+function validateOutsourcedModal(kind) {
+  const labName = outLabName.value.trim();
+  const coaNo = outCoaNumber.value.trim();
+  const coaDate = outCoaDate.value || null;
+  const resultVal = outResultValue.value.trim();
+
+  if (outsourcedModalMode === "ADD_EXTRA") {
+    if (!outTestSelect.value) {
+      toast("Test is required.", "warn");
+      outTestSelect.focus();
+      return null;
+    }
+    if (!outMethodSelect.value) {
+      toast("Method is required.", "warn");
+      outMethodDisplay?.focus();
+      return null;
+    }
+  }
+  if (!labName) {
+    toast("Laboratory name is required.", "warn");
+    outLabName.focus();
+    return null;
+  }
+  if (!coaNo) {
+    toast("COA number is required.", "warn");
+    outCoaNumber.focus();
+    return null;
+  }
+  if (!coaDate) {
+    toast("COA date is required.", "warn");
+    outCoaDate.focus();
+    return null;
+  }
+  if (!resultVal) {
+    toast("Result value is required.", "warn");
+    outResultValue.focus();
+    return null;
+  }
+
+  const normalizedKind = String(kind || "").toUpperCase();
+  let resultNumeric = null;
+  let resultText = null;
+  if (normalizedKind === "NUMERIC") {
+    resultNumeric = Number(resultVal);
+    if (!Number.isFinite(resultNumeric)) {
+      toast("Numeric result must be a valid number.", "warn");
+      outResultValue.focus();
+      return null;
+    }
+  } else {
+    resultText = resultVal;
+  }
+
+  return { labName, coaNo, coaDate, resultNumeric, resultText };
 }
 
 async function saveOutsourcedSource() {
-  if (!pendingOutRow) return;
   if (!analysisPermissionVerified) {
     toast(PERMISSION_VERIFY_FAILED_MESSAGE, "error", 5000);
     return;
@@ -1335,44 +1927,62 @@ async function saveOutsourcedSource() {
     toast(PERMISSION_DENIED_MESSAGE, "warn", 4000);
     return;
   }
-  const labName = outLabName.value.trim();
-  const coaNo = outCoaNumber.value.trim();
-  const coaDate = outCoaDate.value || null;
-  const resultVal = outResultValue.value.trim();
-  const kind = String(pendingOutRow.result_kind_snapshot || "").toUpperCase();
 
-  if (!labName) {
-    toast("Laboratory name is required.", "warn");
-    outLabName.focus();
-    return;
-  }
+  const selectedTest = selectedOutsourcedTest();
+  const kind =
+    outsourcedModalMode === "ADD_EXTRA"
+      ? String(selectedTest?.result_kind || "").toUpperCase()
+      : String(pendingOutRow?.result_kind_snapshot || "").toUpperCase();
+  const validated = validateOutsourcedModal(kind);
+  if (!validated) return;
 
   btnOutSave.disabled = true;
   showLoading();
   try {
-    const { error } = await labSupabase.rpc(
-      "fn_upsert_outsourced_report_for_result",
-      {
-        p_user_id: userId,
-        p_analysis_result_id: pendingOutRow.analysis_result_id,
-        p_partner_name_snapshot: labName || null,
-        p_external_coa_no: coaNo || null,
-        p_external_coa_date: coaDate,
-        p_result_numeric:
-          kind === "NUMERIC"
-            ? resultVal === ""
-              ? null
-              : Number(resultVal)
-            : null,
-        p_result_text: kind !== "NUMERIC" ? resultVal || null : null,
-      },
-    );
+    let error;
+    if (outsourcedModalMode === "ADD_EXTRA") {
+      ({ error } = await labSupabase.rpc(
+        "fn_add_outsourced_analysis_result_line",
+        {
+          p_user_id: userId,
+          p_analysis_id: Number(analysisId),
+          p_test_id: Number(outTestSelect.value),
+          p_method_id: Number(outMethodSelect.value),
+          p_partner_name_snapshot: validated.labName,
+          p_external_coa_no: validated.coaNo,
+          p_external_coa_date: validated.coaDate,
+          p_result_numeric: validated.resultNumeric,
+          p_result_text: validated.resultText,
+        },
+      ));
+    } else {
+      if (!pendingOutRow) return;
+      ({ error } = await labSupabase.rpc(
+        "fn_upsert_outsourced_report_for_result",
+        {
+          p_user_id: userId,
+          p_analysis_result_id: pendingOutRow.analysis_result_id,
+          p_partner_name_snapshot: validated.labName,
+          p_external_coa_no: validated.coaNo,
+          p_external_coa_date: validated.coaDate,
+          p_result_numeric: validated.resultNumeric,
+          p_result_text: validated.resultText,
+        },
+      ));
+    }
     if (error) throw error;
-    toast("Outsourced source updated.", "success");
+    toast(
+      outsourcedModalMode === "ADD_EXTRA"
+        ? "Outsourced test added."
+        : outsourcedModalMode === "MARK_EXISTING"
+          ? "Test marked as outsourced."
+          : "Outsourced source updated.",
+      "success",
+    );
     closeOutsourcedModal();
     await reloadAndRender();
   } catch (err) {
-    toast(`Failed to update outsourced source: ${err.message}`, "error", 5000);
+    toast(`Failed to save outsourced source: ${err.message}`, "error", 5000);
   } finally {
     hideLoading();
     btnOutSave.disabled = false;
@@ -1724,6 +2334,8 @@ async function reloadAndRender() {
           No data found. Verify the analysis ID in the URL.
         </td>
       </tr>`;
+    renderMobileResults([]);
+    closeMobileEditor();
     return;
   }
 
@@ -1749,6 +2361,11 @@ async function reloadAndRender() {
 
   // Render table
   renderResultsTable(rows);
+  renderMobileResults(rows);
+  if (mobileEditorResultId && isMobileViewport()) {
+    renderMobileEditor();
+    mobileEditorSheetOverlay?.classList.add("open");
+  }
 
   // Validation summary
   updateValidationPanel(rows);
@@ -1808,6 +2425,27 @@ function wireEvents() {
     refreshBtn.disabled = false;
   });
 
+  // Header card: mobile pill toggle + popover auto-collapse
+  const hdrPillBtn = $("hdrPillBtn");
+  const hdrPopover = $("hdrPopover");
+  const analysisHeaderCard = $("analysisHeaderCard");
+  if (hdrPillBtn && hdrPopover) {
+    hdrPillBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const open = hdrPopover.classList.toggle("open");
+      hdrPillBtn.classList.toggle("open", open);
+      hdrPillBtn.setAttribute("aria-expanded", String(open));
+    });
+
+    document.addEventListener("click", (e) => {
+      if (!analysisHeaderCard?.contains(e.target)) {
+        hdrPopover.classList.remove("open");
+        hdrPillBtn.classList.remove("open");
+        hdrPillBtn.setAttribute("aria-expanded", "false");
+      }
+    });
+  }
+
   if (btnSyncFromSpec) {
     btnSyncFromSpec.addEventListener("click", syncFromCurrentSpec);
   }
@@ -1860,28 +2498,107 @@ function wireEvents() {
     const row = rows.find((r) => String(r.analysis_result_id) === String(rid));
     if (!row) return;
 
-    if (action === "add-reference") {
-      if (!analysisPermissionVerified) {
-        toast(PERMISSION_VERIFY_FAILED_MESSAGE, "error", 5000);
+    handleResultRowAction(action, row);
+  });
+
+  // Mobile cards: tap card to open centered editor modal
+  mobileResultsList?.addEventListener("click", (e) => {
+    const card = e.target.closest(".mobile-result-card");
+    if (!card) return;
+    const rid = card.dataset.rid;
+    if (!rid) return;
+    card.classList.add("mobile-tap-pulse");
+    setTimeout(() => card.classList.remove("mobile-tap-pulse"), 160);
+    openMobileEditor(rid);
+  });
+
+  // Mobile cards: keyboard support
+  mobileResultsList?.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const card = e.target.closest(".mobile-result-card");
+    if (!card) return;
+    e.preventDefault();
+    const rid = card.dataset.rid;
+    if (!rid) return;
+    openMobileEditor(rid);
+  });
+
+  // Mobile sheet close + backdrop close
+  mobileEditorCloseBtn?.addEventListener("click", closeMobileEditor);
+  mobileEditorSheetOverlay?.addEventListener("click", (e) => {
+    if (e.target === mobileEditorSheetOverlay) closeMobileEditor();
+  });
+
+  // Mobile sheet next/previous
+  mobileEditorPrevBtn?.addEventListener("click", () =>
+    navigateMobileEditor(-1),
+  );
+  mobileEditorNextBtn?.addEventListener("click", () => navigateMobileEditor(1));
+
+  // Mobile sheet: delegated result changes
+  mobileEditorBody?.addEventListener("change", (e) => {
+    const el = e.target;
+    const rid = el.dataset?.rid;
+    const kind = el.dataset?.kind;
+    if (!rid || !kind) return;
+
+    if (el.tagName === "SELECT" && el.value === "Other / Manual Entry") {
+      const custom = (window.prompt("Enter result value") ?? "").trim();
+      if (!custom) {
+        el.value = "";
         return;
       }
-      if (!mayPerformAnalysisAction(analysisId, "CREATE_REFERENCE_EXCEPTION")) {
-        toast(PERMISSION_DENIED_MESSAGE, "warn", 4000);
-        return;
-      }
-      openReferenceModal(row);
+      const otherOpt = el.querySelector('option[value="Other / Manual Entry"]');
+      const newOpt = document.createElement("option");
+      newOpt.value = custom;
+      newOpt.textContent = custom;
+      el.insertBefore(newOpt, otherOpt);
+      el.value = custom;
+      onResultChange(rid, "TEXT", custom);
+      return;
     }
-    if (action === "edit-outsourced") {
-      if (!analysisPermissionVerified) {
-        toast(PERMISSION_VERIFY_FAILED_MESSAGE, "error", 5000);
-        return;
-      }
-      if (!mayPerformAnalysisAction(analysisId, "ENTER_RESULT")) {
-        toast(PERMISSION_DENIED_MESSAGE, "warn", 4000);
-        return;
-      }
-      openOutsourcedModal(row);
-    }
+
+    onResultChange(rid, kind, el.value);
+  });
+
+  mobileEditorBody?.addEventListener("input", (e) => {
+    const el = e.target;
+    if (el.tagName !== "INPUT" || el.dataset?.kind !== "NUMERIC") return;
+    const rid = el.dataset.rid;
+    if (!rid) return;
+    applyOptimisticResultState(rid, "NUMERIC", el.value);
+  });
+
+  // Mobile sheet: delegated row action buttons
+  mobileEditorBody?.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-mobile-action]");
+    if (!btn) return;
+    const action = btn.dataset.mobileAction;
+    const rid = btn.dataset.rid;
+    const row = getRowByResultId(rid);
+    if (!row) return;
+    handleResultRowAction(action, row);
+  });
+
+  // Swipe navigation in mobile editor sheet
+  mobileEditorSheet?.addEventListener("touchstart", (e) => {
+    const touch = e.changedTouches?.[0];
+    if (!touch) return;
+    mobileSwipeStartX = touch.clientX;
+    mobileSwipeStartY = touch.clientY;
+  });
+  mobileEditorSheet?.addEventListener("touchend", (e) => {
+    const touch = e.changedTouches?.[0];
+    if (!touch || mobileSwipeStartX == null || mobileSwipeStartY == null)
+      return;
+    const dx = touch.clientX - mobileSwipeStartX;
+    const dy = touch.clientY - mobileSwipeStartY;
+    mobileSwipeStartX = null;
+    mobileSwipeStartY = null;
+
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
+    if (dx < 0) navigateMobileEditor(1, "swipe");
+    else navigateMobileEditor(-1, "swipe");
   });
 
   // Reference modal
@@ -1905,6 +2622,33 @@ function wireEvents() {
   });
 
   // Outsourced modal
+  btnAddOutsourcedTest?.addEventListener("click", () => {
+    if (!analysisPermissionVerified) {
+      toast(PERMISSION_VERIFY_FAILED_MESSAGE, "error", 5000);
+      return;
+    }
+    if (
+      !statusAllowsAnalysisAction("ENTER_RESULT") ||
+      !mayPerformAnalysisAction(analysisId, "ENTER_RESULT")
+    ) {
+      toast(PERMISSION_DENIED_MESSAGE, "warn", 4000);
+      return;
+    }
+    openOutsourcedModal(null, "ADD_EXTRA");
+  });
+  outTestSelect?.addEventListener("change", () => {
+    const testId = outTestSelect.value;
+    if (!testId) {
+      outMethodSelect.innerHTML =
+        '<option value="">— Select test first —</option>';
+      outMethodSelect.value = "";
+      outMethodSelect.title = "";
+      outMethodSelect.disabled = true;
+      setOutMethodDisplay("Select a test first");
+      return;
+    }
+    loadMethodsForOutsourcedTest(testId);
+  });
   btnOutSave.addEventListener("click", saveOutsourcedSource);
   btnOutCancel.addEventListener("click", closeOutsourcedModal);
   outsourcedModal.addEventListener("click", (e) => {
@@ -1928,11 +2672,22 @@ function wireEvents() {
   // Keyboard: Escape closes whichever modal is open
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
+      if (mobileEditorSheetOverlay?.classList.contains("open"))
+        closeMobileEditor();
       if (referenceModal.classList.contains("open")) closeReferenceModal();
       if (outsourcedModal.classList.contains("open")) closeOutsourcedModal();
       if (issueCoaConfirmModal.classList.contains("open"))
         closeIssueCoaConfirmModal();
       else if (issueCoaModal.classList.contains("open")) closeIssueCoaModal();
+    }
+  });
+
+  window.addEventListener("resize", () => {
+    if (
+      !isMobileViewport() &&
+      mobileEditorSheetOverlay?.classList.contains("open")
+    ) {
+      closeMobileEditor();
     }
   });
 

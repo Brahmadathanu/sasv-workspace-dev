@@ -643,6 +643,78 @@
         flex-direction: column;
         max-height: calc(100vh - 60px);
       }
+      .erp-choice-modal {
+        max-width: 560px;
+        padding: 0;
+        overflow: hidden;
+      }
+      .erp-choice-modal .erp-modal-header {
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+        background: rgba(15, 23, 42, 0.025);
+      }
+      .erp-choice-modal h3 {
+        margin: 0;
+        font-size: 15px;
+        line-height: 1.25;
+      }
+      .erp-choice-modal .erp-modal-ref {
+        margin-top: 4px;
+        font-size: 12px;
+        color: var(--muted, #6b7280);
+      }
+      .erp-choice-modal .erp-modal-body {
+        padding: 12px 14px;
+      }
+      .erp-choice-modal .erp-modal-note {
+        margin: 0 0 10px;
+        font-size: 12px;
+        color: var(--muted, #6b7280);
+      }
+      .erp-choice-list {
+        display: grid;
+        gap: 8px;
+      }
+      .erp-choice-row {
+        display: grid;
+        grid-template-columns: 18px 1fr;
+        gap: 10px;
+        align-items: start;
+        margin: 0;
+        padding: 9px 10px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+        background: var(--panel-bg, #fff);
+        cursor: pointer;
+        text-align: left;
+      }
+      .erp-choice-row:hover {
+        border-color: rgba(0, 90, 141, 0.35);
+        background: rgba(0, 90, 141, 0.035);
+      }
+      .erp-choice-row input {
+        margin: 2px 0 0;
+        justify-self: start;
+      }
+      .erp-choice-title {
+        display: block;
+        font-size: 13px;
+        line-height: 1.3;
+        color: var(--text-color, #111);
+      }
+      .erp-choice-desc {
+        display: block;
+        margin-top: 2px;
+        font-size: 12px;
+        line-height: 1.35;
+        color: var(--muted, #6b7280);
+      }
+      .erp-choice-modal .actions {
+        margin-top: 0;
+        padding: 10px 14px;
+        border-top: 1px solid var(--border, #e5e7eb);
+        background: rgba(15, 23, 42, 0.018);
+      }
       #prViewModalBackdrop {
         padding: 0;
         align-items: stretch;
@@ -1799,6 +1871,12 @@
                 role="dialog"
                 aria-label="Action queue filters"
               >
+                <div class="pec-filter-section">
+                  <div class="pec-filter-section-title">Indent</div>
+                  <select id="fIndent" class="pec-filter-select">
+                    <option value="">All Indents</option>
+                  </select>
+                </div>
                 <div class="pec-filter-section">
                   <div class="pec-filter-section-title">Priority Band</div>
                   <select id="fBand" class="pec-filter-select">
@@ -3465,6 +3543,54 @@
       </div>
     </div>
 
+    <!-- Recommend & accept vendors mode modal -->
+    <div
+      class="modal-backdrop"
+      id="vendorAcceptModeModalBackdrop"
+      aria-hidden="true"
+    >
+      <div class="modal erp-choice-modal">
+        <div class="erp-modal-header">
+          <h3>Recommend & Accept Vendors</h3>
+          <div class="erp-modal-ref" id="vendorAcceptModeItem"></div>
+        </div>
+        <div class="erp-modal-body">
+          <p class="erp-modal-note">
+            Select inactive vendor handling before processing this indent.
+          </p>
+          <div class="erp-choice-list">
+            <label class="erp-choice-row">
+              <input type="radio" name="vendorAcceptMode" value="false" checked />
+              <span>
+                <strong class="erp-choice-title">
+                  Clear inactive recommendations only
+                </strong>
+                <span class="erp-choice-desc">
+                  Existing selected vendors will remain.
+                </span>
+              </span>
+            </label>
+            <label class="erp-choice-row">
+              <input type="radio" name="vendorAcceptMode" value="true" />
+              <span>
+                <strong class="erp-choice-title">
+                  Clear inactive recommendations and selected vendors
+                </strong>
+                <span class="erp-choice-desc">
+                  Inactive selected vendors will be cleared, then active vendors
+                  will be re-recommended where available.
+                </span>
+              </span>
+            </label>
+          </div>
+        </div>
+        <div class="actions">
+          <button id="btnVendorAcceptModeCancel" type="button">Cancel</button>
+          <button id="btnVendorAcceptModeConfirm" type="button">Confirm</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Indent action modal -->
     <div
       class="modal-backdrop"
@@ -4878,6 +5004,7 @@
 
         // Wire each tab's filter drawer
         wireFilterDrawer("aqFilterBtn", "aqFilterDrawer", "aqFilterBadge", [
+          "fIndent",
           "fBand",
           "fClass",
           "fNeeds",

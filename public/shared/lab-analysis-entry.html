@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Lab — Sample Receipt &amp; Analysis Entry</title>
+    <title>Lab Analysis Entry</title>
     <link rel="stylesheet" href="css/style.css" />
     <style>
       /* ── Reset & Base ─────────────────────────────────────────────── */
@@ -291,6 +291,14 @@
       .type-pill.active .type-pill-label {
         color: var(--primary, #2563eb);
       }
+      .receipt-details-card {
+        display: none;
+      }
+      .mobile-field-drawer-header,
+      .mobile-field-drawer-footer,
+      .mobile-receipt-drawer {
+        display: none;
+      }
 
       /* Per-type tints */
       .type-pill[data-type="FG_BATCH"] {
@@ -395,6 +403,197 @@
           gap: 10px;
         }
       }
+      @media (max-width: 600px) {
+        .type-pills {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 8px;
+        }
+        .type-pill {
+          align-items: center;
+          justify-content: center;
+          min-width: 0;
+          width: 100%;
+          padding: 8px 6px;
+          gap: 3px;
+          text-align: center;
+        }
+        .type-pill-icon svg {
+          width: 18px;
+          height: 18px;
+        }
+        .type-pill-label {
+          font-size: 0;
+          line-height: 1;
+        }
+        .type-pill-label::after {
+          font-size: 12px;
+          font-weight: 800;
+          line-height: 1.1;
+        }
+        .type-pill[data-type="FG_BATCH"] .type-pill-label::after {
+          content: "FG";
+        }
+        .type-pill[data-type="RM_LOT"] .type-pill-label::after {
+          content: "RM";
+        }
+        .type-pill[data-type="PM_LOT"] .type-pill-label::after {
+          content: "PM";
+        }
+        .type-pill-sub {
+          display: none;
+        }
+        .receipt-details-card {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          width: 100%;
+          margin-top: 10px;
+          padding: 10px 11px;
+          border: 1px solid var(--border, #e5e7eb);
+          border-radius: 8px;
+          background: var(--panel-bg, #fff);
+          color: #0f172a;
+          font-size: 12.5px;
+          line-height: 1.35;
+          text-align: left;
+          cursor: pointer;
+        }
+        .receipt-details-card.hidden {
+          display: none;
+        }
+        .receipt-details-card-main {
+          min-width: 0;
+        }
+        .receipt-details-title {
+          display: block;
+          font-weight: 800;
+          color: #0f172a;
+        }
+        .receipt-details-sub {
+          display: block;
+          margin-top: 1px;
+          color: var(--muted, #6b7280);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .receipt-details-status {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 24px;
+          height: 24px;
+          border-radius: 999px;
+          background: #fef2f2;
+          color: #dc2626;
+          flex-shrink: 0;
+        }
+        .receipt-details-card.is-complete .receipt-details-status {
+          background: #dcfce7;
+          color: #16a34a;
+        }
+        #fgFields:not(.hidden),
+        #rmFields:not(.hidden),
+        #commonFields:not(.hidden) {
+          display: none;
+        }
+        body.mobile-field-drawer-open {
+          overflow: hidden;
+        }
+        .mobile-receipt-drawer:not(.hidden) {
+          position: fixed;
+          inset: 0;
+          z-index: 2100;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          margin: 0;
+          padding: 12px;
+          border: none;
+          border-radius: 0;
+          background: var(--panel-bg, #fff);
+        }
+        .mobile-receipt-drawer-body {
+          display: flex;
+          flex: 1 1 auto;
+          flex-direction: column;
+          gap: 12px;
+          min-height: 0;
+          overflow-y: auto;
+        }
+        .mobile-receipt-drawer-body #fgFields:not(.hidden),
+        .mobile-receipt-drawer-body #rmFields:not(.hidden),
+        .mobile-receipt-drawer-body #commonFields:not(.hidden) {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          padding: 0;
+          border: none;
+          border-radius: 0;
+        }
+        .mobile-receipt-drawer-header {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 10px;
+          margin: -12px -12px 0;
+          padding: 12px;
+          border-bottom: 1px solid var(--border, #e5e7eb);
+          background: var(--panel-bg, #fff);
+          flex-shrink: 0;
+        }
+        .mobile-receipt-drawer-title {
+          font-size: 15px;
+          font-weight: 800;
+          color: #0f172a;
+          line-height: 1.25;
+        }
+        .mobile-receipt-drawer-sub {
+          margin-top: 2px;
+          font-size: 12px;
+          color: var(--muted, #6b7280);
+          line-height: 1.35;
+        }
+        .mobile-receipt-drawer-close {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 32px;
+          height: 32px;
+          border: 1px solid var(--border, #e5e7eb);
+          border-radius: 7px;
+          background: transparent;
+          color: var(--muted, #6b7280);
+          cursor: pointer;
+          flex-shrink: 0;
+        }
+        .mobile-receipt-drawer-close:hover {
+          background: #f3f4f6;
+          color: #111827;
+        }
+        .mobile-receipt-drawer-footer {
+          display: flex;
+          justify-content: flex-end;
+          margin: auto -12px -12px;
+          padding: 10px 12px;
+          border-top: 1px solid var(--border, #e5e7eb);
+          background: var(--panel-bg, #fff);
+          flex-shrink: 0;
+        }
+        .mobile-receipt-drawer-done {
+          width: 100%;
+          border: none;
+          border-radius: 8px;
+          padding: 10px 14px;
+          background: var(--primary, #2563eb);
+          color: #fff;
+          font-size: 13.5px;
+          font-weight: 800;
+          cursor: pointer;
+        }
+      }
       .form-group {
         display: flex;
         flex-direction: column;
@@ -417,6 +616,7 @@
         border: 1px solid var(--border, #e5e7eb);
         border-radius: 7px;
         font-size: 13.5px;
+        font-weight: 400;
         font-family: inherit;
         background: #fff;
         color: #0f172a;
@@ -449,6 +649,27 @@
         background-repeat: no-repeat;
         background-position: right 10px center;
         padding-right: 30px;
+      }
+      .native-select-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+        pointer-events: none;
+      }
+      .search-select-wrap {
+        position: relative;
+      }
+      input[list].form-control {
+        font-weight: 400;
+      }
+      datalist option {
+        font-weight: 400;
       }
       textarea.form-control {
         resize: vertical;
@@ -1046,7 +1267,7 @@
     <!-- ── Page header ─────────────────────────────────────────────── -->
     <div class="page-header">
       <div>
-        <h1>Sample Receipt &amp; Analysis Entry</h1>
+        <h1>Lab Analysis Entry</h1>
         <div class="page-sub">
           Book a sample, verify protocol mapping, and start the analysis — all
           in one step
@@ -1188,37 +1409,122 @@
               <span class="type-pill-sub">Packing Material</span>
             </button>
           </div>
+          <button
+            id="receiptDetailsBtn"
+            class="receipt-details-card hidden"
+            type="button"
+            aria-live="polite"
+          >
+            <span class="receipt-details-card-main">
+              <span class="receipt-details-title">Receipt Details</span>
+              <span id="receiptDetailsSub" class="receipt-details-sub"
+                >Select a sample type to continue</span
+              >
+            </span>
+            <span
+              id="receiptDetailsStatus"
+              class="receipt-details-status"
+              aria-hidden="true"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="3"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </span>
+          </button>
         </div>
 
         <!-- FG Batch fields -->
         <div id="fgFields" class="form-section hidden">
+          <div class="mobile-field-drawer-header">
+            <div>
+              <div class="mobile-field-drawer-title">FG Batch Details</div>
+              <div class="mobile-field-drawer-sub">
+                Select product and batch details for the sample.
+              </div>
+            </div>
+            <button
+              class="mobile-field-drawer-close"
+              type="button"
+              data-close-mobile-fields
+              aria-label="Close FG batch details"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
           <div class="form-section-title">Batch Information</div>
           <div class="form-row">
             <div class="form-group">
-              <label for="productSelect"
+              <label for="productSearchInput"
                 >Product <span class="req" aria-hidden="true">*</span></label
               >
-              <select
-                id="productSelect"
-                class="form-control"
-                aria-required="true"
-              >
-                <option value="">— Select Product —</option>
-              </select>
+              <div class="search-select-wrap">
+                <input
+                  id="productSearchInput"
+                  class="form-control"
+                  type="text"
+                  list="productSearchList"
+                  placeholder="Type to search product"
+                  autocomplete="off"
+                  aria-required="true"
+                />
+                <datalist id="productSearchList"></datalist>
+                <select
+                  id="productSelect"
+                  class="form-control native-select-hidden"
+                  aria-hidden="true"
+                  tabindex="-1"
+                >
+                  <option value="">— Select Product —</option>
+                </select>
+              </div>
               <div class="field-msg" id="productMsg" role="alert"></div>
             </div>
             <div class="form-group">
-              <label for="batchNoSelect"
+              <label for="batchSearchInput"
                 >Batch No <span class="req" aria-hidden="true">*</span></label
               >
-              <select
-                id="batchNoSelect"
-                class="form-control"
-                aria-required="true"
-                disabled
-              >
-                <option value="">— Select Product first —</option>
-              </select>
+              <div class="search-select-wrap">
+                <input
+                  id="batchSearchInput"
+                  class="form-control"
+                  type="text"
+                  list="batchSearchList"
+                  placeholder="Type to search batch"
+                  autocomplete="off"
+                  aria-required="true"
+                  disabled
+                />
+                <datalist id="batchSearchList"></datalist>
+                <select
+                  id="batchNoSelect"
+                  class="form-control native-select-hidden"
+                  aria-hidden="true"
+                  tabindex="-1"
+                  disabled
+                >
+                  <option value="">— Select Product first —</option>
+                </select>
+              </div>
               <div class="field-msg" id="batchSelectMsg" role="alert"></div>
             </div>
           </div>
@@ -1246,24 +1552,74 @@
               />
             </div>
           </div>
+          <div class="mobile-field-drawer-footer">
+            <button
+              class="mobile-field-drawer-done"
+              type="button"
+              data-close-mobile-fields
+            >
+              Done
+            </button>
+          </div>
         </div>
 
         <!-- RM Lot fields -->
         <div id="rmFields" class="form-section hidden">
+          <div class="mobile-field-drawer-header">
+            <div>
+              <div class="mobile-field-drawer-title" id="rmPmDrawerTitle">
+                RM Lot Details
+              </div>
+              <div class="mobile-field-drawer-sub" id="rmPmDrawerSub">
+                Select raw material lot details for the sample.
+              </div>
+            </div>
+            <button
+              class="mobile-field-drawer-close"
+              type="button"
+              data-close-mobile-fields
+              aria-label="Close lot details"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
           <div class="form-section-title">Lot Information</div>
           <div class="form-row">
             <div class="form-group">
-              <label for="stockItemSelect"
+              <label for="stockItemSearchInput"
                 >Raw Material
                 <span class="req" aria-hidden="true">*</span></label
               >
-              <select
-                id="stockItemSelect"
-                class="form-control"
-                aria-required="true"
-              >
-                <option value="">— Select Raw Material —</option>
-              </select>
+              <div class="search-select-wrap">
+                <input
+                  id="stockItemSearchInput"
+                  class="form-control"
+                  type="text"
+                  list="stockItemSearchList"
+                  placeholder="Type to search raw material"
+                  autocomplete="off"
+                  aria-required="true"
+                />
+                <datalist id="stockItemSearchList"></datalist>
+                <select
+                  id="stockItemSelect"
+                  class="form-control native-select-hidden"
+                  aria-hidden="true"
+                  tabindex="-1"
+                >
+                  <option value="">— Select Raw Material —</option>
+                </select>
+              </div>
               <div class="field-msg" id="stockItemMsg" role="alert"></div>
             </div>
             <div class="form-group">
@@ -1280,6 +1636,15 @@
               />
               <div class="field-msg" id="lotMsg" role="alert"></div>
             </div>
+          </div>
+          <div class="mobile-field-drawer-footer">
+            <button
+              class="mobile-field-drawer-done"
+              type="button"
+              data-close-mobile-fields
+            >
+              Done
+            </button>
           </div>
         </div>
 
@@ -1563,6 +1928,54 @@
       </div>
     </div>
     <!-- /page-scroll -->
+
+    <!-- ── Mobile receipt details drawer ───────────────────────────── -->
+    <div
+      id="mobileReceiptDrawer"
+      class="mobile-receipt-drawer hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="mobileReceiptDrawerTitle"
+    >
+      <div class="mobile-receipt-drawer-header">
+        <div>
+          <div id="mobileReceiptDrawerTitle" class="mobile-receipt-drawer-title">
+            Receipt Details
+          </div>
+          <div id="mobileReceiptDrawerSub" class="mobile-receipt-drawer-sub">
+            Complete sample and receipt details.
+          </div>
+        </div>
+        <button
+          id="mobileReceiptDrawerClose"
+          class="mobile-receipt-drawer-close"
+          type="button"
+          aria-label="Close receipt details"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+          >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+      <div id="mobileReceiptDrawerBody" class="mobile-receipt-drawer-body"></div>
+      <div class="mobile-receipt-drawer-footer">
+        <button
+          id="mobileReceiptDrawerDone"
+          class="mobile-receipt-drawer-done"
+          type="button"
+        >
+          Done
+        </button>
+      </div>
+    </div>
 
     <!-- ── Switch type confirmation modal ─────────────────────────── -->
     <div
