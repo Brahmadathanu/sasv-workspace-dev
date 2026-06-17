@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
@@ -23,7 +23,13 @@
       }
       body {
         margin: 0; /* outer spacing moved into .console-wrapper to avoid page overflow */
-        font-family: Arial, sans-serif;
+        font-family:
+          system-ui,
+          Segoe UI,
+          Roboto,
+          Arial,
+          sans-serif;
+        font-size: 14px;
         background: var(--bg-color);
         color: var(--text-color);
         display: flex;
@@ -53,7 +59,7 @@
           gap: 8px;
         }
         .header-title-row h1 {
-          font-size: 1.1rem; /* reduce title size on small screens */
+          font-size: 16px; /* match compact reference header on small screens */
         }
       }
 
@@ -65,7 +71,7 @@
       .section-hint {
         margin-top: 6px;
         color: var(--muted);
-        font-size: 0.9rem;
+        font-size: 0.95rem;
       }
 
       /* Tabs - ERP alternate style applied via .erp-tabs-alt */
@@ -73,11 +79,19 @@
         display: flex;
         align-items: center;
         justify-content: flex-start; /* left-align the tab navigator card */
-        gap: 12px;
-        padding: 0 8px 6px; /* add small bottom padding to prevent scrollbar */
-        margin-bottom: 0; /* remove spacing after tabs */
-        background: transparent;
-        border: none;
+        gap: 6px;
+        padding: 8px;
+        margin-bottom: 8px;
+        background: linear-gradient(
+          135deg,
+          rgba(37, 99, 235, 0.05) 0%,
+          rgba(37, 99, 235, 0.02) 100%
+        );
+        border: 1px solid var(--border, rgba(15, 23, 42, 0.08));
+        border-radius: 8px;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.03);
+        overflow-x: auto;
+        overflow-y: visible;
       }
       /* Tab dropdown for small screens */
       .tab-dropdown {
@@ -115,11 +129,12 @@
       .tabs {
         display: flex;
         justify-content: flex-start; /* ensure tab buttons align left */
-        gap: 12px;
-        padding: 0 12px 6px; /* small bottom padding to match container and avoid scrollbar */
+        gap: 6px;
+        padding: 0;
         overflow-x: auto;
+        overflow-y: visible;
         -webkit-overflow-scrolling: touch;
-        border-bottom: 1px solid rgba(15, 23, 42, 0.03);
+        border-bottom: 0;
         background: transparent;
         align-items: center;
       }
@@ -144,37 +159,35 @@
       .tab-btn.erp-alt {
         background: transparent;
         border: 1px solid transparent;
-        padding: 10px 14px;
+        padding: 8px 16px;
         border-radius: 8px;
         cursor: pointer;
         font-weight: 700;
-        color: #334155;
-        font-size: 0.98rem;
+        color: #6b7280;
+        font-size: 13px;
         min-width: 120px;
         display: inline-flex;
-        flex-direction: column;
+        flex-direction: row;
         gap: 2px;
         align-items: center;
         justify-content: center;
         transition: all 160ms ease;
       }
       .tab-btn .tab-title {
-        font-size: 1rem;
+        font-size: 13px;
         font-weight: 700;
         color: inherit;
       }
       .tab-btn .tab-description {
-        font-size: 0.78rem;
-        font-weight: 400;
-        color: #94a3b8;
+        display: none;
       }
-      .tab-btn:hover {
+      .tab-btn:not(.erp-alt):hover {
         background: #fff;
         box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
         border-color: rgba(11, 92, 255, 0.08);
         transform: translateY(-2px);
       }
-      .tab-btn.active {
+      .tab-btn:not(.erp-alt).active {
         background: white;
         border: 1px solid rgba(11, 92, 255, 0.12);
         color: var(--primary);
@@ -182,36 +195,32 @@
       }
       /* ERP-alt active visual: subtle top surface and bottom accent bar */
       .tab-btn.erp-alt:hover {
-        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
-        transform: translateY(-2px);
+        color: var(--erp-text, #0f172a);
+        background: rgba(37, 99, 235, 0.05);
+        border-color: rgba(37, 99, 235, 0.12);
+        box-shadow: none;
+        transform: none;
       }
       .tab-btn.erp-alt.active,
       .tab-btn.erp-alt[aria-selected="true"] {
-        background: linear-gradient(180deg, #ffffff, #f8fafc);
-        border: 1px solid rgba(13, 60, 160, 0.12);
-        color: var(--primary);
-        box-shadow: none;
+        background: var(--primary);
+        border-color: var(--primary);
+        color: #fff;
+        box-shadow: 0 4px 14px rgba(0, 90, 141, 0.22);
         position: relative;
       }
       .tab-btn.erp-alt.active::after,
       .tab-btn.erp-alt[aria-selected="true"]::after {
-        content: "";
-        position: absolute;
-        bottom: -1px;
-        left: 12%;
-        right: 12%;
-        height: 3px;
-        background: linear-gradient(90deg, #60a5fa, #2563eb);
-        border-radius: 3px;
+        content: none;
       }
 
       /* Section panels */
       .panel {
         background: var(--panel-bg);
-        border-radius: 10px;
-        padding: 18px;
+        border-radius: 8px;
+        padding: 8px;
         box-shadow: none;
-        border: 1px solid rgba(15, 23, 42, 0.06);
+        border: 1px solid var(--border, rgba(15, 23, 42, 0.08));
       }
       .panel + .panel {
         margin-top: 12px;
@@ -229,143 +238,20 @@
         color: #0f172a;
       }
 
-      /* Table defaults for console panels */
-      .panel table {
-        width: 100%;
-        border-collapse: collapse;
-        background: white;
-        border-radius: 8px;
-        overflow: visible;
-        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
-      }
-      .panel th,
-      .panel td {
-        padding: 10px 14px;
-        border-bottom: 1px solid #eef2f7;
-        font-size: 1rem;
-        vertical-align: middle;
-      }
-      .panel th {
-        background: #fbfdff;
-        color: var(--muted);
-        font-weight: 700;
-        text-transform: uppercase;
-        font-size: 0.82rem;
-        letter-spacing: 0.02em;
-      }
-      /* Container that matches mrp-material-board for sticky header support */
+      /* Table containers */
       #mrpTableContainer {
-        border: 1px solid #ccc;
-        overflow-x: auto;
-        overflow-y: auto;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 8px;
+        overflow: auto;
         -webkit-overflow-scrolling: touch;
         flex: 1 1 auto;
         min-height: 0;
-        max-height: none;
-        position: relative; /* ensures sticky header positions correctly */
-      }
-      /* Table visuals borrowed from mrp-material-board for consistent ERP look */
-      #mrpTable_moq,
-      .panel table {
-        width: 100%;
-        min-width: 720px;
-        border-collapse: collapse;
-        background: white;
-      }
-      #mrpTable_moq th,
-      #mrpTable_moq td,
-      .panel th,
-      .panel td {
-        padding: 10px 14px;
-        border-bottom: 1px solid #e6eef6;
-        font-size: 1rem;
-        vertical-align: middle;
-        color: #0f172a;
-      }
-      #mrpTable_moq thead th,
-      .panel th {
-        background: var(--panel-bg);
-        color: var(--text-color);
-        font-weight: 700;
-        text-transform: uppercase;
-        font-size: 0.88rem;
-        letter-spacing: 0.02em;
-        border-top: 1px solid rgba(2, 6, 23, 0.06);
-        border-bottom: 2px solid rgba(2, 6, 23, 0.08);
-        text-align: center;
-      }
-      /* Ensure table containers inside panels expand to fill vertical space
-         so table bodies can show more rows and scroll when needed. */
-      .panel #mrpTableContainer {
-        display: flex;
-        flex-direction: column;
-        flex: 1 1 auto;
-        min-height: 0;
-      }
-      .panel #mrpTableContainer .mrp-table,
-      .panel #mrpTableContainer #mrpTable_moq {
-        flex: 1 1 auto;
-        min-height: 0;
-        height: 100%;
+        position: relative;
       }
       .panel .table-scroll {
         flex: 1 1 auto;
         min-height: 0;
         overflow: auto;
-      }
-      /* Zebra striping and hover to match material-board */
-      #mrpTable_moq tbody tr:nth-child(even) {
-        background: rgba(2, 6, 23, 0.02);
-      }
-      #mrpTable_moq tbody tr:hover {
-        background: rgba(2, 6, 23, 0.04);
-      }
-      /* Sticky header behavior */
-      #mrpTable_moq thead {
-        display: table-header-group; /* ensure proper table header grouping for sticky behavior */
-      }
-      #mrpTable_moq thead th {
-        position: sticky;
-        top: 0;
-        z-index: 999; /* ensure headers sit above body cells when wrapping */
-        overflow: visible; /* allow wrapped lines to be visible */
-        box-shadow: 0 2px 6px rgba(2, 6, 23, 0.04);
-        padding-bottom: 8px; /* give some breathing room for wrapped text */
-        line-height: 1.15;
-      }
-      /* Enforce fixed table layout and truncate body cells with ellipsis to
-         prevent overlapping. Allow header cells to wrap above body cells. */
-      #mrpTable_moq,
-      .mrp-table {
-        table-layout: fixed;
-      }
-      #mrpTable_moq tbody td,
-      .mrp-table tbody td {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      /* Allow header cells to wrap and remain visible above the body */
-      #mrpTable_moq thead th,
-      .mrp-table thead th {
-        white-space: normal;
-      }
-
-      /* Add extra horizontal padding for narrow columns to avoid clipped letters */
-      #mrpTable_moq th:nth-child(1),
-      #mrpTable_moq td:nth-child(1) {
-        padding-left: 16px;
-        padding-right: 20px;
-      }
-      #mrpTable_moq th:nth-child(5),
-      #mrpTable_moq td:nth-child(5) {
-        padding-left: 16px;
-        padding-right: 20px;
-      }
-      /* Table-level vertical scroll inside panels */
-      .table-scroll {
-        overflow: auto;
-        -webkit-overflow-scrolling: touch;
       }
 
       /* Panels expand to fill available vertical space; tables inside
@@ -381,59 +267,79 @@
       .panel {
         display: flex;
         flex-direction: column;
-        flex: 1 1 auto; /* allow panel to grow and give table container height */
+        flex: 1 1 0; /* allow panel to grow and give table container height */
         min-height: 0;
+        overflow: hidden;
       }
-      /* Removed problematic table-row display overrides (they interfered with
-         native table layout and sticky positioning). Keep table as normal. */
-
-      /* Use MRP material-board table aesthetics for professional ERP look */
-      .mrp-table {
+      /* Base table */
+      .mrp-table,
+      #mrpTable_moq,
+      #mrpTable_conv,
+      #mrpTable_season,
+      #mrpTable_mapping {
         width: 100%;
         border-collapse: collapse;
-        background: white;
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
-        min-width: 720px;
-      }
-      .mrp-table th,
-      .mrp-table td {
-        padding: 10px 12px;
-        border-bottom: 1px solid #eef2f7;
-        font-size: 0.98rem;
-        vertical-align: middle;
-      }
-      .mrp-table thead th {
-        background: #fbfdff;
-        color: var(--muted);
-        font-weight: 700;
-        text-transform: uppercase;
-        font-size: 0.82rem;
-        letter-spacing: 0.02em;
-      }
-      .mrp-table tbody tr:hover {
-        background: rgba(2, 6, 23, 0.02);
-      }
-      /* Use table-wrap as the scroll container; keep table as a normal table
-         so columns align correctly while thead remains sticky. */
-      .mrp-table {
         table-layout: fixed;
-        width: 100%;
+        background: #fff;
         margin: 0;
+        font-size: 13px;
       }
-      .mrp-table thead {
-        display: table-header-group;
+
+      /* Common cells */
+      .mrp-table th,
+      .mrp-table td,
+      #mrpTable_moq th,
+      #mrpTable_moq td,
+      #mrpTable_conv th,
+      #mrpTable_conv td,
+      #mrpTable_season th,
+      #mrpTable_season td,
+      #mrpTable_mapping th,
+      #mrpTable_mapping td {
+        padding: 8px;
+        font-size: 13px;
+        line-height: 1.25;
+        vertical-align: middle;
+        border-bottom: 1px solid #e6eef6;
+        color: #0f172a;
       }
-      .mrp-table thead th {
+
+      /* Common header */
+      .mrp-table thead th,
+      #mrpTable_moq thead th,
+      #mrpTable_conv thead th,
+      #mrpTable_season thead th,
+      #mrpTable_mapping thead th {
         position: sticky;
         top: 0;
-        z-index: 999; /* keep headers on top */
-        overflow: visible;
-        box-shadow: 0 2px 6px rgba(2, 6, 23, 0.04);
-        background: var(--panel-bg);
-        padding-bottom: 8px;
+        z-index: 20;
+        background: var(--panel-bg, #fafafb);
+        color: var(--text-color, #0f172a);
+        text-transform: uppercase;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        text-align: center;
         line-height: 1.15;
+        border-top: 1px solid rgba(2, 6, 23, 0.06);
+        border-bottom: 2px solid rgba(2, 6, 23, 0.08);
+        white-space: normal;
+      }
+
+      /* Common body */
+      .mrp-table tbody td {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .mrp-table tbody tr:nth-child(even) {
+        background: var(--table-stripe, #fafbfc);
+      }
+      .mrp-table tbody tr:hover {
+        background: #eef4ff;
+      }
+      .mrp-table tbody tr:active {
+        background: #e3edff;
       }
       /* Specific rules for conversion table: make the grouped header row
          and the column header row both sticky with an offset so they don't
@@ -530,66 +436,6 @@
         }
       }
 
-      /* On very small screens allow the table to size to content so the
-         container horizontal scrollbar can reveal full cell contents
-         instead of truncating them. Keep cells on a single line. */
-      @media (max-width: 520px) {
-        #mrpTable_moq,
-        .mrp-table {
-          width: 100%; /* fill container width */
-          table-layout: fixed; /* fixed layout prevents column overlap and enables ellipsis */
-          min-width: 800px; /* increased to ensure columns don't squeeze */
-          box-sizing: border-box;
-        }
-        #mrpTable_moq th,
-        #mrpTable_moq td,
-        .mrp-table th,
-        .mrp-table td {
-          white-space: nowrap; /* keep single-line cells */
-          padding: 8px 10px; /* reduce padding on small screens */
-          font-size: 0.875rem; /* slightly smaller font */
-          box-sizing: border-box; /* include padding in min-width calculations */
-        }
-        /* ensure the table container shows horizontal scroll */
-        #mrpTableContainer {
-          overflow-x: auto;
-          -webkit-overflow-scrolling: touch;
-        }
-        /* Prevent column overlap by giving generous minimum widths per column */
-        #mrpTable_moq th:nth-child(1),
-        #mrpTable_moq td:nth-child(1) {
-          min-width: 70px;
-        }
-        #mrpTable_moq th:nth-child(2),
-        #mrpTable_moq td:nth-child(2) {
-          min-width: 80px;
-        }
-        #mrpTable_moq th:nth-child(3),
-        #mrpTable_moq td:nth-child(3) {
-          min-width: 120px;
-        }
-        #mrpTable_moq th:nth-child(4),
-        #mrpTable_moq td:nth-child(4) {
-          min-width: 240px;
-        }
-        #mrpTable_moq th:nth-child(5),
-        #mrpTable_moq td:nth-child(5) {
-          min-width: 130px;
-        }
-        #mrpTable_moq th:nth-child(6),
-        #mrpTable_moq td:nth-child(6) {
-          min-width: 80px;
-        }
-        #mrpTable_moq th:nth-child(7),
-        #mrpTable_moq td:nth-child(7) {
-          min-width: 80px;
-        }
-        #mrpTable_moq th:nth-child(8),
-        #mrpTable_moq td:nth-child(8) {
-          min-width: 80px;
-        }
-      }
-
       /* Small helpers */
       .muted {
         color: var(--muted);
@@ -623,8 +469,8 @@
       }
 
       /* Tab active state similar to supply-overrides */
-      .tab-btn[aria-selected="true"],
-      .tab-btn.active {
+      .tab-btn:not(.erp-alt)[aria-selected="true"],
+      .tab-btn:not(.erp-alt).active {
         background: linear-gradient(
           180deg,
           rgba(37, 99, 235, 0.12),
@@ -695,6 +541,329 @@
         padding: 6px 12px;
         font-size: 0.875rem;
       }
+      .mrp-toolbar-card {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px;
+        margin: 0 0 8px !important;
+        padding: 8px 10px !important;
+        border-radius: 8px !important;
+        background: var(--panel-bg) !important;
+        border: 1px solid rgba(15, 23, 42, 0.08) !important;
+        flex: 0 0 auto;
+      }
+      .mrp-toolbar-card .filter-item.search {
+        position: relative;
+        flex: 1;
+        min-width: 160px;
+      }
+      .mrp-enhanced-search {
+        position: relative !important;
+        flex: 1 1 160px !important;
+        min-width: 160px !important;
+        display: block !important;
+      }
+      .mrp-toolbar-card input[type="text"] {
+        width: 100%;
+        height: 34px;
+        padding: 7px 34px 7px 10px;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        border-radius: 8px;
+        background: #f8fafc;
+        color: var(--text-color);
+        font-size: 13px;
+        box-sizing: border-box;
+      }
+      #moqSearch,
+      #convSearch,
+      #seasonSearch,
+      #textSearch {
+        width: 100% !important;
+        min-width: 160px !important;
+        height: 34px !important;
+        padding: 7px 34px 7px 10px !important;
+        border: 1px solid rgba(15, 23, 42, 0.12) !important;
+        border-radius: 8px !important;
+        background: #f8fafc !important;
+        color: var(--text-color) !important;
+        font-size: 13px !important;
+        box-sizing: border-box !important;
+        margin: 0 !important;
+      }
+      #moqSearch:focus,
+      #convSearch:focus,
+      #seasonSearch:focus,
+      #textSearch:focus {
+        outline: none !important;
+        border-color: var(--primary) !important;
+        box-shadow: 0 0 0 3px rgba(0, 90, 141, 0.12) !important;
+        background: #fff !important;
+      }
+      .mrp-toolbar-card input[type="text"]:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(0, 90, 141, 0.12);
+      }
+      .mrp-actions {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+      .mrp-icon-btn {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 34px !important;
+        height: 34px !important;
+        padding: 0 !important;
+        border: 1px solid rgba(15, 23, 42, 0.12) !important;
+        border-radius: 6px !important;
+        background: #fff !important;
+        color: #0f172a !important;
+        margin: 0 !important;
+        cursor: pointer;
+      }
+      .mrp-icon-btn:hover,
+      .mrp-icon-btn:focus-visible {
+        background: #f3f4f6;
+        border-color: rgba(0, 90, 141, 0.28);
+        outline: none;
+      }
+      .mrp-icon-btn.primary {
+        background: var(--primary) !important;
+        border-color: var(--primary) !important;
+        color: #fff !important;
+      }
+      .mrp-input-clear-btn {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 22px;
+        height: 22px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        border: 0;
+        border-radius: 999px;
+        background: transparent;
+        color: #6b7280;
+        cursor: pointer;
+      }
+      .mrp-input-clear-btn:hover {
+        background: rgba(15, 23, 42, 0.04);
+        color: #0f172a;
+      }
+      .mrp-table-meta {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        gap: 8px;
+        margin: 0 0 8px !important;
+        flex: 0 0 auto;
+      }
+      .mrp-row-count {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        height: auto !important;
+        padding: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        color: #6b7280 !important;
+        font-size: 12px !important;
+        font-weight: 500 !important;
+        margin-left: 0 !important;
+        white-space: nowrap;
+      }
+      .mrp-pagination {
+        margin-left: auto !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 8px;
+        background: transparent !important;
+        border: none !important;
+        padding: 0 !important;
+        color: #374151;
+        font-size: 13px;
+      }
+      .mrp-pagination .mrp-page-btn {
+        width: 28px !important;
+        height: 28px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 0 !important;
+        border: none !important;
+        border-radius: 6px !important;
+        background: transparent !important;
+        color: inherit;
+        cursor: pointer;
+      }
+      .mrp-pagination .mrp-page-btn:hover {
+        background: rgba(15, 23, 42, 0.04);
+      }
+      .mrp-pagination .mrp-page-btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .mrp-empty-state {
+        padding: 16px;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 8px;
+        background: #fff;
+        color: #6b7280;
+        font-size: 13px;
+      }
+      .mrp-lookup {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        box-sizing: border-box;
+        position: relative;
+      }
+      .mrp-lookup label {
+        font-weight: 600;
+        color: #374151;
+        font-size: 13px;
+        display: block;
+      }
+      .mrp-lookup input[type="text"] {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 13px;
+        background: #f8fafc;
+        box-sizing: border-box;
+      }
+      .mrp-lookup input[type="text"]:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(0, 90, 141, 0.12);
+        background: #fff;
+      }
+      .mrp-lookup-menu {
+        display: none;
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 62px;
+        z-index: 1400;
+        max-height: 176px;
+        overflow: auto;
+        padding: 3px;
+        border: 1px solid rgba(15, 23, 42, 0.14);
+        border-radius: 6px;
+        background: #fff;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+      }
+      .mrp-lookup-menu.open {
+        display: block;
+      }
+      .mrp-lookup-option {
+        display: block;
+        width: 100%;
+        padding: 7px 9px;
+        border: 0;
+        border-radius: 4px;
+        background: transparent;
+        color: #0f172a;
+        font: inherit;
+        font-size: 13px;
+        text-align: left;
+        cursor: pointer;
+      }
+      .mrp-lookup-option:hover,
+      .mrp-lookup-option.active,
+      .mrp-lookup-option.selected {
+        background: rgba(37, 99, 235, 0.08);
+        color: #0b3a9a;
+      }
+      .mrp-lookup-option.active {
+        box-shadow: inset 3px 0 0 var(--primary);
+      }
+      .mrp-lookup-empty {
+        padding: 8px 10px;
+        color: #6b7280;
+        font-size: 13px;
+      }
+      .mrp-lookup-hint {
+        color: #6b7280;
+        font-size: 11.5px;
+        min-height: 16px;
+      }
+      /* MRP console table alignment and scoped behavior */
+      #mrpTable_moq thead th,
+      #mrpTable_conv thead th,
+      #mrpTable_season thead th,
+      #mrpTable_mapping thead th {
+        text-align: center;
+      }
+
+      #mrpTable_moq tbody td {
+        text-align: center;
+      }
+
+      #mrpTable_moq tbody td:nth-child(4) {
+        text-align: left;
+      }
+
+      #moqSection .mrp-moq-table-container {
+        display: block;
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: auto;
+      }
+
+      #moqSection .mrp-moq-table-container #mrpTable_moq {
+        height: auto;
+        flex: none;
+      }
+
+      .mrp-empty-table-cell {
+        text-align: center !important;
+        color: var(--muted, #6b7280) !important;
+        padding: 24px 12px !important;
+        font-weight: 500;
+      }
+
+      #mrpTable_conv tbody td.consuming-col {
+        background: rgba(59, 130, 246, 0.035) !important;
+      }
+      #mrpTable_conv tbody td.purchase-col {
+        background: rgba(16, 185, 129, 0.035) !important;
+      }
+      #mrpTable_conv tbody tr:nth-child(even) td.consuming-col {
+        background: rgba(59, 130, 246, 0.055) !important;
+      }
+      #mrpTable_conv tbody tr:nth-child(even) td.purchase-col {
+        background: rgba(16, 185, 129, 0.055) !important;
+      }
+      #mrpTable_conv tbody tr:hover td.consuming-col,
+      #mrpTable_conv tbody tr:hover td.purchase-col {
+        background: #eef4ff !important;
+      }
+      #mrpTable_conv tbody tr:active td.consuming-col,
+      #mrpTable_conv tbody tr:active td.purchase-col {
+        background: #e3edff !important;
+      }
+      .mrp-table-meta {
+        min-height: 28px;
+      }
+      .mrp-row-count {
+        color: var(--muted, #6b7280) !important;
+      }
+      @media (max-width: 640px) {
+        .mrp-toolbar-card {
+          flex-wrap: wrap;
+        }
+        .mrp-actions {
+          margin-left: auto;
+        }
+      }
       /* Ensure modal action buttons have consistent spacing */
       #copilot-modal-actions > button {
         margin-left: 8px;
@@ -748,6 +917,387 @@
           transform: rotate(360deg);
         }
       }
+
+      /* MRP Console shared in-page modal sizing */
+      #copilot-detail-modal {
+        padding: 18px !important;
+        box-sizing: border-box !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 13px;
+      }
+
+      #copilot-detail-modal #copilot-modal-overlay {
+        background: rgba(0, 0, 0, 0.45) !important;
+      }
+
+      #copilot-detail-modal #copilot-modal-container {
+        width: min(820px, 92vw) !important;
+        height: auto !important;
+        max-height: 78vh !important;
+        display: flex !important;
+        flex-direction: column !important;
+        border-radius: 12px !important;
+        box-shadow: 0 18px 48px rgba(2, 6, 23, 0.24) !important;
+        font-size: 13px !important;
+      }
+
+      #copilot-detail-modal #copilot-modal-container > header {
+        flex-shrink: 0 !important;
+        padding: 12px 16px !important;
+        background: #f8fafc !important;
+        border-bottom: 1px solid var(--border, #e5e7eb) !important;
+      }
+
+      #copilot-detail-modal #copilot-modal-title {
+        font-size: 15px !important;
+        line-height: 1.25 !important;
+        font-weight: 700 !important;
+      }
+
+      #copilot-detail-modal #copilot-modal-sub {
+        font-size: 12px !important;
+        margin-top: 4px !important;
+        color: var(--muted, #6b7280) !important;
+      }
+
+      #copilot-detail-modal #copilot-modal-close {
+        width: 30px !important;
+        height: 30px !important;
+        font-size: 18px !important;
+        padding: 4px !important;
+      }
+
+      #copilot-detail-modal #copilot-modal-body {
+        flex: 0 1 auto !important;
+        max-height: calc(78vh - 118px) !important;
+        overflow: auto !important;
+        padding: 14px 18px !important;
+        box-sizing: border-box !important;
+      }
+
+      #copilot-detail-modal #copilot-modal-actions {
+        flex-shrink: 0 !important;
+        padding: 12px 18px !important;
+        gap: 8px !important;
+        border-top: 1px solid var(--border, #e5e7eb) !important;
+        background: #f8fafc !important;
+      }
+
+      #copilot-detail-modal input,
+      #copilot-detail-modal select,
+      #copilot-detail-modal textarea {
+        font-family: inherit;
+        font-size: 13px !important;
+      }
+
+      #copilot-detail-modal label {
+        font-size: 13px !important;
+      }
+
+      #copilot-detail-modal .mrp-btn {
+        font-size: 12.5px !important;
+        padding: 7px 12px !important;
+      }
+
+      #homeBtn .home-label {
+        display: inline;
+      }
+
+      .mrp-table-meta,
+      .mrp-list-footer {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 8px !important;
+        margin: 0 0 8px !important;
+        flex: 0 0 auto;
+      }
+
+      .mrp-row-count {
+        flex: 1 1 auto;
+        justify-content: flex-start !important;
+        text-align: left !important;
+        white-space: nowrap;
+      }
+
+      .mrp-pagination {
+        flex: 0 0 auto;
+        margin-left: auto !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+        gap: 6px;
+        white-space: nowrap;
+      }
+
+      @media (max-width: 520px) {
+        body {
+          overflow: hidden;
+        }
+
+        .header-bar {
+          padding: 10px 8px 6px;
+        }
+
+        .header-title-row h1 {
+          font-size: 15px;
+          line-height: 1.15;
+        }
+
+        .section-hint {
+          display: none;
+        }
+
+        #homeBtn {
+          width: 34px;
+          height: 34px;
+          padding: 0 !important;
+          justify-content: center;
+        }
+
+        #homeBtn .home-label {
+          display: none;
+        }
+
+        #homeBtn svg {
+          margin: 0;
+        }
+
+        .console-wrapper {
+          padding: 0 6px 6px;
+          min-height: 0;
+          overflow-x: hidden;
+        }
+
+        .tabs-container.erp-tabs-alt {
+          padding: 6px;
+          margin-bottom: 6px;
+        }
+
+        .tab-dropdown {
+          min-height: 34px;
+          padding: 7px 10px;
+          font-size: 13px;
+        }
+
+        .panel {
+          border: none;
+          padding: 0;
+          background: transparent;
+          box-shadow: none;
+        }
+
+        .mrp-toolbar-card,
+        .panel > div:first-child {
+          flex-wrap: wrap;
+          gap: 6px;
+        }
+
+        #moqSearch {
+          min-width: 0 !important;
+          width: 100%;
+          box-sizing: border-box;
+          font-size: 13px !important;
+          padding-top: 7px !important;
+          padding-bottom: 7px !important;
+        }
+
+        #mrpTableContainer,
+        .table-scroll,
+        .mrp-table-scroll,
+        .mrp-moq-table-container {
+          overflow-x: hidden !important;
+          overflow-y: auto !important;
+          border: none !important;
+          border-radius: 0 !important;
+          background: transparent !important;
+        }
+
+        .mrp-mobile-card-table,
+        .mrp-mobile-card-table tbody {
+          display: block;
+          width: 100%;
+          min-width: 0 !important;
+          background: transparent !important;
+        }
+
+        .mrp-mobile-card-table thead {
+          display: none !important;
+        }
+
+        .mrp-mobile-card-table tbody tr.mrp-mobile-card-row {
+          display: grid !important;
+          grid-template-columns: minmax(0, 1fr) auto;
+          gap: 4px 8px;
+          margin-bottom: 7px;
+          padding: 8px 10px;
+          border: 1px solid var(--border, #e5e7eb);
+          border-radius: 8px;
+          background: var(--panel-bg, #fff) !important;
+          box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+          cursor: pointer;
+        }
+
+        .mrp-mobile-card-table tbody tr.mrp-mobile-card-row:hover,
+        .mrp-mobile-card-table tbody tr.mrp-mobile-card-row:focus {
+          background: #f8fbff !important;
+          outline: 2px solid rgba(37, 99, 235, 0.12);
+          outline-offset: 1px;
+        }
+
+        .mrp-mobile-card-table tbody td {
+          display: none !important;
+          padding: 0 !important;
+          border: none !important;
+          background: transparent !important;
+          white-space: normal !important;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          font-size: 12px !important;
+          line-height: 1.25;
+        }
+
+        .mrp-mobile-card-table tbody td.mrp-card-primary,
+        .mrp-mobile-card-table tbody td.mrp-card-secondary,
+        .mrp-mobile-card-table tbody td.mrp-card-value,
+        .mrp-mobile-card-table tbody td.mrp-card-full {
+          display: block !important;
+        }
+
+        .mrp-card-primary {
+          grid-column: 1;
+          grid-row: 1;
+          min-width: 0;
+          font-size: 13px !important;
+          font-weight: 700;
+          color: var(--text-color, #0f172a);
+        }
+
+        .mrp-card-secondary {
+          grid-column: 1;
+          grid-row: 2;
+          min-width: 0;
+          font-size: 12px !important;
+          font-weight: 500;
+          color: var(--muted, #6b7280);
+        }
+
+        .mrp-card-value {
+          grid-column: 2;
+          grid-row: 1 / span 2;
+          align-self: center;
+          justify-self: end;
+          text-align: right !important;
+        }
+
+        .mrp-card-full {
+          grid-column: 1 / 3;
+          font-size: 12px !important;
+          color: var(--muted, #6b7280);
+        }
+
+        .mrp-card-pill {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          max-width: 130px;
+          padding: 2px 7px;
+          border-radius: 999px;
+          font-size: 11px !important;
+          font-weight: 700;
+          white-space: nowrap;
+          color: #075985;
+          background: rgba(14, 165, 233, 0.1);
+          border: 1px solid rgba(14, 165, 233, 0.22);
+        }
+
+        .mrp-card-factor-pill {
+          color: #5b21b6;
+          background: rgba(124, 58, 237, 0.1);
+          border-color: rgba(124, 58, 237, 0.22);
+        }
+
+        .mrp-card-season-pill {
+          color: #166534;
+          background: rgba(22, 163, 74, 0.1);
+          border-color: rgba(22, 163, 74, 0.22);
+        }
+
+        .mrp-card-months {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 3px;
+          margin-top: 2px;
+        }
+
+        .mrp-card-month {
+          display: inline-flex;
+          align-items: center;
+          padding: 2px 7px;
+          border-radius: 999px;
+          font-size: 10.5px !important;
+          font-weight: 700;
+          color: #334155;
+          background: rgba(100, 116, 139, 0.1);
+          border: 1px solid rgba(100, 116, 139, 0.14);
+        }
+
+        .mrp-table-meta,
+        .mrp-list-footer {
+          flex-direction: row !important;
+          align-items: center !important;
+          justify-content: space-between !important;
+          gap: 6px !important;
+          padding: 0 2px;
+        }
+
+        .mrp-row-count {
+          order: 1;
+          font-size: 11px !important;
+        }
+
+        .mrp-pagination {
+          order: 2;
+          margin-left: auto !important;
+          font-size: 11.5px !important;
+        }
+
+        .mrp-page-btn {
+          width: 28px !important;
+          height: 28px !important;
+        }
+
+        #copilot-detail-modal {
+          padding: 8px !important;
+        }
+
+        #copilot-detail-modal #copilot-modal-container {
+          width: min(96vw, 720px) !important;
+          max-height: 86vh !important;
+          height: auto !important;
+          border-radius: 12px !important;
+        }
+
+        #copilot-detail-modal #copilot-modal-body {
+          max-height: calc(86vh - 108px) !important;
+          padding: 12px !important;
+        }
+
+        #copilot-detail-modal form {
+          grid-template-columns: 1fr !important;
+        }
+
+        #copilot-detail-modal form > * {
+          grid-column: 1 / -1 !important;
+        }
+
+        .mrp-mobile-card-table tbody td.mrp-card-primary,
+        .mrp-mobile-card-table tbody td.mrp-card-secondary,
+        .mrp-mobile-card-table tbody td.mrp-card-full {
+          text-align: left !important;
+        }
+      }
     </style>
   </head>
   <body data-theme="system">
@@ -755,7 +1305,7 @@
       <div style="flex: 1">
         <div class="header-title-row">
           <h1>MRP Master Data Console</h1>
-          <button id="homeBtn">
+          <button id="homeBtn" type="button" title="Home" aria-label="Home">
             <svg
               width="16"
               height="16"
@@ -763,11 +1313,12 @@
               fill="none"
               stroke="currentColor"
               stroke-width="2"
+              aria-hidden="true"
             >
               <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
               <polyline points="9,22 9,12 15,12 15,22" />
             </svg>
-            HOME
+            <span class="home-label">HOME</span>
           </button>
         </div>
         <div class="section-hint">MRP master data console for admin tasks.</div>
@@ -787,18 +1338,10 @@
           id="tabDropdown"
           aria-label="Console sections"
         >
-          <option value="moq">
-            MOQ Policy — Manage minimum order quantities
-          </option>
-          <option value="conv">
-            RM Form Conversion — Conversion rules for RM forms
-          </option>
-          <option value="season">
-            Season Profiles — Define seasonality for items
-          </option>
-          <option value="map">
-            RM Seasonal Mapping — Map season profiles to stock items
-          </option>
+          <option value="moq">MOQ Policy</option>
+          <option value="conv">RM Form Conversion</option>
+          <option value="season">Season Profiles</option>
+          <option value="map">RM Seasonal Mapping</option>
         </select>
         <div class="tabs erp-alt" role="tablist" aria-label="Console tabs">
           <button
@@ -856,6 +1399,12 @@
       (function () {
         const tabs = Array.from(document.querySelectorAll(".tabs .tab-btn"));
         const dropdown = document.getElementById("tabDropdown");
+        const btnToDropdownValue = {
+          tabMoq: "moq",
+          tabConv: "conv",
+          tabSeason: "season",
+          tabMap: "map",
+        };
 
         if (!tabs.length && !dropdown) return;
 
@@ -864,6 +1413,9 @@
             t.classList.toggle("active", t === btn);
             t.setAttribute("aria-selected", t === btn ? "true" : "false");
           });
+          if (dropdown && btn?.id && btnToDropdownValue[btn.id]) {
+            dropdown.value = btnToDropdownValue[btn.id];
+          }
         }
 
         tabs.forEach((b, i) => {

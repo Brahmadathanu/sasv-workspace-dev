@@ -8,7 +8,6 @@ import {
 import { Platform } from "./platform.js";
 import {
   ensureDetailModal,
-  openDetailModal,
   closeDetailModal,
   showConfirm,
 } from "./detailModal.js";
@@ -42,6 +41,558 @@ let seasonPage = 1;
 let seasonPageSize = 50;
 let seasonTotal = 0;
 
+const MRP_ICON_ADD =
+  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const MRP_ICON_EXPORT =
+  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><polyline points="7 10 12 15 17 10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const MRP_ICON_PREV =
+  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const MRP_ICON_NEXT =
+  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const MRP_ICON_CLEAR =
+  '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line></svg>';
+
+function wireSearchClear(input, clearBtn, onChange) {
+  if (!input || !clearBtn) return;
+  const sync = () => {
+    clearBtn.style.display = input.value ? "" : "none";
+    if (onChange) onChange();
+  };
+  input.addEventListener("input", sync);
+  clearBtn.addEventListener("click", () => {
+    input.value = "";
+    input.focus();
+    sync();
+  });
+  sync();
+}
+
+function enhanceConsoleChrome({
+  searchId,
+  clearId,
+  addId,
+  exportId,
+  rowCountId,
+  prevId,
+  nextId,
+  pagerId,
+}) {
+  const search = document.getElementById(searchId);
+  if (search && !document.getElementById(clearId)) {
+    const parent = search.parentElement;
+    if (parent) {
+      parent.classList.add("mrp-enhanced-search");
+      parent.parentElement?.classList.add("mrp-toolbar-card");
+      parent.nextElementSibling?.classList.add("mrp-actions");
+      const clear = document.createElement("button");
+      clear.id = clearId;
+      clear.type = "button";
+      clear.className = "mrp-input-clear-btn";
+      clear.title = "Clear search";
+      clear.setAttribute("aria-label", "Clear search");
+      clear.style.display = "none";
+      clear.innerHTML = MRP_ICON_CLEAR;
+      parent.appendChild(clear);
+    }
+  }
+  [
+    [addId, "mrp-icon-btn primary", MRP_ICON_ADD],
+    [exportId, "mrp-icon-btn", MRP_ICON_EXPORT],
+  ].forEach(([id, className, icon]) => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.className = className;
+    btn.innerHTML = icon;
+  });
+  [
+    [prevId, MRP_ICON_PREV],
+    [nextId, MRP_ICON_NEXT],
+  ].forEach(([id, icon]) => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.className = "mrp-page-btn";
+    btn.innerHTML = icon;
+  });
+  const rowCount = document.getElementById(rowCountId);
+  if (rowCount) {
+    rowCount.className = "mrp-row-count";
+    rowCount.parentElement?.parentElement?.classList.add("mrp-table-meta");
+  }
+  const pager = document.getElementById(pagerId);
+  if (pager) pager.className = "mrp-pagination";
+  return document.getElementById(clearId);
+}
+
+function resetTableScrollAfterFilter(scope) {
+  const container =
+    scope?.querySelector?.("#mrpTableContainer") ||
+    document.getElementById("mrpTableContainer");
+  if (!container) return;
+  container.scrollTop = 0;
+  container.scrollLeft = 0;
+}
+
+let mrpModalReturnFocusEl = null;
+
+function rememberMrpModalReturnFocus(fallbackEl = null) {
+  const active = document.activeElement;
+  mrpModalReturnFocusEl =
+    fallbackEl || (active && active !== document.body ? active : null);
+}
+
+function focusMrpModalFallback() {
+  const fallback =
+    (mrpModalReturnFocusEl && document.contains(mrpModalReturnFocusEl)
+      ? mrpModalReturnFocusEl
+      : null) ||
+    document.querySelector(".tab-btn.active") ||
+    document.getElementById("tabMoq") ||
+    document.body;
+
+  if (fallback && typeof fallback.focus === "function") {
+    try {
+      fallback.focus({ preventScroll: true });
+    } catch {
+      fallback.focus();
+    }
+  }
+}
+
+function releaseMrpModalFocus(root) {
+  if (!root) return;
+
+  const active = document.activeElement;
+  if (active && root.contains(active)) {
+    active.blur();
+    focusMrpModalFallback();
+  }
+}
+
+function safeCloseDetailModal() {
+  const root = document.getElementById("copilot-detail-modal");
+  releaseMrpModalFocus(root);
+  closeDetailModal();
+
+  if (
+    mrpModalReturnFocusEl &&
+    typeof mrpModalReturnFocusEl.focus === "function" &&
+    document.contains(mrpModalReturnFocusEl)
+  ) {
+    try {
+      mrpModalReturnFocusEl.focus({ preventScroll: true });
+    } catch {
+      mrpModalReturnFocusEl.focus();
+    }
+  }
+
+  mrpModalReturnFocusEl = null;
+}
+
+function openMrpDetailModal(root) {
+  if (!root) return;
+  root.style.display = "flex";
+  root.setAttribute("aria-hidden", "false");
+  root.setAttribute("aria-labelledby", "copilot-modal-title");
+
+  requestAnimationFrame(() => {
+    const firstFocusable =
+      root.querySelector("[autofocus]") ||
+      root.querySelector(
+        "input, select, textarea, button, [tabindex]:not([tabindex='-1'])",
+      );
+
+    if (firstFocusable && typeof firstFocusable.focus === "function") {
+      try {
+        firstFocusable.focus({ preventScroll: true });
+      } catch {
+        firstFocusable.focus();
+      }
+    }
+  });
+}
+
+function wireMrpRowOpeners({ root = document, selector, getRow, openDetail }) {
+  root.querySelectorAll(selector).forEach((tr, idx) => {
+    const row = typeof getRow === "function" ? getRow(tr, idx) : null;
+
+    const open = async () => {
+      rememberMrpModalReturnFocus(tr);
+      await openDetail(row, tr);
+    };
+
+    tr.addEventListener("click", open);
+    tr.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" || ev.key === " ") {
+        ev.preventDefault();
+        open();
+      }
+    });
+  });
+}
+
+function formatMonthShort(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return String(value || "");
+  return monthNames[n - 1] || String(value);
+}
+
+function renderMonthChips(months) {
+  const list = Array.isArray(months)
+    ? months
+    : String(months || "")
+        .split(/[,\s]+/)
+        .map((x) => x.trim())
+        .filter(Boolean);
+
+  if (!list.length) return "&mdash;";
+
+  return `
+    <div class="mrp-card-months">
+      ${list
+        .map(
+          (m) =>
+            `<span class="mrp-card-month">${escapeHtmlValue(
+              formatMonthShort(m),
+            )}</span>`,
+        )
+        .join("")}
+    </div>
+  `;
+}
+
+function prepareMrpDetailModal() {
+  const root = ensureDetailModal();
+  if (!root || root.dataset.mrpFocusWired === "1") return root;
+
+  root.dataset.mrpFocusWired = "1";
+
+  const safeCloseFromEvent = (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    ev.stopImmediatePropagation();
+    safeCloseDetailModal();
+  };
+
+  root
+    .querySelector("#copilot-modal-close")
+    ?.addEventListener("click", safeCloseFromEvent, true);
+  root
+    .querySelector("#copilot-modal-overlay")
+    ?.addEventListener("click", safeCloseFromEvent, true);
+
+  window.addEventListener(
+    "keydown",
+    (ev) => {
+      if (
+        ev.key === "Escape" &&
+        root.style.display !== "none" &&
+        root.getAttribute("aria-hidden") !== "true"
+      ) {
+        safeCloseFromEvent(ev);
+      }
+    },
+    true,
+  );
+
+  return root;
+}
+
+function openMrpStructuredModal(payload = {}) {
+  const root = prepareMrpDetailModal();
+  const title = root.querySelector("#copilot-modal-title");
+  const sub = root.querySelector("#copilot-modal-sub");
+  const body = root.querySelector("#copilot-modal-body");
+  const actions = root.querySelector("#copilot-modal-actions");
+
+  if (title) title.textContent = payload.title || "Details";
+  if (sub) sub.textContent = payload.subtitle || "";
+  if (body) body.innerHTML = "";
+  if (actions) actions.innerHTML = "";
+
+  (payload.sections || []).forEach((section) => {
+    if (!body) return;
+    const wrapper = document.createElement("div");
+    wrapper.style.marginBottom = "16px";
+
+    if (section.title) {
+      const heading = document.createElement("h3");
+      heading.textContent = section.title;
+      heading.style.cssText =
+        "margin:0 0 8px;font-size:13px;font-weight:700;color:#1e293b;";
+      wrapper.appendChild(heading);
+    }
+
+    if (section.type === "html") {
+      const html = document.createElement("div");
+      html.innerHTML = section.data || "";
+      wrapper.appendChild(html);
+    } else if (section.type === "kv") {
+      const grid = document.createElement("div");
+      grid.style.cssText =
+        "display:grid;grid-template-columns:minmax(120px,0.45fr) 1fr;gap:8px 12px;padding:12px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;";
+      Object.entries(section.data || {}).forEach(([key, value]) => {
+        const label = document.createElement("div");
+        label.textContent = key;
+        label.style.cssText = "font-weight:600;color:#64748b;";
+        const val = document.createElement("div");
+        val.textContent = String(value ?? "");
+        val.style.cssText = "color:#0f172a;min-width:0;word-break:break-word;";
+        grid.appendChild(label);
+        grid.appendChild(val);
+      });
+      wrapper.appendChild(grid);
+    }
+
+    body.appendChild(wrapper);
+  });
+
+  (payload.actions || []).forEach((action) => {
+    if (!actions) return;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = action.label || "Action";
+    const label = String(action.label || "").toLowerCase();
+    btn.className = "mrp-btn";
+    if (label.includes("save") || label.includes("add")) {
+      btn.className += " mrp-btn-primary";
+    } else if (label.includes("delete") || label.includes("clear")) {
+      btn.className += " mrp-btn-danger";
+    } else if (label.includes("cancel") || label.includes("close")) {
+      btn.className += " mrp-btn-ghost";
+    } else {
+      btn.className += " mrp-btn-secondary";
+    }
+    btn.addEventListener("click", (ev) => action.onClick?.(ev));
+    actions.appendChild(btn);
+  });
+
+  openMrpDetailModal(root);
+  payload.onOpen?.();
+  return root;
+}
+
+function escapeHtmlValue(value) {
+  if (value === null || value === undefined) return "";
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function stockItemLabel(item = {}) {
+  return [item.code, item.name].filter(Boolean).join(" - ") || String(item.id);
+}
+
+function renderStockItemLookup({
+  fieldId,
+  label,
+  required = false,
+  selectedId = "",
+  selectedLabel = "",
+  placeholder = "Type ID, code, or name to search",
+}) {
+  const requiredMark = required ? ' <span style="color:#dc2626">*</span>' : "";
+  const displayValue = selectedId ? selectedLabel || `ID: ${selectedId}` : "";
+  return `
+    <div class="mrp-lookup">
+      <label for="${fieldId}_search">${escapeHtmlValue(label)}${requiredMark}</label>
+      <input id="${fieldId}" type="hidden" value="${escapeHtmlValue(selectedId)}" />
+      <input id="${fieldId}_search" type="text" autocomplete="off" value="${escapeHtmlValue(
+        displayValue,
+      )}" placeholder="${escapeHtmlValue(placeholder)}" />
+      <div id="${fieldId}_menu" class="mrp-lookup-menu" role="listbox"></div>
+      <div id="${fieldId}_hint" class="mrp-lookup-hint">Type at least 2 characters to search stock items.</div>
+    </div>`;
+}
+
+async function fetchStockItemLookupRows(term = "", selectedId = null) {
+  const cleanTerm = String(term || "")
+    .trim()
+    .replace(/[%,]/g, " ");
+  let query = supabase
+    .from("inv_stock_item")
+    .select("id,code,name")
+    .eq("active", true)
+    .order("name", { ascending: true })
+    .limit(12);
+
+  if (cleanTerm) {
+    const parts = [`code.ilike.%${cleanTerm}%`, `name.ilike.%${cleanTerm}%`];
+    const numericId = Number(cleanTerm);
+    if (Number.isFinite(numericId) && String(numericId) === cleanTerm) {
+      parts.push(`id.eq.${numericId}`);
+    }
+    query = query.or(parts.join(","));
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  const rows = data || [];
+  const selectedNum = Number(selectedId) || null;
+  if (selectedNum && !rows.some((item) => Number(item.id) === selectedNum)) {
+    const { data: selectedRows, error: selectedError } = await supabase
+      .from("inv_stock_item")
+      .select("id,code,name")
+      .eq("id", selectedNum)
+      .limit(1);
+    if (!selectedError && selectedRows && selectedRows[0]) {
+      rows.unshift(selectedRows[0]);
+    }
+  }
+  return rows;
+}
+
+function populateStockItemLookup(menu, rows, selectedId) {
+  if (!menu) return;
+  const selected = String(selectedId || "");
+  menu.innerHTML = rows.length
+    ? rows
+        .map((item) => {
+          const id = String(item.id);
+          return `<button type="button" class="mrp-lookup-option${
+            id === selected ? " selected" : ""
+          }" data-id="${escapeHtmlValue(id)}" data-label="${escapeHtmlValue(
+            stockItemLabel(item),
+          )}" role="option">${escapeHtmlValue(stockItemLabel(item))}</button>`;
+        })
+        .join("")
+    : '<div class="mrp-lookup-empty">No matching active stock items.</div>';
+}
+
+function wireStockItemLookup(fieldId, selectedId = null) {
+  const input = document.getElementById(`${fieldId}_search`);
+  const hidden = document.getElementById(fieldId);
+  const menu = document.getElementById(`${fieldId}_menu`);
+  const hint = document.getElementById(`${fieldId}_hint`);
+  if (!input || !hidden || !menu) return;
+  let timer = null;
+  let requestSeq = 0;
+  let activeIndex = -1;
+  const selected = selectedId || hidden.value || null;
+
+  const openMenu = () => {
+    menu.classList.add("open");
+  };
+  const closeMenu = () => {
+    menu.classList.remove("open");
+    activeIndex = -1;
+    syncActiveOption();
+  };
+  const getOptions = () =>
+    Array.from(menu.querySelectorAll(".mrp-lookup-option"));
+  const syncActiveOption = () => {
+    getOptions().forEach((option, index) => {
+      const active = index === activeIndex;
+      option.classList.toggle("active", active);
+      option.setAttribute("aria-selected", active ? "true" : "false");
+      if (active) option.scrollIntoView({ block: "nearest" });
+    });
+  };
+  const moveActiveOption = (delta) => {
+    const options = getOptions();
+    if (!options.length) return;
+    activeIndex =
+      activeIndex < 0
+        ? delta > 0
+          ? 0
+          : options.length - 1
+        : (activeIndex + delta + options.length) % options.length;
+    syncActiveOption();
+    openMenu();
+  };
+  const selectOption = (option) => {
+    if (!option) return false;
+    hidden.value = option.dataset.id || "";
+    input.value = option.dataset.label || "";
+    closeMenu();
+    if (hint) hint.textContent = "Selected stock item.";
+    return true;
+  };
+
+  const load = async (term = "") => {
+    const clean = String(term || "").trim();
+    const isExactId = /^\d+$/.test(clean);
+    if (clean.length < 2 && !isExactId) {
+      closeMenu();
+      menu.innerHTML = "";
+      if (hint)
+        hint.textContent = "Type at least 2 characters to search stock items.";
+      return;
+    }
+    const seq = ++requestSeq;
+    if (hint) hint.textContent = "Searching stock items...";
+    try {
+      const rows = await fetchStockItemLookupRows(
+        term,
+        hidden.value || selected,
+      );
+      if (seq !== requestSeq) return;
+      populateStockItemLookup(menu, rows, hidden.value || selected);
+      activeIndex = rows.length ? 0 : -1;
+      syncActiveOption();
+      openMenu();
+      if (hint) {
+        hint.textContent = rows.length
+          ? `${rows.length} matching active item${rows.length === 1 ? "" : "s"} shown.`
+          : "No matching active stock items.";
+      }
+    } catch (err) {
+      console.debug("Stock item lookup failed", err);
+      if (hint) hint.textContent = "Stock item search failed.";
+    }
+  };
+
+  input.addEventListener("input", () => {
+    hidden.value = "";
+    clearTimeout(timer);
+    timer = setTimeout(() => load(input.value), 250);
+  });
+  input.addEventListener("focus", () => {
+    const clean = String(input.value || "").trim();
+    if (!hidden.value && clean.length >= 2) load(clean);
+  });
+  input.addEventListener("keydown", (ev) => {
+    if (ev.key === "ArrowDown") {
+      ev.preventDefault();
+      if (menu.classList.contains("open")) moveActiveOption(1);
+      else load(input.value);
+    } else if (ev.key === "ArrowUp") {
+      ev.preventDefault();
+      if (menu.classList.contains("open")) moveActiveOption(-1);
+      else load(input.value);
+    } else if (ev.key === "Enter") {
+      if (!menu.classList.contains("open")) return;
+      const options = getOptions();
+      const option = options[activeIndex] || options[0];
+      if (selectOption(option)) ev.preventDefault();
+    } else if (ev.key === "Escape") {
+      if (menu.classList.contains("open")) {
+        ev.preventDefault();
+        closeMenu();
+      }
+    }
+  });
+  menu.addEventListener("click", (ev) => {
+    const option = ev.target.closest(".mrp-lookup-option");
+    if (!option) return;
+    selectOption(option);
+  });
+  menu.addEventListener("mousemove", (ev) => {
+    const option = ev.target.closest(".mrp-lookup-option");
+    if (!option) return;
+    const nextIndex = getOptions().indexOf(option);
+    if (nextIndex !== -1 && nextIndex !== activeIndex) {
+      activeIndex = nextIndex;
+      syncActiveOption();
+    }
+  });
+  document.addEventListener("click", (ev) => {
+    if (!input.parentElement?.contains(ev.target)) closeMenu();
+  });
+}
+
 // Loading overlay counter to support nested loads
 let __mrpLoadingCount = 0;
 function showMrpLoading(msg) {
@@ -51,7 +602,7 @@ function showMrpLoading(msg) {
     if (el) {
       el.style.display = "flex";
       el.setAttribute("aria-hidden", "false");
-      const txt = el.querySelector(".mrp-loading-text");
+      const txt = el.querySelector(".loader-text");
       if (txt && msg) txt.textContent = msg;
     }
   } catch (err) {
@@ -96,6 +647,12 @@ async function init() {
     return;
   }
 
+  try {
+    prepareMrpDetailModal();
+  } catch (e) {
+    console.debug(e);
+  }
+
   document.getElementById("tabMoq").addEventListener("click", () => {
     showSection("moq");
     loadMoqList();
@@ -135,8 +692,7 @@ function actorSnapshot() {
 }
 
 async function openMoqModal(row = {}) {
-  ensureDetailModal();
-  const root = document.getElementById("copilot-detail-modal");
+  const root = prepareMrpDetailModal();
   const title = root.querySelector("#copilot-modal-title");
   const sub = root.querySelector("#copilot-modal-sub");
   const body = root.querySelector("#copilot-modal-body");
@@ -145,63 +701,55 @@ async function openMoqModal(row = {}) {
   sub.textContent = "Create a new minimum order quantity policy";
   actions.innerHTML = "";
 
-  // Fetch stock items and UOMs for dropdowns
+  // Fetch compact reference data; stock items load through async lookup.
   body.innerHTML =
     '<div style="padding:20px;text-align:center;color:#6b7280">Loading...</div>';
 
   try {
-    const [stockItemsRes, uomsRes] = await Promise.all([
-      supabase
-        .from("inv_stock_item")
-        .select("id,code,name")
-        .eq("active", true)
-        .order("name"),
+    const [selectedStockRows, uomsRes] = await Promise.all([
+      row.stock_item_id
+        ? supabase
+            .from("inv_stock_item")
+            .select("id,code,name")
+            .eq("id", row.stock_item_id)
+            .limit(1)
+        : Promise.resolve({ data: [] }),
       supabase.from("inv_uom").select("id,code").order("code"),
     ]);
 
-    const stockItems = stockItemsRes.data || [];
+    const selectedStock = selectedStockRows.data?.[0] || null;
     const uoms = uomsRes.data || [];
-
-    // Build stock item options - show only name for easy searching
-    const stockItemOptions = stockItems
-      .map(
-        (item) =>
-          `<option value="${item.id}" ${
-            row.stock_item_id === item.id ? "selected" : ""
-          }>${item.name}</option>`
-      )
-      .join("");
 
     // Build UOM options
     const uomOptions = uoms
       .map(
         (uom) =>
-          `<option value="${uom.id}" ${
+          `<option value="${escapeHtmlValue(uom.id)}" ${
             row.uom_id === uom.id ? "selected" : ""
-          }>${uom.code}</option>`
+          }>${escapeHtmlValue(uom.code)}</option>`,
       )
       .join("");
 
     body.innerHTML = `
       <form id="moq_form" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:4px 0;box-sizing:border-box">
-        <div style="display:flex;flex-direction:column;gap:6px;box-sizing:border-box">
-          <label for="moq_stock_item_id" style="font-weight:600;color:#374151;font-size:0.9rem;display:block">Stock Item Name <span style="color:#dc2626">*</span></label>
-          <select id="moq_stock_item_id" required style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;background:#fff;box-sizing:border-box">
-            <option value="">-- Select Stock Item --</option>
-            ${stockItemOptions}
-          </select>
-        </div>
+        ${renderStockItemLookup({
+          fieldId: "moq_stock_item_id",
+          label: "Stock Item Name",
+          required: true,
+          selectedId: row.stock_item_id || "",
+          selectedLabel: selectedStock ? stockItemLabel(selectedStock) : "",
+        })}
         <div style="display:flex;flex-direction:column;gap:6px;box-sizing:border-box">
           <label for="moq_material_kind" style="font-weight:600;color:#374151;font-size:0.9rem;display:block">Material Kind <span style="color:#dc2626">*</span></label>
-          <input id="moq_material_kind" list="moq_material_kind_list" type="text" required style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;box-sizing:border-box" value="${(
-            row.material_kind || ""
-          ).replace(/"/g, "&quot;")}"/>
+          <input id="moq_material_kind" list="moq_material_kind_list" type="text" required style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;box-sizing:border-box" value="${escapeHtmlValue(
+            row.material_kind || "",
+          )}"/>
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;box-sizing:border-box">
           <label for="moq_moq_qty" style="font-weight:600;color:#374151;font-size:0.9rem;display:block">MOQ Quantity <span style="color:#dc2626">*</span></label>
-          <input id="moq_moq_qty" type="number" step="any" required style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;box-sizing:border-box" value="${
-            row.moq_qty || ""
-          }"/>
+          <input id="moq_moq_qty" type="number" step="any" required style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;box-sizing:border-box" value="${escapeHtmlValue(
+            row.moq_qty || "",
+          )}"/>
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;box-sizing:border-box">
           <label for="moq_uom_id" style="font-weight:600;color:#374151;font-size:0.9rem;display:block">UOM <span style="color:#dc2626">*</span></label>
@@ -212,21 +760,21 @@ async function openMoqModal(row = {}) {
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;box-sizing:border-box">
           <label for="moq_effective_from" style="font-weight:600;color:#374151;font-size:0.9rem;display:block">Effective From</label>
-          <input id="moq_effective_from" type="date" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;box-sizing:border-box" value="${
-            row.effective_from || ""
-          }"/>
+          <input id="moq_effective_from" type="date" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;box-sizing:border-box" value="${escapeHtmlValue(
+            row.effective_from || "",
+          )}"/>
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;box-sizing:border-box">
           <label for="moq_effective_to" style="font-weight:600;color:#374151;font-size:0.9rem;display:block">Effective To</label>
-          <input id="moq_effective_to" type="date" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;box-sizing:border-box" value="${
-            row.effective_to || ""
-          }"/>
+          <input id="moq_effective_to" type="date" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;box-sizing:border-box" value="${escapeHtmlValue(
+            row.effective_to || "",
+          )}"/>
         </div>
         <div style="grid-column:1/3;display:flex;flex-direction:column;gap:6px;box-sizing:border-box">
           <label for="moq_note" style="font-weight:600;color:#374151;font-size:0.9rem;display:block">Note</label>
-          <textarea id="moq_note" rows="3" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;resize:vertical;box-sizing:border-box">${(
-            row.note || ""
-          ).replace(/</g, "&lt;")}</textarea>
+          <textarea id="moq_note" rows="3" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;resize:vertical;box-sizing:border-box">${escapeHtmlValue(
+            row.note || "",
+          )}</textarea>
         </div>
         <div style="display:flex;align-items:center;gap:8px;box-sizing:border-box">
           <input id="moq_is_active" type="checkbox" style="width:18px;height:18px;cursor:pointer;flex-shrink:0" ${
@@ -241,6 +789,7 @@ async function openMoqModal(row = {}) {
         <option value="indirect_material"></option>
       </datalist>
     `;
+    wireStockItemLookup("moq_stock_item_id", row.stock_item_id || null);
   } catch (e) {
     console.debug(e);
     body.innerHTML =
@@ -272,7 +821,7 @@ async function openMoqModal(row = {}) {
     if (!stock_item_id || !material_kind || !moq_qty || !uom_id)
       return showToast(
         "Please fill required fields: Stock Item, Material Kind, MOQ Quantity, and UOM",
-        "warning"
+        "warning",
       );
     const payload = {
       stock_item_id,
@@ -291,7 +840,7 @@ async function openMoqModal(row = {}) {
         .upsert(payload);
       if (error) throw error;
       showToast("Saved successfully", { type: "success" });
-      closeDetailModal();
+      safeCloseDetailModal();
       await loadMoqList();
     } catch (e) {
       console.debug(e);
@@ -304,18 +853,17 @@ async function openMoqModal(row = {}) {
   btnCancel.textContent = "Cancel";
   btnCancel.addEventListener("click", (ev) => {
     ev.preventDefault();
-    closeDetailModal();
+    safeCloseDetailModal();
   });
 
   actions.appendChild(btnCancel);
   actions.appendChild(btnSave);
 
-  root.style.display = "flex";
+  openMrpDetailModal(root);
 }
 
 async function showMoqDetail(row = {}) {
-  ensureDetailModal();
-  const root = document.getElementById("copilot-detail-modal");
+  const root = prepareMrpDetailModal();
   const title = root.querySelector("#copilot-modal-title");
   const sub = root.querySelector("#copilot-modal-sub");
   const body = root.querySelector("#copilot-modal-body");
@@ -345,34 +893,35 @@ async function showMoqDetail(row = {}) {
   const stockDisplay = row.stock_item
     ? `${row.stock_item.code || ""} - ${row.stock_item.name || ""}`
     : `ID: ${row.stock_item_id || "N/A"}`;
+  const safeUomCode = escapeHtmlValue(uomCode);
 
   body.innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:8px;box-sizing:border-box">
       <div style="grid-column:1/3;padding:12px;background:#f8fafc;border-radius:6px;border-left:4px solid #0f172a">
         <div style="font-size:0.85rem;color:#6b7280;margin-bottom:4px">Stock Item</div>
-        <div style="font-weight:600;color:#0f172a">${stockDisplay}</div>
+        <div style="font-weight:600;color:#0f172a">${escapeHtmlValue(stockDisplay)}</div>
       </div>
       <div style="display:flex;flex-direction:column;gap:6px">
         <div style="font-weight:600;color:#374151;font-size:0.9rem">Stock Item ID</div>
-        <div style="color:#0f172a">${row.stock_item_id || ""}</div>
+        <div style="color:#0f172a">${escapeHtmlValue(row.stock_item_id || "")}</div>
       </div>
       <div style="display:flex;flex-direction:column;gap:6px">
         <div style="font-weight:600;color:#374151;font-size:0.9rem">Material Kind</div>
-        <div style="color:#0f172a">${row.material_kind || ""}</div>
+        <div style="color:#0f172a">${escapeHtmlValue(row.material_kind || "")}</div>
       </div>
       <div style="display:flex;flex-direction:column;gap:6px">
         <div style="font-weight:600;color:#374151;font-size:0.9rem">MOQ Quantity</div>
-        <div style="color:#0f172a">${row.moq_qty ?? ""} ${
-    uomCode ? ` ${uomCode}` : ""
-  }</div>
+        <div style="color:#0f172a">${escapeHtmlValue(row.moq_qty ?? "")} ${
+          safeUomCode ? ` ${safeUomCode}` : ""
+        }</div>
       </div>
       <div style="display:flex;flex-direction:column;gap:6px">
         <div style="font-weight:600;color:#374151;font-size:0.9rem">Effective From</div>
-        <div style="color:#0f172a">${row.effective_from || ""}</div>
+        <div style="color:#0f172a">${escapeHtmlValue(row.effective_from || "")}</div>
       </div>
       <div style="display:flex;flex-direction:column;gap:6px">
         <div style="font-weight:600;color:#374151;font-size:0.9rem">Effective To</div>
-        <div style="color:#0f172a">${row.effective_to || ""}</div>
+        <div style="color:#0f172a">${escapeHtmlValue(row.effective_to || "")}</div>
       </div>
       <div style="grid-column:1/3;display:flex;align-items:center;gap:8px;margin-top:6px">
         <div style="width:14px;height:14px;border-radius:3px;background:${
@@ -384,26 +933,13 @@ async function showMoqDetail(row = {}) {
       </div>
       <div style="grid-column:1/3;margin-top:8px">
         <div style="font-weight:600;color:#374151;font-size:0.9rem;margin-bottom:6px">Note</div>
-        <div style="color:#0f172a;white-space:pre-wrap">${(
-          row.notes || ""
-        ).replace(/</g, "&lt;")}</div>
+        <div style="color:#0f172a;white-space:pre-wrap">${escapeHtmlValue(
+          row.note || "",
+        )}</div>
       </div>
     </div>
   `;
 
-  // inject table-specific styles to match MOQ Policy table visuals
-  if (!document.getElementById("rmTableStyles")) {
-    const s = document.createElement("style");
-    s.id = "rmTableStyles";
-    s.textContent = `
-      #rmTable { border-collapse: collapse; width: 100%; table-layout: fixed; }
-      #rmTable th, #rmTable td { border: 1px solid #e5e7eb; padding: 10px; }
-      #rmTable th { background: #f8fafc; color: #374151; font-weight: 600; font-size: 0.95rem; }
-      #rmTable tbody tr:nth-child(even) { background: #fbfdff; }
-      #rmTable tbody tr:hover { background: #f8fbff; }
-    `;
-    document.head.appendChild(s);
-  }
   // actions
   const btnEdit = document.createElement("button");
   btnEdit.className = "mrp-btn mrp-btn-secondary";
@@ -423,7 +959,7 @@ async function showMoqDetail(row = {}) {
         .eq("id", row.id);
       if (error) throw error;
       showToast("Deleted", { type: "success" });
-      closeDetailModal();
+      safeCloseDetailModal();
       await loadMoqList();
     } catch (e) {
       console.debug(e);
@@ -434,12 +970,11 @@ async function showMoqDetail(row = {}) {
   actions.appendChild(btnEdit);
   actions.appendChild(btnDelete);
 
-  root.style.display = "flex";
+  openMrpDetailModal(root);
 }
 
 async function openMoqEditModal(row = {}) {
-  ensureDetailModal();
-  const root = document.getElementById("copilot-detail-modal");
+  const root = prepareMrpDetailModal();
   const title = root.querySelector("#copilot-modal-title");
   const sub = root.querySelector("#copilot-modal-sub");
   const body = root.querySelector("#copilot-modal-body");
@@ -466,9 +1001,9 @@ async function openMoqEditModal(row = {}) {
     const uomOptions = (uoms || [])
       .map(
         (uom) =>
-          `<option value="${uom.id}" ${
+          `<option value="${escapeHtmlValue(uom.id)}" ${
             row.uom_id === uom.id ? "selected" : ""
-          }>${uom.code}</option>`
+          }>${escapeHtmlValue(uom.code)}</option>`,
       )
       .join("");
 
@@ -481,21 +1016,21 @@ async function openMoqEditModal(row = {}) {
       <form id="moq_edit_form" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:12px;box-sizing:border-box">
         <div style="grid-column:1/3;padding:12px;background:#f3f4f6;border-radius:6px;border-left:4px solid #0f172a">
           <div style="font-size:0.85rem;color:#6b7280;margin-bottom:4px">Stock Item</div>
-          <div style="font-weight:600;color:#0f172a">${stockItemDisplay}</div>
+          <div style="font-weight:600;color:#0f172a">${escapeHtmlValue(stockItemDisplay)}</div>
         </div>
 
         <div style="display:flex;flex-direction:column;gap:6px;box-sizing:border-box">
           <label for="moq_material_kind" style="font-weight:600;color:#374151;font-size:0.9rem;display:block">Material Kind <span style="color:#dc2626">*</span></label>
-          <input id="moq_material_kind" list="moq_material_kind_list" type="text" required style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;box-sizing:border-box" value="${(
-            row.material_kind || ""
-          ).replace(/"/g, "&quot;")}"/>
+          <input id="moq_material_kind" list="moq_material_kind_list" type="text" required style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;box-sizing:border-box" value="${escapeHtmlValue(
+            row.material_kind || "",
+          )}"/>
         </div>
 
         <div style="display:flex;flex-direction:column;gap:6px;box-sizing:border-box">
           <label for="moq_moq_qty" style="font-weight:600;color:#374151;font-size:0.9rem;display:block">MOQ Quantity <span style="color:#dc2626">*</span></label>
-          <input id="moq_moq_qty" type="number" step="any" required style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;box-sizing:border-box" value="${
-            row.moq_qty || ""
-          }"/>
+          <input id="moq_moq_qty" type="number" step="any" required style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;box-sizing:border-box" value="${escapeHtmlValue(
+            row.moq_qty || "",
+          )}"/>
         </div>
 
         <div style="display:flex;flex-direction:column;gap:6px;box-sizing:border-box">
@@ -504,6 +1039,20 @@ async function openMoqEditModal(row = {}) {
             <option value="">-- Select UOM --</option>
             ${uomOptions}
           </select>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:6px;box-sizing:border-box">
+          <label for="moq_effective_from" style="font-weight:600;color:#374151;font-size:0.9rem;display:block">Effective From</label>
+          <input id="moq_effective_from" type="date" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;box-sizing:border-box" value="${escapeHtmlValue(
+            row.effective_from || "",
+          )}"/>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:6px;box-sizing:border-box">
+          <label for="moq_effective_to" style="font-weight:600;color:#374151;font-size:0.9rem;display:block">Effective To</label>
+          <input id="moq_effective_to" type="date" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;box-sizing:border-box" value="${escapeHtmlValue(
+            row.effective_to || "",
+          )}"/>
         </div>
 
         <div style="grid-column:1/3;display:flex;align-items:center;gap:8px;box-sizing:border-box;margin-top:4px">
@@ -515,9 +1064,9 @@ async function openMoqEditModal(row = {}) {
 
         <div style="grid-column:1/3">
           <label for="moq_note" style="font-weight:600;color:#374151;font-size:0.9rem;display:block;margin-bottom:6px">Note</label>
-          <textarea id="moq_note" rows="3" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;resize:vertical;box-sizing:border-box">${(
-            row.note || ""
-          ).replace(/</g, "&lt;")}</textarea>
+          <textarea id="moq_note" rows="3" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;resize:vertical;box-sizing:border-box">${escapeHtmlValue(
+            row.note || "",
+          )}</textarea>
         </div>
       </form>
       <datalist id="moq_material_kind_list">
@@ -548,6 +1097,11 @@ async function openMoqEditModal(row = {}) {
         Number(document.getElementById("moq_moq_qty").value) || null;
       const uom_id =
         Number(document.getElementById("moq_uom_id").value) || null;
+      const effective_from =
+        document.getElementById("moq_effective_from")?.value || null;
+      const effective_to =
+        document.getElementById("moq_effective_to")?.value || null;
+      const note = document.getElementById("moq_note")?.value || null;
       const is_active = !!document.getElementById("moq_is_active").checked;
 
       if (!material_kind || !moq_qty || !uom_id) {
@@ -560,6 +1114,9 @@ async function openMoqEditModal(row = {}) {
         material_kind,
         moq_qty,
         uom_id,
+        effective_from,
+        effective_to,
+        note,
         is_active,
       });
       Object.assign(payload, actorSnapshot());
@@ -568,7 +1125,7 @@ async function openMoqEditModal(row = {}) {
         .upsert(payload);
       if (error) throw error;
       showToast("Saved successfully", { type: "success" });
-      closeDetailModal();
+      safeCloseDetailModal();
       await loadMoqList();
     } catch (e) {
       console.debug(e);
@@ -587,7 +1144,7 @@ async function openMoqEditModal(row = {}) {
   actions.appendChild(btnCancel);
   actions.appendChild(btnSave);
 
-  root.style.display = "flex";
+  openMrpDetailModal(root);
 }
 
 async function loadMoqList() {
@@ -608,11 +1165,7 @@ async function loadMoqList() {
       .order("updated_at", { ascending: false })
       .range(from, to);
     if (error) throw error;
-    if (!data || !data.length) {
-      node.innerHTML = '<div class="muted">No MOQ policies</div>';
-      moqTotal = count || 0;
-      return;
-    }
+    const rows = data || [];
     moqTotal = count || 0;
     const totalPages = Math.max(1, Math.ceil((moqTotal || 0) / pageSize));
 
@@ -620,14 +1173,14 @@ async function loadMoqList() {
       '<div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 6px 0">' +
       // left: search
       '<div style="display:flex;gap:8px;align-items:center">' +
-      '<input id="moqSearch" placeholder="Type in to search..." title="Type Stock Item ID, Code or Name to search" style="padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;min-width:220px;margin-right:12px"/>' +
+      '<input id="moqSearch" placeholder="Type in to search..." title="Type Stock Item ID, Code or Name to search" style="padding:7px 34px 7px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;min-width:160px;margin-right:8px;height:34px;box-sizing:border-box;background:#f8fafc"/>' +
       "</div>" +
       // right: add + export
       '<div style="display:flex;gap:8px;align-items:center">' +
-      '<button id="addMoq" class="mrp-btn mrp-btn-primary" title="Add policy" aria-label="Add policy" style="width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;padding:6px">' +
+      '<button id="addMoq" class="mrp-btn mrp-btn-primary mrp-icon-btn" title="Add policy" aria-label="Add policy" style="width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;padding:0">' +
       '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
       "</button>" +
-      '<button id="exportMoqCsv" class="mrp-btn mrp-btn-ghost" title="Export CSV" aria-label="Export CSV" style="width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;padding:6px;margin-left:8px">' +
+      '<button id="exportMoqCsv" class="mrp-btn mrp-btn-ghost mrp-icon-btn" title="Export CSV" aria-label="Export CSV" style="width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;padding:0;margin-left:8px">' +
       '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="#0f172a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 10l5-5 5 5" stroke="#0f172a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 5v12" stroke="#0f172a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
       "</button>" +
       "</div>" +
@@ -646,8 +1199,8 @@ async function loadMoqList() {
       `</div></div>`;
 
     html +=
-      '<div id="mrpTableContainer">' +
-      '<table id="mrpTable_moq" style="width:100%;border-collapse:collapse;table-layout:fixed">' +
+      '<div id="mrpTableContainer" class="table-scroll mrp-moq-table-container">' +
+      '<table id="mrpTable_moq" class="mrp-table mrp-mobile-card-table">' +
       "<thead><tr>" +
       '<th style="width:8%;">POLICY ID</th>' +
       '<th style="width:8%;">STOCK ITEM ID</th>' +
@@ -658,32 +1211,68 @@ async function loadMoqList() {
       '<th style="width:7%;">UOM</th>' +
       '<th style="width:7%;">Active</th>' +
       "</tr></thead><tbody>";
-    data.forEach((r) => {
-      const idCell = r.id || "";
-      const codeCell = (r.stock_item && (r.stock_item.code || "")) || "";
-      const nameCell = (r.stock_item && (r.stock_item.name || "")) || "";
-      const safeName = String(nameCell)
-        .replace(/"/g, "&quot;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
-      const stockItemIdCell = r.stock_item_id || "";
-      const materialKind = r.material_kind || "";
-      const moq = r.moq_qty || "";
-      const uomCode = (r.uom && r.uom.code) || r.uom_id || "";
-      const active = r.is_active ? "Yes" : "No";
-      html += `<tr data-id="${r.id}">`;
-      html += `<td>${idCell}</td>`; // POLICY ID
-      html += `<td>${stockItemIdCell}</td>`; // STOCK ITEM ID
-      html += `<td>${codeCell}</td>`;
-      html += `<td title="${safeName}">${safeName}</td>`;
-      html += `<td>${materialKind}</td>`;
-      html += `<td>${moq}</td>`;
-      html += `<td>${uomCode}</td>`;
-      html += `<td>${active}</td>`;
-      html += `</tr>`;
+    rows.forEach((r) => {
+      const stockCode = escapeHtmlValue(r.stock_item?.code || "");
+      const stockName = escapeHtmlValue(r.stock_item?.name || "");
+      const stockLabel = [r.stock_item?.code, r.stock_item?.name]
+        .filter(Boolean)
+        .join(" - ");
+      const stockItemId = escapeHtmlValue(r.stock_item_id ?? "");
+      const materialKind = escapeHtmlValue(r.material_kind || "");
+      const moqQty = escapeHtmlValue(r.moq_qty ?? "");
+      const uomCode = escapeHtmlValue(r.uom?.code || r.uom_id || "");
+      const activeLabel = r.is_active ? "Active" : "Inactive";
+      const ariaLabel = `Open MOQ policy for ${
+        stockLabel || r.stock_item_id || "stock item"
+      }, MOQ ${r.moq_qty ?? ""}${r.uom?.code ? ` ${r.uom.code}` : ""}`;
+      html += `
+        <tr
+          class="mrp-mobile-card-row mrp-moq-row"
+          tabindex="0"
+          role="button"
+          aria-label="${escapeHtmlValue(ariaLabel)}"
+          data-id="${escapeHtmlValue(r.id)}"
+        >
+          <td data-label="Policy ID">${escapeHtmlValue(
+            r.id ?? "",
+          )}</td>
+          <td data-label="Stock Item ID">${stockItemId}</td>
+          <td data-label="Code">${stockCode}</td>
+          <td class="mrp-card-primary" data-label="Stock Item" title="${escapeHtmlValue(
+            stockLabel || "",
+          )}">
+            ${stockName || stockLabel || "-"}
+          </td>
+          <td data-label="Kind">${materialKind || "-"}</td>
+          <td class="mrp-card-value" data-label="MOQ">
+            <span class="mrp-card-pill">${moqQty}${uomCode ? ` ${uomCode}` : ""}</span>
+          </td>
+          <td data-label="UOM">${uomCode || "-"}</td>
+          <td data-label="Status">${activeLabel}</td>
+        </tr>`;
     });
+    if (!rows.length) {
+      html += `
+        <tr class="mrp-empty-row">
+          <td colspan="8" class="mrp-empty-table-cell">No MOQ policies found.</td>
+        </tr>`;
+    }
     html += "</tbody></table></div>";
     node.innerHTML = html;
+    const moqContainer = node.querySelector("#mrpTableContainer");
+    if (moqContainer) {
+      moqContainer.classList.add("mrp-moq-table-container");
+    }
+    enhanceConsoleChrome({
+      searchId: "moqSearch",
+      clearId: "moqSearchClear",
+      addId: "addMoq",
+      exportId: "exportMoqCsv",
+      rowCountId: "moqRowCount",
+      prevId: "moqPrev",
+      nextId: "moqNext",
+      pagerId: "moqPaginator",
+    });
     // adjust conversion header sticky offsets so the two header rows do not
     // overlap body rows and appear transparent — measure actual heights
     // and set precise `top` values on the header <th> elements.
@@ -735,20 +1324,19 @@ async function loadMoqList() {
     // wire search input (hybrid: stock item id, code, or name) + row counter + paginator
     const searchEl = document.getElementById("moqSearch");
     const updateRowCount = () => {
-      const table = node.querySelector("#mrpTable_moq");
       const pill = document.getElementById("moqRowCount");
       const pagerInfo = document.getElementById("moqPagerInfo");
       const prevBtn = document.getElementById("moqPrev");
       const nextBtn = document.getElementById("moqNext");
-      if (!table || !pill) return;
-      const visible = Array.from(table.querySelectorAll("tbody tr")).filter(
-        (tr) => getComputedStyle(tr).display !== "none"
-      ).length;
+      if (!pill) return;
+      const visible = Array.from(
+        node.querySelectorAll("#mrpTable_moq tbody tr.mrp-moq-row"),
+      ).filter((tr) => tr.style.display !== "none").length;
       pill.textContent = `${visible} Row${visible === 1 ? "" : "s"}`;
       if (pagerInfo)
         pagerInfo.textContent = `Page ${moqPage} of ${Math.max(
           1,
-          Math.ceil((moqTotal || 0) / moqPageSize)
+          Math.ceil((moqTotal || 0) / moqPageSize),
         )}`;
       if (prevBtn) prevBtn.disabled = moqPage <= 1;
       if (nextBtn)
@@ -765,8 +1353,11 @@ async function loadMoqList() {
       };
       const filterRows = () => {
         const q = (searchEl.value || "").toLowerCase().trim();
-        const rows = node.querySelectorAll("tbody tr");
-        rows.forEach((tr) => {
+        const dataRows = Array.from(
+          node.querySelectorAll("#mrpTable_moq tbody tr.mrp-moq-row"),
+        );
+        let visible = 0;
+        dataRows.forEach((tr) => {
           const cells = tr.querySelectorAll("td");
           const stockId = (
             (cells[1] && cells[1].textContent) ||
@@ -777,17 +1368,39 @@ async function loadMoqList() {
           const ok =
             !q || stockId.includes(q) || code.includes(q) || name.includes(q);
           tr.style.display = ok ? "" : "none";
+          if (ok) visible += 1;
         });
+        const emptyRow = node.querySelector("#mrpTable_moq tbody tr.mrp-empty-row");
+        if (emptyRow) {
+          emptyRow.style.display =
+            dataRows.length === 0 || visible === 0 ? "" : "none";
+          const cell = emptyRow.querySelector("td");
+          if (cell) {
+            cell.textContent = q
+              ? "No matching MOQ policies found."
+              : "No MOQ policies found.";
+          }
+        }
+        resetTableScrollAfterFilter(node);
         updateRowCount();
       };
       searchEl.addEventListener("input", debounce(filterRows, 150));
+      wireSearchClear(
+        searchEl,
+        document.getElementById("moqSearchClear"),
+        filterRows,
+      );
     }
     // initialize count after render
     setTimeout(updateRowCount, 60);
 
     // sticky header handled by CSS; no floating clone
     const addBtn = document.getElementById("addMoq");
-    if (addBtn) addBtn.addEventListener("click", () => openMoqModal());
+    if (addBtn)
+      addBtn.addEventListener("click", () => {
+        rememberMrpModalReturnFocus(addBtn);
+        openMoqModal();
+      });
 
     // Export visible rows as CSV (respect client-side filtering)
     const exportBtn = document.getElementById("exportMoqCsv");
@@ -796,18 +1409,18 @@ async function loadMoqList() {
         const table = document.getElementById("mrpTable_moq");
         if (!table) return showToast("No table to export", { type: "error" });
         const headers = Array.from(table.querySelectorAll("thead th")).map(
-          (th) => (th.textContent || th.innerText || "").trim()
+          (th) => (th.textContent || th.innerText || "").trim(),
         );
-        const rows = Array.from(table.querySelectorAll("tbody tr")).filter(
-          (tr) => getComputedStyle(tr).display !== "none"
-        );
+        const rows = Array.from(
+          table.querySelectorAll("tbody tr:not(.mrp-empty-row)"),
+        ).filter((tr) => getComputedStyle(tr).display !== "none");
         if (!rows.length)
           return showToast("No visible rows to export", { type: "error" });
         const csv = [];
         csv.push(
           headers
             .map((h) => '"' + String(h).replace(/"/g, '""') + '"')
-            .join(",")
+            .join(","),
         );
         rows.forEach((tr) => {
           const cells = Array.from(tr.querySelectorAll("td")).map(
@@ -815,9 +1428,9 @@ async function loadMoqList() {
               '"' +
               String((td.textContent || td.innerText || "").trim()).replace(
                 /"/g,
-                '""'
+                '""',
               ) +
-              '"'
+              '"',
           );
           csv.push(cells.join(","));
         });
@@ -858,27 +1471,17 @@ async function loadMoqList() {
         }
       });
 
-    Array.from(node.querySelectorAll("tbody tr")).forEach((tr) =>
-      tr.addEventListener("click", async () => {
-        const id = tr.dataset.id;
-        try {
-          const { data } = await supabase
-            .from("inv_stock_item_moq_policy")
-            .select("*,stock_item:inv_stock_item(code,name),uom:inv_uom(code)")
-            .eq("id", id)
-            .limit(1);
-          const row = data && data[0] ? data[0] : { id };
-          showMoqDetail(row);
-        } catch (err) {
-          console.debug(err);
-        }
-      })
-    );
+    wireMrpRowOpeners({
+      root: node,
+      selector: "#mrpTable_moq tbody tr.mrp-moq-row",
+      getRow: (_tr, idx) => rows[idx],
+      openDetail: (row) => showMoqDetail(row),
+    });
     hideMrpLoading();
   } catch (e) {
     console.debug(e);
     node.innerHTML = `<div class="error">Failed loading MOQ policies: ${String(
-      e?.message || e
+      e?.message || e,
     )}</div>`;
     hideMrpLoading();
   }
@@ -921,8 +1524,8 @@ async function exportMappingsCsv() {
         rows.map((r) =>
           headers
             .map((h) => `"${String(r[h] || "").replace(/"/g, '""')}"`)
-            .join(",")
-        )
+            .join(","),
+        ),
       )
       .join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -959,14 +1562,15 @@ async function loadConvList() {
       .from("inv_rm_form_conversion")
       .select(
         "*,consume_stock_item:inv_stock_item!inv_rm_form_conversion_consume_stock_item_id_fkey(code,name),purchase_stock_item:inv_stock_item!inv_rm_form_conversion_purchase_stock_item_id_fkey(code,name)",
-        { count: "exact" }
+        { count: "exact" },
       )
       .order("updated_at", { ascending: false })
       .range(from, to);
     if (count !== null && count !== undefined) convTotal = count;
     if (error) throw error;
     if (!data || !data.length) {
-      node.innerHTML = '<div class="muted">No conversions</div>';
+      node.innerHTML =
+        '<div class="mrp-empty-state">No conversion rules found.</div>';
       hideMrpLoading();
       return;
     }
@@ -982,12 +1586,12 @@ async function loadConvList() {
       '<div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 6px 0">' +
       // left: search
       '<div style="display:flex;gap:8px;align-items:center">' +
-      '<input id="convSearch" placeholder="Type in to search..." title="Type Consume Stock Item ID, Code or Name to search" style="padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;min-width:220px;margin-right:12px"/>' +
+      '<input id="convSearch" placeholder="Type in to search..." title="Type Consume Stock Item ID, Code or Name to search" style="padding:7px 34px 7px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;min-width:160px;margin-right:8px;height:34px;box-sizing:border-box;background:#f8fafc"/>' +
       "</div>" +
       // right: icon-only add + export
       '<div style="display:flex;gap:8px;align-items:center">' +
-      `<button id="addConv" class="mrp-btn mrp-btn-primary" title="Add conversion" aria-label="Add conversion" style="width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;padding:6px">${svgAdd}</button>` +
-      `<button id="exportConvCsv" class="mrp-btn mrp-btn-ghost" title="Export CSV" aria-label="Export CSV" style="width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;padding:6px;margin-left:8px">${svgExport}</button>` +
+      `<button id="addConv" class="mrp-btn mrp-btn-primary mrp-icon-btn" title="Add conversion" aria-label="Add conversion" style="width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;padding:0">${svgAdd}</button>` +
+      `<button id="exportConvCsv" class="mrp-btn mrp-btn-ghost mrp-icon-btn" title="Export CSV" aria-label="Export CSV" style="width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;padding:0;margin-left:8px">${svgExport}</button>` +
       "</div>" +
       "</div>";
 
@@ -1005,7 +1609,7 @@ async function loadConvList() {
 
     html +=
       '<div id="mrpTableContainer">' +
-      '<table id="mrpTable_conv" style="width:100%;border-collapse:collapse;table-layout:fixed">' +
+      '<table id="mrpTable_conv" class="mrp-table mrp-mobile-card-table">' +
       "<thead>" +
       // Group header row with colspan (ERP-style)
       "<tr class='conv-group-header-row'>" +
@@ -1025,38 +1629,51 @@ async function loadConvList() {
       '<th style="width:6%;background:#fafafa">ACTIVE</th>' +
       "</tr></thead><tbody>";
     (data || []).forEach((r) => {
-      const safeConsumeName =
-        r.consume_stock_item && r.consume_stock_item.name
-          ? String(r.consume_stock_item.name)
-              .replace(/"/g, "&quot;")
-              .replace(/</g, "&lt;")
-          : "";
       const consumeCode =
-        (r.consume_stock_item && r.consume_stock_item.code) || "";
-      const safePurchaseName =
-        r.purchase_stock_item && r.purchase_stock_item.name
-          ? String(r.purchase_stock_item.name)
-              .replace(/"/g, "&quot;")
-              .replace(/</g, "&lt;")
-          : "";
+        escapeHtmlValue(r.consume_stock_item?.code || "");
+      const consumingLabel = r.consume_stock_item
+        ? [r.consume_stock_item.code, r.consume_stock_item.name]
+            .filter(Boolean)
+            .join(" - ")
+        : `ID: ${r.consume_stock_item_id || "-"}`;
+      const safeConsumingLabel = escapeHtmlValue(consumingLabel);
+      const safePurchaseName = escapeHtmlValue(
+        r.purchase_stock_item?.name || "",
+      );
       const purchaseCode =
-        (r.purchase_stock_item && r.purchase_stock_item.code) || "";
-      html += `<tr data-id="${r.id}">`;
+        escapeHtmlValue(r.purchase_stock_item?.code || "");
+      const purchaseLabel = r.purchase_stock_item
+        ? [r.purchase_stock_item.code, r.purchase_stock_item.name]
+            .filter(Boolean)
+            .join(" - ")
+        : `ID: ${r.purchase_stock_item_id || "-"}`;
+      const safePurchaseLabel = escapeHtmlValue(purchaseLabel);
+      html += `<tr class="mrp-mobile-card-row mrp-conv-row" tabindex="0" role="button" data-id="${escapeHtmlValue(r.id)}" aria-label="Open conversion rule">`;
       // consuming group columns (apply consuming-col class)
-      html += `<td class="consuming-col">${r.consume_stock_item_id || ""}</td>`;
-      html += `<td class="consuming-col">${consumeCode}</td>`;
-      html += `<td class="consuming-col" title="${safeConsumeName}">${safeConsumeName}</td>`;
+      html += `<td class="consuming-col" data-label="Consuming ID">${escapeHtmlValue(r.consume_stock_item_id || "")}</td>`;
+      html += `<td class="consuming-col" data-label="Consuming Code">${consumeCode}</td>`;
+      html += `<td class="mrp-card-primary consuming-col" data-label="Consuming Item" title="${safeConsumingLabel}">${safeConsumingLabel}</td>`;
       // purchase group columns (apply purchase-col class)
-      html += `<td class="purchase-col">${r.purchase_stock_item_id || ""}</td>`;
-      html += `<td class="purchase-col">${purchaseCode}</td>`;
-      html += `<td class="purchase-col" title="${safePurchaseName}">${safePurchaseName}</td>`;
+      html += `<td class="purchase-col" data-label="Purchase ID">${escapeHtmlValue(r.purchase_stock_item_id || "")}</td>`;
+      html += `<td class="purchase-col" data-label="Purchase Code">${purchaseCode}</td>`;
+      html += `<td class="mrp-card-secondary purchase-col" data-label="Purchase Item" title="${safePurchaseName || safePurchaseLabel}">${safePurchaseLabel}</td>`;
       // neutral columns
-      html += `<td>${r.factor || ""}</td>`;
-      html += `<td>${r.is_active ? "Yes" : "No"}</td>`;
+      html += `<td class="mrp-card-value" data-label="Factor"><span class="mrp-card-pill mrp-card-factor-pill">${escapeHtmlValue(r.factor ?? "-")}</span></td>`;
+      html += `<td data-label="Active">${r.is_active ? "Yes" : "No"}</td>`;
       html += `</tr>`;
     });
     html += "</tbody></table></div>";
     node.innerHTML = html;
+    enhanceConsoleChrome({
+      searchId: "convSearch",
+      clearId: "convSearchClear",
+      addId: "addConv",
+      exportId: "exportConvCsv",
+      rowCountId: "convRowCount",
+      prevId: "convPrev",
+      nextId: "convNext",
+      pagerId: "convPaginator",
+    });
     const addBtn = document.getElementById("addConv");
     if (addBtn) addBtn.addEventListener("click", () => openConvEditModal());
 
@@ -1067,10 +1684,10 @@ async function loadConvList() {
         const table = document.getElementById("mrpTable_conv");
         if (!table) return showToast("No table to export", { type: "error" });
         const headers = Array.from(table.querySelectorAll("thead th")).map(
-          (th) => (th.textContent || th.innerText || "").trim()
+          (th) => (th.textContent || th.innerText || "").trim(),
         );
         const rows = Array.from(table.querySelectorAll("tbody tr")).filter(
-          (tr) => getComputedStyle(tr).display !== "none"
+          (tr) => getComputedStyle(tr).display !== "none",
         );
         if (!rows.length)
           return showToast("No visible rows to export", { type: "error" });
@@ -1078,7 +1695,7 @@ async function loadConvList() {
         csv.push(
           headers
             .map((h) => '"' + String(h).replace(/"/g, '""') + '"')
-            .join(",")
+            .join(","),
         );
         rows.forEach((tr) => {
           const cells = Array.from(tr.querySelectorAll("td")).map(
@@ -1086,9 +1703,9 @@ async function loadConvList() {
               '"' +
               String((td.textContent || td.innerText || "").trim()).replace(
                 /"/g,
-                '""'
+                '""',
               ) +
-              '"'
+              '"',
           );
           csv.push(cells.join(","));
         });
@@ -1120,13 +1737,13 @@ async function loadConvList() {
       const nextBtn = document.getElementById("convNext");
       if (!table || !pill) return;
       const visible = Array.from(table.querySelectorAll("tbody tr")).filter(
-        (tr) => getComputedStyle(tr).display !== "none"
+        (tr) => getComputedStyle(tr).display !== "none",
       ).length;
       pill.textContent = `${visible} Row${visible === 1 ? "" : "s"}`;
       if (pagerInfo)
         pagerInfo.textContent = `Page ${convPage} of ${Math.max(
           1,
-          Math.ceil((convTotal || 0) / convPageSize)
+          Math.ceil((convTotal || 0) / convPageSize),
         )}`;
       if (prevBtn) prevBtn.disabled = convPage <= 1;
       if (nextBtn)
@@ -1154,9 +1771,15 @@ async function loadConvList() {
             !q || id.includes(q) || code.includes(q) || name.includes(q);
           tr.style.display = ok ? "" : "none";
         });
+        resetTableScrollAfterFilter(node);
         updateRowCount();
       };
       searchEl.addEventListener("input", debounce(filterRows, 150));
+      wireSearchClear(
+        searchEl,
+        document.getElementById("convSearchClear"),
+        filterRows,
+      );
     }
     setTimeout(updateRowCount, 60);
 
@@ -1180,14 +1803,17 @@ async function loadConvList() {
       });
 
     // row click opens modal
-    Array.from(node.querySelectorAll("tbody tr")).forEach((tr) =>
-      tr.addEventListener("click", async () => {
+    wireMrpRowOpeners({
+      root: node,
+      selector: "#mrpTable_conv tbody tr.mrp-conv-row",
+      getRow: (tr) => ({ id: tr.dataset.id }),
+      openDetail: async (_row, tr) => {
         const id = tr.dataset.id;
         try {
           const { data } = await supabase
             .from("inv_rm_form_conversion")
             .select(
-              "*,consume_stock_item:inv_stock_item!inv_rm_form_conversion_consume_stock_item_id_fkey(code,name),purchase_stock_item:inv_stock_item!inv_rm_form_conversion_purchase_stock_item_id_fkey(code,name)"
+              "*,consume_stock_item:inv_stock_item!inv_rm_form_conversion_consume_stock_item_id_fkey(code,name),purchase_stock_item:inv_stock_item!inv_rm_form_conversion_purchase_stock_item_id_fkey(code,name)",
             )
             .eq("id", id)
             .limit(1);
@@ -1196,13 +1822,13 @@ async function loadConvList() {
         } catch (e) {
           console.debug(e);
         }
-      })
-    );
+      },
+    });
     hideMrpLoading();
   } catch (e) {
     console.debug(e);
     node.innerHTML = `<div class="error">Failed loading conversions: ${String(
-      e?.message || e
+      e?.message || e,
     )}</div>`;
     hideMrpLoading();
   }
@@ -1212,8 +1838,7 @@ async function loadConvList() {
 
 // Detail modal (view) for a conversion row — similar layout to MOQ detail view
 async function showConvDetail(row = {}) {
-  ensureDetailModal();
-  const root = document.getElementById("copilot-detail-modal");
+  const root = prepareMrpDetailModal();
   const title = root.querySelector("#copilot-modal-title");
   const sub = root.querySelector("#copilot-modal-sub");
   const body = root.querySelector("#copilot-modal-body");
@@ -1262,22 +1887,24 @@ async function showConvDetail(row = {}) {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:8px;box-sizing:border-box">
       <div style="grid-column:1/3;padding:12px;background:#f8fafc;border-radius:6px;border-left:4px solid #0f172a">
         <div style="font-size:0.85rem;color:#6b7280;margin-bottom:4px">Conversion ID</div>
-        <div style="font-weight:600;color:#0f172a">${row.id || "(new)"}</div>
+        <div style="font-weight:600;color:#0f172a">${escapeHtmlValue(
+          row.id || "(new)",
+        )}</div>
       </div>
 
       <div style="display:flex;flex-direction:column;gap:6px">
         <div style="font-weight:600;color:#374151;font-size:0.9rem">Consuming Item</div>
-        <div style="color:#0f172a">${consumeDisplay}</div>
+        <div style="color:#0f172a">${escapeHtmlValue(consumeDisplay)}</div>
       </div>
 
       <div style="display:flex;flex-direction:column;gap:6px">
         <div style="font-weight:600;color:#374151;font-size:0.9rem">Purchase Item</div>
-        <div style="color:#0f172a">${purchaseDisplay}</div>
+        <div style="color:#0f172a">${escapeHtmlValue(purchaseDisplay)}</div>
       </div>
 
       <div style="display:flex;flex-direction:column;gap:6px">
         <div style="font-weight:600;color:#374151;font-size:0.9rem">Factor</div>
-        <div style="color:#0f172a">${row.factor ?? ""}</div>
+        <div style="color:#0f172a">${escapeHtmlValue(row.factor ?? "")}</div>
       </div>
 
       <div style="display:flex;align-items:center;gap:8px">
@@ -1291,9 +1918,9 @@ async function showConvDetail(row = {}) {
 
       <div style="grid-column:1/3;margin-top:8px">
         <div style="font-weight:600;color:#374151;font-size:0.9rem;margin-bottom:6px">Note</div>
-        <div style="color:#0f172a;white-space:pre-wrap">${(
-          row.note || ""
-        ).replace(/</g, "&lt;")}</div>
+        <div style="color:#0f172a;white-space:pre-wrap">${escapeHtmlValue(
+          row.note || "",
+        )}</div>
       </div>
     </div>
   `;
@@ -1317,7 +1944,7 @@ async function showConvDetail(row = {}) {
         .eq("id", row.id);
       if (error) throw error;
       showToast("Deleted", { type: "success" });
-      closeDetailModal();
+      safeCloseDetailModal();
       await loadConvList();
     } catch (e) {
       console.debug(e);
@@ -1327,13 +1954,12 @@ async function showConvDetail(row = {}) {
 
   actions.appendChild(btnEdit);
   actions.appendChild(btnDelete);
-  root.style.display = "flex";
+  openMrpDetailModal(root);
 }
 
 // Secondary modal: edit/create conversion (two-column form)
 async function openConvEditModal(row = {}) {
-  ensureDetailModal();
-  const root = document.getElementById("copilot-detail-modal");
+  const root = prepareMrpDetailModal();
   const title = root.querySelector("#copilot-modal-title");
   const sub = root.querySelector("#copilot-modal-sub");
   const body = root.querySelector("#copilot-modal-body");
@@ -1346,45 +1972,53 @@ async function openConvEditModal(row = {}) {
   body.innerHTML =
     '<div style="padding:20px;text-align:center;color:#6b7280">Loading...</div>';
   try {
-    // load stock items for selects
-    const { data: stockItems = [] } = await supabase
-      .from("inv_stock_item")
-      .select("id,code,name")
-      .eq("active", true)
-      .order("name");
+    const selectedIds = [
+      row.consume_stock_item_id,
+      row.purchase_stock_item_id,
+    ].filter(Boolean);
+    let selectedItems = [];
+    if (selectedIds.length) {
+      const { data } = await supabase
+        .from("inv_stock_item")
+        .select("id,code,name")
+        .in("id", selectedIds);
+      selectedItems = data || [];
+    }
+    const selectedItemById = new Map(
+      selectedItems.map((item) => [Number(item.id), item]),
+    );
 
-    const opts = stockItems
-      .map(
-        (s) =>
-          `<option value="${s.id}" ${
-            row.consume_stock_item_id === s.id ||
-            row.purchase_stock_item_id === s.id
-              ? "selected"
-              : ""
-          }>${s.code} - ${s.name}</option>`
-      )
-      .join("");
-
-    body.innerHTML =
-      `
+    body.innerHTML = `
       <form id="conv_edit_form" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:12px;box-sizing:border-box">
-        <div style="display:flex;flex-direction:column;gap:6px">
-          <label for="conv_consume_id" style="font-weight:600;color:#374151">Consuming Stock Item</label>
-          <select id="conv_consume_id" required style="padding:10px;border:1px solid #d1d5db;border-radius:6px">` +
-      `<option value="">-- Select --</option>${opts}` +
-      `</select>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:6px">
-          <label for="conv_purchase_id" style="font-weight:600;color:#374151">Purchase Stock Item</label>
-          <select id="conv_purchase_id" required style="padding:10px;border:1px solid #d1d5db;border-radius:6px">` +
-      `<option value="">-- Select --</option>${opts}` +
-      `</select>
-        </div>
+        ${renderStockItemLookup({
+          fieldId: "conv_consume_id",
+          label: "Consuming Stock Item",
+          required: true,
+          selectedId: row.consume_stock_item_id || "",
+          selectedLabel: selectedItemById.get(Number(row.consume_stock_item_id))
+            ? stockItemLabel(
+                selectedItemById.get(Number(row.consume_stock_item_id)),
+              )
+            : "",
+        })}
+        ${renderStockItemLookup({
+          fieldId: "conv_purchase_id",
+          label: "Purchase Stock Item",
+          required: true,
+          selectedId: row.purchase_stock_item_id || "",
+          selectedLabel: selectedItemById.get(
+            Number(row.purchase_stock_item_id),
+          )
+            ? stockItemLabel(
+                selectedItemById.get(Number(row.purchase_stock_item_id)),
+              )
+            : "",
+        })}
         <div style="display:flex;flex-direction:column;gap:6px">
           <label for="conv_factor" style="font-weight:600;color:#374151">Factor</label>
-          <input id="conv_factor" type="number" step="any" style="padding:10px;border:1px solid #d1d5db;border-radius:6px" value="${
-            row.factor || ""
-          }" />
+          <input id="conv_factor" type="number" step="any" style="padding:10px;border:1px solid #d1d5db;border-radius:6px" value="${escapeHtmlValue(
+            row.factor || "",
+          )}" />
         </div>
         <div style="display:flex;align-items:flex-end;gap:8px;padding-left:8px">
           <input id="conv_is_active" type="checkbox" style="width:18px;height:18px;margin-bottom:6px" ${
@@ -1394,20 +2028,14 @@ async function openConvEditModal(row = {}) {
         </div>
         <div style="grid-column:1/3">
           <label for="conv_notes" style="font-weight:600;color:#374151">Note</label>
-          <textarea id="conv_notes" rows="3" style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:6px">${(
-            row.notes || ""
-          ).replace(/</g, "&lt;")}</textarea>
+          <textarea id="conv_notes" rows="3" style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:6px">${escapeHtmlValue(
+            row.notes || "",
+          )}</textarea>
         </div>
       </form>
     `;
-
-    // pre-select values if editing
-    if (row.consume_stock_item_id)
-      document.getElementById("conv_consume_id").value =
-        row.consume_stock_item_id;
-    if (row.purchase_stock_item_id)
-      document.getElementById("conv_purchase_id").value =
-        row.purchase_stock_item_id;
+    wireStockItemLookup("conv_consume_id", row.consume_stock_item_id || null);
+    wireStockItemLookup("conv_purchase_id", row.purchase_stock_item_id || null);
   } catch (e) {
     console.debug(e);
     body.innerHTML =
@@ -1423,13 +2051,24 @@ async function openConvEditModal(row = {}) {
     if (!(isProcurementAdmin() || canEditPM()))
       return showToast("No permission", { type: "warning" });
     try {
+      const consume_stock_item_id =
+        Number(document.getElementById("conv_consume_id").value) || null;
+      const purchase_stock_item_id =
+        Number(document.getElementById("conv_purchase_id").value) || null;
+      const factor =
+        Number(document.getElementById("conv_factor").value) || null;
+      if (!consume_stock_item_id || !purchase_stock_item_id || !factor) {
+        showToast(
+          "Please fill required fields: Consuming Stock Item, Purchase Stock Item, and Factor",
+          { type: "warning" },
+        );
+        return;
+      }
       const payload = {
         id: row.id || null,
-        consume_stock_item_id:
-          Number(document.getElementById("conv_consume_id").value) || null,
-        purchase_stock_item_id:
-          Number(document.getElementById("conv_purchase_id").value) || null,
-        factor: Number(document.getElementById("conv_factor").value) || null,
+        consume_stock_item_id,
+        purchase_stock_item_id,
+        factor,
         is_active: !!document.getElementById("conv_is_active").checked,
         notes: document.getElementById("conv_notes").value || null,
       };
@@ -1439,7 +2078,7 @@ async function openConvEditModal(row = {}) {
         .upsert(payload);
       if (error) throw error;
       showToast("Saved", { type: "success" });
-      closeDetailModal();
+      safeCloseDetailModal();
       await loadConvList();
     } catch (e) {
       console.debug(e);
@@ -1454,12 +2093,12 @@ async function openConvEditModal(row = {}) {
     ev.preventDefault();
     // return to detail view if editing existing row
     if (row && row.id) showConvDetail(row);
-    else closeDetailModal();
+    else safeCloseDetailModal();
   });
 
   actions.appendChild(btnCancel);
   actions.appendChild(btnSave);
-  root.style.display = "flex";
+  openMrpDetailModal(root);
 }
 
 async function loadSeasonList() {
@@ -1491,11 +2130,11 @@ async function loadSeasonList() {
     let html =
       '<div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 6px 0">' +
       '<div style="display:flex;gap:8px;align-items:center">' +
-      '<input id="seasonSearch" placeholder="Type to search profiles..." title="Search by ID or label" style="padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;min-width:220px;margin-right:12px"/>' +
+      '<input id="seasonSearch" placeholder="Type to search profiles..." title="Search by ID or label" style="padding:7px 34px 7px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;min-width:160px;margin-right:8px;height:34px;box-sizing:border-box;background:#f8fafc"/>' +
       "</div>" +
       '<div style="display:flex;gap:8px;align-items:center">' +
-      `<button id="addSeason" class="mrp-btn mrp-btn-primary" title="Add profile" aria-label="Add profile" style="width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;padding:6px">${svgAdd}</button>` +
-      `<button id="exportSeasonCsv" class="mrp-btn mrp-btn-ghost" title="Export CSV" aria-label="Export CSV" style="width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;padding:6px">${svgExport}</button>` +
+      `<button id="addSeason" class="mrp-btn mrp-btn-primary mrp-icon-btn" title="Add profile" aria-label="Add profile" style="width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;padding:0">${svgAdd}</button>` +
+      `<button id="exportSeasonCsv" class="mrp-btn mrp-btn-ghost mrp-icon-btn" title="Export CSV" aria-label="Export CSV" style="width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;padding:0">${svgExport}</button>` +
       "</div></div>";
 
     // paginator + row count
@@ -1514,7 +2153,7 @@ async function loadSeasonList() {
     // table container and table (single header row) — use v_season_calendar fields
     html +=
       '<div id="mrpTableContainer">' +
-      '<table id="mrpTable_season" style="width:100%;border-collapse:collapse;table-layout:fixed">' +
+      '<table id="mrpTable_season" class="mrp-table mrp-mobile-card-table">' +
       "<thead><tr>" +
       '<th style="width:8%;">Profile ID</th>' +
       '<th style="width:34%;">Season Label</th>' +
@@ -1524,25 +2163,11 @@ async function loadSeasonList() {
 
     (data || []).forEach((p) => {
       const pid = p.season_profile_id || "";
-      const label = (p.season_label || "").replace(/</g, "&lt;");
-      const monthNames = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-      ];
+      const label = escapeHtmlValue(p.season_label || "");
       let months = "";
       if (Array.isArray(p.manufacture_months)) {
         months = p.manufacture_months
-          .map((m) => monthNames[Number(m) - 1] || String(m))
+          .map((m) => formatMonthShort(m))
           .join(", ");
       }
       let split = "";
@@ -1560,23 +2185,35 @@ async function loadSeasonList() {
             return `${s}%`;
           };
           split = entries
-            .map(([m, v]) => `${monthNames[m - 1] || m}:${fmtPct(v)}`)
+            .map(([m, v]) => `${formatMonthShort(m)}:${fmtPct(v)}`)
             .join(", ");
         } catch (e) {
           console.debug("month_split_pct parse failed", e);
           split = String(p.month_split_pct || "");
         }
       }
-      html += `<tr data-id="${pid}">`;
-      html += `<td>${pid}</td>`;
-      html += `<td>${label}</td>`;
-      html += `<td>${months}</td>`;
-      html += `<td>${(split || "").replace(/</g, "&lt;")}</td>`;
+      html += `<tr class="mrp-mobile-card-row mrp-season-row" tabindex="0" role="button" data-id="${escapeHtmlValue(pid)}" aria-label="Open season profile ${label}">`;
+      html += `<td data-label="Profile ID">${escapeHtmlValue(pid)}</td>`;
+      html += `<td class="mrp-card-primary" data-label="Season Label">${label || "-"}</td>`;
+      html += `<td class="mrp-card-full" data-label="Manufacture Months">${renderMonthChips(
+        p.manufacture_months || months,
+      )}</td>`;
+      html += `<td data-label="Month Split">${escapeHtmlValue(split || "")}</td>`;
       html += `</tr>`;
     });
 
     html += "</tbody></table></div>";
     node.innerHTML = html;
+    enhanceConsoleChrome({
+      searchId: "seasonSearch",
+      clearId: "seasonSearchClear",
+      addId: "addSeason",
+      exportId: "exportSeasonCsv",
+      rowCountId: "seasonRowCount",
+      prevId: "seasonPrev",
+      nextId: "seasonNext",
+      pagerId: "seasonPaginator",
+    });
 
     // wire actions
     document
@@ -1585,7 +2222,7 @@ async function loadSeasonList() {
     document.getElementById("exportSeasonCsv").addEventListener("click", () => {
       try {
         const rows = Array.from(
-          document.querySelectorAll("#mrpTable_season tbody tr")
+          document.querySelectorAll("#mrpTable_season tbody tr"),
         );
         const csv = [];
         csv.push(
@@ -1594,14 +2231,14 @@ async function loadSeasonList() {
             "Season Label",
             "Manufacture Months",
             "Month Split",
-          ].join(",")
+          ].join(","),
         );
         rows.forEach((r) => {
           const cells = Array.from(r.querySelectorAll("td"))
             .slice(0, 4)
             .map(
               (td) =>
-                '"' + String(td.textContent || "").replace(/"/g, '""') + '"'
+                '"' + String(td.textContent || "").replace(/"/g, '""') + '"',
             );
           csv.push(cells.join(","));
         });
@@ -1636,7 +2273,7 @@ async function loadSeasonList() {
     document.getElementById("seasonNext").addEventListener("click", () => {
       const maxPage = Math.max(
         1,
-        Math.ceil((seasonTotal || 0) / seasonPageSize)
+        Math.ceil((seasonTotal || 0) / seasonPageSize),
       );
       if (seasonPage < maxPage) {
         seasonPage += 1;
@@ -1644,29 +2281,30 @@ async function loadSeasonList() {
       }
     });
 
-    // row click shows detail modal; action button also shows detail
-    Array.from(node.querySelectorAll("#mrpTable_season tbody tr")).forEach(
-      (tr) =>
-        tr.addEventListener("click", async () => {
-          const id = tr.dataset.id;
-          try {
-            const { data } = await supabase
-              .from("season_profile")
-              .select("*")
-              .eq("id", id)
-              .limit(1);
-            const row = data && data[0] ? data[0] : { id };
-            showSeasonDetail(row);
-          } catch (e) {
-            console.debug(e);
-          }
-        })
-    );
+    wireMrpRowOpeners({
+      root: node,
+      selector: "#mrpTable_season tbody tr.mrp-season-row",
+      getRow: (tr) => ({ id: tr.dataset.id }),
+      openDetail: async (_row, tr) => {
+        const id = tr.dataset.id;
+        try {
+          const { data } = await supabase
+            .from("season_profile")
+            .select("*")
+            .eq("id", id)
+            .limit(1);
+          const row = data && data[0] ? data[0] : { id };
+          showSeasonDetail(row);
+        } catch (e) {
+          console.debug(e);
+        }
+      },
+    });
 
     // update row count and pager info
     const updateSeasonRowCount = () => {
       const visible = Array.from(
-        node.querySelectorAll("#mrpTable_season tbody tr")
+        node.querySelectorAll("#mrpTable_season tbody tr"),
       ).filter((tr) => getComputedStyle(tr).display !== "none").length;
       const pill = document.getElementById("seasonRowCount");
       const pagerInfo = document.getElementById("seasonPagerInfo");
@@ -1674,7 +2312,7 @@ async function loadSeasonList() {
       if (pagerInfo)
         pagerInfo.textContent = `Page ${seasonPage} of ${Math.max(
           1,
-          Math.ceil((seasonTotal || 0) / seasonPageSize)
+          Math.ceil((seasonTotal || 0) / seasonPageSize),
         )}`;
       const prev = document.getElementById("seasonPrev");
       const next = document.getElementById("seasonNext");
@@ -1702,29 +2340,42 @@ async function loadSeasonList() {
           }
           // simple client-side filtering when results are present
           Array.from(
-            document.querySelectorAll("#mrpTable_season tbody tr")
+            document.querySelectorAll("#mrpTable_season tbody tr"),
           ).forEach((tr) => {
             const txt = tr.textContent || "";
             tr.style.display = txt.toLowerCase().includes(v.toLowerCase())
               ? ""
               : "none";
           });
+          resetTableScrollAfterFilter(node);
           updateSeasonRowCount();
         }, 250);
       });
+      wireSearchClear(
+        searchEl,
+        document.getElementById("seasonSearchClear"),
+        () => {
+          Array.from(
+            document.querySelectorAll("#mrpTable_season tbody tr"),
+          ).forEach((tr) => {
+            tr.style.display = "";
+          });
+          resetTableScrollAfterFilter(node);
+          updateSeasonRowCount();
+        },
+      );
     }
   } catch (e) {
     console.debug(e);
     node.innerHTML = `<div class="error">Failed loading seasons: ${String(
-      e?.message || e
+      e?.message || e,
     )}</div>`;
     hideMrpLoading();
   }
 }
 
 function showSeasonDetail(profile) {
-  ensureDetailModal();
-  const root = document.getElementById("copilot-detail-modal");
+  const root = prepareMrpDetailModal();
   const title = root.querySelector("#copilot-modal-title");
   const sub = root.querySelector("#copilot-modal-sub");
   const body = root.querySelector("#copilot-modal-body");
@@ -1837,7 +2488,7 @@ function showSeasonDetail(profile) {
       btnEdit.className = "mrp-btn mrp-btn-secondary";
       btnEdit.textContent = "Edit";
       btnEdit.addEventListener("click", () => {
-        closeDetailModal();
+        safeCloseDetailModal();
         openSeasonModal({ id: p.id });
       });
 
@@ -1847,7 +2498,7 @@ function showSeasonDetail(profile) {
       btnDelete.addEventListener("click", async () => {
         const ok = await showConfirm(
           "Delete this season profile and its month/weight data?",
-          "Confirm delete"
+          "Confirm delete",
         );
         if (!ok) return;
         try {
@@ -1869,7 +2520,7 @@ function showSeasonDetail(profile) {
             .eq("id", id);
           if (pErr) throw pErr;
           showToast("Deleted", { type: "success" });
-          closeDetailModal();
+          safeCloseDetailModal();
           await loadSeasonList();
         } catch (e) {
           console.debug(e);
@@ -1880,18 +2531,18 @@ function showSeasonDetail(profile) {
       actions.appendChild(btnEdit);
       actions.appendChild(btnDelete);
 
-      root.style.display = "flex";
+      openMrpDetailModal(root);
     } catch (e) {
       console.debug(e);
       body.innerHTML = `<div class="error">Failed loading season detail: ${String(
-        e?.message || e
+        e?.message || e,
       )}</div>`;
     }
   })();
 }
 
 function openSeasonModal(row = {}) {
-  ensureDetailModal();
+  prepareMrpDetailModal();
   const id = row.id || null;
   (async function renderEditor() {
     try {
@@ -1921,7 +2572,7 @@ function openSeasonModal(row = {}) {
         .eq("season_profile_id", profile.id || -1)
         .order("month_num", { ascending: true });
 
-      openDetailModal({
+      openMrpStructuredModal({
         title: `Edit season profile ${profile.id || "(new)"}`,
         sections: [],
         actions: [],
@@ -1936,21 +2587,21 @@ function openSeasonModal(row = {}) {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:8px 0;box-sizing:border-box">
         <div>
           <label style="font-weight:600;color:#374151;font-size:0.9rem;display:block;margin-bottom:6px">Label <span style="color:#dc2626">*</span></label>
-          <input id="sp_label" style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;box-sizing:border-box" value="${(
-            profile.label || ""
-          ).replace(/"/g, "&quot;")}"/>
+          <input id="sp_label" style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;box-sizing:border-box" value="${escapeHtmlValue(
+            profile.label || "",
+          )}"/>
         </div>
         <div>
           <label style="font-weight:600;color:#374151;font-size:0.9rem;display:block;margin-bottom:6px">Entity kind</label>
-          <input id="sp_entity_kind" style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;box-sizing:border-box" value="${(
-            profile.entity_kind || ""
-          ).replace(/"/g, "&quot;")}"/>
+          <input id="sp_entity_kind" style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;box-sizing:border-box" value="${escapeHtmlValue(
+            profile.entity_kind || "",
+          )}"/>
         </div>
         <div style="grid-column:1/3;margin-top:6px">
           <label style="font-weight:600;color:#374151;font-size:0.9rem;display:block;margin-bottom:6px">Notes</label>
-          <textarea id="sp_notes" style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;box-sizing:border-box;min-height:88px">${(
-            profile.notes || ""
-          ).replace(/</g, "&lt;")}</textarea>
+          <textarea id="sp_notes" style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;box-sizing:border-box;min-height:88px">${escapeHtmlValue(
+            profile.notes || "",
+          )}</textarea>
         </div>
       </div>
       `;
@@ -1963,7 +2614,7 @@ function openSeasonModal(row = {}) {
       monthsDiv.innerHTML =
         "<div style='font-weight:700;color:#374151;margin-bottom:8px'>Months (active)</div>";
       const activeSet = new Set(
-        (months || []).filter(Boolean).map((r) => Number(r.month_num))
+        (months || []).filter(Boolean).map((r) => Number(r.month_num)),
       );
       const monthsGrid = document.createElement("div");
       monthsGrid.style = "display:flex;flex-wrap:wrap;gap:8px;margin-top:6px";
@@ -2001,7 +2652,7 @@ function openSeasonModal(row = {}) {
       weightsDiv.innerHTML =
         "<div style='font-weight:700;color:#374151;margin-bottom:8px'>Weights (per month)</div>";
       const weightsMap = new Map(
-        (weights || []).map((w) => [Number(w.month_num), w.weight])
+        (weights || []).map((w) => [Number(w.month_num), w.weight]),
       );
       const weightsGrid = document.createElement("div");
       weightsGrid.style = "display:flex;flex-wrap:wrap;gap:8px;margin-top:6px";
@@ -2089,7 +2740,7 @@ function openSeasonModal(row = {}) {
           }
 
           showToast("Saved", { type: "success" });
-          closeDetailModal();
+          safeCloseDetailModal();
           await loadSeasonList();
         } catch (e) {
           console.debug(e);
@@ -2097,7 +2748,7 @@ function openSeasonModal(row = {}) {
         }
       });
 
-      cancelBtn.addEventListener("click", () => closeDetailModal());
+      cancelBtn.addEventListener("click", () => safeCloseDetailModal());
 
       actionsEl.appendChild(saveBtn);
       actionsEl.appendChild(cancelBtn);
@@ -2119,11 +2770,11 @@ async function loadMapQuickEditor() {
   node.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 6px 0">
       <div style="display:flex;gap:8px;align-items:center">
-        <input id="textSearch" placeholder="Type in to search..." title="Type Stock Item ID, Code or Name to search" style="padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;min-width:220px;margin-right:12px" />
+        <input id="textSearch" placeholder="Type in to search..." title="Type Stock Item ID, Code or Name to search" style="padding:7px 34px 7px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;min-width:160px;margin-right:8px;height:34px;box-sizing:border-box;background:#f8fafc" />
       </div>
       <div style="display:flex;gap:8px;align-items:center">
-        <button id="addMappingBtn" class="mrp-btn mrp-btn-primary" title="Add mapping" aria-label="Add mapping" style="width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;padding:6px">${svgAdd}</button>
-        <button id="exportMappingBtn" class="mrp-btn mrp-btn-ghost" title="Export CSV" aria-label="Export CSV" style="width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;padding:6px;margin-left:8px">${svgExport}</button>
+        <button id="addMappingBtn" class="mrp-btn mrp-btn-primary mrp-icon-btn" title="Add mapping" aria-label="Add mapping" style="width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;padding:0">${svgAdd}</button>
+        <button id="exportMappingBtn" class="mrp-btn mrp-btn-ghost mrp-icon-btn" title="Export CSV" aria-label="Export CSV" style="width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;padding:0;margin-left:8px">${svgExport}</button>
       </div>
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0 12px 0">
@@ -2138,7 +2789,7 @@ async function loadMapQuickEditor() {
     </div>
     <div>
       <div id="mrpTableContainer" style="max-height:55vh;">
-        <table id="mrpTable_mapping" style="width:100%;border-collapse:collapse;table-layout:fixed">
+        <table id="mrpTable_mapping" class="mrp-table mrp-mobile-card-table">
           <thead>
             <tr>
               <th style="width:10%;">ID</th>
@@ -2153,12 +2804,22 @@ async function loadMapQuickEditor() {
       </div>
     </div>
   `;
+  enhanceConsoleChrome({
+    searchId: "textSearch",
+    clearId: "mapSearchClear",
+    addId: "addMappingBtn",
+    exportId: "exportMappingBtn",
+    rowCountId: "mapRowCount",
+    prevId: "mapPrev",
+    nextId: "mapNext",
+    pagerId: "mapPaginator",
+  });
 
   // CSS handles all table styling automatically - no manual adjustments needed
 
   // adjust table container max-height to fill remaining viewport space
   (function adjustMapTableHeight() {
-    const tbl = document.getElementById("tableContainer");
+    const tbl = node.querySelector("#mrpTableContainer");
     if (!tbl) return;
     const adjust = () => {
       try {
@@ -2193,19 +2854,19 @@ async function loadMapQuickEditor() {
   let mappings = new Map();
 
   async function openMappingEditModal(r) {
-    ensureDetailModal();
+    prepareMrpDetailModal();
     await fetchProfiles();
     const selectedMap = mappings.get(r.stock_item_id) || null;
     const profileOptions = profiles
       .map(
         (p) =>
           `<option value="${p.id}">${escapeHtml(
-            p.label || p.name || String(p.id)
-          )}</option>`
+            p.label || p.name || String(p.id),
+          )}</option>`,
       )
       .join("");
 
-    openDetailModal({
+    openMrpStructuredModal({
       title: `Edit mapping — ${r.code || r.stock_item_id}`,
       sections: [
         {
@@ -2270,7 +2931,7 @@ async function loadMapQuickEditor() {
               showToast("Mapping saved", { type: "success" });
               await fetchMappedPage();
               mergeAndRender();
-              closeDetailModal();
+              safeCloseDetailModal();
             } catch (e) {
               console.debug(e);
               showToast("Save failed", { type: "error" });
@@ -2282,7 +2943,7 @@ async function loadMapQuickEditor() {
           onClick: async () => {
             const ok = await showConfirm(
               "Clear mapping for this item?",
-              "Confirm clear"
+              "Confirm clear",
             );
             if (!ok) return;
             try {
@@ -2294,20 +2955,20 @@ async function loadMapQuickEditor() {
               showToast("Mapping cleared", { type: "success" });
               await fetchMappedPage();
               mergeAndRender();
-              closeDetailModal();
+              safeCloseDetailModal();
             } catch (e) {
               console.debug(e);
               showToast("Clear failed", { type: "error" });
             }
           },
         },
-        { label: "Cancel", onClick: () => closeDetailModal() },
+        { label: "Cancel", onClick: () => safeCloseDetailModal() },
       ],
     });
   }
 
   async function openAddMappingModal() {
-    ensureDetailModal();
+    prepareMrpDetailModal();
     // ensure profiles are loaded
     await fetchProfiles();
     // fetch all mapped ids to determine unmapped stock items
@@ -2344,20 +3005,20 @@ async function loadMapQuickEditor() {
       .map(
         (p) =>
           `<option value="${p.id}">${escapeHtml(
-            p.label || p.name || String(p.id)
-          )}</option>`
+            p.label || p.name || String(p.id),
+          )}</option>`,
       )
       .join("");
     const stockOptions = unmapped
       .map(
         (s) =>
           `<option value="${s.stock_item_id}">${escapeHtml(
-            (s.code || "") + " — " + (s.name || "")
-          )}</option>`
+            (s.code || "") + " — " + (s.name || ""),
+          )}</option>`,
       )
       .join("");
 
-    openDetailModal({
+    openMrpStructuredModal({
       title: "Add mapping",
       sections: [
         {
@@ -2403,7 +3064,7 @@ async function loadMapQuickEditor() {
           });
       },
       actions: [
-        { label: "Cancel", onClick: () => closeDetailModal() },
+        { label: "Cancel", onClick: () => safeCloseDetailModal() },
         {
           label: "Save",
           onClick: async () => {
@@ -2433,7 +3094,7 @@ async function loadMapQuickEditor() {
               // refresh current page
               await fetchMappedPage();
               mergeAndRender();
-              closeDetailModal();
+              safeCloseDetailModal();
             } catch (e) {
               console.debug(e);
               showToast("Save failed", { type: "error" });
@@ -2470,7 +3131,7 @@ async function loadMapQuickEditor() {
         preview.innerHTML = Object.keys(obj)
           .map(
             (k) =>
-              `${monthNames[Number(k) - 1] || k}: ${Number(obj[k]).toFixed(2)}%`
+              `${monthNames[Number(k) - 1] || k}: ${Number(obj[k]).toFixed(2)}%`,
           )
           .join("; ");
       } catch (err) {
@@ -2564,6 +3225,7 @@ async function loadMapQuickEditor() {
 
   function mergeAndRender() {
     const tb = els.rmBody();
+    resetTableScrollAfterFilter(node);
     tb.innerHTML = "";
     const txt = (els.textSearch().value || "").toLowerCase().trim();
     console.debug("mergeAndRender", {
@@ -2583,36 +3245,53 @@ async function loadMapQuickEditor() {
     rows.forEach((r) => {
       const m = mappings.get(r.stock_item_id) || null;
       const tr = document.createElement("tr");
+      tr.className = "mrp-mobile-card-row mrp-map-row";
+      tr.tabIndex = 0;
+      tr.setAttribute("role", "button");
       const profileLabel = m
         ? profiles.find((p) => p.id === m.season_profile_id)?.label ||
           String(m.season_profile_id)
         : "-";
+      const rmLabel = [r.code, r.name].filter(Boolean).join(" - ");
 
       tr.innerHTML = `
-        <td>${escapeHtml(String(r.stock_item_id || ""))}</td>
-        <td>${escapeHtml(r.code || "")}</td>
-        <td title="${escapeHtml(r.name || "")}">${escapeHtml(r.name || "")}</td>
-        <td>${escapeHtml(profileLabel)}</td>
-        <td>${m ? (m.is_active ? "Yes" : "No") : "-"}</td>
+        <td data-label="Stock Item ID">${escapeHtml(String(r.stock_item_id || ""))}</td>
+        <td data-label="Code">${escapeHtml(r.code || "")}</td>
+        <td class="mrp-card-primary" data-label="RM" title="${escapeHtml(rmLabel || r.name || "")}">${escapeHtml(r.name || rmLabel || "-")}</td>
+        <td class="mrp-card-value" data-label="Season Profile"><span class="mrp-card-pill mrp-card-season-pill">${escapeHtml(profileLabel)}</span></td>
+        <td data-label="Active">${m ? (m.is_active ? "Yes" : "No") : "-"}</td>
       `;
 
       tr.dataset.id = String(r.stock_item_id || "");
-      tr.addEventListener("click", () => showMappingDetail(r));
+      tr.setAttribute(
+        "aria-label",
+        `Open seasonal mapping for ${rmLabel || r.stock_item_id || "stock item"}`,
+      );
       tb.appendChild(tr);
+    });
+
+    wireMrpRowOpeners({
+      root: tb,
+      selector: "tr.mrp-map-row",
+      getRow: (tr) =>
+        rows.find(
+          (r) => String(r.stock_item_id || "") === String(tr.dataset.id || ""),
+        ),
+      openDetail: (row) => row && showMappingDetail(row),
     });
   }
 
   // exported-ish variable reserved (no three-way filter in mapped-only view)
 
   async function showMappingDetail(r) {
-    ensureDetailModal();
+    prepareMrpDetailModal();
     const m = mappings.get(r.stock_item_id) || null;
     const profileLabel = m
       ? profiles.find((p) => p.id === m.season_profile_id)?.label ||
         String(m.season_profile_id)
       : "(none)";
 
-    openDetailModal({
+    openMrpStructuredModal({
       title: `${r.code || r.stock_item_id} — ${r.name || ""}`,
       sections: [
         {
@@ -2629,16 +3308,16 @@ async function loadMapQuickEditor() {
         {
           title: "Notes",
           type: "html",
-          data: `<div style="white-space:pre-wrap">${
-            m && m.notes ? String(m.notes).replace(/</g, "&lt;") : ""
-          }</div>`,
+          data: `<div style="white-space:pre-wrap">${escapeHtmlValue(
+            m && m.notes ? m.notes : "",
+          )}</div>`,
         },
       ],
       actions: [
         {
           label: "Edit",
           onClick: () => {
-            closeDetailModal();
+            safeCloseDetailModal();
             openMappingEditModal(r);
           },
         },
@@ -2647,7 +3326,7 @@ async function loadMapQuickEditor() {
           onClick: async () => {
             const ok = await showConfirm(
               "Delete mapping for this raw material?",
-              "Confirm delete"
+              "Confirm delete",
             );
             if (!ok) return;
             try {
@@ -2659,7 +3338,7 @@ async function loadMapQuickEditor() {
               showToast("Mapping deleted", { type: "success" });
               await fetchMappedPage();
               mergeAndRender();
-              closeDetailModal();
+              safeCloseDetailModal();
             } catch (e) {
               console.debug(e);
               showToast("Delete failed", { type: "error" });
@@ -2675,13 +3354,18 @@ async function loadMapQuickEditor() {
       .querySelector("#homeBtn")
       ?.addEventListener(
         "click",
-        () => (window.location.href = "../../index.html")
+        () => (window.location.href = "../../index.html"),
       );
 
     // search input
     node.querySelector("#textSearch")?.addEventListener("input", () => {
       mergeAndRender();
     });
+    wireSearchClear(
+      node.querySelector("#textSearch"),
+      node.querySelector("#mapSearchClear"),
+      mergeAndRender,
+    );
 
     // paginator
     node.querySelector("#mapPrev")?.addEventListener("click", async () => {
@@ -2724,7 +3408,7 @@ async function loadMapQuickEditor() {
     console.debug(e);
   }
   try {
-    ensureDetailModal();
+    prepareMrpDetailModal();
   } catch (e) {
     console.debug(e);
   }
