@@ -684,6 +684,11 @@
       .editor-sheet-actions .btn-sm {
         padding: 6px 10px;
       }
+      .numeric-input.input-invalid,
+      .result-input.input-invalid {
+        border-color: #dc2626 !important;
+        box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12) !important;
+      }
       .editor-sheet-nav {
         display: flex;
         justify-content: space-between;
@@ -1261,10 +1266,93 @@
           padding: 6px 10px;
           font-size: 11px;
         }
-        .editor-sheet {
-          width: min(560px, 95vw);
-          max-height: 88vh;
+        .editor-sheet-overlay.open {
+          display: flex;
+          align-items: stretch;
+          justify-content: stretch;
         }
+        .editor-sheet {
+          width: 100vw;
+          height: 100vh;
+          height: 100dvh;
+          max-height: 100vh;
+          max-height: 100dvh;
+          border-radius: 0;
+          border-left: none;
+          border-right: none;
+          display: flex;
+          flex-direction: column;
+        }
+        .editor-sheet-head {
+          flex: 0 0 auto;
+          padding-top: calc(10px + env(safe-area-inset-top));
+        }
+        .editor-sheet-body {
+          flex: 1 1 auto;
+          min-height: 0;
+          overflow: auto;
+          padding-bottom: 12px;
+        }
+        .editor-sheet-actions {
+          flex-wrap: wrap;
+          align-items: stretch;
+        }
+        .editor-sheet-actions .btn-sm {
+          min-height: 38px;
+          justify-content: center;
+          flex: 1 1 auto;
+        }
+        .editor-sheet-nav {
+          flex: 0 0 auto;
+          padding-bottom: calc(12px + env(safe-area-inset-bottom));
+          background: #fff;
+        }
+        .modal-overlay.open {
+          display: flex;
+          align-items: stretch;
+          justify-content: stretch;
+        }
+        .modal-box {
+          width: 100vw !important;
+          height: 100vh;
+          height: 100dvh;
+          max-height: 100vh;
+          max-height: 100dvh;
+          border-radius: 0;
+          border-left: none;
+          border-right: none;
+          padding: calc(14px + env(safe-area-inset-top)) 14px
+            calc(14px + env(safe-area-inset-bottom));
+          box-sizing: border-box;
+          display: flex;
+          flex-direction: column;
+          overflow: auto;
+        }
+        .modal-footer {
+          position: sticky;
+          bottom: 0;
+          background: var(--panel-bg, #fff);
+          padding-top: 10px;
+          padding-bottom: env(safe-area-inset-bottom);
+          border-top: 1px solid var(--border, #e5e7eb);
+          z-index: 2;
+        }
+        .modal-exception-section {
+          flex-shrink: 0;
+        }
+        .btn-modal {
+          min-height: 40px;
+        }
+      }
+    </style>
+    <style>
+      .analysis-header-card {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      }
+
+      .dc-value,
+      .hdr-popover-value {
+        overflow-wrap: anywhere;
       }
     </style>
   </head>
@@ -1391,8 +1479,18 @@
         <span class="dc-value" id="hdrStatus">—</span>
       </div>
       <div class="detail-cell">
+        <span class="dc-label">Analysis ID</span>
+        <span class="dc-value" id="hdrAnalysisId">—</span>
+      </div>
+
+      <div class="detail-cell">
         <span class="dc-label">Register No</span>
         <span class="dc-value" id="hdrRegisterNo">—</span>
+      </div>
+
+      <div class="detail-cell">
+        <span class="dc-label">Physical Ref</span>
+        <span class="dc-value" id="hdrPhysicalRef">—</span>
       </div>
       <div class="detail-cell">
         <span class="dc-label">Mode</span>
@@ -1437,8 +1535,18 @@
           <span class="hdr-popover-value" id="hdrPopStatus">—</span>
         </div>
         <div class="hdr-popover-row">
+          <span class="hdr-popover-label">Analysis ID</span>
+          <span class="hdr-popover-value" id="hdrPopAnalysisId">—</span>
+        </div>
+
+        <div class="hdr-popover-row">
           <span class="hdr-popover-label">Register No</span>
           <span class="hdr-popover-value" id="hdrPopRegisterNo">—</span>
+        </div>
+
+        <div class="hdr-popover-row">
+          <span class="hdr-popover-label">Physical Ref</span>
+          <span class="hdr-popover-value" id="hdrPopPhysicalRef">—</span>
         </div>
         <div class="hdr-popover-row">
           <span class="hdr-popover-label">Mode</span>
@@ -1639,9 +1747,11 @@
         <div class="modal-field" id="refMinValueField" style="display: none">
           <label for="refMinValueInput">Min Value</label>
           <input
-            type="number"
+            type="text"
+            class="numeric-input"
             id="refMinValueInput"
-            step="any"
+            inputmode="decimal"
+            enterkeyhint="done"
             autocomplete="off"
           />
         </div>
@@ -1649,9 +1759,11 @@
         <div class="modal-field" id="refMaxValueField" style="display: none">
           <label for="refMaxValueInput">Max Value</label>
           <input
-            type="number"
+            type="text"
+            class="numeric-input"
             id="refMaxValueInput"
-            step="any"
+            inputmode="decimal"
+            enterkeyhint="done"
             autocomplete="off"
           />
         </div>
@@ -1659,9 +1771,11 @@
         <div class="modal-field" id="refExactValueField" style="display: none">
           <label for="refExactValueInput">Exact Value</label>
           <input
-            type="number"
+            type="text"
+            class="numeric-input"
             id="refExactValueInput"
-            step="any"
+            inputmode="decimal"
+            enterkeyhint="done"
             autocomplete="off"
           />
         </div>

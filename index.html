@@ -1162,6 +1162,37 @@
         -webkit-box-orient: vertical;
         overflow: hidden;
       }
+      .ml-copy {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .ml-badge {
+        display: inline-flex;
+        align-items: center;
+        align-self: flex-start;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 800;
+        line-height: 1.2;
+        white-space: nowrap;
+      }
+      .ml-badge.hidden {
+        display: none;
+      }
+      .ml-badge.warn {
+        background: #fffbeb;
+        border: 1px solid #fcd34d;
+        color: #b45309;
+      }
+      .ml-badge.danger {
+        background: #fef2f2;
+        border: 1px solid #fca5a5;
+        color: #b91c1c;
+      }
       #workspace-sections .module-link.locked-module {
         border-color: rgba(148, 163, 184, 0.22);
         color: var(--sasv-muted);
@@ -2625,7 +2656,7 @@
                     attrs.push(`title="${escapeHtml(item.title)}"`);
                   }
                 }
-                return `<a ${attrs.join(" ")} href="${escapeHtml(href)}"><span class="ml-initial ${identityClass}" aria-hidden="true">${escapeHtml(initial)}</span><span class="ml-label">${escapeHtml(item.label)}</span></a>`;
+                return `<a ${attrs.join(" ")} href="${escapeHtml(href)}"><span class="ml-initial ${identityClass}" aria-hidden="true">${escapeHtml(initial)}</span><span class="ml-copy"><span class="ml-label">${escapeHtml(item.label)}</span><span class="ml-badge hidden" data-module-badge="true"></span></span></a>`;
               })
               .join("");
           }
@@ -2676,6 +2707,72 @@
         );
         renderWorkspaceSections(sections);
         return true;
+      }
+
+      function getModuleBadgeText(row) {
+        if (!row || typeof row !== "object") return "";
+
+        const directText = String(
+          row.badge_text ?? row.badge_label ?? row.display_text ?? "",
+        ).trim();
+        if (directText) return directText;
+
+        const rawCount = [
+          row.badge_count,
+          row.pending_count,
+          row.total_pending,
+          row.count_value,
+          row.count,
+        ].find((value) => value !== null && value !== undefined && value !== "");
+
+        const numericCount = Number(rawCount);
+        if (!Number.isFinite(numericCount)) return "";
+        return `${numericCount} pending`;
+      }
+
+      function applyModuleBadgeRow(moduleId, row) {
+        const anchor = document.querySelector(
+          `#workspace-sections a.module-link[data-module-id="${CSS.escape(moduleId)}"]`,
+        );
+        const badgeEl = anchor?.querySelector("[data-module-badge='true']");
+        if (!badgeEl) return;
+
+        const severity = String(row?.badge_severity ?? "none")
+          .trim()
+          .toLowerCase();
+        const badgeText = getModuleBadgeText(row);
+
+        badgeEl.classList.remove("warn", "danger");
+
+        if (severity === "none" || !badgeText) {
+          badgeEl.textContent = "";
+          badgeEl.classList.add("hidden");
+          return;
+        }
+
+        badgeEl.textContent = badgeText;
+        badgeEl.classList.toggle("warn", severity === "warn");
+        badgeEl.classList.toggle("danger", severity === "danger");
+        badgeEl.classList.remove("hidden");
+      }
+
+      async function refreshModuleBadges() {
+        try {
+          const { data, error } = await supabase
+            .from("v_module_badges")
+            .select("*")
+            .eq("module_id", "lab-spec-profile-manager")
+            .maybeSingle();
+
+          if (error) {
+            console.warn("Module badge load failed", error);
+            return;
+          }
+
+          applyModuleBadgeRow("lab-spec-profile-manager", data || null);
+        } catch (error) {
+          console.warn("Module badge refresh failed", error);
+        }
       }
 
       async function initApp() {
@@ -3001,6 +3098,7 @@
                 );
               }
               refreshWorkspaceChrome();
+              await refreshModuleBadges();
 
               if (!window.__moduleClickGuard) {
                 document.addEventListener(

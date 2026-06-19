@@ -15,14 +15,28 @@ const subjectPills = document.getElementById("subjectPills");
 const tabStrip = document.getElementById("tabStrip");
 
 // Tab buttons
+const reviewQueueTab = document.getElementById("reviewQueueTab");
 const baseSpecTab = document.getElementById("baseSpecTab");
 const overridesTab = document.getElementById("overridesTab");
 const effectivePreviewTab = document.getElementById("effectivePreviewTab");
+const reviewQueueTabBadge = document.getElementById("reviewQueueTabBadge");
 
 // Tab panels
+const reviewQueuePanel = document.getElementById("reviewQueuePanel");
 const baseSpecPanel = document.getElementById("baseSpecPanel");
 const overridesPanel = document.getElementById("overridesPanel");
 const effectivePreviewPanel = document.getElementById("effectivePreviewPanel");
+
+const rqTotalPending = document.getElementById("rqTotalPending");
+const rqFamilyPending = document.getElementById("rqFamilyPending");
+const rqProductPending = document.getElementById("rqProductPending");
+const rqOverduePending = document.getElementById("rqOverduePending");
+const rqRefreshBtn = document.getElementById("rqRefreshBtn");
+const rqSubjectFilter = document.getElementById("rqSubjectFilter");
+const rqScopeFilter = document.getElementById("rqScopeFilter");
+const rqSearchInput = document.getElementById("rqSearchInput");
+const rqLineCount = document.getElementById("rqLineCount");
+const reviewQueueTableBody = document.getElementById("reviewQueueTableBody");
 
 // BASE SPEC tab
 const bsFgCard = document.getElementById("bsFgCard");
@@ -160,7 +174,7 @@ const epPmLineCount = document.getElementById("epPmLineCount");
 
 // ── Module state ──────────────────────────────────────────────────────────────
 let currentSubjectType = null; // "FG" | "RM" | "PM"
-let currentTab = "baseSpec"; // "baseSpec" | "overrides" | "effectivePreview"
+let currentTab = "reviewQueue"; // "reviewQueue" | "baseSpec" | "overrides" | "effectivePreview"
 
 // FG Base spec state
 let bsCurrentProfileId = null;
@@ -210,6 +224,7 @@ let pendingSpecRequests = [];
 let activePendingReviewRequests = [];
 let selectedPendingReviewRequestId = null;
 let selectedPendingReviewScope = null;
+let reviewQueueRows = [];
 
 // FG product picker cache (used by searchable combobox in OV + EP tabs)
 let fgProductPickerRows = [];
@@ -224,6 +239,7 @@ async function init() {
   homeBtn.addEventListener("click", () => Platform.goHome());
   wireSubjectPills();
   wireTabStrip();
+  wireReviewQueueEvents();
   wireBaseSpecEvents();
   wireBaseSpecRmEvents();
   wireOverridesEvents();
@@ -248,6 +264,7 @@ async function init() {
 function applyInitialHiddenState() {
   // Tab strip + all panels
   tabStrip.classList.add("hidden");
+  reviewQueuePanel?.classList.add("hidden");
   baseSpecPanel.classList.add("hidden");
   overridesPanel.classList.add("hidden");
   effectivePreviewPanel.classList.add("hidden");
@@ -391,7 +408,8 @@ function handleSubjectTypeChange() {
 
 // ── Tab strip ─────────────────────────────────────────────────────────────────
 function wireTabStrip() {
-  [baseSpecTab, overridesTab, effectivePreviewTab].forEach((btn) => {
+  [reviewQueueTab, baseSpecTab, overridesTab, effectivePreviewTab].forEach((btn) => {
+    if (!btn) return;
     btn.addEventListener("click", () => switchTab(btn.dataset.tab));
   });
 }
@@ -401,11 +419,13 @@ function switchTab(tabId, forceRefresh = false) {
   currentTab = tabId;
 
   // Update tab buttons
-  [baseSpecTab, overridesTab, effectivePreviewTab].forEach((btn) => {
+  [reviewQueueTab, baseSpecTab, overridesTab, effectivePreviewTab].forEach((btn) => {
+    if (!btn) return;
     btn.classList.toggle("active", btn.dataset.tab === tabId);
   });
 
   // Show/hide panels
+  reviewQueuePanel?.classList.toggle("hidden", tabId !== "reviewQueue");
   baseSpecPanel.classList.toggle("hidden", tabId !== "baseSpec");
   overridesPanel.classList.toggle("hidden", tabId !== "overrides");
   effectivePreviewPanel.classList.toggle(
@@ -425,6 +445,7 @@ function switchTab(tabId, forceRefresh = false) {
   const isFG = currentSubjectType === "FG";
   const isRM = currentSubjectType === "RM";
   const isPM = currentSubjectType === "PM";
+  const isRQ = tabId === "reviewQueue";
   const isBS = tabId === "baseSpec";
   const isOV = tabId === "overrides";
   const isEP = tabId === "effectivePreview";
@@ -470,6 +491,12 @@ function switchTab(tabId, forceRefresh = false) {
   }
   if (!(isEP && isPM)) {
     epPmTableCard.classList.add("hidden");
+  }
+
+  if (isRQ) {
+    void loadReviewQueue();
+    void loadReviewQueueCounts();
+    return;
   }
 
   // Lazy-load pickers for active tab (FG only)
@@ -566,6 +593,168 @@ function wirePendingSpecRequestReviewModal() {
   );
 }
 
+function wireReviewQueueEvents() {
+  rqRefreshBtn?.addEventListener("click", async () => {
+    await loadReviewQueue();
+    await loadReviewQueueCounts();
+    toast("Review queue refreshed.", "info", 1800);
+  });
+
+  rqSubjectFilter?.addEventListener("change", renderReviewQueue);
+  rqScopeFilter?.addEventListener("change", renderReviewQueue);
+  rqSearchInput?.addEventListener("input", renderReviewQueue);
+}
+
+async function loadReviewQueueCounts() {
+  const { data, error } = await labSupabase
+    .from("v_spec_change_request_review_counts")
+    .select("*")
+    .single();
+
+  if (error) {
+    console.error("[SPM] review count load failed", error);
+    return;
+  }
+
+  const total = Number(data?.total_pending ?? 0);
+  const family = Number(data?.family_pending ?? 0);
+  const product = Number(data?.product_pending ?? 0);
+  const overdue = Number(data?.overdue_pending ?? 0);
+
+  if (rqTotalPending) rqTotalPending.textContent = String(total);
+  if (rqFamilyPending) rqFamilyPending.textContent = String(family);
+  if (rqProductPending) rqProductPending.textContent = String(product);
+  if (rqOverduePending) rqOverduePending.textContent = String(overdue);
+
+  if (reviewQueueTabBadge) {
+    reviewQueueTabBadge.textContent = String(total);
+    reviewQueueTabBadge.classList.toggle("hidden", total <= 0);
+  }
+}
+
+async function loadReviewQueue() {
+  const { data, error } = await labSupabase
+    .from("v_spec_change_request_review_queue")
+    .select("*")
+    .order("requested_at", { ascending: false });
+
+  if (error) {
+    toast("Failed to load review queue: " + error.message, "error");
+    reviewQueueRows = [];
+    renderReviewQueue();
+    return;
+  }
+
+  reviewQueueRows = data ?? [];
+  renderReviewQueue();
+}
+
+function getFilteredReviewQueueRows() {
+  const subject = String(rqSubjectFilter?.value ?? "").toUpperCase();
+  const scope = String(rqScopeFilter?.value ?? "").toUpperCase();
+  const q = String(rqSearchInput?.value ?? "").trim().toLowerCase();
+
+  return reviewQueueRows.filter((row) => {
+    if (subject && String(row.subject_type ?? "").toUpperCase() !== subject) {
+      return false;
+    }
+
+    if (scope && String(row.request_scope ?? "").toUpperCase() !== scope) {
+      return false;
+    }
+
+    if (!q) return true;
+
+    const haystack = [
+      row.request_id,
+      row.request_scope,
+      row.subject_type,
+      row.entity_label,
+      row.family_label,
+      row.product_name,
+      row.stock_item_name,
+      row.test_name,
+      row.current_display_text,
+      row.proposed_display_text,
+      row.source_analysis_register_no,
+      row.requested_by_name,
+      row.request_remarks,
+    ]
+      .map((v) => String(v ?? "").toLowerCase())
+      .join(" | ");
+
+    return haystack.includes(q);
+  });
+}
+
+function formatAgeHours(hours) {
+  const n = Number(hours);
+  if (!Number.isFinite(n)) return "--";
+  if (n < 1) return "<1 h";
+  if (n < 24) return `${Math.floor(n)} h`;
+  return `${Math.floor(n / 24)} d`;
+}
+
+function renderReviewQueue() {
+  const rows = getFilteredReviewQueueRows();
+
+  if (rqLineCount) {
+    rqLineCount.textContent = `${rows.length} request${rows.length !== 1 ? "s" : ""}`;
+  }
+
+  if (!reviewQueueTableBody) return;
+
+  if (!rows.length) {
+    reviewQueueTableBody.innerHTML = `<tr><td colspan="10">
+      <div class="spec-empty-state">
+        <strong>No pending manual requests</strong>
+        There are no matching specification change requests pending review.
+      </div>
+    </td></tr>`;
+    return;
+  }
+
+  reviewQueueTableBody.innerHTML = rows
+    .map((r) => {
+      const ageBucket = String(r.age_bucket ?? "").toUpperCase();
+      const ageClass =
+        ageBucket === "OVERDUE"
+          ? "rq-age-overdue"
+          : ageBucket === "DUE_SOON"
+            ? "rq-age-due-soon"
+            : "";
+
+      return `<tr data-request-id="${esc(String(r.request_id))}">
+        <td>#${esc(String(r.request_id ?? ""))}</td>
+        <td>${esc(String(r.review_route_label ?? r.request_scope ?? ""))}</td>
+        <td>${esc(String(r.subject_type ?? ""))}</td>
+        <td>
+          <strong>${esc(String(r.entity_label ?? "--"))}</strong>
+          <div style="font-size:11.5px;color:var(--muted,#6b7280);">${esc(String(r.family_label ?? ""))}</div>
+        </td>
+        <td>${esc(String(r.test_name ?? "--"))}</td>
+        <td>${esc(String(r.current_display_text ?? "--"))}</td>
+        <td>${esc(String(r.proposed_display_text ?? "--"))}</td>
+        <td>${esc(String(r.source_analysis_register_no ?? r.analysis_register_no ?? "--"))}</td>
+        <td class="${ageClass}">${esc(formatAgeHours(r.age_hours))}</td>
+        <td>
+          <button type="button" class="rq-action-btn" data-rq-action="review" data-request-id="${esc(String(r.request_id))}">
+            Review
+          </button>
+        </td>
+      </tr>`;
+    })
+    .join("");
+
+  reviewQueueTableBody
+    .querySelectorAll("[data-rq-action='review']")
+    .forEach((btn) => {
+      btn.addEventListener("click", () =>
+        openReviewQueueRequest(btn.dataset.requestId),
+      );
+    });
+}
+
 async function loadPendingSpecChangeRequests() {
   if (!currentSubjectType) {
     pendingSpecRequests = [];
@@ -588,7 +777,13 @@ async function loadPendingSpecChangeRequests() {
     return pendingSpecRequests;
   }
 
-  pendingSpecRequests = data ?? [];
+  pendingSpecRequests = (data ?? []).filter((request) => {
+    const status = String(
+      request.request_status ?? request.status ?? "",
+    ).toUpperCase();
+
+    return status === "" || status === "PENDING";
+  });
   return pendingSpecRequests;
 }
 
@@ -630,6 +825,8 @@ function refreshPendingRequestButtons() {
       getCurrentProductPendingRequests().length,
     );
   }
+
+  debugPendingFamilyMatch();
 }
 
 function setPendingRequestButton(button, label, count) {
@@ -657,29 +854,133 @@ function getProductPendingButtonForSubject() {
   return null;
 }
 
-function getCurrentFamilyPendingRequests() {
-  const familyId =
-    currentSubjectType === "FG"
-      ? bsCurrentGroupId
-      : currentSubjectType === "RM"
-        ? rmCurrentGroupId
-        : pmCurrentGroupId;
-  if (!familyId) return [];
+function normalizeFamilyLabel(value) {
+  return String(value ?? "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
 
-  return pendingSpecRequests.filter((request) => {
-    if (normalizePendingRequestScope(request.request_scope) !== "FAMILY") {
-      return false;
-    }
-    if (currentSubjectType === "FG") {
-      return isSameRequestId(request.product_group_id, familyId);
-    }
-    if (currentSubjectType === "RM") {
-      return isSameRequestId(request.inv_group_id, familyId);
-    }
-    if (currentSubjectType === "PM") {
-      return isSameRequestId(request.subcategory_id, familyId);
-    }
+function buildFamilyMatchKey(subjectType, label) {
+  const subject = String(subjectType ?? "").trim().toUpperCase();
+  const normalizedLabel = normalizeFamilyLabel(label);
+  return normalizedLabel ? `${subject}|${normalizedLabel}` : "";
+}
+
+function getCurrentFamilyContext() {
+  if (currentSubjectType === "FG") {
+    return {
+      subjectType: "FG",
+      familyId: bsCurrentGroupId,
+      familyLabel: bsCurrentGroupName,
+      familyMatchKey: buildFamilyMatchKey("FG", bsCurrentGroupName),
+    };
+  }
+
+  if (currentSubjectType === "RM") {
+    return {
+      subjectType: "RM",
+      familyId: rmCurrentGroupId,
+      familyLabel: rmCurrentGroupLabel,
+      familyMatchKey: buildFamilyMatchKey("RM", rmCurrentGroupLabel),
+    };
+  }
+
+  if (currentSubjectType === "PM") {
+    return {
+      subjectType: "PM",
+      familyId: pmCurrentGroupId,
+      familyLabel: pmCurrentGroupLabel,
+      familyMatchKey: buildFamilyMatchKey("PM", pmCurrentGroupLabel),
+    };
+  }
+
+  return {
+    subjectType: currentSubjectType,
+    familyId: null,
+    familyLabel: "",
+    familyMatchKey: "",
+  };
+}
+
+function pendingRequestMatchesCurrentFamily(request) {
+  const ctx = getCurrentFamilyContext();
+
+  if (!ctx.familyId && !ctx.familyMatchKey) return false;
+
+  if (normalizePendingRequestScope(request.request_scope) !== "FAMILY") {
     return false;
+  }
+
+  const requestSubject = String(request?.subject_type ?? "")
+    .trim()
+    .toUpperCase();
+
+  if (requestSubject && requestSubject !== ctx.subjectType) {
+    return false;
+  }
+
+  if (isSameRequestId(request.family_id, ctx.familyId)) {
+    return true;
+  }
+
+  if (
+    ctx.subjectType === "FG" &&
+    isSameRequestId(request.product_group_id, ctx.familyId)
+  ) {
+    return true;
+  }
+
+  if (
+    ctx.subjectType === "RM" &&
+    isSameRequestId(request.inv_group_id, ctx.familyId)
+  ) {
+    return true;
+  }
+
+  if (
+    ctx.subjectType === "PM" &&
+    isSameRequestId(request.subcategory_id, ctx.familyId)
+  ) {
+    return true;
+  }
+
+  const requestKey = String(request?.family_match_key ?? "")
+    .trim()
+    .toLowerCase();
+  if (requestKey && ctx.familyMatchKey && requestKey === ctx.familyMatchKey) {
+    return true;
+  }
+
+  const requestLabel = normalizeFamilyLabel(request?.family_label);
+  const currentLabel = normalizeFamilyLabel(ctx.familyLabel);
+  return !!requestLabel && !!currentLabel && requestLabel === currentLabel;
+}
+
+function getCurrentFamilyPendingRequests() {
+  return pendingSpecRequests.filter(pendingRequestMatchesCurrentFamily);
+}
+
+function debugPendingFamilyMatch() {
+  if (!currentSubjectType || currentTab !== "baseSpec") return;
+
+  const ctx = getCurrentFamilyContext();
+  console.debug("[SPM] Pending family match context", {
+    ctx,
+    pendingCount: pendingSpecRequests.length,
+    matchedCount: getCurrentFamilyPendingRequests().length,
+    matched: getCurrentFamilyPendingRequests().map((r) => ({
+      request_id: getPendingRequestId(r),
+      request_scope: r.request_scope,
+      subject_type: r.subject_type,
+      family_id: r.family_id,
+      product_group_id: r.product_group_id,
+      inv_group_id: r.inv_group_id,
+      subcategory_id: r.subcategory_id,
+      family_label: r.family_label,
+      family_match_key: r.family_match_key,
+      test_name: r.test_name,
+    })),
   });
 }
 
@@ -963,6 +1264,39 @@ function openSpecRequestReviewModal(scope) {
   specRequestReviewModal?.classList.remove("hidden");
 }
 
+function openReviewQueueRequest(requestId) {
+  const request = reviewQueueRows.find(
+    (r) => String(r.request_id) === String(requestId),
+  );
+
+  if (!request) {
+    toast("Request not found in review queue.", "warn");
+    return;
+  }
+
+  activePendingReviewRequests = reviewQueueRows;
+  selectedPendingReviewScope = normalizePendingRequestScope(
+    request.request_scope,
+  );
+  selectedPendingReviewRequestId = String(request.request_id);
+
+  if (specRequestReviewTitle) {
+    specRequestReviewTitle.textContent =
+      "Manual Specification Request Review";
+  }
+
+  if (specRequestReviewContext) {
+    specRequestReviewContext.textContent = `${request.subject_type ?? "--"} - ${request.review_route_label ?? request.request_scope ?? "--"} - ${request.entity_label ?? request.family_label ?? "--"}`;
+  }
+
+  if (specRequestReviewRemarks) {
+    specRequestReviewRemarks.value = "";
+  }
+
+  renderSpecRequestReviewModal();
+  specRequestReviewModal?.classList.remove("hidden");
+}
+
 function getPendingReviewContextLabel(scope) {
   if (scope === "FAMILY") {
     if (currentSubjectType === "FG")
@@ -1219,6 +1553,11 @@ async function submitSpecRequestReview(action) {
     if (shouldRefresh) {
       await refreshCurrentSpecReviewContext();
       await refreshPendingSpecRequestIndicators({ reload: true });
+      await loadReviewQueueCounts();
+
+      if (currentTab === "reviewQueue") {
+        await loadReviewQueue();
+      }
     }
   }
 }
@@ -1334,7 +1673,7 @@ async function onProductGroupChange() {
   setMetaValue(bsMetaEffDate, "--", true);
 
   await bsLoadGroupContext(groupId);
-  refreshPendingRequestButtons();
+  await refreshPendingSpecRequestIndicators({ reload: true });
 }
 
 async function bsLoadGroupContext(groupId) {
@@ -1895,7 +2234,7 @@ async function onRmGroupChange() {
   setMetaValue(rmMetaEffDate, "--", true);
 
   await rmLoadGroupContext(groupId);
-  refreshPendingRequestButtons();
+  await refreshPendingSpecRequestIndicators({ reload: true });
 }
 
 async function rmLoadGroupContext(groupId) {
@@ -2455,7 +2794,7 @@ async function onPmGroupChange() {
   setMetaValue(pmMetaEffDate, "--", true);
 
   await pmLoadGroupContext(groupId);
-  refreshPendingRequestButtons();
+  await refreshPendingSpecRequestIndicators({ reload: true });
 }
 
 async function pmLoadGroupContext(groupId) {

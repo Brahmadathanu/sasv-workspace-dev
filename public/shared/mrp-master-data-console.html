@@ -15,6 +15,15 @@
         --input-bg: #fff;
         --input-text: #0f172a;
         --card-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+        --erp-text: #0f172a;
+        --erp-muted: #6b7280;
+        --erp-border: var(--border, #e5e7eb);
+        --erp-hover: #f3f4f6;
+        --erp-accent: var(--primary);
+        --erp-accent-2: #0ea5e9;
+        --surface: #fff;
+        --table-header: #fafafa;
+        --table-stripe: #fafbfc;
       }
 
       html,
@@ -29,7 +38,7 @@
           Roboto,
           Arial,
           sans-serif;
-        font-size: 14px;
+        font-size: 13px;
         background: var(--bg-color);
         color: var(--text-color);
         display: flex;
@@ -111,19 +120,44 @@
         cursor: pointer;
       }
       @media (max-width: 768px) {
-        .tabs {
-          display: none !important; /* hide button tabs on small screens */
+        .tabs-container.erp-tabs-alt {
+          display: block;
+          padding: 6px;
+          margin-bottom: 6px;
+          overflow: visible !important;
+          max-height: none !important;
         }
+
+        .tabs {
+          display: none !important;
+        }
+
         .tab-dropdown {
-          display: block !important; /* show dropdown instead */
+          display: block !important;
+          width: 100%;
+          height: 34px;
+          min-height: 34px;
+          max-height: 34px;
+          line-height: 1.2;
+          padding: 7px 34px 7px 10px;
+          border-radius: 8px;
+          border: 1px solid rgba(14, 165, 233, 0.35);
+          background: #e6f7ff;
+          color: #0f172a;
+          font-size: 13px;
+          font-weight: 600;
+          box-sizing: border-box;
+          overflow: hidden;
         }
       }
+
       @media (min-width: 769px) {
         .tabs {
-          display: flex !important; /* show button tabs on larger screens */
+          display: flex !important;
         }
+
         .tab-dropdown {
-          display: none !important; /* hide dropdown on larger screens */
+          display: none !important;
         }
       }
       .tabs {
@@ -270,6 +304,16 @@
         flex: 1 1 0; /* allow panel to grow and give table container height */
         min-height: 0;
         overflow: hidden;
+      }
+      /* Hard tab-panel isolation. Do not allow inactive flex panels to remain visible. */
+      .panel[hidden],
+      .mrp-tab-panel[hidden],
+      .mrp-tab-panel:not(.is-active-panel) {
+        display: none !important;
+      }
+
+      .mrp-tab-panel.is-active-panel {
+        display: flex !important;
       }
       /* Base table */
       .mrp-table,
@@ -717,6 +761,12 @@
         color: #6b7280;
         font-size: 13px;
       }
+      .mrp-data-source-note {
+        margin: -2px 0 8px;
+        color: var(--muted, #6b7280);
+        font-size: 11.5px;
+        font-weight: 500;
+      }
       .mrp-lookup {
         display: flex;
         flex-direction: column;
@@ -1031,13 +1081,424 @@
         white-space: nowrap;
       }
 
+      /* PEQ visual parity: desktop/tablet table shell, controls, and modal */
+      .header-bar {
+        padding: 20px 20px 10px;
+      }
+
+      .console-wrapper {
+        padding: 0 20px 20px;
+      }
+
+      .panel {
+        flex: 1 1 0;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        padding: 8px;
+        background: var(--panel-bg);
+        box-shadow: none;
+      }
+
+      #mrpTableContainer,
+      .panel .table-scroll {
+        flex: 1 1 0;
+        min-height: 0;
+        overflow: auto;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 8px;
+        background: #fff;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      #mrpTable_moq,
+      #mrpTable_conv,
+      #mrpTable_season,
+      #mrpTable_mapping {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+        background: #fff;
+        margin: 0;
+        font-size: 13px;
+        box-shadow: none;
+        border-radius: 0;
+      }
+
+      #mrpTable_moq thead th,
+      #mrpTable_conv thead th,
+      #mrpTable_season thead th,
+      #mrpTable_mapping thead th {
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        padding: 8px;
+        background: var(--table-header, #fafafa);
+        color: #374151;
+        border-top: 0;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+        box-shadow: none;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        white-space: normal;
+        line-height: 1.15;
+        text-align: center;
+      }
+
+      #mrpTable_moq tbody td,
+      #mrpTable_conv tbody td,
+      #mrpTable_season tbody td,
+      #mrpTable_mapping tbody td {
+        padding: 5px 8px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+        color: #0f172a;
+        font-size: 13px;
+        line-height: 1.35;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        vertical-align: middle;
+      }
+
+      #mrpTable_moq tbody tr,
+      #mrpTable_conv tbody tr,
+      #mrpTable_season tbody tr,
+      #mrpTable_mapping tbody tr {
+        cursor: pointer;
+        transition: background 0.12s ease;
+      }
+
+      #mrpTable_moq tbody tr:nth-child(even),
+      #mrpTable_conv tbody tr:nth-child(even),
+      #mrpTable_season tbody tr:nth-child(even),
+      #mrpTable_mapping tbody tr:nth-child(even) {
+        background: var(--table-stripe, #fafbfc);
+      }
+
+      #mrpTable_moq tbody tr:hover,
+      #mrpTable_conv tbody tr:hover,
+      #mrpTable_season tbody tr:hover,
+      #mrpTable_mapping tbody tr:hover {
+        background: #eef4ff;
+      }
+
+      #mrpTable_moq tbody tr:active,
+      #mrpTable_conv tbody tr:active,
+      #mrpTable_season tbody tr:active,
+      #mrpTable_mapping tbody tr:active {
+        background: #e3edff;
+      }
+
+      #mrpTable_moq tbody td {
+        text-align: center;
+      }
+
+      #mrpTable_moq tbody td:nth-child(4) {
+        text-align: left;
+      }
+
+      #mrpTable_conv thead tr:first-child th {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        text-align: center;
+        background-clip: padding-box;
+      }
+
+      #mrpTable_conv thead tr:nth-child(2) th {
+        position: sticky;
+        top: 44px;
+        z-index: 4;
+        background-clip: padding-box;
+      }
+
+      #mrpTable_conv tbody td.consuming-col {
+        background: rgba(59, 130, 246, 0.035) !important;
+      }
+
+      #mrpTable_conv tbody td.purchase-col {
+        background: rgba(16, 185, 129, 0.035) !important;
+      }
+
+      #mrpTable_conv tbody tr:nth-child(even) td.consuming-col {
+        background: rgba(59, 130, 246, 0.055) !important;
+      }
+
+      #mrpTable_conv tbody tr:nth-child(even) td.purchase-col {
+        background: rgba(16, 185, 129, 0.055) !important;
+      }
+
+      #mrpTable_conv tbody tr:hover td.consuming-col,
+      #mrpTable_conv tbody tr:hover td.purchase-col {
+        background: #eef4ff !important;
+      }
+
+      .mrp-toolbar-card {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        margin: 0 0 8px !important;
+        padding: 8px !important;
+        border-radius: 8px !important;
+        background: var(--panel-bg) !important;
+        border: 1px solid rgba(15, 23, 42, 0.08) !important;
+        flex: 0 0 auto;
+      }
+
+      .mrp-toolbar-card .filter-item.search,
+      .mrp-enhanced-search {
+        position: relative !important;
+        flex: 1 1 160px !important;
+        min-width: 160px !important;
+      }
+
+      #moqSearch,
+      #convSearch,
+      #seasonSearch,
+      #textSearch {
+        width: 100% !important;
+        height: 34px !important;
+        min-width: 160px !important;
+        padding: 8px 38px 8px 10px !important;
+        border-radius: 8px !important;
+        border: 1px solid rgba(14, 165, 233, 0.35) !important;
+        background: #e6f7ff !important;
+        color: var(--text-color, #0f172a) !important;
+        font-size: 13px !important;
+        font-weight: 400 !important;
+        box-sizing: border-box !important;
+        margin: 0 !important;
+      }
+
+      #moqSearch::placeholder,
+      #convSearch::placeholder,
+      #seasonSearch::placeholder,
+      #textSearch::placeholder {
+        font-weight: 400;
+        color: var(--muted, #6b7280);
+        opacity: 0.9;
+      }
+
+      #moqSearch:focus,
+      #convSearch:focus,
+      #seasonSearch:focus,
+      #textSearch:focus {
+        outline: none !important;
+        border-color: var(--erp-accent-2, #0ea5e9) !important;
+        box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.08) !important;
+        background: #fff !important;
+      }
+
+      .mrp-input-clear-btn {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border: none;
+        background: transparent;
+        color: var(--erp-muted, #6b7280);
+        cursor: pointer;
+        padding: 0;
+        border-radius: 6px;
+      }
+
+      .mrp-input-clear-btn:hover {
+        background: rgba(15, 23, 42, 0.03);
+        color: var(--erp-text, #0f172a);
+      }
+
+      .mrp-icon-btn {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 34px !important;
+        height: 34px !important;
+        padding: 0 !important;
+        border: 1px solid var(--border, #e5e7eb) !important;
+        border-radius: 6px !important;
+        background: var(--panel-bg, #fff) !important;
+        cursor: pointer;
+        color: #0f172a !important;
+      }
+
+      .mrp-icon-btn:hover,
+      .mrp-icon-btn:focus-visible {
+        background: #f3f4f6 !important;
+        border-color: var(--erp-accent, #2563eb) !important;
+        color: var(--erp-accent, #2563eb) !important;
+        outline: none;
+      }
+
+      .mrp-icon-btn.primary {
+        background: var(--primary) !important;
+        border-color: var(--primary) !important;
+        color: #fff !important;
+      }
+
+      .mrp-table-meta,
+      .mrp-list-footer {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        gap: 8px !important;
+        margin: 0 0 8px !important;
+        flex: 0 0 auto;
+        min-height: 28px;
+      }
+
+      .mrp-row-count {
+        font-size: 12px !important;
+        color: var(--muted, #6b7280) !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        white-space: nowrap;
+        background: transparent !important;
+        border-radius: 0 !important;
+        padding: 0 !important;
+        font-weight: 500 !important;
+      }
+
+      .mrp-pagination {
+        background: transparent !important;
+        border: none !important;
+        padding: 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 4px !important;
+        margin-left: auto !important;
+        color: var(--muted, #6b7280) !important;
+        font-size: 12px !important;
+      }
+
+      .mrp-page-btn,
+      .mrp-pagination .mrp-page-btn {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 6px !important;
+        min-width: auto !important;
+        width: 30px !important;
+        height: 30px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        color: #0f172a !important;
+        border-radius: 6px !important;
+      }
+
+      .mrp-page-btn:hover:not(:disabled),
+      .mrp-pagination .mrp-page-btn:hover:not(:disabled) {
+        background: rgba(15, 23, 42, 0.03) !important;
+      }
+
+      .mrp-page-btn:disabled,
+      .mrp-pagination .mrp-page-btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      .mrp-btn {
+        padding: 7px 12px;
+        border-radius: 6px;
+        font-size: 12.5px;
+        font-weight: 600;
+        line-height: 1.2;
+      }
+
+      .mrp-empty-table-cell {
+        text-align: center !important;
+        color: var(--muted, #6b7280) !important;
+        padding: 24px 12px !important;
+        font-weight: 500;
+        background: #fff;
+      }
+
+      #copilot-detail-modal {
+        background: rgba(0, 0, 0, 0.45) !important;
+        font-size: 13px;
+      }
+
+      #copilot-detail-modal #copilot-modal-container {
+        width: min(860px, 92vw) !important;
+        height: auto !important;
+        max-height: 82vh !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important;
+        background: var(--panel-bg) !important;
+        border-radius: 10px !important;
+        border: 1px solid var(--border, #e5e7eb) !important;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2) !important;
+      }
+
+      #copilot-detail-modal #copilot-modal-body {
+        overflow: auto !important;
+        background: #fff !important;
+        padding: 14px 18px !important;
+      }
+
+      #copilot-detail-modal #copilot-modal-actions {
+        flex-shrink: 0 !important;
+        display: flex !important;
+        justify-content: flex-end !important;
+        gap: 8px !important;
+        padding: 12px 18px !important;
+        border-top: 1px solid var(--border, #e5e7eb) !important;
+        background: #f8fafc !important;
+      }
+
+      #copilot-detail-modal input,
+      #copilot-detail-modal select,
+      #copilot-detail-modal textarea {
+        font-family: inherit;
+        font-size: 13px !important;
+        border: 1px solid #d1d5db !important;
+        border-radius: 8px !important;
+        padding: 8px 10px !important;
+        box-sizing: border-box !important;
+      }
+
+      #copilot-detail-modal input:focus,
+      #copilot-detail-modal select:focus,
+      #copilot-detail-modal textarea:focus {
+        outline: none !important;
+        border-color: var(--erp-accent-2, #0ea5e9) !important;
+        box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.08) !important;
+      }
+
+      #copilot-detail-modal label {
+        font-size: 12.5px !important;
+        font-weight: 600 !important;
+        color: #374151 !important;
+      }
+
+      @media (max-width: 1080px) {
+        .header-bar {
+          padding: 10px 10px 6px;
+        }
+
+        .console-wrapper {
+          padding: 0 10px 10px;
+        }
+      }
+
       @media (max-width: 520px) {
         body {
           overflow: hidden;
         }
 
         .header-bar {
-          padding: 10px 8px 6px;
+          padding: 6px 6px 4px;
         }
 
         .header-title-row h1 {
@@ -1073,12 +1534,6 @@
         .tabs-container.erp-tabs-alt {
           padding: 6px;
           margin-bottom: 6px;
-        }
-
-        .tab-dropdown {
-          min-height: 34px;
-          padding: 7px 10px;
-          font-size: 13px;
         }
 
         .panel {
@@ -1165,6 +1620,15 @@
           display: block !important;
         }
 
+        /* Keep Season and Mapping cards readable on compact viewports. */
+        #mrpTable_season tbody tr.mrp-season-row td:nth-child(1),
+        #mrpTable_season tbody tr.mrp-season-row td:nth-child(4),
+        #mrpTable_mapping tbody tr.mrp-map-row td:nth-child(1),
+        #mrpTable_mapping tbody tr.mrp-map-row td:nth-child(2),
+        #mrpTable_mapping tbody tr.mrp-map-row td:nth-child(5) {
+          display: block !important;
+        }
+
         .mrp-card-primary {
           grid-column: 1;
           grid-row: 1;
@@ -1224,25 +1688,6 @@
           border-color: rgba(22, 163, 74, 0.22);
         }
 
-        .mrp-card-months {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 3px;
-          margin-top: 2px;
-        }
-
-        .mrp-card-month {
-          display: inline-flex;
-          align-items: center;
-          padding: 2px 7px;
-          border-radius: 999px;
-          font-size: 10.5px !important;
-          font-weight: 700;
-          color: #334155;
-          background: rgba(100, 116, 139, 0.1);
-          border: 1px solid rgba(100, 116, 139, 0.14);
-        }
-
         .mrp-table-meta,
         .mrp-list-footer {
           flex-direction: row !important;
@@ -1297,6 +1742,42 @@
         .mrp-mobile-card-table tbody td.mrp-card-full {
           text-align: left !important;
         }
+      }
+
+      /* Stabilization: hard-hide inactive tabs and keep Season/Mapping shells isolated. */
+      .panel[hidden],
+      #moqSection[hidden],
+      #convSection[hidden],
+      #seasonSection[hidden],
+      #mapSection[hidden] {
+        display: none !important;
+      }
+
+      #seasonSection,
+      #mapSection {
+        flex-direction: column;
+        min-height: 0;
+      }
+
+      #seasonSection .mrp-toolbar-card,
+      #mapSection .mrp-toolbar-card {
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      #seasonSection .mrp-enhanced-search,
+      #mapSection .mrp-enhanced-search {
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+      }
+
+      #seasonSection .mrp-season-table-container,
+      #seasonSection .season-panel-table,
+      #mapSection .mrp-map-table-container,
+      #mapSection .mapping-panel-table {
+        flex: 1 1 0;
+        min-height: 0;
+        overflow: auto;
       }
     </style>
   </head>
@@ -1389,71 +1870,30 @@
         </div>
       </div>
 
-      <div id="moqSection" class="panel"></div>
-      <div id="convSection" class="panel" style="display: none"></div>
-      <div id="seasonSection" class="panel" style="display: none"></div>
-      <div id="mapSection" class="panel" style="display: none"></div>
+      <div
+        id="moqSection"
+        class="panel mrp-tab-panel is-active-panel"
+        aria-hidden="false"
+      ></div>
+      <div
+        id="convSection"
+        class="panel mrp-tab-panel"
+        hidden
+        aria-hidden="true"
+      ></div>
+      <div
+        id="seasonSection"
+        class="panel mrp-tab-panel"
+        hidden
+        aria-hidden="true"
+      ></div>
+      <div
+        id="mapSection"
+        class="panel mrp-tab-panel"
+        hidden
+        aria-hidden="true"
+      ></div>
     </div>
-    <script>
-      // UI-only tab behavior: manage visual active state and keyboard navigation
-      (function () {
-        const tabs = Array.from(document.querySelectorAll(".tabs .tab-btn"));
-        const dropdown = document.getElementById("tabDropdown");
-        const btnToDropdownValue = {
-          tabMoq: "moq",
-          tabConv: "conv",
-          tabSeason: "season",
-          tabMap: "map",
-        };
-
-        if (!tabs.length && !dropdown) return;
-
-        function activate(btn) {
-          tabs.forEach((t) => {
-            t.classList.toggle("active", t === btn);
-            t.setAttribute("aria-selected", t === btn ? "true" : "false");
-          });
-          if (dropdown && btn?.id && btnToDropdownValue[btn.id]) {
-            dropdown.value = btnToDropdownValue[btn.id];
-          }
-        }
-
-        tabs.forEach((b, i) => {
-          b.addEventListener("click", () => activate(b));
-          b.addEventListener("keydown", (ev) => {
-            if (ev.key === "ArrowRight") {
-              ev.preventDefault();
-              const nx = tabs[(i + 1) % tabs.length];
-              nx.focus();
-              activate(nx);
-            } else if (ev.key === "ArrowLeft") {
-              ev.preventDefault();
-              const px = tabs[(i - 1 + tabs.length) % tabs.length];
-              px.focus();
-              activate(px);
-            }
-          });
-        });
-
-        // Handle dropdown selection on small screens
-        if (dropdown) {
-          dropdown.addEventListener("change", (ev) => {
-            const section = ev.target.value;
-            // Trigger the corresponding tab button click to reuse existing logic
-            const tabMap = {
-              moq: "tabMoq",
-              conv: "tabConv",
-              season: "tabSeason",
-              map: "tabMap",
-            };
-            const btnId = tabMap[section];
-            if (btnId) {
-              document.getElementById(btnId)?.click();
-            }
-          });
-        }
-      })();
-    </script>
     <script type="module" src="./js/mrp-master-data-console.js"></script>
   </body>
 </html>

@@ -118,6 +118,8 @@ const $ = (id) => document.getElementById(id);
 const pageSubtitle = $("pageSubtitle");
 const readonlyBanner = $("readonlyBanner");
 const hdrRegisterNo = $("hdrRegisterNo");
+const hdrAnalysisId = $("hdrAnalysisId");
+const hdrPhysicalRef = $("hdrPhysicalRef");
 const hdrItemName = $("hdrItemName");
 const hdrBatch = $("hdrBatch");
 const hdrStatus = $("hdrStatus");
@@ -427,7 +429,11 @@ function renderHeader(info) {
   const batch = info.batch_no_snapshot || info.system_lot_no || "—";
   const registerNo = info.analysis_register_no ?? "—";
 
-  hdrRegisterNo.textContent = registerNo;
+  const analysisIdDisplay = info.analysis_id ?? analysisId ?? "—";
+  const physicalRef = info.physical_register_ref || "—";
+  if (hdrAnalysisId) hdrAnalysisId.textContent = String(analysisIdDisplay);
+  if (hdrRegisterNo) hdrRegisterNo.textContent = registerNo;
+  if (hdrPhysicalRef) hdrPhysicalRef.textContent = physicalRef;
   hdrItemName.textContent = itemName;
   hdrBatch.textContent = batch;
   hdrStatus.innerHTML = statusChip(info.status);
@@ -443,10 +449,20 @@ function renderHeader(info) {
   // Popover fields
   const hdrPopStatus = $("hdrPopStatus");
   const hdrPopRegisterNo = $("hdrPopRegisterNo");
+  const hdrPopAnalysisId = $("hdrPopAnalysisId");
+  const hdrPopPhysicalRef = $("hdrPopPhysicalRef");
   const hdrPopMode = $("hdrPopMode");
   const hdrPopSampleDate = $("hdrPopSampleDate");
   if (hdrPopStatus) hdrPopStatus.innerHTML = statusChip(info.status);
+  if (hdrPopAnalysisId)
+    hdrPopAnalysisId.textContent = String(analysisIdDisplay);
   if (hdrPopRegisterNo) hdrPopRegisterNo.textContent = registerNo;
+  if (hdrPopPhysicalRef) hdrPopPhysicalRef.textContent = physicalRef;
+  if (hdrPillText)
+    hdrPillText.textContent = `${registerNo} · ${itemName} — ${batch}`;
+  if (hdrPopAnalysisId)
+    hdrPopAnalysisId.textContent = String(analysisIdDisplay);
+  if (hdrPopPhysicalRef) hdrPopPhysicalRef.textContent = physicalRef;
   if (hdrPopMode) hdrPopMode.textContent = modeLabel(info.analysis_mode);
   if (hdrPopSampleDate)
     hdrPopSampleDate.textContent = formatDate(info.sample_received_date);
@@ -478,10 +494,63 @@ function getRowByResultId(resultId) {
   return rows.find((r) => String(r.analysis_result_id) === String(resultId));
 }
 
+function getDisplayableUnit(row) {
+  const code = String(row?.uom_code_snapshot ?? "")
+    .trim()
+    .toUpperCase();
+  const symbol = String(row?.uom_symbol_snapshot ?? "").trim();
+
+  if (!symbol || code === "NONE") return "";
+  return symbol;
+}
+
+function valueAlreadyEndsWithUnit(value, unit) {
+  const base = String(value ?? "").trim();
+  const uom = String(unit ?? "").trim();
+  if (!base || !uom) return false;
+
+  const escaped = uom.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?:^|\\s)${escaped}$`, "i").test(base);
+}
+
+function buildClientResultDisplay(row) {
+  const kind = String(row?.result_kind_snapshot ?? "").trim().toUpperCase();
+  const isNumeric =
+    kind === "NUMERIC" ||
+    (row?.result_numeric != null && row?.result_text == null);
+
+  if (!isNumeric) {
+    return String(row?.result_display ?? row?.result_text ?? "").trim();
+  }
+
+  const base = String(
+    row?.result_display ??
+      (row?.result_numeric == null ? "" : formatNumberForDisplay(row.result_numeric)),
+  ).trim();
+
+  if (!base) return "";
+
+  const unit = getDisplayableUnit(row);
+  if (!unit) return base;
+
+  if (valueAlreadyEndsWithUnit(base, unit)) return base;
+  return `${base} ${unit}`;
+}
+
+function formatResultDisplayWithUnit(row) {
+  const clientDisplay = buildClientResultDisplay(row);
+  if (clientDisplay) return clientDisplay;
+
+  const serverDisplay = String(row?.result_display_with_unit ?? "").trim();
+  if (serverDisplay) return serverDisplay;
+
+  return "—";
+}
+
 function buildMobileResultCard(row) {
   const rid = esc(row.analysis_result_id);
   const rowLocked = isRowLocked(row.analysis_result_id);
-  const resultDisplay = row.result_display ?? "—";
+  const resultDisplay = formatResultDisplayWithUnit(row);
   const complianceClass = complianceMobileCardClass(row.compliance_status);
 
   return `
@@ -546,7 +615,7 @@ function renderMobileEditor() {
     statusAllowsAnalysisAction("ENTER_RESULT");
   const specDisplay =
     row.reference_range_display ?? row.spec_display_snapshot ?? "—";
-  const resultDisplay = row.result_display ?? "—";
+  const resultDisplay = formatResultDisplayWithUnit(row);
 
   mobileEditorTitle.textContent = row.test_name ?? "Result Editor";
   mobileEditorSubtitle.textContent = `Spec: ${specDisplay}`;
@@ -579,12 +648,14 @@ function renderMobileEditor() {
       <label class="editor-sheet-meta" for="mobileResultNumericInput">Result Input</label>
       <input
         id="mobileResultNumericInput"
-        class="result-input"
-        type="number"
-        step="any"
+        class="result-input numeric-input"
+        type="text"
+        inputmode="decimal"
+        enterkeyhint="done"
+        autocomplete="off"
         data-rid="${esc(row.analysis_result_id)}"
         data-kind="NUMERIC"
-        value="${esc(String(row.result_numeric ?? ""))}"
+        value="${esc(formatDecimalForInput(row.result_numeric))}"
         ${resultDisabled ? "disabled" : ""}
         ${resultTitle ? `title="${esc(resultTitle)}"` : ""}
       />`;
@@ -613,13 +684,13 @@ function renderMobileEditor() {
   }
 
   mobileEditorBody.innerHTML = `
-    <div class="mobile-card-badges">
+        <div class="mobile-card-badges" data-mobile-badges="true">
       ${complianceBadge(row.compliance_status)}
       ${sourceBadge(row.result_source_type)}
       ${rowLocked ? `<span class="badge badge-lock" title="${esc(String(lockInfo?.lock_message || "Pending specification review exists."))}">Pending Spec Review</span>` : ""}
       ${row.has_active_reference_exception === true ? '<span class="badge badge-temp">TEMP</span>' : ""}
     </div>
-    <div class="editor-sheet-meta"><strong>Current Display:</strong> ${esc(String(resultDisplay))}</div>
+    <div class="editor-sheet-meta" data-mobile-current-display="true"><strong>Current Display:</strong> ${esc(String(resultDisplay))}</div>
     ${editorInputHtml}
     <div class="editor-sheet-actions">
       ${!isOutsourced && !refRequired ? `<button class="btn-sm btn-ref btn-ref-modify" data-mobile-action="add-reference" data-rid="${esc(row.analysis_result_id)}" ${canCreateRefException ? "" : "disabled"}>Modify Reference</button>` : ""}
@@ -723,12 +794,14 @@ function buildResultRow(row) {
     // Reference not yet captured — block entry
     inputCell = `<span style="color:var(--muted);font-size:0.78rem;">Reference required</span>`;
   } else if (kind === "NUMERIC") {
-    const currentVal = row.result_numeric ?? "";
+    const currentVal = formatDecimalForInput(row.result_numeric);
     inputCell = `
       <input
-        class="result-input"
-        type="number"
-        step="any"
+        class="result-input numeric-input"
+        type="text"
+        inputmode="decimal"
+        enterkeyhint="done"
+        autocomplete="off"
         data-rid="${rid}"
         data-kind="NUMERIC"
         value="${esc(String(currentVal))}"
@@ -838,7 +911,7 @@ function buildResultRow(row) {
       <td title="${esc(row.method_name)}" style="color:var(--muted)">${esc(row.method_name ?? "—")}</td>
       <td title="${esc(specDisplay)}" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;">${esc(specDisplay)}</td>
       <td>${inputCell}</td>
-      <td style="color:var(--muted)">${esc(row.result_display ?? "—")}</td>
+      <td style="color:var(--muted)">${esc(formatResultDisplayWithUnit(row))}</td>
       <td>${complianceBadge(row.compliance_status)}</td>
       <td>${sourceBadge(row.result_source_type)}</td>
       <td style="white-space:nowrap"><div class="row-actions">${actionCell}</div></td>
@@ -890,9 +963,7 @@ function updateValidationPanel(data) {
 }
 
 function parseNumericInput(value) {
-  if (value == null || value === "") return null;
-  const n = Number(value);
-  return Number.isFinite(n) ? n : null;
+  return parseDecimalOrNull(value);
 }
 
 function evaluateComplianceLocally(row) {
@@ -950,7 +1021,8 @@ function applyOptimisticResultState(resultId, kind, value) {
 
   const nextRow = { ...rows[idx] };
   if (kind === "NUMERIC") {
-    nextRow.result_numeric = parseNumericInput(value);
+    const parsed = parseDecimalOrNull(value);
+    nextRow.result_numeric = Number.isNaN(parsed) ? null : parsed;
   } else {
     nextRow.result_text = value === "" ? null : String(value);
   }
@@ -961,13 +1033,18 @@ function applyOptimisticResultState(resultId, kind, value) {
         ? null
         : String(nextRow.result_numeric)
       : normText(nextRow.result_text) || null;
-  nextRow.compliance_status = evaluateComplianceLocally(nextRow);
+  if (kind === "NUMERIC" && Number.isNaN(parseDecimalOrNull(value))) {
+    nextRow.result_display = null;
+    nextRow.compliance_status = "NOT_EVALUATED";
+  } else {
+    nextRow.compliance_status = evaluateComplianceLocally(nextRow);
+  }
   rows[idx] = nextRow;
 
   const tr = resultsBody.querySelector(`tr[data-rid="${resultId}"]`);
   if (tr) {
     const cells = tr.querySelectorAll("td");
-    if (cells[5]) cells[5].textContent = nextRow.result_display ?? "—";
+    if (cells[5]) cells[5].textContent = formatResultDisplayWithUnit(nextRow);
     if (cells[6])
       cells[6].innerHTML = complianceBadge(nextRow.compliance_status);
     tr.classList.remove("row-pass", "row-fail", "row-not-eval", "row-unknown");
@@ -976,7 +1053,105 @@ function applyOptimisticResultState(resultId, kind, value) {
 
   updateValidationPanel(rows);
   renderMobileResults(rows);
-  if (mobileEditorResultId) renderMobileEditor();
+
+  if (mobileEditorResultId) {
+    const updatedRow = getRowByResultId(resultId);
+
+    if (isEditingInsideMobileEditor()) {
+      patchOpenMobileEditorDisplay(updatedRow);
+    } else if (String(mobileEditorResultId) === String(resultId)) {
+      renderMobileEditor();
+    }
+  }
+}
+
+function handleNumericControlInput(el) {
+  if (!el || !el.classList?.contains("numeric-input")) return;
+
+  const before = el.value;
+  const after = sanitizeDecimalInputText(before);
+
+  if (before !== after) {
+    const pos = el.selectionStart ?? after.length;
+    el.value = after;
+    try {
+      el.setSelectionRange(
+        Math.min(pos, after.length),
+        Math.min(pos, after.length),
+      );
+    } catch {
+      // ignore unsupported selection handling
+    }
+  }
+
+  const valid = isTemporarilyValidDecimalText(el.value);
+  el.classList.toggle("input-invalid", !valid);
+
+  const rid = el.dataset?.rid;
+  if (rid && el.dataset?.kind === "NUMERIC") {
+    applyOptimisticResultState(rid, "NUMERIC", el.value);
+  }
+}
+
+function handleResultControlChange(el) {
+  const rid = el?.dataset?.rid;
+  const kind = el?.dataset?.kind;
+  if (!rid || !kind) return;
+
+  if (el.tagName === "SELECT" && el.value === "Other / Manual Entry") {
+    const custom = (window.prompt("Enter result value") ?? "").trim();
+    if (!custom) {
+      el.value = "";
+      return;
+    }
+
+    const otherOpt = el.querySelector('option[value="Other / Manual Entry"]');
+    const newOpt = document.createElement("option");
+    newOpt.value = custom;
+    newOpt.textContent = custom;
+    el.insertBefore(newOpt, otherOpt);
+    el.value = custom;
+    onResultChange(rid, "TEXT", custom);
+    return;
+  }
+
+  if (kind === "NUMERIC" && !isValidDecimalText(el.value)) {
+    el.classList.add("input-invalid");
+    toast("Enter a valid numeric value.", "warn", 2500);
+    return;
+  }
+
+  if (kind === "NUMERIC") {
+    const numericValue = parseDecimalOrNull(el.value);
+
+    if (Number.isNaN(numericValue)) {
+      el.classList.add("input-invalid");
+      toast("Enter a valid numeric value.", "warn", 2500);
+      return;
+    }
+
+    el.value = numericValue === null ? "" : String(numericValue);
+  }
+
+  el.classList.remove("input-invalid");
+  onResultChange(rid, kind, el.value);
+}
+
+function handleNumericControlBlur(el) {
+  if (!el || !el.classList?.contains("numeric-input")) return;
+
+  const n = parseDecimalOrNull(el.value);
+
+  if (Number.isNaN(n)) {
+    el.classList.add("input-invalid");
+    return;
+  }
+
+  el.classList.remove("input-invalid");
+
+  if (n !== null) {
+    el.value = String(n);
+  }
 }
 
 // ── Permission check for workflow buttons ───────────────────────────────────────
@@ -1146,6 +1321,109 @@ function applyPermissions() {
   }
 }
 
+function normalizeDecimalText(raw) {
+  const s = String(raw ?? "").trim();
+  if (!s) return "";
+  return s
+    .replace(/[０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xfee0))
+    .replace(/[٫,]/g, ".")
+    .replace(/\s+/g, "");
+}
+
+function parseDecimalOrNull(raw) {
+  const s = normalizeDecimalText(raw);
+  if (!s) return null;
+  if (!/^[+-]?(?:\d+\.?\d*|\.\d+)$/.test(s)) return Number.NaN;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : Number.NaN;
+}
+
+function isValidDecimalText(raw) {
+  const parsed = parseDecimalOrNull(raw);
+  return parsed === null || Number.isFinite(parsed);
+}
+
+function isTemporarilyValidDecimalText(raw) {
+  const s = normalizeDecimalText(raw);
+  if (!s) return true;
+  return /^[+-]?(?:\d+\.?\d*|\.\d*)$/.test(s) || s === "+" || s === "-";
+}
+
+function formatDecimalForInput(raw) {
+  const n = parseDecimalOrNull(raw);
+  if (n === null) return "";
+  if (Number.isNaN(n)) return String(raw ?? "").trim();
+  return String(n);
+}
+
+function sanitizeDecimalInputText(raw) {
+  let s = String(raw ?? "");
+
+  s = s
+    .replace(/[０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xfee0))
+    .replace(/[٫,]/g, ".")
+    .replace(/[^\d.+-]/g, "");
+
+  const hasLeadingMinus = s.startsWith("-");
+  s = s.replace(/[+-]/g, "");
+  if (hasLeadingMinus) s = `-${s}`;
+
+  const firstDot = s.indexOf(".");
+  if (firstDot !== -1) {
+    s = s.slice(0, firstDot + 1) + s.slice(firstDot + 1).replace(/\./g, "");
+  }
+
+  return s;
+}
+
+function isEditingInsideMobileEditor() {
+  const active = document.activeElement;
+  return !!(
+    active &&
+    mobileEditorBody?.contains(active) &&
+    (active.matches("input, textarea, select") ||
+      active.classList?.contains("numeric-input"))
+  );
+}
+
+function patchOpenMobileEditorDisplay(row) {
+  if (!mobileEditorResultId) return;
+  if (!row) return;
+  if (String(row.analysis_result_id) !== String(mobileEditorResultId)) return;
+
+  const currentDisplayEl = mobileEditorBody?.querySelector(
+    '[data-mobile-current-display="true"]',
+  );
+
+  if (currentDisplayEl) {
+    currentDisplayEl.innerHTML = `<strong>Current Display:</strong> ${esc(
+      String(formatResultDisplayWithUnit(row)),
+    )}`;
+  }
+
+  const badgeWrap = mobileEditorBody?.querySelector(
+    '[data-mobile-badges="true"]',
+  );
+
+  if (badgeWrap) {
+    const lockInfo = getRowLock(row.analysis_result_id);
+    badgeWrap.innerHTML = `
+      ${complianceBadge(row.compliance_status)}
+      ${sourceBadge(row.result_source_type)}
+      ${
+        lockInfo
+          ? `<span class="badge badge-lock" title="${esc(String(lockInfo?.lock_message || "Pending specification review exists."))}">Pending Spec Review</span>`
+          : ""
+      }
+      ${
+        row.has_active_reference_exception === true
+          ? '<span class="badge badge-temp">TEMP</span>'
+          : ""
+      }
+    `;
+  }
+}
+
 async function syncFromCurrentSpec() {
   if (isReadOnly) return;
   if (!statusAllowsAnalysisAction("ENTER_RESULT")) {
@@ -1224,11 +1502,20 @@ async function saveResult(resultId, kind, value) {
     return;
   }
 
+  let numericValue = null;
+
+  if (kind === "NUMERIC") {
+    numericValue = parseDecimalOrNull(value);
+    if (Number.isNaN(numericValue)) {
+      toast("Enter a valid numeric value.", "warn", 3500);
+      return;
+    }
+  }
+
   const { error } = await labSupabase.rpc("fn_save_analysis_result", {
     p_user_id: userId,
     p_analysis_result_id: resultId,
-    p_result_numeric:
-      kind === "NUMERIC" ? (value === "" ? null : Number(value)) : null,
+    p_result_numeric: kind === "NUMERIC" ? numericValue : null,
     p_result_text:
       kind !== "NUMERIC" ? (value === "" ? null : String(value)) : null,
   });
@@ -1258,7 +1545,7 @@ async function refreshSingleRow(resultId) {
   const { data, error } = await labSupabase
     .from("v_analysis_result_entry")
     .select(
-      "analysis_result_id, compliance_status, result_display, result_numeric, result_text",
+      "analysis_result_id, compliance_status, result_display, result_display_with_unit, result_numeric, result_text, result_kind_snapshot, uom_code_snapshot, uom_symbol_snapshot",
     )
     .eq("analysis_result_id", resultId)
     .single();
@@ -1271,19 +1558,30 @@ async function refreshSingleRow(resultId) {
     rows[idx] = { ...rows[idx], ...data };
   }
 
+  const updatedRow = idx !== -1 ? rows[idx] : data;
+
   // Patch the compliance and result_display cells in the DOM
   const tr = resultsBody.querySelector(`tr[data-rid="${resultId}"]`);
   if (!tr) return;
   const cells = tr.querySelectorAll("td");
   // result_display is col index 5, compliance is col index 6
-  if (cells[5]) cells[5].textContent = data.result_display ?? "—";
+  if (cells[5]) cells[5].textContent = formatResultDisplayWithUnit(updatedRow);
   if (cells[6]) cells[6].innerHTML = complianceBadge(data.compliance_status);
   tr.classList.remove("row-pass", "row-fail", "row-not-eval", "row-unknown");
   tr.classList.add(complianceRowClass(data.compliance_status));
 
   updateValidationPanel(rows);
   renderMobileResults(rows);
-  if (mobileEditorResultId) renderMobileEditor();
+
+  if (mobileEditorResultId) {
+    const updatedRow = getRowByResultId(resultId);
+
+    if (isEditingInsideMobileEditor()) {
+      patchOpenMobileEditorDisplay(updatedRow);
+    } else if (String(mobileEditorResultId) === String(resultId)) {
+      renderMobileEditor();
+    }
+  }
 }
 
 function handleResultRowAction(action, row) {
@@ -1381,14 +1679,20 @@ function applyReferenceSpecTypeUI() {
 
 function formatNumberForDisplay(value) {
   if (value == null || value === "") return "";
-  const n = Number(value);
-  if (!Number.isFinite(n)) return String(value).trim();
+  const raw = normalizeDecimalText(value);
+  const n = parseDecimalOrNull(raw);
+  if (Number.isNaN(n)) return String(value).trim();
+  if (n === null) return "";
   return Number.isInteger(n) ? String(n) : String(n).replace(/\.?0+$/, "");
+}
+
+function getRowUnitLabel(row) {
+  return getDisplayableUnit(row);
 }
 
 function appendUomIfNeeded(display, row) {
   const base = String(display ?? "").trim();
-  const uom = String(row?.uom_symbol_snapshot ?? "").trim();
+  const uom = getRowUnitLabel(row);
   if (!base || !uom) return base;
   if (base.toLowerCase().includes(uom.toLowerCase())) return base;
   return `${base} ${uom}`;
@@ -1453,8 +1757,23 @@ function openReferenceModal(row) {
   refTextValueInput.value = row.text_value_snapshot ?? "";
   refPassFailValueSelect.value = row.text_value_snapshot ?? "Absent";
   refDisplayPreviewInput.value = row.spec_display_snapshot ?? "";
-  if (refUomDisplayInput)
-    refUomDisplayInput.value = row.uom_symbol_snapshot || "No unit";
+  const unitLabel = getRowUnitLabel(row);
+  if (refUomDisplayInput) {
+    refUomDisplayInput.value = unitLabel || "No unit configured";
+  }
+  if (
+    !unitLabel &&
+    String(row?.uom_code_snapshot ?? "").toUpperCase() !== "NONE"
+  ) {
+    console.debug("[AW] Missing unit for result row", {
+      analysis_result_id: row.analysis_result_id,
+      test_name: row.test_name,
+      test_id: row.test_id,
+      uom_id_snapshot: row.uom_id_snapshot,
+      uom_code_snapshot: row.uom_code_snapshot,
+      uom_symbol_snapshot: row.uom_symbol_snapshot,
+    });
+  }
   if (refScopeAnalysisOnly) refScopeAnalysisOnly.checked = true;
   if (refScopeProduct) refScopeProduct.checked = false;
   if (refScopeFamily) refScopeFamily.checked = false;
@@ -1531,10 +1850,16 @@ async function saveReference() {
       );
       return;
     }
-    minVal = Number(minRaw);
-    maxVal = Number(maxRaw);
-    if (!Number.isFinite(minVal) || !Number.isFinite(maxVal)) {
-      toast("Min/Max values must be valid numbers.", "warn");
+    minVal = parseDecimalOrNull(minRaw);
+    if (Number.isNaN(minVal)) {
+      toast("Min Value must be a valid number.", "warn");
+      refMinValueInput.focus();
+      return;
+    }
+    maxVal = parseDecimalOrNull(maxRaw);
+    if (Number.isNaN(maxVal)) {
+      toast("Max Value must be a valid number.", "warn");
+      refMaxValueInput.focus();
       return;
     }
   } else if (specType === "MIN_ONLY") {
@@ -1542,9 +1867,10 @@ async function saveReference() {
       toast("Min-only specification requires Min Value.", "warn");
       return;
     }
-    minVal = Number(minRaw);
-    if (!Number.isFinite(minVal)) {
+    minVal = parseDecimalOrNull(minRaw);
+    if (Number.isNaN(minVal)) {
       toast("Min Value must be a valid number.", "warn");
+      refMinValueInput.focus();
       return;
     }
   } else if (specType === "MAX_ONLY") {
@@ -1552,9 +1878,10 @@ async function saveReference() {
       toast("Max-only specification requires Max Value.", "warn");
       return;
     }
-    maxVal = Number(maxRaw);
-    if (!Number.isFinite(maxVal)) {
+    maxVal = parseDecimalOrNull(maxRaw);
+    if (Number.isNaN(maxVal)) {
       toast("Max Value must be a valid number.", "warn");
+      refMaxValueInput.focus();
       return;
     }
   } else if (specType === "EXACT_NUMERIC") {
@@ -1562,9 +1889,10 @@ async function saveReference() {
       toast("Exact numeric specification requires Exact Value.", "warn");
       return;
     }
-    minVal = Number(exactRaw);
-    if (!Number.isFinite(minVal)) {
+    minVal = parseDecimalOrNull(exactRaw);
+    if (Number.isNaN(minVal)) {
       toast("Exact Value must be a valid number.", "warn");
+      refExactValueInput.focus();
       return;
     }
     maxVal = minVal;
@@ -2452,41 +2780,16 @@ function wireEvents() {
 
   // Result input changes (delegated on tbody)
   resultsBody.addEventListener("change", (e) => {
-    const el = e.target;
-    const rid = el.dataset.rid;
-    const kind = el.dataset.kind;
-    if (!rid || !kind) return;
-
-    // Handle "Other / Manual Entry" — prompt user and inject a custom option
-    if (el.tagName === "SELECT" && el.value === "Other / Manual Entry") {
-      const custom = (window.prompt("Enter result value") ?? "").trim();
-      if (!custom) {
-        // User cancelled or left blank — revert selection
-        el.value = "";
-        return;
-      }
-      // Insert the custom value as an option just before "Other / Manual Entry"
-      const otherOpt = el.querySelector('option[value="Other / Manual Entry"]');
-      const newOpt = document.createElement("option");
-      newOpt.value = custom;
-      newOpt.textContent = custom;
-      el.insertBefore(newOpt, otherOpt);
-      el.value = custom;
-      onResultChange(rid, "TEXT", custom);
-      return;
-    }
-
-    onResultChange(rid, kind, el.value);
+    handleResultControlChange(e.target);
   });
 
   // Live KPI refresh while typing in numeric inputs (fires on every keystroke,
   // before blur; does not trigger save — the change event handles that)
   resultsBody.addEventListener("input", (e) => {
-    const el = e.target;
-    if (el.tagName !== "INPUT" || el.dataset.kind !== "NUMERIC") return;
-    const rid = el.dataset.rid;
-    if (!rid) return;
-    applyOptimisticResultState(rid, "NUMERIC", el.value);
+    handleNumericControlInput(e.target);
+  });
+  resultsBody.addEventListener("focusout", (e) => {
+    handleNumericControlBlur(e.target);
   });
 
   // Delegated action button clicks
@@ -2501,7 +2804,7 @@ function wireEvents() {
     handleResultRowAction(action, row);
   });
 
-  // Mobile cards: tap card to open centered editor modal
+  // Mobile cards: tap card to open mobile result editor
   mobileResultsList?.addEventListener("click", (e) => {
     const card = e.target.closest(".mobile-result-card");
     if (!card) return;
@@ -2537,36 +2840,14 @@ function wireEvents() {
 
   // Mobile sheet: delegated result changes
   mobileEditorBody?.addEventListener("change", (e) => {
-    const el = e.target;
-    const rid = el.dataset?.rid;
-    const kind = el.dataset?.kind;
-    if (!rid || !kind) return;
-
-    if (el.tagName === "SELECT" && el.value === "Other / Manual Entry") {
-      const custom = (window.prompt("Enter result value") ?? "").trim();
-      if (!custom) {
-        el.value = "";
-        return;
-      }
-      const otherOpt = el.querySelector('option[value="Other / Manual Entry"]');
-      const newOpt = document.createElement("option");
-      newOpt.value = custom;
-      newOpt.textContent = custom;
-      el.insertBefore(newOpt, otherOpt);
-      el.value = custom;
-      onResultChange(rid, "TEXT", custom);
-      return;
-    }
-
-    onResultChange(rid, kind, el.value);
+    handleResultControlChange(e.target);
   });
 
   mobileEditorBody?.addEventListener("input", (e) => {
-    const el = e.target;
-    if (el.tagName !== "INPUT" || el.dataset?.kind !== "NUMERIC") return;
-    const rid = el.dataset.rid;
-    if (!rid) return;
-    applyOptimisticResultState(rid, "NUMERIC", el.value);
+    handleNumericControlInput(e.target);
+  });
+  mobileEditorBody?.addEventListener("focusout", (e) => {
+    handleNumericControlBlur(e.target);
   });
 
   // Mobile sheet: delegated row action buttons
@@ -2612,6 +2893,24 @@ function wireEvents() {
   refMinValueInput?.addEventListener("input", updateReferenceDisplayPreview);
   refMaxValueInput?.addEventListener("input", updateReferenceDisplayPreview);
   refExactValueInput?.addEventListener("input", updateReferenceDisplayPreview);
+  refMinValueInput?.addEventListener("input", (e) =>
+    handleNumericControlInput(e.target),
+  );
+  refMaxValueInput?.addEventListener("input", (e) =>
+    handleNumericControlInput(e.target),
+  );
+  refExactValueInput?.addEventListener("input", (e) =>
+    handleNumericControlInput(e.target),
+  );
+  refMinValueInput?.addEventListener("blur", (e) =>
+    handleNumericControlBlur(e.target),
+  );
+  refMaxValueInput?.addEventListener("blur", (e) =>
+    handleNumericControlBlur(e.target),
+  );
+  refExactValueInput?.addEventListener("blur", (e) =>
+    handleNumericControlBlur(e.target),
+  );
   refTextValueInput?.addEventListener("input", updateReferenceDisplayPreview);
   refPassFailValueSelect?.addEventListener(
     "change",

@@ -309,23 +309,61 @@ async function loadReceiveSamplePermission() {
 }
 
 // ── Pickers ───────────────────────────────────────────────────────────────────
+async function loadAllPaged({
+  table,
+  select,
+  order = [],
+  pageSize = 1000,
+  label = table,
+}) {
+  const rows = [];
+
+  for (let from = 0; ; ) {
+    let query = labSupabase.from(table).select(select, { count: "exact" });
+
+    order.forEach((orderSpec) => {
+      if (typeof orderSpec === "string") {
+        query = query.order(orderSpec);
+      } else if (orderSpec?.column) {
+        query = query.order(orderSpec.column, orderSpec.options || {});
+      }
+    });
+
+    const { data, error, count } = await query.range(
+      from,
+      from + pageSize - 1,
+    );
+
+    if (error) {
+      throw new Error(`${label}: ${error.message}`);
+    }
+
+    const page = data ?? [];
+    rows.push(...page);
+
+    if (page.length === 0 || (count !== null && rows.length >= count)) {
+      break;
+    }
+
+    from += page.length;
+  }
+
+  return rows;
+}
+
 async function loadPickers() {
   setStatusLoading("Loading pickers…");
 
   try {
-    const [fgRows, rmRes, staffRes] = await Promise.all([
+    const [fgRows, allItems, staffRes] = await Promise.all([
       loadAllFgProductsPaged(),
-      labSupabase
-        .from("v_rm_pm_item_with_group")
-        .select("stock_item_id, stock_item_name, category_code")
-        .order("stock_item_name"),
+      loadAllRmPmItemsPaged(),
       labSupabase
         .from("v_sample_receipt_staff_picker")
         .select("staff_id, full_name, designation, is_analyst, is_pic")
         .order("full_name"),
     ]);
 
-    if (rmRes.error) throw new Error(`RM picker: ${rmRes.error.message}`);
     if (staffRes.error)
       throw new Error(`Staff picker: ${staffRes.error.message}`);
 
@@ -339,7 +377,6 @@ async function loadPickers() {
     );
 
     // Cache RM and PM items separately — populated on type selection
-    const allItems = rmRes.data ?? [];
     rmItems = allItems.filter((i) => i.category_code === "RM");
     pmItems = allItems.filter((i) => i.category_code === "PLM");
 
@@ -368,6 +405,12 @@ async function loadPickers() {
     // Apply staff defaults after populating
     await applyDefaultStaffSelections();
 
+    console.debug("[lab-analysis-entry] pickers loaded", {
+      fgProducts: fgRows.length,
+      rmItems: rmItems.length,
+      pmItems: pmItems.length,
+    });
+
     clearStatus();
   } catch (err) {
     console.error("[lab-analysis-entry] loadPickers error:", err);
@@ -378,30 +421,22 @@ async function loadPickers() {
 }
 
 async function loadAllFgProductsPaged() {
-  const rows = [];
-  const pageSize = 1000;
+  return loadAllPaged({
+    table: "v_sample_receipt_fg_picker",
+    select: "product_id, product_name",
+    order: ["product_name", "product_id"],
+    label: "FG picker",
+  });
+}
 
-  for (let from = 0; ; ) {
-    const { data, error, count } = await labSupabase
-      .from("v_sample_receipt_fg_picker")
-      .select("product_id, product_name", { count: "exact" })
-      .order("product_name")
-      .order("product_id")
-      .range(from, from + pageSize - 1);
-
-    if (error) throw new Error(`FG picker: ${error.message}`);
-
-    const page = data ?? [];
-    rows.push(...page);
-
-    if (page.length === 0 || (count !== null && rows.length >= count)) {
-      break;
-    }
-
-    from += page.length;
-  }
-
-  return rows;
+async function loadAllRmPmItemsPaged() {
+  return loadAllPaged({
+    table: "v_rm_pm_item_with_group",
+    select:
+      "stock_item_id, stock_item_name, category_code, inv_group_id, inv_group_label, subcategory_id, subcategory_label",
+    order: ["stock_item_name", "stock_item_id"],
+    label: "RM/PM picker",
+  });
 }
 
 // ── Resolve current user → staff context ────────────────────────────────────

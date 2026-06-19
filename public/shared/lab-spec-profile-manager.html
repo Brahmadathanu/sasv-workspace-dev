@@ -623,6 +623,45 @@
       .pending-review-btn.hidden {
         display: none;
       }
+      .tab-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 6px;
+        margin-left: 6px;
+        border-radius: 999px;
+        background: #f59e0b;
+        color: #fff;
+        font-size: 11px;
+        font-weight: 800;
+        line-height: 1;
+      }
+      .tab-badge.hidden {
+        display: none;
+      }
+      .rq-action-btn {
+        padding: 5px 10px;
+        border-radius: 6px;
+        border: 1px solid #bfdbfe;
+        background: #eff6ff;
+        color: #1d4ed8;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .rq-action-btn:hover {
+        background: #dbeafe;
+      }
+      .rq-age-overdue {
+        color: #b91c1c;
+        font-weight: 800;
+      }
+      .rq-age-due-soon {
+        color: #b45309;
+        font-weight: 700;
+      }
 
       /* ── Info / warn banners ──────────────────────────────────────── */
       .spec-info-banner {
@@ -1815,6 +1854,14 @@
       <!-- 2. Tab strip (shown after subject is selected) -->
       <div class="tab-strip hidden" id="tabStrip">
         <button
+          class="tab-btn"
+          id="reviewQueueTab"
+          data-tab="reviewQueue"
+          type="button"
+        >
+          Review Queue <span id="reviewQueueTabBadge" class="tab-badge hidden">0</span>
+        </button>
+        <button
           class="tab-btn active"
           id="baseSpecTab"
           data-tab="baseSpec"
@@ -1838,6 +1885,105 @@
         >
           Effective Preview
         </button>
+      </div>
+
+      <div class="tab-panel hidden" id="reviewQueuePanel">
+        <div class="entry-card">
+          <div class="form-section">
+            <div class="form-section-title">Manual Specification Requests</div>
+
+            <div class="spec-meta-strip">
+              <div class="spec-meta-item">
+                <div class="spec-meta-label">Total Pending</div>
+                <div class="spec-meta-value" id="rqTotalPending">0</div>
+              </div>
+              <div class="spec-meta-item">
+                <div class="spec-meta-label">Family</div>
+                <div class="spec-meta-value" id="rqFamilyPending">0</div>
+              </div>
+              <div class="spec-meta-item">
+                <div class="spec-meta-label">Product / Item</div>
+                <div class="spec-meta-value" id="rqProductPending">0</div>
+              </div>
+              <div class="spec-meta-item">
+                <div class="spec-meta-label">Overdue</div>
+                <div class="spec-meta-value" id="rqOverduePending">0</div>
+              </div>
+
+              <div class="spec-actions">
+                <button type="button" class="btn-secondary" id="rqRefreshBtn">
+                  Refresh
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="entry-card">
+          <div class="form-section">
+            <div class="form-section-title">Filters</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="rqSubjectFilter">Subject</label>
+                <select id="rqSubjectFilter" class="form-control">
+                  <option value="">All</option>
+                  <option value="FG">FG</option>
+                  <option value="RM">RM</option>
+                  <option value="PM">PM</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="rqScopeFilter">Scope</label>
+                <select id="rqScopeFilter" class="form-control">
+                  <option value="">All</option>
+                  <option value="FAMILY">Family</option>
+                  <option value="PRODUCT">Product / Item</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="rqSearchInput">Search</label>
+                <input
+                  id="rqSearchInput"
+                  class="form-control"
+                  type="text"
+                  placeholder="Search request, test, product, family, register no..."
+                  autocomplete="off"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="spec-table-card" id="reviewQueueTableCard">
+          <div class="spec-table-header">
+            <div class="spec-table-title">Pending Manual Requests</div>
+            <div class="spec-line-count" id="rqLineCount">0 requests</div>
+          </div>
+          <div class="spec-table-scroll">
+            <table
+              class="spec-table"
+              aria-label="Manual specification request queue"
+            >
+              <thead>
+                <tr>
+                  <th>Req</th>
+                  <th>Scope</th>
+                  <th>Subject</th>
+                  <th>Product / Family</th>
+                  <th>Test</th>
+                  <th>Current</th>
+                  <th>Proposed</th>
+                  <th>Source</th>
+                  <th>Age</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="reviewQueueTableBody"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <!-- TAB 1 - BASE SPEC -->

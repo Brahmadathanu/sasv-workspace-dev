@@ -5,7 +5,7 @@
  * All write actions are routed through verified RPC functions only.
  */
 
-import { labSupabase } from "./supabaseClient.js";
+import { labSupabase, supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
 
 const $ = (id) => document.getElementById(id);
@@ -58,12 +58,23 @@ const collectSampleCount = $("collectSampleCount");
 const collectStorage = $("collectStorage");
 const collectRemarks = $("collectRemarks");
 
+const exemptionModal = $("exemptionModal");
+const exemptionForm = $("exemptionForm");
+const exemptAnalysisNo = $("exemptAnalysisNo");
+const exemptProduct = $("exemptProduct");
+const exemptBatch = $("exemptBatch");
+const exemptionReason = $("exemptionReason");
+const exemptionRemarks = $("exemptionRemarks");
+
 const removeModal = $("removeModal");
 const removeForm = $("removeForm");
 const removeRef = $("removeRef");
 const removeBatch = $("removeBatch");
 const removeRetainUntil = $("removeRetainUntil");
 const removedDate = $("removedDate");
+const removalType = $("removalType");
+const removalReason = $("removalReason");
+const removalReasonWrap = $("removalReasonWrap");
 const removalRemarks = $("removalRemarks");
 
 const detailsModal = $("detailsModal");
@@ -88,10 +99,12 @@ let registerRows = [];
 let readyRows = [];
 let activeRegisterRows = [];
 let skuOptionRows = [];
+let exemptedRows = [];
 let filteredRows = [];
 let activeTab = "pending";
 let searchDebounceTimer = null;
 let selectedPendingRow = null;
+let selectedExemptionRow = null;
 let selectedRemovalRow = null;
 let selectedDeactivateRow = null;
 
@@ -109,12 +122,16 @@ const tabMeta = {
     empty: "No control samples are ready for removal.",
     searchPlaceholder: "Search sample ref, product, batch, register",
   },
+  exempted: {
+    empty: "No control sample collection exemptions are recorded.",
+    searchPlaceholder: "Search analysis no, product, batch, reason, remarks",
+  },
   master: {
     empty: "No control registers are configured yet.",
     searchPlaceholder: "Search register no, full register code, remarks",
   },
 };
-const tabOrder = ["pending", "register", "ready", "master"];
+const tabOrder = ["pending", "register", "ready", "exempted", "master"];
 
 function esc(str) {
   return String(str ?? "")
@@ -260,11 +277,50 @@ function friendlyError(err) {
 }
 
 async function getCurrentUserId() {
-  const { data, error } = await labSupabase.auth.getUser();
-  if (error) throw error;
-  const userId = data?.user?.id;
-  if (!userId) throw new Error("No authenticated user found.");
-  return userId;
+  const clients = [
+    supabase,
+    labSupabase?.client,
+    labSupabase?.supabase,
+    labSupabase,
+  ].filter(Boolean);
+
+  for (const client of clients) {
+    if (client?.auth?.getSession) {
+      const { data, error } = await client.auth.getSession();
+      if (error) throw error;
+
+      const userId = data?.session?.user?.id;
+      if (userId) return userId;
+    }
+
+    if (client?.auth?.getUser) {
+      const { data, error } = await client.auth.getUser();
+      if (error) throw error;
+
+      const userId = data?.user?.id;
+      if (userId) return userId;
+    }
+  }
+
+  if (typeof Platform?.getSession === "function") {
+    const session = await Platform.getSession();
+    const userId = session?.user?.id;
+    if (userId) return userId;
+  }
+
+  if (typeof Platform?.getCurrentUserId === "function") {
+    const userId = await Platform.getCurrentUserId();
+    if (userId) return userId;
+  }
+
+  if (typeof Platform?.getUserId === "function") {
+    const userId = await Platform.getUserId();
+    if (userId) return userId;
+  }
+
+  throw new Error(
+    "No authenticated user found. The Supabase wrapper used by this module does not expose auth.getUser(). Use the same current-user helper used in the other Lab ERP modules.",
+  );
 }
 
 async function withSubmitLock(form, task) {
@@ -282,8 +338,14 @@ async function loadAllData() {
   setStatus("Loading control sample register...");
   refreshBtn.disabled = true;
   try {
-    const [pendingRes, registerRes, readyRes, activeRegisterRes, skuOptionRes] =
-      await Promise.all([
+    const [
+      pendingRes,
+      registerRes,
+      readyRes,
+      activeRegisterRes,
+      skuOptionRes,
+      exemptedRes,
+    ] = await Promise.all([
         labSupabase.from("v_control_sample_pending_collection").select("*"),
         labSupabase.from("v_control_sample_register").select("*"),
         labSupabase.from("v_control_sample_ready_for_removal").select("*"),
@@ -296,6 +358,10 @@ async function loadAllData() {
           .select("*")
           .order("product_name")
           .order("pack_size"),
+        labSupabase
+          .from("v_control_sample_exempted")
+          .select("*")
+          .order("exempted_at", { ascending: false }),
       ]);
 
     if (pendingRes.error) throw pendingRes.error;
@@ -303,12 +369,14 @@ async function loadAllData() {
     if (readyRes.error) throw readyRes.error;
     if (activeRegisterRes.error) throw activeRegisterRes.error;
     if (skuOptionRes.error) throw skuOptionRes.error;
+    if (exemptedRes.error) throw exemptedRes.error;
 
     pendingRows = pendingRes.data ?? [];
     registerRows = registerRes.data ?? [];
     readyRows = readyRes.data ?? [];
     activeRegisterRows = activeRegisterRes.data ?? [];
     skuOptionRows = skuOptionRes.data ?? [];
+    exemptedRows = exemptedRes.data ?? [];
 
     populateProductGroupFilter();
     renderKpis();
@@ -342,7 +410,7 @@ function populateProductGroupFilter() {
 
 function getProductGroups() {
   const map = new Map();
-  [...pendingRows, ...registerRows].forEach((row) => {
+  [...pendingRows, ...registerRows, ...exemptedRows].forEach((row) => {
     const id = productGroupIdOf(row);
     const name = row.product_group_name ?? row.product_group ?? null;
     if (id != null && name) map.set(String(id), { id, name });
@@ -391,7 +459,7 @@ function updateFilterVisibility() {
   sampleStatusFilterWrap.classList.toggle("hidden", activeTab !== "register");
   productGroupFilterWrap.classList.toggle(
     "hidden",
-    !["pending", "register"].includes(activeTab),
+    !["pending", "register", "exempted"].includes(activeTab),
   );
   newRegisterBtn.classList.toggle("visible", activeTab === "master");
   updateFilterButtonState();
@@ -401,6 +469,7 @@ function getActiveRows() {
   if (activeTab === "pending") return pendingRows;
   if (activeTab === "register") return registerRows;
   if (activeTab === "ready") return enrichReadyRows();
+  if (activeTab === "exempted") return exemptedRows;
   if (activeTab === "master") return activeRegisterRows;
   return [];
 }
@@ -421,7 +490,9 @@ function applyFilters() {
   const registerStatus = registerStatusFilter.value;
   const retentionStatus = retentionStatusFilter.value;
   const sampleStatus = sampleStatusFilter.value;
-  const shouldApplyProductGroup = ["pending", "register"].includes(activeTab);
+  const shouldApplyProductGroup = ["pending", "register", "exempted"].includes(
+    activeTab,
+  );
 
   filteredRows = getActiveRows().filter((row) => {
     if (
@@ -455,7 +526,10 @@ function applyFilters() {
 
 function getActiveFilterCount() {
   let count = 0;
-  if (["pending", "register"].includes(activeTab) && productGroupFilter.value)
+  if (
+    ["pending", "register", "exempted"].includes(activeTab) &&
+    productGroupFilter.value
+  )
     count += 1;
   if (activeTab === "pending" && registerStatusFilter.value) count += 1;
   if (activeTab === "register" && retentionStatusFilter.value) count += 1;
@@ -503,6 +577,14 @@ function searchHaystack(row) {
       row.sku_pack_display,
       row.control_register_code_snapshot,
     ],
+    exempted: [
+      row.analysis_register_no,
+      row.product_name,
+      row.product_group_name,
+      row.batch_no_snapshot,
+      row.exemption_reason,
+      row.exemption_remarks,
+    ],
     master: [row.register_short_code, row.register_code, row.remarks],
   };
   return fieldsByTab[activeTab].map(normalize).join(" ");
@@ -514,6 +596,7 @@ function renderActiveTab() {
   if (activeTab === "pending") renderPendingTable();
   if (activeTab === "register") renderRegisterTable();
   if (activeTab === "ready") renderReadyTable();
+  if (activeTab === "exempted") renderExemptedTable();
   if (activeTab === "master") renderMasterTable();
   clearStatus();
 }
@@ -607,6 +690,34 @@ function buildReadyRow(row, index) {
     </tr>`;
 }
 
+function renderExemptedTable() {
+  const columns = [
+    { label: "Product" },
+    { label: "Batch No" },
+    { label: "Analysis Register No", className: "col-hide-tablet" },
+    { label: "Reason" },
+    { label: "Exempted At", className: "col-hide-mobile" },
+    { label: "Remarks", className: "col-hide-tablet" },
+  ];
+  setTable(columns, filteredRows.map(buildExemptedRow).join(""));
+}
+
+function buildExemptedRow(row, index) {
+  return `
+    <tr class="data-row" data-index="${index}" tabindex="0" title="Open exemption details">
+      <td class="mobile-primary-cell">
+        <span class="item-primary">${esc(row.product_name ?? "-")}</span>
+        <span class="item-secondary">${esc(row.analysis_register_no ?? "-")}</span>
+        <span class="mobile-card-meta">Batch ${esc(batchDisplay(row))} | ${esc(formatDate(row.exempted_at))}</span>
+      </td>
+      <td class="mobile-meta-cell">${esc(batchDisplay(row))}</td>
+      <td class="mobile-hide col-hide-tablet">${esc(row.analysis_register_no ?? "-")}</td>
+      <td class="mobile-status-cell">${exemptionReasonBadge(row.exemption_reason)}</td>
+      <td class="mobile-hide col-hide-mobile">${esc(formatDate(row.exempted_at))}</td>
+      <td class="mobile-hide col-hide-tablet">${esc(row.exemption_remarks ?? "-")}</td>
+    </tr>`;
+}
+
 function renderMasterTable() {
   const columns = [
     { label: "Register No" },
@@ -646,6 +757,11 @@ function booleanBadge(value) {
   return active
     ? `<span class="badge badge-green">Active</span>`
     : `<span class="badge badge-grey">Inactive</span>`;
+}
+
+function exemptionReasonBadge(value) {
+  const val = value ?? "-";
+  return `<span class="badge badge-grey">${esc(val)}</span>`;
 }
 
 function openCollectionModal(row) {
@@ -734,13 +850,78 @@ async function submitCollection(event) {
   });
 }
 
-function openRemovalModal(row) {
+function openExemptionModal(row) {
+  selectedExemptionRow = row;
+  exemptionForm.reset();
+  exemptAnalysisNo.value = row.analysis_register_no ?? "";
+  exemptProduct.value = row.product_name ?? "";
+  exemptBatch.value = batchDisplay(row);
+  exemptionModal.classList.remove("hidden");
+  exemptionReason.focus();
+}
+
+async function submitExemption(event) {
+  event.preventDefault();
+  await withSubmitLock(exemptionForm, async () => {
+    if (!selectedExemptionRow) return;
+
+    const reason = exemptionReason.value;
+    const remarks = exemptionRemarks.value.trim();
+
+    if (!reason) {
+      toast("Exemption reason is required.", "error");
+      return;
+    }
+
+    if (!remarks) {
+      toast("Exemption remarks are required.", "error");
+      return;
+    }
+
+    try {
+      const userId = await getCurrentUserId();
+      const { error } = await labSupabase.rpc(
+        "fn_exempt_control_sample_collection",
+        {
+          p_user_id: userId,
+          p_analysis_id: selectedExemptionRow.analysis_id,
+          p_exemption_reason: reason,
+          p_exemption_remarks: remarks,
+        },
+      );
+      if (error) throw error;
+
+      toast("Control sample collection exempted.", "success");
+      closeModal(exemptionModal);
+      await loadAllData();
+      setActiveTab("exempted");
+    } catch (err) {
+      console.error("[Control Sample Register] exemption error:", err);
+      toast(friendlyError(err), "error", 7000);
+    }
+  });
+}
+
+function updateRemovalReasonVisibility() {
+  const isException = removalType.value === "EXCEPTION";
+  removalReasonWrap.classList.toggle("hidden", !isException);
+  removalReason.required = isException;
+}
+
+function openRemovalModal(row, forcedType = null) {
   selectedRemovalRow = row;
   removeForm.reset();
   removeRef.value = row.control_sample_ref ?? "";
   removeBatch.value = batchDisplay(row);
   removeRetainUntil.value = formatDate(row.retain_until_date);
   removedDate.value = todayIso();
+  const canRoutine =
+    row.retention_status === "READY_FOR_REMOVAL" &&
+    row.control_sample_status === "COLLECTED";
+  const type = forcedType || (canRoutine ? "ROUTINE" : "EXCEPTION");
+  removalType.value = type;
+  removalType.disabled = forcedType != null;
+  updateRemovalReasonVisibility();
   removeModal.classList.remove("hidden");
   removalRemarks.focus();
 }
@@ -754,19 +935,39 @@ async function submitRemoval(event) {
       toast("Removal remarks are required.", "error");
       return;
     }
+    const type = removalType.value;
+    if (type === "EXCEPTION" && !removalReason.value) {
+      toast("Exceptional removal reason is required.", "error");
+      return;
+    }
     try {
       const userId = await getCurrentUserId();
-      const { error } = await labSupabase.rpc(
-        "fn_mark_control_sample_removed",
-        {
-          p_user_id: userId,
-          p_control_sample_id:
-            selectedRemovalRow.control_sample_id ?? selectedRemovalRow.id,
-          p_removed_date: removedDate.value,
-          p_removal_remarks: remarks,
-        },
-      );
-      if (error) throw error;
+      if (type === "EXCEPTION") {
+        const { error } = await labSupabase.rpc(
+          "fn_mark_control_sample_exception_removed",
+          {
+            p_user_id: userId,
+            p_control_sample_id:
+              selectedRemovalRow.control_sample_id ?? selectedRemovalRow.id,
+            p_removed_date: removedDate.value,
+            p_removal_reason: removalReason.value,
+            p_removal_remarks: remarks,
+          },
+        );
+        if (error) throw error;
+      } else {
+        const { error } = await labSupabase.rpc(
+          "fn_mark_control_sample_removed",
+          {
+            p_user_id: userId,
+            p_control_sample_id:
+              selectedRemovalRow.control_sample_id ?? selectedRemovalRow.id,
+            p_removed_date: removedDate.value,
+            p_removal_remarks: remarks,
+          },
+        );
+        if (error) throw error;
+      }
       toast("Control sample marked removed.", "success");
       closeModal(removeModal);
       await loadAllData();
@@ -793,27 +994,58 @@ function detailFieldsHtml(fields) {
     </div>`;
 }
 
+function removalDetailFields(row) {
+  const hasRemovalData =
+    row.removal_type ||
+    row.removal_reason ||
+    row.removal_remarks ||
+    row.removed_date ||
+    row.control_sample_status === "REMOVED" ||
+    row.retention_status === "REMOVED";
+
+  if (!hasRemovalData) return [];
+  return [
+    ["Removal Type", row.removal_type],
+    ["Removal Reason", row.removal_reason],
+    ["Removal Remarks", row.removal_remarks],
+    ["Removed Date", formatDate(row.removed_date)],
+  ];
+}
+
 function detailActionsHtml(row, context) {
   if (context === "pending") {
+    const collectWarnings = [];
+
     if (!activeRegisterRows.length) {
-      return `<div class="detail-action-note warning">No active control register is available. Create an active register before collection.</div>`;
+      collectWarnings.push("No active control register is available.");
     }
     if (!skuOptionsForProduct(row.product_id).length) {
-      return `<div class="detail-action-note warning">No active SKU is configured for this product. Complete SKU master before collecting control sample.</div>`;
+      collectWarnings.push("No active SKU is configured for this product.");
     }
-    return `<div class="modal-action-row"><button class="btn-modal btn-modal-save" type="button" data-detail-action="collect">Collect Control Sample</button></div>`;
+
+    const collectButton =
+      collectWarnings.length === 0
+        ? `<button class="btn-modal btn-modal-save" type="button" data-detail-action="collect">Collect Control Sample</button>`
+        : `<div class="detail-action-note warning">${esc(collectWarnings.join(" "))} Collection cannot be completed until this is corrected.</div>`;
+
+    return `
+      <div class="modal-action-row modal-action-row-split">
+        ${collectButton}
+        <button class="btn-modal btn-modal-secondary" type="button" data-detail-action="exempt">Exempt / Not Collected</button>
+      </div>`;
   }
 
-  if (
-    context === "register" &&
-    row.retention_status === "READY_FOR_REMOVAL" &&
-    row.control_sample_status === "COLLECTED"
-  ) {
-    return `<div class="modal-action-row"><button class="btn-modal btn-modal-save" type="button" data-detail-action="remove">Remove Control Sample</button></div>`;
+  if (context === "register" && row.control_sample_status === "COLLECTED") {
+    if (row.retention_status === "READY_FOR_REMOVAL") {
+      return `<div class="modal-action-row"><button class="btn-modal btn-modal-save" type="button" data-detail-action="remove-routine">Remove Control Sample</button></div>`;
+    }
+    if (row.retention_status === "UNDER_RETENTION") {
+      return `<div class="modal-action-row"><button class="btn-modal btn-warning-soft" type="button" data-detail-action="remove-exception">Exceptional Removal</button></div>`;
+    }
   }
 
   if (context === "ready") {
-    return `<div class="modal-action-row"><button class="btn-modal btn-modal-save" type="button" data-detail-action="remove">Remove Control Sample</button></div>`;
+    return `<div class="modal-action-row"><button class="btn-modal btn-modal-save" type="button" data-detail-action="remove-routine">Remove Control Sample</button></div>`;
   }
 
   if (context === "master" && row.is_active) {
@@ -850,6 +1082,7 @@ function getDetailFields(row, context) {
       ["Mfg Date", formatDate(row.mfg_date_snapshot)],
       ["Exp Date", formatDate(row.exp_date_snapshot)],
       ["Retain Until", formatDate(row.retain_until_date)],
+      ...removalDetailFields(row),
       ["Remarks", row.remarks],
     ];
   }
@@ -865,14 +1098,28 @@ function getDetailFields(row, context) {
     ];
   }
 
+  if (context === "exempted") {
+    return [
+      ["Analysis Register No", row.analysis_register_no],
+      ["Product", row.product_name],
+      ["Product Group", row.product_group_name],
+      ["Batch No", batchDisplay(row)],
+      ["Analysis Status", row.analysis_status],
+      ["Analysis Completed Date", formatDate(row.analysis_completed_date)],
+      ["Exemption Reason", row.exemption_reason],
+      ["Exemption Remarks", row.exemption_remarks],
+      ["Exempted At", formatDate(row.exempted_at)],
+    ];
+  }
+
   return [
     ["Control Sample Ref", row.control_sample_ref],
     ["Analysis Register No", row.analysis_register_no],
     ["Product", row.product_name],
     ["Product Group", row.product_group_name],
+    ["Batch No", batchDisplay(row)],
     ["Pack Size", row.sku_pack_display],
     ["Count", row.sample_count],
-    ["Batch No", batchDisplay(row)],
     [
       "Register Code",
       row.control_register_code_snapshot ?? row.current_register_code,
@@ -884,6 +1131,7 @@ function getDetailFields(row, context) {
     ["Retain Until", formatDate(row.retain_until_date)],
     ["Retention Status", row.retention_status],
     ["Control Sample Status", row.control_sample_status],
+    ...removalDetailFields(row),
     ["Storage Location", row.storage_location],
     ["Remarks", row.remarks],
   ];
@@ -896,12 +1144,14 @@ function openRowDetails(row, context) {
     pending: "Pending Collection Details",
     register: "Control Sample Details",
     ready: "Ready for Removal Details",
+    exempted: "Exemption Details",
     master: "Register Details",
   };
   const subtitleByContext = {
     pending: row.analysis_register_no,
     register: row.control_sample_ref,
     ready: row.control_sample_ref,
+    exempted: row.analysis_register_no,
     master: row.register_short_code,
   };
   $("detailsModalTitle").textContent = titleByContext[context] ?? "Details";
@@ -1024,8 +1274,11 @@ function resetFilters() {
 
 function handleAction(action, row) {
   if (action === "collect") openCollectionModal(row);
+  if (action === "exempt") openExemptionModal(row);
   if (action === "details") openDetailsModal(row);
   if (action === "remove") openRemovalModal(row);
+  if (action === "remove-routine") openRemovalModal(row, "ROUTINE");
+  if (action === "remove-exception") openRemovalModal(row, "EXCEPTION");
   if (action === "deactivate-register") openDeactivateModal(row);
 }
 
@@ -1125,7 +1378,9 @@ function wireEvents() {
   });
 
   collectionForm.addEventListener("submit", submitCollection);
+  exemptionForm.addEventListener("submit", submitExemption);
   collectSkuId.addEventListener("change", syncSelectedSkuUom);
+  removalType.addEventListener("change", updateRemovalReasonVisibility);
   removeForm.addEventListener("submit", submitRemoval);
   registerForm.addEventListener("submit", submitNewRegister);
   deactivateForm.addEventListener("submit", submitDeactivate);

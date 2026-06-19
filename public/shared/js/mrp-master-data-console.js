@@ -3,7 +3,6 @@ import {
   loadAccessContext,
   canEditPM,
   isProcurementAdmin,
-  canEditRM,
 } from "./mrpAccess.js";
 import { Platform } from "./platform.js";
 import {
@@ -40,6 +39,12 @@ let convTotal = 0;
 let seasonPage = 1;
 let seasonPageSize = 50;
 let seasonTotal = 0;
+// Pagination state for RM Mapping
+let mapPage = 1;
+let mapPageSize = 50;
+let mapTotal = 0;
+let mapSearchTerm = "";
+let seasonProfileOptionsCache = null;
 
 const MRP_ICON_ADD =
   '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -51,6 +56,51 @@ const MRP_ICON_NEXT =
   '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const MRP_ICON_CLEAR =
   '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line></svg>';
+
+function renderMrpToolbar({
+  searchId,
+  placeholder,
+  title,
+  addId,
+  addTitle,
+  addLabel,
+  exportId,
+}) {
+  return `
+    <div class="mrp-toolbar-card">
+      <div class="filter-item search mrp-enhanced-search">
+        <input id="${searchId}" placeholder="${escapeHtmlValue(
+          placeholder,
+        )}" title="${escapeHtmlValue(title)}" />
+      </div>
+      <div class="mrp-actions">
+        <button id="${addId}" class="mrp-icon-btn primary" title="${escapeHtmlValue(
+          addTitle,
+        )}" aria-label="${escapeHtmlValue(addLabel)}">${MRP_ICON_ADD}</button>
+        <button id="${exportId}" class="mrp-icon-btn" title="Export CSV" aria-label="Export CSV">${MRP_ICON_EXPORT}</button>
+      </div>
+    </div>`;
+}
+
+function renderMrpTableMeta({
+  rowCountId,
+  pagerId,
+  prevId,
+  nextId,
+  pagerInfoId,
+  page,
+  totalPages,
+}) {
+  return `
+    <div class="mrp-table-meta">
+      <span id="${rowCountId}" class="mrp-row-count">0 Rows</span>
+      <div id="${pagerId}" class="mrp-pagination">
+        <button id="${prevId}" class="mrp-page-btn" type="button" aria-label="Previous page">${MRP_ICON_PREV}</button>
+        <span id="${pagerInfoId}">Page ${page} of ${totalPages}</span>
+        <button id="${nextId}" class="mrp-page-btn" type="button" aria-label="Next page">${MRP_ICON_NEXT}</button>
+      </div>
+    </div>`;
+}
 
 function wireSearchClear(input, clearBtn, onChange) {
   if (!input || !clearBtn) return;
@@ -123,10 +173,59 @@ function enhanceConsoleChrome({
   return document.getElementById(clearId);
 }
 
+function enhanceConsoleChromeScoped(
+  root,
+  { searchId, clearId, addId, exportId, rowCountId, prevId, nextId, pagerId },
+) {
+  const search = root.querySelector(`#${searchId}`);
+  if (search && !root.querySelector(`#${clearId}`)) {
+    const parent = search.parentElement;
+    if (parent) {
+      parent.classList.add("mrp-enhanced-search");
+      parent.parentElement?.classList.add("mrp-toolbar-card");
+      parent.nextElementSibling?.classList.add("mrp-actions");
+      const clear = document.createElement("button");
+      clear.id = clearId;
+      clear.type = "button";
+      clear.className = "mrp-input-clear-btn";
+      clear.title = "Clear search";
+      clear.setAttribute("aria-label", "Clear search");
+      clear.style.display = "none";
+      clear.innerHTML = MRP_ICON_CLEAR;
+      parent.appendChild(clear);
+    }
+  }
+
+  [
+    [addId, "mrp-icon-btn primary", MRP_ICON_ADD],
+    [exportId, "mrp-icon-btn", MRP_ICON_EXPORT],
+  ].forEach(([id, className, icon]) => {
+    const btn = root.querySelector(`#${id}`);
+    if (!btn) return;
+    btn.className = className;
+    btn.innerHTML = icon;
+  });
+
+  [
+    [prevId, MRP_ICON_PREV],
+    [nextId, MRP_ICON_NEXT],
+  ].forEach(([id, icon]) => {
+    const btn = root.querySelector(`#${id}`);
+    if (!btn) return;
+    btn.className = "mrp-page-btn";
+    btn.innerHTML = icon;
+  });
+
+  const rowCount = root.querySelector(`#${rowCountId}`);
+  if (rowCount) rowCount.className = "mrp-row-count";
+  const pager = root.querySelector(`#${pagerId}`);
+  if (pager) pager.className = "mrp-pagination";
+
+  return root.querySelector(`#${clearId}`);
+}
+
 function resetTableScrollAfterFilter(scope) {
-  const container =
-    scope?.querySelector?.("#mrpTableContainer") ||
-    document.getElementById("mrpTableContainer");
+  const container = scope?.querySelector?.("#mrpTableContainer");
   if (!container) return;
   container.scrollTop = 0;
   container.scrollLeft = 0;
@@ -160,7 +259,6 @@ function focusMrpModalFallback() {
 
 function releaseMrpModalFocus(root) {
   if (!root) return;
-
   const active = document.activeElement;
   if (active && root.contains(active)) {
     active.blur();
@@ -212,12 +310,17 @@ function openMrpDetailModal(root) {
 }
 
 function wireMrpRowOpeners({ root = document, selector, getRow, openDetail }) {
+  if (!root || !selector || typeof openDetail !== "function") return;
   root.querySelectorAll(selector).forEach((tr, idx) => {
     const row = typeof getRow === "function" ? getRow(tr, idx) : null;
-
     const open = async () => {
-      rememberMrpModalReturnFocus(tr);
-      await openDetail(row, tr);
+      try {
+        rememberMrpModalReturnFocus(tr);
+        await openDetail(row, tr);
+      } catch (err) {
+        console.debug("MRP row open failed", err);
+        showToast("Unable to open details", { type: "error" });
+      }
     };
 
     tr.addEventListener("click", open);
@@ -236,28 +339,43 @@ function formatMonthShort(value) {
   return monthNames[n - 1] || String(value);
 }
 
-function renderMonthChips(months) {
-  const list = Array.isArray(months)
-    ? months
-    : String(months || "")
-        .split(/[,\s]+/)
-        .map((x) => x.trim())
-        .filter(Boolean);
+function normalizeMonthList(value) {
+  if (Array.isArray(value)) {
+    return value.map((x) => String(x ?? "").trim()).filter(Boolean);
+  }
 
-  if (!list.length) return "&mdash;";
+  const raw = String(value ?? "").trim();
+  if (!raw) return [];
 
-  return `
-    <div class="mrp-card-months">
-      ${list
-        .map(
-          (m) =>
-            `<span class="mrp-card-month">${escapeHtmlValue(
-              formatMonthShort(m),
-            )}</span>`,
-        )
-        .join("")}
-    </div>
-  `;
+  // Handle PostgreSQL/JSON-like formats: {6,7,8}, [6,7,8], "6,7,8"
+  const cleaned = raw.replace(/[[\]{}"]/g, " ").trim();
+
+  // Handle already concatenated month names like JunJulAugSepOctNov
+  const monthNameMatches = cleaned.match(
+    /Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec/gi,
+  );
+  if (
+    monthNameMatches &&
+    monthNameMatches.join("").toLowerCase() ===
+      cleaned.replace(/\s+/g, "").toLowerCase()
+  ) {
+    return monthNameMatches;
+  }
+
+  return cleaned
+    .split(/[,\s]+/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
+
+function formatMonthList(value) {
+  const months = normalizeMonthList(value);
+  if (!months.length) return "-";
+
+  return months
+    .map((m) => formatMonthShort(m))
+    .filter(Boolean)
+    .join(", ");
 }
 
 function prepareMrpDetailModal() {
@@ -362,7 +480,14 @@ function openMrpStructuredModal(payload = {}) {
     } else {
       btn.className += " mrp-btn-secondary";
     }
-    btn.addEventListener("click", (ev) => action.onClick?.(ev));
+    btn.addEventListener("click", async (ev) => {
+      try {
+        await action.onClick?.(ev);
+      } catch (err) {
+        console.debug("MRP modal action failed", err);
+        showToast("Action failed", { type: "error" });
+      }
+    });
     actions.appendChild(btn);
   });
 
@@ -593,45 +718,182 @@ function wireStockItemLookup(fieldId, selectedId = null) {
   });
 }
 
-// Loading overlay counter to support nested loads
+// Loading overlay state
 let __mrpLoadingCount = 0;
+let activeMrpSection = "moq";
+let mrpSectionRenderSeq = 0;
+
+const MRP_SECTION_MAP = {
+  moq: {
+    panelId: "moqSection",
+    tabId: "tabMoq",
+    dropdownValue: "moq",
+    loader: loadMoqList,
+  },
+  conv: {
+    panelId: "convSection",
+    tabId: "tabConv",
+    dropdownValue: "conv",
+    loader: loadConvList,
+  },
+  season: {
+    panelId: "seasonSection",
+    tabId: "tabSeason",
+    dropdownValue: "season",
+    loader: loadSeasonList,
+  },
+  map: {
+    panelId: "mapSection",
+    tabId: "tabMap",
+    dropdownValue: "map",
+    loader: loadMapQuickEditor,
+  },
+};
+
+function getMrpSectionNode(name) {
+  const cfg = MRP_SECTION_MAP[name];
+  return cfg ? document.getElementById(cfg.panelId) : null;
+}
+
 function showMrpLoading(msg) {
   try {
-    __mrpLoadingCount = Math.max(0, __mrpLoadingCount) + 1;
+    __mrpLoadingCount = 1;
     const el = document.getElementById("mrpLoadingOverlay");
-    if (el) {
-      el.style.display = "flex";
-      el.setAttribute("aria-hidden", "false");
-      const txt = el.querySelector(".loader-text");
-      if (txt && msg) txt.textContent = msg;
-    }
+    if (!el) return;
+
+    el.style.display = "flex";
+    el.setAttribute("aria-hidden", "false");
+
+    const txt = el.querySelector(".loader-text");
+    if (txt && msg) txt.textContent = msg;
   } catch (err) {
     console.debug("showMrpLoading error:", err);
   }
 }
 function hideMrpLoading() {
   try {
-    __mrpLoadingCount = Math.max(0, __mrpLoadingCount - 1);
-    if (__mrpLoadingCount > 0) return;
-    const el = document.getElementById("mrpLoadingOverlay");
-    if (el) {
-      el.style.display = "none";
-      el.setAttribute("aria-hidden", "true");
+    if (__mrpLoadingCount === 0) {
+      const el = document.getElementById("mrpLoadingOverlay");
+      if (el) {
+        el.style.display = "none";
+        el.setAttribute("aria-hidden", "true");
+      }
+      return;
     }
+
+    __mrpLoadingCount = 0;
+    const el = document.getElementById("mrpLoadingOverlay");
+    if (!el) return;
+
+    el.style.display = "none";
+    el.setAttribute("aria-hidden", "true");
   } catch (err) {
     console.debug("hideMrpLoading error:", err);
   }
 }
 
-function showSection(name) {
-  document.getElementById("moqSection").style.display =
-    name === "moq" ? "" : "none";
-  document.getElementById("convSection").style.display =
-    name === "conv" ? "" : "none";
-  document.getElementById("seasonSection").style.display =
-    name === "season" ? "" : "none";
-  document.getElementById("mapSection").style.display =
-    name === "map" ? "" : "none";
+function forceHideMrpLoading() {
+  __mrpLoadingCount = 0;
+  hideMrpLoading();
+}
+
+function isCurrentMrpSection(name, seq) {
+  return activeMrpSection === name && seq === mrpSectionRenderSeq;
+}
+
+async function activateMrpSection(name, { focusTab = false } = {}) {
+  forceHideMrpLoading();
+
+  const cfg = MRP_SECTION_MAP[name];
+  if (!cfg) return;
+
+  activeMrpSection = name;
+  mrpSectionRenderSeq += 1;
+  const seq = mrpSectionRenderSeq;
+
+  Object.entries(MRP_SECTION_MAP).forEach(([key, item]) => {
+    const panel = document.getElementById(item.panelId);
+    const tab = document.getElementById(item.tabId);
+    const active = key === name;
+
+    if (panel) {
+      panel.hidden = !active;
+      panel.classList.toggle("is-active-panel", active);
+      panel.classList.add("mrp-tab-panel");
+      panel.setAttribute("aria-hidden", active ? "false" : "true");
+      panel.style.display = active ? "flex" : "none";
+    }
+
+    if (tab) {
+      tab.classList.toggle("active", active);
+      tab.setAttribute("aria-selected", active ? "true" : "false");
+      tab.tabIndex = active ? 0 : -1;
+      if (active && focusTab) tab.focus();
+    }
+  });
+
+  const dropdown = document.getElementById("tabDropdown");
+  if (dropdown) dropdown.value = name;
+
+  const panel = getMrpSectionNode(name);
+  if (panel) {
+    panel.innerHTML = `<div class="muted">Loading ${escapeHtmlValue(name)}...</div>`;
+  }
+
+  try {
+    await cfg.loader(seq);
+  } catch (err) {
+    console.error(`[MRP] ${name} loader failed`, err);
+    if (isCurrentMrpSection(name, seq) && panel) {
+      panel.innerHTML = `<div class="error">Failed loading ${escapeHtmlValue(name)}. Check console.</div>`;
+    }
+    showToast(`Failed loading ${name}`, { type: "error" });
+  }
+}
+
+function wireMrpTabs() {
+  Object.entries(MRP_SECTION_MAP).forEach(([name, cfg]) => {
+    const tab = document.getElementById(cfg.tabId);
+    if (!tab || tab.dataset.mrpTabWired === "1") return;
+    tab.dataset.mrpTabWired = "1";
+
+    tab.addEventListener("click", () => {
+      activateMrpSection(name);
+    });
+
+    tab.addEventListener("keydown", (ev) => {
+      const names = Object.keys(MRP_SECTION_MAP);
+      const idx = names.indexOf(name);
+      let nextName = null;
+
+      if (ev.key === "ArrowRight") {
+        ev.preventDefault();
+        nextName = names[(idx + 1) % names.length];
+      } else if (ev.key === "ArrowLeft") {
+        ev.preventDefault();
+        nextName = names[(idx - 1 + names.length) % names.length];
+      } else if (ev.key === "Home") {
+        ev.preventDefault();
+        nextName = names[0];
+      } else if (ev.key === "End") {
+        ev.preventDefault();
+        nextName = names[names.length - 1];
+      } else if (ev.key === "Enter" || ev.key === " ") {
+        ev.preventDefault();
+        nextName = name;
+      }
+
+      if (nextName) activateMrpSection(nextName, { focusTab: true });
+    });
+  });
+
+  const dropdown = document.getElementById("tabDropdown");
+  if (dropdown && dropdown.dataset.mrpTabWired !== "1") {
+    dropdown.dataset.mrpTabWired = "1";
+    dropdown.addEventListener("change", () => {
+      activateMrpSection(dropdown.value);
+    });
+  }
 }
 
 async function init() {
@@ -653,27 +915,10 @@ async function init() {
     console.debug(e);
   }
 
-  document.getElementById("tabMoq").addEventListener("click", () => {
-    showSection("moq");
-    loadMoqList();
-  });
-  document.getElementById("tabConv").addEventListener("click", () => {
-    showSection("conv");
-    loadConvList();
-  });
-  document.getElementById("tabSeason").addEventListener("click", () => {
-    showSection("season");
-    loadSeasonList();
-  });
-  document.getElementById("tabMap").addEventListener("click", () => {
-    showSection("map");
-    loadMapQuickEditor();
-  });
+  wireMrpTabs();
   const hb = document.getElementById("homeBtn");
   if (hb) hb.addEventListener("click", () => Platform.goHome());
-  // Load default active tab content on init
-  showSection("moq");
-  loadMoqList();
+  await activateMrpSection("moq");
 }
 
 function actorSnapshot() {
@@ -1147,9 +1392,10 @@ async function openMoqEditModal(row = {}) {
   openMrpDetailModal(root);
 }
 
-async function loadMoqList() {
+async function loadMoqList(sectionSeq = mrpSectionRenderSeq) {
+  const node = getMrpSectionNode("moq");
+  if (!node) return;
   showMrpLoading("Loading MOQ policies...");
-  const node = document.getElementById("moqSection");
   node.innerHTML = '<div class="muted">Loading MOQ policies...</div>';
   try {
     const page = moqPage || 1;
@@ -1164,6 +1410,7 @@ async function loadMoqList() {
       })
       .order("updated_at", { ascending: false })
       .range(from, to);
+    if (!isCurrentMrpSection("moq", sectionSeq)) return;
     if (error) throw error;
     const rows = data || [];
     moqTotal = count || 0;
@@ -1233,9 +1480,7 @@ async function loadMoqList() {
           aria-label="${escapeHtmlValue(ariaLabel)}"
           data-id="${escapeHtmlValue(r.id)}"
         >
-          <td data-label="Policy ID">${escapeHtmlValue(
-            r.id ?? "",
-          )}</td>
+          <td data-label="Policy ID">${escapeHtmlValue(r.id ?? "")}</td>
           <td data-label="Stock Item ID">${stockItemId}</td>
           <td data-label="Code">${stockCode}</td>
           <td class="mrp-card-primary" data-label="Stock Item" title="${escapeHtmlValue(
@@ -1370,7 +1615,9 @@ async function loadMoqList() {
           tr.style.display = ok ? "" : "none";
           if (ok) visible += 1;
         });
-        const emptyRow = node.querySelector("#mrpTable_moq tbody tr.mrp-empty-row");
+        const emptyRow = node.querySelector(
+          "#mrpTable_moq tbody tr.mrp-empty-row",
+        );
         if (emptyRow) {
           emptyRow.style.display =
             dataRows.length === 0 || visible === 0 ? "" : "none";
@@ -1477,81 +1724,21 @@ async function loadMoqList() {
       getRow: (_tr, idx) => rows[idx],
       openDetail: (row) => showMoqDetail(row),
     });
-    hideMrpLoading();
   } catch (e) {
+    if (!isCurrentMrpSection("moq", sectionSeq)) return;
     console.debug(e);
-    node.innerHTML = `<div class="error">Failed loading MOQ policies: ${String(
+    node.innerHTML = `<div class="error">Failed loading MOQ policies: ${escapeHtmlValue(
       e?.message || e,
     )}</div>`;
+  } finally {
     hideMrpLoading();
   }
 }
 
-async function exportMappingsCsv() {
-  try {
-    // fetch all mappings
-    const { data: allMaps, error: mapErr } = await supabase
-      .from("inv_stock_item_season_profile")
-      .select("*");
-    if (mapErr) throw mapErr;
-    const ids = (allMaps || []).map((m) => m.stock_item_id).filter(Boolean);
-    let items = [];
-    if (ids.length) {
-      const { data: it, error: itErr } = await supabase
-        .from("v_inv_stock_item_with_class")
-        .select("*")
-        .in("stock_item_id", ids);
-      if (itErr) throw itErr;
-      items = it || [];
-    }
-    // join
-    const rows = (allMaps || []).map((m) => {
-      const it = items.find((x) => x.stock_item_id === m.stock_item_id) || {};
-      return {
-        stock_item_id: m.stock_item_id,
-        code: it.code || "",
-        name: it.name || "",
-        season_profile_id: m.season_profile_id,
-        is_active: m.is_active,
-        notes: m.notes || "",
-        created_at: m.created_at || "",
-        updated_at: m.updated_at || "",
-      };
-    });
-    const headers = Object.keys(rows[0] || {});
-    const csv = [headers.join(",")]
-      .concat(
-        rows.map((r) =>
-          headers
-            .map((h) => `"${String(r[h] || "").replace(/"/g, '""')}"`)
-            .join(","),
-        ),
-      )
-      .join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    const d = new Date();
-    const todayStamp =
-      String(d.getDate()).padStart(2, "0") +
-      String(d.getMonth() + 1).padStart(2, "0") +
-      d.getFullYear();
-    a.download = `${todayStamp}_rm_seasonal_mappings.csv`;
-    document.body.appendChild(a);
-    a.click();
-    showToast("Export started", { type: "success" });
-    a.remove();
-    URL.revokeObjectURL(url);
-  } catch (err) {
-    console.debug("Export failed", err);
-    showToast("Export failed", { type: "error" });
-  }
-}
-
-async function loadConvList() {
+async function loadConvList(sectionSeq = mrpSectionRenderSeq) {
+  const node = getMrpSectionNode("conv");
+  if (!node) return;
   showMrpLoading("Loading conversions...");
-  const node = document.getElementById("convSection");
   node.innerHTML = '<div class="muted">Loading conversions...</div>';
   try {
     const page = convPage || 1;
@@ -1566,12 +1753,12 @@ async function loadConvList() {
       )
       .order("updated_at", { ascending: false })
       .range(from, to);
+    if (!isCurrentMrpSection("conv", sectionSeq)) return;
     if (count !== null && count !== undefined) convTotal = count;
     if (error) throw error;
     if (!data || !data.length) {
       node.innerHTML =
         '<div class="mrp-empty-state">No conversion rules found.</div>';
-      hideMrpLoading();
       return;
     }
     const totalPages = Math.max(1, Math.ceil((convTotal || 0) / pageSize));
@@ -1608,7 +1795,7 @@ async function loadConvList() {
       `</div></div>`;
 
     html +=
-      '<div id="mrpTableContainer">' +
+      '<div id="mrpTableContainer" class="table-scroll">' +
       '<table id="mrpTable_conv" class="mrp-table mrp-mobile-card-table">' +
       "<thead>" +
       // Group header row with colspan (ERP-style)
@@ -1629,8 +1816,7 @@ async function loadConvList() {
       '<th style="width:6%;background:#fafafa">ACTIVE</th>' +
       "</tr></thead><tbody>";
     (data || []).forEach((r) => {
-      const consumeCode =
-        escapeHtmlValue(r.consume_stock_item?.code || "");
+      const consumeCode = escapeHtmlValue(r.consume_stock_item?.code || "");
       const consumingLabel = r.consume_stock_item
         ? [r.consume_stock_item.code, r.consume_stock_item.name]
             .filter(Boolean)
@@ -1640,8 +1826,7 @@ async function loadConvList() {
       const safePurchaseName = escapeHtmlValue(
         r.purchase_stock_item?.name || "",
       );
-      const purchaseCode =
-        escapeHtmlValue(r.purchase_stock_item?.code || "");
+      const purchaseCode = escapeHtmlValue(r.purchase_stock_item?.code || "");
       const purchaseLabel = r.purchase_stock_item
         ? [r.purchase_stock_item.code, r.purchase_stock_item.name]
             .filter(Boolean)
@@ -1675,7 +1860,11 @@ async function loadConvList() {
       pagerId: "convPaginator",
     });
     const addBtn = document.getElementById("addConv");
-    if (addBtn) addBtn.addEventListener("click", () => openConvEditModal());
+    if (addBtn)
+      addBtn.addEventListener("click", () => {
+        rememberMrpModalReturnFocus(addBtn);
+        openConvEditModal();
+      });
 
     // Export visible rows as CSV
     const exportBtn = document.getElementById("exportConvCsv");
@@ -1824,12 +2013,13 @@ async function loadConvList() {
         }
       },
     });
-    hideMrpLoading();
   } catch (e) {
+    if (!isCurrentMrpSection("conv", sectionSeq)) return;
     console.debug(e);
-    node.innerHTML = `<div class="error">Failed loading conversions: ${String(
+    node.innerHTML = `<div class="error">Failed loading conversions: ${escapeHtmlValue(
       e?.message || e,
     )}</div>`;
+  } finally {
     hideMrpLoading();
   }
 }
@@ -2048,15 +2238,25 @@ async function openConvEditModal(row = {}) {
   btnSave.textContent = "Save";
   btnSave.addEventListener("click", async (ev) => {
     ev.preventDefault();
-    if (!(isProcurementAdmin() || canEditPM()))
+
+    if (!(isProcurementAdmin() || canEditPM())) {
       return showToast("No permission", { type: "warning" });
+    }
+
     try {
       const consume_stock_item_id =
         Number(document.getElementById("conv_consume_id").value) || null;
+
       const purchase_stock_item_id =
         Number(document.getElementById("conv_purchase_id").value) || null;
+
       const factor =
         Number(document.getElementById("conv_factor").value) || null;
+
+      const is_active = !!document.getElementById("conv_is_active").checked;
+
+      const notes = document.getElementById("conv_notes").value || null;
+
       if (!consume_stock_item_id || !purchase_stock_item_id || !factor) {
         showToast(
           "Please fill required fields: Consuming Stock Item, Purchase Stock Item, and Factor",
@@ -2064,25 +2264,42 @@ async function openConvEditModal(row = {}) {
         );
         return;
       }
+
       const payload = {
-        id: row.id || null,
         consume_stock_item_id,
         purchase_stock_item_id,
         factor,
-        is_active: !!document.getElementById("conv_is_active").checked,
-        notes: document.getElementById("conv_notes").value || null,
+        is_active,
+        notes,
       };
+
       Object.assign(payload, actorSnapshot());
-      const { error } = await supabase
-        .from("inv_rm_form_conversion")
-        .upsert(payload);
+
+      let error;
+
+      if (row && row.id) {
+        const res = await supabase
+          .from("inv_rm_form_conversion")
+          .update(payload)
+          .eq("id", row.id);
+        error = res.error;
+      } else {
+        const res = await supabase
+          .from("inv_rm_form_conversion")
+          .insert(payload);
+        error = res.error;
+      }
+
       if (error) throw error;
-      showToast("Saved", { type: "success" });
+
+      showToast(row && row.id ? "Updated" : "Saved", { type: "success" });
       safeCloseDetailModal();
       await loadConvList();
     } catch (e) {
       console.debug(e);
-      showToast("Save failed", { type: "error" });
+      showToast("Save failed: " + (e.message || e.details || "Unknown error"), {
+        type: "error",
+      });
     }
   });
 
@@ -2101,75 +2318,35 @@ async function openConvEditModal(row = {}) {
   openMrpDetailModal(root);
 }
 
-async function loadSeasonList() {
+async function loadSeasonList(sectionSeq = mrpSectionRenderSeq) {
+  const node = getMrpSectionNode("season");
+  if (!node) return;
+
   showMrpLoading("Loading season profiles...");
-  const node = document.getElementById("seasonSection");
   node.innerHTML = '<div class="muted">Loading season profiles...</div>';
+
   try {
     const page = seasonPage || 1;
     const pageSize = seasonPageSize || 50;
     const from = (page - 1) * pageSize;
     const to = page * pageSize - 1;
 
-    // server-side fetch using combined view for summary (v_season_calendar)
     const { data, error, count } = await supabase
       .from("v_season_calendar")
       .select("*", { count: "exact" })
       .order("season_profile_id", { ascending: true })
       .range(from, to);
+
+    if (!isCurrentMrpSection("season", sectionSeq)) return;
     if (error) throw error;
+
     seasonTotal = count || 0;
-
-    // build UI: search + actions + paginator
-    // inline SVGs matching MOQ/Conversion
-    const svgAdd =
-      '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    const svgExport =
-      '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="#0f172a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 10l5-5 5 5" stroke="#0f172a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 5v12" stroke="#0f172a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-
-    let html =
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 6px 0">' +
-      '<div style="display:flex;gap:8px;align-items:center">' +
-      '<input id="seasonSearch" placeholder="Type to search profiles..." title="Search by ID or label" style="padding:7px 34px 7px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;min-width:160px;margin-right:8px;height:34px;box-sizing:border-box;background:#f8fafc"/>' +
-      "</div>" +
-      '<div style="display:flex;gap:8px;align-items:center">' +
-      `<button id="addSeason" class="mrp-btn mrp-btn-primary mrp-icon-btn" title="Add profile" aria-label="Add profile" style="width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;padding:0">${svgAdd}</button>` +
-      `<button id="exportSeasonCsv" class="mrp-btn mrp-btn-ghost mrp-icon-btn" title="Export CSV" aria-label="Export CSV" style="width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;padding:0">${svgExport}</button>` +
-      "</div></div>";
-
-    // paginator + row count
     const totalPages = Math.max(1, Math.ceil((seasonTotal || 0) / pageSize));
-    html +=
-      `<div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0 12px 0">` +
-      `<div style="display:flex;align-items:center">` +
-      `<span id="seasonRowCount" style="display:inline-flex;align-items:center;justify-content:center;height:32px;padding:0 12px;border-radius:999px;background:rgba(59,130,246,0.08);color:#0b3a9a;font-weight:600;font-size:0.9rem;margin-left:8px">0 Rows</span>` +
-      `</div>` +
-      `<div id="seasonPaginator" style="display:flex;gap:8px;align-items:center">` +
-      `<button id="seasonPrev" class="mrp-btn mrp-btn-ghost" style="padding:6px 10px">‹</button>` +
-      `<span id="seasonPagerInfo">Page ${page} of ${totalPages}</span>` +
-      `<button id="seasonNext" class="mrp-btn mrp-btn-ghost" style="padding:6px 10px">›</button>` +
-      `</div></div>`;
 
-    // table container and table (single header row) — use v_season_calendar fields
-    html +=
-      '<div id="mrpTableContainer">' +
-      '<table id="mrpTable_season" class="mrp-table mrp-mobile-card-table">' +
-      "<thead><tr>" +
-      '<th style="width:8%;">Profile ID</th>' +
-      '<th style="width:34%;">Season Label</th>' +
-      '<th style="width:20%;">Manufacture Months</th>' +
-      '<th style="width:38%;">Month Split</th>' +
-      "</tr></thead><tbody>";
-
+    let rowsHtml = "";
     (data || []).forEach((p) => {
       const pid = p.season_profile_id || "";
       const label = escapeHtmlValue(p.season_label || "");
-      let months = "";
-      if (Array.isArray(p.manufacture_months)) {
-        months = p.manufacture_months
-          .map((m) => formatMonthShort(m))
-          .join(", ");
-      }
       let split = "";
       if (p.month_split_pct) {
         try {
@@ -2187,24 +2364,60 @@ async function loadSeasonList() {
           split = entries
             .map(([m, v]) => `${formatMonthShort(m)}:${fmtPct(v)}`)
             .join(", ");
-        } catch (e) {
-          console.debug("month_split_pct parse failed", e);
+        } catch {
           split = String(p.month_split_pct || "");
         }
       }
-      html += `<tr class="mrp-mobile-card-row mrp-season-row" tabindex="0" role="button" data-id="${escapeHtmlValue(pid)}" aria-label="Open season profile ${label}">`;
-      html += `<td data-label="Profile ID">${escapeHtmlValue(pid)}</td>`;
-      html += `<td class="mrp-card-primary" data-label="Season Label">${label || "-"}</td>`;
-      html += `<td class="mrp-card-full" data-label="Manufacture Months">${renderMonthChips(
-        p.manufacture_months || months,
-      )}</td>`;
-      html += `<td data-label="Month Split">${escapeHtmlValue(split || "")}</td>`;
-      html += `</tr>`;
+
+      rowsHtml += `<tr class="mrp-season-row" tabindex="0" role="button" data-id="${escapeHtmlValue(pid)}" aria-label="Open season profile ${label}">`;
+      rowsHtml += `<td>${escapeHtmlValue(pid)}</td>`;
+      rowsHtml += `<td>${label || "-"}</td>`;
+      rowsHtml += `<td>${escapeHtmlValue(formatMonthList(p.manufacture_months))}</td>`;
+      rowsHtml += `<td>${escapeHtmlValue(split || "")}</td>`;
+      rowsHtml += `</tr>`;
     });
 
-    html += "</tbody></table></div>";
+    const html =
+      renderMrpToolbar({
+        searchId: "seasonSearch",
+        placeholder: "Type to search profiles.",
+        title: "Search by ID or label",
+        addId: "addSeason",
+        addTitle: "Add profile",
+        addLabel: "Add profile",
+        exportId: "exportSeasonCsv",
+      }) +
+      renderMrpTableMeta({
+        rowCountId: "seasonRowCount",
+        pagerId: "seasonPaginator",
+        prevId: "seasonPrev",
+        nextId: "seasonNext",
+        pagerInfoId: "seasonPagerInfo",
+        page,
+        totalPages,
+      }) +
+      `
+      <div id="mrpTableContainer" class="table-scroll season-panel-table">
+        <table id="mrpTable_season" class="mrp-table">
+          <thead>
+            <tr>
+              <th style="width:8%;">Profile ID</th>
+              <th style="width:34%;">Season Label</th>
+              <th style="width:20%;">Manufacture Months</th>
+              <th style="width:38%;">Month Split</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml || '<tr><td colspan="4" class="mrp-empty-table-cell">No season profiles found.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    if (!isCurrentMrpSection("season", sectionSeq)) return;
     node.innerHTML = html;
-    enhanceConsoleChrome({
+
+    const clearBtn = enhanceConsoleChromeScoped(node, {
       searchId: "seasonSearch",
       clearId: "seasonSearchClear",
       addId: "addSeason",
@@ -2215,71 +2428,107 @@ async function loadSeasonList() {
       pagerId: "seasonPaginator",
     });
 
-    // wire actions
-    document
-      .getElementById("addSeason")
-      .addEventListener("click", () => openSeasonModal());
-    document.getElementById("exportSeasonCsv").addEventListener("click", () => {
-      try {
-        const rows = Array.from(
-          document.querySelectorAll("#mrpTable_season tbody tr"),
-        );
-        const csv = [];
-        csv.push(
-          [
-            "Profile ID",
-            "Season Label",
-            "Manufacture Months",
-            "Month Split",
-          ].join(","),
-        );
-        rows.forEach((r) => {
-          const cells = Array.from(r.querySelectorAll("td"))
-            .slice(0, 4)
-            .map(
-              (td) =>
-                '"' + String(td.textContent || "").replace(/"/g, '""') + '"',
-            );
-          csv.push(cells.join(","));
-        });
-        const blob = new Blob([csv.join("\n")], {
-          type: "text/csv;charset=utf-8;",
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `season_profiles_${new Date()
-          .toISOString()
-          .slice(0, 19)
-          .replace(/[:T]/g, "-")}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-        showToast("Export started", { type: "success" });
-      } catch (e) {
-        console.debug(e);
-        showToast("Export failed", { type: "error" });
-      }
-    });
+    const addSeasonBtn = node.querySelector("#addSeason");
+    if (addSeasonBtn) {
+      addSeasonBtn.addEventListener("click", () => {
+        rememberMrpModalReturnFocus(addSeasonBtn);
+        openSeasonModal();
+      });
+    }
 
-    // paginator wiring
-    document.getElementById("seasonPrev").addEventListener("click", () => {
-      if (seasonPage > 1) {
-        seasonPage -= 1;
-        loadSeasonList();
+    const updateSeasonRowCount = () => {
+      const visible = Array.from(
+        node.querySelectorAll("#mrpTable_season tbody tr"),
+      ).filter((tr) => getComputedStyle(tr).display !== "none").length;
+      const pill = node.querySelector("#seasonRowCount");
+      const pagerInfo = node.querySelector("#seasonPagerInfo");
+      if (pill) pill.textContent = `${visible} Row${visible === 1 ? "" : "s"}`;
+      if (pagerInfo) {
+        pagerInfo.textContent = `Page ${seasonPage} of ${Math.max(
+          1,
+          Math.ceil((seasonTotal || 0) / seasonPageSize),
+        )}`;
       }
-    });
-    document.getElementById("seasonNext").addEventListener("click", () => {
-      const maxPage = Math.max(
-        1,
-        Math.ceil((seasonTotal || 0) / seasonPageSize),
-      );
-      if (seasonPage < maxPage) {
-        seasonPage += 1;
-        loadSeasonList();
+      const prev = node.querySelector("#seasonPrev");
+      const next = node.querySelector("#seasonNext");
+      if (prev) prev.disabled = seasonPage <= 1;
+      if (next) {
+        next.disabled =
+          seasonPage >=
+          Math.max(1, Math.ceil((seasonTotal || 0) / seasonPageSize));
       }
-    });
+    };
+
+    const exportBtn = node.querySelector("#exportSeasonCsv");
+    if (exportBtn) {
+      exportBtn.addEventListener("click", () => {
+        try {
+          const rows = Array.from(
+            node.querySelectorAll("#mrpTable_season tbody tr"),
+          );
+          const csv = [];
+          csv.push(
+            [
+              "Profile ID",
+              "Season Label",
+              "Manufacture Months",
+              "Month Split",
+            ].join(","),
+          );
+          rows.forEach((r) => {
+            const cells = Array.from(r.querySelectorAll("td"))
+              .slice(0, 4)
+              .map(
+                (td) =>
+                  '"' + String(td.textContent || "").replace(/"/g, '""') + '"',
+              );
+            csv.push(cells.join(","));
+          });
+          const blob = new Blob([csv.join("\n")], {
+            type: "text/csv;charset=utf-8;",
+          });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `season_profiles_${new Date()
+            .toISOString()
+            .slice(0, 19)
+            .replace(/[:T]/g, "-")}.csv`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+          showToast("Export started", { type: "success" });
+        } catch (e) {
+          console.debug(e);
+          showToast("Export failed", { type: "error" });
+        }
+      });
+    }
+
+    const prevBtn = node.querySelector("#seasonPrev");
+    if (prevBtn) {
+      prevBtn.addEventListener("click", () => {
+        if (seasonPage > 1) {
+          seasonPage -= 1;
+          activateMrpSection("season");
+        }
+      });
+    }
+
+    const nextBtn = node.querySelector("#seasonNext");
+    if (nextBtn) {
+      nextBtn.addEventListener("click", () => {
+        const maxPage = Math.max(
+          1,
+          Math.ceil((seasonTotal || 0) / seasonPageSize),
+        );
+        if (seasonPage < maxPage) {
+          seasonPage += 1;
+          activateMrpSection("season");
+        }
+      });
+    }
 
     wireMrpRowOpeners({
       root: node,
@@ -2288,45 +2537,24 @@ async function loadSeasonList() {
       openDetail: async (_row, tr) => {
         const id = tr.dataset.id;
         try {
-          const { data } = await supabase
+          const { data: profileRows } = await supabase
             .from("season_profile")
             .select("*")
             .eq("id", id)
             .limit(1);
-          const row = data && data[0] ? data[0] : { id };
+          if (!isCurrentMrpSection("season", sectionSeq)) return;
+          const row = profileRows && profileRows[0] ? profileRows[0] : { id };
           showSeasonDetail(row);
         } catch (e) {
+          if (!isCurrentMrpSection("season", sectionSeq)) return;
           console.debug(e);
         }
       },
     });
 
-    // update row count and pager info
-    const updateSeasonRowCount = () => {
-      const visible = Array.from(
-        node.querySelectorAll("#mrpTable_season tbody tr"),
-      ).filter((tr) => getComputedStyle(tr).display !== "none").length;
-      const pill = document.getElementById("seasonRowCount");
-      const pagerInfo = document.getElementById("seasonPagerInfo");
-      if (pill) pill.textContent = `${visible} Row${visible === 1 ? "" : "s"}`;
-      if (pagerInfo)
-        pagerInfo.textContent = `Page ${seasonPage} of ${Math.max(
-          1,
-          Math.ceil((seasonTotal || 0) / seasonPageSize),
-        )}`;
-      const prev = document.getElementById("seasonPrev");
-      const next = document.getElementById("seasonNext");
-      if (prev) prev.disabled = seasonPage <= 1;
-      if (next)
-        next.disabled =
-          seasonPage >=
-          Math.max(1, Math.ceil((seasonTotal || 0) / seasonPageSize));
-    };
     updateSeasonRowCount();
-    hideMrpLoading();
 
-    // search wiring (by id or label)
-    const searchEl = document.getElementById("seasonSearch");
+    const searchEl = node.querySelector("#seasonSearch");
     if (searchEl) {
       let timer = null;
       searchEl.addEventListener("input", (ev) => {
@@ -2335,12 +2563,11 @@ async function loadSeasonList() {
           const v = (ev.target.value || "").trim();
           if (!v) {
             seasonPage = 1;
-            await loadSeasonList();
+            await activateMrpSection("season");
             return;
           }
-          // simple client-side filtering when results are present
           Array.from(
-            document.querySelectorAll("#mrpTable_season tbody tr"),
+            node.querySelectorAll("#mrpTable_season tbody tr"),
           ).forEach((tr) => {
             const txt = tr.textContent || "";
             tr.style.display = txt.toLowerCase().includes(v.toLowerCase())
@@ -2351,26 +2578,24 @@ async function loadSeasonList() {
           updateSeasonRowCount();
         }, 250);
       });
-      wireSearchClear(
-        searchEl,
-        document.getElementById("seasonSearchClear"),
-        () => {
-          Array.from(
-            document.querySelectorAll("#mrpTable_season tbody tr"),
-          ).forEach((tr) => {
+      wireSearchClear(searchEl, clearBtn, () => {
+        Array.from(node.querySelectorAll("#mrpTable_season tbody tr")).forEach(
+          (tr) => {
             tr.style.display = "";
-          });
-          resetTableScrollAfterFilter(node);
-          updateSeasonRowCount();
-        },
-      );
+          },
+        );
+        resetTableScrollAfterFilter(node);
+        updateSeasonRowCount();
+      });
     }
   } catch (e) {
-    console.debug(e);
-    node.innerHTML = `<div class="error">Failed loading seasons: ${String(
-      e?.message || e,
-    )}</div>`;
-    hideMrpLoading();
+    if (isCurrentMrpSection("season", sectionSeq)) {
+      console.debug(e);
+      node.innerHTML = `<div class="error">Failed loading season profiles.</div>`;
+      showToast("Failed loading season profiles", { type: "error" });
+    }
+  } finally {
+    forceHideMrpLoading();
   }
 }
 
@@ -2456,29 +2681,27 @@ function showSeasonDetail(profile) {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:8px;box-sizing:border-box">
       <div style="grid-column:1/3;padding:12px;background:#f8fafc;border-radius:6px;border-left:4px solid #0f172a">
         <div style="font-size:0.85rem;color:#6b7280;margin-bottom:4px">Season Label</div>
-        <div style="font-weight:600;color:#0f172a">${p.label || ""}</div>
+        <div style="font-weight:600;color:#0f172a">${escapeHtmlValue(p.label || "")}</div>
       </div>
       <div style="display:flex;flex-direction:column;gap:6px">
         <div style="font-weight:600;color:#374151;font-size:0.9rem">Profile ID</div>
-        <div style="color:#0f172a">${p.id || ""}</div>
+        <div style="color:#0f172a">${escapeHtmlValue(p.id || "")}</div>
       </div>
       <div style="display:flex;flex-direction:column;gap:6px">
         <div style="font-weight:600;color:#374151;font-size:0.9rem">Entity Kind</div>
-        <div style="color:#0f172a">${p.entity_kind || ""}</div>
+        <div style="color:#0f172a">${escapeHtmlValue(p.entity_kind || "")}</div>
       </div>
       <div style="grid-column:1/3;display:flex;flex-direction:column;gap:6px">
         <div style="font-weight:600;color:#374151;font-size:0.9rem">Manufacture Months</div>
-        <div style="color:#0f172a">${manufMonths.join(", ") || "(none)"}</div>
+        <div style="color:#0f172a">${escapeHtmlValue(manufMonths.join(", ") || "(none)")}</div>
       </div>
       <div style="grid-column:1/3;display:flex;flex-direction:column;gap:6px">
         <div style="font-weight:600;color:#374151;font-size:0.9rem">Month Split</div>
-        <div style="color:#0f172a">${splitEntries.join(", ") || "(none)"}</div>
+        <div style="color:#0f172a">${escapeHtmlValue(splitEntries.join(", ") || "(none)")}</div>
       </div>
       <div style="grid-column:1/3;margin-top:8px">
         <div style="font-weight:600;color:#374151;font-size:0.9rem;margin-bottom:6px">Notes</div>
-        <div style="color:#0f172a;white-space:pre-wrap">${(
-          p.notes || ""
-        ).replace(/</g, "&lt;")}</div>
+        <div style="color:#0f172a;white-space:pre-wrap">${escapeHtmlValue(p.notes || "")}</div>
       </div>
     </div>
     `;
@@ -2521,7 +2744,7 @@ function showSeasonDetail(profile) {
           if (pErr) throw pErr;
           showToast("Deleted", { type: "success" });
           safeCloseDetailModal();
-          await loadSeasonList();
+          await activateMrpSection("season");
         } catch (e) {
           console.debug(e);
           showToast("Delete failed", { type: "error" });
@@ -2534,7 +2757,7 @@ function showSeasonDetail(profile) {
       openMrpDetailModal(root);
     } catch (e) {
       console.debug(e);
-      body.innerHTML = `<div class="error">Failed loading season detail: ${String(
+      body.innerHTML = `<div class="error">Failed loading season detail: ${escapeHtmlValue(
         e?.message || e,
       )}</div>`;
     }
@@ -2741,7 +2964,7 @@ function openSeasonModal(row = {}) {
 
           showToast("Saved", { type: "success" });
           safeCloseDetailModal();
-          await loadSeasonList();
+          await activateMrpSection("season");
         } catch (e) {
           console.debug(e);
           showToast("Save failed", { type: "error" });
@@ -2759,52 +2982,298 @@ function openSeasonModal(row = {}) {
   })();
 }
 
-async function loadMapQuickEditor() {
-  const node = document.getElementById("mapSection");
-  // inline SVGs used by other tabs (kept consistent)
-  const svgAdd =
-    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  const svgExport =
-    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="#0f172a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 10l5-5 5 5" stroke="#0f172a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 5v12" stroke="#0f172a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+async function fetchSeasonProfileOptions({ force = false } = {}) {
+  if (!force && Array.isArray(seasonProfileOptionsCache)) {
+    return seasonProfileOptionsCache;
+  }
 
-  node.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 6px 0">
-      <div style="display:flex;gap:8px;align-items:center">
-        <input id="textSearch" placeholder="Type in to search..." title="Type Stock Item ID, Code or Name to search" style="padding:7px 34px 7px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;min-width:160px;margin-right:8px;height:34px;box-sizing:border-box;background:#f8fafc" />
-      </div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <button id="addMappingBtn" class="mrp-btn mrp-btn-primary mrp-icon-btn" title="Add mapping" aria-label="Add mapping" style="width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;padding:0">${svgAdd}</button>
-        <button id="exportMappingBtn" class="mrp-btn mrp-btn-ghost mrp-icon-btn" title="Export CSV" aria-label="Export CSV" style="width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;padding:0;margin-left:8px">${svgExport}</button>
-      </div>
-    </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0 12px 0">
-      <div style="display:flex;align-items:center">
-        <span id="mapRowCount" style="display:inline-flex;align-items:center;justify-content:center;height:32px;padding:0 12px;border-radius:999px;background:rgba(59,130,246,0.08);color:#0b3a9a;font-weight:600;font-size:0.9rem;margin-left:8px">0 Rows</span>
-      </div>
-      <div id="mapPaginator" style="display:flex;gap:8px;align-items:center">
-        <button id="mapPrev" class="mrp-btn mrp-btn-ghost" style="padding:6px 10px">‹</button>
-        <span id="mapPagerInfo">Page 1 of 1</span>
-        <button id="mapNext" class="mrp-btn mrp-btn-ghost" style="padding:6px 10px">›</button>
-      </div>
-    </div>
-    <div>
-      <div id="mrpTableContainer" style="max-height:55vh;">
-        <table id="mrpTable_mapping" class="mrp-table mrp-mobile-card-table">
-          <thead>
-            <tr>
-              <th style="width:10%;">ID</th>
-              <th style="width:20%;">Code</th>
-              <th style="width:40%;">Name</th>
-              <th style="width:20%;">Season Profile</th>
-              <th style="width:10%;">Active</th>
-            </tr>
-          </thead>
-          <tbody id="rmBody"></tbody>
-        </table>
-      </div>
+  const { data, error } = await supabase
+    .from("season_profile")
+    .select("id,label,entity_kind")
+    .eq("entity_kind", "raw_material")
+    .order("label", { ascending: true });
+
+  if (error) throw error;
+  seasonProfileOptionsCache = (data || []).map((p) => ({
+    id: p.id,
+    label: p.label || `Profile ${p.id}`,
+    entity_kind: p.entity_kind,
+  }));
+  return seasonProfileOptionsCache;
+}
+
+async function fetchRmMappingPage({ page, pageSize, search = "" }) {
+  const from = (page - 1) * pageSize;
+  const to = page * pageSize - 1;
+  const clean = String(search || "").trim();
+
+  let source = "v_inv_stock_item_with_class";
+  let items = [];
+  let total = 0;
+  let primaryError = null;
+
+  try {
+    let q = supabase
+      .from("v_inv_stock_item_with_class")
+      .select("stock_item_id,code,name,category_code", { count: "exact" })
+      .eq("category_code", "RM")
+      .order("code", { ascending: true })
+      .range(from, to);
+
+    if (clean) {
+      q = q.or(
+        [
+          `code.ilike.%${clean}%`,
+          `name.ilike.%${clean}%`,
+          /^\d+$/.test(clean) ? `stock_item_id.eq.${Number(clean)}` : null,
+        ]
+          .filter(Boolean)
+          .join(","),
+      );
+    }
+
+    const itemRes = await q;
+    if (itemRes.error) throw itemRes.error;
+
+    items = itemRes.data || [];
+    total = itemRes.count || items.length;
+  } catch (err) {
+    primaryError = err;
+    console.warn(
+      "[MRP] RM classified view failed; falling back to inv_stock_item",
+      err,
+    );
+  }
+
+  if (!items.length) {
+    source = "inv_stock_item_fallback";
+
+    let fallback = supabase
+      .from("inv_stock_item")
+      .select("id,code,name", { count: "exact" })
+      .eq("active", true)
+      .order("name", { ascending: true })
+      .range(from, to);
+
+    if (clean) {
+      fallback = fallback.or(
+        [
+          `code.ilike.%${clean}%`,
+          `name.ilike.%${clean}%`,
+          /^\d+$/.test(clean) ? `id.eq.${Number(clean)}` : null,
+        ]
+          .filter(Boolean)
+          .join(","),
+      );
+    }
+
+    const fallbackRes = await fallback;
+    if (fallbackRes.error) {
+      throw primaryError || fallbackRes.error;
+    }
+
+    items = (fallbackRes.data || []).map((r) => ({
+      stock_item_id: r.id,
+      code: r.code,
+      name: r.name,
+      category_code: "",
+    }));
+    total = fallbackRes.count || items.length;
+  }
+
+  const ids = items.map((r) => r.stock_item_id).filter(Boolean);
+
+  let mappings = [];
+  if (ids.length) {
+    const mapRes = await supabase
+      .from("inv_stock_item_season_profile")
+      .select("*")
+      .in("stock_item_id", ids);
+
+    if (mapRes.error) throw mapRes.error;
+    mappings = mapRes.data || [];
+  }
+
+  const mappingByItem = new Map(
+    mappings.map((m) => [Number(m.stock_item_id), m]),
+  );
+
+  return {
+    rows: items.map((item) => ({
+      ...item,
+      mapping: mappingByItem.get(Number(item.stock_item_id)) || null,
+    })),
+    total,
+    source,
+    primaryError,
+  };
+}
+
+function renderMapRow(r, profiles) {
+  const m = r.mapping || null;
+  const p = m
+    ? profiles.find((x) => Number(x.id) === Number(m.season_profile_id))
+    : null;
+  const profileLabel = m ? p?.label || String(m.season_profile_id || "") : "-";
+
+  return `
+    <tr class="mrp-map-row" tabindex="0" role="button" data-id="${escapeHtmlValue(
+      r.stock_item_id || "",
+    )}">
+      <td>${escapeHtmlValue(r.stock_item_id || "")}</td>
+      <td>${escapeHtmlValue(r.code || "")}</td>
+      <td>${escapeHtmlValue(r.name || "-")}</td>
+      <td>${escapeHtmlValue(profileLabel)}</td>
+      <td>${m ? (m.is_active ? "Yes" : "No") : "-"}</td>
+    </tr>
+  `;
+}
+
+function renderMapPanelShell({
+  rows,
+  profiles,
+  page,
+  totalPages,
+  emptyMessage = "No RM stock items found.",
+  source = "",
+}) {
+  const sourceNote = source
+    ? `<div class="mrp-data-source-note">Source: ${escapeHtmlValue(source)}</div>`
+    : "";
+  const rowsHtml = rows.length
+    ? rows.map((r) => renderMapRow(r, profiles)).join("")
+    : `<tr><td colspan="5" class="mrp-empty-table-cell">${escapeHtmlValue(emptyMessage)}</td></tr>`;
+
+  return `
+    ${renderMrpToolbar({
+      searchId: "textSearch",
+      placeholder: "Type ID, code, or name to search.",
+      title: "Search RM stock items",
+      addId: "addMappingBtn",
+      addTitle: "Add mapping",
+      addLabel: "Add mapping",
+      exportId: "exportMappingBtn",
+    })}
+
+    ${renderMrpTableMeta({
+      rowCountId: "mapRowCount",
+      pagerId: "mapPaginator",
+      prevId: "mapPrev",
+      nextId: "mapNext",
+      pagerInfoId: "mapPagerInfo",
+      page,
+      totalPages,
+    })}
+
+    ${sourceNote}
+
+    <div id="mrpTableContainer" class="table-scroll mapping-panel-table">
+      <table id="mrpTable_mapping" class="mrp-table">
+        <thead>
+          <tr>
+            <th style="width:10%;">ID</th>
+            <th style="width:20%;">Code</th>
+            <th style="width:40%;">Name</th>
+            <th style="width:20%;">Season Profile</th>
+            <th style="width:10%;">Active</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
     </div>
   `;
-  enhanceConsoleChrome({
+}
+
+function updateMapRowCount(node, visibleCount) {
+  const pill = node.querySelector("#mapRowCount");
+  if (pill)
+    pill.textContent = `${visibleCount} Row${visibleCount === 1 ? "" : "s"}`;
+  const pagerInfo = node.querySelector("#mapPagerInfo");
+  if (pagerInfo) {
+    pagerInfo.textContent = `Page ${mapPage} of ${Math.max(
+      1,
+      Math.ceil((mapTotal || 0) / mapPageSize),
+    )}`;
+  }
+}
+
+function exportMappingsCsvFromRows(rows, profiles) {
+  const csv = [];
+  csv.push(["ID", "Code", "Name", "Season Profile", "Active"].join(","));
+  rows.forEach((r) => {
+    const m = r.mapping || null;
+    const p = m
+      ? profiles.find((x) => Number(x.id) === Number(m.season_profile_id))
+      : null;
+    const profileLabel = m
+      ? p?.label || String(m.season_profile_id || "")
+      : "-";
+    csv.push(
+      [
+        r.stock_item_id || "",
+        r.code || "",
+        r.name || "",
+        profileLabel,
+        m ? (m.is_active ? "Yes" : "No") : "-",
+      ]
+        .map((v) => '"' + String(v).replace(/"/g, '""') + '"')
+        .join(","),
+    );
+  });
+  const blob = new Blob([csv.join("\n")], {
+    type: "text/csv;charset=utf-8;",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `rm_mapping_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function showMappingDetail(row, profiles) {
+  const m = row.mapping || null;
+  const p = m
+    ? profiles.find((x) => Number(x.id) === Number(m.season_profile_id))
+    : null;
+  const profileLabel = m ? p?.label || String(m.season_profile_id || "") : "-";
+
+  openMrpStructuredModal({
+    title: `${row.code || row.stock_item_id} — ${row.name || ""}`,
+    sections: [
+      {
+        title: "Mapping",
+        type: "kv",
+        data: {
+          "RM ID": row.stock_item_id,
+          Code: row.code,
+          Name: row.name,
+          "Season Profile": profileLabel,
+          Active: m ? (m.is_active ? "Yes" : "No") : "-",
+        },
+      },
+      {
+        title: "Notes",
+        type: "html",
+        data: `<div style="white-space:pre-wrap">${escapeHtmlValue(
+          m && m.notes ? m.notes : "",
+        )}</div>`,
+      },
+    ],
+    actions: [
+      {
+        label: "Close",
+        onClick: () => safeCloseDetailModal(),
+      },
+    ],
+  });
+}
+
+function wireMapPanel(node, rows, profiles) {
+  const search = node.querySelector("#textSearch");
+  const clearBtn = enhanceConsoleChromeScoped(node, {
     searchId: "textSearch",
     clearId: "mapSearchClear",
     addId: "addMappingBtn",
@@ -2815,614 +3284,114 @@ async function loadMapQuickEditor() {
     pagerId: "mapPaginator",
   });
 
-  // CSS handles all table styling automatically - no manual adjustments needed
+  let timer = null;
+  search?.addEventListener("input", () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      mapSearchTerm = search.value || "";
+      mapPage = 1;
+      activateMrpSection("map");
+    }, 300);
+  });
 
-  // adjust table container max-height to fill remaining viewport space
-  (function adjustMapTableHeight() {
-    const tbl = node.querySelector("#mrpTableContainer");
-    if (!tbl) return;
-    const adjust = () => {
-      try {
-        const top = tbl.getBoundingClientRect().top || 0;
-        const avail = Math.max(200, window.innerHeight - top - 36);
-        tbl.style.maxHeight = avail + "px";
-      } catch {
-        /* ignore */
-      }
-    };
-    adjust();
-    if (!window.__mapTableResizeRegistered) {
-      window.addEventListener("resize", adjust);
-      window.__mapTableResizeRegistered = true;
+  wireSearchClear(search, clearBtn, () => {
+    mapSearchTerm = "";
+    mapPage = 1;
+    activateMrpSection("map");
+  });
+
+  node.querySelector("#mapPrev")?.addEventListener("click", () => {
+    if (mapPage > 1) {
+      mapPage -= 1;
+      activateMrpSection("map");
     }
-  })();
+  });
 
-  // local element getters
-  // pagination state for mapped list
-  let mapPage = 1;
-  let mapPageSize = 50;
-  let mapTotal = 0;
-
-  const els = {
-    textSearch: () => node.querySelector("#textSearch"),
-    rowCount: () => node.querySelector("#mapRowCount"),
-    rmBody: () => node.querySelector("#rmBody"),
-  };
-
-  let profiles = [];
-  let rmItems = [];
-  let mappings = new Map();
-
-  async function openMappingEditModal(r) {
-    prepareMrpDetailModal();
-    await fetchProfiles();
-    const selectedMap = mappings.get(r.stock_item_id) || null;
-    const profileOptions = profiles
-      .map(
-        (p) =>
-          `<option value="${p.id}">${escapeHtml(
-            p.label || p.name || String(p.id),
-          )}</option>`,
-      )
-      .join("");
-
-    openMrpStructuredModal({
-      title: `Edit mapping — ${r.code || r.stock_item_id}`,
-      sections: [
-        {
-          title: "",
-          type: "html",
-          data: `
-            <div class="two-col-form">
-              <div class="col">
-                <label>Season Profile</label>
-                <select id="_map_profile_select">
-                  <option value="">-- None --</option>
-                  ${profileOptions}
-                </select>
-                <label style="display:block;margin-top:8px">Active</label>
-                <input type="checkbox" id="_map_is_active" />
-              </div>
-              <div class="col">
-                <label>Notes</label>
-                <textarea id="_map_notes" rows="6" style="width:100%"></textarea>
-                <div id="_profile_months_preview" style="margin-top:8px;color:#444;font-size:90%"></div>
-              </div>
-            </div>
-          `,
-        },
-      ],
-      onOpen: () => {
-        const sel = document.getElementById("_map_profile_select");
-        const notes = document.getElementById("_map_notes");
-        const active = document.getElementById("_map_is_active");
-        const preview = document.getElementById("_profile_months_preview");
-        if (!sel || !notes || !active || !preview) return;
-        sel.value =
-          selectedMap && selectedMap.season_profile_id
-            ? String(selectedMap.season_profile_id)
-            : "";
-        notes.value = selectedMap && selectedMap.notes ? selectedMap.notes : "";
-        active.checked = selectedMap ? !!selectedMap.is_active : true;
-        sel.addEventListener("change", () => {
-          const v = sel.value ? Number(sel.value) : null;
-          showProfileMonthsPreview(v, preview);
-        });
-        if (sel.value) showProfileMonthsPreview(Number(sel.value), preview);
-      },
-      actions: [
-        {
-          label: "Save",
-          onClick: async () => {
-            const sel = document.getElementById("_map_profile_select");
-            const notes = document.getElementById("_map_notes");
-            const active = document.getElementById("_map_is_active");
-            const payload = {
-              stock_item_id: r.stock_item_id,
-              season_profile_id: sel && sel.value ? Number(sel.value) : null,
-              is_active: active ? !!active.checked : true,
-              notes: notes ? notes.value : null,
-            };
-            try {
-              const { error } = await supabase
-                .from("inv_stock_item_season_profile")
-                .upsert(payload, { onConflict: ["stock_item_id"] });
-              if (error) throw error;
-              showToast("Mapping saved", { type: "success" });
-              await fetchMappedPage();
-              mergeAndRender();
-              safeCloseDetailModal();
-            } catch (e) {
-              console.debug(e);
-              showToast("Save failed", { type: "error" });
-            }
-          },
-        },
-        {
-          label: "Clear",
-          onClick: async () => {
-            const ok = await showConfirm(
-              "Clear mapping for this item?",
-              "Confirm clear",
-            );
-            if (!ok) return;
-            try {
-              const { error } = await supabase
-                .from("inv_stock_item_season_profile")
-                .delete()
-                .eq("stock_item_id", r.stock_item_id);
-              if (error) throw error;
-              showToast("Mapping cleared", { type: "success" });
-              await fetchMappedPage();
-              mergeAndRender();
-              safeCloseDetailModal();
-            } catch (e) {
-              console.debug(e);
-              showToast("Clear failed", { type: "error" });
-            }
-          },
-        },
-        { label: "Cancel", onClick: () => safeCloseDetailModal() },
-      ],
-    });
-  }
-
-  async function openAddMappingModal() {
-    prepareMrpDetailModal();
-    // ensure profiles are loaded
-    await fetchProfiles();
-    // fetch all mapped ids to determine unmapped stock items
-    const { data: mappedAll, error: mapErr } = await supabase
-      .from("inv_stock_item_season_profile")
-      .select("stock_item_id");
-    if (mapErr) {
-      console.debug("Failed loading mapped ids", mapErr);
+  node.querySelector("#mapNext")?.addEventListener("click", () => {
+    const maxPage = Math.max(1, Math.ceil((mapTotal || 0) / mapPageSize));
+    if (mapPage < maxPage) {
+      mapPage += 1;
+      activateMrpSection("map");
     }
-    const mappedIds = (mappedAll || [])
-      .map((m) => m.stock_item_id)
-      .filter(Boolean);
+  });
 
-    // fetch unmapped RM stock items for dropdown (limit to reasonable size)
-    let unmapped = [];
+  node.querySelector("#addMappingBtn")?.addEventListener("click", () => {
+    showToast("Use row details to manage mappings", { type: "warning" });
+  });
+
+  node.querySelector("#exportMappingBtn")?.addEventListener("click", () => {
+    exportMappingsCsvFromRows(rows, profiles);
+    showToast("Export started", { type: "success" });
+  });
+
+  wireMrpRowOpeners({
+    root: node,
+    selector: "#mrpTable_mapping tbody tr.mrp-map-row",
+    getRow: (tr) =>
+      rows.find((r) => String(r.stock_item_id) === String(tr.dataset.id || "")),
+    openDetail: (row) => row && showMappingDetail(row, profiles),
+  });
+
+  updateMapRowCount(node, rows.length);
+}
+
+async function loadMapQuickEditor(sectionSeq = mrpSectionRenderSeq) {
+  const node = getMrpSectionNode("map");
+  if (!node) return;
+
+  showMrpLoading("Loading seasonal mappings...");
+  node.innerHTML = '<div class="muted">Loading seasonal mappings...</div>';
+
+  try {
+    let profiles = [];
     try {
-      let q = supabase
-        .from("v_inv_stock_item_with_class")
-        .select("stock_item_id,code,name")
-        .eq("category_code", "RM")
-        .order("code", { ascending: true })
-        .limit(2000);
-      if (mappedIds.length)
-        q = q.not("stock_item_id", "in", `(${mappedIds.join(",")})`);
-      const { data, error } = await q;
-      if (error) throw error;
-      unmapped = data || [];
-    } catch (err) {
-      console.debug("Failed loading unmapped items", err);
-      unmapped = [];
-    }
-
-    const profileOptions = profiles
-      .map(
-        (p) =>
-          `<option value="${p.id}">${escapeHtml(
-            p.label || p.name || String(p.id),
-          )}</option>`,
-      )
-      .join("");
-    const stockOptions = unmapped
-      .map(
-        (s) =>
-          `<option value="${s.stock_item_id}">${escapeHtml(
-            (s.code || "") + " — " + (s.name || ""),
-          )}</option>`,
-      )
-      .join("");
-
-    openMrpStructuredModal({
-      title: "Add mapping",
-      sections: [
-        {
-          title: "",
-          type: "html",
-          data: `
-            <form id="add_mapping_form" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:4px 0;box-sizing:border-box">
-              <div style="display:flex;flex-direction:column;gap:6px;box-sizing:border-box">
-                <label for="_add_stock_select" style="font-weight:600;color:#374151;font-size:0.9rem;display:block">Stock Item <span style="color:#dc2626">*</span></label>
-                <select id="_add_stock_select" required style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;background:#fff;box-sizing:border-box">
-                  <option value="">-- Select stock item --</option>
-                  ${stockOptions}
-                </select>
-              </div>
-              <div style="display:flex;flex-direction:column;gap:6px;box-sizing:border-box">
-                <label for="_add_profile_select" style="font-weight:600;color:#374151;font-size:0.9rem;display:block">Season Profile</label>
-                <select id="_add_profile_select" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;background:#fff;box-sizing:border-box">
-                  <option value="">-- None --</option>
-                  ${profileOptions}
-                </select>
-              </div>
-              <div style="grid-column:1/3;display:flex;flex-direction:column;gap:6px;box-sizing:border-box">
-                <label for="_add_notes" style="font-weight:600;color:#374151;font-size:0.9rem;display:block">Notes</label>
-                <textarea id="_add_notes" rows="4" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;resize:vertical;box-sizing:border-box"></textarea>
-              </div>
-              <div style="display:flex;align-items:center;gap:8px;box-sizing:border-box">
-                <input id="_add_is_active" type="checkbox" style="width:18px;height:18px;cursor:pointer;flex-shrink:0" checked />
-                <label for="_add_is_active" style="font-weight:600;color:#374151;font-size:0.9rem">Active</label>
-              </div>
-              <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;box-sizing:border-box">
-                <div id="_profile_months_preview" style="color:#6b7280;font-size:0.9rem;max-width:320px;text-align:right"></div>
-              </div>
-            </form>
-          `,
-        },
-      ],
-      onOpen: () => {
-        const sel = document.getElementById("_add_profile_select");
-        if (sel)
-          sel.addEventListener("change", () => {
-            const v = sel.value ? Number(sel.value) : null;
-            showProfileMonthsPreview(v);
-          });
-      },
-      actions: [
-        { label: "Cancel", onClick: () => safeCloseDetailModal() },
-        {
-          label: "Save",
-          onClick: async () => {
-            const selStock = document.getElementById("_add_stock_select");
-            const selProfile = document.getElementById("_add_profile_select");
-            const notes = document.getElementById("_add_notes");
-            const active = document.getElementById("_add_is_active");
-            if (!selStock || !selStock.value) {
-              showToast("Pick a stock item", { type: "error" });
-              return;
-            }
-            const payload = {
-              stock_item_id: Number(selStock.value),
-              season_profile_id:
-                selProfile && selProfile.value
-                  ? Number(selProfile.value)
-                  : null,
-              is_active: active ? !!active.checked : true,
-              notes: notes ? notes.value : null,
-            };
-            try {
-              const { error } = await supabase
-                .from("inv_stock_item_season_profile")
-                .upsert(payload, { onConflict: ["stock_item_id"] });
-              if (error) throw error;
-              showToast("Mapping added", { type: "success" });
-              // refresh current page
-              await fetchMappedPage();
-              mergeAndRender();
-              safeCloseDetailModal();
-            } catch (e) {
-              console.debug(e);
-              showToast("Save failed", { type: "error" });
-            }
-          },
-        },
-      ],
-    });
-  }
-
-  function showProfileMonthsPreview(profileId, targetEl) {
-    const preview =
-      targetEl || document.getElementById("_profile_months_preview");
-    if (!preview) return;
-    if (!profileId) {
-      preview.innerHTML = "";
-      return;
-    }
-    const p = profiles.find((x) => x.id === profileId);
-    if (!p) {
-      preview.innerHTML = "(profile not found)";
-      return;
-    }
-    if (p.manufacture_months && Array.isArray(p.manufacture_months)) {
-      preview.innerHTML = p.manufacture_months
-        .map((m) => monthNames[m - 1] || String(m))
-        .join(", ");
-    } else if (p.month_split_pct) {
-      try {
-        const obj =
-          typeof p.month_split_pct === "string"
-            ? JSON.parse(p.month_split_pct)
-            : p.month_split_pct;
-        preview.innerHTML = Object.keys(obj)
-          .map(
-            (k) =>
-              `${monthNames[Number(k) - 1] || k}: ${Number(obj[k]).toFixed(2)}%`,
-          )
-          .join("; ");
-      } catch (err) {
-        console.debug("profile month_split_pct parse failed", err);
-        preview.innerHTML = "(invalid month split)";
-      }
-    } else preview.innerHTML = "(no months)";
-  }
-
-  function escapeHtml(s) {
-    if (s === null || s === undefined) return "";
-    return String(s)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
-  }
-
-  async function fetchProfiles() {
-    try {
-      const { data, error } = await supabase
-        .from("season_profile")
-        .select("*")
-        .eq("entity_kind", "raw_material")
-        .order("label", { ascending: true });
-      if (error) throw error;
-      profiles = data || [];
-    } catch (err) {
-      console.error("Failed loading season profiles", err);
-      showToast("Failed loading season profiles", { type: "error" });
+      profiles = await fetchSeasonProfileOptions();
+    } catch (profileErr) {
+      console.warn(
+        "[MRP] season profile options failed; rendering mapping without profile labels",
+        profileErr,
+      );
       profiles = [];
     }
-  }
 
-  // Fetch page of mappings from the mapping table, then fetch stock item details
-  async function fetchMappedPage() {
-    try {
-      const page = mapPage || 1;
-      const pageSize = mapPageSize || 50;
-      const from = (page - 1) * pageSize;
-      const to = page * pageSize - 1;
+    const result = await fetchRmMappingPage({
+      page: mapPage,
+      pageSize: mapPageSize,
+      search: mapSearchTerm,
+    });
 
-      // get page of mappings (primary source of truth)
-      const {
-        data: mapData,
-        error: mapErr,
-        count,
-      } = await supabase
-        .from("inv_stock_item_season_profile")
-        .select("*", { count: "exact" })
-        .order("stock_item_id", { ascending: true })
-        .range(from, to);
-      if (mapErr) throw mapErr;
+    if (!isCurrentMrpSection("map", sectionSeq)) return;
 
-      mapTotal = count || 0;
-      mappings = new Map();
-      const ids = (mapData || []).map((m) => m.stock_item_id).filter(Boolean);
-      (mapData || []).forEach((m) => mappings.set(m.stock_item_id, m));
-
-      if (!ids.length) {
-        rmItems = [];
-      } else {
-        const { data: items, error: itemsErr } = await supabase
-          .from("v_inv_stock_item_with_class")
-          .select("*")
-          .in("stock_item_id", ids)
-          .order("code", { ascending: true });
-        if (itemsErr) throw itemsErr;
-        rmItems = items || [];
-      }
-
-      // update pager info
-      const totalPages = Math.max(1, Math.ceil((mapTotal || 0) / pageSize));
-      const pi = node.querySelector("#mapPagerInfo");
-      if (pi) pi.textContent = `Page ${page} of ${totalPages}`;
-      console.debug("fetchMappedPage done", {
-        rmItemsLength: rmItems.length,
-        mapTotal,
-      });
-    } catch (err) {
-      console.error("Failed loading mapped page", err);
-      showToast("Failed loading mappings", { type: "error" });
-      rmItems = [];
-      mapTotal = 0;
-      mappings = new Map();
+    mapTotal = result.total || 0;
+    const totalPages = Math.max(1, Math.ceil(mapTotal / mapPageSize));
+    let emptyMessage = "No RM stock items found.";
+    if ((result.rows || []).length === 0 && !mapSearchTerm) {
+      emptyMessage =
+        "No RM stock items found. Classified view and fallback source returned no rows.";
     }
-  }
 
-  // (fetchMappings removed; fetchMappedPage populates `mappings` for the page)
-
-  function mergeAndRender() {
-    const tb = els.rmBody();
-    resetTableScrollAfterFilter(node);
-    tb.innerHTML = "";
-    const txt = (els.textSearch().value || "").toLowerCase().trim();
-    console.debug("mergeAndRender", {
-      rmItems: (rmItems || []).length,
-      mappings: mappings.size,
+    node.innerHTML = renderMapPanelShell({
+      rows: result.rows || [],
+      profiles,
+      page: mapPage,
+      totalPages,
+      emptyMessage,
+      source: result.source,
     });
-    const rows = (rmItems || []).filter((r) => {
-      const hay = [String(r.stock_item_id || ""), r.code || "", r.name || ""]
-        .join(" ")
-        .toLowerCase();
-      if (!txt) return true;
-      return hay.includes(txt);
-    });
-    els.rowCount().textContent = `${rows.length} Rows`;
-    console.debug("renderRows", { visible: rows.length, total: mapTotal });
 
-    rows.forEach((r) => {
-      const m = mappings.get(r.stock_item_id) || null;
-      const tr = document.createElement("tr");
-      tr.className = "mrp-mobile-card-row mrp-map-row";
-      tr.tabIndex = 0;
-      tr.setAttribute("role", "button");
-      const profileLabel = m
-        ? profiles.find((p) => p.id === m.season_profile_id)?.label ||
-          String(m.season_profile_id)
-        : "-";
-      const rmLabel = [r.code, r.name].filter(Boolean).join(" - ");
-
-      tr.innerHTML = `
-        <td data-label="Stock Item ID">${escapeHtml(String(r.stock_item_id || ""))}</td>
-        <td data-label="Code">${escapeHtml(r.code || "")}</td>
-        <td class="mrp-card-primary" data-label="RM" title="${escapeHtml(rmLabel || r.name || "")}">${escapeHtml(r.name || rmLabel || "-")}</td>
-        <td class="mrp-card-value" data-label="Season Profile"><span class="mrp-card-pill mrp-card-season-pill">${escapeHtml(profileLabel)}</span></td>
-        <td data-label="Active">${m ? (m.is_active ? "Yes" : "No") : "-"}</td>
+    wireMapPanel(node, result.rows || [], profiles);
+  } catch (err) {
+    console.error("[MRP] loadMapQuickEditor failed", err);
+    if (isCurrentMrpSection("map", sectionSeq)) {
+      node.innerHTML = `
+        <div class="mrp-empty-state">
+          <strong>Failed loading seasonal mappings.</strong><br />
+          ${escapeHtmlValue(err?.message || err)}
+        </div>
       `;
-
-      tr.dataset.id = String(r.stock_item_id || "");
-      tr.setAttribute(
-        "aria-label",
-        `Open seasonal mapping for ${rmLabel || r.stock_item_id || "stock item"}`,
-      );
-      tb.appendChild(tr);
-    });
-
-    wireMrpRowOpeners({
-      root: tb,
-      selector: "tr.mrp-map-row",
-      getRow: (tr) =>
-        rows.find(
-          (r) => String(r.stock_item_id || "") === String(tr.dataset.id || ""),
-        ),
-      openDetail: (row) => row && showMappingDetail(row),
-    });
-  }
-
-  // exported-ish variable reserved (no three-way filter in mapped-only view)
-
-  async function showMappingDetail(r) {
-    prepareMrpDetailModal();
-    const m = mappings.get(r.stock_item_id) || null;
-    const profileLabel = m
-      ? profiles.find((p) => p.id === m.season_profile_id)?.label ||
-        String(m.season_profile_id)
-      : "(none)";
-
-    openMrpStructuredModal({
-      title: `${r.code || r.stock_item_id} — ${r.name || ""}`,
-      sections: [
-        {
-          title: "Mapping",
-          type: "kv",
-          data: {
-            "RM ID": r.stock_item_id,
-            Code: r.code,
-            Name: r.name,
-            "Season Profile": profileLabel,
-            Active: m ? (m.is_active ? "Yes" : "No") : "-",
-          },
-        },
-        {
-          title: "Notes",
-          type: "html",
-          data: `<div style="white-space:pre-wrap">${escapeHtmlValue(
-            m && m.notes ? m.notes : "",
-          )}</div>`,
-        },
-      ],
-      actions: [
-        {
-          label: "Edit",
-          onClick: () => {
-            safeCloseDetailModal();
-            openMappingEditModal(r);
-          },
-        },
-        {
-          label: "Delete",
-          onClick: async () => {
-            const ok = await showConfirm(
-              "Delete mapping for this raw material?",
-              "Confirm delete",
-            );
-            if (!ok) return;
-            try {
-              const { error } = await supabase
-                .from("inv_stock_item_season_profile")
-                .delete()
-                .eq("stock_item_id", r.stock_item_id);
-              if (error) throw error;
-              showToast("Mapping deleted", { type: "success" });
-              await fetchMappedPage();
-              mergeAndRender();
-              safeCloseDetailModal();
-            } catch (e) {
-              console.debug(e);
-              showToast("Delete failed", { type: "error" });
-            }
-          },
-        },
-      ],
-    });
-  }
-
-  function wireUp() {
-    node
-      .querySelector("#homeBtn")
-      ?.addEventListener(
-        "click",
-        () => (window.location.href = "../../index.html"),
-      );
-
-    // search input
-    node.querySelector("#textSearch")?.addEventListener("input", () => {
-      mergeAndRender();
-    });
-    wireSearchClear(
-      node.querySelector("#textSearch"),
-      node.querySelector("#mapSearchClear"),
-      mergeAndRender,
-    );
-
-    // paginator
-    node.querySelector("#mapPrev")?.addEventListener("click", async () => {
-      if (mapPage > 1) {
-        mapPage -= 1;
-        await fetchMappedPage();
-        mergeAndRender();
-      }
-    });
-    node.querySelector("#mapNext")?.addEventListener("click", async () => {
-      const totalPages = Math.max(1, Math.ceil((mapTotal || 0) / mapPageSize));
-      if (mapPage < totalPages) {
-        mapPage += 1;
-        await fetchMappedPage();
-        mergeAndRender();
-      }
-    });
-    // add / export buttons
-    node
-      .querySelector("#addMappingBtn")
-      ?.addEventListener("click", async () => {
-        await openAddMappingModal();
-      });
-    node
-      .querySelector("#exportMappingBtn")
-      ?.addEventListener("click", async () => {
-        await exportMappingsCsv();
-      });
-  }
-
-  async function loadAll() {
-    await fetchProfiles();
-    await fetchMappedPage();
-    mergeAndRender();
-  }
-
-  try {
-    await loadAccessContext();
-  } catch (e) {
-    console.debug(e);
-  }
-  try {
-    prepareMrpDetailModal();
-  } catch (e) {
-    console.debug(e);
-  }
-
-  wireUp();
-
-  await loadAll();
-
-  try {
-    const canEdit = canEditRM();
-    const sb = node.querySelector("#addMappingBtn");
-    if (sb) sb.disabled = !canEdit;
-  } catch (e) {
-    void e;
+    }
+  } finally {
+    forceHideMrpLoading();
   }
 }
 
