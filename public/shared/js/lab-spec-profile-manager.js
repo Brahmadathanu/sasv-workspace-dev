@@ -225,6 +225,7 @@ let activePendingReviewRequests = [];
 let selectedPendingReviewRequestId = null;
 let selectedPendingReviewScope = null;
 let reviewQueueRows = [];
+let currentUserId = null;
 
 // FG product picker cache (used by searchable combobox in OV + EP tabs)
 let fgProductPickerRows = [];
@@ -1014,6 +1015,19 @@ function isSameRequestId(left, right) {
   if (left == null || left === "" || right == null || right === "")
     return false;
   return String(left) === String(right);
+}
+
+async function getCurrentUserId() {
+  if (currentUserId) return currentUserId;
+
+  const { data, error } = await supabase.auth.getUser();
+
+  if (error || !data?.user?.id) {
+    return null;
+  }
+
+  currentUserId = data.user.id;
+  return currentUserId;
 }
 
 function pickPendingRequestValue(request, keys, fallback = "") {
@@ -5841,6 +5855,8 @@ async function saveOverrideModal() {
   const banner = document.getElementById("ovModalBanner");
   const saveBtn = document.getElementById("ovModalSave");
   const saveLabel = document.getElementById("ovModalSaveLabel");
+  const defaultSaveLabel =
+    ovModalMode === "add" ? "Save Override" : "Update Override";
   hideBanner(banner);
 
   const testId = document.getElementById("ovModalTest").value;
@@ -5950,52 +5966,53 @@ async function saveOverrideModal() {
   const itemId =
     subj === "FG" ? ovFgProductId : subj === "RM" ? ovRmItemId : ovPmItemId;
 
-  const { data: userData, error: userErr } = await labSupabase.auth.getUser();
-  if (userErr || !userData?.user?.id) {
-    showBanner(banner, "error", "Login session not found. Please reload.");
-    saveBtn.disabled = false;
-    saveLabel.textContent =
-      ovModalMode === "add" ? "Save Override" : "Update Override";
-    return;
+  try {
+    const userId = await getCurrentUserId();
+
+    if (!userId) {
+      toast("User session not available. Please log in again.", "error", 4000);
+      return;
+    }
+
+    const { error } = await labSupabase.rpc("fn_save_spec_override_direct", {
+      p_user_id: userId,
+      p_subject_type: subj,
+      p_product_id: subj === "FG" ? Number(itemId) : null,
+      p_stock_item_id: subj === "FG" ? null : Number(itemId),
+      p_test_id: Number(testId),
+      p_action_type: actionType,
+      p_spec_type: specType,
+      p_min_value: minVal !== null ? Number(minVal) : null,
+      p_max_value: maxVal !== null ? Number(maxVal) : null,
+      p_text_value: textVal ?? null,
+      p_display_text: displayText ?? null,
+      p_override_uom_id: actionType === "disable" ? null : overrideUomId,
+      p_reason: reason || null,
+    });
+
+    if (error) {
+      showBanner(banner, "error", "Failed to save override: " + error.message);
+      return;
+    }
+
+    toast(
+      ovModalMode === "add"
+        ? "Override saved successfully."
+        : "New override version saved successfully.",
+      "success",
+    );
+    closeOverrideModal();
+
+    if (subj === "FG") await onOvProductChange();
+    else if (subj === "RM") await onRmOverrideItemChange();
+    else await onPmOverrideItemChange();
+  } catch (err) {
+    console.error("[SPM] saveOverrideModal failed", err);
+    toast(`Failed to save override: ${err.message || err}`, "error", 5000);
+  } finally {
+    if (saveBtn) saveBtn.disabled = false;
+    if (saveLabel) saveLabel.textContent = defaultSaveLabel;
   }
-
-  const { error } = await labSupabase.rpc("fn_save_spec_override_direct", {
-    p_user_id: userData.user.id,
-    p_subject_type: subj,
-    p_product_id: subj === "FG" ? Number(itemId) : null,
-    p_stock_item_id: subj === "FG" ? null : Number(itemId),
-    p_test_id: Number(testId),
-    p_action_type: actionType,
-    p_spec_type: specType,
-    p_min_value: minVal !== null ? Number(minVal) : null,
-    p_max_value: maxVal !== null ? Number(maxVal) : null,
-    p_text_value: textVal ?? null,
-    p_display_text: displayText ?? null,
-    p_override_uom_id: actionType === "disable" ? null : overrideUomId,
-    p_reason: reason || null,
-  });
-
-  saveBtn.disabled = false;
-  saveLabel.textContent =
-    ovModalMode === "add" ? "Save Override" : "Update Override";
-
-  if (error) {
-    showBanner(banner, "error", "Failed to save override: " + error.message);
-    return;
-  }
-
-  toast(
-    ovModalMode === "add"
-      ? "Override saved successfully."
-      : "New override version saved successfully.",
-    "success",
-  );
-  closeOverrideModal();
-
-  // Reload the current subject's overrides
-  if (subj === "FG") await onOvProductChange();
-  else if (subj === "RM") await onRmOverrideItemChange();
-  else await onPmOverrideItemChange();
 }
 
 // Render a single override row (shared across FG/RM/PM tables)
@@ -6044,16 +6061,15 @@ function wireOverrideTableEvents(tbody) {
     chk.addEventListener("change", async () => {
       const newActive = chk.checked;
 
-      const { data: userData, error: userErr } =
-        await labSupabase.auth.getUser();
-      if (userErr || !userData?.user?.id) {
-        toast("Login session not found.", "error");
+      const userId = await getCurrentUserId();
+      if (!userId) {
+        toast("User session not available. Please log in again.", "error", 4000);
         chk.checked = !newActive;
         return;
       }
 
       const { error } = await labSupabase.rpc("fn_toggle_spec_override", {
-        p_user_id: userData.user.id,
+        p_user_id: userId,
         p_override_id: Number(chk.dataset.ovId),
         p_is_active: newActive,
       });

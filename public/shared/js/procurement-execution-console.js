@@ -30,6 +30,7 @@ const state = {
   pageSize: 30,
   rows: [],
   selected: null,
+  actionLoaded: false,
   // PR tab
   prPage: 0,
   prRows: [],
@@ -1218,6 +1219,7 @@ async function loadActionQueue() {
     aqTotalCount = data?.length ? Number(data[0].total_count || 0) : 0;
 
     state.rows = rows;
+    state.actionLoaded = true;
     renderRows();
   } finally {
     setTabTableLoading("action", false);
@@ -2575,7 +2577,81 @@ async function confirmIndentAction() {
   }
 }
 
+async function refreshProcurementExecutionSnapshots() {
+  const btn = qs("btnRefreshProcurementSnapshots");
+
+  const ok = confirm(
+    "Refresh procurement execution snapshots now?\n\n" +
+      "This updates vendor recommendation candidates and open indent balances used by Recommend & Accept Vendors.",
+  );
+
+  if (!ok) return;
+
+  try {
+    if (btn) btn.disabled = true;
+
+    showLoadingMask("Refreshing procurement snapshots...");
+
+    const { data, error } = await supabase.rpc(
+      "proc_refresh_procurement_execution_snapshots",
+      {
+        p_indent_id: null,
+        p_refresh_vendor_candidates: true,
+        p_refresh_indent_balance: true,
+      },
+    );
+
+    if (error) throw error;
+
+    const row = Array.isArray(data) ? data[0] : data;
+
+    if (!row?.success) {
+      toast(
+        `Snapshot refresh did not complete: ${row?.message || "Unknown error"}`,
+        "error",
+      );
+      return;
+    }
+
+    toast(
+      `Snapshots refreshed. Vendor candidates: ${row.vendor_candidate_count ?? "—"}. ` +
+        `Indent balances: ${row.indent_balance_count ?? "—"}.`,
+      "success",
+    );
+
+    if (typeof loadIndents === "function") {
+      await loadIndents();
+    }
+
+    if (
+      state.selectedIndent?.indent_id &&
+      typeof loadIndentLines === "function"
+    ) {
+      await loadIndentLines(state.selectedIndent.indent_id);
+    }
+
+    if (state.actionLoaded && typeof loadActionQueue === "function") {
+      await loadActionQueue();
+    }
+
+    if (state.vwl.loaded && typeof loadVendorBuylist === "function") {
+      await loadVendorBuylist();
+    }
+  } catch (e) {
+    console.error("Snapshot refresh failed", e);
+    toast(`Snapshot refresh failed: ${e.message || e}`, "error");
+  } finally {
+    hideLoadingMask();
+    if (btn) btn.disabled = false;
+  }
+}
+
 function wireIndentControls() {
+  qs("btnRefreshProcurementSnapshots")?.addEventListener(
+    "click",
+    refreshProcurementExecutionSnapshots,
+  );
+
   qs("iBtnPrev").addEventListener("click", () => {
     state.indentsPage = Math.max(0, state.indentsPage - 1);
     loadIndents();
