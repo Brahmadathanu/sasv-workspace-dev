@@ -1768,7 +1768,7 @@
                   <select id="prFilterClass" class="pec-filter-select">
                     <option value="">All Classes</option>
                     <option value="1">RM</option>
-                    <option value="2">PLM</option>
+                    <option value="2">PM</option>
                     <option value="5">IND</option>
                   </select>
                 </div>
@@ -1967,7 +1967,7 @@
                   <select id="fClass" class="pec-filter-select">
                     <option value="">All Classes</option>
                     <option value="1">RM</option>
-                    <option value="2">PLM</option>
+                    <option value="2">PM</option>
                     <option value="5">IND</option>
                   </select>
                 </div>
@@ -2053,49 +2053,16 @@
             <div class="table-topbar">
               <h2 style="margin: 0">Lines</h2>
               <div class="pager-mini" style="margin-left: auto">
-                <span class="muted" id="aqMeta"></span>
-                <button
-                  id="btnPrev"
-                  class="icon-btn ghost"
-                  title="Previous page"
-                  aria-label="Previous page"
-                  disabled
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    aria-hidden="true"
-                  >
-                    <path d="M15 6l-6 6 6 6" />
-                  </svg>
-                </button>
-                <span id="aqPaging"></span>
-                <button
-                  id="btnNext"
-                  class="icon-btn ghost"
-                  title="Next page"
-                  aria-label="Next page"
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    aria-hidden="true"
-                  >
-                    <path d="M9 6l6 6-6 6" />
-                  </svg>
-                </button>
+                                <span
+                  class="muted"
+                  id="aqMeta"
+                  aria-live="polite"
+                  aria-atomic="true"
+                ></span>
               </div>
             </div>
 
-            <div class="table-scroll">
+            <div id="aqScroll" class="table-scroll">
               <table class="erp-table">
                 <thead>
                   <tr>
@@ -2170,7 +2137,7 @@
                   <select id="iClass" class="pec-filter-select">
                     <option value="">All Classes</option>
                     <option value="1">RM</option>
-                    <option value="2">PLM</option>
+                    <option value="2">PM</option>
                     <option value="5">IND</option>
                   </select>
                 </div>
@@ -2634,7 +2601,9 @@
                 type="button"
                 title="Filter excess purchases"
                 aria-label="Filter excess purchases"
+                aria-haspopup="true"
                 aria-expanded="false"
+                aria-controls="eFilterPanel"
               >
                 <svg
                   width="16"
@@ -2883,10 +2852,10 @@
       aria-hidden="true"
       inert
     >
-      <div class="modal modal-lg">
+      <div class="modal modal-lg" role="dialog" aria-modal="true" aria-labelledby="eAuditTitle">
         <div class="modal-header page-header">
           <div>
-            <h3 style="margin: 0">Acceptance Audit</h3>
+            <h3 style="margin: 0" id="eAuditTitle">Acceptance Audit</h3>
             <div class="muted" id="eAuditMeta">—</div>
           </div>
           <button
@@ -2978,7 +2947,7 @@
       aria-hidden="true"
       inert
     >
-      <div class="modal modal-lg">
+      <div class="modal modal-lg" role="dialog" aria-modal="true" aria-labelledby="vwlBdTitle">
         <div class="modal-header page-header">
           <div>
             <h3 style="margin: 0" id="vwlBdTitle">Indent breakdown</h3>
@@ -3023,7 +2992,7 @@
 
     <!-- Indent View modal -->
     <div class="modal-backdrop" id="indentViewModalBackdrop" aria-hidden="true">
-      <div class="modal modal-fullpage">
+      <div class="modal modal-fullpage" role="dialog" aria-modal="true" aria-labelledby="iLinesTitle">
         <div class="modal-header page-header">
           <div
             style="display: flex; align-items: center; gap: 6px; width: 100%"
@@ -3136,6 +3105,8 @@
                   aria-label="Resync options"
                   aria-haspopup="true"
                   aria-expanded="false"
+                  type="button"
+                  aria-controls="iResyncMenu"
                 >
                   <svg
                     width="16"
@@ -3192,6 +3163,8 @@
                 aria-label="Export options"
                 aria-haspopup="true"
                 aria-expanded="false"
+                type="button"
+                aria-controls="iExportMenu"
               >
                 <svg
                   width="16"
@@ -3473,9 +3446,9 @@
       id="workflowGuideModalBackdrop"
       aria-hidden="true"
     >
-      <div class="modal" style="max-width: 640px">
+      <div class="modal" style="max-width: 640px" role="dialog" aria-modal="true" aria-labelledby="workflowGuideTitle">
         <div class="modal-header page-header">
-          <h3 style="margin: 0">Workflow Guide (PR → Indent → Action Queue)</h3>
+          <h3 style="margin: 0" id="workflowGuideTitle">Workflow Guide (PR ? Indent ? Action Queue)</h3>
           <button
             id="btnWorkflowGuideClose"
             class="modal-close-btn"
@@ -3521,7 +3494,7 @@
 
     <!-- Detail modal -->
     <div class="modal-backdrop" id="detailModalBackdrop" aria-hidden="true">
-      <div class="modal detail-modal">
+      <div class="modal detail-modal" role="dialog" aria-modal="true" aria-labelledby="detailModalTitle">
         <div class="modal-header page-header">
           <h3 style="margin: 0" id="detailModalTitle"></h3>
           <div style="display: flex; align-items: center; gap: 6px">
@@ -3661,8 +3634,30 @@
 
     <!-- Vendor selection modal -->
     <div class="modal-backdrop" id="vendorModalBackdrop" aria-hidden="true">
-      <div class="modal">
-        <h3>Select Vendor</h3>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="vendorModalTitle">
+        <div class="modal-header page-header">
+          <h3 id="vendorModalTitle" style="margin: 0">Select Vendor</h3>
+          <button
+            id="btnVendorClose"
+            class="modal-close-btn"
+            type="button"
+            title="Close"
+            aria-label="Close"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
         <div class="muted" id="vendorModalItem"></div>
 
         <div class="grid" style="margin-top: 10px">
@@ -3697,10 +3692,32 @@
       id="vendorAcceptModeModalBackdrop"
       aria-hidden="true"
     >
-      <div class="modal erp-choice-modal">
+      <div class="modal erp-choice-modal" role="dialog" aria-modal="true" aria-labelledby="vendorAcceptModeTitle">
         <div class="erp-modal-header">
-          <h3>Recommend & Accept Vendors</h3>
-          <div class="erp-modal-ref" id="vendorAcceptModeItem"></div>
+          <div>
+            <h3 id="vendorAcceptModeTitle" style="margin: 0">Recommend & Accept Vendors</h3>
+            <div class="erp-modal-ref" id="vendorAcceptModeItem"></div>
+          </div>
+          <button
+            id="btnVendorAcceptModeClose"
+            class="modal-close-btn"
+            type="button"
+            title="Close"
+            aria-label="Close"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
         <div class="erp-modal-body">
           <p class="erp-modal-note">
@@ -3750,8 +3767,30 @@
       id="indentActionModalBackdrop"
       aria-hidden="true"
     >
-      <div class="modal" style="max-width: 480px">
-        <h3 id="indentActionTitle">Confirm Action</h3>
+      <div class="modal" style="max-width: 480px" role="dialog" aria-modal="true" aria-labelledby="indentActionTitle">
+        <div class="modal-header page-header">
+          <h3 id="indentActionTitle" style="margin: 0">Confirm Action</h3>
+          <button
+            id="btnIndentActionClose"
+            class="modal-close-btn"
+            type="button"
+            title="Close"
+            aria-label="Close"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
         <div class="muted" id="indentActionItem"></div>
         <div
           class="muted"
@@ -3784,8 +3823,30 @@
       id="indentSourcePrModalBackdrop"
       aria-hidden="true"
     >
-      <div class="modal" style="max-width: 560px">
-        <h3>Set Source PR</h3>
+      <div class="modal" style="max-width: 560px" role="dialog" aria-modal="true" aria-labelledby="indentSourcePrTitle">
+        <div class="modal-header page-header">
+          <h3 id="indentSourcePrTitle" style="margin: 0">Set Source PR</h3>
+          <button
+            id="btnIndentSourcePrClose"
+            class="modal-close-btn"
+            type="button"
+            title="Close"
+            aria-label="Close"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
         <div
           class="muted"
           id="indentSourcePrModalHint"
@@ -3811,8 +3872,30 @@
       id="indentResyncModalBackdrop"
       aria-hidden="true"
     >
-      <div class="modal" style="max-width: 460px">
-        <h3>Resync Indent from PR</h3>
+      <div class="modal" style="max-width: 460px" role="dialog" aria-modal="true" aria-labelledby="indentResyncTitle">
+        <div class="modal-header page-header">
+          <h3 id="indentResyncTitle" style="margin: 0">Resync Indent from PR</h3>
+          <button
+            id="btnIndentResyncClose"
+            class="modal-close-btn"
+            type="button"
+            title="Close"
+            aria-label="Close"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
         <div
           class="muted"
           id="indentResyncModeText"
@@ -3835,10 +3918,10 @@
       id="acceptExcessModalBackdrop"
       aria-hidden="true"
     >
-      <div class="modal" style="max-width: 640px">
+      <div class="modal" style="max-width: 640px" role="dialog" aria-modal="true" aria-labelledby="excessModalTitle">
         <div class="modal-header page-header">
           <div>
-            <h3 style="margin: 0">Excess Purchase</h3>
+            <h3 style="margin: 0" id="excessModalTitle">Excess Purchase</h3>
             <div
               class="muted"
               id="excessModalSub"
@@ -3947,12 +4030,13 @@
       id="vendorAliasMapModalBackdrop"
       aria-hidden="true"
     >
-      <div class="modal vendor-map-modal">
+      <div class="modal vendor-map-modal" role="dialog" aria-modal="true" aria-labelledby="vendorAliasMapTitle">
         <div class="modal-header page-header">
-          <h3 style="margin: 0">Vendor Alias Mapping</h3>
+          <h3 id="vendorAliasMapTitle" style="margin: 0">Vendor Alias Mapping</h3>
           <button
             id="btnVendorAliasMapClose"
             class="modal-close-btn"
+            type="button"
             title="Close"
             aria-label="Close"
           >
@@ -4024,7 +4108,7 @@
 
     <!-- PR Detail modal -->
     <div class="modal-backdrop" id="prViewModalBackdrop" aria-hidden="true">
-      <div class="modal modal-fullpage">
+      <div class="modal modal-fullpage" role="dialog" aria-modal="true" aria-labelledby="prLinesTitle">
         <div class="modal-header page-header">
           <div>
             <h3
@@ -4040,9 +4124,7 @@
             ></div>
           </div>
           <button
-            id="btnPrViewClose"
-            class="modal-close-btn"
-            aria-label="Close"
+            id="btnPrViewClose" class="modal-close-btn" type="button" title="Close" aria-label="Close"
           >
             <svg
               width="14"
@@ -4219,7 +4301,9 @@
                 class="icon-btn primary"
                 title="Export Form"
                 aria-label="Export Form"
+                aria-haspopup="true"
                 aria-expanded="false"
+                aria-controls="prExportMenu"
               >
                 <svg
                   width="16"
@@ -4412,13 +4496,11 @@
 
     <!-- PR Rebuild modal -->
     <div class="modal-backdrop" id="prRebuildModalBackdrop" aria-hidden="true">
-      <div class="modal" style="max-width: 420px">
+      <div class="modal" style="max-width: 420px" role="dialog" aria-modal="true" aria-labelledby="prRebuildTitle">
         <div class="modal-header page-header">
-          <h3 style="margin: 0">Rebuild PR from MRP</h3>
+          <h3 style="margin: 0" id="prRebuildTitle">Rebuild PR from MRP</h3>
           <button
-            id="btnPrRebuildClose"
-            class="modal-close-btn"
-            aria-label="Close"
+            id="btnPrRebuildClose" class="modal-close-btn" type="button" title="Close" aria-label="Close"
           >
             <svg
               width="14"
@@ -4458,13 +4540,11 @@
     </div>
 
     <div class="modal-backdrop" id="hardDeleteModalBackdrop" aria-hidden="true">
-      <div class="modal" style="max-width: 460px">
+      <div class="modal" style="max-width: 460px" role="dialog" aria-modal="true" aria-labelledby="hardDeleteTitle">
         <div class="modal-header page-header">
           <h3 id="hardDeleteTitle" style="margin: 0">Delete Draft?</h3>
           <button
-            id="btnHardDeleteClose"
-            class="modal-close-btn"
-            aria-label="Close"
+            id="btnHardDeleteClose" class="modal-close-btn" type="button" title="Close" aria-label="Close"
           >
             <svg
               width="14"
@@ -4514,10 +4594,10 @@
 
     <!-- Generate Draft PR modal -->
     <div class="modal-backdrop" id="generatePrModalBackdrop" aria-hidden="true">
-      <div class="modal" style="max-width: 560px">
+      <div class="modal" style="max-width: 560px" role="dialog" aria-modal="true" aria-labelledby="generatePrTitle">
         <div class="modal-header page-header">
-          <h3 style="margin: 0">Generate Draft PR from MRP</h3>
-          <button id="btnGenPrClose" class="modal-close-btn" aria-label="Close">
+          <h3 style="margin: 0" id="generatePrTitle">Generate Draft PR from MRP</h3>
+          <button id="btnGenPrClose" class="modal-close-btn" type="button" title="Close" aria-label="Close">
             <svg
               width="14"
               height="14"
@@ -4555,7 +4635,7 @@
               <select id="prMaterialClass">
                 <option value="">All Classes</option>
                 <option value="1">RM</option>
-                <option value="2">PLM</option>
+                <option value="2">PM</option>
                 <option value="5">IND</option>
               </select>
             </div>
@@ -4584,9 +4664,9 @@
 
     <!-- PR Edit Requested Qty modal -->
     <div class="modal-backdrop" id="prEditReqModalBackdrop" aria-hidden="true">
-      <div class="modal" style="max-width: 460px">
+      <div class="modal" style="max-width: 460px" role="dialog" aria-modal="true" aria-labelledby="prEditReqTitle">
         <div class="modal-header page-header">
-          <h3 style="margin: 0">Edit Requested Qty</h3>
+          <h3 id="prEditReqTitle" style="margin: 0">Edit Requested Qty</h3>
         </div>
         <div class="modal-body">
           <div class="muted" id="prEditReqItem"></div>
@@ -4612,9 +4692,9 @@
       id="prEditDeltaModalBackdrop"
       aria-hidden="true"
     >
-      <div class="modal" style="max-width: 460px">
+      <div class="modal" style="max-width: 460px" role="dialog" aria-modal="true" aria-labelledby="prEditDeltaTitle">
         <div class="modal-header page-header">
-          <h3 style="margin: 0">Edit Manual Delta</h3>
+          <h3 id="prEditDeltaTitle" style="margin: 0">Edit Manual Delta</h3>
         </div>
         <div class="modal-body">
           <div class="muted" id="prEditDeltaItem"></div>
@@ -4639,9 +4719,29 @@
 
     <!-- PR Add Line modal -->
     <div class="modal-backdrop" id="prAddLineModalBackdrop" aria-hidden="true">
-      <div class="modal" style="max-width: 520px">
+      <div class="modal" style="max-width: 520px" role="dialog" aria-modal="true" aria-labelledby="prAddLineTitle">
         <div class="modal-header page-header">
-          <h3 style="margin: 0">Add PR Line</h3>
+          <h3 style="margin: 0" id="prAddLineTitle">Add PR Line</h3>
+          <button
+            id="btnPrAddLineClose"
+            class="modal-close-btn"
+            type="button"
+            title="Close"
+            aria-label="Close"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
         <div class="modal-body">
           <div class="form-grid">
@@ -4650,7 +4750,7 @@
               <select id="prAddLineClass">
                 <option value="">All</option>
                 <option value="1">RM</option>
-                <option value="2">PLM</option>
+                <option value="2">PM</option>
                 <option value="5">IND</option>
               </select>
             </div>
@@ -4715,8 +4815,30 @@
       id="prSetStatusModalBackdrop"
       aria-hidden="true"
     >
-      <div class="modal" style="max-width: 460px">
-        <h3 id="prSetStatusTitle">Change PR Status</h3>
+      <div class="modal" style="max-width: 460px" role="dialog" aria-modal="true" aria-labelledby="prSetStatusTitle">
+        <div class="modal-header page-header">
+          <h3 id="prSetStatusTitle" style="margin: 0">Change PR Status</h3>
+          <button
+            id="btnPrSetStatusClose"
+            class="modal-close-btn"
+            type="button"
+            title="Close"
+            aria-label="Close"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
         <div class="muted" id="prSetStatusItem"></div>
         <div style="margin-top: 10px">
           <label>Note (optional)</label>
@@ -4738,9 +4860,29 @@
       id="createIndentModalBackdrop"
       aria-hidden="true"
     >
-      <div class="modal" style="max-width: 520px">
+      <div class="modal" style="max-width: 520px" role="dialog" aria-modal="true" aria-labelledby="createIndentTitle">
         <div class="modal-header page-header">
-          <h3 style="margin: 0">New Draft Indent</h3>
+          <h3 style="margin: 0" id="createIndentTitle">New Draft Indent</h3>
+          <button
+            id="btnCreateIndentClose"
+            class="modal-close-btn"
+            type="button"
+            title="Close"
+            aria-label="Close"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
         <div class="modal-body">
           <div class="form-grid">
@@ -4760,7 +4902,7 @@
               <select id="ciMaterialClass">
                 <option value="">All</option>
                 <option value="1">RM</option>
-                <option value="2">PLM</option>
+                <option value="2">PM</option>
                 <option value="5">IND</option>
               </select>
             </div>
@@ -4783,9 +4925,29 @@
       id="indentFromPrModalBackdrop"
       aria-hidden="true"
     >
-      <div class="modal" style="max-width: 520px">
+      <div class="modal" style="max-width: 520px" role="dialog" aria-modal="true" aria-labelledby="indentFromPrTitle">
         <div class="modal-header page-header">
-          <h3 style="margin: 0">Create Indent from PR</h3>
+          <h3 style="margin: 0" id="indentFromPrTitle">Create Indent from PR</h3>
+          <button
+            id="btnIndentFromPrClose"
+            class="modal-close-btn"
+            type="button"
+            title="Close"
+            aria-label="Close"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
         <div class="modal-body">
           <div style="margin-top: 6px">
@@ -4821,13 +4983,11 @@
       aria-hidden="true"
       style="z-index: 10001"
     >
-      <div class="modal" style="max-width: 660px">
+      <div class="modal" style="max-width: 660px" role="dialog" aria-modal="true" aria-labelledby="stockPickerTitle">
         <div class="modal-header page-header">
-          <h3 style="margin: 0">Select Stock Item</h3>
+          <h3 style="margin: 0" id="stockPickerTitle">Select Stock Item</h3>
           <button
-            id="btnStockPickerClose"
-            class="modal-close-btn"
-            aria-label="Close"
+            id="btnStockPickerClose" class="modal-close-btn" type="button" title="Close" aria-label="Close"
           >
             <svg
               width="14"
@@ -4881,9 +5041,29 @@
       id="indentAddLineModalBackdrop"
       aria-hidden="true"
     >
-      <div class="modal" style="max-width: 520px">
+      <div class="modal" style="max-width: 520px" role="dialog" aria-modal="true" aria-labelledby="ialTitle">
         <div class="modal-header page-header">
           <h3 style="margin: 0" id="ialTitle">Add Indent Line</h3>
+          <button
+            id="btnIndentAddLineClose"
+            class="modal-close-btn"
+            type="button"
+            title="Close"
+            aria-label="Close"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
         <div class="modal-body">
           <div class="form-grid">
@@ -4892,7 +5072,7 @@
               <select id="ialMaterialClass">
                 <option value="">All</option>
                 <option value="1">RM</option>
-                <option value="2">PLM</option>
+                <option value="2">PM</option>
                 <option value="5">IND</option>
               </select>
             </div>
@@ -4973,7 +5153,7 @@
         z-index: 10000;
         pointer-events: none;
       "
-    ></div>
+     role="status" aria-live="polite" aria-atomic="false"></div>
 
     <!-- Export Purchase Requisition modal -->
     <div
@@ -4981,9 +5161,29 @@
       id="exportIndentModalBackdrop"
       aria-hidden="true"
     >
-      <div class="modal" style="max-width: 520px">
+      <div class="modal" style="max-width: 520px" role="dialog" aria-modal="true" aria-labelledby="exportIndentTitle">
         <div class="modal-header page-header">
-          <h3 style="margin: 0">Export Purchase Requisition</h3>
+          <h3 style="margin: 0" id="exportIndentTitle">Export Purchase Requisition</h3>
+          <button
+            id="btnExportIndentClose"
+            class="modal-close-btn"
+            type="button"
+            title="Close"
+            aria-label="Close"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
         <div class="modal-body">
           <div class="form-grid">
@@ -5086,17 +5286,27 @@
         }
 
         // Close all open filter drawers
-        function closeAllDrawers() {
+        function closeAllDrawers(focusBtn) {
           document
             .querySelectorAll(".pec-filter-drawer.open")
             .forEach(function (d) {
               d.classList.remove("open");
-              var wrap = d.closest(".pec-filter-wrap");
-              if (wrap) {
-                var btn = wrap.querySelector(".pec-filter-btn");
-                if (btn) btn.setAttribute("aria-expanded", "false");
+              var btn =
+                d._ownerBtn ||
+                (d.id
+                  ? document.querySelector('[aria-controls="' + d.id + '"]')
+                  : null);
+              if (!btn) {
+                var wrap = d.closest(".pec-filter-wrap");
+                if (wrap) btn = wrap.querySelector(".pec-filter-btn");
               }
+              if (btn) btn.setAttribute("aria-expanded", "false");
             });
+          if (focusBtn && typeof focusBtn.focus === "function") {
+            window.requestAnimationFrame(function () {
+              focusBtn.focus();
+            });
+          }
         }
 
         // Update the badge count for a filter button
@@ -5118,6 +5328,11 @@
           var btn = document.getElementById(btnId);
           var drawer = document.getElementById(drawerId);
           if (!btn || !drawer) return;
+          btn.setAttribute("aria-controls", drawerId);
+          if (!btn.hasAttribute("aria-haspopup")) {
+            btn.setAttribute("aria-haspopup", "dialog");
+          }
+          drawer._ownerBtn = btn;
 
           btn.addEventListener("click", function (e) {
             e.stopPropagation();
@@ -5148,6 +5363,24 @@
         document.addEventListener("click", function (e) {
           if (!e.target.closest(".pec-filter-wrap")) closeAllDrawers();
         });
+
+        document.addEventListener(
+          "keydown",
+          function (e) {
+            if (e.key !== "Escape") return;
+            var openDrawer = document.querySelector(".pec-filter-drawer.open");
+            if (!openDrawer) return;
+            var btn =
+              openDrawer._ownerBtn ||
+              (openDrawer.id
+                ? document.querySelector('[aria-controls="' + openDrawer.id + '"]')
+                : null);
+            closeAllDrawers(btn || undefined);
+            e.preventDefault();
+            e.stopPropagation();
+          },
+          true,
+        );
 
         // Wire each tab's search + clear
         wireSearch("fSearch", "fSearchClear");

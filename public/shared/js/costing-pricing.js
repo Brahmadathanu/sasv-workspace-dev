@@ -104,6 +104,19 @@ const manualRateCloseSaveBtn = $("manualRateCloseSaveBtn");
 const manualRateCloseLabel = $("manualRateCloseLabel");
 const manualRateCloseEffectiveTo = $("manualRateCloseEffectiveTo");
 const manualRateCloseReason = $("manualRateCloseReason");
+const expenseMappingEditModal = $("expenseMappingEditModal");
+const expenseMappingEditCloseBtn = $("expenseMappingEditCloseBtn");
+const expenseMappingEditCancelBtn = $("expenseMappingEditCancelBtn");
+const expenseMappingEditSaveBtn = $("expenseMappingEditSaveBtn");
+const expenseMappingLabel = $("expenseMappingLabel");
+const expenseMappingPool = $("expenseMappingPool");
+const expenseMappingInclude = $("expenseMappingInclude");
+const expenseMappingRemarks = $("expenseMappingRemarks");
+const staffGovernanceReviewModal = $("staffGovernanceReviewModal");
+const staffGovernanceReviewCloseBtn = $("staffGovernanceReviewCloseBtn");
+const staffGovernanceReviewOkBtn = $("staffGovernanceReviewOkBtn");
+const staffGovernanceReviewLabel = $("staffGovernanceReviewLabel");
+const staffGovernanceReviewBody = $("staffGovernanceReviewBody");
 const csPreparedRole = $("csPreparedRole");
 const csPreparedOrg = $("csPreparedOrg");
 const csVerifiedRole = $("csVerifiedRole");
@@ -121,6 +134,9 @@ let SELECTED_ROW = null;
 let LAST_REFRESH_TIME = null;
 let DASHBOARD_SUMMARY = null;
 let BUSINESS_KPI_SUMMARY = null;
+let CONTROL_DASHBOARD_SUMMARY = null;
+let CONTROL_AUDIT_ROWS = [];
+let MATERIAL_ACTION_DRILLDOWN_ROWS = [];
 let SKU_STATUS_DIAGNOSIS = [];
 let DIAGNOSIS_BY_SKU_ID = new Map();
 let PRINTABLE_LINES = [];
@@ -147,6 +163,12 @@ let MANUAL_RATE_EDIT_ROW = null;
 let MANUAL_RATE_RETURN_FOCUS = null;
 let MANUAL_RATE_CLOSE_ROW = null;
 let MANUAL_RATE_CLOSE_RETURN_FOCUS = null;
+let COST_GOVERNANCE_TAB = "unmapped";
+let STAFF_GOVERNANCE_TAB = "staff-review";
+let EXPENSE_POOL_OPTIONS = [];
+let EXPENSE_MAPPING_EDIT_ROW = null;
+let EXPENSE_MAPPING_RETURN_FOCUS = null;
+let STAFF_GOVERNANCE_REVIEW_RETURN_FOCUS = null;
 let MANUAL_RATE_MANAGER_TAB = "action-queue";
 let POLICY_MANAGER_TAB = "sku-overview";
 let ACTIVE_FILTERS = {
@@ -174,7 +196,9 @@ const LENSES = [
   { id: "cost-comparison", label: "Cost Comparison" },
   { id: "policy-manager", label: "Policy Manager" },
   { id: "scheme-comparison", label: "Scheme Comparison" },
-  { id: "costing-review-workbench", label: "Costing Review Workbench" },
+  { id: "cost-governance", label: "Cost Governance" },
+  { id: "staff-governance", label: "Staff Governance" },
+  { id: "costing-review-workbench", label: "Control Workbench" },
   { id: "manual-rate-manager", label: "Manual Rate Manager" },
 ];
 
@@ -185,7 +209,9 @@ const VIEW_BY_LENS = {
   "cost-comparison": "v_cost_sheet_snapshot_sku_monthly_comparison",
   "policy-manager": "v_costing_policy_manager_sku_overview",
   "scheme-comparison": "v_costing_pricing_sku_scheme_comparison",
-  "costing-review-workbench": "v_costing_pricing_review_top_action_items_snapshot",
+  "cost-governance": "v_costing_unmapped_expense_heads_for_mapping",
+  "staff-governance": "v_costing_unclassified_staff_for_costing",
+  "costing-review-workbench": "v_costing_pricing_material_action_queue_snapshot",
   "manual-rate-manager": "v_costing_manual_rate_manager_action_queue",
 };
 
@@ -208,6 +234,17 @@ async function loadSchemeOptions() {
 
   if (error) throw error;
   SCHEME_OPTIONS = data || [];
+}
+
+async function loadExpensePoolOptions() {
+  const { data, error } = await costingFrom(
+    "v_costing_expense_allocation_pool_options",
+  )
+    .select("*")
+    .order("sort_order", { ascending: true });
+
+  if (error) throw error;
+  EXPENSE_POOL_OPTIONS = data || [];
 }
 
 async function loadSchemeRuleScopeOptions() {
@@ -307,6 +344,7 @@ function statusClass(status) {
   )
     return "amber";
   if (
+    s === "BLOCKER" ||
     s === "BLOCKED" ||
     s === "FAILED" ||
     s === "ERROR" ||
@@ -320,15 +358,6 @@ function statusClass(status) {
   return "gray";
 }
 
-function formatStatusLabel(status) {
-  if (!status) return "--";
-  return String(status)
-    .toLowerCase()
-    .split("_")
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
 
 function getStatusClass(status) {
   return statusClass(status);
@@ -471,23 +500,38 @@ async function loadPermissions(sessionUserId) {
 
 async function resolveActivePeriodStart() {
   const currentMonth = getCurrentMonthStart();
-  const { data: currentRows, error: currentErr } = await costingFrom(
-    "v_costing_pricing_dashboard_summary",
-  )
-    .select("period_start")
-    .eq("period_start", currentMonth)
-    .limit(1);
-  if (currentErr) throw currentErr;
-  if (currentRows?.length) return currentMonth;
 
-  const { data: latestRows, error: latestErr } = await costingFrom(
+  try {
+    const { data: currentRows, error: currentErr } = await costingFrom(
+      "v_costing_pricing_control_dashboard_snapshot",
+    )
+      .select("period_start")
+      .eq("period_start", currentMonth)
+      .limit(1);
+    if (currentErr) throw currentErr;
+    if (currentRows?.length) return currentMonth;
+
+    const { data: latestRows, error: latestErr } = await costingFrom(
+      "v_costing_pricing_control_dashboard_snapshot",
+    )
+      .select("period_start")
+      .order("period_start", { ascending: false })
+      .limit(1);
+    if (latestErr) throw latestErr;
+    if (latestRows?.[0]?.period_start) return latestRows[0].period_start;
+    return currentMonth;
+  } catch (err) {
+    console.warn("Control dashboard snapshot period resolution failed", err);
+  }
+
+  const { data: fallbackRows, error: fallbackErr } = await costingFrom(
     "v_costing_pricing_dashboard_summary",
   )
     .select("period_start")
     .order("period_start", { ascending: false })
     .limit(1);
-  if (latestErr) throw latestErr;
-  return latestRows?.[0]?.period_start || currentMonth;
+  if (fallbackErr) throw fallbackErr;
+  return fallbackRows?.[0]?.period_start || currentMonth;
 }
 
 async function loadDashboardSummary() {
@@ -514,6 +558,30 @@ async function loadBusinessKpiSummary() {
 
   BUSINESS_KPI_SUMMARY = data?.[0] || null;
   renderKpiStrip();
+}
+
+async function loadControlDashboardSummary() {
+  const { data, error } = await costingFrom(
+    "v_costing_pricing_control_dashboard_snapshot",
+  )
+    .select("*")
+    .eq("period_start", ACTIVE_PERIOD_START)
+    .limit(1);
+
+  if (error) throw error;
+
+  CONTROL_DASHBOARD_SUMMARY = data?.[0] || null;
+  renderKpiStrip();
+}
+
+async function loadControlAuditSnapshot() {
+  CONTROL_AUDIT_ROWS = await fetchAllRows(
+    () =>
+      costingFrom("v_costing_pricing_control_integrity_audit_snapshot")
+        .select("*")
+        .eq("period_start", ACTIVE_PERIOD_START),
+    1000,
+  );
 }
 
 async function fetchAllPrintableLinesForPeriod(periodStart) {
@@ -612,9 +680,30 @@ async function loadRowsForLens() {
 
     await loadDashboardSummary();
     await loadBusinessKpiSummary();
-    await loadSkuStatusDiagnosis(ACTIVE_PERIOD_START);
+    await loadControlDashboardSummary();
+    await loadControlAuditSnapshot();
+
+    if (
+      CURRENT_LENS === "dashboard" ||
+      CURRENT_LENS === "costing-review-workbench" ||
+      CURRENT_LENS === "cost-governance" ||
+      CURRENT_LENS === "staff-governance"
+    ) {
+      SKU_STATUS_DIAGNOSIS = [];
+      DIAGNOSIS_BY_SKU_ID = new Map();
+    } else {
+      await loadSkuStatusDiagnosis(ACTIVE_PERIOD_START);
+    }
 
     const viewName = VIEW_BY_LENS[CURRENT_LENS];
+    if (CURRENT_LENS === "dashboard") {
+      ALL_ROWS = CONTROL_DASHBOARD_SUMMARY ? [CONTROL_DASHBOARD_SUMMARY] : [];
+      applyFilters();
+      LAST_REFRESH_TIME = new Date();
+      updateFreshnessIndicator();
+      return;
+    }
+
     if (CURRENT_LENS === "printable-cost-sheet") {
       PRINTABLE_LINES =
         await fetchAllPrintableLinesForPeriod(ACTIVE_PERIOD_START);
@@ -639,7 +728,25 @@ async function loadRowsForLens() {
     }
 
     if (CURRENT_LENS === "costing-review-workbench") {
-      ALL_ROWS = [...SKU_STATUS_DIAGNOSIS];
+      ALL_ROWS = await fetchAllRows(
+        () =>
+          costingFrom("v_costing_pricing_material_action_queue_snapshot")
+            .select("*")
+            .eq("period_start", ACTIVE_PERIOD_START)
+            .order("action_severity", { ascending: true })
+            .order("affected_sku_count", { ascending: false })
+            .order("affected_product_count", { ascending: false })
+            .order("affected_line_count", { ascending: false })
+            .order("stock_item_name", { ascending: true }),
+        1000,
+      );
+
+      ALL_ROWS.sort((a, b) => {
+        const severityRank = { BLOCKER: 0, REVIEW_REQUIRED: 1 };
+        const left = severityRank[normalizeStatus(a.action_severity)] ?? 99;
+        const right = severityRank[normalizeStatus(b.action_severity)] ?? 99;
+        return left - right;
+      });
 
       applyFilters();
       LAST_REFRESH_TIME = new Date();
@@ -647,7 +754,103 @@ async function loadRowsForLens() {
       return;
     }
 
-    if (CURRENT_LENS === "manual-rate-manager") {
+
+
+    if (CURRENT_LENS === "cost-governance") {
+      if (COST_GOVERNANCE_TAB === "mapping-register") {
+        ALL_ROWS = await fetchAllRows(
+          () =>
+            costingFrom("v_costing_expense_head_mapping_register")
+              .select("*")
+              .order("expense_group", { ascending: true })
+              .order("head_name", { ascending: true }),
+          1000,
+        );
+      } else if (COST_GOVERNANCE_TAB === "excluded") {
+        ALL_ROWS = await fetchAllRows(
+          () =>
+            costingFrom("v_costing_expense_head_mapping_register")
+              .select("*")
+              .eq("mapping_status", "EXCLUDED")
+              .order("expense_group", { ascending: true })
+              .order("head_name", { ascending: true }),
+          1000,
+        );
+      } else if (COST_GOVERNANCE_TAB === "cost-pool-summary") {
+        ALL_ROWS = await fetchAllRows(
+          () =>
+            costingFrom("v_costing_cost_pool_monthly_summary")
+              .select("*")
+              .order("period_start", { ascending: false })
+              .order("allocation_pool", { ascending: true }),
+          1000,
+        );
+      } else {
+        ALL_ROWS = await fetchAllRows(
+          () =>
+            costingFrom("v_costing_unmapped_expense_heads_for_mapping")
+              .select("*")
+              .order("expense_group", { ascending: true })
+              .order("head_name", { ascending: true }),
+          1000,
+        );
+
+        const bandRank = { HIGH: 0, MEDIUM: 1, LOW: 2 };
+        ALL_ROWS.sort((a, b) => {
+          const left = bandRank[String(a?.materiality_band || "").toUpperCase()] ?? 99;
+          const right = bandRank[String(b?.materiality_band || "").toUpperCase()] ?? 99;
+          if (left !== right) return left - right;
+          const valueLeft = Number(a?.max_seen_value || 0);
+          const valueRight = Number(b?.max_seen_value || 0);
+          if (valueLeft !== valueRight) return valueRight - valueLeft;
+          return String(a?.head_name || "").localeCompare(String(b?.head_name || ""));
+        });
+      }
+
+      applyFilters();
+      LAST_REFRESH_TIME = new Date();
+      updateFreshnessIndicator();
+      return;
+    }
+
+    if (CURRENT_LENS === "staff-governance") {
+      if (STAFF_GOVERNANCE_TAB === "staff-register") {
+        ALL_ROWS = await fetchAllRows(
+          () =>
+            costingFrom("v_costing_staff_classification_register")
+              .select("*")
+              .order("classification_status", { ascending: true })
+              .order("employee_code", { ascending: true }),
+          1000,
+        );
+      } else if (STAFF_GOVERNANCE_TAB === "staff-pool-summary") {
+        ALL_ROWS = await fetchAllRows(
+          () =>
+            costingFrom("v_costing_staff_cost_pool_summary")
+              .select("*")
+              .order("period_start", { ascending: false })
+              .order("allocation_pool", { ascending: true })
+              .order("costing_class", { ascending: true }),
+          1000,
+        );
+      } else {
+        ALL_ROWS = await fetchAllRows(
+          () =>
+            costingFrom("v_costing_unclassified_staff_for_costing")
+              .select("*")
+              .order("classification_status", { ascending: true })
+              .order("total_salary_cost", { ascending: true })
+              .order("employee_code", { ascending: true }),
+          1000,
+        );
+      }
+
+      applyFilters();
+      LAST_REFRESH_TIME = new Date();
+      updateFreshnessIndicator();
+      return;
+    }
+  if (CURRENT_LENS === "manual-rate-manager") {
       if (MANUAL_RATE_MANAGER_TAB === "register") {
         ALL_ROWS = await fetchManualRateManagerRegisterRows();
       } else if (MANUAL_RATE_MANAGER_TAB === "history") {
@@ -795,23 +998,94 @@ function riskTotal(...values) {
   return values.reduce((sum, value) => sum + Number(value || 0), 0);
 }
 
+function firstValue(...values) {
+  return values.find((value) => value !== null && value !== undefined && value !== "");
+}
+
+function firstNumber(...values) {
+  const value = firstValue(...values);
+  const n = Number(value || 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function splitFilterValues(value) {
+  if (Array.isArray(value)) return value.flatMap(splitFilterValues);
+  if (value === null || value === undefined || value === "") return [];
+  return String(value)
+    .split(/[|,]/)
+    .map((part) => normalizeStatus(part))
+    .filter(Boolean);
+}
+
 function renderKpiStrip() {
   if (!kpiStrip) return;
 
-  const r = BUSINESS_KPI_SUMMARY || DASHBOARD_SUMMARY || {};
-  const totalSkus = Number(r.total_pricing_sku_count || 0);
+  if (ACTIVE_PERIOD_START && !CONTROL_DASHBOARD_SUMMARY) {
+    kpiStrip.innerHTML = `<div class="status" style="padding:4px 6px">Control snapshot is not available for this period. Use Refresh Live Costing to rebuild the costing chain and control summary.</div>`;
+    return;
+  }
+
+  const control = CONTROL_DASHBOARD_SUMMARY || {};
+  const business = BUSINESS_KPI_SUMMARY || {};
+  const legacy = DASHBOARD_SUMMARY || {};
+
+  const totalSkus = firstNumber(
+    control.total_sku_count,
+    business.total_pricing_sku_count,
+    legacy.pricing_bridge_sku_count,
+  );
+
+  const costingReadyCount = firstNumber(
+    control.ready_sku_count,
+    business.costing_ready_sku_count,
+  );
+
+  const costingBlockedCount = firstNumber(
+    control.blocked_sku_count,
+    business.costing_blocked_sku_count,
+    legacy.pricing_bridge_blocked_count,
+  );
+
+  const costingReviewCount = firstNumber(
+    control.review_required_sku_count,
+    business.costing_review_sku_count,
+    legacy.pricing_bridge_review_required_count,
+  );
+
+  const workbenchBlockedActions =
+    firstNumber(control.rm_blocker_item_count) +
+    firstNumber(control.pm_blocker_item_count);
+
+  const workbenchReviewActions =
+    firstNumber(control.rm_review_item_count) +
+    firstNumber(control.pm_review_item_count);
+
+  const workbenchActions = workbenchBlockedActions + workbenchReviewActions;
+
+  const sellingPolicyComplete = firstNumber(
+    business.selling_policy_complete_count,
+    legacy.selling_price_sku_count,
+  );
+
+  const sellingPolicyMissing = firstNumber(
+    business.selling_policy_missing_count,
+  );
+
+  const schemePolicyComplete = firstNumber(
+    business.scheme_policy_complete_count,
+  );
+
+  const schemePolicyMissing = firstNumber(
+    business.scheme_policy_missing_count,
+  );
 
   const schemeRiskRows = riskTotal(
-    r.scheme_blocked_row_count,
-    r.scheme_review_row_count,
+    business.scheme_blocked_row_count,
+    business.scheme_review_row_count,
+    legacy.scheme_blocked_count,
+    legacy.scheme_review_required_count,
   );
 
-  const workbenchActions = riskTotal(
-    r.workbench_blocked_item_count,
-    r.workbench_review_item_count,
-  );
-
-  const costingReadyCount = Number(r.costing_ready_sku_count || 0);
   const readyClass = costingReadyCount === totalSkus && totalSkus > 0
     ? "ready"
     : costingReadyCount > 0
@@ -821,36 +1095,36 @@ function renderKpiStrip() {
   const cards = [
     {
       label: "Costing Readiness",
-      value: coverageValue(r.costing_ready_sku_count, totalSkus),
+      value: coverageValue(costingReadyCount, totalSkus),
       cls: readyClass,
       title: "SKUs that are ready for reliable cost sheet and pricing decisions.",
       action: "costing-ready",
     },
     {
       label: "Costing Blocked",
-      value: r.costing_blocked_sku_count,
-      cls: Number(r.costing_blocked_sku_count || 0) > 0 ? "blocked" : "ready",
+      value: costingBlockedCount,
+      cls: costingBlockedCount > 0 ? "blocked" : "ready",
       title: "SKUs where costing cannot be approved until blocking issues are corrected.",
       action: "costing-blocked",
     },
     {
       label: "Costing Review",
-      value: r.costing_review_sku_count,
-      cls: Number(r.costing_review_sku_count || 0) > 0 ? "review" : "ready",
+      value: costingReviewCount,
+      cls: costingReviewCount > 0 ? "review" : "ready",
       title: "SKUs where costing exists but requires review before use.",
       action: "costing-review",
     },
     {
       label: "Selling Policy Coverage",
-      value: coverageValue(r.selling_policy_complete_count, totalSkus),
-      cls: Number(r.selling_policy_missing_count || 0) > 0 ? "review" : "ready",
+      value: coverageValue(sellingPolicyComplete, totalSkus),
+      cls: sellingPolicyMissing > 0 ? "review" : "ready",
       title: "SKUs with GST, discount, and contingency policy coverage.",
       action: "selling-policy",
     },
     {
       label: "Scheme Policy Coverage",
-      value: coverageValue(r.scheme_policy_complete_count, totalSkus),
-      cls: Number(r.scheme_policy_missing_count || 0) > 0 ? "review" : "ready",
+      value: coverageValue(schemePolicyComplete, totalSkus),
+      cls: schemePolicyMissing > 0 ? "review" : "ready",
       title: "SKUs with selected scheme policy for both IK and OK.",
       action: "scheme-policy",
     },
@@ -864,7 +1138,7 @@ function renderKpiStrip() {
     {
       label: "Workbench Actions",
       value: workbenchActions,
-      cls: Number(r.workbench_blocked_item_count || 0) > 0
+      cls: workbenchBlockedActions > 0
         ? "blocked"
         : workbenchActions > 0
           ? "review"
@@ -919,12 +1193,12 @@ async function handleKpiAction(action) {
     }
 
     if (action === "costing-blocked") {
-      await go("sku-cost-sheet", { status: ["BLOCKED"] });
+      await go("costing-review-workbench", { status: ["BLOCKER"] });
       return;
     }
 
     if (action === "costing-review") {
-      await go("sku-cost-sheet", { status: ["REVIEW_REQUIRED"] });
+      await go("costing-review-workbench", { status: ["REVIEW_REQUIRED"] });
       return;
     }
 
@@ -935,14 +1209,14 @@ async function handleKpiAction(action) {
 
     if (action === "scheme-risk") {
       await go("scheme-comparison", {
-        status: ["BLOCKED", "REVIEW_REQUIRED"],
+        status: ["BLOCKER", "BLOCKED", "REVIEW_REQUIRED"],
       });
       return;
     }
 
     if (action === "workbench-actions") {
       await go("costing-review-workbench", {
-        status: ["BLOCKED", "REVIEW_REQUIRED"],
+        status: ["BLOCKER", "REVIEW_REQUIRED"],
       });
       return;
     }
@@ -974,6 +1248,13 @@ async function switchLens(lensId) {
   closeCostSheetModal();
   CURRENT_LENS = lensId;
   SELECTED_ROW = null;
+  if (
+    CURRENT_LENS === "cost-governance" ||
+    CURRENT_LENS === "staff-governance"
+  ) {
+    ACTIVE_FILTERS = { status: [], issue: [], source: [] };
+    syncFilterCheckboxes();
+  }
   renderLensPills();
   closeDetails();
   try {
@@ -985,6 +1266,10 @@ async function switchLens(lensId) {
 
 function getRowStatus(row) {
   return (
+    row.action_severity ||
+    row.control_severity ||
+    row.first_control_status ||
+    row.overall_control_status ||
     row.costing_status ||
     row.cost_sheet_status ||
     row.product_cost_sheet_status ||
@@ -1017,23 +1302,65 @@ function getSearchBlob(row) {
     row.product_hierarchy,
     row.sku_column_labels,
     row.stock_item_name,
+    row.stock_item_code,
+    row.material_area,
+    row.action_severity,
+    row.control_severity,
+    row.first_control_status,
+    row.overall_control_status,
     row.material_issue_code,
+    row.warning_code,
+    row.warning_text,
     row.manager_action_code,
     row.action_source,
+    row.recommended_ui_route,
+    row.action_note_summary,
+    row.action_required,
+    row.action_required_summary,
+    row.issue_codes,
+    row.warning_codes,
+    row.material_line_status,
+    row.material_line_statuses,
+    row.bom_source,
+    row.bom_sources,
+    row.source,
+    row.cost_sheet_status,
+    row.pricing_bridge_status,
+    row.selling_price_bridge_status,
     row.latest_purchase_rate,
     row.latest_purchase_date,
     row.register_status,
     row.reason,
     row.recommended_action,
     row.manual_rate_id,
-    row.rate_value,
-    row.primary_diagnostic_code,
-    row.primary_diagnostic_layer,
-    row.primary_diagnostic_note,
     row.costing_confidence_status,
     row.commercial_viability_status,
     row.final_action_status,
     row.material_costing_status,
+    row.rm_costing_status,
+    row.pm_costing_status,
+    row.scheme_name,
+    row.expense_group,
+    row.head_name,
+    row.allocation_pool,
+    row.allocation_pool_label,
+    row.mapping_status,
+    row.materiality_band,
+    row.suggested_review_note,
+    row.pool_source_type,
+    row.pool_status,
+    row.remarks,
+    row.staff_id,
+    row.employee_code,
+    row.designation,
+    row.costing_class,
+    row.costing_class_label,
+    row.classification_status,
+    row.classification_note,
+    row.latest_salary_period_start,
+    row.total_salary_cost,
+    row.salary_source_note,
+    row.allocation_weight,
     row.rm_costing_status,
     row.pm_costing_status,
     row.scheme_name,
@@ -1045,8 +1372,25 @@ function getSearchBlob(row) {
 
 function filterMatch(row, group, selected) {
   if (!selected.length) return true;
+
+  const issueFlags = [];
+  const issueText = [
+    row.rate_source,
+    row.action_note_summary,
+    row.action_required_summary,
+    row.warning_text,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toUpperCase();
+  if (issueText.includes("MANUAL RATE")) issueFlags.push("MANUAL_RATE_USED");
+
   const values = {
     status: [
+      row.action_severity,
+      row.control_severity,
+      row.first_control_status,
+      row.overall_control_status,
       row.costing_status,
       row.cost_sheet_status,
       row.product_cost_sheet_status,
@@ -1071,10 +1415,23 @@ function filterMatch(row, group, selected) {
       row.primary_diagnostic_code,
       row.final_action_status,
       row.warning_code,
+      row.action_required,
+      row.action_required_summary,
+      row.recommended_ui_route,
+      row.issue_codes,
+      row.warning_codes,
+      ...issueFlags,
     ],
-    source: [row.bom_source, row.source],
+    source: [
+      row.material_area,
+      row.bom_source,
+      row.source,
+      row.recommended_ui_route,
+      row.bom_sources,
+    ],
   }[group];
-  return values.some((v) => selected.includes(normalizeStatus(v)));
+
+  return values.flatMap(splitFilterValues).some((v) => selected.includes(v));
 }
 
 function applyFilters() {
@@ -1111,6 +1468,88 @@ function updateSearchClear() {
 }
 
 function renderTableHeaderForLens() {
+  if (CURRENT_LENS === "cost-governance") {
+    if (COST_GOVERNANCE_TAB === "mapping-register" || COST_GOVERNANCE_TAB === "excluded") {
+      tableHead.innerHTML = `<tr>
+        <th class="lane-col"></th>
+        <th>Expense Head</th>
+        <th>Allocation Pool</th>
+        <th>Mapping Status</th>
+        <th>Pool Source</th>
+        <th>Remarks</th>
+        <th class="c-center">Action</th>
+      </tr>`;
+      return;
+    }
+
+    if (COST_GOVERNANCE_TAB === "cost-pool-summary") {
+      tableHead.innerHTML = `<tr>
+        <th>Period</th>
+        <th>Allocation Pool</th>
+        <th>Source Type</th>
+        <th class="c-right">Staff Amount</th>
+        <th class="c-right">Expense Provision</th>
+        <th class="c-right">Total Pool Amount</th>
+        <th>Status</th>
+      </tr>`;
+      return;
+    }
+
+    tableHead.innerHTML = `<tr>
+      <th class="lane-col"></th>
+      <th>Expense Head</th>
+      <th>Materiality</th>
+      <th>Suggested Review Note</th>
+      <th class="c-center">Action</th>
+    </tr>`;
+    return;
+  }
+
+  if (CURRENT_LENS === "staff-governance") {
+    if (STAFF_GOVERNANCE_TAB === "staff-register") {
+      tableHead.innerHTML = `<tr>
+        <th class="lane-col"></th>
+        <th>Status</th>
+        <th>Staff</th>
+        <th>Designation</th>
+        <th class="c-right">Salary Cost</th>
+        <th>Costing Class</th>
+        <th>Allocation Pool</th>
+        <th>Effective From</th>
+        <th class="c-right">Weight</th>
+        <th>Remarks</th>
+        <th class="c-center">Action</th>
+      </tr>`;
+      return;
+    }
+
+    if (STAFF_GOVERNANCE_TAB === "staff-pool-summary") {
+      tableHead.innerHTML = `<tr>
+        <th>Period</th>
+        <th>Allocation Pool</th>
+        <th>Costing Class</th>
+        <th class="c-right">Staff Count</th>
+        <th class="c-right">Pool Amount</th>
+        <th>Status</th>
+      </tr>`;
+      return;
+    }
+
+    tableHead.innerHTML = `<tr>
+      <th class="lane-col"></th>
+      <th>Status</th>
+      <th>Staff</th>
+      <th>Designation</th>
+      <th>Salary Period</th>
+      <th class="c-right">Salary Cost</th>
+      <th>Costing Class</th>
+      <th>Allocation Pool</th>
+      <th>Note</th>
+      <th class="c-center">Action</th>
+    </tr>`;
+    return;
+  }
+
   if (CURRENT_LENS === "manual-rate-manager") {
     const headersByTab = {
       "action-queue": [
@@ -1290,20 +1729,17 @@ function renderTableHeaderForLens() {
       "Status",
     ],
     "costing-review-workbench": [
-      "SKU",
-      "Costing Confidence",
-      "Commercial Viability",
-      "Final Action",
-      "Primary Diagnostic Code",
-      "Primary Reason",
-      "Recommended Action",
-      "RM Blocking Lines",
-      "PM Blocking Lines",
-      "RM Review Lines",
-      "PM Review Lines",
-      "RM Stale Purchase Rate Lines",
-      "RM Stock Valuation Fallback Lines",
-      "PM Stock Valuation Fallback Lines",
+      "Material",
+      "Area",
+      "Severity",
+      "Route",
+      "Affected Lines",
+      "Affected Products",
+      "Affected SKUs",
+      "Blocking SKUs",
+      "Review SKUs",
+      "Action Note",
+      "Snapshot Refreshed",
     ],
   }[CURRENT_LENS];
   const alignments = {
@@ -1391,15 +1827,13 @@ function renderTableHeaderForLens() {
       "c-left",
       "c-left",
       "c-left",
+      "c-right",
+      "c-right",
+      "c-right",
+      "c-right",
+      "c-right",
       "c-left",
       "c-left",
-      "c-right",
-      "c-right",
-      "c-right",
-      "c-right",
-      "c-right",
-      "c-right",
-      "c-right",
     ],
   }[CURRENT_LENS] || [];
   tableHead.innerHTML = `<tr>${headers
@@ -1417,37 +1851,82 @@ function productSkuLabel(row) {
   return `<strong>${text(product)}</strong>${sku ? `<div style="color:var(--muted,#6b7280);font-size:12px">${text(sku)}</div>` : ""}`;
 }
 
+function expenseGovernanceLaneClass(row) {
+  const materiality = normalizeStatus(row.materiality_band);
+  if (materiality === "HIGH") return "blocked";
+  if (materiality === "MEDIUM") return "review";
+
+  const mappingStatus = normalizeStatus(row.mapping_status || row.pool_status);
+  if (mappingStatus === "ACTIVE" || mappingStatus === "READY") return "ready";
+  return "";
+}
+
+function staffGovernanceLaneClass(row) {
+  const status = normalizeStatus(row.classification_status);
+  if (status === "UNCLASSIFIED" || status === "MISSING_SALARY") return "blocked";
+  if (Number(row.total_salary_cost || 0) === 0) return "review";
+  if (status === "CLASSIFIED") return "ready";
+  if (status === "EXCLUDED") return "";
+  return "review";
+}
+
 function renderRowForLens(row, idx) {
   const trAttrs = `class="clickable" data-row-index="${idx}"`;
   if (CURRENT_LENS === "dashboard") {
+    const control = CONTROL_DASHBOARD_SUMMARY || row || {};
     const b = BUSINESS_KPI_SUMMARY || {};
-    const totalSkus = Number(
-      b.total_pricing_sku_count || row.pricing_bridge_sku_count || 0,
+    const legacy = DASHBOARD_SUMMARY || row || {};
+    const totalSkus = firstNumber(
+      control.total_sku_count,
+      b.total_pricing_sku_count,
+      legacy.pricing_bridge_sku_count,
     );
-    const costingBlocked = Number(
-      b.costing_blocked_sku_count ?? row.pricing_bridge_blocked_count ?? 0,
+    const costingBlocked = firstNumber(
+      control.blocked_sku_count,
+      b.costing_blocked_sku_count,
+      legacy.pricing_bridge_blocked_count,
     );
-    const costingReview = Number(
-      b.costing_review_sku_count ??
-        row.pricing_bridge_review_required_count ??
-        0,
+    const costingReview = firstNumber(
+      control.review_required_sku_count,
+      b.costing_review_sku_count,
+      legacy.pricing_bridge_review_required_count,
     );
-    const costingReady = b.costing_ready_sku_count ??
-      Math.max(totalSkus - costingBlocked - costingReview, 0);
-    const sellingComplete =
-      b.selling_policy_complete_count ?? row.selling_price_sku_count;
-    const schemeComplete = b.scheme_policy_complete_count;
+    const costingReady = firstNumber(
+      control.ready_sku_count,
+      b.costing_ready_sku_count,
+      Math.max(totalSkus - costingBlocked - costingReview, 0),
+    );
+    const sellingComplete = firstNumber(
+      b.selling_policy_complete_count,
+      legacy.selling_price_sku_count,
+    );
+    const schemeComplete = firstNumber(b.scheme_policy_complete_count);
     const schemeRiskRows = riskTotal(
-      b.scheme_blocked_row_count ?? row.scheme_blocked_count,
-      b.scheme_review_row_count ?? row.scheme_review_required_count,
+      b.scheme_blocked_row_count,
+      b.scheme_review_row_count,
+      legacy.scheme_blocked_count,
+      legacy.scheme_review_required_count,
+      legacy.scheme_viability_row_count,
     );
-    const workbenchActions = riskTotal(
-      b.workbench_blocked_item_count,
-      b.workbench_review_item_count,
-    );
-    const refreshStatus = b.latest_refresh_status || row.latest_refresh_status;
+    const workbenchActions =
+      firstNumber(control.rm_blocker_item_count) +
+      firstNumber(control.pm_blocker_item_count) +
+      firstNumber(control.rm_review_item_count) +
+      firstNumber(control.pm_review_item_count) ||
+      riskTotal(
+        b.workbench_blocked_item_count,
+        b.workbench_review_item_count,
+      );
+    const refreshStatus =
+      control.overall_control_status ||
+      control.latest_refresh_status ||
+      b.latest_refresh_status ||
+      legacy.latest_refresh_status;
     const refreshFinished =
-      b.latest_refresh_finished_at || row.latest_refresh_finished_at;
+      control.snapshot_refreshed_at ||
+      control.latest_refresh_finished_at ||
+      b.latest_refresh_finished_at ||
+      legacy.latest_refresh_finished_at;
 
     return `<tr ${trAttrs}>
       <td>
@@ -1599,6 +2078,230 @@ function renderRowForLens(row, idx) {
       <td>${compactStatusText(row.scheme_viability_status)}</td>
     </tr>`;
   }
+  if (CURRENT_LENS === "staff-governance") {
+    const lane = staffGovernanceLaneClass(row);
+
+    if (STAFF_GOVERNANCE_TAB === "staff-register") {
+      return `<tr ${trAttrs}>
+        <td class="lane-col"><span class="lane ${lane}"></span></td>
+        <td>${compactStatusText(row.classification_status)}</td>
+        <td>
+          <strong>${text(row.employee_code || "--")}</strong>
+          <div class="cp-muted-text">Staff ID: ${text(row.staff_id || "--")}</div>
+        </td>
+        <td>${text(row.designation || "--")}</td>
+        <td class="c-right">${formatMoney(row.total_salary_cost)}</td>
+        <td>${text(row.costing_class_label || row.costing_class || "--")}</td>
+        <td>${text(row.allocation_pool || "--")}</td>
+        <td>${formatDate(row.effective_from)}</td>
+        <td class="c-right">${formatNumber(row.allocation_weight)}</td>
+        <td>${text(row.remarks || "--")}</td>
+        <td class="c-center">
+          <button
+            type="button"
+            class="icon-btn"
+            data-view-staff-governance-index="${idx}"
+            title="Review Staff Classification"
+            aria-label="Review Staff Classification"
+          >
+            View
+          </button>
+        </td>
+      </tr>`;
+    }
+
+    if (STAFF_GOVERNANCE_TAB === "staff-pool-summary") {
+      return `<tr ${trAttrs}>
+        <td>${formatDate(row.period_start)}</td>
+        <td><strong>${text(row.allocation_pool || "--")}</strong></td>
+        <td>${text(row.costing_class_label || row.costing_class || "--")}</td>
+        <td class="c-right">${formatNumber(row.staff_count)}</td>
+        <td class="c-right">${formatMoney(row.pool_amount)}</td>
+        <td>${compactStatusText(row.pool_status)}</td>
+      </tr>`;
+    }
+
+    return `<tr ${trAttrs}>
+      <td class="lane-col"><span class="lane ${lane}"></span></td>
+      <td>${compactStatusText(row.classification_status)}</td>
+      <td>
+        <strong>${text(row.employee_code || "--")}</strong>
+        <div class="cp-muted-text">Staff ID: ${text(row.staff_id || "--")}</div>
+      </td>
+      <td>${text(row.designation || "--")}</td>
+      <td>${formatDate(row.latest_salary_period_start)}</td>
+      <td class="c-right">${formatMoney(row.total_salary_cost)}</td>
+      <td>${text(row.costing_class_label || row.costing_class || "--")}</td>
+      <td>${text(row.allocation_pool || "--")}</td>
+      <td>${text(row.classification_note || row.salary_source_note || "--")}</td>
+      <td class="c-center">
+        <button
+          type="button"
+          class="icon-btn"
+          data-view-staff-governance-index="${idx}"
+          title="Review Staff"
+          aria-label="Review Staff"
+        >
+          Review
+        </button>
+      </td>
+    </tr>`;
+  }
+  if (CURRENT_LENS === "cost-governance") {
+    const lane = expenseGovernanceLaneClass(row);
+
+    if (COST_GOVERNANCE_TAB === "mapping-register") {
+      const canClose = normalizeStatus(row.mapping_status) === "ACTIVE" && row.id;
+      return `<tr ${trAttrs}>
+        <td class="lane-col"><span class="lane ${lane}"></span></td>
+        <td>
+          <strong>${text(row.expense_group || "--")}</strong>
+          <div class="cp-muted-text">${text(row.head_name || "--")}</div>
+        </td>
+        <td>${text(row.allocation_pool_label || row.allocation_pool || "--")}</td>
+        <td>${compactStatusText(row.mapping_status)}</td>
+        <td>${text(row.pool_source_type || "--")}</td>
+        <td>${text(row.remarks || "--")}</td>
+        <td class="c-center">
+          <div style="display:flex;gap:6px;justify-content:center">
+            <button
+              type="button"
+              class="icon-btn"
+              data-map-expense-index="${idx}"
+              title="Edit Expense Mapping"
+              aria-label="Edit Expense Mapping"
+            >
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M12 20h9"></path>
+                <path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4Z"></path>
+              </svg>
+            </button>
+            ${
+              canClose
+                ? `<button
+                    type="button"
+                    class="icon-btn cp-danger-icon-btn"
+                    data-close-expense-mapping-id="${text(row.id)}"
+                    title="Close Expense Mapping"
+                    aria-label="Close Expense Mapping"
+                  >
+                    <svg
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.4"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <circle cx="12" cy="12" r="9"></circle>
+                      <path d="M15 9l-6 6"></path>
+                      <path d="M9 9l6 6"></path>
+                    </svg>
+                  </button>`
+                : ""
+            }
+          </div>
+        </td>
+      </tr>`;
+    }
+
+    if (COST_GOVERNANCE_TAB === "excluded") {
+      return `<tr ${trAttrs}>
+        <td class="lane-col"><span class="lane ${lane}"></span></td>
+        <td>
+          <strong>${text(row.expense_group || "--")}</strong>
+          <div class="cp-muted-text">${text(row.head_name || "--")}</div>
+        </td>
+        <td>${text(row.allocation_pool_label || row.allocation_pool || "--")}</td>
+        <td>${compactStatusText(row.mapping_status)}</td>
+        <td>${text(row.pool_source_type || "--")}</td>
+        <td>${text(row.remarks || "--")}</td>
+        <td class="c-center">
+          <button
+            type="button"
+            class="icon-btn"
+            data-map-expense-index="${idx}"
+            title="Edit / Reactivate Expense Mapping"
+            aria-label="Edit / Reactivate Expense Mapping"
+          >
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 20h9"></path>
+              <path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4Z"></path>
+            </svg>
+          </button>
+        </td>
+      </tr>`;
+    }
+
+    if (COST_GOVERNANCE_TAB === "cost-pool-summary") {
+      return `<tr ${trAttrs}>
+        <td>${formatDate(row.period_start)}</td>
+        <td><strong>${text(row.allocation_pool_label || row.allocation_pool || "--")}</strong></td>
+        <td>${text(row.pool_source_type || "--")}</td>
+        <td class="c-right">${formatMoney(row.staff_pool_amount)}</td>
+        <td class="c-right">${formatMoney(row.expense_provision_amount)}</td>
+        <td class="c-right">${formatMoney(row.total_pool_amount)}</td>
+        <td>${compactStatusText(row.pool_status)}</td>
+      </tr>`;
+    }
+
+    return `<tr ${trAttrs}>
+      <td class="lane-col"><span class="lane ${lane}"></span></td>
+      <td>
+        <strong>${text(row.expense_group || "--")}</strong>
+        <div class="cp-muted-text">${text(row.head_name || "--")}</div>
+      </td>
+      <td>${text(row.materiality_band || "--")}</td>
+      <td>${text(row.suggested_review_note || "--")}</td>
+      <td class="c-center">
+        <button
+          type="button"
+          class="icon-btn"
+          data-map-expense-index="${idx}"
+          title="Map Expense Head"
+          aria-label="Map Expense Head"
+        >
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M12 5v14"></path>
+            <path d="M5 12h14"></path>
+          </svg>
+        </button>
+      </td>
+    </tr>`;
+  }
   if (CURRENT_LENS === "manual-rate-manager") {
     if (MANUAL_RATE_MANAGER_TAB === "register") {
       return `<tr ${trAttrs}>
@@ -1682,20 +2385,20 @@ function renderRowForLens(row, idx) {
     </tr>`;
   }
   return `<tr ${trAttrs}>
-    <td>${productSkuLabel(row)}</td>
-    <td>${compactStatusText(row.costing_confidence_status)}</td>
-    <td>${compactStatusText(row.commercial_viability_status)}</td>
-    <td>${compactStatusText(row.final_action_status)}</td>
-    <td>${text(row.primary_diagnostic_code)}</td>
-    <td>${text(row.primary_diagnostic_note)}</td>
-    <td>${text(row.recommended_action)}</td>
-    <td class="c-right">${formatNumber(row.rm_blocking_line_count)}</td>
-    <td class="c-right">${formatNumber(row.pm_blocking_line_count)}</td>
-    <td class="c-right">${formatNumber(row.rm_review_rate_line_count)}</td>
-    <td class="c-right">${formatNumber(row.pm_review_rate_line_count)}</td>
-    <td class="c-right">${formatNumber(row.rm_stale_purchase_rate_line_count)}</td>
-    <td class="c-right">${formatNumber(row.rm_stock_valuation_fallback_line_count)}</td>
-    <td class="c-right">${formatNumber(row.pm_stock_valuation_fallback_line_count)}</td>
+    <td>
+      <strong>${text(row.stock_item_name || row.stock_item_id)}</strong>
+      <div class="cp-muted-text">${text([row.stock_item_code, row.material_area].filter(Boolean).join(" / "))}</div>
+    </td>
+    <td>${text(row.material_area)}</td>
+    <td>${statusChip(row.action_severity)}</td>
+    <td>${text(row.recommended_ui_route)}</td>
+    <td class="c-right">${formatNumber(row.affected_line_count)}</td>
+    <td class="c-right">${formatNumber(row.affected_product_count)}</td>
+    <td class="c-right">${formatNumber(row.affected_sku_count)}</td>
+    <td class="c-right">${formatNumber(row.approval_blocking_sku_count)}</td>
+    <td class="c-right">${formatNumber(row.review_sku_count)}</td>
+    <td>${text(row.action_note_summary)}</td>
+    <td>${formatDateTime(row.snapshot_refreshed_at)}</td>
   </tr>`;
 }
 
@@ -1704,12 +2407,24 @@ function renderTable() {
   if (tableWrap) {
     tableWrap.dataset.lens = CURRENT_LENS;
     tableWrap.dataset.managerTab =
-      CURRENT_LENS === "manual-rate-manager" ? MANUAL_RATE_MANAGER_TAB : "";
+      CURRENT_LENS === "manual-rate-manager"
+        ? MANUAL_RATE_MANAGER_TAB
+        : CURRENT_LENS === "cost-governance"
+          ? COST_GOVERNANCE_TAB
+          : CURRENT_LENS === "staff-governance"
+            ? STAFF_GOVERNANCE_TAB
+            : "";
   }
+
+
   if (CURRENT_LENS === "manual-rate-manager") {
     renderManualRateManagerTabs();
   } else if (CURRENT_LENS === "policy-manager") {
     renderPolicyManagerTabs();
+  } else if (CURRENT_LENS === "cost-governance") {
+    renderCostGovernanceTabs();
+  } else if (CURRENT_LENS === "staff-governance") {
+    renderStaffGovernanceTabs();
   } else {
     renderWorkbenchSummary();
   }
@@ -1722,7 +2437,9 @@ function renderTable() {
     tableBody.innerHTML = "";
     tableWrap?.classList.remove("tw-visible");
     setStatus(
-      `No rows found for ${LENSES.find((l) => l.id === CURRENT_LENS)?.label || CURRENT_LENS}.`,
+      CURRENT_LENS === "dashboard" && !CONTROL_DASHBOARD_SUMMARY
+        ? "Control snapshot is not available for this period. Use Refresh Live Costing to rebuild the costing chain and control summary."
+        : `No rows found for ${LENSES.find((l) => l.id === CURRENT_LENS)?.label || CURRENT_LENS}.`,
     );
   } else {
     clearStatus();
@@ -1745,13 +2462,18 @@ function renderTable() {
         openCostSheetModal(row.product_id);
         return;
       }
+      if (CURRENT_LENS === "cost-governance" || CURRENT_LENS === "staff-governance") {
+        return;
+      }
       let preferred = undefined;
 
       if (CURRENT_LENS === "scheme-comparison") {
         preferred = "scheme";
       }
 
-      if (CURRENT_LENS === "manual-rate-manager") {
+
+
+  if (CURRENT_LENS === "manual-rate-manager") {
         if (MANUAL_RATE_MANAGER_TAB === "register") {
           preferred = "manual-rate-register";
         } else if (MANUAL_RATE_MANAGER_TAB === "history") {
@@ -1764,6 +2486,40 @@ function renderTable() {
       openDetails(row, preferred);
     });
   });
+
+  if (CURRENT_LENS === "cost-governance") {
+    tableBody.querySelectorAll("[data-map-expense-index]").forEach((btn) => {
+      btn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        const index = Number(btn.dataset.mapExpenseIndex);
+        const row = VIEW[index];
+        if (row) openExpenseMappingEditModal(row);
+      });
+    });
+
+    tableBody
+      .querySelectorAll("[data-close-expense-mapping-id]")
+      .forEach((btn) => {
+        btn.addEventListener("click", async (event) => {
+          event.stopPropagation();
+          const row = VIEW.find((r) => String(r.id) === String(btn.dataset.closeExpenseMappingId));
+          if (row) await closeExpenseMapping(row);
+        });
+      });
+  }
+
+  if (CURRENT_LENS === "staff-governance") {
+    tableBody
+      .querySelectorAll("[data-view-staff-governance-index]")
+      .forEach((btn) => {
+        btn.addEventListener("click", (event) => {
+          event.stopPropagation();
+          const index = Number(btn.dataset.viewStaffGovernanceIndex);
+          const row = VIEW[index];
+          if (row) openStaffGovernanceReviewModal(row);
+        });
+      });
+  }
 
   if (
     CURRENT_LENS === "manual-rate-manager" &&
@@ -1812,6 +2568,115 @@ function renderTable() {
   if (nextPage) nextPage.disabled = CURRENT_PAGE >= totalPages;
 }
 
+function renderCostGovernanceTabs() {
+  if (!workbenchSummary) return;
+
+  if (CURRENT_LENS !== "cost-governance") {
+    return;
+  }
+
+  const tabs = [
+    ["unmapped", "Unmapped Heads", "Map new expense heads"],
+    ["mapping-register", "Mapping Register", "Current governance map"],
+    ["excluded", "Excluded", "Heads excluded from costing"],
+    ["cost-pool-summary", "Cost Pool Summary", "Monthly cost pool totals"],
+  ];
+
+  workbenchSummary.classList.add("is-visible");
+  workbenchSummary.innerHTML = `
+    <div class="cp-workbench-compact-summary" style="grid-template-columns: repeat(4, minmax(0, 1fr));">
+      ${tabs
+        .map(
+          ([id, label, hint]) => `
+            <button
+              type="button"
+              class="cp-workbench-summary-card cp-manager-tab-card ${COST_GOVERNANCE_TAB === id ? "active" : ""}"
+              data-cost-governance-tab="${id}"
+            >
+              <div class="cp-card-label">${text(label)}</div>
+              <div class="cp-card-value">${text(hint)}</div>
+            </button>
+          `,
+        )
+        .join("")}
+    </div>
+  `;
+
+  workbenchSummary
+    .querySelectorAll("[data-cost-governance-tab]")
+    .forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const nextTab = btn.dataset.costGovernanceTab;
+        if (!nextTab || nextTab === COST_GOVERNANCE_TAB) return;
+
+        COST_GOVERNANCE_TAB = nextTab;
+        CURRENT_PAGE = 1;
+        SELECTED_ROW = null;
+        closeDetails();
+
+        try {
+          await loadRowsForLens();
+        } catch (err) {
+          handleError("Failed to load Cost Governance tab", err);
+        }
+      });
+    });
+}
+
+function renderStaffGovernanceTabs() {
+  if (!workbenchSummary) return;
+
+  if (CURRENT_LENS !== "staff-governance") {
+    return;
+  }
+
+  const tabs = [
+    ["staff-review", "Staff Review Queue", "Unclassified / salary review"],
+    ["staff-register", "Classification Register", "Current staff classifications"],
+    ["staff-pool-summary", "Staff Pool Summary", "Monthly staff pool totals"],
+  ];
+
+  workbenchSummary.classList.add("is-visible");
+  workbenchSummary.innerHTML = `
+    <div class="cp-workbench-compact-summary" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
+      ${tabs
+        .map(
+          ([id, label, hint]) => `
+            <button
+              type="button"
+              class="cp-workbench-summary-card cp-manager-tab-card ${STAFF_GOVERNANCE_TAB === id ? "active" : ""}"
+              data-staff-governance-tab="${id}"
+            >
+              <div class="cp-card-label">${text(label)}</div>
+              <div class="cp-card-value">${text(hint)}</div>
+            </button>
+          `,
+        )
+        .join("")}
+    </div>
+  `;
+
+  workbenchSummary
+    .querySelectorAll("[data-staff-governance-tab]")
+    .forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const nextTab = btn.dataset.staffGovernanceTab;
+        if (!nextTab || nextTab === STAFF_GOVERNANCE_TAB) return;
+
+        STAFF_GOVERNANCE_TAB = nextTab;
+        CURRENT_PAGE = 1;
+        SELECTED_ROW = null;
+        closeDetails();
+
+        try {
+          await loadRowsForLens();
+        } catch (err) {
+          handleError("Failed to load Staff Governance tab", err);
+        }
+      });
+    });
+}
+
 function renderWorkbenchSummary() {
   if (!workbenchSummary) return;
   if (CURRENT_LENS !== "costing-review-workbench") {
@@ -1820,40 +2685,48 @@ function renderWorkbenchSummary() {
     return;
   }
   workbenchSummary.classList.add("is-visible");
-  if (!SKU_STATUS_DIAGNOSIS.length) {
-    workbenchSummary.innerHTML = `<div class="status" style="padding:4px 6px">No SKU diagnosis rows for this period.</div>`;
+  if (!ALL_ROWS.length) {
+    workbenchSummary.innerHTML = `<div class="status" style="padding:4px 6px">No material action queue rows for this period.</div>`;
     return;
   }
 
-  const confidenceCounts = countDiagnosisBy("costing_confidence_status", [
-    "BLOCKED",
-    "REVIEW_REQUIRED",
-    "READY",
-  ]);
-  const topReason = getTopOperationalReasons(1)[0] || {};
+  const blockerRows = ALL_ROWS.filter(
+    (row) => normalizeStatus(row.action_severity) === "BLOCKER",
+  );
+  const reviewRows = ALL_ROWS.filter(
+    (row) => normalizeStatus(row.action_severity) === "REVIEW_REQUIRED",
+  );
+  const affectedSkus = ALL_ROWS.reduce(
+    (sum, row) => sum + Number(row.affected_sku_count || 0),
+    0,
+  );
+  const topRow = ALL_ROWS[0] || {};
 
   workbenchSummary.innerHTML = `
     <div class="cp-workbench-compact-summary">
       <div class="cp-workbench-summary-card">
-        <div class="cp-card-label">Blocked SKUs</div>
-        <div class="cp-card-value">${formatNumber(confidenceCounts.BLOCKED || 0)}</div>
+        <div class="cp-card-label">Blocker Actions</div>
+        <div class="cp-card-value">${formatNumber(blockerRows.length)}</div>
       </div>
 
       <div class="cp-workbench-summary-card">
-        <div class="cp-card-label">Review SKUs</div>
-        <div class="cp-card-value">${formatNumber(confidenceCounts.REVIEW_REQUIRED || 0)}</div>
+        <div class="cp-card-label">Review Actions</div>
+        <div class="cp-card-value">${formatNumber(reviewRows.length)}</div>
+      </div>
+
+      <div class="cp-workbench-summary-card">
+        <div class="cp-card-label">SKU Impact Count</div>
+        <div class="cp-card-value">${formatNumber(affectedSkus)}</div>
       </div>
 
       <div class="cp-workbench-summary-card cp-workbench-summary-wide">
-        <div class="cp-card-label">Top Priority</div>
+        <div class="cp-card-label">Top Material</div>
         <div class="cp-card-value">
-          ${text(topReason.primary_diagnostic_code)}
-          <span class="cp-muted-text"> / ${formatNumber(topReason.sku_count)} SKUs</span>
+          ${text(topRow.stock_item_name || topRow.stock_item_id)}
+          <span class="cp-muted-text"> / ${text(topRow.material_area)}</span>
         </div>
       </div>
     </div>
-
-    ${renderTopOperationalReasons(5)}
   `;
 }
 
@@ -2247,7 +3120,53 @@ async function fetchSchemePolicyHistory(row) {
   return data || [];
 }
 
-async function fetchActionDrilldown(row) {
+async function refreshSelectedMaterialActionDrilldown(row) {
+  const missing = [
+    ["stock_item_id", row?.stock_item_id],
+    ["material_area", row?.material_area],
+    ["action_severity", row?.action_severity],
+    ["recommended_ui_route", row?.recommended_ui_route],
+  ]
+    .filter(([, value]) => value === null || value === undefined || value === "")
+    .map(([key]) => key);
+
+  if (missing.length) {
+    throw new Error(`Material action drilldown context missing: ${missing.join(", ")}`);
+  }
+
+  const { error: refreshError } = await costingRpc(
+    "rpc_refresh_material_action_drilldown_snapshot",
+    {
+      p_period_start: ACTIVE_PERIOD_START,
+      p_stock_item_id: row.stock_item_id,
+      p_material_area: row.material_area,
+      p_action_severity: row.action_severity,
+      p_recommended_ui_route: row.recommended_ui_route,
+    },
+  );
+
+  if (refreshError) throw refreshError;
+
+  MATERIAL_ACTION_DRILLDOWN_ROWS = await fetchAllRows(
+    () =>
+      costingFrom("v_costing_pricing_material_action_drilldown_snapshot")
+        .select("*")
+        .eq("period_start", ACTIVE_PERIOD_START)
+        .eq("stock_item_id", row.stock_item_id)
+        .eq("material_area", row.material_area)
+        .eq("action_severity", row.action_severity)
+        .eq("recommended_ui_route", row.recommended_ui_route)
+        .order("product_name", { ascending: true })
+        .order("sku_id", { ascending: true })
+        .order("bom_source", { ascending: true })
+        .order("line_no", { ascending: true, nullsFirst: false }),
+    1000,
+  );
+
+  return MATERIAL_ACTION_DRILLDOWN_ROWS;
+}
+
+async function fetchLegacyActionDrilldown(row) {
   const readSnapshot = async () => {
     const { data, error } = await costingFrom(
       "v_costing_pricing_review_action_item_drilldown_snapshot",
@@ -2266,10 +3185,6 @@ async function fetchActionDrilldown(row) {
   const rows = await readSnapshot();
   if (rows.length) return rows;
 
-  /*
-    Fallback only:
-    This is useful if the user opens a row before the full Workbench snapshot exists.
-  */
   const { error: refreshError } = await costingRpc(
     "rpc_refresh_costing_review_action_drilldown_snapshot",
     {
@@ -2283,6 +3198,14 @@ async function fetchActionDrilldown(row) {
   if (refreshError) throw refreshError;
 
   return readSnapshot();
+}
+
+async function fetchActionDrilldown(row) {
+  if (CURRENT_LENS === "costing-review-workbench") {
+    return refreshSelectedMaterialActionDrilldown(row);
+  }
+
+  return fetchLegacyActionDrilldown(row);
 }
 
 async function fetchManualRateHistory(row) {
@@ -2339,122 +3262,49 @@ async function fetchManualRateReview(row) {
   return data?.[0] || null;
 }
 
-function renderDashboardOverview() {
-  const r = SELECTED_ROW || DASHBOARD_SUMMARY || {};
-  const summaryCards = kvCards([
-    ["Period", formatDate(r.period_start)],
-    ["Pricing SKUs", formatNumber(r.pricing_bridge_sku_count)],
-    ["Pricing Blocked", formatNumber(r.pricing_bridge_blocked_count)],
-    ["Pricing Review", formatNumber(r.pricing_bridge_review_required_count)],
-    ["Selling Price SKUs", formatNumber(r.selling_price_sku_count)],
-    ["Selling Blocked", formatNumber(r.selling_price_blocked_count)],
-    ["Selling Review", formatNumber(r.selling_price_review_required_count)],
-    ["Scheme Rows", formatNumber(r.scheme_viability_row_count)],
-    ["Scheme Blocked", formatNumber(r.scheme_blocked_count)],
-    ["Scheme Review", formatNumber(r.scheme_review_required_count)],
-    ["Refresh Status", statusChip(r.latest_refresh_status)],
-    ["Refresh Scope", text(r.latest_refresh_scope)],
-    ["Finished At", formatDateTime(r.latest_refresh_finished_at)],
-  ]);
+function renderControlAuditSection() {
+  if (!CONTROL_AUDIT_ROWS.length) {
+    return `<div class="status" style="margin-top:12px">No control audit rows available for this period.</div>`;
+  }
 
-  return `${summaryCards}${renderDiagnosisSummarySections()}`;
-}
-
-function countDiagnosisBy(field, statuses) {
-  const counts = Object.fromEntries(statuses.map((status) => [status, 0]));
-  SKU_STATUS_DIAGNOSIS.forEach((row) => {
-    const status = normalizeStatus(row[field]);
-    if (Object.prototype.hasOwnProperty.call(counts, status)) counts[status] += 1;
-  });
-  return counts;
-}
-
-function diagnosisCountCards(title, field, statuses) {
-  const counts = countDiagnosisBy(field, statuses);
   return `
-    <h3 class="cp-section-title" style="margin-top:12px">${text(title)}</h3>
-    <div class="cp-summary-strip">
-      ${statuses
-        .map(
-          (status) =>
-            `<div class="cp-card">
-              <div class="cp-card-label">${formatStatusLabel(status)}</div>
-              <div class="cp-card-value">${formatNumber(counts[status] || 0)}</div>
-            </div>`,
-        )
-        .join("")}
-    </div>
-  `;
-}
-
-function getTopOperationalReasons(limit = 8) {
-  const grouped = new Map();
-  SKU_STATUS_DIAGNOSIS.forEach((row) => {
-    const key = [
-      row.primary_diagnostic_layer || "",
-      row.primary_diagnostic_code || "",
-      row.primary_diagnostic_note || "",
-      row.recommended_action || "",
-    ].join("||");
-    const existing = grouped.get(key) || {
-      primary_diagnostic_code: row.primary_diagnostic_code,
-      primary_diagnostic_note: row.primary_diagnostic_note,
-      recommended_action: row.recommended_action,
-      sku_count: 0,
-    };
-    existing.sku_count += 1;
-    grouped.set(key, existing);
-  });
-  return [...grouped.values()]
-    .sort((a, b) => b.sku_count - a.sku_count)
-    .slice(0, limit);
-}
-
-function renderTopOperationalReasons(limit = 8) {
-  const rows = getTopOperationalReasons(limit);
-  if (!rows.length) return "";
-  return `
-    <h3 class="cp-section-title" style="margin-top:12px">Top Operational Reasons</h3>
+    <h3 class="cp-section-title" style="margin-top:12px">Control Snapshot Audit</h3>
     ${simpleTable(
-      ["Reason Code", "SKU Count", "Primary Reason", "Recommended Action"],
-      rows,
-      (row) =>
-        `<tr>
-          <td>${text(row.primary_diagnostic_code)}</td>
-          <td class="c-right">${formatNumber(row.sku_count)}</td>
-          <td>${text(row.primary_diagnostic_note)}</td>
-          <td>${text(row.recommended_action)}</td>
-        </tr>`,
+      ["Check", "Status", "Observed", "Rule", "Note"],
+      CONTROL_AUDIT_ROWS,
+      (row) => `
+        <tr>
+          <td>${text(row.check_code)}</td>
+          <td>${statusChip(row.check_status)}</td>
+          <td class="c-right">${formatNumber(row.observed_count)}</td>
+          <td>${text(row.expected_rule)}</td>
+          <td>${text(row.diagnostic_note)}</td>
+        </tr>
+      `,
     )}
   `;
 }
 
-function renderDiagnosisSummarySections() {
-  if (!SKU_STATUS_DIAGNOSIS.length) {
-    return `<div class="status" style="margin-top:12px">No SKU diagnosis rows available for this period.</div>`;
-  }
-  return `
-    ${diagnosisCountCards("Costing Confidence", "costing_confidence_status", [
-      "BLOCKED",
-      "REVIEW_REQUIRED",
-      "READY",
-    ])}
-    ${diagnosisCountCards("Commercial Viability", "commercial_viability_status", [
-      "ACCEPTABLE",
-      "LOW_MARGIN",
-      "NOT_ACCEPTABLE",
-      "NOT_EVALUATED",
-    ])}
-    ${diagnosisCountCards("Final Action", "final_action_status", [
-      "COMPLETE_MISSING_COST_DATA",
-      "REVIEW_COST_INPUTS",
-      "REVIEW_COMMERCIAL_MARGIN",
-      "REJECT_OR_REPRICE",
-      "COMMERCIALLY_ACCEPTABLE",
-    ])}
-    ${renderTopOperationalReasons()}
-  `;
+function renderDashboardOverview() {
+  const control = SELECTED_ROW || CONTROL_DASHBOARD_SUMMARY || {};
+  const business = BUSINESS_KPI_SUMMARY || {};
+  const legacy = DASHBOARD_SUMMARY || {};
+  const summaryCards = kvCards([
+    ["Period", formatDate(control.period_start || business.period_start || legacy.period_start)],
+    ["Pricing SKUs", formatNumber(firstNumber(control.total_sku_count, business.total_pricing_sku_count, legacy.pricing_bridge_sku_count))],
+    ["Pricing Blocked", formatNumber(firstNumber(control.blocked_sku_count, business.costing_blocked_sku_count, legacy.pricing_bridge_blocked_count))],
+    ["Pricing Review", formatNumber(firstNumber(control.review_required_sku_count, business.costing_review_sku_count, legacy.pricing_bridge_review_required_count))],
+    ["Selling Price SKUs", formatNumber(firstNumber(business.selling_policy_complete_count, legacy.selling_price_sku_count))],
+    ["Scheme Rows", formatNumber(riskTotal(business.scheme_blocked_row_count, business.scheme_review_row_count, legacy.scheme_viability_row_count))],
+    ["Control Audit Rows", formatNumber(CONTROL_AUDIT_ROWS.length)],
+    ["Refresh Status", statusChip(control.latest_refresh_status || business.latest_refresh_status || legacy.latest_refresh_status)],
+    ["Refresh Scope", text(control.latest_refresh_scope || legacy.latest_refresh_scope)],
+    ["Finished At", formatDateTime(control.snapshot_refreshed_at || control.latest_refresh_finished_at || business.latest_refresh_finished_at || legacy.latest_refresh_finished_at)],
+  ]);
+
+  return `${summaryCards}${renderControlAuditSection()}`;
 }
+
 
 function renderSkuDiagnosisPanel(rowOrSkuId) {
   const skuId =
@@ -2863,6 +3713,185 @@ async function saveSellingPolicyEdit() {
   }
 }
 
+function normalizeExpensePool(value) {
+  return normalizeStatus(value);
+}
+
+function suggestedExpensePool(row) {
+  const currentPool = normalizeExpensePool(
+    row?.allocation_pool || row?.allocation_pool_label,
+  );
+  if (currentPool) return currentPool;
+
+  const headText = `${row?.expense_group || ""} ${row?.head_name || ""}`.toUpperCase();
+  if (/ROUND\s*OFF|FINE|PENALTY/.test(headText)) return "EXCLUDED";
+  return "";
+}
+
+function populateExpensePoolSelect(selectedPool = "") {
+  if (!expenseMappingPool) return;
+
+  const normalized = normalizeExpensePool(selectedPool);
+  const options = [
+    '<option value="">Select allocation pool</option>',
+    ...EXPENSE_POOL_OPTIONS.map((option) => {
+      const value = option.allocation_pool || option.pool_code || option.pool_name || "";
+      const label = option.allocation_pool_label || option.pool_label || value || "--";
+      const isSelected = normalizeExpensePool(value) === normalized ? ' selected' : '';
+      return `<option value="${escapeHtml(value)}"${isSelected}>${escapeHtml(label)}</option>`;
+    }),
+  ];
+
+  expenseMappingPool.innerHTML = options.join("");
+  expenseMappingPool.value = selectedPool || "";
+}
+
+function syncExpenseMappingIncludeState() {
+  if (!expenseMappingPool || !expenseMappingInclude) return;
+
+  const isExcluded = normalizeExpensePool(expenseMappingPool.value) === "EXCLUDED";
+  if (isExcluded) {
+    expenseMappingInclude.checked = false;
+    expenseMappingInclude.disabled = true;
+    return;
+  }
+
+  expenseMappingInclude.disabled = false;
+  expenseMappingInclude.checked = true;
+}
+
+function openExpenseMappingEditModal(row) {
+  if (!row || !expenseMappingEditModal) return;
+
+  EXPENSE_MAPPING_EDIT_ROW = row;
+  EXPENSE_MAPPING_RETURN_FOCUS = document.activeElement;
+
+  if (expenseMappingLabel) {
+    expenseMappingLabel.textContent = `${row.expense_group || "--"} / ${row.head_name || "--"}`;
+  }
+
+  const defaultPool = suggestedExpensePool(row);
+  populateExpensePoolSelect(defaultPool);
+
+  if (expenseMappingInclude) {
+    expenseMappingInclude.checked = normalizeExpensePool(defaultPool) === "EXCLUDED"
+      ? false
+      : row.include_in_costing !== false;
+  }
+
+  if (expenseMappingRemarks) {
+    expenseMappingRemarks.value = row.remarks || row.suggested_review_note || "";
+  }
+
+  syncExpenseMappingIncludeState();
+
+  expenseMappingEditModal.classList.remove("hidden");
+  expenseMappingEditModal.setAttribute("aria-hidden", "false");
+
+  setTimeout(() => expenseMappingPool?.focus(), 0);
+}
+
+function closeExpenseMappingEditModal() {
+  if (!expenseMappingEditModal) return;
+
+  const active = document.activeElement;
+  if (active && expenseMappingEditModal.contains(active)) {
+    active.blur();
+  }
+
+  expenseMappingEditModal.classList.add("hidden");
+  expenseMappingEditModal.setAttribute("aria-hidden", "true");
+
+  const returnTarget =
+    EXPENSE_MAPPING_RETURN_FOCUS &&
+    EXPENSE_MAPPING_RETURN_FOCUS !== document.body &&
+    document.contains(EXPENSE_MAPPING_RETURN_FOCUS)
+      ? EXPENSE_MAPPING_RETURN_FOCUS
+      : searchBox;
+
+  EXPENSE_MAPPING_RETURN_FOCUS = null;
+  EXPENSE_MAPPING_EDIT_ROW = null;
+
+  if (returnTarget && typeof returnTarget.focus === "function") {
+    setTimeout(() => returnTarget.focus(), 0);
+  }
+}
+
+async function saveExpenseMappingEdit() {
+  const row = EXPENSE_MAPPING_EDIT_ROW;
+  if (!row) return;
+
+  const pool = expenseMappingPool?.value || "";
+  const remarks = expenseMappingRemarks?.value?.trim() || "";
+
+  if (!pool) {
+    showToast("Please select an allocation pool.", "error");
+    expenseMappingPool?.focus();
+    return;
+  }
+
+  const include = normalizeExpensePool(pool) === "EXCLUDED"
+    ? false
+    : !!expenseMappingInclude?.checked;
+
+  expenseMappingEditSaveBtn.disabled = true;
+  setLoadingMask(true, "Saving expense mapping...");
+
+  try {
+    const { error } = await costingRpc("rpc_set_expense_head_costing_map", {
+      p_expense_group: row.expense_group,
+      p_head_name: row.head_name,
+      p_allocation_pool: pool,
+      p_include_in_costing: include,
+      p_remarks: remarks,
+    });
+
+    if (error) throw error;
+
+    closeExpenseMappingEditModal();
+    showToast(
+      "Expense mapping saved. Use Refresh Live Costing when you are ready to recalculate.",
+      "success",
+      5200,
+    );
+    await loadRowsForLens();
+  } catch (err) {
+    handleError("Failed to save expense mapping", err);
+  } finally {
+    setLoadingMask(false);
+    expenseMappingEditSaveBtn.disabled = false;
+  }
+}
+
+async function closeExpenseMapping(row) {
+  if (!row?.id) {
+    showToast("Expense mapping ID missing.", "error");
+    return;
+  }
+
+  if (!window.confirm("Deactivate this expense head mapping? This will not delete the row.")) {
+    return;
+  }
+
+  setLoadingMask(true, "Deactivating expense mapping...");
+
+  try {
+    const { error } = await costingRpc("rpc_close_expense_head_costing_map", {
+      p_mapping_id: row.id,
+      p_remarks: "Deactivated from Cost Governance manager.",
+    });
+
+    if (error) throw error;
+
+    showToast("Expense mapping deactivated.", "success");
+    await loadRowsForLens();
+  } catch (err) {
+    handleError("Failed to deactivate expense mapping", err);
+  } finally {
+    setLoadingMask(false);
+  }
+}
+
 function readManualRateFormValues() {
   return {
     rateValue: numberOrNullFromInput(manualRateValue),
@@ -3023,7 +4052,9 @@ async function saveManualRateEdit() {
         SELECTED_ROW = updated;
       }
 
-      if (CURRENT_LENS === "manual-rate-manager") {
+
+
+  if (CURRENT_LENS === "manual-rate-manager") {
         const nextTab =
           MANUAL_RATE_MANAGER_TAB === "register"
             ? "manual-rate-register"
@@ -3148,7 +4179,9 @@ async function saveManualRateClose() {
       5200,
     );
 
-    if (CURRENT_LENS === "manual-rate-manager") {
+
+
+  if (CURRENT_LENS === "manual-rate-manager") {
       await loadRowsForLens();
     } else {
       await setDrawerTab("manual-rate-history");
@@ -4918,6 +5951,103 @@ async function renderSkuTab(tabId) {
   ]);
 }
 
+function renderControlWorkbenchSummaryTab(row) {
+  return kvCards([
+    ["Stock Item", text(row.stock_item_name || row.stock_item_id)],
+    ["Stock Code", text(row.stock_item_code)],
+    ["Material Area", text(row.material_area)],
+    ["Severity", statusChip(row.action_severity)],
+    ["Route", text(row.recommended_ui_route)],
+    ["Affected Lines", formatNumber(row.affected_line_count)],
+    ["Affected Products", formatNumber(row.affected_product_count)],
+    ["Affected SKUs", formatNumber(row.affected_sku_count)],
+    ["Blocking SKUs", formatNumber(row.approval_blocking_sku_count)],
+    ["Review SKUs", formatNumber(row.review_sku_count)],
+    ["Issue Summary", text(row.action_note_summary)],
+    ["Issue Codes", text(row.issue_codes)],
+    ["Warning Codes", text(row.warning_codes)],
+    ["BOM Sources", text(row.bom_sources)],
+    ["Snapshot Time", formatDateTime(row.snapshot_refreshed_at)],
+  ]);
+}
+
+async function renderControlWorkbenchAffectedSkusTab(row) {
+  const rows = await refreshSelectedMaterialActionDrilldown(row);
+
+  return simpleTable(
+    [
+      "Product",
+      "SKU",
+      "Source",
+      "Issue Code",
+      "Warning",
+      "Selected Rate",
+      "Rate Source",
+      "Rate Date",
+      "Approval Block",
+      "Resolution Type",
+    ],
+    rows,
+    (x) =>
+      `<tr>
+        <td>${text(x.product_name)}</td>
+        <td>
+          <strong>${text(x.sku_id)}</strong>
+          <div class="cp-muted-text">${text([x.pack_size, x.pack_uom || x.sku_uom].filter(Boolean).join(" "))}</div>
+        </td>
+        <td>${text(x.bom_source)}</td>
+        <td>${text(issueCodeLabel(x.material_issue_code))}</td>
+        <td>
+          <strong>${text(x.warning_code)}</strong>
+          <div class="cp-muted-text">${text(x.warning_text)}</div>
+        </td>
+        <td class="c-right">${formatMoney(x.selected_rate)}</td>
+        <td>${text(x.rate_source)}</td>
+        <td>${formatDate(x.rate_date)}</td>
+        <td>${text(x.approval_block_flag)}</td>
+        <td>${text(x.drilldown_resolution_type)}</td>
+      </tr>`,
+  );
+}
+
+function renderControlWorkbenchRateActionTab(row) {
+  const manualRateRoutes = new Set([
+    "MATERIAL_RATE_MANAGER_RM",
+    "MATERIAL_RATE_MANAGER_PM",
+    "MATERIAL_RATE_REVIEW",
+  ]);
+  const manualRateButton =
+    manualRateRoutes.has(normalizeStatus(row.recommended_ui_route)) && row.stock_item_id
+      ? `
+        <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+          <button
+            type="button"
+            class="icon-btn icon-btn-primary"
+            id="setManualRateBtn"
+            title="Set / Review Manual Rate"
+            aria-label="Set / Review Manual Rate"
+          >
+            Set / Review Manual Rate
+          </button>
+        </div>
+      `
+      : "";
+
+  return (
+    manualRateButton +
+    kvCards([
+      ["Stock Item", text(row.stock_item_name || row.stock_item_id)],
+      ["Material Area", text(row.material_area)],
+      ["Severity", statusChip(row.action_severity)],
+      ["Route", text(row.recommended_ui_route)],
+      ["Current Selected Rate", formatMoney(row.selected_rate)],
+      ["Rate Source", text(row.rate_source)],
+      ["Rate Date", formatDate(row.rate_date)],
+      ["Action Required", text(row.action_required_summary || row.action_note_summary)],
+    ])
+  );
+}
+
 async function renderWorkbenchTab(tabId) {
   const r = SELECTED_ROW;
   const workbenchTabId = {
@@ -4925,6 +6055,13 @@ async function renderWorkbenchTab(tabId) {
     "affected-products": "affected",
     "raw-lines": "raw",
   }[tabId] || tabId;
+
+  if (CURRENT_LENS === "costing-review-workbench") {
+    if (workbenchTabId === "summary") return renderControlWorkbenchSummaryTab(r);
+    if (workbenchTabId === "affected") return renderControlWorkbenchAffectedSkusTab(r);
+    if (workbenchTabId === "action") return renderControlWorkbenchRateActionTab(r);
+    return renderControlWorkbenchSummaryTab(r);
+  }
 
   if (workbenchTabId === "action") {
     if (
@@ -5216,6 +6353,8 @@ function openDetails(row, preferredTab) {
   if (!detailsModal) return;
   const title = $("drawerTitle");
   const subtitle = $("drawerSubtitle");
+
+
   if (CURRENT_LENS === "manual-rate-manager") {
     title.textContent =
       row.stock_item_name || row.stock_item_id || "Manual Rate Manager";
@@ -5269,18 +6408,20 @@ function openDetails(row, preferredTab) {
       setModalTabs([{ id: "action", label: "Diagnosis" }], "action");
       setDrawerTab("action");
     } else {
-      title.textContent = issueCodeLabel(row.material_issue_code);
-      subtitle.textContent = row.stock_item_name || row.stock_item_id || "";
-      setModalTabs(
-        [
-          { id: "action", label: "Action Item" },
-          { id: "affected", label: "Affected Products/SKUs" },
-          { id: "raw", label: "Raw Issue Lines" },
-          { id: "manual-rate-history", label: "Manual Rate History" },
-        ],
-        preferredTab || "action",
-      );
-      setDrawerTab(preferredTab || "action");
+      title.textContent = row.stock_item_name || row.stock_item_id || "Material Action";
+      subtitle.textContent = [row.material_area, row.action_severity, row.recommended_ui_route]
+        .filter(Boolean)
+        .join(" / ");
+      const tabs = [
+        { id: "summary", label: "Summary" },
+        { id: "affected", label: "Affected SKUs" },
+        { id: "action", label: "Rate Action" },
+      ];
+      const active = tabs.some((tab) => tab.id === preferredTab)
+        ? preferredTab
+        : "summary";
+      setModalTabs(tabs, active);
+      setDrawerTab(active);
     }
   } else if (CURRENT_LENS === "dashboard") {
     title.textContent = "Dashboard Summary";
@@ -5366,13 +6507,13 @@ async function refreshCostingChain() {
   if (!ACTIVE_PERIOD_START) ACTIVE_PERIOD_START = getCurrentMonthStart();
 
   refreshBtn.disabled = true;
-  setLoadingMask(true, "Refreshing costing/pricing snapshots...");
-  setStatus("Refreshing costing/pricing snapshots...");
+  setLoadingMask(true, "Refreshing costing/pricing chain...");
+  setStatus("Refreshing costing/pricing chain...");
+
+  let costingChainSucceeded = false;
+  let controlSummarySucceeded = false;
 
   try {
-    setLoadingMask(true, "Refreshing costing/pricing chain...");
-    setStatus("Refreshing costing/pricing chain...");
-
     const { error } = await costingRpc("rpc_refresh_costing_pricing_chain", {
       p_period_start: ACTIVE_PERIOD_START,
     });
@@ -5381,18 +6522,25 @@ async function refreshCostingChain() {
       throw new Error(`Costing/pricing chain failed: ${error.message}`);
     }
 
-    setLoadingMask(true, "Refreshing costing review workbench snapshot...");
-    setStatus("Refreshing costing review workbench snapshot...");
+    costingChainSucceeded = true;
 
-    const { error: workbenchError } = await costingRpc(
-      "rpc_refresh_costing_review_workbench_snapshot",
+    setLoadingMask(true, "Refreshing control summary snapshots...");
+    setStatus("Refreshing control summary snapshots...");
+
+    const { error: controlError } = await costingRpc(
+      "rpc_refresh_costing_control_summary_snapshots",
       {
         p_period_start: ACTIVE_PERIOD_START,
       },
     );
 
-    if (workbenchError) {
-      throw new Error(`Workbench snapshot failed: ${workbenchError.message}`);
+    if (controlError) {
+      console.warn(
+        "[costing-pricing] Control summary snapshot refresh failed after costing chain success",
+        controlError,
+      );
+    } else {
+      controlSummarySucceeded = true;
     }
 
     await loadRowsForLens();
@@ -5400,7 +6548,24 @@ async function refreshCostingChain() {
     LAST_REFRESH_TIME = new Date();
     updateFreshnessIndicator();
 
-    showToast("Costing/pricing and Workbench snapshots refreshed", "success");
+    if (costingChainSucceeded && controlSummarySucceeded) {
+      clearStatus();
+      showToast("Costing chain and control summary refreshed.", "success");
+      return;
+    }
+
+    if (costingChainSucceeded && !controlSummarySucceeded) {
+      setStatus(
+        "Costing chain refreshed. Control summary snapshot refresh timed out; it will refresh through the scheduled control snapshot job or can be retried later.",
+        "info",
+      );
+      showToast(
+        "Costing chain refreshed, but control summary snapshot refresh timed out. Existing control snapshot is still displayed.",
+        "info",
+        6200,
+      );
+      return;
+    }
   } catch (err) {
     handleError("Refresh failed", err);
   } finally {
@@ -5669,6 +6834,72 @@ function handleError(message, err, inModal = false) {
   showToast(message, "error", 4200);
 }
 
+function openStaffGovernanceReviewModal(row) {
+  if (!row || !staffGovernanceReviewModal) return;
+
+  STAFF_GOVERNANCE_REVIEW_RETURN_FOCUS = document.activeElement;
+
+  if (staffGovernanceReviewLabel) {
+    staffGovernanceReviewLabel.textContent = [
+      row.employee_code || "--",
+      `Staff ID: ${row.staff_id || "--"}`,
+      row.designation || "--",
+    ].join(" / ");
+  }
+
+  if (staffGovernanceReviewBody) {
+    staffGovernanceReviewBody.innerHTML = `
+      ${kvCards([
+        ["Status", compactStatusText(row.classification_status)],
+        ["Employee Code", text(row.employee_code || "--")],
+        ["Staff ID", text(row.staff_id || "--")],
+        ["Designation", text(row.designation || "--")],
+        ["Salary Period", formatDate(row.latest_salary_period_start)],
+        ["Total Salary Cost", formatMoney(row.total_salary_cost)],
+        ["Costing Class", text(row.costing_class_label || row.costing_class || "--")],
+        ["Allocation Pool", text(row.allocation_pool || "--")],
+        ["Effective From", formatDate(row.effective_from)],
+        ["Effective To", formatDate(row.effective_to)],
+        ["Allocation Weight", formatNumber(row.allocation_weight)],
+        ["Remarks", text(row.remarks || "--")],
+        ["Review Note", text(row.classification_note || row.salary_source_note || "--")],
+      ])}
+      <div class="cp-muted-text" style="margin-top:10px;line-height:1.45">
+        Staff Governance is read-only in this step. Classification changes will be enabled after the backend effective-dating behaviour is corrected and mutation-tested safely.
+      </div>
+    `;
+  }
+
+  staffGovernanceReviewModal.classList.remove("hidden");
+  staffGovernanceReviewModal.setAttribute("aria-hidden", "false");
+  setTimeout(() => staffGovernanceReviewOkBtn?.focus(), 0);
+}
+
+function closeStaffGovernanceReviewModal() {
+  if (!staffGovernanceReviewModal) return;
+
+  const active = document.activeElement;
+  if (active && staffGovernanceReviewModal.contains(active)) {
+    active.blur();
+  }
+
+  staffGovernanceReviewModal.classList.add("hidden");
+  staffGovernanceReviewModal.setAttribute("aria-hidden", "true");
+
+  const returnTarget =
+    STAFF_GOVERNANCE_REVIEW_RETURN_FOCUS &&
+    STAFF_GOVERNANCE_REVIEW_RETURN_FOCUS !== document.body &&
+    document.contains(STAFF_GOVERNANCE_REVIEW_RETURN_FOCUS)
+      ? STAFF_GOVERNANCE_REVIEW_RETURN_FOCUS
+      : searchBox;
+
+  STAFF_GOVERNANCE_REVIEW_RETURN_FOCUS = null;
+
+  if (returnTarget && typeof returnTarget.focus === "function") {
+    setTimeout(() => returnTarget.focus(), 0);
+  }
+}
+
 async function init() {
   try {
     const { data: { session } = {} } = await supabase.auth.getSession();
@@ -5688,6 +6919,12 @@ async function init() {
     syncFilterCheckboxes();
     await loadSchemeOptions();
     await loadSchemeRuleScopeOptions();
+    try {
+      await loadExpensePoolOptions();
+    } catch (err) {
+      console.warn("[costing-pricing] Failed to load expense pool options", err);
+      EXPENSE_POOL_OPTIONS = [];
+    }
     await loadRowsForLens();
   } catch (err) {
     handleError("Initialization error", err);
@@ -5812,6 +7049,20 @@ manualRateEditModal?.addEventListener("click", (e) => {
 [manualRateValue, manualRateReason, manualRateEffectiveFrom].forEach((input) => {
   input?.addEventListener("input", setManualRateSaveState);
 });
+expenseMappingEditCloseBtn?.addEventListener("click", closeExpenseMappingEditModal);
+expenseMappingEditCancelBtn?.addEventListener("click", closeExpenseMappingEditModal);
+expenseMappingEditSaveBtn?.addEventListener("click", saveExpenseMappingEdit);
+expenseMappingPool?.addEventListener("change", syncExpenseMappingIncludeState);
+expenseMappingEditModal?.addEventListener("click", (e) => {
+  if (e.target === expenseMappingEditModal) closeExpenseMappingEditModal();
+});
+staffGovernanceReviewCloseBtn?.addEventListener("click", closeStaffGovernanceReviewModal);
+staffGovernanceReviewOkBtn?.addEventListener("click", closeStaffGovernanceReviewModal);
+staffGovernanceReviewModal?.addEventListener("click", (event) => {
+  if (event.target === staffGovernanceReviewModal) {
+    closeStaffGovernanceReviewModal();
+  }
+});
 manualRateCloseCloseBtn?.addEventListener("click", closeManualRateCloseModal);
 manualRateCloseCancelBtn?.addEventListener("click", closeManualRateCloseModal);
 manualRateCloseSaveBtn?.addEventListener("click", saveManualRateClose);
@@ -5843,6 +7094,14 @@ document.addEventListener("keydown", (e) => {
     }
     if (!schemeRuleEditModal?.classList.contains("hidden")) {
       closeSchemeRuleEditModal();
+      return;
+    }
+    if (!expenseMappingEditModal?.classList.contains("hidden")) {
+      closeExpenseMappingEditModal();
+      return;
+    }
+    if (!staffGovernanceReviewModal?.classList.contains("hidden")) {
+      closeStaffGovernanceReviewModal();
       return;
     }
     if (!manualRateEditModal?.classList.contains("hidden")) {
@@ -5891,3 +7150,51 @@ export {
   exportCsvForRows,
   updateFreshnessIndicator,
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

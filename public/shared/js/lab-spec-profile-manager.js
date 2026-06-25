@@ -5851,6 +5851,60 @@ function updateDisplayText() {
   preview.textContent = text;
 }
 
+async function resolveOverrideMethodIdForSave(testId, actionType) {
+  const numericTestId = Number(testId);
+  if (!numericTestId) return null;
+
+  const normalizedAction = String(actionType ?? "").trim().toLowerCase();
+
+  if (
+    ovBaseSpecProfileId &&
+    (normalizedAction === "modify" || normalizedAction === "disable")
+  ) {
+    const { data: baseLine, error: baseErr } = await labSupabase
+      .from("spec_line")
+      .select("method_id")
+      .eq("spec_profile_id", Number(ovBaseSpecProfileId))
+      .eq("test_id", numericTestId)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (baseErr) throw baseErr;
+
+    if (baseLine?.method_id) {
+      return Number(baseLine.method_id);
+    }
+  }
+
+  const { data: viewRows, error: viewErr } = await labSupabase
+    .from("v_test_with_default_method")
+    .select("id, test_id, default_method_id")
+    .or(`id.eq.${numericTestId},test_id.eq.${numericTestId}`)
+    .limit(1);
+
+  if (!viewErr) {
+    const row = Array.isArray(viewRows) ? viewRows[0] : null;
+    if (row?.default_method_id) {
+      return Number(row.default_method_id);
+    }
+  }
+
+  const { data: mapRows, error: mapErr } = await labSupabase
+    .from("test_default_method_map")
+    .select("method_id")
+    .eq("test_id", numericTestId)
+    .eq("is_active", true)
+    .limit(1);
+
+  if (mapErr) throw mapErr;
+
+  const mappedMethodId = Array.isArray(mapRows)
+    ? mapRows[0]?.method_id
+    : null;
+
+  return mappedMethodId ? Number(mappedMethodId) : null;
+}
+
 async function saveOverrideModal() {
   const banner = document.getElementById("ovModalBanner");
   const saveBtn = document.getElementById("ovModalSave");
@@ -5894,6 +5948,38 @@ async function saveOverrideModal() {
       banner,
       "error",
       "This test already exists in base spec. Use MODIFY or DISABLE.",
+    );
+    return;
+  }
+
+  let overrideMethodId = null;
+
+  try {
+    overrideMethodId = await resolveOverrideMethodIdForSave(testId, actionType);
+  } catch (err) {
+    console.error("[SPM] override method resolution failed", err);
+    showBanner(
+      banner,
+      "error",
+      "Could not resolve test method: " + (err.message || err),
+    );
+    return;
+  }
+
+  if (!overrideMethodId && actionType !== "disable") {
+    showBanner(
+      banner,
+      "error",
+      "No default method is mapped for the selected test. Please configure the test method before saving this override.",
+    );
+    return;
+  }
+
+  if (!overrideMethodId && actionType === "disable") {
+    showBanner(
+      banner,
+      "error",
+      "Could not resolve the base spec method for this test. Please review the base specification line before saving this override.",
     );
     return;
   }
@@ -5981,6 +6067,7 @@ async function saveOverrideModal() {
       p_stock_item_id: subj === "FG" ? null : Number(itemId),
       p_test_id: Number(testId),
       p_action_type: actionType,
+      p_override_method_id: overrideMethodId,
       p_spec_type: specType,
       p_min_value: minVal !== null ? Number(minVal) : null,
       p_max_value: maxVal !== null ? Number(maxVal) : null,

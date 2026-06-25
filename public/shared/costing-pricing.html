@@ -1642,7 +1642,7 @@
           <h1>Costing &amp; Pricing</h1>
           <div class="page-sub" id="subtitle">
             SKU-level costing, selling price bridge, scheme viability, and
-            costing review workbench
+            costing control workbench
           </div>
           <div class="toolbar"></div>
         </div>
@@ -1797,16 +1797,16 @@
           aria-label="Costing filters"
         >
           <div class="peq-filter-section">
-            <div class="peq-filter-section-title">Costing Status</div>
+            <div class="peq-filter-section-title">Status</div>
             <ul class="peq-filter-checklist">
               <li>
                 <label
                   ><input
                     type="checkbox"
                     data-filter-group="status"
-                    value="BLOCKED"
+                    value="BLOCKER"
                   />
-                  BLOCKED</label
+                  BLOCKER</label
                 >
               </li>
               <li>
@@ -1832,18 +1832,8 @@
             </ul>
           </div>
           <div class="peq-filter-section">
-            <div class="peq-filter-section-title">Issue Type</div>
+            <div class="peq-filter-section-title">Issue / Route</div>
             <ul class="peq-filter-checklist">
-              <li>
-                <label
-                  ><input
-                    type="checkbox"
-                    data-filter-group="issue"
-                    value="MISSING_REQUIRED_PM_RATE"
-                  />
-                  Missing required PM rate</label
-                >
-              </li>
               <li>
                 <label
                   ><input
@@ -1851,7 +1841,7 @@
                     data-filter-group="issue"
                     value="MISSING_REQUIRED_RM_RATE"
                   />
-                  Missing required RM rate</label
+                  Missing RM rate</label
                 >
               </li>
               <li>
@@ -1859,19 +1849,9 @@
                   ><input
                     type="checkbox"
                     data-filter-group="issue"
-                    value="PM_STOCK_VALUATION_FALLBACK"
+                    value="MISSING_REQUIRED_PM_RATE"
                   />
-                  PM stock valuation fallback</label
-                >
-              </li>
-              <li>
-                <label
-                  ><input
-                    type="checkbox"
-                    data-filter-group="issue"
-                    value="RM_STOCK_VALUATION_FALLBACK"
-                  />
-                  RM stock valuation fallback</label
+                  Missing PM rate</label
                 >
               </li>
               <li>
@@ -1899,16 +1879,86 @@
                   ><input
                     type="checkbox"
                     data-filter-group="issue"
-                    value="OPTIONAL_PM_RATE_MISSING"
+                    value="RM_STOCK_VALUATION_FALLBACK"
                   />
-                  Optional PM rate missing</label
+                  RM stock valuation fallback</label
+                >
+              </li>
+              <li>
+                <label
+                  ><input
+                    type="checkbox"
+                    data-filter-group="issue"
+                    value="PM_STOCK_VALUATION_FALLBACK"
+                  />
+                  PM stock valuation fallback</label
+                >
+              </li>
+              <li>
+                <label
+                  ><input
+                    type="checkbox"
+                    data-filter-group="issue"
+                    value="MANUAL_RATE_USED"
+                  />
+                  Manual rate used</label
+                >
+              </li>
+              <li>
+                <label
+                  ><input
+                    type="checkbox"
+                    data-filter-group="issue"
+                    value="MATERIAL_RATE_MANAGER_RM"
+                  />
+                  Material Rate Manager RM</label
+                >
+              </li>
+              <li>
+                <label
+                  ><input
+                    type="checkbox"
+                    data-filter-group="issue"
+                    value="MATERIAL_RATE_MANAGER_PM"
+                  />
+                  Material Rate Manager PM</label
+                >
+              </li>
+              <li>
+                <label
+                  ><input
+                    type="checkbox"
+                    data-filter-group="issue"
+                    value="MATERIAL_RATE_REVIEW"
+                  />
+                  Material Rate Review</label
                 >
               </li>
             </ul>
           </div>
           <div class="peq-filter-section">
-            <div class="peq-filter-section-title">Source</div>
+            <div class="peq-filter-section-title">Source / Area</div>
             <ul class="peq-filter-checklist">
+              <li>
+                <label
+                  ><input
+                    type="checkbox"
+                    data-filter-group="source"
+                    value="RM"
+                  />
+                  RM</label
+                >
+              </li>
+              <li>
+                <label
+                  ><input
+                    type="checkbox"
+                    data-filter-group="source"
+                    value="PM"
+                  />
+                  PM</label
+                >
+              </li>
               <li>
                 <label
                   ><input
@@ -2798,6 +2848,150 @@
     </div>
 
     <div
+      id="expenseMappingEditModal"
+      class="cost-sheet-sign-modal hidden"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel">
+        <div class="cost-sheet-sign-header">
+          <strong>Set Expense Head Mapping</strong>
+          <button
+            id="expenseMappingEditCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Close"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="cost-sheet-sign-body">
+          <div class="cp-card scheme-policy-sku-card">
+            <div>
+              <div class="cp-card-label">Expense Head</div>
+              <div id="expenseMappingLabel" class="cp-card-value">--</div>
+            </div>
+          </div>
+
+          <div class="sign-grid">
+            <label>
+              Allocation Pool
+              <select id="expenseMappingPool"></select>
+            </label>
+
+            <label style="display:flex;align-items:flex-end;gap:8px">
+              <input id="expenseMappingInclude" type="checkbox" />
+              <span>Include in costing</span>
+            </label>
+
+            <label style="grid-column: 1 / -1">
+              Remarks
+              <textarea
+                id="expenseMappingRemarks"
+                rows="3"
+                placeholder="Reason / governance note for this mapping"
+              ></textarea>
+            </label>
+          </div>
+
+          <div class="cp-muted-text" style="margin-top: 10px; line-height: 1.45">
+            Saving an expense mapping updates the governance register only.
+            Use Refresh Live Costing later when you want the costing engine to recalculate with the latest mapping state.
+          </div>
+        </div>
+
+        <div class="cost-sheet-sign-actions">
+          <button
+            id="expenseMappingEditCancelBtn"
+            type="button"
+            class="icon-btn"
+            title="Cancel"
+            aria-label="Cancel"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.3"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+
+          <button
+            id="expenseMappingEditSaveBtn"
+            type="button"
+            class="icon-btn icon-btn-primary"
+            title="Save Expense Mapping"
+            aria-label="Save Expense Mapping"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M20 6 9 17l-5-5"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="staffGovernanceReviewModal"
+      class="cost-sheet-sign-modal hidden"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel">
+        <div class="cost-sheet-sign-header">
+          <strong>Review Staff Costing Classification</strong>
+          <button
+            id="staffGovernanceReviewCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Close"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="cost-sheet-sign-body">
+          <div class="cp-card scheme-policy-sku-card">
+            <div>
+              <div class="cp-card-label">Staff</div>
+              <div id="staffGovernanceReviewLabel" class="cp-card-value">--</div>
+            </div>
+          </div>
+
+          <div id="staffGovernanceReviewBody"></div>
+        </div>
+
+        <div class="cost-sheet-sign-actions">
+          <button
+            id="staffGovernanceReviewOkBtn"
+            type="button"
+            class="icon-btn icon-btn-primary"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
       id="manualRateEditModal"
       class="cost-sheet-sign-modal hidden"
       aria-hidden="true"
@@ -3024,3 +3218,6 @@
     <script type="module" src="js/costing-pricing.js"></script>
   </body>
 </html>
+
+
+

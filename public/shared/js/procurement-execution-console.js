@@ -4,7 +4,10 @@ import { Platform } from "./platform.js";
 
 // ─── View / RPC name constants (adjust here if DB names differ) ───────────────
 const PR_HEADER_VIEW = "v_proc_pr_header";
+const PR_LINES_ORDERED_VIEW = "v_proc_pr_lines_ordered";
+const INDENT_LINES_ORDERED_VIEW = "v_proc_indent_lines_console_ordered";
 const ERP_QTY_DECIMALS = 3;
+const DEFAULT_PAGE_SIZE = 30;
 
 let prLineAll = [];
 let prLineFiltered = [];
@@ -18,16 +21,25 @@ const iLinePageSize = 75;
 let iLineVisibleCount = 0;
 let iLineFilteredRows = [];
 let aqRawRows = [];
+let aqRows = [];
+let aqOffset = 0;
+let aqPageSize = 75;
+let aqHasMore = true;
+let aqLoading = false;
+let aqLoadingMore = false;
 let aqTotalCount = 0;
 let aqSelectedOnly = false;
 let aqUnselectedOnly = false;
 let aqGroupMode = "none";
+let aqRequestSeq = 0;
+let aqIndentOptionsLoaded = false;
+let aqSearchDebounceMs = 500;
 
 const state = {
   tab: "pr",
+  // shared pagination for PR / Indents / Excess / Excess Audit
+  pageSize: DEFAULT_PAGE_SIZE,
   // action queue
-  page: 0,
-  pageSize: 30,
   rows: [],
   selected: null,
   actionLoaded: false,
@@ -237,7 +249,8 @@ function setTab(tab) {
     .forEach((p) => p.classList.remove("active"));
   qs(`tab-${tab}`).classList.add("active");
   // lazy-load tab data on each visit
-  if (tab === "action") loadActionQueue();
+  if (tab === "action")
+    loadActionQueue({ refreshIndentOptions: !aqIndentOptionsLoaded });
   if (tab === "pr") loadPrHeaders();
   if (tab === "indents") loadIndents();
   if (tab === "excess") {
@@ -389,10 +402,187 @@ function normalize(value) {
     .trim();
 }
 
+function displayMaterialClassCode(code) {
+  const c = String(code ?? "").trim().toUpperCase();
+  if (c === "PLM") return "PM";
+  return c;
+}
+
+function displayMaterialClassText(text) {
+  return String(text ?? "").replace(/\bPLM\b/g, "PM");
+}
+
+function normalizeRmProcurementMode(row) {
+  const raw = String(
+    row?.rm_procurement_mode ?? row?.stock_item_rm_procurement_mode ?? "",
+  )
+    .trim()
+    .toLowerCase();
+
+  if (["jit_procured", "jit", "just_in_time"].includes(raw)) {
+    return "jit";
+  }
+
+  if (
+    [
+      "stock_required",
+      "normal",
+      "regular",
+      "stock",
+      "stocked",
+      "non_jit",
+    ].includes(raw)
+  ) {
+    return "normal";
+  }
+
+  return raw || "";
+}
+
+function focusElementIfPossible(el) {
+  if (!(el instanceof HTMLElement) || !document.contains(el)) return;
+  requestAnimationFrame(() => {
+    if (!document.contains(el)) return;
+    el.focus({ preventScroll: true });
+  });
+}
+
+function findControlledTrigger(panel) {
+  const panelId = panel?.id;
+  if (!panelId) return panel?._ownerBtn ?? panel?._triggerBtn ?? null;
+  try {
+    return (
+      panel?._ownerBtn ??
+      panel?._triggerBtn ??
+      document.querySelector('[aria-controls="' + CSS.escape(panelId) + '"]')
+    );
+  } catch {
+    return panel?._ownerBtn ?? panel?._triggerBtn ?? null;
+  }
+}
+
+function configureDisclosureTrigger(
+  btnId,
+  panelId,
+  { hasPopup = "dialog" } = {},
+) {
+  const btn = qs(btnId);
+  if (!(btn instanceof HTMLElement)) return;
+  if (panelId) btn.setAttribute("aria-controls", panelId);
+  if (!btn.hasAttribute("aria-expanded")) {
+    btn.setAttribute("aria-expanded", "false");
+  }
+  if (hasPopup) btn.setAttribute("aria-haspopup", hasPopup);
+  if (
+    btn instanceof HTMLButtonElement &&
+    (!btn.getAttribute("type") || btn.getAttribute("type") === "submit")
+  ) {
+    btn.type = "button";
+  }
+}
+
+function configureStaticDisclosureTriggers() {
+  [
+    ["aqFilterBtn", "aqFilterDrawer", "dialog"],
+    ["prFilterBtn", "prFilterDrawer", "dialog"],
+    ["iFilterBtn", "iFilterDrawer", "dialog"],
+    ["vwlFilterBtn", "vwlFilterDrawer", "dialog"],
+    ["eFilterBtn", "eFilterPanel", "dialog"],
+    ["prLineFilterBtn", "prLineFilterDrawer", "dialog"],
+    ["iLineFilterBtn", "iLineFilterDrawer", "dialog"],
+    ["vwlExportBtn", "vwlExportMenu", "menu"],
+    ["btnIndentResyncMenu", "iResyncMenu", "menu"],
+    ["btnIExportMenu", "iExportMenu", "menu"],
+    ["btnPrExportMenu", "prExportMenu", "menu"],
+  ].forEach(([btnId, panelId, hasPopup]) =>
+    configureDisclosureTrigger(btnId, panelId, { hasPopup }),
+  );
+}
+
+let procurementOverlayA11yBound = false;
+
+function closeProcurementFilterDrawer(drawer, { restoreFocus = false } = {}) {
+  if (!drawer) return false;
+  const ownerBtn = findControlledTrigger(drawer);
+
+  if (drawer.id === "vwlFilterDrawer") {
+    drawer.classList.remove("open", "show", "active");
+    drawer.setAttribute("hidden", "hidden");
+    if (ownerBtn) ownerBtn.setAttribute("aria-expanded", "false");
+    if (restoreFocus && ownerBtn) focusElementIfPossible(ownerBtn);
+    return true;
+  }
+
+  const wasOpen = drawer.classList.contains("open");
+  closeFloatingFilterDrawer(ownerBtn, drawer, { restoreFocus });
+  return wasOpen;
+}
+
+function closeAllProcurementFilterDrawers({
+  exceptId = null,
+  restoreFocus = false,
+} = {}) {
+  let closed = false;
+  document.querySelectorAll(".pec-filter-drawer.open").forEach((drawer) => {
+    if (exceptId && drawer.id === exceptId) return;
+    if (closeProcurementFilterDrawer(drawer, { restoreFocus })) {
+      closed = true;
+    }
+  });
+  return closed;
+}
+
+function wireProcurementOverlayA11y() {
+  if (procurementOverlayA11yBound) return;
+  procurementOverlayA11yBound = true;
+
+  document.addEventListener(
+    "click",
+    (e) => {
+      if (!(e.target instanceof Element)) return;
+
+      document.querySelectorAll(".pec-filter-drawer.open").forEach((drawer) => {
+        const ownerBtn = findControlledTrigger(drawer);
+        if (drawer.contains(e.target)) return;
+        if (ownerBtn?.contains(e.target)) return;
+        closeProcurementFilterDrawer(drawer, { restoreFocus: false });
+      });
+
+      if (!e.target.closest(".export-menu")) {
+        closeAllExportMenus();
+      }
+    },
+    true,
+  );
+
+  document.addEventListener(
+    "keydown",
+    (e) => {
+      if (e.key !== "Escape") return;
+
+      const openDrawers = [...document.querySelectorAll(".pec-filter-drawer.open")];
+      const openDrawer = openDrawers[openDrawers.length - 1] || null;
+      if (openDrawer) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeProcurementFilterDrawer(openDrawer, { restoreFocus: true });
+        return;
+      }
+
+      if (document.querySelector(".export-menu.open")) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeAllExportMenus({ restoreFocus: true });
+      }
+    },
+    true,
+  );
+}
+
 function prClassText(row) {
   return (
-    row?.material_class_display ||
-    [row?.material_class_code, row?.material_class_label]
+    displayMaterialClassText(row?.material_class_display) ||
+    [displayMaterialClassCode(row?.material_class_code), row?.material_class_label]
       .filter(Boolean)
       .join(" - ") ||
     (row?.material_class_id ? `Class ID: ${row.material_class_id}` : "—")
@@ -476,45 +666,85 @@ function updateIndentExportActionStates() {
   }
 }
 
-function closeAllExportMenus() {
-  document.querySelectorAll(".export-menu.open").forEach((m) => {
-    m.classList.remove("open");
-    const btn = m.querySelector("[aria-expanded]");
+function closeAllExportMenus({ exceptId = null, restoreFocus = false } = {}) {
+  let closed = false;
+
+  document.querySelectorAll(".export-menu.open").forEach((menu) => {
+    if (exceptId && menu.id === exceptId) return;
+    const btn = findControlledTrigger(menu);
+    menu.classList.remove("open");
+    menu._triggerBtn = null;
     if (btn) btn.setAttribute("aria-expanded", "false");
+    if (restoreFocus && btn) focusElementIfPossible(btn);
+    closed = true;
   });
-  closeVendorBuylistDrawers();
+
+  if (closeVendorBuylistDrawers(exceptId, { restoreFocus })) {
+    closed = true;
+  }
+
+  return closed;
 }
 
-function closeVendorBuylistDrawers(exceptId = null) {
-  ["vwlExportDrawer", "vwlFilterDrawer"].forEach((id) => {
+function closeVendorBuylistDrawers(
+  exceptId = null,
+  { restoreFocus = false } = {},
+) {
+  let closed = false;
+
+  [
+    ["vwlExportDrawer", "vwlExportBtn"],
+    ["vwlFilterDrawer", "vwlFilterBtn"],
+  ].forEach(([id, btnId]) => {
     if (id === exceptId) return;
 
     const el = qs(id);
     if (!el) return;
+    const wasOpen =
+      el.classList.contains("open") ||
+      el.classList.contains("show") ||
+      el.classList.contains("active") ||
+      !el.hasAttribute("hidden");
 
     el.classList.remove("open", "show", "active");
     el.setAttribute("hidden", "hidden");
+
+    const btn = qs(btnId);
+    if (btn) btn.setAttribute("aria-expanded", "false");
+    if (restoreFocus && wasOpen && btn) focusElementIfPossible(btn);
+    if (wasOpen) closed = true;
   });
 
-  if (exceptId !== "vwlExportDrawer") {
+  if (exceptId !== "vwlExportMenu") {
     const menu = qs("vwlExportMenu");
+    const btn = qs("vwlExportBtn");
+    const wasOpen = menu?.classList.contains("open");
     menu?.classList.remove("open");
-    qs("vwlExportBtn")?.setAttribute("aria-expanded", "false");
+    if (btn) btn.setAttribute("aria-expanded", "false");
+    if (restoreFocus && wasOpen && btn) focusElementIfPossible(btn);
+    if (wasOpen) closed = true;
   }
-  if (exceptId !== "vwlFilterDrawer") {
-    qs("vwlFilterBtn")?.setAttribute("aria-expanded", "false");
-  }
+
+  return closed;
 }
 
 function toggleExportMenu(menuId, btnEl) {
   const menu = qs(menuId);
-  if (!menu) return;
+  if (!menu || !btnEl) return;
+
+  menu._triggerBtn = btnEl;
+  btnEl.setAttribute("aria-controls", menuId);
+  btnEl.setAttribute("aria-haspopup", btnEl.getAttribute("aria-haspopup") || "menu");
+
   const isOpen = menu.classList.contains("open");
-  closeAllExportMenus();
-  if (!isOpen) {
-    menu.classList.add("open");
-    btnEl.setAttribute("aria-expanded", "true");
+  if (isOpen) {
+    closeAllExportMenus({ restoreFocus: true });
+    return;
   }
+
+  closeAllExportMenus({ exceptId: menuId });
+  menu.classList.add("open");
+  btnEl.setAttribute("aria-expanded", "true");
 }
 
 function positionFloatingFilterDrawer(btn, drawer) {
@@ -609,9 +839,10 @@ function openFloatingFilterDrawer(btn, drawer, focusEl) {
   focusEl?.focus?.();
 }
 
-function closeFloatingFilterDrawer(btn, drawer) {
+function closeFloatingFilterDrawer(btn, drawer, options = {}) {
   if (!drawer) return;
-  const ownerBtn = btn || drawer._ownerBtn;
+  const { restoreFocus = false } = options;
+  const ownerBtn = btn || drawer._ownerBtn || findControlledTrigger(drawer);
   drawer.classList.remove("open");
   if (ownerBtn) ownerBtn.setAttribute("aria-expanded", "false");
   stopFloatingFilterDrawerTracking(drawer);
@@ -629,6 +860,10 @@ function closeFloatingFilterDrawer(btn, drawer) {
   }
   drawer._portalParent = null;
   drawer._ownerBtn = null;
+
+  if (restoreFocus && ownerBtn) {
+    focusElementIfPossible(ownerBtn);
+  }
 }
 
 function esc(s) {
@@ -754,9 +989,25 @@ function toast(msg, type = "info") {
   if (!c) return;
   const div = document.createElement("div");
   div.textContent = msg;
-  const bg =
-    type === "error" ? "#c0392b" : type === "success" ? "#27ae60" : "#34495e";
-  div.style.cssText = `background:${bg};color:#fff;padding:10px 14px;border-radius:10px;font-size:13px;pointer-events:auto;box-shadow:0 2px 8px rgba(0,0,0,.2);opacity:1;transition:opacity .4s;`;
+  const palette =
+    type === "error"
+      ? {
+          bg: "var(--toast-error-bg, #fef2f2)",
+          color: "var(--toast-error-text, #991b1b)",
+          border: "var(--toast-error-border, #fca5a5)",
+        }
+      : type === "success"
+        ? {
+            bg: "var(--toast-success-bg, #f0fdf4)",
+            color: "var(--toast-success-text, #166534)",
+            border: "var(--toast-success-border, #86efac)",
+          }
+        : {
+            bg: "var(--toast-info-bg, #eff6ff)",
+            color: "var(--toast-info-text, #1e40af)",
+            border: "var(--toast-info-border, #bfdbfe)",
+          };
+  div.style.cssText = `background:${palette.bg};color:${palette.color};border:1px solid ${palette.border};padding:10px 14px;border-radius:10px;font-size:13px;pointer-events:auto;box-shadow:0 2px 8px rgba(0,0,0,.2);opacity:1;transition:opacity .4s;`;
   c.appendChild(div);
   setTimeout(() => {
     div.style.opacity = "0";
@@ -1108,24 +1359,16 @@ function renderRows() {
     tbody.appendChild(tr);
   }
 
-  const _aqTotalPages = Math.max(1, Math.ceil(aqTotalCount / state.pageSize));
-
-  const pageStart = aqTotalCount === 0 ? 0 : state.page * state.pageSize + 1;
-
-  const pageEnd = Math.min((state.page + 1) * state.pageSize, aqTotalCount);
+  if (aqLoadingMore && state.rows.length > 0) {
+    const loadingRow = document.createElement("tr");
+    loadingRow.className = "aq-loading-row";
+    loadingRow.innerHTML =
+      '<td colspan="7" style="text-align:center;padding:12px 10px;color:rgba(15,23,42,0.65);font-size:12px;">Loading more lines...</td>';
+    tbody.appendChild(loadingRow);
+  }
 
   qs("aqMeta").textContent =
-    aqTotalCount === 0
-      ? "0 lines"
-      : `${pageStart}-${pageEnd} of ${aqTotalCount} lines`;
-
-  qs("aqPaging").textContent = `Page ${state.page + 1}/${_aqTotalPages}`;
-
-  const _aqPrev = qs("btnPrev");
-  const _aqNext = qs("btnNext");
-
-  if (_aqPrev) _aqPrev.disabled = state.page <= 0;
-  if (_aqNext) _aqNext.disabled = state.page >= _aqTotalPages - 1;
+    aqTotalCount === 0 ? "0 lines" : `Showing ${state.rows.length} of ${aqTotalCount} lines`;
 
   updateTabCount("tabCountAction", aqTotalCount);
   updateExportButtonStates();
@@ -1137,7 +1380,7 @@ function getActionQueueSelectedState() {
   return null;
 }
 
-function buildActionQueueRpcParams() {
+function buildActionQueueRpcParams({ offset = 0, limit = aqPageSize } = {}) {
   const indentId = qs("fIndent")?.value || "";
   const band = qs("fBand")?.value || "";
   const cls = qs("fClass")?.value || "";
@@ -1152,14 +1395,27 @@ function buildActionQueueRpcParams() {
     p_selected_state: getActionQueueSelectedState(),
     p_group_mode: aqGroupMode || "none",
     p_q: search || null,
-    p_limit: state.pageSize,
-    p_offset: state.page * state.pageSize,
+    p_limit: limit,
+    p_offset: offset,
   };
+}
+
+function actionQueueParamsStillCurrent(params) {
+  const current = buildActionQueueRpcParams();
+  return (
+    current.p_indent_id === params.p_indent_id &&
+    current.p_priority_band === params.p_priority_band &&
+    current.p_material_class_id === params.p_material_class_id &&
+    current.p_needs === params.p_needs &&
+    current.p_selected_state === params.p_selected_state &&
+    current.p_group_mode === params.p_group_mode &&
+    current.p_q === params.p_q
+  );
 }
 
 async function loadActionQueueIndentOptions() {
   const sel = qs("fIndent");
-  if (!sel) return;
+  if (!sel) return true;
 
   const current = sel.value || "";
 
@@ -1172,7 +1428,7 @@ async function loadActionQueueIndentOptions() {
 
   if (error) {
     console.error("Failed to load Action Queue indent options", error);
-    return;
+    return false;
   }
 
   sel.innerHTML = `<option value="">All Indents</option>`;
@@ -1189,20 +1445,130 @@ async function loadActionQueueIndentOptions() {
   if ([...sel.options].some((o) => o.value === current)) {
     sel.value = current;
   }
+
+  return true;
 }
 
-async function loadActionQueue() {
-  setTabTableLoading("action", true);
+function setActionQueueLoading(active, loadingText = "Loading...") {
+  const panel = qs("tab-action");
+  const searchWrap = qs("fSearch")?.closest(".pec-search-wrap");
+  const tableScroll = qs("aqScroll") ?? panel?.querySelector(".card .table-scroll");
+
+  if (panel) {
+    panel.setAttribute("aria-busy", active ? "true" : "false");
+  }
+
+  if (searchWrap) {
+    searchWrap.classList.toggle("is-searching", Boolean(active));
+  }
+
+  if (!(tableScroll instanceof HTMLElement)) return;
+
+  if (active) {
+    tableScroll.classList.add("loading");
+    let mask = tableScroll.querySelector(":scope > .table-loading-mask");
+    if (!mask) {
+      mask = document.createElement("div");
+      mask.className = "table-loading-mask";
+      mask.innerHTML =
+        '<span class="table-loading-spinner" aria-hidden="true"></span><span></span>';
+      tableScroll.appendChild(mask);
+    }
+    const textEl = mask.querySelector("span:last-child");
+    if (textEl) textEl.textContent = loadingText;
+    return;
+  }
+
+  tableScroll.classList.remove("loading");
+  tableScroll.querySelector(":scope > .table-loading-mask")?.remove();
+}
+
+function captureActionQueueSearchFocus() {
+  const input = qs("fSearch");
+  if (!(input instanceof HTMLInputElement)) {
+    return { input: null, focused: false, start: null, end: null };
+  }
+
+  return {
+    input,
+    focused: document.activeElement === input,
+    start: input.selectionStart,
+    end: input.selectionEnd,
+  };
+}
+
+function restoreActionQueueSearchFocus(snapshot) {
+  const { input, focused, start, end } = snapshot || {};
+  if (!(input instanceof HTMLInputElement) || !focused) return;
+  if (!document.contains(input)) return;
+  if (
+    document.activeElement !== input &&
+    document.activeElement !== document.body
+  ) {
+    return;
+  }
+
+  input.focus({ preventScroll: true });
+  if (start != null && end != null) {
+    try {
+      input.setSelectionRange(start, end);
+    } catch {
+      // Some input types do not support selection ranges.
+    }
+  }
+}
+
+async function loadActionQueue(options = {}) {
+  const {
+    reset = true,
+    append = false,
+    refreshIndentOptions = false,
+    preserveFocus = true,
+  } = options;
+  const requestSeq = ++aqRequestSeq;
+  const focusSnapshot = preserveFocus
+    ? captureActionQueueSearchFocus()
+    : { input: null, focused: false, start: null, end: null };
+  const isAppend = Boolean(append && !reset);
+
+  if (reset) {
+    aqRows = [];
+    aqOffset = 0;
+    aqHasMore = true;
+    aqTotalCount = 0;
+    state.rows = [];
+    aqLoadingMore = false;
+    aqLoading = true;
+    renderRows();
+    setActionQueueLoading(true);
+  } else if (isAppend) {
+    if (aqLoading || aqLoadingMore || !aqHasMore) return;
+    aqLoadingMore = true;
+    renderRows();
+  } else {
+    aqLoading = true;
+    setActionQueueLoading(true);
+  }
 
   try {
-    await loadActionQueueIndentOptions();
+    if (refreshIndentOptions || !aqIndentOptionsLoaded) {
+      const loaded = await loadActionQueueIndentOptions();
+      if (loaded) aqIndentOptionsLoaded = true;
+    }
 
-    const params = buildActionQueueRpcParams();
+    const params = buildActionQueueRpcParams({
+      offset: isAppend ? aqOffset : 0,
+      limit: aqPageSize,
+    });
 
     const { data, error } = await supabase.rpc(
       "proc_procurement_action_queue_paged",
       params,
     );
+
+    if (requestSeq !== aqRequestSeq || !actionQueueParamsStillCurrent(params)) {
+      return;
+    }
 
     if (error) {
       console.error(error);
@@ -1217,12 +1583,20 @@ async function loadActionQueue() {
 
     aqRawRows = rows;
     aqTotalCount = data?.length ? Number(data[0].total_count || 0) : 0;
-
-    state.rows = rows;
+    aqRows = isAppend ? [...aqRows, ...rows] : rows;
+    aqHasMore = aqRows.length < aqTotalCount;
+    aqOffset = aqRows.length;
+    state.rows = aqRows;
     state.actionLoaded = true;
     renderRows();
+    restoreActionQueueSearchFocus(focusSnapshot);
   } finally {
-    setTabTableLoading("action", false);
+    if (requestSeq === aqRequestSeq) {
+      aqLoading = false;
+      aqLoadingMore = false;
+      setActionQueueLoading(false);
+      renderRows();
+    }
   }
 }
 
@@ -1241,6 +1615,7 @@ function openVendorModal(row) {
   const backdrop = qs("vendorModalBackdrop");
   backdrop.classList.add("show");
   backdrop.setAttribute("aria-hidden", "false");
+  requestAnimationFrame(() => qs("vendorPick")?.focus());
 
   qs("vendorModalItem").textContent =
     `${row.stock_item_name} (${row.indent_number})`;
@@ -1417,37 +1792,68 @@ function wireLiveSearchInput({ inputId, clearId, onSearch, debounceMs = 220 }) {
 }
 
 function wireActionQueueControls() {
-  qs("btnPrev").addEventListener("click", () => {
-    state.page = Math.max(0, state.page - 1);
-    loadActionQueue();
-  });
-  qs("btnNext").addEventListener("click", () => {
-    state.page += 1;
-    loadActionQueue();
-  });
-
+  configureStaticDisclosureTriggers();
+  wireProcurementOverlayA11y();
   ["fIndent", "fBand", "fClass", "fNeeds"].forEach((id) =>
     qs(id)?.addEventListener("change", () => {
-      state.page = 0;
-      loadActionQueue();
+      loadActionQueue({ reset: true, append: false, preserveFocus: false });
     }),
   );
-  wireLiveSearchInput({
-    inputId: "fSearch",
-    clearId: "fSearchClear",
-    onSearch: () => {
-      state.page = 0;
-      loadActionQueue();
+
+  const searchInput = qs("fSearch");
+  const searchClear = qs("fSearchClear");
+  let aqSearchTimer = null;
+
+  const syncActionQueueSearchClear = () => {
+    if (searchClear) {
+      searchClear.style.display = searchInput?.value ? "" : "none";
+    }
+  };
+
+  const runActionQueueSearch = () => {
+    if (aqSearchTimer) {
+      clearTimeout(aqSearchTimer);
+      aqSearchTimer = null;
+    }
+    loadActionQueue({ reset: true, append: false, preserveFocus: true });
+  };
+
+  if (searchInput) {
+    syncActionQueueSearchClear();
+    searchInput.addEventListener("input", () => {
+      syncActionQueueSearchClear();
+      if (aqSearchTimer) clearTimeout(aqSearchTimer);
+      aqSearchTimer = setTimeout(runActionQueueSearch, aqSearchDebounceMs);
+    });
+    searchInput.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      runActionQueueSearch();
+    });
+  }
+
+  searchClear?.addEventListener(
+    "click",
+    (e) => {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+
+      if (!searchInput?.value) return;
+      searchInput.value = "";
+      syncActionQueueSearchClear();
+      runActionQueueSearch();
+      searchInput.focus({ preventScroll: true });
     },
-  });
+    true,
+  );
+
   qs("fSelectedOnly")?.addEventListener("change", (e) => {
     aqSelectedOnly = Boolean(e.target.checked);
     if (aqSelectedOnly) {
       aqUnselectedOnly = false;
       if (qs("fUnselectedOnly")) qs("fUnselectedOnly").checked = false;
     }
-    state.page = 0;
-    loadActionQueue();
+    loadActionQueue({ reset: true, append: false, preserveFocus: false });
   });
   qs("fUnselectedOnly")?.addEventListener("change", (e) => {
     aqUnselectedOnly = Boolean(e.target.checked);
@@ -1455,15 +1861,24 @@ function wireActionQueueControls() {
       aqSelectedOnly = false;
       if (qs("fSelectedOnly")) qs("fSelectedOnly").checked = false;
     }
-    state.page = 0;
-    loadActionQueue();
+    loadActionQueue({ reset: true, append: false, preserveFocus: false });
   });
   qs("fGroupMode")?.addEventListener("change", (e) => {
     aqGroupMode = e.target.value || "none";
-    state.page = 0;
-    loadActionQueue();
+    loadActionQueue({ reset: true, append: false, preserveFocus: false });
   });
 
+  qs("aqScroll")?.addEventListener("scroll", () => {
+    const scroller = qs("aqScroll");
+    if (!(scroller instanceof HTMLElement)) return;
+    if (aqLoading || aqLoadingMore || !aqHasMore) return;
+    const nearBottom =
+      scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 120;
+    if (!nearBottom) return;
+    loadActionQueue({ reset: false, append: true, preserveFocus: false });
+  });
+
+  qs("btnVendorClose")?.addEventListener("click", closeVendorModal);
   qs("btnVendorCancel").addEventListener("click", closeVendorModal);
   qs("btnVendorSave").addEventListener("click", saveVendorSelection);
 
@@ -1519,6 +1934,7 @@ function wireActionQueueControls() {
       { id: "prSetStatusModalBackdrop", close: closePrSetStatusModal },
       { id: "createIndentModalBackdrop", close: closeCreateIndentModal },
       { id: "indentFromPrModalBackdrop", close: closeIndentFromPrModal },
+      { id: "indentActionModalBackdrop", close: closeIndentActionModal },
       { id: "indentAddLineModalBackdrop", close: closeIndentAddLineModal },
       {
         id: "vendorAcceptModeModalBackdrop",
@@ -1528,6 +1944,7 @@ function wireActionQueueControls() {
       { id: "indentResyncModalBackdrop", close: closeIndentResyncModal },
       { id: "stockPickerModalBackdrop", close: closeStockItemPicker },
       { id: "exportIndentModalBackdrop", close: closeExportIndentModal },
+      { id: "hardDeleteModalBackdrop", close: () => closeHardDeleteModal(false) },
     ];
     for (const m of [...modals].reverse()) {
       if (qs(m.id)?.classList.contains("show")) {
@@ -1586,7 +2003,7 @@ function renderIndentModalHeader(indent) {
   const metaParts = [];
   if (indent.approved_date) metaParts.push(`Approved: ${indent.approved_date}`);
   if (indent.material_class_code)
-    metaParts.push(`Class: ${indent.material_class_code}`);
+    metaParts.push(`Class: ${displayMaterialClassCode(indent.material_class_code)}`);
   else if (indent.material_class_id)
     metaParts.push(`Class ID: ${indent.material_class_id}`);
   qs("indentViewMeta").textContent = metaParts.join(" · ");
@@ -1744,6 +2161,7 @@ async function openIndentSourcePrModal() {
   if (indent.source_pr_id) pick.value = String(indent.source_pr_id);
   backdrop.classList.add("show");
   backdrop.setAttribute("aria-hidden", "false");
+  requestAnimationFrame(() => qs("indentSourcePrPick")?.focus());
 }
 
 function closeIndentSourcePrModal() {
@@ -1869,10 +2287,12 @@ function openIndentViewModal(row) {
   const backdrop = qs("indentViewModalBackdrop");
   backdrop.classList.add("show");
   backdrop.setAttribute("aria-hidden", "false");
+  requestAnimationFrame(() => qs("btnIndentViewClose")?.focus());
   loadIndentLines(row.indent_id);
 }
 
 function closeIndentViewModal() {
+  closeProcurementFilterDrawer(qs("iLineFilterDrawer"));
   state.currentIndentId = null;
   hideModalBackdrop(qs("indentViewModalBackdrop"), [qs("iSearch")]);
   closeAllExportMenus();
@@ -1907,6 +2327,7 @@ function openVendorAcceptModeModal(indentArg) {
 
   backdrop.classList.add("show");
   backdrop.setAttribute("aria-hidden", "false");
+  requestAnimationFrame(() => defaultMode?.focus());
 }
 
 function closeVendorAcceptModeModal() {
@@ -2199,7 +2620,7 @@ function renderIndentLines(rows) {
     tr.innerHTML = `
       <td class="muted" style="text-align:center">${lineNo}</td>
       <td>${esc(row.stock_item_name)}</td>
-      <td>${esc(row.material_class_code ?? "")}</td>
+      <td>${esc(displayMaterialClassCode(row.material_class_code ?? ""))}</td>
       <td>${esc(row.uom_code ?? "")}</td>
       <td>${fmt(row.requested_qty)}</td>
       <td>${fmt(row.allocated_qty)}</td>
@@ -2294,7 +2715,7 @@ function renderIndentLinesInfinite(options = {}) {
       tr.innerHTML = `
       <td class="muted" style="text-align:center">${lineNo}</td>
       <td>${esc(row.stock_item_name)}</td>
-      <td>${esc(row.material_class_code ?? "")}</td>
+      <td>${esc(displayMaterialClassCode(row.material_class_code ?? ""))}</td>
       <td>${esc(row.uom_code ?? "")}</td>
       <td>${fmt(row.requested_qty)}</td>
       <td>${fmt(row.allocated_qty)}</td>
@@ -2353,10 +2774,13 @@ function applyIndentLineFiltersAndRender() {
       const hay = [
         r.stock_item_name,
         r.stock_item_code,
+        r.source_stock_item_code,
         r.code,
         r.uom_code,
         r.material_class_code,
         r.material_class_label,
+        r.source_category_label,
+        r.source_subcategory_label,
         String(r.stock_item_id ?? ""),
         String(r.uom_id ?? ""),
       ]
@@ -2381,11 +2805,12 @@ function applyIndentLineFiltersAndRender() {
 async function loadIndentLines(indentId) {
   setLoading(true);
   const { data, error } = await supabase
-    .from("v_proc_indent_lines_console")
+    .from(INDENT_LINES_ORDERED_VIEW)
     .select(
-      "indent_line_id,indent_id,stock_item_id,stock_item_name,stock_item_code,code,material_class_code,material_class_label,uom_id,uom_code,requested_qty,allocated_qty,remaining_qty,resolved_vendor_name,resolved_rate,selected_vendor_name,selected_rate,recommended_vendor_name,recommended_rate,has_selected_vendor",
+      "indent_line_id,indent_id,stock_item_id,stock_item_name,stock_item_code,code,material_class_code,material_class_label,uom_id,uom_code,requested_qty,allocated_qty,remaining_qty,resolved_vendor_name,resolved_rate,selected_vendor_name,selected_rate,recommended_vendor_name,recommended_rate,has_selected_vendor,source_pr_id,source_pr_line_id,source_pr_line_sort_no,source_pr_unmapped_sort,indent_line_sort_no,indent_line_sort_key,source_stock_item_code,source_category_label,source_subcategory_label",
     )
     .eq("indent_id", indentId)
+    .order("indent_line_sort_no", { ascending: true })
     .order("indent_line_id", { ascending: true });
   setLoading(false);
   if (error) {
@@ -2426,7 +2851,7 @@ function renderIndents() {
       <td>${esc(row.indent_number ?? "")}</td>
       <td>${esc(row.approved_date ?? "")}</td>
       <td><span class="pill ${statusPillClass(row.status)}">${esc(row.status ?? "")}</span></td>
-      <td>${esc(row.material_class_code ?? "")}</td>
+      <td>${esc(displayMaterialClassCode(row.material_class_code ?? ""))}</td>
       <td>${fmt(row.line_count ?? "")}</td>
     `;
     tr.addEventListener("click", () => {
@@ -2440,8 +2865,9 @@ function renderIndents() {
   qs("iPaging").textContent = `Page ${state.indentsPage + 1}`;
   const _iPrev = qs("iBtnPrev");
   const _iNext = qs("iBtnNext");
+  const pageSize = Number(state.pageSize || DEFAULT_PAGE_SIZE);
   if (_iPrev) _iPrev.disabled = state.indentsPage <= 0;
-  if (_iNext) _iNext.disabled = _iCnt < state.pageSize;
+  if (_iNext) _iNext.disabled = _iCnt < pageSize;
   updateTabCount("tabCountIndents", _iCnt);
   updateExportButtonStates();
 }
@@ -2449,6 +2875,7 @@ function renderIndents() {
 async function loadIndents() {
   setTabTableLoading("indents", true);
   try {
+    const pageSize = Number(state.pageSize || DEFAULT_PAGE_SIZE);
     let q = supabase.from("v_proc_indent_console").select("*");
     const status = qs("iStatus").value;
     const cls = qs("iClass").value;
@@ -2459,8 +2886,8 @@ async function loadIndents() {
     q = q
       .order("indent_id", { ascending: false })
       .range(
-        state.indentsPage * state.pageSize,
-        state.indentsPage * state.pageSize + state.pageSize - 1,
+        state.indentsPage * pageSize,
+        state.indentsPage * pageSize + pageSize - 1,
       );
     const { data, error } = await q;
     if (error) {
@@ -2510,6 +2937,13 @@ function openIndentActionModal(indent, action) {
   qs("indentOverrideReason").value = "";
   backdrop.dataset.indentId = String(indent.indent_id);
   backdrop.dataset.action = action;
+  const focusTarget =
+    action === "approve"
+      ? qs("indentApproveDate")
+      : action === "close_override"
+        ? qs("indentOverrideReason")
+        : qs("btnIndentActionConfirm");
+  requestAnimationFrame(() => focusTarget?.focus());
 }
 
 function closeIndentActionModal() {
@@ -2733,11 +3167,16 @@ function wireIndentControls() {
     });
   }
 
+  qs("btnIndentActionClose")?.addEventListener("click", closeIndentActionModal);
   qs("btnIndentActionCancel").addEventListener("click", closeIndentActionModal);
   qs("btnIndentActionConfirm").addEventListener("click", confirmIndentAction);
   qs("indentActionModalBackdrop").addEventListener("click", (e) => {
     if (e.target.id === "indentActionModalBackdrop") closeIndentActionModal();
   });
+  qs("btnVendorAcceptModeClose")?.addEventListener(
+    "click",
+    closeVendorAcceptModeModal,
+  );
   qs("btnVendorAcceptModeCancel")?.addEventListener(
     "click",
     closeVendorAcceptModeModal,
@@ -2849,6 +3288,10 @@ function wireIndentControls() {
     openIndentResyncModal("full");
   });
 
+  qs("btnIndentSourcePrClose")?.addEventListener(
+    "click",
+    closeIndentSourcePrModal,
+  );
   qs("btnIndentSourcePrCancel")?.addEventListener(
     "click",
     closeIndentSourcePrModal,
@@ -2862,6 +3305,10 @@ function wireIndentControls() {
       closeIndentSourcePrModal();
   });
 
+  qs("btnIndentResyncClose")?.addEventListener(
+    "click",
+    closeIndentResyncModal,
+  );
   qs("btnIndentResyncCancel")?.addEventListener(
     "click",
     closeIndentResyncModal,
@@ -2939,6 +3386,7 @@ function wireIndentControls() {
       toast(`TSV export failed: ${err.message}`, "error");
     }
   });
+  qs("btnExportIndentClose")?.addEventListener("click", closeExportIndentModal);
   qs("btnExpCancel").addEventListener("click", closeExportIndentModal);
   qs("exportIndentModalBackdrop").addEventListener("click", (e) => {
     if (e.target.id === "exportIndentModalBackdrop") closeExportIndentModal();
@@ -2951,6 +3399,7 @@ function openWorkflowGuideModal() {
   if (!bd) return;
   bd.classList.add("show");
   bd.setAttribute("aria-hidden", "false");
+  requestAnimationFrame(() => qs("btnWorkflowGuideClose")?.focus());
 }
 
 function closeWorkflowGuideModal() {
@@ -3016,10 +3465,11 @@ function wireGlobalHeaderControls() {
 async function buildIndentRequisitionRows(indentId) {
   // 1. Indent lines
   const { data: lines, error: lErr } = await supabase
-    .from("v_proc_indent_lines_console")
+    .from(INDENT_LINES_ORDERED_VIEW)
     .select("*")
     .eq("indent_id", indentId)
-    .order("indent_line_id");
+    .order("indent_line_sort_no", { ascending: true })
+    .order("indent_line_id", { ascending: true });
   if (lErr) throw lErr;
 
   if (!lines || lines.length === 0) return { pdfLines: [], rows: [] };
@@ -3153,6 +3603,7 @@ function openExportIndentModal() {
   const bd = qs("exportIndentModalBackdrop");
   bd.classList.add("show");
   bd.setAttribute("aria-hidden", "false");
+  requestAnimationFrame(() => qs("expDeptUnit")?.focus());
 }
 
 function closeExportIndentModal() {
@@ -3567,18 +4018,15 @@ async function exportIndentToPdf() {
     doc.line(margin + 2 * colWidth + 5, sigY, pageWidth - margin, sigY);
 
     doc.setFont("helvetica", "normal").setFontSize(8).setTextColor(0);
-    doc.text("Requested By", margin + colWidth / 2, sigY + 4, {
+    doc.text("Prepared By", margin + colWidth / 2, sigY + 4, {
       align: "center",
     });
-    doc.text("Approved By", margin + colWidth + colWidth / 2, sigY + 4, {
+    doc.text("Verified By", margin + colWidth + colWidth / 2, sigY + 4, {
       align: "center",
     });
-    doc.text(
-      "Procurement Officer",
-      margin + 2 * colWidth + colWidth / 2,
-      sigY + 4,
-      { align: "center" },
-    );
+    doc.text("Approved By", margin + 2 * colWidth + colWidth / 2, sigY + 4, {
+      align: "center",
+    });
 
     // If a new page was added for signatures, re-stamp page numbers with updated total
     const finalTotalPages = doc.internal.getNumberOfPages();
@@ -3608,6 +4056,7 @@ function openCreateIndentModal() {
   const backdrop = qs("createIndentModalBackdrop");
   backdrop.classList.add("show");
   backdrop.setAttribute("aria-hidden", "false");
+  requestAnimationFrame(() => qs("ciIndentNumber")?.focus());
   qs("ciIndentDate").value = new Date().toISOString().slice(0, 10);
   qs("ciIndentNumber").value = "";
   qs("ciMaterialClass").value = "";
@@ -3697,6 +4146,7 @@ async function openIndentFromPrModal(options = {}) {
   const backdrop = qs("indentFromPrModalBackdrop");
   backdrop.classList.add("show");
   backdrop.setAttribute("aria-hidden", "false");
+  requestAnimationFrame(() => qs("ifpPrPick")?.focus());
 }
 
 function closeIndentFromPrModal() {
@@ -3824,11 +4274,11 @@ async function runStockPickerSearch(query) {
   qs("stockPickerTable").style.display = "";
   for (const item of rows) {
     const classLabel =
-      item.category_code ??
+      displayMaterialClassCode(item.category_code) ||
       (item.category_id === 1
         ? "RM"
         : item.category_id === 2
-          ? "PLM"
+          ? "PM"
           : item.category_id === 5
             ? "IND"
             : String(item.category_id ?? ""));
@@ -4175,6 +4625,7 @@ function wireAddIndentLineItemSearch() {
 
 function wireStockItemPicker() {
   qs("btnStockPickerClose").addEventListener("click", closeStockItemPicker);
+  qs("btnIndentAddLineClose")?.addEventListener("click", closeIndentAddLineModal);
   qs("stockPickerModalBackdrop").addEventListener("click", (e) => {
     if (e.target.id === "stockPickerModalBackdrop") closeStockItemPicker();
   });
@@ -4350,14 +4801,16 @@ function renderPrHeaders() {
   qs("prPaging").textContent = `Page ${state.prPage + 1}`;
   const _prPrev = qs("prBtnPrev");
   const _prNext = qs("prBtnNext");
+  const pageSize = Number(state.pageSize || DEFAULT_PAGE_SIZE);
   if (_prPrev) _prPrev.disabled = state.prPage <= 0;
-  if (_prNext) _prNext.disabled = _prCnt < state.pageSize;
+  if (_prNext) _prNext.disabled = _prCnt < pageSize;
   updateTabCount("tabCountPr", _prCnt);
 }
 
 async function loadPrHeaders() {
   setTabTableLoading("pr", true);
   try {
+    const pageSize = Number(state.pageSize || DEFAULT_PAGE_SIZE);
     const status = qs("prFilterStatus").value;
     const cls = qs("prFilterClass").value;
     const search = (qs("prSearch").value || "").trim();
@@ -4368,8 +4821,8 @@ async function loadPrHeaders() {
     q = q
       .order("pr_id", { ascending: false })
       .range(
-        state.prPage * state.pageSize,
-        state.prPage * state.pageSize + state.pageSize - 1,
+        state.prPage * pageSize,
+        state.prPage * pageSize + pageSize - 1,
       );
     const { data, error } = await q;
     if (error) {
@@ -4391,7 +4844,12 @@ function renderPrLineRowHtml(row, isDraft) {
   return `
     <tr data-pr-line-id="${esc(row.pr_line_id)}" ${isDraft ? "" : 'class="locked-row"'}>
       <td>${esc(row.stock_item_name ?? row.stock_item_code ?? row.code ?? String(row.stock_item_id ?? ""))}</td>
-      <td>${esc(row.material_class_code ?? row.category_label ?? row.subcategory_label ?? "")}</td>
+      <td>${esc(
+        displayMaterialClassCode(row.material_class_code) ||
+          row.category_label ||
+          row.subcategory_label ||
+          "",
+      )}</td>
       <td>${esc(row.uom_code ?? "")}</td>
       <td>${fmtQty(row.system_suggested_qty)}</td>
       <td>${fmtQty(requestedQtyNum)}</td>
@@ -4800,11 +5258,12 @@ function applyPrLineFiltersAndRender() {
     if (searchRaw) {
       const haystack = [
         row.stock_item_name ?? "",
-        row.stock_item_code ?? row.code ?? "",
-        row.material_class_code ??
-          row.category_label ??
-          row.subcategory_label ??
-          "",
+        row.stock_item_code ?? "",
+        displayMaterialClassCode(row.material_class_code ?? ""),
+        row.category_label ?? "",
+        row.subcategory_label ?? "",
+        row.group_label ?? "",
+        row.subgroup_label ?? "",
       ]
         .join(" ")
         .toLowerCase();
@@ -4820,15 +5279,11 @@ function applyPrLineFiltersAndRender() {
     } else if (filter === "nonzero_suggested") {
       if (Number(row.system_suggested_qty ?? 0) === 0) return false;
     } else if (filter === "jit_only") {
-      const mode = String(
-        row.rm_procurement_mode ?? row.stock_item_rm_procurement_mode ?? "",
-      ).toLowerCase();
-      if (mode !== "jit_procured" && mode !== "jit") return false;
+      const mode = normalizeRmProcurementMode(row);
+      if (mode !== "jit") return false;
     } else if (filter === "normal_only") {
-      const mode = String(
-        row.rm_procurement_mode ?? row.stock_item_rm_procurement_mode ?? "",
-      ).toLowerCase();
-      if (mode === "jit_procured" || mode === "jit") return false;
+      const mode = normalizeRmProcurementMode(row);
+      if (mode !== "normal") return false;
     }
 
     return true;
@@ -4842,9 +5297,36 @@ async function loadPrLines(prId) {
   if (!prId) return;
   setLoading(true);
   const { data, error } = await supabase
-    .from("v_proc_pr_lines")
-    .select("*")
+    .from(PR_LINES_ORDERED_VIEW)
+    .select(
+      [
+        "pr_line_id",
+        "pr_id",
+        "stock_item_id",
+        "stock_item_name",
+        "stock_item_code",
+        "material_class_id",
+        "material_class_code",
+        "material_class_label",
+        "uom_id",
+        "uom_code",
+        "system_suggested_qty",
+        "requested_qty",
+        "manual_delta_qty",
+        "manual_reason",
+        "final_requested_qty",
+        "rm_procurement_mode",
+        "stock_item_rm_procurement_mode",
+        "category_label",
+        "subcategory_label",
+        "group_label",
+        "subgroup_label",
+        "line_sort_no",
+        "line_sort_key",
+      ].join(","),
+    )
     .eq("pr_id", prId)
+    .order("line_sort_no", { ascending: true })
     .order("pr_line_id", { ascending: true });
   setLoading(false);
   if (error) {
@@ -5222,6 +5704,7 @@ function exportPrFormPdf(pr) {
 }
 
 function closePrViewModal() {
+  closeProcurementFilterDrawer(qs("prLineFilterDrawer"));
   const backdrop = qs("prViewModalBackdrop");
   moveFocusOutsideModal(backdrop, [
     lastFocusedBeforePrViewModal,
@@ -5663,6 +6146,7 @@ function wirePrControls() {
     openPrSetStatusModal(state.selectedPr, targetStatus);
   });
   qs("btnPrCreateIndent").addEventListener("click", createIndentFromSelectedPr);
+  qs("btnPrAddLineClose")?.addEventListener("click", closePrAddLineModal);
   qs("btnPrAddLineCancel").addEventListener("click", closePrAddLineModal);
   qs("btnPrAddLineSave").addEventListener("click", savePrAddLine);
   qs("prAddLineModalBackdrop").addEventListener("click", (e) => {
@@ -5674,6 +6158,7 @@ function wirePrControls() {
   qs("prRebuildModalBackdrop").addEventListener("click", (e) => {
     if (e.target.id === "prRebuildModalBackdrop") closePrRebuildModal();
   });
+  qs("btnPrSetStatusClose")?.addEventListener("click", closePrSetStatusModal);
   qs("btnPrSetStatusCancel").addEventListener("click", closePrSetStatusModal);
   qs("btnPrSetStatusConfirm").addEventListener("click", confirmPrSetStatus);
   qs("prSetStatusModalBackdrop").addEventListener("click", (e) => {
@@ -5681,11 +6166,13 @@ function wirePrControls() {
   });
 
   // Indent creation modals
+  qs("btnCreateIndentClose")?.addEventListener("click", closeCreateIndentModal);
   qs("btnCiCancel").addEventListener("click", closeCreateIndentModal);
   qs("btnCiCreate").addEventListener("click", saveCreateIndent);
   qs("createIndentModalBackdrop").addEventListener("click", (e) => {
     if (e.target.id === "createIndentModalBackdrop") closeCreateIndentModal();
   });
+  qs("btnIndentFromPrClose")?.addEventListener("click", closeIndentFromPrModal);
   qs("btnIfpCancel").addEventListener("click", closeIndentFromPrModal);
   qs("btnIfpCreate").addEventListener("click", saveIndentFromPr);
   qs("indentFromPrModalBackdrop").addEventListener("click", (e) => {
@@ -5715,7 +6202,7 @@ function renderExcess() {
         <div class="muted">${esc(row.voucher_date ?? "")}</div>
       </td>
       <td>${esc(row.stock_item_name ?? "")}</td>
-      <td>${esc(row.material_class_code ?? "")}</td>
+      <td>${esc(displayMaterialClassCode(row.material_class_code ?? ""))}</td>
       <td>${fmt(row.purchase_qty)}</td>
       <td>${fmt(row.allocated_qty)}</td>
       <td>${fmt(row.unallocated_qty)}</td>
@@ -5825,12 +6312,11 @@ function syncExcessFilterBadge() {
   btn.classList.toggle("pec-filter-btn--active", count > 0);
 }
 
-function closeExcessFilterPanel() {
+function closeExcessFilterPanel({ restoreFocus = false } = {}) {
   const panel = qs("eFilterPanel");
   const btn = qs("eFilterBtn");
   if (!panel || !btn) return;
-  panel.classList.remove("open");
-  btn.setAttribute("aria-expanded", "false");
+  closeFloatingFilterDrawer(btn, panel, { restoreFocus });
 }
 
 function toggleExcessFilterPanel() {
@@ -5839,17 +6325,14 @@ function toggleExcessFilterPanel() {
   if (!panel || !btn) return;
 
   const isOpen = panel.classList.contains("open");
-  document.querySelectorAll(".pec-filter-drawer.open").forEach((drawer) => {
-    drawer.classList.remove("open");
-    drawer
-      .closest(".pec-filter-wrap")
-      ?.querySelector(".pec-filter-btn")
-      ?.setAttribute("aria-expanded", "false");
-  });
+  if (isOpen) {
+    closeExcessFilterPanel({ restoreFocus: true });
+    return;
+  }
 
-  if (isOpen) return;
-
+  closeAllProcurementFilterDrawers({ exceptId: panel.id });
   panel.classList.add("open");
+  panel._ownerBtn = btn;
   btn.setAttribute("aria-expanded", "true");
   const rect = btn.getBoundingClientRect();
   panel.style.position = "fixed";
@@ -5861,6 +6344,10 @@ function toggleExcessFilterPanel() {
     if (rect.left + drawerWidth > window.innerWidth) {
       panel.style.left = Math.max(4, rect.right - drawerWidth) + "px";
     }
+    const firstField = panel.querySelector(
+      'select, input, button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    );
+    focusElementIfPossible(firstField);
   });
 }
 
@@ -5869,8 +6356,9 @@ async function loadExcess() {
   try {
     const search = (qs("eSearch")?.value || "").trim();
     const filters = state.excessFilters;
-    const from = state.excessPage * state.pageSize;
-    const to = from + state.pageSize - 1;
+    const pageSize = Number(state.pageSize || DEFAULT_PAGE_SIZE);
+    const from = state.excessPage * pageSize;
+    const to = from + pageSize - 1;
     let q = supabase
       .from("v_proc_purchase_excess_console")
       .select("*", { count: "exact" });
@@ -5909,7 +6397,7 @@ async function loadExcess() {
     state.excessTotalCount = count ?? 0;
     state.excessTotalPages = Math.max(
       1,
-      Math.ceil(state.excessTotalCount / state.pageSize),
+      Math.ceil(state.excessTotalCount / pageSize),
     );
     renderExcess();
   } finally {
@@ -5934,8 +6422,9 @@ function renderExcessAudit() {
 }
 
 async function loadExcessAuditPaged() {
-  const from = state.excessAuditPage * state.pageSize;
-  const to = from + state.pageSize - 1;
+  const pageSize = Number(state.pageSize || DEFAULT_PAGE_SIZE);
+  const from = state.excessAuditPage * pageSize;
+  const to = from + pageSize - 1;
 
   const { data, error, count } = await supabase
     .from("v_proc_excess_acceptance_audit_console")
@@ -5950,7 +6439,7 @@ async function loadExcessAuditPaged() {
   state.excessAuditTotalCount = count ?? 0;
   state.excessAuditTotalPages = Math.max(
     1,
-    Math.ceil(state.excessAuditTotalCount / state.pageSize),
+    Math.ceil(state.excessAuditTotalCount / pageSize),
   );
   renderExcessAudit();
   qs("eAuditMeta").textContent =
@@ -5993,6 +6482,7 @@ function openExcessPurchaseModal(row) {
   const backdrop = qs("acceptExcessModalBackdrop");
   backdrop.classList.add("show");
   backdrop.setAttribute("aria-hidden", "false");
+  requestAnimationFrame(() => qs("excessAcceptQty")?.focus());
   state.excessModal = row;
 
   const subtitleParts = [];
@@ -7067,10 +7557,18 @@ function wireVendorBuylistControls() {
   const vwlFilterDrawer = qs("vwlFilterDrawer");
   const vwlVendorFilter = qs("vwlVendorFilter");
 
-  const closeVwlFilterDrawer = () => {
+  const closeVwlFilterDrawer = ({ restoreFocus = false } = {}) => {
+    const wasOpen =
+      vwlFilterDrawer?.classList.contains("open") ||
+      vwlFilterDrawer?.classList.contains("show") ||
+      vwlFilterDrawer?.classList.contains("active") ||
+      (vwlFilterDrawer && !vwlFilterDrawer.hasAttribute("hidden"));
     vwlFilterDrawer?.classList.remove("open", "show", "active");
     vwlFilterDrawer?.setAttribute("hidden", "hidden");
     vwlFilterBtn?.setAttribute("aria-expanded", "false");
+    if (restoreFocus && wasOpen) {
+      focusElementIfPossible(vwlFilterBtn);
+    }
   };
 
   closeVwlFilterDrawer();
@@ -7080,15 +7578,7 @@ function wireVendorBuylistControls() {
       e.stopPropagation();
       const isOpen = vwlFilterDrawer.classList.contains("open");
       closeVendorBuylistDrawers("vwlFilterDrawer");
-      document.querySelectorAll(".pec-filter-drawer.open").forEach((drawer) => {
-        if (drawer !== vwlFilterDrawer) {
-          drawer.classList.remove("open");
-          drawer
-            .closest(".pec-filter-wrap")
-            ?.querySelector(".pec-filter-btn")
-            ?.setAttribute("aria-expanded", "false");
-        }
-      });
+      closeAllProcurementFilterDrawers({ exceptId: "vwlFilterDrawer" });
       vwlFilterDrawer.classList.toggle("open", !isOpen);
       if (!isOpen) {
         vwlFilterDrawer.removeAttribute("hidden");
@@ -7097,6 +7587,7 @@ function wireVendorBuylistControls() {
       }
       vwlFilterBtn.setAttribute("aria-expanded", String(!isOpen));
       if (!isOpen) {
+        vwlFilterDrawer._ownerBtn = vwlFilterBtn;
         const rect = vwlFilterBtn.getBoundingClientRect();
         vwlFilterDrawer.style.position = "fixed";
         vwlFilterDrawer.style.top = rect.bottom + 4 + "px";
@@ -7108,7 +7599,7 @@ function wireVendorBuylistControls() {
             vwlFilterDrawer.style.left = Math.max(4, rect.right - dropW) + "px";
           }
         });
-        vwlVendorFilter?.focus();
+        focusElementIfPossible(vwlVendorFilter);
       }
     });
     vwlFilterDrawer.addEventListener("click", (e) => e.stopPropagation());
@@ -7250,8 +7741,6 @@ function wireVendorBuylistControls() {
 
   // Safety pass: ensure key icon buttons expose tooltip + label
   ensureIconBtnA11y("btnRefresh", "Refresh");
-  ensureIconBtnA11y("btnPrev", "Previous page");
-  ensureIconBtnA11y("btnNext", "Next page");
   ensureIconBtnA11y("iBtnRefresh", "Refresh");
   ensureIconBtnA11y("iBtnNewDraft", "New draft indent");
   ensureIconBtnA11y("iBtnFromPR", "Create indent from PR");
@@ -7288,3 +7777,10 @@ function wireVendorBuylistControls() {
   updateExportButtonStates();
   refreshAllTabCounts();
 })();
+
+
+
+
+
+
+

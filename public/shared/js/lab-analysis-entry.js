@@ -29,29 +29,12 @@
  *   )
  *   Returns: protocol_category_id (bigint) or null
  *
- *   fn_get_active_spec_profile_id_for_pm_subcategory(
- *     p_subcategory_id,            -- integer
- *     p_as_of_date                 -- date  (ISO string YYYY-MM-DD)
+ *   fn_resolve_current_active_spec_lines(
+ *     p_subject_type,              -- 'FG' | 'RM' | 'PM'
+ *     p_product_id,                -- bigint | null  (FG only)
+ *     p_stock_item_id              -- bigint | null  (RM/PM only)
  *   )
- *   Returns: spec_profile_id (bigint) or null
- *
- *   fn_preview_effective_fg_spec_for_product(
- *     p_product_id,                -- bigint
- *     p_as_of_date                 -- date  (ISO string YYYY-MM-DD)
- *   )
- *   Returns: json { ok, message, line_count, lines[] }
- *
- *   fn_preview_effective_rm_spec_for_item(
- *     p_stock_item_id,             -- bigint
- *     p_as_of_date                 -- date  (ISO string YYYY-MM-DD)
- *   )
- *   Returns: json { ok, message, line_count, lines[] }
- *
- *   fn_preview_effective_pm_spec_for_item(
- *     p_stock_item_id,             -- bigint
- *     p_as_of_date                 -- date  (ISO string YYYY-MM-DD)
- *   )
- *   Returns: json { ok, message, line_count, lines[] }
+ *   Returns: table rows for the current active specification setup.
  *
  *   fn_receive_sample_and_create_analysis(
  *     p_user_id,                   -- uuid
@@ -75,7 +58,7 @@
  *   stock_item → inv_group (v_rm_pm_item_with_group)
  *             → protocol   (protocol_category_inv_group_map)
  *             → base spec  (spec_profile_inv_group_map)
- *             → eff. preview (fn_preview_effective_rm_spec_for_item)
+ *             -> current active spec lines (fn_resolve_current_active_spec_lines)
  * ─────────────────────────────────────────────────────────────────────────
  */
 
@@ -591,18 +574,12 @@ function wireEvents() {
     updateSampleTypeSummary();
   });
 
-  // Effective specifications are date-sensitive. Keep readiness aligned with
-  // the same sample date that will be passed to the create-analysis RPC.
+  // Sample received date is stored as receipt/legacy metadata; it does not
+  // decide Lab Analysis Entry spec readiness.
   sampleDate.addEventListener("change", () => {
-    clearMappingState();
-    if (
-      (currentSampleType === "FG_BATCH" &&
-        productSelect.value &&
-        batchNoSelect.value) ||
-      (currentSampleType !== "FG_BATCH" && getSelectedItemId())
-    ) {
-      scheduleProtocolCheck();
-    }
+    validateField(sampleDate, dateMsg, "Sample Received Date is required");
+    updateStartButton();
+    updateSampleTypeSummary();
   });
 
   // Blur-validate required fields
@@ -924,8 +901,66 @@ async function checkReadiness() {
   updateStartButton();
 }
 
-// ── FG readiness check (product-group level) ──────────────────────────────────
-// Validates: product → product group → active protocol → effective FG spec
+async function previewCurrentActiveSpecForAnalysis(
+  subjectType,
+  productId,
+  stockItemId,
+) {
+  const normalizedSubject = String(subjectType || "").trim().toUpperCase();
+  const isFg = normalizedSubject === "FG";
+  const isInventorySubject =
+    normalizedSubject === "RM" || normalizedSubject === "PM";
+  const resolvedProductId = isFg && productId ? Number(productId) : null;
+  const resolvedStockItemId =
+    isInventorySubject && stockItemId ? Number(stockItemId) : null;
+
+  const { data, error } = await labSupabase.rpc(
+    "fn_resolve_current_active_spec_lines",
+    {
+      p_subject_type: normalizedSubject,
+      p_product_id: resolvedProductId,
+      p_stock_item_id: resolvedStockItemId,
+    },
+  );
+
+  if (error) {
+    return {
+      ok: false,
+      reason_code: "ERROR",
+      message: error.message || "Active specification could not be resolved.",
+      subject_type: normalizedSubject,
+      product_id: resolvedProductId,
+      stock_item_id: resolvedStockItemId,
+      line_count: 0,
+      lines: [],
+    };
+  }
+
+  const rows = Array.isArray(data) ? data : [];
+  const first = rows[0] || {};
+
+  return {
+    ok: rows.length > 0,
+    reason_code: rows.length > 0 ? "READY" : "NO_ACTIVE_LINES",
+    message:
+      rows.length > 0
+        ? `Current active ${normalizedSubject} specification resolved.`
+        : `Current active ${normalizedSubject} specification has no active test lines.`,
+    subject_type: normalizedSubject,
+    product_id: resolvedProductId,
+    stock_item_id: resolvedStockItemId,
+    product_group_id: first.product_group_id ?? null,
+    inv_group_id: first.inv_group_id ?? null,
+    subcategory_id: first.subcategory_id ?? null,
+    protocol_category_id: first.protocol_category_id ?? null,
+    base_spec_profile_id: first.base_spec_profile_id ?? null,
+    line_count: rows.length,
+    lines: rows,
+  };
+}
+
+// FG readiness check (product-group level)
+// Validates: product -> product group -> active protocol -> current active FG spec
 async function checkFgReadiness(productId) {
   // Reset FG readiness state
   fgReadiness = {
@@ -1005,15 +1040,12 @@ async function checkFgReadiness(productId) {
     fgReadiness.protocolCategoryId = protocolCategoryId;
     fgReadiness.protocolName = cat?.category_name ?? null;
 
-    // Step 3: resolve read-only effective FG preview (source of truth)
-    const { data: preview, error: specErr } = await labSupabase.rpc(
-      "fn_preview_effective_fg_spec_for_product",
-      {
-        p_product_id: Number(productId),
-        p_as_of_date: selectedSampleDate(),
-      },
+    // Step 3: resolve read-only current active FG preview (source of truth)
+    const preview = await previewCurrentActiveSpecForAnalysis(
+      "FG",
+      productId,
+      null,
     );
-    if (specErr) throw specErr;
 
     if (preview?.ok !== true) {
       readinessOk.classList.add("hidden");
@@ -1022,11 +1054,11 @@ async function checkFgReadiness(productId) {
       testPreviewTbody.innerHTML = "";
       testPreviewEmpty.textContent =
         preview?.message ||
-        "No effective FG specification could be resolved for this product.";
+        "No current active FG specification could be resolved for this product.";
       testPreviewEmpty.classList.remove("hidden");
       showFgNotReady(
         preview?.message ||
-          "No effective FG specification could be resolved for this product.",
+          "No current active FG specification could be resolved for this product.",
         "Please confirm base spec and overrides in the Spec Profile Manager.",
       );
       fgReadiness.specOk = false;
@@ -1034,7 +1066,7 @@ async function checkFgReadiness(productId) {
       return;
     }
 
-    // FG preview: render canonical read-only effective lines
+    // FG preview: render canonical read-only current active lines
     testPreview.classList.remove("hidden");
     const rows = Array.isArray(preview?.lines) ? preview.lines : [];
     const activeLineCount = renderEffectiveSpecPreviewRows(rows);
@@ -1042,8 +1074,8 @@ async function checkFgReadiness(productId) {
     if (!activeLineCount || activeLineCount <= 0) {
       readinessOk.classList.add("hidden");
       showFgNotReady(
-        "Effective FG specification has no active test lines.",
-        "Please check the effective preview in the Spec Profile Manager before starting analysis.",
+        "Current active FG specification has no active test lines.",
+        "Please check the current active specification setup before starting analysis.",
       );
       fgReadiness.specOk = false;
       fgReadiness.ok = false;
@@ -1169,15 +1201,12 @@ async function checkInventoryReadiness(stockItemId) {
       return;
     }
 
-    // Step 4: resolve read-only effective RM preview
-    const { data: preview, error: previewErr } = await labSupabase.rpc(
-      "fn_preview_effective_rm_spec_for_item",
-      {
-        p_stock_item_id: Number(stockItemId),
-        p_as_of_date: selectedSampleDate(),
-      },
+    // Step 4: resolve read-only current active RM preview
+    const preview = await previewCurrentActiveSpecForAnalysis(
+      "RM",
+      null,
+      stockItemId,
     );
-    if (previewErr) throw previewErr;
 
     const rows = Array.isArray(preview?.lines) ? preview.lines : [];
     if (preview?.ok !== true || rows.length <= 0) {
@@ -1186,10 +1215,10 @@ async function checkInventoryReadiness(stockItemId) {
       renderEffectiveSpecPreviewRows(rows);
       showInventoryNotReady(
         preview?.ok === true
-          ? "Effective RM specification has no active test lines."
+          ? "Current active RM specification has no active test lines."
           : preview?.message ||
-              "No effective RM specification could be resolved for this stock item.",
-        "Please check the effective preview in the Spec Profile Manager before starting analysis.",
+              "No current active RM specification could be resolved for this stock item.",
+        "Please check the current active specification setup before starting analysis.",
       );
       rmReadiness.specOk = false;
       rmReadiness.ok = false;
@@ -1226,7 +1255,7 @@ async function checkInventoryReadiness(stockItemId) {
 }
 
 // ── PM readiness check (packing-material subcategory level) ──────────────────
-// Validates: stock item → subcategory → active PM protocol (RPC) → active PM base spec (RPC)
+// Validates: stock item -> subcategory -> active PM protocol (RPC) -> current active PM spec
 async function checkPmReadiness(stockItemId) {
   pmReadiness = {
     ok: false,
@@ -1291,33 +1320,12 @@ async function checkPmReadiness(stockItemId) {
     pmReadiness.protocolCategoryId = protocolCategoryId;
     pmReadiness.protocolName = cat?.category_name ?? null;
 
-    // Step 4: resolve active PM base spec via RPC
-    const { data: specProfileId, error: smErr } = await labSupabase.rpc(
-      "fn_get_active_spec_profile_id_for_pm_subcategory",
-      {
-        p_subcategory_id: Number(subcat.subcategory_id),
-        p_as_of_date: selectedSampleDate(),
-      },
+    // Step 4: resolve read-only current active PM preview
+    const preview = await previewCurrentActiveSpecForAnalysis(
+      "PM",
+      null,
+      stockItemId,
     );
-    if (smErr) throw smErr;
-
-    if (!specProfileId) {
-      showInventoryNotReady(
-        "No active PM base specification exists for this packing material subcategory.",
-        "Please generate a base spec in the Spec Profile Manager before starting analysis.",
-      );
-      return;
-    }
-
-    // Step 5: resolve read-only effective PM preview
-    const { data: preview, error: previewErr } = await labSupabase.rpc(
-      "fn_preview_effective_pm_spec_for_item",
-      {
-        p_stock_item_id: Number(stockItemId),
-        p_as_of_date: selectedSampleDate(),
-      },
-    );
-    if (previewErr) throw previewErr;
 
     const rows = Array.isArray(preview?.lines) ? preview.lines : [];
     if (preview?.ok !== true || rows.length <= 0) {
@@ -1326,10 +1334,10 @@ async function checkPmReadiness(stockItemId) {
       renderEffectiveSpecPreviewRows(rows);
       showInventoryNotReady(
         preview?.ok === true
-          ? "Effective PM specification has no active test lines."
+          ? "Current active PM specification has no active test lines."
           : preview?.message ||
-              "No effective PM specification could be resolved for this stock item.",
-        "Please check the effective preview in the Spec Profile Manager before starting analysis.",
+              "No current active PM specification could be resolved for this stock item.",
+        "Please check the current active specification setup before starting analysis.",
       );
       pmReadiness.specOk = false;
       pmReadiness.ok = false;
@@ -1496,7 +1504,7 @@ async function populateFgBatchDropdown(productId) {
   updateStartButton();
 }
 
-// ── Effective-spec preview row renderer (read-only RPC output) ──────────────
+// Active-spec preview row renderer (read-only RPC output)
 function renderEffectiveSpecPreviewRows(rows) {
   testPreviewLoading.classList.remove("hidden");
   testPreviewEmpty.classList.add("hidden");
@@ -1507,13 +1515,13 @@ function renderEffectiveSpecPreviewRows(rows) {
 
   if (!safeRows.length) {
     testPreviewEmpty.textContent =
-      "No active effective specification lines found.";
+      "No current active specification lines found.";
     testPreviewEmpty.classList.remove("hidden");
-    testPreviewToggleLabel.textContent = "Show Effective Spec";
+    testPreviewToggleLabel.textContent = "Show Active Spec";
     return 0;
   }
 
-  testPreviewToggleLabel.textContent = `Show Effective Spec (${safeRows.length} active lines)`;
+  testPreviewToggleLabel.textContent = `Show Active Spec (${safeRows.length} active lines)`;
 
   const sourceBadgeMap = {
     BASE: "Base",
@@ -1845,7 +1853,7 @@ function buildRpcParams() {
     p_batch_no_snapshot: isFG ? batchNoSelect.value || null : null,
     p_stock_item_id: !isFG ? stockItemSelect.value || null : null,
     p_system_lot_no: null,
-    p_sample_received_date: sampleDate.value || null,
+    p_sample_received_date: selectedSampleDate(),
     p_physical_register_ref: physRegRef.value.trim() || null,
     p_analysed_by_staff_id: analysedBy.value || null,
     p_person_in_charge_staff_id: personInCharge.value || null,
