@@ -1,0 +1,25 @@
+---
+description: SASV Workspace project-wide rules
+alwaysApply: true
+---
+
+This is an Electron + PWA compatible ERP-style internal workspace for Santhigiri Ayurveda Siddha Vaidyasala.
+
+The user is not a coding expert. Before major implementation, explain the plan clearly.
+
+Primary priorities:
+
+1. Preserve existing working behavior.
+2. Avoid unrelated changes.
+3. Reuse existing shared JS/CSS patterns.
+4. Keep Electron and PWA compatibility.
+5. Prefer server-truth Supabase views/RPCs over client-side parallel logic.
+6. Do not invent database tables, RPCs, or columns unless explicitly provided.
+7. Do not remove existing functionality unless specifically instructed.
+
+For large tasks:
+
+- Analyze first.
+- List affected files.
+- Propose plan.
+- Wait for approval before editing.

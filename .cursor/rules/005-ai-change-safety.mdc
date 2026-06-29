@@ -1,0 +1,20 @@
+---
+description: AI coding safety rules
+alwaysApply: true
+---
+
+Before making broad edits:
+
+- Show intended file changes.
+- Avoid deleting files unless explicitly instructed.
+- Avoid dependency upgrades unless explicitly instructed.
+- Avoid formatting entire unrelated files.
+- Keep changes minimal and targeted.
+- After changes, summarize:
+  1. files changed,
+  2. what changed,
+  3. what was intentionally not changed,
+  4. manual smoke tests,
+  5. rollback suggestion.
+
+Never auto-commit unless explicitly instructed.

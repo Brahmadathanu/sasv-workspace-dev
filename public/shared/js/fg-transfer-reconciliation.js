@@ -65,6 +65,48 @@ const PROBLEM_KIND_OPTIONS = [
   "OTHER",
 ];
 
+const TAB_SEARCH_META = {
+  overview: {
+    enabled: false,
+    placeholder: "Overview summary is not text-search filtered",
+    title:
+      "Overview uses date and master filters. Drill down to a tab for text search.",
+    ariaLabel: "Search not available on Overview tab",
+  },
+  reconciliation: {
+    enabled: true,
+    placeholder: "Search batch, product, raw Tally item, or mapped product...",
+    title: "Search reconciliation by batch, product, or raw Tally item",
+    ariaLabel: "Search reconciliation records",
+  },
+  "tally-events": {
+    enabled: true,
+    placeholder: "Search Tally batch, product, or raw item name...",
+    title: "Search Tally events by batch, product, or raw item name",
+    ariaLabel: "Search Tally events",
+  },
+  "dwl-events": {
+    enabled: true,
+    placeholder: "Search DWL batch or product...",
+    title: "Search Daily Work Log transfer events by batch or product",
+    ariaLabel: "Search Daily Work Log events",
+  },
+  "normalized-lines": {
+    enabled: true,
+    placeholder: "Search batch, product, raw item, SKU, or godown...",
+    title:
+      "Search normalized Tally lines by batch, product, raw item, SKU, or godown",
+    ariaLabel: "Search normalized Tally lines",
+  },
+  "fix-queue": {
+    enabled: false,
+    placeholder:
+      "Fix Queue is grouped by suggestion; use row click to drill down",
+    title: "Fix Queue is not text-search filtered",
+    ariaLabel: "Search not available on Fix Queue tab",
+  },
+};
+
 // Modal working selections (do NOT directly mutate state until Apply)
 let mfWorkingStatus = new Set();
 let mfWorkingProblem = new Set();
@@ -3214,6 +3256,8 @@ function switchTab(tabName) {
   const _tabSelect = document.getElementById("tabSelect");
   if (_tabSelect) _tabSelect.value = tabName;
 
+  updateSearchInputForCurrentTab();
+
   // Update active button
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.tab === tabName);
@@ -3282,6 +3326,7 @@ function switchTab(tabName) {
       }
       const searchInput = document.getElementById("search");
       if (searchInput) searchInput.value = "";
+      updateSearchInputForCurrentTab();
 
       // Ensure the quick-toggle checkboxes reflect the reset defaults
       try {
@@ -3860,55 +3905,48 @@ async function initFilters() {
   // Initialize search input
   const searchInput = document.getElementById("search");
   if (searchInput) {
-    let searchTimeout;
-    searchInput.addEventListener("input", () => {
-      clearTimeout(searchTimeout);
-      searchTimeout = setTimeout(() => {
-        state.searchText = searchInput.value.trim();
-        resetPages();
-        // Don't call switchTab when already on Overview — switchTab(overview)
-        // resets filters and will clear the input. Render the active tab
-        // directly instead so the search field isn't reset.
-        if (state.currentTab === "overview") {
-          renderOverviewTab();
-        } else {
-          switchTab(state.currentTab);
-        }
-      }, 400);
-    });
-    // Clear-button functionality: show when input has content, hide otherwise
-    const searchClear = document.getElementById("searchClear");
-    let toggleSearchClear;
-    if (searchClear) {
-      toggleSearchClear = function () {
-        if (searchInput.value && searchInput.value.trim()) {
-          searchClear.style.display = "flex";
-        } else {
-          searchClear.style.display = "none";
-        }
-      };
+    let searchTimeout = null;
 
-      // initialize visibility
+    const searchClear = document.getElementById("searchClear");
+
+    function toggleSearchClear() {
+      const meta = getSearchMetaForCurrentTab();
+      const hasValue = !!(searchInput.value && searchInput.value.trim());
+
+      if (searchClear) {
+        searchClear.style.display = meta.enabled && hasValue ? "flex" : "none";
+        searchClear.disabled = !meta.enabled;
+      }
+    }
+
+    searchInput.addEventListener("input", () => {
       toggleSearchClear();
 
-      // keep clear button visibility in sync
-      searchInput.addEventListener("input", toggleSearchClear);
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        applySearchAndRefreshFromInput(searchInput);
+      }, 500);
+    });
 
-      // clicking clear empties input and triggers same behavior as manual clear
+    if (searchClear) {
       searchClear.addEventListener("click", () => {
+        clearTimeout(searchTimeout);
+
         searchInput.value = "";
-        searchInput.focus();
-        // Update state and reload current tab without triggering overview reset
         state.searchText = "";
         resetPages();
         toggleSearchClear();
-        if (state.currentTab === "overview") {
-          renderOverviewTab();
-        } else {
-          switchTab(state.currentTab);
-        }
+
+        renderCurrentTabForSearch();
+
+        requestAnimationFrame(() => {
+          focusSearchInputSafely(0, 0);
+          updateSearchInputForCurrentTab();
+        });
       });
     }
+
+    updateSearchInputForCurrentTab();
   }
 
   // Status/problem multi-selects removed — managed via Master Filters modal
@@ -3939,6 +3977,95 @@ function resetPages() {
   state.pageDwlEvents = 1;
   state.pageNormalized = 1;
   state.pageFixQueue = 1;
+}
+
+function getSearchMetaForCurrentTab() {
+  return TAB_SEARCH_META[state.currentTab] || TAB_SEARCH_META.reconciliation;
+}
+
+function updateSearchInputForCurrentTab() {
+  const searchInput = document.getElementById("search");
+  const searchClear = document.getElementById("searchClear");
+  if (!searchInput) return;
+
+  const meta = getSearchMetaForCurrentTab();
+  const enabled = !!meta.enabled;
+
+  searchInput.placeholder = meta.placeholder;
+  searchInput.title = meta.title;
+  searchInput.setAttribute("aria-label", meta.ariaLabel);
+  searchInput.disabled = !enabled;
+
+  if (!enabled) {
+    searchInput.classList.add("disabled-search");
+  } else {
+    searchInput.classList.remove("disabled-search");
+  }
+
+  if (searchClear) {
+    const hasValue = !!(searchInput.value && searchInput.value.trim());
+    searchClear.style.display = enabled && hasValue ? "flex" : "none";
+    searchClear.disabled = !enabled;
+  }
+}
+
+function focusSearchInputSafely(selectionStart = null, selectionEnd = null) {
+  const searchInput = document.getElementById("search");
+  if (!searchInput || searchInput.disabled) return;
+
+  try {
+    searchInput.focus({ preventScroll: true });
+  } catch {
+    searchInput.focus();
+  }
+
+  try {
+    if (
+      selectionStart !== null &&
+      selectionEnd !== null &&
+      typeof searchInput.setSelectionRange === "function"
+    ) {
+      searchInput.setSelectionRange(selectionStart, selectionEnd);
+    }
+  } catch {
+    /* ignore caret restore errors */
+  }
+}
+
+function renderCurrentTabForSearch() {
+  if (state.currentTab === "overview") {
+    renderOverviewTab();
+  } else if (state.currentTab === "reconciliation") {
+    renderReconciliationTab();
+  } else if (state.currentTab === "tally-events") {
+    renderTallyEventsTab();
+  } else if (state.currentTab === "dwl-events") {
+    renderDwlEventsTab();
+  } else if (state.currentTab === "normalized-lines") {
+    renderNormalizedLinesTab();
+  } else if (state.currentTab === "fix-queue") {
+    renderFixQueueTab();
+  }
+}
+
+function applySearchAndRefreshFromInput(searchInput) {
+  if (!searchInput) return;
+
+  const meta = getSearchMetaForCurrentTab();
+  if (!meta.enabled) return;
+
+  const selectionStart = searchInput.selectionStart;
+  const selectionEnd = searchInput.selectionEnd;
+
+  state.searchText = searchInput.value.trim();
+  resetPages();
+
+  renderCurrentTabForSearch();
+
+  requestAnimationFrame(() => {
+    focusSearchInputSafely(selectionStart, selectionEnd);
+    updateSearchInputForCurrentTab();
+  });
 }
 
 async function init() {

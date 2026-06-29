@@ -97,13 +97,19 @@ function withUom(text, uom) {
 }
 
 function isNumericSpecLine(line) {
-  return ["RANGE", "MIN_ONLY", "MAX_ONLY", "EXACT_NUMERIC"].includes(
+  return ["RANGE", "MIN_ONLY", "MAX_ONLY", "EXACT_NUMERIC", "TOLERANCE"].includes(
     String(line?.spec_type_snapshot ?? "").toUpperCase(),
   );
 }
 
 function getCoaReferenceDisplay(line) {
   const base = line?.spec_display_snapshot ?? "—";
+  const specType = String(line?.spec_type_snapshot ?? "").toUpperCase();
+  // TOLERANCE: server-composed display often includes ± and both UOMs — do not duplicate
+  if (specType === "TOLERANCE") {
+    if (base.includes("±") || base.includes("+/-")) return base;
+    return withUom(base, line?.uom_symbol_snapshot);
+  }
   if (!isNumericSpecLine(line)) return base;
   return withUom(base, line?.uom_symbol_snapshot);
 }

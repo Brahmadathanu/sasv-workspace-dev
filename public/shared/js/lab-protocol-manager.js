@@ -77,6 +77,47 @@ const tlConfirmMsg = document.getElementById("tlConfirmMsg");
 const tlConfirmOk = document.getElementById("tlConfirmOk");
 const tlConfirmCancel = document.getElementById("tlConfirmCancel");
 
+// ── Protocol default spec type modal
+const tlSpecDefaultModal = document.getElementById("tlSpecDefaultModal");
+const tlSpecDefaultModalClose = document.getElementById("tlSpecDefaultModalClose");
+const tlSpecDefaultModalCancel = document.getElementById(
+  "tlSpecDefaultModalCancel",
+);
+const tlSpecDefaultModalApply = document.getElementById(
+  "tlSpecDefaultModalApply",
+);
+const tlSpecDefaultModalCtx = document.getElementById("tlSpecDefaultModalCtx");
+const tlSpecDefaultModalSelect = document.getElementById(
+  "tlSpecDefaultModalSelect",
+);
+const tlSpecDefaultModalSource = document.getElementById(
+  "tlSpecDefaultModalSource",
+);
+const tlSpecDefaultModalReviewNote = document.getElementById(
+  "tlSpecDefaultModalReviewNote",
+);
+const tlSpecDefaultModalLockedWarn = document.getElementById(
+  "tlSpecDefaultModalLockedWarn",
+);
+const tlSpecDefaultModalBanner = document.getElementById(
+  "tlSpecDefaultModalBanner",
+);
+const tlSpecDefaultModalConfirm = document.getElementById(
+  "tlSpecDefaultModalConfirm",
+);
+const tlSpecDefaultModalConfirmMsg = document.getElementById(
+  "tlSpecDefaultModalConfirmMsg",
+);
+const tlSpecDefaultModalConfirmOk = document.getElementById(
+  "tlSpecDefaultModalConfirmOk",
+);
+const tlSpecDefaultModalConfirmCancel = document.getElementById(
+  "tlSpecDefaultModalConfirmCancel",
+);
+const tlSpecDefaultModalFooter = document.getElementById(
+  "tlSpecDefaultModalFooter",
+);
+
 // ── Family Mapping tab
 const fmFormTitle = document.getElementById("fmFormTitle");
 const fmFormBanner = document.getElementById("fmFormBanner");
@@ -169,7 +210,7 @@ let tlLines = []; // [{id, seq_no, test_id, ...}, ...]  (null id = new row)
 let tlDirty = false;
 /**
  * tlTestMaster — canonical test list with default method info.
- * Shape: { id, test_name, default_method_id, default_method_name }
+ * Shape: { id, test_name, default_method_id, default_method_name, result_kind }
  * Loaded from lab.v_test_with_default_method if available;
  * falls back to lab.test_master (no method info) when view is absent.
  */
@@ -177,6 +218,35 @@ let tlTestMaster = [];
 let tlTestMasterLoaded = false;
 let tlDraggedLineId = null;
 let tlBatchReorderRpcAvailable = null;
+let tlSpecModalLineIdx = null;
+let tlSpecModalOrigType = null;
+let tlSpecModalPendingType = null;
+
+const VALID_PROTOCOL_SPEC_TYPES = [
+  "RANGE",
+  "MAX_ONLY",
+  "MIN_ONLY",
+  "TEXT",
+  "PASS_FAIL",
+  "TOLERANCE",
+];
+
+const PROTOCOL_SPEC_TYPE_SOURCE_LABELS = {
+  AUTO_SINGLE_TYPE: "Auto",
+  ADMIN_SET: "Admin Set",
+  PROFILE_EXCEPTION_ALLOWED: "Exception Allowed",
+  MIGRATED_LEGACY: "Migrated",
+  MANUAL_REVIEW: "Review",
+};
+
+const PROTOCOL_SPEC_TYPE_DISPLAY_LABELS = {
+  RANGE: "Range",
+  MAX_ONLY: "Max Only",
+  MIN_ONLY: "Min Only",
+  TEXT: "Text",
+  PASS_FAIL: "Pass/Fail",
+  TOLERANCE: "Tolerance",
+};
 
 // Family Mapping state
 let fmProtocols = [];
@@ -600,6 +670,283 @@ function wireTlTab() {
   tlProtocolSelect.addEventListener("change", onTlProtocolChange);
   tlAddLineBtn.addEventListener("click", addTlLine);
   tlSaveLinesBtn.addEventListener("click", saveTlLines);
+  wireTlSpecDefaultModal();
+}
+
+function normalizeProtocolSpecType(specType) {
+  const t = String(specType ?? "")
+    .trim()
+    .toUpperCase();
+  if (t === "NMT") return "MAX_ONLY";
+  if (t === "NLT") return "MIN_ONLY";
+  if (VALID_PROTOCOL_SPEC_TYPES.includes(t)) return t;
+  return "";
+}
+
+function formatSpecTypeSourceLabel(source) {
+  const key = String(source ?? "")
+    .trim()
+    .toUpperCase();
+  if (!key) return "—";
+  return PROTOCOL_SPEC_TYPE_SOURCE_LABELS[key] ?? String(source).trim();
+}
+
+function isProtocolSpecTypeLocked(locked, source) {
+  if (locked === true) return true;
+  const s = String(locked ?? "").trim().toUpperCase();
+  if (s === "TRUE" || s === "READY_LOCKED" || s === "LOCKED") return true;
+  return false;
+}
+
+function isProfileExceptionAllowed(locked, source) {
+  const src = String(source ?? "")
+    .trim()
+    .toUpperCase();
+  const s = String(locked ?? "")
+    .trim()
+    .toUpperCase();
+  if (src === "PROFILE_EXCEPTION_ALLOWED") return true;
+  if (
+    s === "READY_EXCEPTION_ALLOWED" ||
+    s === "PROFILE_EXCEPTION_ALLOWED"
+  ) {
+    return true;
+  }
+  if (
+    (locked === false || s === "FALSE") &&
+    src === "PROFILE_EXCEPTION_ALLOWED"
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function formatDefaultSpecTypeDisplay(specType) {
+  const normalized = normalizeProtocolSpecType(specType);
+  if (!normalized) return "Not set";
+  return PROTOCOL_SPEC_TYPE_DISPLAY_LABELS[normalized] ?? normalized;
+}
+
+function defaultSpecTypeForResultKind(resultKind) {
+  const rk = String(resultKind ?? "").trim().toUpperCase();
+  if (rk === "TEXT") return "TEXT";
+  if (rk === "PASS_FAIL") return "PASS_FAIL";
+  if (rk === "NUMERIC") return "RANGE";
+  return "RANGE";
+}
+
+function specTypeOptionsForResultKind(resultKind) {
+  const rk = String(resultKind ?? "").trim().toUpperCase();
+  if (rk === "TEXT") {
+    return [["TEXT", "TEXT — free text"]];
+  }
+  if (rk === "PASS_FAIL") {
+    return [["PASS_FAIL", "PASS / FAIL"]];
+  }
+  return [
+    ["RANGE", "Range"],
+    ["MIN_ONLY", "Min Only"],
+    ["MAX_ONLY", "Max Only"],
+    ["TOLERANCE", "Tolerance (target ± value)"],
+  ];
+}
+
+function populateProtocolSpecTypeSelect(selectEl, resultKind, selectedValue) {
+  if (!selectEl) return;
+  const options = specTypeOptionsForResultKind(resultKind);
+  const normalized = normalizeProtocolSpecType(selectedValue);
+  selectEl.innerHTML = options
+    .map(
+      ([value, label]) =>
+        `<option value="${esc(value)}">${esc(label)}</option>`,
+    )
+    .join("");
+  if (options.some(([value]) => value === normalized)) {
+    selectEl.value = normalized;
+  } else if (options.length) {
+    selectEl.value = options[0][0];
+  }
+}
+
+function renderProtocolSpecTypeBadge(specType) {
+  const normalized = normalizeProtocolSpecType(specType);
+  if (!normalized) {
+    return `<span class="tl-spec-type-badge tl-spec-not-set">Not set</span>`;
+  }
+  const label = formatDefaultSpecTypeDisplay(normalized);
+  return `<span class="tl-spec-type-badge">${esc(label)}</span>`;
+}
+
+function renderProtocolMetaBadges(locked, source) {
+  const sourceLabel = formatSpecTypeSourceLabel(source);
+  const parts = [
+    `<span class="tl-meta-badge tl-meta-source" title="${esc(String(source ?? ""))}">${esc(sourceLabel)}</span>`,
+  ];
+  if (isProtocolSpecTypeLocked(locked, source)) {
+    parts.push(
+      `<span class="tl-meta-badge tl-meta-locked">Locked</span>`,
+    );
+  } else if (isProfileExceptionAllowed(locked, source)) {
+    parts.push(
+      `<span class="tl-meta-badge tl-meta-exception">Exception Allowed</span>`,
+    );
+  }
+  return `<div class="tl-meta-badges">${parts.join("")}</div>`;
+}
+
+function getTestEntryForLine(line) {
+  return tlTestMaster.find((t) => String(t.id) === String(line?.test_id));
+}
+
+function wireTlSpecDefaultModal() {
+  tlSpecDefaultModalClose?.addEventListener("click", closeTlSpecDefaultModal);
+  tlSpecDefaultModalCancel?.addEventListener("click", closeTlSpecDefaultModal);
+  tlSpecDefaultModalApply?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    applyTlSpecDefaultModal();
+  });
+  tlSpecDefaultModalConfirmCancel?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    hideTlSpecDefaultConfirm();
+  });
+  tlSpecDefaultModalConfirmOk?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (tlSpecModalPendingType) {
+      commitTlSpecDefaultChange(tlSpecModalPendingType);
+    }
+  });
+  tlSpecDefaultModalSelect?.addEventListener("change", () => {
+    hideTlSpecDefaultConfirm();
+  });
+  tlSpecDefaultModal?.addEventListener("click", (e) => {
+    if (e.target === tlSpecDefaultModal) closeTlSpecDefaultModal();
+  });
+}
+
+function hideTlSpecDefaultConfirm() {
+  tlSpecDefaultModalConfirm?.classList.add("hidden");
+  tlSpecDefaultModalFooter?.classList.remove("hidden");
+  tlSpecModalPendingType = null;
+}
+
+function showTlSpecDefaultConfirm(fromType, toType) {
+  tlSpecModalPendingType = normalizeProtocolSpecType(toType);
+  if (tlSpecDefaultModalConfirmMsg) {
+    tlSpecDefaultModalConfirmMsg.textContent =
+      `This line is locked as the protocol default expression. Change default spec type from ${formatDefaultSpecTypeDisplay(fromType)} to ${formatDefaultSpecTypeDisplay(toType)}?`;
+  }
+  hideBanner(tlSpecDefaultModalBanner);
+  tlSpecDefaultModalConfirm?.classList.remove("hidden");
+  tlSpecDefaultModalFooter?.classList.add("hidden");
+  tlSpecDefaultModalConfirmOk?.focus();
+}
+
+function commitTlSpecDefaultChange(specType) {
+  if (tlSpecModalLineIdx == null) return;
+  const line = tlLines[tlSpecModalLineIdx];
+  if (!line) return;
+
+  const selected = normalizeProtocolSpecType(specType);
+  if (!selected) return;
+
+  line.default_spec_type = selected;
+  line._dirty = true;
+  tlDirty = true;
+  tlSaveLinesBtn.disabled = false;
+  hideTlSpecDefaultConfirm();
+  closeTlSpecDefaultModal();
+  renderTlTable();
+  toast("Default spec type updated. Save test lines to persist.", "info");
+}
+
+function openTlSpecDefaultModal(lineIdx) {
+  const line = tlLines[lineIdx];
+  if (!line) return;
+
+  const testEntry = getTestEntryForLine(line);
+  if (!line.test_id) {
+    toast("Select a test for this line before editing the default spec type.", "warn");
+    return;
+  }
+
+  tlSpecModalLineIdx = lineIdx;
+  tlSpecModalOrigType = normalizeProtocolSpecType(line.default_spec_type);
+
+  const testName = testEntry?.test_name ?? line.test_name ?? "—";
+  const methodName =
+    line.method_name ||
+    testEntry?.default_method_name ||
+    "(No default method assigned)";
+  tlSpecDefaultModalCtx.textContent = `${testName} · ${methodName}`;
+
+  const resultKind = testEntry?.result_kind ?? "NUMERIC";
+  populateProtocolSpecTypeSelect(
+    tlSpecDefaultModalSelect,
+    resultKind,
+    line.default_spec_type,
+  );
+
+  tlSpecDefaultModalSource.textContent = formatSpecTypeSourceLabel(
+    line.spec_type_source,
+  );
+  const reviewNote = String(line.spec_type_review_note ?? "").trim();
+  tlSpecDefaultModalReviewNote.textContent = reviewNote || "—";
+
+  const locked = isProtocolSpecTypeLocked(
+    line.spec_type_locked,
+    line.spec_type_source,
+  );
+  tlSpecDefaultModalLockedWarn?.classList.toggle("hidden", !locked);
+  hideBanner(tlSpecDefaultModalBanner);
+  hideTlSpecDefaultConfirm();
+
+  tlSpecDefaultModal?.classList.remove("hidden");
+  tlSpecDefaultModalSelect?.focus();
+}
+
+function closeTlSpecDefaultModal() {
+  tlSpecDefaultModal?.classList.add("hidden");
+  tlSpecModalLineIdx = null;
+  tlSpecModalOrigType = null;
+  hideBanner(tlSpecDefaultModalBanner);
+  hideTlSpecDefaultConfirm();
+}
+
+function applyTlSpecDefaultModal() {
+  if (tlSpecModalLineIdx == null) return;
+  const line = tlLines[tlSpecModalLineIdx];
+  if (!line) {
+    closeTlSpecDefaultModal();
+    return;
+  }
+
+  const selected = normalizeProtocolSpecType(tlSpecDefaultModalSelect?.value);
+  if (!selected) {
+    showBanner(
+      tlSpecDefaultModalBanner,
+      "error",
+      "Default spec type is required for active test lines.",
+    );
+    return;
+  }
+
+  const locked = isProtocolSpecTypeLocked(
+    line.spec_type_locked,
+    line.spec_type_source,
+  );
+  if (
+    locked &&
+    tlSpecModalOrigType &&
+    selected !== tlSpecModalOrigType
+  ) {
+    showTlSpecDefaultConfirm(tlSpecModalOrigType, selected);
+    return;
+  }
+
+  commitTlSpecDefaultChange(selected);
 }
 
 async function populateTlProtocolSelect() {
@@ -649,7 +996,7 @@ async function loadTlMasterData() {
   // exposes a dedicated test-active column.
   const { data: viewData, error: viewErr } = await labSupabase
     .from("v_test_with_default_method")
-    .select("id, test_name, default_method_id, default_method_name")
+    .select("id, test_name, default_method_id, default_method_name, result_kind")
     .order("test_name");
 
   if (!viewErr && viewData) {
@@ -662,7 +1009,7 @@ async function loadTlMasterData() {
   // (default_method_id / default_method_name will be absent — method shows blank)
   const { data: fallbackData, error: fallbackErr } = await labSupabase
     .from("test_master")
-    .select("id, test_name")
+    .select("id, test_name, result_kind")
     .eq("is_active", true)
     .order("test_name");
 
@@ -711,14 +1058,14 @@ async function onTlProtocolChange() {
 async function loadTlLines(protocolId) {
   showBanner(tlBanner, "info", "Loading test lines…");
   tlTableCard.classList.remove("hidden");
-  tlTableBody.innerHTML = `<tr><td colspan="5" class="empty-state"><div class="spinner" style="margin:0 auto 6px;"></div>Loading…</td></tr>`;
+  tlTableBody.innerHTML = `<tr><td colspan="8" class="empty-state"><div class="spinner" style="margin:0 auto 6px;"></div>Loading…</td></tr>`;
 
   await loadTlMasterData();
 
   const { data, error } = await labSupabase
     .from("protocol_category_test")
     .select(
-      "id, sort_order, seq_no, test_id, method_id, is_required, is_active",
+      "id, sort_order, seq_no, test_id, method_id, is_required, is_active, default_spec_type, spec_type_locked, spec_type_source, spec_type_review_note",
     )
     .eq("protocol_category_id", protocolId)
     .eq("is_active", true)
@@ -733,7 +1080,7 @@ async function loadTlLines(protocolId) {
       "error",
       "Failed to load test lines: " + error.message,
     );
-    tlTableBody.innerHTML = `<tr><td colspan="5" class="empty-state">Error loading lines.</td></tr>`;
+    tlTableBody.innerHTML = `<tr><td colspan="8" class="empty-state">Error loading lines.</td></tr>`;
     return;
   }
 
@@ -743,6 +1090,7 @@ async function loadTlLines(protocolId) {
     );
     return {
       ...r,
+      default_spec_type: normalizeProtocolSpecType(r.default_spec_type) || null,
       test_name: testEntry?.test_name ?? r.test_name ?? "",
       method_name: testEntry?.default_method_name ?? r.method_name ?? "",
       _dirty: false,
@@ -758,7 +1106,7 @@ function renderTlTable() {
   tlLineCount.textContent = `${tlLines.length} line${tlLines.length !== 1 ? "s" : ""}`;
 
   if (tlLines.length === 0) {
-    tlTableBody.innerHTML = `<tr><td colspan="5" class="empty-state">No test lines yet. Click <strong>Add Line</strong> to begin.</td></tr>`;
+    tlTableBody.innerHTML = `<tr><td colspan="8" class="empty-state">No test lines yet. Click <strong>Add Line</strong> to begin.</td></tr>`;
     tlSaveLinesBtn.disabled = true;
     return;
   }
@@ -795,6 +1143,15 @@ function renderTlTable() {
       const dragHandleHtml = canDrag
         ? `<span class="drag-handle" title="Drag to reorder" role="button" tabindex="0" aria-label="Drag to reorder test">⋮⋮</span>`
         : `<span class="drag-handle drag-handle-disabled" title="Drag unavailable" aria-hidden="true">⋮⋮</span>`;
+      const specTypeHtml = renderProtocolSpecTypeBadge(line.default_spec_type);
+      const metaHtml = renderProtocolMetaBadges(
+        line.spec_type_locked,
+        line.spec_type_source,
+      );
+      const editSpecDisabled = !line.test_id;
+      const editSpecTitle = editSpecDisabled
+        ? "Select a test first"
+        : "Edit protocol default spec type";
 
       return `
     <tr data-idx="${idx}" data-line-id="${esc(line.id ?? "")}" data-seq-no="${esc(line.seq_no ?? "")}" data-sort-order="${esc(line.sort_order ?? "")}" draggable="${canDrag ? "true" : "false"}" class="${canDrag ? "" : "drag-disabled"}">
@@ -807,6 +1164,11 @@ function renderTlTable() {
       <td><select class="line-input" data-field="test_id" style="min-width:160px">${testOpts}</select></td>
       <td>${methodSelectHtml}</td>
       <td class="td-center"><input class="line-cb" type="checkbox" data-field="is_required" ${line.is_required ? "checked" : ""} /></td>
+      <td>${specTypeHtml}</td>
+      <td>${metaHtml}</td>
+      <td class="td-edit-spec">
+        <button type="button" class="tl-edit-spec-btn" data-idx="${idx}" title="${esc(editSpecTitle)}" ${editSpecDisabled ? "disabled" : ""}>Edit</button>
+      </td>
       <td class="td-actions">
         <button class="del-line-btn" data-idx="${idx}" title="Remove line" type="button">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -839,6 +1201,11 @@ function renderTlTable() {
             (t) => String(t.id) === String(el.value),
           );
           tlLines[idx].method_id = testEntry?.default_method_id ?? null;
+          if (tlLines[idx]._new && el.value) {
+            tlLines[idx].default_spec_type = defaultSpecTypeForResultKind(
+              testEntry?.result_kind,
+            );
+          }
           // Re-render so the read-only method cell updates
           tlLines[idx]._dirty = true;
           tlDirty = true;
@@ -855,6 +1222,14 @@ function renderTlTable() {
     });
 
   wireTlDragAndDrop();
+
+  tlTableBody.querySelectorAll(".tl-edit-spec-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const idx = Number(btn.dataset.idx);
+      if (Number.isNaN(idx)) return;
+      openTlSpecDefaultModal(idx);
+    });
+  });
 
   // Legacy move controls are intentionally kept for compatibility.
   // Buttons are hidden in UI, so this normally binds to zero elements.
@@ -1146,6 +1521,10 @@ function addTlLine() {
     method_id: null,
     is_required: true,
     is_active: true,
+    default_spec_type: null,
+    spec_type_locked: null,
+    spec_type_source: null,
+    spec_type_review_note: null,
     _dirty: true,
     _new: true,
   });
@@ -1179,6 +1558,19 @@ async function saveTlLines() {
       );
       return;
     }
+    const specType = normalizeProtocolSpecType(l.default_spec_type);
+    if (!specType) {
+      const testEntry = tlTestMaster.find(
+        (t) => String(t.id) === String(l.test_id),
+      );
+      showBanner(
+        tlBanner,
+        "error",
+        `Default spec type is required for "${testEntry?.test_name ?? l.test_id}". Use Edit Default to set it.`,
+      );
+      return;
+    }
+    l.default_spec_type = specType;
   }
   const seqSet = new Set();
   for (const l of tlLines) {
@@ -1223,6 +1615,7 @@ async function saveTlLines() {
       p_display_text: null,
       p_is_required: l.is_required !== false,
       p_is_active: true,
+      p_default_spec_type: normalizeProtocolSpecType(l.default_spec_type) || null,
     });
     if (error) {
       const isDupe = /unique|duplicate/i.test(error.message ?? "");

@@ -6,28 +6,6 @@
     <title>Costing &amp; Pricing</title>
     <link rel="stylesheet" href="../shared/css/style.css" />
     <style>
-      :root {
-        --cp-fw-body: 400;
-        --cp-fw-muted: 500;
-        --cp-fw-label: 500;
-        --cp-fw-emphasis: 500;
-        --cp-fw-heading: 600;
-        --cp-fw-metric: 600;
-        --cp-fw-section: 600;
-      }
-      .cp-modal-title {
-        font-weight: var(--cp-fw-heading);
-        font-size: 14px;
-        color: var(--text, #0f172a);
-      }
-      .cp-cell-primary {
-        font-weight: var(--cp-fw-emphasis);
-        color: var(--text, #0f172a);
-      }
-      .cp-field-label {
-        font-weight: var(--cp-fw-label);
-        color: var(--muted, #6b7280);
-      }
       html,
       body {
         height: 100vh;
@@ -66,7 +44,6 @@
       .page-header h1 {
         margin: 0;
         color: var(--primary);
-        font-weight: var(--cp-fw-heading);
       }
       .page-sub {
         color: var(--muted, #6b7280);
@@ -175,7 +152,7 @@
         text-overflow: clip;
         white-space: normal;
         line-height: 1.15;
-        font-weight: var(--cp-fw-label);
+        font-weight: 600;
         font-size: 10.5px;
         color: var(--muted, #6b7280);
         text-transform: uppercase;
@@ -185,7 +162,7 @@
         flex: 0 0 auto;
         font-size: 13px;
         color: var(--text, #0f172a);
-        font-weight: var(--cp-fw-metric);
+        font-weight: 800;
         line-height: 1.15;
         font-variant-numeric: tabular-nums;
       }
@@ -359,7 +336,7 @@
         background: #2563eb;
         color: #fff;
         font-size: 9px;
-        font-weight: var(--cp-fw-heading);
+        font-weight: 700;
         line-height: 14px;
         text-align: center;
       }
@@ -400,7 +377,7 @@
       }
       .peq-filter-section-title {
         font-size: 11px;
-        font-weight: var(--cp-fw-section);
+        font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.05em;
         color: var(--muted, #6b7280);
@@ -474,7 +451,7 @@
         border: 1px solid transparent;
         color: var(--erp-muted, var(--muted, #6b7280));
         font-size: 13px;
-        font-weight: var(--cp-fw-label);
+        font-weight: 700;
         cursor: pointer;
         border-radius: 8px;
         transition: all 0.16s ease;
@@ -491,7 +468,6 @@
         background: var(--erp-accent, var(--primary, #2563eb));
         border-color: var(--erp-accent, var(--primary, #2563eb));
         box-shadow: 0 4px 14px rgba(37, 99, 235, 0.22);
-        font-weight: var(--cp-fw-heading);
       }
       @media (max-width: 520px) {
         .page-header h1 {
@@ -522,7 +498,7 @@
             rgba(37, 99, 235, 0.06)
           );
           color: #0f172a;
-          font-weight: var(--cp-fw-label);
+          font-weight: 600;
           font-size: 14px;
           appearance: none;
           cursor: pointer;
@@ -542,13 +518,8 @@
           display: none;
         }
         #homeBtn {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          padding: 0;
-        }
-        #homeBtn svg {
-          display: block;
+          padding-left: 8px;
+          padding-right: 8px;
         }
       }
       @media (min-width: 521px) {
@@ -585,21 +556,14 @@
       #tableWrap.tw-visible {
         display: block;
       }
-      .generic-table-meta-actions {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        flex: 0 0 auto;
-      }
-
-      .generic-table-meta-actions.hidden {
+      #manualProvisionsPanel.hidden {
         display: none !important;
       }
 
-      .generic-table-meta-actions .icon-btn {
-        width: 30px;
-        height: 30px;
-        padding: 0;
+      #manualProvisionsPanel {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: auto;
       }
 
       #kpiStripWrap.hidden,
@@ -732,7 +696,7 @@
         background: var(--panel-bg, #fff);
         color: var(--muted, #6b7280);
         font-size: 13px;
-        font-weight: var(--cp-fw-label);
+        font-weight: 600;
         box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
       }
       .cp-loading-spinner {
@@ -758,7 +722,7 @@
         border-radius: 999px;
         font-size: 11px;
         line-height: 1.35;
-        font-weight: var(--cp-fw-label);
+        font-weight: 700;
         white-space: nowrap;
         border: 1px solid transparent;
         background: #f8fafc;
@@ -807,7 +771,7 @@
       }
       .cp-status-text {
         font-size: 12px;
-        font-weight: var(--cp-fw-label);
+        font-weight: 700;
         white-space: nowrap;
       }
       .cp-status-text--green {
@@ -833,7 +797,7 @@
       .cp-dashboard-main {
         color: var(--text, #0f172a);
         font-size: 12.5px;
-        font-weight: var(--cp-fw-emphasis);
+        font-weight: 700;
         line-height: 1.25;
         white-space: nowrap;
       }
@@ -847,11 +811,11 @@
       }
       .cp-change-positive {
         color: #166534;
-        font-weight: var(--cp-fw-emphasis);
+        font-weight: 700;
       }
       .cp-change-negative {
         color: #991b1b;
-        font-weight: var(--cp-fw-emphasis);
+        font-weight: 700;
       }
       .cp-change-neutral {
         color: var(--muted, #6b7280);
@@ -860,7 +824,7 @@
         margin: 0 0 8px;
         color: var(--text, #0f172a);
         font-size: 13px;
-        font-weight: var(--cp-fw-section);
+        font-weight: 800;
         text-transform: uppercase;
         letter-spacing: 0.04em;
       }
@@ -880,14 +844,14 @@
       .cp-kv dt {
         color: var(--muted, #6b7280);
         font-size: 11px;
-        font-weight: var(--cp-fw-label);
+        font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.04em;
       }
       .cp-card-value {
         margin-top: 4px;
         color: var(--text, #0f172a);
-        font-weight: var(--cp-fw-metric);
+        font-weight: 800;
         overflow-wrap: anywhere;
       }
       .scheme-policy-sku-card {
@@ -904,7 +868,7 @@
       .scheme-policy-sku-card .cp-card-value {
         margin-top: 0;
         font-size: 13px;
-        font-weight: var(--cp-fw-emphasis);
+        font-weight: 600;
         text-align: right;
       }
       .cp-kv {
@@ -933,7 +897,7 @@
         background: rgba(37, 99, 235, 0.055);
         color: var(--text, #0f172a);
         font-size: 12px;
-        font-weight: var(--cp-fw-section);
+        font-weight: 800;
         text-transform: uppercase;
         letter-spacing: 0.04em;
       }
@@ -1024,17 +988,9 @@
       #costSheetSignConfirmBtn.icon-btn.icon-btn-primary:hover,
       #costSheetSignConfirmBtn.icon-btn.icon-btn-primary:focus-visible {
         background: #1d4ed8 !important;
-        background: color-mix(
-          in srgb,
-          var(--primary, #2563eb) 86%,
-          #000
-        ) !important;
+        background: color-mix(in srgb, var(--primary, #2563eb) 86%, #000) !important;
         border-color: #1d4ed8 !important;
-        border-color: color-mix(
-          in srgb,
-          var(--primary, #2563eb) 86%,
-          #000
-        ) !important;
+        border-color: color-mix(in srgb, var(--primary, #2563eb) 86%, #000) !important;
         color: #fff !important;
       }
       .cost-sheet-a4-wrap {
@@ -1303,12 +1259,11 @@
         flex-direction: column;
         gap: 4px;
         font-size: 12px;
-        font-weight: var(--cp-fw-label);
+        font-weight: 600;
         color: var(--muted, #6b7280);
       }
       .sign-grid input,
-      .sign-grid select,
-      .sign-grid textarea {
+      .sign-grid select {
         padding: 8px 9px;
         border: 1px solid var(--border, #e5e7eb);
         border-radius: 7px;
@@ -1317,23 +1272,6 @@
         background: var(--surface, #fff);
         min-height: 40px;
         width: 100%;
-      }
-      .sign-grid textarea {
-        min-height: 72px;
-        resize: vertical;
-      }
-      .cost-sheet-sign-actions.cp-sign-actions-split {
-        justify-content: space-between;
-      }
-      .cost-sheet-sign-actions .cp-sign-actions-end {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        margin-left: auto;
-      }
-      .cost-sheet-sign-actions
-        .icon-btn:not(.icon-btn-primary):not(.cp-danger-icon-btn) {
-        font-weight: var(--cp-fw-label);
       }
       @media (max-width: 620px) {
         .sign-grid {
@@ -1371,7 +1309,7 @@
       .cp-workbench-summary-card .cp-card-value {
         margin-top: 2px;
         font-size: 13px;
-        font-weight: var(--cp-fw-emphasis);
+        font-weight: 700;
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -1381,7 +1319,7 @@
         min-height: 26px;
         padding: 4px 10px;
         font-size: 12px;
-        font-weight: var(--cp-fw-label);
+        font-weight: 700;
       }
       .cp-manager-tab-card {
         text-align: left;
@@ -1531,7 +1469,7 @@
         border: 1px solid var(--border, #e5e7eb);
         color: var(--muted, #6b7280);
         font-size: 13px;
-        font-weight: var(--cp-fw-label);
+        font-weight: 700;
         cursor: pointer;
         white-space: nowrap;
         line-height: 1.2;
@@ -1541,7 +1479,6 @@
         background: var(--primary, #2563eb);
         color: #fff;
         border-color: var(--primary, #2563eb);
-        font-weight: var(--cp-fw-heading);
       }
       .modal-content {
         flex: 1 1 auto;
@@ -1578,10 +1515,10 @@
         font-size: 11.5px;
       }
       .modal-content .cp-printable-table strong {
-        font-weight: var(--cp-fw-emphasis);
+        font-weight: 600;
       }
       .modal-content .cp-printable-section-row td {
-        font-weight: var(--cp-fw-section);
+        font-weight: 700;
       }
       .peq-modal-subtitle {
         color: var(--muted, #6b7280);
@@ -1714,7 +1651,7 @@
     >
       <div class="cost-sheet-sign-panel">
         <div class="cost-sheet-sign-header">
-          <span id="manualProvisionEditTitle" class="cp-modal-title">Add Manual Provision</span>
+          <strong id="manualProvisionEditTitle">Add Manual Provision</strong>
           <button
             id="manualProvisionEditCloseBtn"
             type="button"
@@ -1726,16 +1663,8 @@
           </button>
         </div>
         <div class="cost-sheet-sign-body">
-          <div
-            id="manualProvisionEditBanner"
-            class="cp-muted-text"
-            style="margin-bottom: 10px; line-height: 1.45"
-          >
-            Saving updates the manual provision register. Enter monthly amount
-            only. If the approved provision is annual, divide it by 12 and enter
-            only the monthly value. Active provisions are included in cost pool
-            totals. Use Refresh Live Costing when you want downstream costing
-            snapshots recalculated.
+          <div id="manualProvisionEditBanner" class="cp-muted-text" style="margin-bottom: 10px; line-height: 1.45">
+            Saving updates the manual provision register. Active provisions are included in cost pool totals. Use Refresh Live Costing when you want downstream costing snapshots recalculated.
           </div>
           <div class="sign-grid">
             <label>
@@ -1752,84 +1681,29 @@
             </label>
             <label>
               Provision Key
-              <input
-                id="manualProvisionKey"
-                type="text"
-                placeholder="HO_ADMIN_ALLOCATION"
-              />
+              <input id="manualProvisionKey" type="text" placeholder="HO_ADMIN_ALLOCATION" />
             </label>
             <label style="grid-column: 1 / -1">
               Provision Label
-              <input
-                id="manualProvisionLabel"
-                type="text"
-                placeholder="Head Office Admin Overhead Allocation"
-              />
+              <input id="manualProvisionLabel" type="text" placeholder="Head Office Admin Overhead Allocation" />
             </label>
             <label>
-              Monthly Provision Amount
-              <input
-                id="manualProvisionAmount"
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="Monthly amount only"
-              />
+              Provision Amount
+              <input id="manualProvisionAmount" type="number" min="0" step="0.01" />
             </label>
             <label>
               Source Reference
-              <input
-                id="manualProvisionSourceReference"
-                type="text"
-                placeholder="GM approval / HO estimate / Finance note / Board approval"
-              />
+              <input id="manualProvisionSourceReference" type="text" placeholder="GM approval / HO estimate / Finance note / Board approval" />
             </label>
             <label style="grid-column: 1 / -1">
               Remarks
-              <textarea
-                id="manualProvisionRemarks"
-                rows="3"
-                placeholder="Optional governance note"
-              ></textarea>
+              <textarea id="manualProvisionRemarks" rows="3" placeholder="Optional governance note"></textarea>
             </label>
           </div>
         </div>
-        <div class="cost-sheet-sign-actions cp-sign-actions-split">
-          <button
-            id="manualProvisionDeactivateBtn"
-            type="button"
-            class="icon-btn cp-danger-icon-btn hidden"
-            title="Deactivate Manual Provision"
-            aria-label="Deactivate Manual Provision"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.4"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <circle cx="12" cy="12" r="9"></circle>
-              <path d="M15 9l-6 6"></path>
-              <path d="M9 9l6 6"></path>
-            </svg>
-          </button>
-          <div class="cp-sign-actions-end">
-            <button id="manualProvisionCancelBtn" type="button" class="icon-btn">
-              Cancel
-            </button>
-            <button
-              id="manualProvisionSaveBtn"
-              type="button"
-              class="icon-btn icon-btn-primary"
-            >
-              Save
-            </button>
-          </div>
+        <div class="cost-sheet-sign-actions">
+          <button id="manualProvisionCancelBtn" type="button" class="icon-btn">Cancel</button>
+          <button id="manualProvisionSaveBtn" type="button" class="icon-btn icon-btn-primary">Save</button>
         </div>
       </div>
     </div>
@@ -1841,7 +1715,7 @@
     >
       <div class="cost-sheet-sign-panel">
         <div class="cost-sheet-sign-header">
-          <span class="cp-modal-title">Deactivate Manual Provision</span>
+          <strong>Deactivate Manual Provision</strong>
           <button
             id="manualProvisionDeactivateCloseBtn"
             type="button"
@@ -1856,44 +1730,20 @@
           <div class="cp-card scheme-policy-sku-card">
             <div>
               <div class="cp-card-label">Provision</div>
-              <div id="manualProvisionDeactivateLabel" class="cp-card-value">
-                --
-              </div>
+              <div id="manualProvisionDeactivateLabel" class="cp-card-value">--</div>
             </div>
           </div>
-          <div class="sign-grid" style="margin-top: 10px">
-            <label style="grid-column: 1 / -1">
-              Reason / remarks
-              <textarea
-                id="manualProvisionDeactivateReason"
-                rows="3"
-                placeholder="Reason for deactivation"
-              ></textarea>
-            </label>
-          </div>
-          <div
-            class="cp-muted-text"
-            style="margin-top: 10px; line-height: 1.45"
-          >
-            Deactivation excludes this provision from cost pool monthly summary
-            and downstream costing after refresh.
+          <label style="display:block; margin-top: 10px">
+            Reason / remarks
+            <textarea id="manualProvisionDeactivateReason" rows="3" placeholder="Reason for deactivation"></textarea>
+          </label>
+          <div class="cp-muted-text" style="margin-top: 10px; line-height: 1.45">
+            Deactivation excludes this provision from cost pool monthly summary and downstream costing after refresh.
           </div>
         </div>
         <div class="cost-sheet-sign-actions">
-          <button
-            id="manualProvisionDeactivateCancelBtn"
-            type="button"
-            class="icon-btn"
-          >
-            Cancel
-          </button>
-          <button
-            id="manualProvisionDeactivateSaveBtn"
-            type="button"
-            class="icon-btn icon-btn-primary"
-          >
-            Deactivate
-          </button>
+          <button id="manualProvisionDeactivateCancelBtn" type="button" class="icon-btn">Cancel</button>
+          <button id="manualProvisionDeactivateSaveBtn" type="button" class="icon-btn icon-btn-primary">Deactivate</button>
         </div>
       </div>
     </div>
@@ -2362,21 +2212,148 @@
       <div class="table-card">
         <div id="workbenchSummary" class="cp-workbench-summary"></div>
         <div id="statusArea" class="status">Loading...</div>
-        <div
-          id="genericTableMetaRow"
+        <div id="manualProvisionsPanel" class="hidden" style="margin-top: 10px">
+          <div
+            class="card"
+            style="padding: 12px; border-radius: 8px; background: var(--panel-bg); border: 1px solid var(--border); margin-bottom: 10px"
+          >
+            <div class="cp-card-label">Manual Cost Pool Provisions</div>
+            <div class="cp-card-value" style="margin-top: 4px">
+              Controlled manual overhead/provision entries included in cost pool totals.
+            </div>
+            <div class="cp-muted-text" style="margin-top: 6px">
+              Use this for approved provisions not coming from staff salary or mapped Tally expenses.
+            </div>
+          </div>
+
+          <div class="kpi-strip" style="margin-top: 8px">
+            <div class="kpi total"><div>Total Rows</div><div id="mpKpiTotalRows">0</div></div>
+            <div class="kpi ready"><div>Active Rows</div><div id="mpKpiActiveRows">0</div></div>
+            <div class="kpi"><div>Inactive Rows</div><div id="mpKpiInactiveRows">0</div></div>
+            <div class="kpi review"><div>Manual Amount</div><div id="mpKpiManualAmount">?0.00</div></div>
+          </div>
+
+          <div
+            class="card search-card"
+            style="margin-top: 10px; padding: 10px; border-radius: 8px; background: var(--panel-bg); border: 1px solid var(--border); display: flex; flex-wrap: wrap; align-items: end; gap: 8px"
+          >
+            <label class="filter-item" style="min-width: 140px; flex: 0 0 140px">
+              <div class="cp-card-label" style="margin-bottom: 4px">Period</div>
+              <input id="mpPeriodFilter" type="month" />
+            </label>
+            <label class="filter-item" style="min-width: 180px; flex: 1 1 180px">
+              <div class="cp-card-label" style="margin-bottom: 4px">Pool</div>
+              <select id="mpPoolFilter"></select>
+            </label>
+            <label class="filter-item" style="min-width: 140px; flex: 0 0 140px">
+              <div class="cp-card-label" style="margin-bottom: 4px">Status</div>
+              <select id="mpStatusFilter">
+                <option value="all">All</option>
+                <option value="active" selected>Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </label>
+            <div class="filter-item search" style="flex: 1 1 260px; min-width: 220px">
+              <div class="cp-card-label" style="margin-bottom: 4px">Search</div>
+              <div style="position: relative">
+                <input
+                  id="mpSearchInput"
+                  type="text"
+                  placeholder="Search key, label, source, remarks, type, pool"
+                  aria-label="Search manual provisions"
+                />
+                <button
+                  id="mpSearchClearBtn"
+                  type="button"
+                  class="input-clear-btn"
+                  title="Clear search"
+                  aria-label="Clear search"
+                  style="display: none"
+                >
+                  <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+                    <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+                    <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <button id="mpRefreshBtn" type="button" class="icon-btn" title="Refresh Manual Provisions">Refresh</button>
+            <button id="mpAddBtn" type="button" class="icon-btn icon-btn-primary" title="Add Manual Provision">Add</button>
+          </div>
+
+          <div class="cp-muted-text" style="margin-top: 10px; line-height: 1.45">
+            Manual provisions are included in cost pool totals immediately. Use Refresh Live Costing to recalculate downstream costing snapshots.
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 12px">
+            <div class="card" style="padding: 10px; border-radius: 8px; background: var(--panel-bg); border: 1px solid var(--border)">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
+                <div>
+                  <div class="cp-card-label">Provision Register</div>
+                  <div class="cp-muted-text">Current manual cost pool provision entries</div>
+                </div>
+                <span id="mpProvisionRowCount" class="peq-row-count">0 rows</span>
+              </div>
+              <div style="overflow:auto">
+                <table class="costing-pricing-table">
+                  <thead>
+                    <tr>
+                      <th>Period</th>
+                      <th>Pool</th>
+                      <th>Type</th>
+                      <th>Key / Label</th>
+                      <th class="c-right">Amount</th>
+                      <th>Source Ref</th>
+                      <th>Status</th>
+                      <th>Updated</th>
+                      <th class="c-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="mpProvisionTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="card" style="padding: 10px; border-radius: 8px; background: var(--panel-bg); border: 1px solid var(--border)">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
+                <div>
+                  <div class="cp-card-label">Monthly Pool Impact</div>
+                  <div class="cp-muted-text">Current cost pool impact including manual provision amount</div>
+                </div>
+                <span id="mpPoolImpactRowCount" class="peq-row-count">0 rows</span>
+              </div>
+              <div style="overflow:auto">
+                <table class="costing-pricing-table">
+                  <thead>
+                    <tr>
+                      <th>Period</th>
+                      <th>Pool</th>
+                      <th class="c-right">Staff</th>
+                      <th class="c-right">Expense</th>
+                      <th class="c-right">Manual</th>
+                      <th class="c-right">Total</th>
+                      <th>Source Type</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="mpPoolImpactTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="genericTableMetaRow"
           style="
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 8px;
             margin-bottom: 8px;
           "
         >
-          <div id="genericTableMetaActions" class="generic-table-meta-actions hidden"></div>
           <span
             id="peqRowCount"
             class="peq-row-count"
-            style="display: none; margin-left: 0"
+            style="display: none; margin-left: 8px"
           ></span>
           <div
             class="pagination"
@@ -2458,7 +2435,7 @@
         <div class="modal-window">
           <div class="modal-header">
             <div>
-              <span id="drawerTitle" class="cp-modal-title">Details</span>
+              <strong id="drawerTitle">Details</strong>
               <div class="peq-modal-subtitle" id="drawerSubtitle"></div>
             </div>
             <button
@@ -2493,7 +2470,7 @@
       <div class="cost-sheet-modal-panel">
         <div class="cost-sheet-modal-toolbar">
           <div>
-            <span id="costSheetModalTitle" class="cp-modal-title">Cost Sheet</span>
+            <strong id="costSheetModalTitle">Cost Sheet</strong>
             <div
               id="costSheetModalSubtitle"
               class="cost-sheet-modal-subtitle"
@@ -2560,7 +2537,7 @@
     >
       <div class="cost-sheet-sign-panel">
         <div class="cost-sheet-sign-header">
-          <span class="cp-modal-title">Confirm Signatory Details</span>
+          <strong>Confirm Signatory Details</strong>
           <button
             id="costSheetSignCloseBtn"
             type="button"
@@ -2633,7 +2610,7 @@
     >
       <div class="cost-sheet-sign-panel">
         <div class="cost-sheet-sign-header">
-          <span class="cp-modal-title">Confirm Monthly Snapshot Refresh</span>
+          <strong>Confirm Monthly Snapshot Refresh</strong>
           <button
             id="snapshotConfirmCloseBtn"
             type="button"
@@ -2664,14 +2641,13 @@
           </div>
 
           <div class="status" style="padding: 0; color: var(--text, #111827)">
-            This will replace the monthly cost sheet snapshot for the selected
-            period.
+            This will replace the monthly cost sheet snapshot for the selected period.
           </div>
 
           <div class="cp-muted-text" style="margin-top: 8px; line-height: 1.45">
-            Existing snapshot rows for this month will be deleted and recreated
-            from the current live cost sheet view. This will not affect live
-            cost sheet printing.
+            Existing snapshot rows for this month will be deleted and recreated from
+            the current live cost sheet view. This will not affect live cost sheet
+            printing.
           </div>
         </div>
 
@@ -2697,7 +2673,7 @@
     >
       <div class="cost-sheet-sign-panel">
         <div class="cost-sheet-sign-header">
-          <span class="cp-modal-title">Edit Selling Price Policy</span>
+          <strong>Edit Selling Price Policy</strong>
           <button
             id="sellingPolicyEditCloseBtn"
             type="button"
@@ -2718,62 +2694,32 @@
           <div class="sign-grid">
             <label>
               GST %
-              <input
-                id="sellingPolicyGstPercent"
-                type="number"
-                step="0.01"
-                min="0"
-              />
+              <input id="sellingPolicyGstPercent" type="number" step="0.01" min="0" />
             </label>
 
             <label>
               IK Discount %
-              <input
-                id="sellingPolicyIkDiscountPercent"
-                type="number"
-                step="0.01"
-                min="0"
-              />
+              <input id="sellingPolicyIkDiscountPercent" type="number" step="0.01" min="0" />
             </label>
 
             <label>
               OK Discount %
-              <input
-                id="sellingPolicyOkDiscountPercent"
-                type="number"
-                step="0.01"
-                min="0"
-              />
+              <input id="sellingPolicyOkDiscountPercent" type="number" step="0.01" min="0" />
             </label>
 
             <label>
               IK Fixed Discount Amount
-              <input
-                id="sellingPolicyIkDiscountAmount"
-                type="number"
-                step="0.01"
-                min="0"
-              />
+              <input id="sellingPolicyIkDiscountAmount" type="number" step="0.01" min="0" />
             </label>
 
             <label>
               OK Fixed Discount Amount
-              <input
-                id="sellingPolicyOkDiscountAmount"
-                type="number"
-                step="0.01"
-                min="0"
-              />
+              <input id="sellingPolicyOkDiscountAmount" type="number" step="0.01" min="0" />
             </label>
 
             <label>
               Contingency %
-              <input
-                id="sellingPolicyContingencyPercent"
-                type="number"
-                step="0.01"
-                min="0"
-              />
+              <input id="sellingPolicyContingencyPercent" type="number" step="0.01" min="0" />
             </label>
 
             <label>
@@ -2791,13 +2737,9 @@
             </label>
           </div>
 
-          <div
-            class="cp-muted-text"
-            style="margin-top: 10px; line-height: 1.45"
-          >
-            Saving this policy will not automatically recalculate costing. After
-            saving, use Refresh Live Costing to update derived selling price and
-            cost sheet values.
+          <div class="cp-muted-text" style="margin-top: 10px; line-height: 1.45">
+            Saving this policy will not automatically recalculate costing. After saving,
+            use Refresh Live Costing to update derived selling price and cost sheet values.
           </div>
         </div>
 
@@ -2855,7 +2797,7 @@
     >
       <div class="cost-sheet-sign-panel">
         <div class="cost-sheet-sign-header">
-          <span class="cp-modal-title">Edit Scheme Policy</span>
+          <strong>Edit Scheme Policy</strong>
           <button
             id="schemePolicyEditCloseBtn"
             type="button"
@@ -2957,7 +2899,7 @@
     >
       <div class="cost-sheet-sign-panel">
         <div class="cost-sheet-sign-header">
-          <span class="cp-modal-title">Create Hierarchy Scheme Rule</span>
+          <strong>Create Hierarchy Scheme Rule</strong>
           <button
             id="schemeRuleEditCloseBtn"
             type="button"
@@ -3041,10 +2983,7 @@
             </label>
           </div>
 
-          <div
-            class="cp-muted-text"
-            style="margin-top: 10px; line-height: 1.45"
-          >
+          <div class="cp-muted-text" style="margin-top: 10px; line-height: 1.45">
             The selected scope is saved by ID, not by name. Full hierarchy path
             is shown to avoid accidental selection when names repeat.
           </div>
@@ -3104,7 +3043,7 @@
     >
       <div class="cost-sheet-sign-panel">
         <div class="cost-sheet-sign-header">
-          <span class="cp-modal-title">Close Scheme Rule</span>
+          <strong>Close Scheme Rule</strong>
           <button
             id="schemeRuleCloseCloseBtn"
             type="button"
@@ -3138,10 +3077,7 @@
             </label>
           </div>
 
-          <div
-            class="cp-muted-text"
-            style="margin-top: 10px; line-height: 1.45"
-          >
+          <div class="cp-muted-text" style="margin-top: 10px; line-height: 1.45">
             Closing a rule will stop it from applying further, while preserving
             the audit trail.
           </div>
@@ -3169,7 +3105,7 @@
     >
       <div class="cost-sheet-sign-panel">
         <div class="cost-sheet-sign-header">
-          <span class="cp-modal-title">Set Expense Head Mapping</span>
+          <strong>Set Expense Head Mapping</strong>
           <button
             id="expenseMappingEditCloseBtn"
             type="button"
@@ -3195,7 +3131,7 @@
               <select id="expenseMappingPool"></select>
             </label>
 
-            <label style="display: flex; align-items: flex-end; gap: 8px">
+            <label style="display:flex;align-items:flex-end;gap:8px">
               <input id="expenseMappingInclude" type="checkbox" />
               <span>Include in costing</span>
             </label>
@@ -3210,13 +3146,9 @@
             </label>
           </div>
 
-          <div
-            class="cp-muted-text"
-            style="margin-top: 10px; line-height: 1.45"
-          >
-            Saving an expense mapping updates the governance register only. Use
-            Refresh Live Costing later when you want the costing engine to
-            recalculate with the latest mapping state.
+          <div class="cp-muted-text" style="margin-top: 10px; line-height: 1.45">
+            Saving an expense mapping updates the governance register only.
+            Use Refresh Live Costing later when you want the costing engine to recalculate with the latest mapping state.
           </div>
         </div>
 
@@ -3275,7 +3207,7 @@
     >
       <div class="cost-sheet-sign-panel">
         <div class="cost-sheet-sign-header">
-          <span class="cp-modal-title">Review Staff Costing Classification</span>
+          <strong>Review Staff Costing Classification</strong>
           <button
             id="staffGovernanceReviewCloseBtn"
             type="button"
@@ -3291,9 +3223,7 @@
           <div class="cp-card scheme-policy-sku-card">
             <div>
               <div class="cp-card-label">Staff</div>
-              <div id="staffGovernanceReviewLabel" class="cp-card-value">
-                --
-              </div>
+              <div id="staffGovernanceReviewLabel" class="cp-card-value">--</div>
             </div>
           </div>
 
@@ -3312,6 +3242,7 @@
       </div>
     </div>
 
+
     <div
       id="staffClassificationEditModal"
       class="cost-sheet-sign-modal hidden"
@@ -3319,7 +3250,7 @@
     >
       <div class="cost-sheet-sign-panel">
         <div class="cost-sheet-sign-header">
-          <span class="cp-modal-title">Edit Staff Costing Classification</span>
+          <strong>Edit Staff Costing Classification</strong>
           <button
             id="staffClassificationEditCloseBtn"
             type="button"
@@ -3376,22 +3307,14 @@
             </label>
           </div>
 
-          <div
-            class="cp-muted-text"
-            style="margin-top: 10px; line-height: 1.45"
-          >
-            Saving staff classification updates the costing governance source
-            only. Use Refresh Live Costing when you are ready to recalculate
-            cost pools and SKU costs.
+          <div class="cp-muted-text" style="margin-top: 10px; line-height: 1.45">
+            Saving staff classification updates the costing governance source only.
+            Use Refresh Live Costing when you are ready to recalculate cost pools and SKU costs.
           </div>
         </div>
 
         <div class="cost-sheet-sign-actions">
-          <button
-            id="staffClassificationEditCancelBtn"
-            type="button"
-            class="icon-btn"
-          >
+          <button id="staffClassificationEditCancelBtn" type="button" class="icon-btn">
             Cancel
           </button>
           <button
@@ -3411,7 +3334,7 @@
     >
       <div class="cost-sheet-sign-panel">
         <div class="cost-sheet-sign-header">
-          <span class="cp-modal-title">Set Manual Material Rate</span>
+          <strong>Set Manual Material Rate</strong>
           <button
             id="manualRateEditCloseBtn"
             type="button"
@@ -3473,13 +3396,9 @@
             </label>
           </div>
 
-          <div
-            class="cp-muted-text"
-            style="margin-top: 10px; line-height: 1.45"
-          >
-            Saving a manual rate will close any existing active manual rate for
-            this stock item and create a new active rate. Use Refresh Live
-            Costing after saving to recalculate costing and Workbench status.
+          <div class="cp-muted-text" style="margin-top: 10px; line-height: 1.45">
+            Saving a manual rate will close any existing active manual rate for this stock item and create a new active rate.
+            Use Refresh Live Costing after saving to recalculate costing and Workbench status.
           </div>
         </div>
 
@@ -3538,7 +3457,7 @@
     >
       <div class="cost-sheet-sign-panel">
         <div class="cost-sheet-sign-header">
-          <span class="cp-modal-title">Close Manual Material Rate</span>
+          <strong>Close Manual Material Rate</strong>
           <button
             id="manualRateCloseCloseBtn"
             type="button"
@@ -3574,13 +3493,9 @@
             </label>
           </div>
 
-          <div
-            class="cp-muted-text"
-            style="margin-top: 10px; line-height: 1.45"
-          >
-            Closing the manual rate will make it inactive. After Refresh Live
-            Costing, the costing engine can use purchase rate or other available
-            rate source.
+          <div class="cp-muted-text" style="margin-top: 10px; line-height: 1.45">
+            Closing the manual rate will make it inactive. After Refresh Live Costing,
+            the costing engine can use purchase rate or other available rate source.
           </div>
         </div>
 
@@ -3639,3 +3554,4 @@
     <script type="module" src="js/costing-pricing.js"></script>
   </body>
 </html>
+

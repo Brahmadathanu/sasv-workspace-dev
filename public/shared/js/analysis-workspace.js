@@ -112,6 +112,20 @@ const PERMISSION_DENIED_MESSAGE =
 const PERMISSION_VERIFY_FAILED_MESSAGE =
   "Could not verify workflow permissions. Actions are disabled for safety.";
 
+const ANALYSIS_QUEUE_PAGE = "lab-analysis-queue.html";
+
+function navigateToAnalysisQueue() {
+  if (typeof Platform?.navigate === "function") {
+    Platform.navigate(ANALYSIS_QUEUE_PAGE);
+    return;
+  }
+  try {
+    window.location.href = ANALYSIS_QUEUE_PAGE;
+  } catch {
+    /* ignore */
+  }
+}
+
 // ── DOM refs ───────────────────────────────────────────────────────────────────
 const $ = (id) => document.getElementById(id);
 
@@ -152,11 +166,15 @@ const btnAddOutsourcedTest = $("btnAddOutsourcedTest");
 const btnViewCoa = $("btnViewCoa");
 const actionBarStatus = $("actionBarStatus");
 const refreshBtn = $("refreshBtn");
+const btnBackToAnalysisQueue = $("btnBackToAnalysisQueue");
 const homeBtn = $("homeBtn");
 const toastContainer = $("toastContainer");
 const loadingOverlay = $("loadingOverlay");
 
-// Reference modal
+// TOLERANCE reference proposals require extended RPC params (server-side support).
+const REFERENCE_PROPOSAL_SUPPORTS_TOLERANCE = true;
+
+let refToleranceUomRows = [];
 const referenceModal = $("referenceModal");
 const refModalTitle = $("refModalTitle");
 const refModalSub = $("refModalSub");
@@ -167,6 +185,12 @@ const refMaxValueField = $("refMaxValueField");
 const refMaxValueInput = $("refMaxValueInput");
 const refExactValueField = $("refExactValueField");
 const refExactValueInput = $("refExactValueInput");
+const refToleranceField = $("refToleranceField");
+const refTargetValueInput = $("refTargetValueInput");
+const refToleranceValueField = $("refToleranceValueField");
+const refToleranceValueInput = $("refToleranceValueInput");
+const refToleranceUomField = $("refToleranceUomField");
+const refToleranceUomSelect = $("refToleranceUomSelect");
 const refTextValueField = $("refTextValueField");
 const refTextValueInput = $("refTextValueInput");
 const refPassFailValueField = $("refPassFailValueField");
@@ -180,6 +204,68 @@ const refNoteInput = $("refNoteInput");
 const btnAddException = $("btnAddException");
 const btnRefCancel = $("btnRefCancel");
 const btnRefSave = $("btnRefSave");
+
+// Reference source capture
+const REF_SOURCE_TYPE_DEFAULT = "IN_HOUSE_STANDARD";
+const REF_SOURCE_SEARCH_DEBOUNCE_MS = 300;
+const REF_SOURCE_BIBLIO_TYPES = new Set(["API", "BOOK", "MONOGRAPH"]);
+
+const refSourceSection = $("refSourceSection");
+const refSourceTypeSelect = $("refSourceTypeSelect");
+const refSourceModeExisting = $("refSourceModeExisting");
+const refSourceModeCreate = $("refSourceModeCreate");
+const refSourceExistingPanel = $("refSourceExistingPanel");
+const refSourceCreatePanel = $("refSourceCreatePanel");
+const refSourceSearchInput = $("refSourceSearchInput");
+const refSourceSearchStatus = $("refSourceSearchStatus");
+const refSourceResultsList = $("refSourceSearchResults");
+const refSourceSelectedSummary = $("refSourceSelectedSummary");
+const refSourceSelectedLabel = $("refSourceSelectedLabel");
+const refSourceClearSelection = $("refSourceClearSelection");
+const refSourceCreateDisplayNameField = $("refSourceCreateDisplayNameField");
+const refSourceCreateDisplayName = $("refSourceCreateDisplayName");
+const refSourceInHouseFields = $("refSourceInHouseFields");
+const refSourceInHouseCode = $("refSourceInHouseCode");
+const refSourcePaperFields = $("refSourcePaperFields");
+const refSourceDoiInput = $("refSourceDoiInput");
+const btnRefSourceDoiLookup = $("btnRefSourceDoiLookup");
+const refSourceCitationPreviewWrap = $("refSourceCitationPreviewWrap");
+const refSourceCitationPreviewText = $("refSourceCitationPreviewText");
+const refSourceCreateCitationField = $("refSourceCreateCitationField");
+const refSourceCreateCitation = $("refSourceCreateCitation");
+const refSourceDetailFields = $("refSourceDetailFields");
+const refSourceCreateSourceTitle = $("refSourceCreateSourceTitle");
+const refSourceCreatePart = $("refSourceCreatePart");
+const refSourceCreateVolume = $("refSourceCreateVolume");
+const refSourceCreateEdition = $("refSourceCreateEdition");
+const refSourceCreatePubYear = $("refSourceCreatePubYear");
+const refSourceCreatePublisher = $("refSourceCreatePublisher");
+const refSourceCreateAuthorEditor = $("refSourceCreateAuthorEditor");
+const refSourceCreateCommentator = $("refSourceCreateCommentator");
+const refSourceCreateChapterSection = $("refSourceCreateChapterSection");
+const refSourceCreatePageFrom = $("refSourceCreatePageFrom");
+const refSourceCreatePageTo = $("refSourceCreatePageTo");
+const refSourcePaperDetailFields = $("refSourcePaperDetailFields");
+const refSourceCreateArticleTitle = $("refSourceCreateArticleTitle");
+const refSourceCreateJournal = $("refSourceCreateJournal");
+const refSourceCreateAuthors = $("refSourceCreateAuthors");
+const refSourceCreatePaperYear = $("refSourceCreatePaperYear");
+const refSourceCreatePaperPublisher = $("refSourceCreatePaperPublisher");
+const refSourceCreateRemarksField = $("refSourceCreateRemarksField");
+const refSourceCreateRemarks = $("refSourceCreateRemarks");
+
+let refSourceMode = "existing";
+let refSourceType = REF_SOURCE_TYPE_DEFAULT;
+let refSelectedSourceId = null;
+let refSelectedSourceDisplay = "";
+let refSourceSearchRows = [];
+let refSourceSearchTimer = null;
+let refSourceSearchLoading = false;
+let refSourceSaving = false;
+let refDefaultInHouseSourceId = null;
+let refDoiLookupLoading = false;
+let refSourceDoiMetadata = null;
+let refSourceLastLookupDoi = null;
 
 // Outsourced modal
 const outsourcedModal = $("outsourcedModal");
@@ -903,12 +989,13 @@ function buildResultRow(row) {
 
   const rowClass =
     `${complianceRowClass(row.compliance_status)} ${rowLocked ? "row-locked" : ""}`.trim();
+  const methodDisplay = row.method_name_snapshot ?? row.method_name ?? "—";
 
   return `
     <tr data-rid="${rid}" class="${rowClass}">
       <td>${esc(String(row.seq_no ?? ""))}</td>
       <td title="${esc(row.test_name)}">${esc(row.test_name ?? "—")}</td>
-      <td title="${esc(row.method_name)}" style="color:var(--muted)">${esc(row.method_name ?? "—")}</td>
+      <td title="${esc(methodDisplay)}" style="color:var(--muted)">${esc(methodDisplay)}</td>
       <td title="${esc(specDisplay)}" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;">${esc(specDisplay)}</td>
       <td>${inputCell}</td>
       <td style="color:var(--muted)">${esc(formatResultDisplayWithUnit(row))}</td>
@@ -992,6 +1079,24 @@ function evaluateComplianceLocally(row) {
     if (specType === "EXACT_NUMERIC") {
       if (min == null) return "NOT_EVALUATED";
       return n === min ? "PASS" : "FAIL";
+    }
+    // TOLERANCE: target ± tolerance (percent or absolute per tolerance UOM)
+    if (specType === "TOLERANCE") {
+      const target = parseNumericInput(row.target_value_snapshot);
+      const tolerance = parseNumericInput(row.tolerance_value_snapshot);
+      if (target == null || tolerance == null) return "NOT_EVALUATED";
+      let lower;
+      let upper;
+      if (isPercentToleranceUom(row)) {
+        const delta = Math.abs((target * tolerance) / 100);
+        lower = target - delta;
+        upper = target + delta;
+      } else {
+        const delta = Math.abs(tolerance);
+        lower = target - delta;
+        upper = target + delta;
+      }
+      return n >= lower && n <= upper ? "PASS" : "FAIL";
     }
     return String(row.compliance_status || "NOT_EVALUATED").toUpperCase();
   }
@@ -1461,12 +1566,27 @@ async function syncFromCurrentSpec() {
     const updated = Number(result?.updated_count ?? 0);
     const removed = Number(result?.removed_count ?? 0);
     const skipped = Number(result?.skipped_count ?? 0);
+    const hasLineChanges = added > 0 || updated > 0 || removed > 0;
 
-    toast(
-      `Spec sync completed. Added: ${added}, Updated: ${updated}, Removed: ${removed}, Skipped: ${skipped}.`,
-      "success",
-      5000,
-    );
+    if (hasLineChanges) {
+      toast(
+        `Spec sync completed. Added: ${added}, Updated: ${updated}, Removed: ${removed}, Skipped: ${skipped}.`,
+        "success",
+        5000,
+      );
+    } else if (skipped > 0) {
+      toast(
+        "No result lines changed. Existing lines already match current effective specification or were skipped by SAFE sync.",
+        "warn",
+        6000,
+      );
+    } else {
+      toast(
+        `Spec sync completed. Added: ${added}, Updated: ${updated}, Removed: ${removed}, Skipped: ${skipped}.`,
+        "success",
+        5000,
+      );
+    }
     await reloadAndRender();
   } catch (err) {
     toast(`Spec sync failed: ${err.message}`, "error", 6000);
@@ -1646,13 +1766,30 @@ function normalizeReferenceSpecType(raw) {
   if (t === "RANGE") return "RANGE";
   if (t === "EXACT" || t === "EXACT_NUMERIC") return "EXACT_NUMERIC";
   if (t === "PASS_FAIL") return "PASS_FAIL";
+  if (t === "TOLERANCE") return "TOLERANCE";
   return "TEXT";
+}
+
+/** TOLERANCE compliance: true when tolerance UOM is percent (%). */
+function isPercentToleranceUom(row) {
+  const code = String(row?.tolerance_uom_code_snapshot ?? "")
+    .trim()
+    .toUpperCase();
+  const symbol = String(row?.tolerance_uom_symbol_snapshot ?? "")
+    .trim()
+    .toUpperCase();
+  return (
+    code === "PCT" ||
+    code === "PERCENT" ||
+    code === "%" ||
+    symbol === "%"
+  );
 }
 
 function getAllowedReferenceSpecTypes(row) {
   const kind = String(row?.result_kind_snapshot || "").toUpperCase();
   if (kind === "NUMERIC") {
-    return ["RANGE", "MIN_ONLY", "MAX_ONLY", "EXACT_NUMERIC"];
+    return ["RANGE", "MIN_ONLY", "MAX_ONLY", "EXACT_NUMERIC", "TOLERANCE"];
   }
   if (kind === "PASS_FAIL") return ["PASS_FAIL"];
   return ["TEXT"];
@@ -1675,6 +1812,66 @@ function applyReferenceSpecTypeUI() {
   if (refPassFailValueField)
     refPassFailValueField.style.display =
       specType === "PASS_FAIL" ? "" : "none";
+  const showTolerance = specType === "TOLERANCE";
+  if (refToleranceField)
+    refToleranceField.style.display = showTolerance ? "" : "none";
+  if (refToleranceValueField)
+    refToleranceValueField.style.display = showTolerance ? "" : "none";
+  if (refToleranceUomField)
+    refToleranceUomField.style.display = showTolerance ? "" : "none";
+
+  // Block save when TOLERANCE reference RPC is not yet extended on server.
+  if (btnRefSave) {
+    const blocked = showTolerance && !REFERENCE_PROPOSAL_SUPPORTS_TOLERANCE;
+    btnRefSave.disabled = blocked;
+    btnRefSave.title = blocked
+      ? "TOLERANCE reference proposals require server RPC support (p_target_value, p_tolerance_value, p_tolerance_uom_id)."
+      : "";
+  }
+}
+
+function getRefToleranceUomSymbol(uomId) {
+  const row = refToleranceUomRows.find((u) => Number(u.id) === Number(uomId));
+  return String(row?.symbol ?? row?.uom_code ?? "").trim();
+}
+
+function buildRefToleranceDisplayPreview(targetVal, toleranceVal, row) {
+  if (!targetVal || !toleranceVal) return "";
+  const resultUom = getRowUnitLabel(row);
+  let text = resultUom ? `${targetVal} ${resultUom}`.trim() : targetVal;
+  const tolUomId = refToleranceUomSelect?.value;
+  const tolUom = getRefToleranceUomSymbol(tolUomId);
+  text += ` ± ${toleranceVal}`;
+  if (tolUom) text = `${text} ${tolUom}`.trim();
+  return text;
+}
+
+async function ensureRefToleranceUomPicker() {
+  if (refToleranceUomRows.length) return refToleranceUomRows;
+  const { data, error } = await labSupabase.rpc("fn_get_lab_uom_picker");
+  if (error) {
+    console.error("[AW] tolerance UOM picker failed:", error);
+    refToleranceUomRows = [];
+    return refToleranceUomRows;
+  }
+  refToleranceUomRows = Array.isArray(data) ? data : [];
+  return refToleranceUomRows;
+}
+
+function populateRefToleranceUomSelect(selectedId) {
+  if (!refToleranceUomSelect) return;
+  refToleranceUomSelect.innerHTML =
+    '<option value="">— Select tolerance UOM —</option>' +
+    refToleranceUomRows
+      .map((u) => {
+        const label = u.symbol
+          ? `${u.uom_code} - ${u.symbol}`
+          : `${u.uom_code} - ${u.uom_name}`;
+        const sel =
+          String(u.id) === String(selectedId ?? "") ? " selected" : "";
+        return `<option value="${String(u.id)}"${sel}>${label}</option>`;
+      })
+      .join("");
 }
 
 function formatNumberForDisplay(value) {
@@ -1707,6 +1904,10 @@ function updateReferenceDisplayPreview() {
   const exactVal = formatNumberForDisplay(refExactValueInput?.value?.trim());
   const textVal = refTextValueInput?.value?.trim() ?? "";
   const passFailVal = refPassFailValueSelect?.value?.trim() ?? "";
+  const targetVal = formatNumberForDisplay(refTargetValueInput?.value?.trim());
+  const toleranceVal = formatNumberForDisplay(
+    refToleranceValueInput?.value?.trim(),
+  );
 
   let preview = "";
   if (specType === "RANGE") {
@@ -1720,6 +1921,12 @@ function updateReferenceDisplayPreview() {
     preview = appendUomIfNeeded(preview, pendingRefRow);
   } else if (specType === "EXACT_NUMERIC") {
     preview = exactVal ? appendUomIfNeeded(exactVal, pendingRefRow) : "";
+  } else if (specType === "TOLERANCE") {
+    preview = buildRefToleranceDisplayPreview(
+      targetVal,
+      toleranceVal,
+      pendingRefRow,
+    );
   } else if (specType === "PASS_FAIL") {
     preview = passFailVal;
   } else {
@@ -1729,8 +1936,693 @@ function updateReferenceDisplayPreview() {
   refDisplayPreviewInput.value = preview;
 }
 
+function getReferenceSourceRowId(row) {
+  if (!row) return null;
+  const id = row.id ?? row.reference_source_id;
+  if (id == null || id === "") return null;
+  const n = Number(id);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function extractReferenceSourceIdFromRpcData(data) {
+  if (data == null) return null;
+
+  if (typeof data === "number") {
+    return Number.isFinite(data) && data > 0 ? data : null;
+  }
+
+  if (typeof data === "string") {
+    const trimmed = data.trim();
+    if (!trimmed) return null;
+    const n = Number(trimmed);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
+
+  if (Array.isArray(data)) {
+    if (!data.length) return null;
+    return extractReferenceSourceIdFromRpcData(data[0]);
+  }
+
+  if (typeof data === "object") {
+    return getReferenceSourceRowId(data);
+  }
+
+  return null;
+}
+
+function extractReferenceSourceDisplayFromRpcData(data) {
+  if (data == null) return "";
+  if (Array.isArray(data)) {
+    return data.length ? extractReferenceSourceDisplayFromRpcData(data[0]) : "";
+  }
+  if (typeof data === "object") {
+    return getReferenceSourceRowDisplay(data);
+  }
+  return "";
+}
+
+function parseSubmitReferenceProposalResponse(data) {
+  if (data == null) return { ok: true };
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row || typeof row !== "object") return { ok: true };
+
+  if (row.ok === false) {
+    return {
+      ok: false,
+      code: String(row.code ?? "").trim(),
+      message: String(
+        row.message ?? "Reference proposal was not accepted.",
+      ).trim(),
+      existingRequestId: row.existing_request_id ?? null,
+      requestCreated: row.request_created === true,
+      lockCreated: row.lock_created === true,
+    };
+  }
+
+  return {
+    ok: true,
+    requestCreated: row.request_created !== false,
+    lockCreated: row.lock_created === true,
+  };
+}
+
+function getReferenceSourceRowDisplay(row) {
+  if (!row) return "";
+  return String(
+    row.reference_source_display ??
+      row.display_text ??
+      row.display_name ??
+      "",
+  ).trim();
+}
+
+function normalizeDoiInput(value) {
+  let v = String(value ?? "").trim();
+  if (!v) return "";
+  v = v.replace(/^https?:\/\/(dx\.)?doi\.org\//i, "");
+  v = v.replace(/^doi:\s*/i, "");
+  return v.trim();
+}
+
+function isValidDoi(value) {
+  const doi = normalizeDoiInput(value);
+  if (!doi) return false;
+  return /^10\.\d{4,9}\/\S+$/i.test(doi);
+}
+
+function optionalPayloadText(el) {
+  const v = String(el?.value ?? "").trim();
+  return v || null;
+}
+
+function optionalPayloadNumber(el) {
+  const raw = String(el?.value ?? "").trim();
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : raw;
+}
+
+function resetReferenceSourceCreateForm() {
+  const fields = [
+    refSourceCreateDisplayName,
+    refSourceInHouseCode,
+    refSourceDoiInput,
+    refSourceCreateCitation,
+    refSourceCreateSourceTitle,
+    refSourceCreatePart,
+    refSourceCreateVolume,
+    refSourceCreateEdition,
+    refSourceCreatePubYear,
+    refSourceCreatePublisher,
+    refSourceCreateAuthorEditor,
+    refSourceCreateCommentator,
+    refSourceCreateChapterSection,
+    refSourceCreatePageFrom,
+    refSourceCreatePageTo,
+    refSourceCreateArticleTitle,
+    refSourceCreateJournal,
+    refSourceCreateAuthors,
+    refSourceCreatePaperYear,
+    refSourceCreatePaperPublisher,
+    refSourceCreateRemarks,
+  ];
+  fields.forEach((el) => {
+    if (el) el.value = "";
+  });
+  refSourceDoiMetadata = null;
+  refSourceLastLookupDoi = null;
+  if (refSourceDetailFields) refSourceDetailFields.open = false;
+  if (refSourcePaperDetailFields) refSourcePaperDetailFields.open = false;
+}
+
+function resetReferenceSourceState() {
+  refSourceMode = "existing";
+  refSourceType = REF_SOURCE_TYPE_DEFAULT;
+  refSelectedSourceId = null;
+  refSelectedSourceDisplay = "";
+  refSourceSearchRows = [];
+  refSourceSearchLoading = false;
+  refSourceSaving = false;
+  if (refSourceSearchTimer) {
+    clearTimeout(refSourceSearchTimer);
+    refSourceSearchTimer = null;
+  }
+  refDoiLookupLoading = false;
+  refSourceDoiMetadata = null;
+  refSourceLastLookupDoi = null;
+  if (refSourceTypeSelect) refSourceTypeSelect.value = REF_SOURCE_TYPE_DEFAULT;
+  if (refSourceModeExisting) refSourceModeExisting.checked = true;
+  if (refSourceModeCreate) refSourceModeCreate.checked = false;
+  if (refSourceSearchInput) refSourceSearchInput.value = "";
+  if (refSourceSearchStatus) refSourceSearchStatus.textContent = "";
+  if (refSourceResultsList) refSourceResultsList.innerHTML = "";
+  if (refSourceSelectedSummary) refSourceSelectedSummary.style.display = "none";
+  if (refSourceSelectedLabel) refSourceSelectedLabel.textContent = "";
+  resetReferenceSourceCreateForm();
+  applyReferenceSourceUI();
+}
+
+function updateRefSourceSearchStatus() {
+  if (!refSourceSearchStatus) return;
+  if (refSourceSearchLoading) {
+    refSourceSearchStatus.textContent = "Searching…";
+    return;
+  }
+  if (refSourceMode !== "existing") {
+    refSourceSearchStatus.textContent = "";
+    return;
+  }
+  if (refSourceSearchRows.length) {
+    refSourceSearchStatus.textContent = "";
+    return;
+  }
+  const q = refSourceSearchInput?.value.trim() ?? "";
+  refSourceSearchStatus.textContent = q
+    ? "No matching sources."
+    : "Showing recent sources for this type.";
+}
+
+function updateRefSourceSelectedSummary() {
+  if (!refSourceSelectedSummary || !refSourceSelectedLabel) return;
+  if (refSelectedSourceId && refSelectedSourceDisplay) {
+    refSourceSelectedSummary.style.display = "";
+    refSourceSelectedLabel.textContent = refSelectedSourceDisplay;
+  } else {
+    refSourceSelectedSummary.style.display = "none";
+    refSourceSelectedLabel.textContent = "";
+  }
+}
+
+function renderReferenceSourceResults(results) {
+  if (!refSourceResultsList) return;
+  const rows = Array.isArray(results) ? results : [];
+  if (!rows.length) {
+    refSourceResultsList.innerHTML = refSourceSearchLoading
+      ? ""
+      : '<div class="ref-source-result-empty">No matching sources.</div>';
+    return;
+  }
+  refSourceResultsList.innerHTML = rows
+    .map((row) => {
+      const id = getReferenceSourceRowId(row);
+      if (id == null) return "";
+      const label =
+        getReferenceSourceRowDisplay(row) || `Source #${id}`;
+      const selected =
+        String(id) === String(refSelectedSourceId)
+          ? " ref-source-result-selected"
+          : "";
+      return `<button type="button" class="ref-source-result${selected}" data-source-id="${esc(String(id))}" data-source-display="${esc(label)}">${esc(label)}</button>`;
+    })
+    .join("");
+}
+
+function selectReferenceSource(source) {
+  const id =
+    typeof source === "object"
+      ? getReferenceSourceRowId(source)
+      : Number(source);
+  if (id == null || Number.isNaN(id)) return;
+  const display =
+    typeof source === "object"
+      ? getReferenceSourceRowDisplay(source)
+      : refSelectedSourceDisplay;
+  refSelectedSourceId = id;
+  refSelectedSourceDisplay = String(display || "").trim() || `Source #${id}`;
+  if (
+    typeof source === "object" &&
+    String(source.source_type ?? "").trim()
+  ) {
+    refSourceType = String(source.source_type).toUpperCase();
+    if (refSourceTypeSelect) refSourceTypeSelect.value = refSourceType;
+    applyReferenceSourceUI();
+  }
+  updateRefSourceSelectedSummary();
+  renderReferenceSourceResults(refSourceSearchRows);
+}
+
+function clearReferenceSourceSelection() {
+  refSelectedSourceId = null;
+  refSelectedSourceDisplay = "";
+  updateRefSourceSelectedSummary();
+  renderReferenceSourceResults(refSourceSearchRows);
+}
+
+async function searchReferenceSources(query, sourceType) {
+  refSourceSearchLoading = true;
+  updateRefSourceSearchStatus();
+  renderReferenceSourceResults(refSourceSearchRows);
+  try {
+    const { data, error } = await labSupabase.rpc(
+      "fn_search_reference_sources",
+      {
+        p_query: query?.trim() || null,
+        p_source_type: sourceType || null,
+        p_limit: 6,
+      },
+    );
+    if (error) throw error;
+    refSourceSearchRows = Array.isArray(data) ? data : [];
+    renderReferenceSourceResults(refSourceSearchRows);
+    updateRefSourceSearchStatus();
+    return refSourceSearchRows;
+  } catch (err) {
+    console.error("[AW] reference source search failed:", err);
+    refSourceSearchRows = [];
+    renderReferenceSourceResults([]);
+    if (refSourceSearchStatus) {
+      refSourceSearchStatus.textContent = "Search failed. Try again.";
+    }
+    return [];
+  } finally {
+    refSourceSearchLoading = false;
+    updateRefSourceSearchStatus();
+  }
+}
+
+function scheduleReferenceSourceSearch() {
+  if (refSourceMode !== "existing") return;
+  if (refSourceSearchTimer) clearTimeout(refSourceSearchTimer);
+  refSourceSearchTimer = setTimeout(() => {
+    refSourceSearchTimer = null;
+    searchReferenceSources(
+      refSourceSearchInput?.value ?? "",
+      refSourceTypeSelect?.value ?? refSourceType,
+    );
+  }, REF_SOURCE_SEARCH_DEBOUNCE_MS);
+}
+
+function findDefaultInHouseSource(results) {
+  const rows = Array.isArray(results) ? results : [];
+  return (
+    rows.find((r) => r.is_default === true) ||
+    rows.find((r) =>
+      /in-house standard/i.test(getReferenceSourceRowDisplay(r)),
+    ) ||
+    rows[0] ||
+    null
+  );
+}
+
+async function ensureDefaultReferenceSourceSelected() {
+  const results = await searchReferenceSources(
+    null,
+    REF_SOURCE_TYPE_DEFAULT,
+  );
+  const defaultRow = findDefaultInHouseSource(results);
+  if (!defaultRow) return false;
+  const id = getReferenceSourceRowId(defaultRow);
+  if (id == null) return false;
+  refDefaultInHouseSourceId = id;
+  selectReferenceSource(defaultRow);
+  return true;
+}
+
+async function resolveDefaultInHouseSourceId() {
+  if (refDefaultInHouseSourceId) return refDefaultInHouseSourceId;
+  const results = await searchReferenceSources(
+    null,
+    REF_SOURCE_TYPE_DEFAULT,
+  );
+  const defaultRow = findDefaultInHouseSource(results);
+  const id = getReferenceSourceRowId(defaultRow);
+  if (id != null) refDefaultInHouseSourceId = id;
+  return refDefaultInHouseSourceId;
+}
+
+function applyReferenceSourceUI() {
+  refSourceType = String(
+    refSourceTypeSelect?.value || REF_SOURCE_TYPE_DEFAULT,
+  ).toUpperCase();
+  refSourceMode = refSourceModeCreate?.checked ? "create" : "existing";
+
+  if (refSourceExistingPanel) {
+    refSourceExistingPanel.style.display =
+      refSourceMode === "existing" ? "" : "none";
+  }
+  if (refSourceCreatePanel) {
+    refSourceCreatePanel.style.display =
+      refSourceMode === "create" ? "" : "none";
+  }
+
+  const isPaper = refSourceType === "RESEARCH_PAPER";
+  const isInHouse = refSourceType === "IN_HOUSE_STANDARD";
+  const isOther = refSourceType === "OTHER";
+  const hasBibliographic = REF_SOURCE_BIBLIO_TYPES.has(refSourceType);
+
+  if (refSourceCreateDisplayNameField) {
+    refSourceCreateDisplayNameField.style.display = isPaper ? "none" : "";
+  }
+  if (refSourceInHouseFields) {
+    refSourceInHouseFields.style.display = isInHouse ? "" : "none";
+  }
+  if (refSourcePaperFields) {
+    refSourcePaperFields.style.display = isPaper ? "" : "none";
+  }
+  if (refSourceCreateCitationField) {
+    refSourceCreateCitationField.style.display =
+      isOther || isPaper ? "none" : "";
+  }
+  if (refSourceDetailFields) {
+    refSourceDetailFields.style.display = hasBibliographic ? "" : "none";
+  }
+  if (refSourcePaperDetailFields) {
+    refSourcePaperDetailFields.style.display = isPaper ? "" : "none";
+  }
+  if (refSourceCreateRemarksField) {
+    refSourceCreateRemarksField.style.display = "";
+  }
+
+  updateRefSourceSelectedSummary();
+  setRefSourceDoiLookupButtonState();
+  updateReferenceSourceCitationPreview();
+}
+
+function getReferenceSourceCitationPreviewText() {
+  const displayName = String(refSourceCreateDisplayName?.value ?? "").trim();
+  if (displayName) return displayName;
+  const citation = String(refSourceCreateCitation?.value ?? "").trim();
+  if (citation) return citation;
+  const doiRaw = refSourceDoiInput?.value ?? "";
+  const doi = normalizeDoiInput(doiRaw);
+  if (doi && isValidDoi(doiRaw)) return `DOI: ${doi}`;
+  return "";
+}
+
+function updateReferenceSourceCitationPreview() {
+  if (!refSourceCitationPreviewWrap || !refSourceCitationPreviewText) return;
+  const showPaperCreate =
+    refSourceMode === "create" &&
+    String(refSourceTypeSelect?.value || refSourceType).toUpperCase() ===
+      "RESEARCH_PAPER";
+  if (!showPaperCreate) {
+    refSourceCitationPreviewWrap.style.display = "none";
+    refSourceCitationPreviewText.textContent = "";
+    return;
+  }
+  const text = getReferenceSourceCitationPreviewText();
+  if (!text) {
+    refSourceCitationPreviewWrap.style.display = "none";
+    refSourceCitationPreviewText.textContent = "";
+    return;
+  }
+  refSourceCitationPreviewWrap.style.display = "";
+  refSourceCitationPreviewText.textContent = text;
+}
+
+function handleRefSourceDoiInputChange() {
+  const normalized = normalizeDoiInput(refSourceDoiInput?.value ?? "");
+  if (refSourceLastLookupDoi && normalized !== refSourceLastLookupDoi) {
+    refSourceDoiMetadata = null;
+    refSourceLastLookupDoi = null;
+    if (refSourceCreateDisplayName) refSourceCreateDisplayName.value = "";
+  }
+  setRefSourceDoiLookupButtonState();
+  updateReferenceSourceCitationPreview();
+}
+
+function fillEmptyReferenceSourceInput(el, value) {
+  if (!el) return;
+  if (String(el.value ?? "").trim()) return;
+  if (value == null || value === "") return;
+  el.value = String(value);
+}
+
+function setRefSourceDoiLookupButtonState() {
+  if (!btnRefSourceDoiLookup) return;
+  const show =
+    refSourceMode === "create" &&
+    String(refSourceTypeSelect?.value || refSourceType).toUpperCase() ===
+      "RESEARCH_PAPER";
+  btnRefSourceDoiLookup.style.display = show ? "" : "none";
+  if (!show) {
+    btnRefSourceDoiLookup.disabled = true;
+    btnRefSourceDoiLookup.textContent = "Look up DOI";
+    return;
+  }
+  const doiRaw = refSourceDoiInput?.value ?? "";
+  const canLookup = !refDoiLookupLoading && isValidDoi(doiRaw);
+  btnRefSourceDoiLookup.disabled = !canLookup;
+  btnRefSourceDoiLookup.textContent = refDoiLookupLoading
+    ? "Looking up…"
+    : "Look up DOI";
+}
+
+async function lookupReferenceDoi() {
+  if (refDoiLookupLoading) return;
+  const doiRaw = refSourceDoiInput?.value ?? "";
+  const normalizedDoi = normalizeDoiInput(doiRaw);
+  if (!normalizedDoi || !isValidDoi(doiRaw)) {
+    toast("Enter a valid DOI (for example 10.1234/example).", "warn");
+    refSourceDoiInput?.focus();
+    return;
+  }
+
+  refDoiLookupLoading = true;
+  setRefSourceDoiLookupButtonState();
+  try {
+    const { data, error } = await supabase.functions.invoke(
+      "lookup-reference-doi",
+      { body: { doi: normalizedDoi } },
+    );
+    if (error) throw error;
+
+    const result = data && typeof data === "object" ? data : {};
+    if (result.ok !== true) {
+      toast(
+        String(result.message || "No metadata found for this DOI.").trim(),
+        "warn",
+        5000,
+      );
+      return;
+    }
+
+    fillEmptyReferenceSourceInput(
+      refSourceCreateDisplayName,
+      result.display_name,
+    );
+    fillEmptyReferenceSourceInput(
+      refSourceCreateCitation,
+      result.short_citation,
+    );
+    fillEmptyReferenceSourceInput(
+      refSourceCreateArticleTitle,
+      result.article_title,
+    );
+    fillEmptyReferenceSourceInput(refSourceCreateJournal, result.journal_name);
+    fillEmptyReferenceSourceInput(refSourceCreateAuthors, result.authors_text);
+    fillEmptyReferenceSourceInput(
+      refSourceCreatePaperYear,
+      result.publication_year,
+    );
+    fillEmptyReferenceSourceInput(
+      refSourceCreatePaperPublisher,
+      result.publisher,
+    );
+
+    refSourceDoiMetadata =
+      result.metadata_json && typeof result.metadata_json === "object"
+        ? result.metadata_json
+        : null;
+
+    const hasArticleDetails =
+      result.article_title ||
+      result.journal_name ||
+      result.authors_text ||
+      result.publication_year ||
+      result.publisher;
+    if (refSourcePaperDetailFields && hasArticleDetails) {
+      refSourcePaperDetailFields.open = true;
+    }
+
+    refSourceLastLookupDoi = normalizedDoi;
+    updateReferenceSourceCitationPreview();
+    toast("DOI details filled. Please review before saving.", "success", 4000);
+  } catch (err) {
+    console.error("[AW] DOI lookup failed:", err);
+    toast("DOI lookup failed. You can still save DOI-only.", "warn", 5000);
+  } finally {
+    refDoiLookupLoading = false;
+    setRefSourceDoiLookupButtonState();
+  }
+}
+
+function collectBibliographicPayload() {
+  return {
+    source_title: optionalPayloadText(refSourceCreateSourceTitle),
+    part: optionalPayloadText(refSourceCreatePart),
+    volume: optionalPayloadText(refSourceCreateVolume),
+    edition: optionalPayloadText(refSourceCreateEdition),
+    publication_year: optionalPayloadNumber(refSourceCreatePubYear),
+    publisher: optionalPayloadText(refSourceCreatePublisher),
+    author_editor: optionalPayloadText(refSourceCreateAuthorEditor),
+    commentator: optionalPayloadText(refSourceCreateCommentator),
+    chapter_section: optionalPayloadText(refSourceCreateChapterSection),
+    page_from: optionalPayloadText(refSourceCreatePageFrom),
+    page_to: optionalPayloadText(refSourceCreatePageTo),
+  };
+}
+
+function collectReferenceSourcePayload() {
+  const sourceType = String(
+    refSourceTypeSelect?.value || refSourceType,
+  ).toUpperCase();
+  const payload = {
+    short_citation: optionalPayloadText(refSourceCreateCitation),
+    remarks: optionalPayloadText(refSourceCreateRemarks),
+  };
+
+  if (sourceType === "RESEARCH_PAPER") {
+    const doiRaw = refSourceDoiInput?.value ?? "";
+    const doi = normalizeDoiInput(doiRaw);
+    if (!doi) {
+      toast("Research paper source requires a DOI.", "warn");
+      refSourceDoiInput?.focus();
+      return null;
+    }
+    if (!isValidDoi(doiRaw)) {
+      toast(
+        "Enter a valid DOI (for example 10.1234/example).",
+        "warn",
+      );
+      refSourceDoiInput?.focus();
+      return null;
+    }
+    let displayName = String(refSourceCreateDisplayName?.value ?? "").trim();
+    if (!displayName) displayName = `DOI: ${doi}`;
+    payload.display_name = displayName;
+    payload.doi = doi;
+    payload.short_citation =
+      optionalPayloadText(refSourceCreateCitation) ?? payload.short_citation;
+    payload.article_title = optionalPayloadText(refSourceCreateArticleTitle);
+    payload.journal = optionalPayloadText(refSourceCreateJournal);
+    payload.authors = optionalPayloadText(refSourceCreateAuthors);
+    payload.publication_year = optionalPayloadNumber(refSourceCreatePaperYear);
+    payload.publisher = optionalPayloadText(refSourceCreatePaperPublisher);
+    if (refSourceDoiMetadata) {
+      payload.metadata_json = refSourceDoiMetadata;
+    }
+    return payload;
+  }
+
+  const displayName = String(refSourceCreateDisplayName?.value ?? "").trim();
+  if (!displayName) {
+    toast("Display name is required for a new reference source.", "warn");
+    refSourceCreateDisplayName?.focus();
+    return null;
+  }
+  payload.display_name = displayName;
+
+  if (sourceType === "IN_HOUSE_STANDARD") {
+    payload.internal_reference_code = optionalPayloadText(refSourceInHouseCode);
+    return payload;
+  }
+
+  if (sourceType === "OTHER") {
+    return payload;
+  }
+
+  if (REF_SOURCE_BIBLIO_TYPES.has(sourceType)) {
+    Object.assign(payload, collectBibliographicPayload());
+    return payload;
+  }
+
+  return payload;
+}
+
+async function resolveReferenceSourceId() {
+  if (refSourceSaving) return null;
+  if (refSourceMode === "existing") {
+    if (!refSelectedSourceId) {
+      toast("Select a reference source.", "warn");
+      return null;
+    }
+    return refSelectedSourceId;
+  }
+
+  const sourceType = String(
+    refSourceTypeSelect?.value || refSourceType,
+  ).toUpperCase();
+  const payload = collectReferenceSourcePayload();
+  if (!payload) return null;
+
+  refSourceSaving = true;
+  try {
+    const { data, error } = await labSupabase.rpc(
+      "fn_upsert_reference_source",
+      {
+        p_user_id: userId,
+        p_source_type: sourceType,
+        p_payload: payload,
+      },
+    );
+    if (error) throw error;
+    const id = extractReferenceSourceIdFromRpcData(data);
+    if (id == null) {
+      throw new Error("Server did not return a reference source id.");
+    }
+    const display =
+      extractReferenceSourceDisplayFromRpcData(data) || payload.display_name;
+    refSelectedSourceId = id;
+    refSelectedSourceDisplay = display || `Source #${id}`;
+    if (sourceType === REF_SOURCE_TYPE_DEFAULT) {
+      refDefaultInHouseSourceId = id;
+    }
+    updateRefSourceSelectedSummary();
+    return id;
+  } finally {
+    refSourceSaving = false;
+  }
+}
+
+async function initReferenceSourceOnOpen(row) {
+  resetReferenceSourceState();
+
+  const effectiveId = row?.effective_reference_source_id;
+  const effectiveDisplay = String(
+    row?.effective_reference_source_display ?? "",
+  ).trim();
+
+  if (effectiveId != null && effectiveId !== "") {
+    selectReferenceSource({
+      id: effectiveId,
+      reference_source_display: effectiveDisplay,
+    });
+    await searchReferenceSources("", refSourceType);
+    return;
+  }
+
+  await ensureDefaultReferenceSourceSelected();
+}
+
 function openReferenceModal(row) {
   pendingRefRow = row;
+  openReferenceModalAsync(row);
+}
+
+async function openReferenceModalAsync(row) {
+  await ensureRefToleranceUomPicker();
   const refRequired = row.reference_capture_required === true;
   refModalTitle.textContent = `${refRequired ? "Add Reference" : "Modify Reference"} — ${row.test_name ?? "Test"}`;
   const specDisplay =
@@ -1756,6 +2648,15 @@ function openReferenceModal(row) {
     row.min_value_snapshot == null ? "" : String(row.min_value_snapshot);
   refTextValueInput.value = row.text_value_snapshot ?? "";
   refPassFailValueSelect.value = row.text_value_snapshot ?? "Absent";
+  refTargetValueInput.value =
+    row.target_value_snapshot == null
+      ? ""
+      : String(row.target_value_snapshot);
+  refToleranceValueInput.value =
+    row.tolerance_value_snapshot == null
+      ? ""
+      : String(row.tolerance_value_snapshot);
+  populateRefToleranceUomSelect(row.tolerance_uom_id_snapshot);
   refDisplayPreviewInput.value = row.spec_display_snapshot ?? "";
   const unitLabel = getRowUnitLabel(row);
   if (refUomDisplayInput) {
@@ -1779,6 +2680,8 @@ function openReferenceModal(row) {
   if (refScopeFamily) refScopeFamily.checked = false;
   refNoteInput.value = "";
 
+  await initReferenceSourceOnOpen(row);
+
   applyReferenceSpecTypeUI();
   updateReferenceDisplayPreview();
   referenceModal.classList.add("open");
@@ -1789,6 +2692,8 @@ function openReferenceModal(row) {
     refMaxValueInput.focus();
   } else if (selectedType === "EXACT_NUMERIC") {
     refExactValueInput.focus();
+  } else if (selectedType === "TOLERANCE") {
+    refTargetValueInput.focus();
   } else if (selectedType === "PASS_FAIL") {
     refPassFailValueSelect.focus();
   } else {
@@ -1805,11 +2710,15 @@ function closeReferenceModal() {
   if (refExactValueInput) refExactValueInput.value = "";
   if (refTextValueInput) refTextValueInput.value = "";
   if (refPassFailValueSelect) refPassFailValueSelect.value = "Absent";
+  if (refTargetValueInput) refTargetValueInput.value = "";
+  if (refToleranceValueInput) refToleranceValueInput.value = "";
+  if (refToleranceUomSelect) refToleranceUomSelect.value = "";
   if (refDisplayPreviewInput) refDisplayPreviewInput.value = "";
   if (refScopeAnalysisOnly) refScopeAnalysisOnly.checked = true;
   if (refScopeProduct) refScopeProduct.checked = false;
   if (refScopeFamily) refScopeFamily.checked = false;
   refNoteInput.value = "";
+  resetReferenceSourceState();
 }
 
 async function saveReference() {
@@ -1837,10 +2746,15 @@ async function saveReference() {
   const exactRaw = refExactValueInput.value.trim();
   const textRaw = refTextValueInput.value.trim();
   const passFailRaw = refPassFailValueSelect.value.trim();
+  const targetRaw = refTargetValueInput?.value.trim() ?? "";
+  const toleranceRaw = refToleranceValueInput?.value.trim() ?? "";
 
   let minVal = null;
   let maxVal = null;
   let textVal = null;
+  let targetVal = null;
+  let toleranceVal = null;
+  let toleranceUomId = null;
 
   if (specType === "RANGE") {
     if (!minRaw || !maxRaw) {
@@ -1896,18 +2810,56 @@ async function saveReference() {
       return;
     }
     maxVal = minVal;
+  } else if (specType === "TOLERANCE") {
+    if (!REFERENCE_PROPOSAL_SUPPORTS_TOLERANCE) {
+      toast(
+        "TOLERANCE reference proposals require server RPC support (p_target_value, p_tolerance_value, p_tolerance_uom_id).",
+        "warn",
+        5000,
+      );
+      return;
+    }
+    if (!targetRaw || !toleranceRaw) {
+      toast("TOLERANCE requires Target Value and Tolerance Value.", "warn");
+      return;
+    }
+    targetVal = parseDecimalOrNull(targetRaw);
+    if (Number.isNaN(targetVal)) {
+      toast("Target Value must be a valid number.", "warn");
+      refTargetValueInput.focus();
+      return;
+    }
+    toleranceVal = parseDecimalOrNull(toleranceRaw);
+    if (Number.isNaN(toleranceVal)) {
+      toast("Tolerance Value must be a valid number.", "warn");
+      refToleranceValueInput.focus();
+      return;
+    }
+    const tolUomRaw = refToleranceUomSelect?.value || "";
+    if (!tolUomRaw) {
+      toast("TOLERANCE requires Tolerance UOM.", "warn");
+      refToleranceUomSelect?.focus();
+      return;
+    }
+    toleranceUomId = Number(tolUomRaw);
+    minVal = null;
+    maxVal = null;
+    textVal = null;
   } else if (specType === "PASS_FAIL") {
     if (!passFailRaw) {
       toast("PASS/FAIL specification requires a selected value.", "warn");
       return;
     }
     textVal = passFailRaw;
-  } else {
+  } else if (specType === "TEXT") {
     if (!textRaw) {
       toast("Text specification requires Text Value.", "warn");
       return;
     }
     textVal = textRaw;
+  } else {
+    toast(`Unsupported spec type: ${specType}`, "warn");
+    return;
   }
 
   updateReferenceDisplayPreview();
@@ -1926,10 +2878,20 @@ async function saveReference() {
     : refScopeFamily?.checked
       ? "FAMILY"
       : "ANALYSIS_ONLY";
+
+  let referenceSourceId;
+  try {
+    referenceSourceId = await resolveReferenceSourceId();
+  } catch (err) {
+    toast(`Failed to resolve reference source: ${err.message}`, "error", 5000);
+    return;
+  }
+  if (!referenceSourceId) return;
+
   btnRefSave.disabled = true;
   showLoading();
   try {
-    const { error } = await labSupabase.rpc(
+    const { data, error } = await labSupabase.rpc(
       "fn_submit_analysis_reference_proposal",
       {
         p_user_id: userId,
@@ -1938,12 +2900,31 @@ async function saveReference() {
         p_min_value: minVal,
         p_max_value: maxVal,
         p_text_value: textVal,
+        p_target_value: targetVal,
+        p_tolerance_value: toleranceVal,
+        p_tolerance_uom_id: toleranceUomId,
         p_display_text: displayText,
         p_request_scope: requestScope,
         p_remarks: note,
+        p_reference_source_id: referenceSourceId,
       },
     );
     if (error) throw error;
+
+    const result = parseSubmitReferenceProposalResponse(data);
+    if (!result.ok) {
+      let message = result.message;
+      if (result.existingRequestId != null && result.existingRequestId !== "") {
+        message += ` Existing pending request ID: ${result.existingRequestId}.`;
+      }
+      const toastKind =
+        result.code === "DUPLICATE_PENDING_SPEC_CHANGE_REQUEST"
+          ? "warn"
+          : "error";
+      toast(message, toastKind, 5000);
+      return;
+    }
+
     toast(
       requestScope === "ANALYSIS_ONLY"
         ? "Reference saved for this analysis."
@@ -1979,6 +2960,10 @@ async function grantException() {
     return;
   }
   const note = refNoteInput.value.trim() || null;
+  let referenceSourceId = refSelectedSourceId;
+  if (!referenceSourceId) {
+    referenceSourceId = await resolveDefaultInHouseSourceId();
+  }
   btnAddException.disabled = true;
   showLoading();
   try {
@@ -1988,6 +2973,7 @@ async function grantException() {
       p_display_text:
         "Reference not yet established - temporary first analysis entry",
       p_remarks: note,
+      p_reference_source_id: referenceSourceId ?? null,
     });
     if (error) throw error;
     toast(
@@ -2753,6 +3739,12 @@ function wireEvents() {
     refreshBtn.disabled = false;
   });
 
+  if (btnBackToAnalysisQueue) {
+    btnBackToAnalysisQueue.addEventListener("click", () => {
+      navigateToAnalysisQueue();
+    });
+  }
+
   // Header card: mobile pill toggle + popover auto-collapse
   const hdrPillBtn = $("hdrPillBtn");
   const hdrPopover = $("hdrPopover");
@@ -2862,25 +3854,33 @@ function wireEvents() {
   });
 
   // Swipe navigation in mobile editor sheet
-  mobileEditorSheet?.addEventListener("touchstart", (e) => {
-    const touch = e.changedTouches?.[0];
-    if (!touch) return;
-    mobileSwipeStartX = touch.clientX;
-    mobileSwipeStartY = touch.clientY;
-  });
-  mobileEditorSheet?.addEventListener("touchend", (e) => {
-    const touch = e.changedTouches?.[0];
-    if (!touch || mobileSwipeStartX == null || mobileSwipeStartY == null)
-      return;
-    const dx = touch.clientX - mobileSwipeStartX;
-    const dy = touch.clientY - mobileSwipeStartY;
-    mobileSwipeStartX = null;
-    mobileSwipeStartY = null;
+  mobileEditorSheet?.addEventListener(
+    "touchstart",
+    (e) => {
+      const touch = e.changedTouches?.[0];
+      if (!touch) return;
+      mobileSwipeStartX = touch.clientX;
+      mobileSwipeStartY = touch.clientY;
+    },
+    { passive: true },
+  );
+  mobileEditorSheet?.addEventListener(
+    "touchend",
+    (e) => {
+      const touch = e.changedTouches?.[0];
+      if (!touch || mobileSwipeStartX == null || mobileSwipeStartY == null)
+        return;
+      const dx = touch.clientX - mobileSwipeStartX;
+      const dy = touch.clientY - mobileSwipeStartY;
+      mobileSwipeStartX = null;
+      mobileSwipeStartY = null;
 
-    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
-    if (dx < 0) navigateMobileEditor(1, "swipe");
-    else navigateMobileEditor(-1, "swipe");
-  });
+      if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
+      if (dx < 0) navigateMobileEditor(1, "swipe");
+      else navigateMobileEditor(-1, "swipe");
+    },
+    { passive: true },
+  );
 
   // Reference modal
   btnRefSave.addEventListener("click", saveReference);
@@ -2916,8 +3916,89 @@ function wireEvents() {
     "change",
     updateReferenceDisplayPreview,
   );
+  refTargetValueInput?.addEventListener("input", updateReferenceDisplayPreview);
+  refToleranceValueInput?.addEventListener(
+    "input",
+    updateReferenceDisplayPreview,
+  );
+  refToleranceUomSelect?.addEventListener(
+    "change",
+    updateReferenceDisplayPreview,
+  );
+  refTargetValueInput?.addEventListener("input", (e) =>
+    handleNumericControlInput(e.target),
+  );
+  refToleranceValueInput?.addEventListener("input", (e) =>
+    handleNumericControlInput(e.target),
+  );
+  refTargetValueInput?.addEventListener("blur", (e) =>
+    handleNumericControlBlur(e.target),
+  );
+  refToleranceValueInput?.addEventListener("blur", (e) =>
+    handleNumericControlBlur(e.target),
+  );
+  btnRefSourceDoiLookup?.addEventListener("click", lookupReferenceDoi);
+  refSourceDoiInput?.addEventListener("input", handleRefSourceDoiInputChange);
+  refSourceCreateCitation?.addEventListener(
+    "input",
+    updateReferenceSourceCitationPreview,
+  );
   referenceModal.addEventListener("click", (e) => {
     if (e.target === referenceModal) closeReferenceModal();
+  });
+
+  refSourceTypeSelect?.addEventListener("change", () => {
+    clearReferenceSourceSelection();
+    applyReferenceSourceUI();
+    if (refSourceMode === "existing") {
+      searchReferenceSources(
+        refSourceSearchInput?.value ?? "",
+        refSourceTypeSelect.value,
+      ).then((results) => {
+        if (
+          refSourceTypeSelect.value === REF_SOURCE_TYPE_DEFAULT &&
+          !refSelectedSourceId
+        ) {
+          const defaultRow = findDefaultInHouseSource(results);
+          if (defaultRow) selectReferenceSource(defaultRow);
+        }
+      });
+    }
+  });
+
+  refSourceModeExisting?.addEventListener("change", () => {
+    if (!refSourceModeExisting.checked) return;
+    applyReferenceSourceUI();
+    if (!refSelectedSourceId) {
+      ensureDefaultReferenceSourceSelected();
+    } else {
+      scheduleReferenceSourceSearch();
+    }
+  });
+
+  refSourceModeCreate?.addEventListener("change", () => {
+    if (!refSourceModeCreate.checked) return;
+    clearReferenceSourceSelection();
+    applyReferenceSourceUI();
+  });
+
+  refSourceSearchInput?.addEventListener("input", scheduleReferenceSourceSearch);
+
+  refSourceResultsList?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".ref-source-result");
+    if (!btn) return;
+    const id = btn.dataset.sourceId;
+    const display = btn.dataset.sourceDisplay;
+    if (!id) return;
+    selectReferenceSource({
+      id,
+      reference_source_display: display,
+    });
+  });
+
+  refSourceClearSelection?.addEventListener("click", () => {
+    clearReferenceSourceSelection();
+    scheduleReferenceSourceSearch();
   });
 
   // Outsourced modal
@@ -3142,16 +4223,7 @@ async function init() {
   if (!analysisId || isNaN(analysisId)) {
     toast("Select an analysis from the queue.", "info", 3000);
     setTimeout(() => {
-      const queuePage = "lab-analysis-queue.html";
-      if (typeof Platform?.navigate === "function") {
-        Platform.navigate(queuePage);
-      } else {
-        try {
-          window.location.href = queuePage;
-        } catch {
-          /* ignore */
-        }
-      }
+      navigateToAnalysisQueue();
     }, 1200);
     return;
   }

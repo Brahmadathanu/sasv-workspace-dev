@@ -1,0 +1,27 @@
+---
+description: Client module implementation pattern
+globs:
+  - "public/**/*.html"
+  - "public/**/*.js"
+alwaysApply: false
+---
+
+When creating or refactoring a client-side module:
+
+1. Identify the closest existing reference module first.
+2. Follow its HTML structure, JS initialization pattern, event binding style, loading state, error handling, and empty state pattern.
+3. Keep module-specific logic inside the module JS file.
+4. Reuse shared helpers where available.
+5. Avoid duplicate event listeners.
+6. Avoid inline styles unless existing module pattern uses them.
+7. Keep Supabase calls centralized and readable.
+8. Add clear smoke tests after implementation.
+
+Do not partially wire UI. A module is incomplete unless:
+
+- navigation works,
+- data loads,
+- filters work,
+- refresh/reset works,
+- empty/error/loading states work,
+- mobile layout is not broken.

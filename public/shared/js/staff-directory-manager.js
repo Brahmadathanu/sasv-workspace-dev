@@ -59,6 +59,24 @@ const staffSaveBtn = $("staffSaveBtn");
 const staffDeactivateBtn = $("staffDeactivateBtn");
 const staffCancelBtn = $("staffCancelBtn");
 
+const compensationModal = $("compensationModal");
+const compensationModalTitle = $("compensationModalTitle");
+const compensationModalSubtitle = $("compensationModalSubtitle");
+const compensationModalClose = $("compensationModalClose");
+const compensationModalBanner = $("compensationModalBanner");
+const compensationStaffId = $("compensationStaffId");
+const compensationPeriodStart = $("compensationPeriodStart");
+const compensationBasicSalary = $("compensationBasicSalary");
+const compensationAllowanceAmount = $("compensationAllowanceAmount");
+const compensationEmployerContribution = $(
+  "compensationEmployerContribution",
+);
+const compensationOtherSalaryCost = $("compensationOtherSalaryCost");
+const compensationTotalSalaryCost = $("compensationTotalSalaryCost");
+const compensationSourceNote = $("compensationSourceNote");
+const compensationSaveBtn = $("compensationSaveBtn");
+const compensationCancelBtn = $("compensationCancelBtn");
+
 const masterModal = $("masterModal");
 const masterModalTitle = $("masterModalTitle");
 const masterModalSubtitle = $("masterModalSubtitle");
@@ -86,6 +104,7 @@ const TABS = [
   { id: "categories", label: "Categories" },
   { id: "statuses", label: "Statuses" },
   { id: "units", label: "Units" },
+  { id: "compensation", label: "Compensation" },
 ];
 
 const SEARCH_PLACEHOLDERS = {
@@ -94,6 +113,8 @@ const SEARCH_PLACEHOLDERS = {
   categories: "Search category code or category label...",
   statuses: "Search status code or status label...",
   units: "Search unit code or unit label...",
+  compensation:
+    "Search staff name, employee code, designation, period, salary note, or compensation status...",
 };
 
 const ADD_BUTTON_LABELS = {
@@ -101,6 +122,7 @@ const ADD_BUTTON_LABELS = {
   categories: "Add Category",
   statuses: "Add Status",
   units: "Add Unit",
+  compensation: "Add Compensation",
 };
 
 const TABLE_CONFIG = {
@@ -145,6 +167,20 @@ const TABLE_CONFIG = {
       { label: "Updated", className: "col-hide-mobile" },
     ],
   },
+  compensation: {
+    emptyLabel: "compensation rows",
+    columns: [
+      { label: "Staff" },
+      { label: "Period" },
+      { label: "Basic" },
+      { label: "Allowance", className: "col-hide-mobile" },
+      { label: "Employer", className: "col-hide-mobile" },
+      { label: "Other", className: "col-hide-mobile" },
+      { label: "Total" },
+      { label: "Status" },
+      { label: "Updated", className: "col-hide-mobile" },
+    ],
+  },
 };
 
 const filtersByTab = {
@@ -164,6 +200,9 @@ const filtersByTab = {
   units: {
     activeStatus: "all",
   },
+  compensation: {
+    activeStatus: "all",
+  },
 };
 
 let userId = null;
@@ -174,10 +213,12 @@ let unitRows = [];
 let sectionRows = [];
 let subsectionRows = [];
 let areaRows = [];
+let compensationRows = [];
 let allStaffRows = [];
 let allCategoryRows = [];
 let allStatusRows = [];
 let allUnitRows = [];
+let allCompensationRows = [];
 let currentRows = [];
 let activeTab = "staff";
 let searchTerm = "";
@@ -191,6 +232,10 @@ let masterModalMode = "create";
 let masterModalBusy = false;
 let selectedMasterId = null;
 let prevMasterFocus = null;
+let selectedCompensationId = null;
+let compensationModalMode = "create";
+let compensationModalBusy = false;
+let prevCompensationFocus = null;
 let snapshotLoaded = false;
 
 initPage();
@@ -377,6 +422,7 @@ function wireEvents() {
 
   addStaffBtn.addEventListener("click", () => {
     if (activeTab === "staff") openStaffModal(null);
+    else if (activeTab === "compensation") openCompensationModal(null);
     else openMasterModal(activeTab, null);
   });
 
@@ -388,6 +434,11 @@ function wireEvents() {
 
     if (activeTab === "staff") {
       openStaffModal(rowId);
+      return;
+    }
+
+    if (activeTab === "compensation") {
+      openCompensationModal(rowId);
       return;
     }
 
@@ -425,6 +476,25 @@ function wireEvents() {
     if (e.target === staffModal) closeStaffModal();
   });
 
+  compensationSaveBtn.addEventListener("click", saveCompensationFromModal);
+  compensationCancelBtn.addEventListener("click", () =>
+    closeCompensationModal(),
+  );
+  compensationModalClose.addEventListener("click", () =>
+    closeCompensationModal(),
+  );
+  compensationModal.addEventListener("click", (e) => {
+    if (e.target === compensationModal) closeCompensationModal();
+  });
+  [
+    compensationBasicSalary,
+    compensationAllowanceAmount,
+    compensationEmployerContribution,
+    compensationOtherSalaryCost,
+  ].forEach((field) =>
+    field.addEventListener("input", updateCompensationTotalPreview),
+  );
+
   masterSaveBtn.addEventListener("click", saveMasterFromModal);
   masterDeactivateBtn.addEventListener("click", deactivateMasterFromModal);
   masterCancelBtn.addEventListener("click", () => closeMasterModal());
@@ -446,7 +516,12 @@ function wireEvents() {
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
 
-    if (!masterModal.classList.contains("hidden") && !masterModalBusy) {
+    if (
+      !compensationModal.classList.contains("hidden") &&
+      !compensationModalBusy
+    ) {
+      closeCompensationModal();
+    } else if (!masterModal.classList.contains("hidden") && !masterModalBusy) {
       closeMasterModal();
     } else if (!staffModal.classList.contains("hidden") && !modalBusy) {
       closeStaffModal();
@@ -463,11 +538,13 @@ async function reloadSnapshotAndRender(showRefreshToast = false) {
 
   try {
     await loadSnapshot();
+    await loadCompensationRows();
     snapshotLoaded = true;
     allStaffRows = buildStaffRows();
     allCategoryRows = buildCategoryMasterRows();
     allStatusRows = buildStatusMasterRows();
     allUnitRows = buildUnitMasterRows();
+    allCompensationRows = buildCompensationRows();
     renderCurrentView();
     clearStatus();
     if (showRefreshToast) showToast("Data refreshed", "success");
@@ -509,6 +586,39 @@ async function loadSnapshot() {
   sectionRows = Array.isArray(data?.sections) ? data.sections : [];
   subsectionRows = Array.isArray(data?.subsections) ? data.subsections : [];
   areaRows = Array.isArray(data?.areas) ? data.areas : [];
+}
+
+async function loadCompensationRows() {
+  const { data, error } = await hrSupabase
+    .from("v_staff_compensation_monthly_manager")
+    .select(
+      `
+      compensation_id,
+      staff_id,
+      employee_code,
+      staff_display_name,
+      designation,
+      staff_is_active,
+      period_start,
+      basic_salary,
+      allowance_amount,
+      employer_contribution,
+      other_salary_cost,
+      total_salary_cost,
+      source_note,
+      compensation_is_active,
+      compensation_status,
+      compensation_note,
+      created_at,
+      updated_at
+    `,
+    )
+    .order("period_start", { ascending: false })
+    .order("staff_display_name", { ascending: true });
+
+  if (error)
+    throw new Error(error.message || "Failed to load staff compensation rows.");
+  compensationRows = Array.isArray(data) ? data : [];
 }
 
 function buildStaffRows() {
@@ -579,10 +689,39 @@ function buildUnitMasterRows() {
   }));
 }
 
+function buildCompensationRows() {
+  return compensationRows.map((r) => ({
+    compensationId: parseOptionalId(r?.compensation_id),
+    staffId: parseOptionalId(r?.staff_id),
+    employeeCode: String(r?.employee_code || "-"),
+    staffDisplayName: String(r?.staff_display_name || "-"),
+    designation: String(r?.designation || "-"),
+    staffIsActive: r?.staff_is_active === true,
+    periodStart: r?.period_start || null,
+    basicSalary: toMoneyNumber(r?.basic_salary),
+    allowanceAmount: toMoneyNumber(r?.allowance_amount),
+    employerContribution: toMoneyNumber(r?.employer_contribution),
+    otherSalaryCost: toMoneyNumber(r?.other_salary_cost),
+    totalSalaryCost: toMoneyNumber(r?.total_salary_cost),
+    sourceNote: String(r?.source_note || ""),
+    isActive: r?.compensation_is_active === true,
+    compensationStatus: String(r?.compensation_status || "-"),
+    compensationNote: String(r?.compensation_note || ""),
+    createdAt: r?.created_at || null,
+    updatedAt: r?.updated_at || null,
+  }));
+}
+
+function toMoneyNumber(value) {
+  const n = Number(value ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
 function getRowsForTab(tabId = activeTab) {
   if (tabId === "categories") return allCategoryRows;
   if (tabId === "statuses") return allStatusRows;
   if (tabId === "units") return allUnitRows;
+  if (tabId === "compensation") return allCompensationRows;
   return allStaffRows;
 }
 
@@ -614,6 +753,23 @@ function applySearchAndFilters() {
           row.code,
           row.label,
           row.sortOrder == null ? "" : String(row.sortOrder),
+        ]
+          .join(" ")
+          .toLowerCase();
+      } else if (activeTab === "compensation") {
+        haystack = [
+          row.employeeCode,
+          row.staffDisplayName,
+          row.designation,
+          row.periodStart,
+          row.basicSalary,
+          row.allowanceAmount,
+          row.employerContribution,
+          row.otherSalaryCost,
+          row.totalSalaryCost,
+          row.sourceNote,
+          row.compensationStatus,
+          row.compensationNote,
         ]
           .join(" ")
           .toLowerCase();
@@ -679,6 +835,16 @@ function renderSummary() {
     kpiUnits.textContent = String(
       new Set(allRows.map((r) => r.unitId).filter((v) => v != null)).size,
     );
+  } else if (activeTab === "compensation") {
+    kpiLabelTotal.textContent = "Total Compensation Rows";
+    kpiLabelActive.textContent = "Active Rows";
+    kpiLabelInactive.textContent = "Inactive Rows";
+    kpiLabelFourth.textContent = "Visible Rows";
+    kpiLabelFifth.textContent = "Zero Salary";
+    kpiCategories.textContent = String(currentRows.length);
+    kpiUnits.textContent = String(
+      allRows.filter((r) => r.totalSalaryCost === 0).length,
+    );
   } else {
     const noun =
       activeTab === "categories"
@@ -731,7 +897,13 @@ function renderTable() {
   currentRows.forEach((row) => {
     const tr = document.createElement("tr");
     tr.className = "staff-row manager-row";
-    tr.dataset.rowId = String(activeTab === "staff" ? row.staffId : row.id);
+    tr.dataset.rowId = String(
+      activeTab === "staff"
+        ? row.staffId
+        : activeTab === "compensation"
+          ? row.compensationId
+          : row.id,
+    );
     tr.tabIndex = 0;
     tr.setAttribute("role", "row");
 
@@ -752,6 +924,23 @@ function renderTable() {
         <td class="col-hide-mobile">${escHtml(row.unitLabel)}</td>
         <td class="col-hide-mobile">${escHtml(row.sectionName)}</td>
         <td>${activeBadge}</td>
+        <td class="col-hide-mobile">${escHtml(formatDateTime(row.updatedAt))}</td>
+      `;
+    } else if (activeTab === "compensation") {
+      const compensationBadge = `<span class="badge ${row.isActive ? "badge-active" : "badge-inactive"}">${escHtml(row.compensationStatus)}</span>`;
+      tr.innerHTML = `
+        <td>
+          <span class="item-primary">${escHtml(row.staffDisplayName)}</span>
+          <span class="item-secondary">${escHtml(row.employeeCode)}</span>
+          <span class="item-secondary">${escHtml(row.designation)}</span>
+        </td>
+        <td>${escHtml(formatDate(row.periodStart))}</td>
+        <td>${escHtml(formatCurrency(row.basicSalary))}</td>
+        <td class="col-hide-mobile">${escHtml(formatCurrency(row.allowanceAmount))}</td>
+        <td class="col-hide-mobile">${escHtml(formatCurrency(row.employerContribution))}</td>
+        <td class="col-hide-mobile">${escHtml(formatCurrency(row.otherSalaryCost))}</td>
+        <td>${escHtml(formatCurrency(row.totalSalaryCost))}</td>
+        <td>${compensationBadge}</td>
         <td class="col-hide-mobile">${escHtml(formatDateTime(row.updatedAt))}</td>
       `;
     } else if (activeTab === "categories") {
@@ -792,6 +981,252 @@ function parseOptionalStaffId(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function openCompensationModal(compensationId = null) {
+  prevCompensationFocus = document.activeElement;
+  selectedCompensationId = parseOptionalId(compensationId);
+  compensationModalMode =
+    selectedCompensationId == null ? "create" : "edit";
+
+  clearCompensationModalBanner();
+
+  let row = null;
+  if (compensationModalMode === "edit") {
+    row = allCompensationRows.find(
+      (item) => item.compensationId === selectedCompensationId,
+    );
+    if (!row) {
+      showToast("Compensation record not found.", "error");
+      return;
+    }
+  }
+
+  populateCompensationStaffSelect(row?.staffId ?? null);
+  setCompensationFormValues(row);
+
+  if (compensationModalMode === "create") {
+    compensationModalTitle.textContent = "Staff Compensation";
+    compensationModalSubtitle.textContent =
+      "Create or update a monthly staff compensation record.";
+  } else {
+    compensationModalTitle.textContent = "Edit Compensation";
+    compensationModalSubtitle.textContent = `${row.staffDisplayName} \u00b7 ${row.employeeCode} \u00b7 ${formatDate(row.periodStart)}`;
+  }
+
+  setCompensationModalBusy(false);
+  compensationModal.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+  if (compensationModalMode === "edit") compensationBasicSalary.focus();
+  else compensationStaffId.focus();
+}
+
+function closeCompensationModal(force = false) {
+  if (compensationModalBusy && force !== true) return;
+
+  compensationModal.classList.add("hidden");
+  document.body.style.overflow =
+    staffModal.classList.contains("hidden") &&
+    masterModal.classList.contains("hidden")
+      ? ""
+      : "hidden";
+  clearCompensationModalBanner();
+  selectedCompensationId = null;
+  compensationModalMode = "create";
+
+  try {
+    if (
+      prevCompensationFocus &&
+      typeof prevCompensationFocus.focus === "function"
+    ) {
+      prevCompensationFocus.focus();
+    }
+  } catch {
+    // Ignore focus restore failures.
+  }
+  prevCompensationFocus = null;
+}
+
+function setCompensationModalBusy(isBusy) {
+  compensationModalBusy = !!isBusy;
+  compensationSaveBtn.disabled = compensationModalBusy;
+  compensationCancelBtn.disabled = compensationModalBusy;
+  compensationModalClose.disabled = compensationModalBusy;
+  compensationStaffId.disabled = compensationModalBusy;
+  compensationPeriodStart.disabled = compensationModalBusy;
+  compensationBasicSalary.disabled = compensationModalBusy;
+  compensationAllowanceAmount.disabled = compensationModalBusy;
+  compensationEmployerContribution.disabled = compensationModalBusy;
+  compensationOtherSalaryCost.disabled = compensationModalBusy;
+  compensationSourceNote.disabled = compensationModalBusy;
+  compensationSaveBtn.textContent = compensationModalBusy
+    ? "Saving..."
+    : "Save";
+}
+
+function clearCompensationModalBanner() {
+  compensationModalBanner.textContent = "";
+  compensationModalBanner.removeAttribute("data-type");
+}
+
+function showCompensationModalBanner(type, message) {
+  compensationModalBanner.textContent = message || "";
+  compensationModalBanner.setAttribute("data-type", type);
+}
+
+function populateCompensationStaffSelect(selectedStaffId = null) {
+  const selectedId = parseOptionalId(selectedStaffId);
+  const rows = allStaffRows
+    .filter((staff) => staff.isActive || staff.staffId === selectedId)
+    .sort((a, b) => a.fullName.localeCompare(b.fullName));
+
+  compensationStaffId.innerHTML = [
+    '<option value="">Select Staff</option>',
+    ...rows.map(
+      (staff) =>
+        `<option value="${escHtml(String(staff.staffId))}">${escHtml(
+          `${staff.fullName} \u2014 ${staff.employeeCode} \u2014 ${staff.designation}`,
+        )}</option>`,
+    ),
+  ].join("");
+}
+
+function setCompensationFormValues(row) {
+  compensationStaffId.value = asSelectValue(row?.staffId);
+  compensationPeriodStart.value = row
+    ? asDateInputValue(row.periodStart)
+    : getCurrentMonthStart();
+  compensationBasicSalary.value = String(row?.basicSalary ?? 0);
+  compensationAllowanceAmount.value = String(row?.allowanceAmount ?? 0);
+  compensationEmployerContribution.value = String(
+    row?.employerContribution ?? 0,
+  );
+  compensationOtherSalaryCost.value = String(row?.otherSalaryCost ?? 0);
+  compensationSourceNote.value = row?.sourceNote || "";
+  updateCompensationTotalPreview();
+}
+
+function getCurrentMonthStart() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}-01`;
+}
+
+function normalizeMonthStart(value) {
+  const dateValue = asDateInputValue(value);
+  return dateValue ? `${dateValue.slice(0, 7)}-01` : null;
+}
+
+function readCompensationFormValues() {
+  const staffId = parseOptionalId(compensationStaffId.value);
+  if (staffId == null) {
+    showCompensationModalBanner("error", "Staff is required.");
+    compensationStaffId.focus();
+    return null;
+  }
+
+  const periodStart = normalizeMonthStart(compensationPeriodStart.value);
+  if (!periodStart) {
+    showCompensationModalBanner("error", "Period Start is required.");
+    compensationPeriodStart.focus();
+    return null;
+  }
+
+  const amountFields = [
+    ["Basic Salary", compensationBasicSalary],
+    ["Allowance Amount", compensationAllowanceAmount],
+    ["Employer Contribution", compensationEmployerContribution],
+    ["Other Salary Cost", compensationOtherSalaryCost],
+  ];
+  const amounts = [];
+  for (const [label, field] of amountFields) {
+    const raw = String(field.value ?? "").trim();
+    const value = raw === "" ? 0 : Number(raw);
+    if (!Number.isFinite(value) || value < 0) {
+      showCompensationModalBanner(
+        "error",
+        `${label} must be a number greater than or equal to 0.`,
+      );
+      field.focus();
+      return null;
+    }
+    amounts.push(value);
+  }
+
+  const sourceNote = String(compensationSourceNote.value || "").trim();
+  const total = amounts.reduce((sum, value) => sum + value, 0);
+  if (total === 0 && sourceNote.length < 5) {
+    showCompensationModalBanner(
+      "error",
+      "Enter a source note of at least 5 characters to explain zero salary.",
+    );
+    compensationSourceNote.focus();
+    return null;
+  }
+
+  return {
+    staffId,
+    periodStart,
+    basicSalary: amounts[0],
+    allowanceAmount: amounts[1],
+    employerContribution: amounts[2],
+    otherSalaryCost: amounts[3],
+    sourceNote: sourceNote || null,
+  };
+}
+
+function updateCompensationTotalPreview() {
+  const total = [
+    compensationBasicSalary,
+    compensationAllowanceAmount,
+    compensationEmployerContribution,
+    compensationOtherSalaryCost,
+  ].reduce((sum, field) => {
+    const value = Number(field.value ?? 0);
+    return sum + (Number.isFinite(value) && value >= 0 ? value : 0);
+  }, 0);
+  compensationTotalSalaryCost.value = formatCurrency(total);
+}
+
+async function saveCompensationFromModal() {
+  if (compensationModalBusy) return;
+  clearCompensationModalBanner();
+
+  const payload = readCompensationFormValues();
+  if (!payload) return;
+
+  compensationPeriodStart.value = payload.periodStart;
+  setCompensationModalBusy(true);
+  try {
+    const { error } = await hrSupabase.rpc(
+      "fn_save_staff_compensation_monthly",
+      {
+        p_staff_id: payload.staffId,
+        p_period_start: payload.periodStart,
+        p_basic_salary: payload.basicSalary,
+        p_allowance_amount: payload.allowanceAmount,
+        p_employer_contribution: payload.employerContribution,
+        p_other_salary_cost: payload.otherSalaryCost,
+        p_source_note: payload.sourceNote,
+      },
+    );
+    if (error)
+      throw new Error(error.message || "Failed to save staff compensation.");
+
+    closeCompensationModal(true);
+    await reloadSnapshotAndRender();
+    showToast("Staff compensation saved.", "success");
+  } catch (err) {
+    console.error("[staff-directory-manager] saveCompensationFromModal:", err);
+    showCompensationModalBanner(
+      "error",
+      err.message || "Failed to save staff compensation.",
+    );
+    showToast(err.message || "Failed to save staff compensation.", "error");
+  } finally {
+    setCompensationModalBusy(false);
+  }
+}
+
 function openStaffModal(staffId = null) {
   prevFocus = document.activeElement;
   selectedStaffId = parseOptionalStaffId(staffId);
@@ -828,9 +1263,11 @@ function closeStaffModal(force = false) {
   if (modalBusy && !forceClose) return;
 
   staffModal.classList.add("hidden");
-  document.body.style.overflow = masterModal.classList.contains("hidden")
-    ? ""
-    : "hidden";
+  document.body.style.overflow =
+    masterModal.classList.contains("hidden") &&
+    compensationModal.classList.contains("hidden")
+      ? ""
+      : "hidden";
   clearModalBanner();
   selectedStaffId = null;
   modalMode = "create";
@@ -1197,9 +1634,11 @@ function closeMasterModal(force = false) {
   if (masterModalBusy && !forceClose) return;
 
   masterModal.classList.add("hidden");
-  document.body.style.overflow = staffModal.classList.contains("hidden")
-    ? ""
-    : "hidden";
+  document.body.style.overflow =
+    staffModal.classList.contains("hidden") &&
+    compensationModal.classList.contains("hidden")
+      ? ""
+      : "hidden";
   clearMasterModalBanner();
   selectedMasterId = null;
   masterModalMode = "create";
@@ -1677,6 +2116,30 @@ function formatDateTime(dateStr) {
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+    });
+  } catch {
+    return "-";
+  }
+}
+
+function formatCurrency(value) {
+  const n = Number(value || 0);
+  if (!Number.isFinite(n)) return "-";
+  return n.toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return "-";
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return "-";
+    return date.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
     });
   } catch {
     return "-";

@@ -1042,6 +1042,7 @@
           <option value="categories">Categories</option>
           <option value="statuses">Statuses</option>
           <option value="units">Units</option>
+          <option value="compensation">Compensation</option>
         </select>
         <svg
           class="tab-select-icon"
@@ -1295,6 +1296,82 @@
               <button id="staffCancelBtn" type="button" class="btn-secondary">
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="compensationModal"
+      class="modal-overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="compensationModalTitle"
+    >
+      <div class="modal-window" role="document">
+        <div class="modal-header">
+          <div>
+            <div id="compensationModalTitle" class="modal-title">Staff Compensation</div>
+            <div id="compensationModalSubtitle" class="modal-subtitle"></div>
+          </div>
+          <div class="modal-header-actions">
+            <button id="compensationModalClose" class="modal-close-btn" aria-label="Close" type="button">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="modal-content">
+          <div id="compensationModalBanner" class="modal-banner"></div>
+          <div class="form-section">
+            <div class="form-section-title">Compensation Details</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="compensationStaffId">Staff <span class="req">*</span></label>
+                <select id="compensationStaffId" class="form-control" required></select>
+              </div>
+              <div class="form-group">
+                <label for="compensationPeriodStart">Period Start <span class="req">*</span></label>
+                <input id="compensationPeriodStart" class="form-control" type="date" required />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="compensationBasicSalary">Basic Salary</label>
+                <input id="compensationBasicSalary" class="form-control" type="number" min="0" step="0.01" />
+              </div>
+              <div class="form-group">
+                <label for="compensationAllowanceAmount">Allowance Amount</label>
+                <input id="compensationAllowanceAmount" class="form-control" type="number" min="0" step="0.01" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="compensationEmployerContribution">Employer Contribution</label>
+                <input id="compensationEmployerContribution" class="form-control" type="number" min="0" step="0.01" />
+              </div>
+              <div class="form-group">
+                <label for="compensationOtherSalaryCost">Other Salary Cost</label>
+                <input id="compensationOtherSalaryCost" class="form-control" type="number" min="0" step="0.01" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="compensationTotalSalaryCost">Total Salary Cost</label>
+                <input id="compensationTotalSalaryCost" class="form-control" type="text" readonly />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="compensationSourceNote">Source Note</label>
+              <textarea id="compensationSourceNote" class="form-control"></textarea>
+              <div class="meta-note">Recommended for audit context and required when all amounts are zero.</div>
+            </div>
+            <div class="modal-actions">
+              <button id="compensationSaveBtn" type="button" class="btn-primary">Save</button>
+              <button id="compensationCancelBtn" type="button" class="btn-secondary">Close</button>
             </div>
           </div>
         </div>

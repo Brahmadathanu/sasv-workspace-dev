@@ -1,0 +1,18 @@
+---
+description: UI design language rules
+alwaysApply: true
+---
+
+Follow the existing SASV Workspace design language.
+
+General UI rules:
+
+- Use existing card, toolbar, filter, table, modal, tab, toast, and badge styles.
+- Do not introduce a new visual language.
+- Reuse shared CSS classes before creating new CSS.
+- Keep layouts mobile-friendly and desktop-friendly.
+- Prefer two-line filter layouts where existing modules use them.
+- Keep Clear actions as text links where existing modules do so.
+- Maintain dark-theme compatibility.
+- Do not use pure black backgrounds unless already used by the project.
+- Keep table cards visually consistent with established modules.

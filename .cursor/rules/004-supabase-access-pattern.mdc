@@ -1,0 +1,16 @@
+---
+description: Supabase client access rules
+globs:
+  - "public/**/*.js"
+alwaysApply: false
+---
+
+Supabase rules:
+
+- Do not invent table, view, column, or RPC names.
+- If schema is not known, ask for SQL/schema or inspect existing references.
+- Prefer existing RPC/view patterns used in nearby modules.
+- Keep server-side truth in Supabase where possible.
+- Do not duplicate business-critical calculations in client JS if an RPC/view exists.
+- Handle loading, error, empty, and success states.
+- Log useful console errors during development but avoid noisy production logs.

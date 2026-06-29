@@ -6,6 +6,11 @@
     <title>Specification Profile Manager</title>
     <link rel="stylesheet" href="css/style.css" />
     <style>
+      /* ── Utility ─────────────────────────────────────────────────── */
+      .hidden {
+        display: none !important;
+      }
+
       /* ── Reset & Base ─────────────────────────────────────────────── */
       html,
       body {
@@ -306,14 +311,48 @@
       .type-pill[data-type="PM"].active .type-pill-label {
         color: #7c3aed;
       }
+      @media (max-width: 640px) {
+        .type-pills {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 8px;
+          flex-wrap: nowrap;
+        }
+        .type-pill {
+          align-items: center;
+          justify-content: center;
+          min-width: 0;
+          width: 100%;
+          padding: 8px 4px;
+          gap: 2px;
+          text-align: center;
+        }
+        .type-pill-sub {
+          display: none;
+        }
+        .type-pill-icon svg {
+          width: 16px;
+          height: 16px;
+        }
+        .type-pill-label {
+          font-size: 12px;
+        }
+      }
 
       /* ── Tab strip ────────────────────────────────────────────────── */
+      .tab-nav {
+        background: var(--panel-bg, #fff);
+        border-bottom: 2px solid var(--border, #e5e7eb);
+        border-radius: 10px 10px 0 0;
+        flex-shrink: 0;
+      }
+      .tab-nav.hidden {
+        display: none;
+      }
       .tab-strip {
         display: flex;
         gap: 0;
-        border-bottom: 2px solid var(--border, #e5e7eb);
-        background: var(--panel-bg, #fff);
-        border-radius: 10px 10px 0 0;
+        background: transparent;
         flex-shrink: 0;
         padding: 0 16px;
       }
@@ -340,8 +379,78 @@
         color: var(--primary, #2563eb);
         border-bottom-color: var(--primary, #2563eb);
       }
-      .tab-strip.hidden {
+      .tab-select-wrap {
         display: none;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      .tab-select {
+        display: inline-block;
+        width: 100%;
+        padding: 8px 42px 8px 10px;
+        border-radius: 8px;
+        border: 1px solid var(--erp-accent, #2563eb);
+        background: linear-gradient(
+          135deg,
+          rgba(37, 99, 235, 0.12) 0%,
+          rgba(37, 99, 235, 0.06) 100%
+        );
+        color: #0f172a;
+        font-weight: 600;
+        font-size: 14px;
+        font-family: inherit;
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        cursor: pointer;
+      }
+      .tab-select-icon {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 18px;
+        height: 18px;
+        pointer-events: none;
+        display: block;
+        color: var(--erp-accent, #2563eb);
+      }
+      [data-theme="dark"] .tab-select {
+        color: var(--text-color, #e0e0e0);
+        border-color: rgba(96, 165, 250, 0.55);
+        background: linear-gradient(
+          135deg,
+          rgba(37, 99, 235, 0.22) 0%,
+          rgba(37, 99, 235, 0.1) 100%
+        );
+      }
+      @media (max-width: 520px) {
+        .tab-strip {
+          display: none;
+        }
+        .tab-nav .tab-select-wrap {
+          position: relative;
+          display: block;
+          width: 100%;
+          padding: 8px 10px;
+          box-sizing: border-box;
+        }
+      }
+      @media (min-width: 521px) {
+        .tab-select,
+        .tab-select-wrap,
+        .tab-select-icon {
+          display: none !important;
+        }
       }
 
       /* ── Tab panels ───────────────────────────────────────────────── */
@@ -641,18 +750,120 @@
       .tab-badge.hidden {
         display: none;
       }
-      .rq-action-btn {
-        padding: 5px 10px;
-        border-radius: 6px;
-        border: 1px solid #bfdbfe;
-        background: #eff6ff;
-        color: #1d4ed8;
-        font-size: 12px;
-        font-weight: 700;
+      .spec-review-row-clickable {
         cursor: pointer;
       }
-      .rq-action-btn:hover {
-        background: #dbeafe;
+      .spec-review-row-clickable:hover td {
+        background: #f8fbff;
+      }
+      .spec-review-row-clickable:focus-visible {
+        outline: 2px solid #60a5fa;
+        outline-offset: -2px;
+      }
+      .spec-review-row-clickable.spec-review-row-active td {
+        background: #eff6ff;
+      }
+      [data-theme="dark"] .spec-review-row-clickable:hover td {
+        background: rgba(59, 130, 246, 0.08);
+      }
+      [data-theme="dark"] .spec-review-row-clickable.spec-review-row-active td {
+        background: rgba(59, 130, 246, 0.14);
+      }
+      .spec-override-row-clickable {
+        cursor: pointer;
+      }
+      .spec-override-row-clickable:hover td {
+        background: #f8fbff;
+      }
+      .spec-override-row-clickable:focus-visible {
+        outline: 2px solid #60a5fa;
+        outline-offset: -2px;
+      }
+      .spec-override-row-clickable.spec-override-row-active td {
+        background: #eff6ff;
+      }
+      [data-theme="dark"] .spec-override-row-clickable:hover td {
+        background: rgba(59, 130, 246, 0.08);
+      }
+      [data-theme="dark"] .spec-override-row-clickable.spec-override-row-active td {
+        background: rgba(59, 130, 246, 0.14);
+      }
+      .spec-history-row-clickable {
+        cursor: pointer;
+      }
+      .spec-history-row-clickable:hover td {
+        background: #f8fbff;
+      }
+      .spec-history-row-clickable:focus-visible {
+        outline: 2px solid #60a5fa;
+        outline-offset: -2px;
+      }
+      .spec-history-row-clickable.spec-history-row-active td {
+        background: #eff6ff;
+      }
+      [data-theme="dark"] .spec-history-row-clickable:hover td {
+        background: rgba(59, 130, 246, 0.08);
+      }
+      [data-theme="dark"] .spec-history-row-clickable.spec-history-row-active td {
+        background: rgba(59, 130, 246, 0.14);
+      }
+      .workflow-compact-cell-meta {
+        font-size: 11.5px;
+        color: var(--muted, #6b7280);
+        margin-top: 2px;
+      }
+      .workflow-summary-cell {
+        display: inline-block;
+        max-width: 240px;
+        line-height: 1.35;
+      }
+      .lifecycle-history-detail-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-bottom: 8px;
+      }
+      @media (max-width: 640px) {
+        .lifecycle-history-detail-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .lifecycle-history-kv {
+        font-size: 13px;
+      }
+      .lifecycle-history-kv-label {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--muted, #6b7280);
+        margin-bottom: 2px;
+      }
+      .lifecycle-history-kv-value {
+        font-weight: 600;
+        color: #374151;
+      }
+      [data-theme="dark"] .lifecycle-history-kv-value {
+        color: var(--text-color, #e0e0e0);
+      }
+      .lifecycle-history-section {
+        margin-top: 12px;
+      }
+      .lifecycle-history-section-title {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--primary, #2563eb);
+        margin-bottom: 8px;
+      }
+      .lifecycle-history-summary {
+        margin-bottom: 10px;
+      }
+      .lifecycle-history-modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
       }
       .rq-age-overdue {
         color: #b91c1c;
@@ -661,6 +872,660 @@
       .rq-age-due-soon {
         color: #b45309;
         font-weight: 700;
+      }
+      .or-status-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+      .or-status-badge-active {
+        border: 1px solid #86efac;
+        background: #f0fdf4;
+        color: #166534;
+      }
+      .or-status-badge-inactive {
+        border: 1px solid #d1d5db;
+        background: #f9fafb;
+        color: #6b7280;
+      }
+      .or-action-btn-revert {
+        border-color: #fecaca !important;
+        background: #fff1f2 !important;
+        color: #b91c1c !important;
+      }
+      .or-action-btn-revert:hover:not(:disabled) {
+        background: #ffe4e6 !important;
+      }
+      .or-action-btn-revert:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .spec-override-btn-deactivate {
+        color: #92400e;
+        border-color: #fcd34d;
+        background: #fffbeb;
+      }
+      .spec-override-btn-deactivate:hover:not(:disabled) {
+        background: #fef3c7;
+      }
+      [data-theme="dark"] .spec-override-btn-deactivate {
+        color: #fcd34d;
+        border-color: rgba(251, 191, 36, 0.4);
+        background: rgba(120, 53, 15, 0.22);
+      }
+      [data-theme="dark"] .spec-override-btn-deactivate:hover:not(:disabled) {
+        background: rgba(120, 53, 15, 0.34);
+      }
+      .spec-override-deactivate-confirm-backdrop {
+        z-index: 1100;
+      }
+      .ov-modal--confirm {
+        max-width: 520px;
+        min-width: 320px;
+        min-height: 0;
+      }
+      .spec-override-deactivate-confirm-warning {
+        margin: 0 0 12px;
+        padding: 10px 12px;
+        font-size: 13px;
+        line-height: 1.5;
+        color: #92400e;
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        border-radius: 8px;
+      }
+      [data-theme="dark"] .spec-override-deactivate-confirm-warning {
+        color: #fcd34d;
+        background: rgba(120, 53, 15, 0.22);
+        border-color: rgba(251, 191, 36, 0.35);
+      }
+      .spec-override-deactivate-remarks-preview {
+        margin-top: 10px;
+        padding: 10px 12px;
+        font-size: 13px;
+        line-height: 1.5;
+        color: #374151;
+        background: #f9fafb;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        white-space: pre-wrap;
+        word-break: break-word;
+        max-height: 120px;
+        overflow-y: auto;
+      }
+      [data-theme="dark"] .spec-override-deactivate-remarks-preview {
+        color: #e5e7eb;
+        background: rgba(15, 23, 42, 0.35);
+        border-color: rgba(148, 163, 184, 0.25);
+      }
+      .spec-override-supersede-backdrop {
+        z-index: 1050;
+      }
+      .spec-override-supersede-confirm-backdrop {
+        z-index: 1150;
+      }
+      .spec-override-btn-supersede {
+        color: #0f766e;
+        border-color: #5eead4;
+        background: #f0fdfa;
+      }
+      .spec-override-btn-supersede:hover:not(:disabled) {
+        background: #ccfbf1;
+      }
+      [data-theme="dark"] .spec-override-btn-supersede {
+        color: #5eead4;
+        border-color: rgba(45, 212, 191, 0.4);
+        background: rgba(15, 118, 110, 0.22);
+      }
+      [data-theme="dark"] .spec-override-btn-supersede:hover:not(:disabled) {
+        background: rgba(15, 118, 110, 0.34);
+      }
+      .spec-override-supersede-confirm-warning {
+        margin: 0 0 12px;
+        padding: 10px 12px;
+        font-size: 13px;
+        line-height: 1.5;
+        color: #0f766e;
+        background: #f0fdfa;
+        border: 1px solid #99f6e4;
+        border-radius: 8px;
+      }
+      [data-theme="dark"] .spec-override-supersede-confirm-warning {
+        color: #5eead4;
+        background: rgba(15, 118, 110, 0.22);
+        border-color: rgba(45, 212, 191, 0.35);
+      }
+      .spec-override-register-footer {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+      .or-row-inactive {
+        opacity: 0.55;
+        background: #f9fafb;
+      }
+      .or-audit-meta {
+        font-size: 11.5px;
+        color: var(--muted, #6b7280);
+        margin-top: 2px;
+      }
+      .or-register-detail-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-bottom: 8px;
+      }
+      .or-register-kv {
+        font-size: 13px;
+      }
+      .or-register-kv-label {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--muted, #6b7280);
+        margin-bottom: 2px;
+      }
+      .or-register-kv-value {
+        font-weight: 600;
+        color: #374151;
+      }
+      @media (max-width: 640px) {
+        .or-register-detail-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .or-panel-subtitle,
+      .ch-panel-subtitle {
+        font-size: 13px;
+        color: var(--muted, #6b7280);
+        margin: 4px 0 10px;
+        line-height: 1.45;
+      }
+      .workflow-table-header-main {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        flex-wrap: wrap;
+        min-width: 0;
+      }
+      .workflow-table-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1 1 360px;
+        min-width: min(100%, 260px);
+        justify-content: flex-end;
+        flex-wrap: nowrap;
+        margin-left: auto;
+      }
+      .form-control.workflow-table-search {
+        flex: 1 1 auto;
+        min-width: 0;
+        max-width: none;
+        font-size: 13px;
+        background: #e6f7ff;
+        border-color: rgba(14, 165, 233, 0.35);
+      }
+      .form-control.workflow-table-search::placeholder {
+        color: var(--muted, #6b7280);
+      }
+      .form-control.workflow-table-search:focus {
+        background: #f0f9ff;
+        border-color: #0ea5e9;
+        box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+      }
+      .workflow-export-btn,
+      .rq-filter-wrap,
+      .or-filter-wrap,
+      .ch-filter-wrap {
+        flex: 0 0 auto;
+      }
+      .workflow-export-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 7px;
+        background: var(--panel-bg, #fff);
+        color: #374151;
+        cursor: pointer;
+      }
+      .workflow-export-btn:hover,
+      .workflow-export-btn:focus-visible {
+        background: #f3f4f6;
+        border-color: var(--primary, #2563eb);
+        color: var(--primary, #2563eb);
+        outline: none;
+      }
+      [data-theme="dark"] .workflow-export-btn:hover,
+      [data-theme="dark"] .workflow-export-btn:focus-visible {
+        background: rgba(59, 130, 246, 0.12);
+        border-color: rgba(96, 165, 250, 0.55);
+        color: #93c5fd;
+      }
+      @media (max-width: 640px) {
+        .workflow-table-header-actions {
+          width: 100%;
+          flex-basis: 100%;
+          margin-left: 0;
+        }
+      }
+      [data-theme="dark"] .form-control.workflow-table-search {
+        background: rgba(14, 165, 233, 0.14);
+        color: var(--text-color, #e0e0e0);
+        border-color: rgba(56, 189, 248, 0.35);
+      }
+      [data-theme="dark"] .form-control.workflow-table-search:focus {
+        background: rgba(14, 165, 233, 0.22);
+        border-color: #38bdf8;
+        box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+      }
+      .rq-filter-wrap {
+        position: relative;
+      }
+      .rq-filter-btn {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 7px;
+        background: var(--panel-bg, #fff);
+        color: #374151;
+        cursor: pointer;
+      }
+      .rq-filter-btn:hover,
+      .rq-filter-btn:focus-visible {
+        background: #f3f4f6;
+        border-color: var(--primary, #2563eb);
+        color: var(--primary, #2563eb);
+        outline: none;
+      }
+      .rq-filter-btn--active {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+        color: #2563eb;
+      }
+      .rq-filter-badge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        min-width: 14px;
+        height: 14px;
+        padding: 0 3px;
+        border-radius: 999px;
+        background: #2563eb;
+        color: #fff;
+        font-size: 9px;
+        font-weight: 800;
+        line-height: 14px;
+        text-align: center;
+      }
+      .rq-filter-badge.hidden {
+        display: none;
+      }
+      .rq-filter-drawer {
+        display: none;
+        position: absolute;
+        top: calc(100% + 6px);
+        right: 0;
+        left: auto;
+        width: 300px;
+        max-width: min(300px, calc(100vw - 24px));
+        max-height: min(480px, 80vh);
+        overflow-y: auto;
+        background: var(--panel-bg, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+        z-index: 300;
+        padding: 12px 14px;
+        box-sizing: border-box;
+      }
+      .rq-filter-drawer.open {
+        display: block;
+      }
+      .rq-filter-section-title {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted, #6b7280);
+        margin-bottom: 8px;
+      }
+      .rq-filter-drawer .form-group {
+        margin-bottom: 10px;
+      }
+      .rq-filter-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-top: 4px;
+      }
+      .rq-filter-clear {
+        border: none;
+        background: none;
+        padding: 0;
+        font-size: 12px;
+        color: var(--primary, #2563eb);
+        cursor: pointer;
+      }
+      .rq-filter-clear:hover {
+        text-decoration: underline;
+      }
+      .or-table-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+      .or-filter-wrap {
+        position: relative;
+      }
+      .or-filter-btn {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 7px;
+        background: var(--panel-bg, #fff);
+        color: #374151;
+        cursor: pointer;
+      }
+      .or-filter-btn:hover,
+      .or-filter-btn:focus-visible {
+        background: #f3f4f6;
+        border-color: var(--primary, #2563eb);
+        color: var(--primary, #2563eb);
+        outline: none;
+      }
+      .or-filter-btn--active {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+        color: #2563eb;
+      }
+      .or-filter-badge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        min-width: 14px;
+        height: 14px;
+        padding: 0 3px;
+        border-radius: 999px;
+        background: #2563eb;
+        color: #fff;
+        font-size: 9px;
+        font-weight: 800;
+        line-height: 14px;
+        text-align: center;
+      }
+      .or-filter-badge.hidden {
+        display: none;
+      }
+      .or-filter-drawer {
+        display: none;
+        position: absolute;
+        top: calc(100% + 6px);
+        right: 0;
+        left: auto;
+        width: 300px;
+        max-width: min(300px, calc(100vw - 24px));
+        max-height: min(480px, 80vh);
+        overflow-y: auto;
+        background: var(--panel-bg, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+        z-index: 300;
+        padding: 12px 14px;
+        box-sizing: border-box;
+      }
+      .or-filter-drawer.open {
+        display: block;
+      }
+      .or-filter-section-title {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted, #6b7280);
+        margin-bottom: 8px;
+      }
+      .or-filter-drawer .form-group {
+        margin-bottom: 10px;
+      }
+      .or-filter-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-top: 4px;
+        padding-top: 8px;
+        border-top: 1px solid var(--border, #e5e7eb);
+      }
+      .or-filter-clear {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--primary, #2563eb);
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+      }
+      .or-filter-clear:hover {
+        text-decoration: underline;
+      }
+      .or-filter-drawer.spec-filter-drawer--floating,
+      .ch-filter-drawer.spec-filter-drawer--floating,
+      .rq-filter-drawer.spec-filter-drawer--floating {
+        position: fixed;
+        z-index: 4000;
+        right: auto;
+        left: auto;
+        top: auto;
+      }
+      .ch-table-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+      .ch-filter-wrap {
+        position: relative;
+      }
+      .ch-filter-btn {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 7px;
+        background: var(--panel-bg, #fff);
+        color: #374151;
+        cursor: pointer;
+      }
+      .ch-filter-btn:hover,
+      .ch-filter-btn:focus-visible {
+        background: #f3f4f6;
+        border-color: var(--primary, #2563eb);
+        color: var(--primary, #2563eb);
+        outline: none;
+      }
+      .ch-filter-btn--active {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+        color: #2563eb;
+      }
+      .ch-filter-badge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        min-width: 14px;
+        height: 14px;
+        padding: 0 3px;
+        border-radius: 999px;
+        background: #2563eb;
+        color: #fff;
+        font-size: 9px;
+        font-weight: 800;
+        line-height: 14px;
+        text-align: center;
+      }
+      .ch-filter-badge.hidden {
+        display: none;
+      }
+      .ch-filter-drawer {
+        display: none;
+        position: absolute;
+        top: calc(100% + 6px);
+        right: 0;
+        left: auto;
+        width: 300px;
+        max-width: min(300px, calc(100vw - 24px));
+        max-height: min(520px, 80vh);
+        overflow-y: auto;
+        background: var(--panel-bg, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+        z-index: 300;
+        padding: 12px 14px;
+        box-sizing: border-box;
+      }
+      .ch-filter-drawer.open {
+        display: block;
+      }
+      .ch-filter-section-title {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted, #6b7280);
+        margin-bottom: 8px;
+      }
+      .ch-filter-drawer .form-group {
+        margin-bottom: 10px;
+      }
+      .ch-filter-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-top: 4px;
+        padding-top: 8px;
+        border-top: 1px solid var(--border, #e5e7eb);
+      }
+      .ch-filter-clear {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--primary, #2563eb);
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+      }
+      .ch-filter-clear:hover {
+        text-decoration: underline;
+      }
+      .ch-status-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+      .ch-status-badge-pending {
+        border: 1px solid #fcd34d;
+        background: #fffbeb;
+        color: #92400e;
+      }
+      .ch-status-badge-applied {
+        border: 1px solid #86efac;
+        background: #f0fdf4;
+        color: #166534;
+      }
+      .ch-status-badge-rejected {
+        border: 1px solid #fca5a5;
+        background: #fef2f2;
+        color: #991b1b;
+      }
+      .ch-status-badge-other {
+        border: 1px solid #d1d5db;
+        background: #f9fafb;
+        color: #6b7280;
+      }
+      .ch-status-badge-cancelled {
+        border: 1px solid #fcd34d;
+        background: #fffbeb;
+        color: #a16207;
+      }
+      .ch-status-badge-deactivated {
+        border: 1px solid #d1d5db;
+        background: #f3f4f6;
+        color: #4b5563;
+      }
+      .ch-status-badge-reactivated {
+        border: 1px solid #86efac;
+        background: #f0fdf4;
+        color: #166534;
+      }
+      .ch-status-badge-superseded {
+        border: 1px solid #5eead4;
+        background: #f0fdfa;
+        color: #0f766e;
+      }
+      .ch-history-type-meta {
+        font-size: 10.5px;
+        font-weight: 600;
+        color: var(--muted, #6b7280);
+        margin-top: 3px;
+        text-transform: none;
+        letter-spacing: 0;
+      }
+      .ch-route-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 600;
+        border: 1px solid #bfdbfe;
+        background: #eff6ff;
+        color: #1d4ed8;
+        white-space: nowrap;
+      }
+      .or-audit-meta,
+      .ch-audit-meta {
+        font-size: 11.5px;
+        color: var(--muted, #6b7280);
+        margin-top: 2px;
+      }
+      .ch-route-changed-meta {
+        font-size: 11.5px;
+        color: #b45309;
+        margin-top: 2px;
+        font-weight: 600;
       }
 
       /* ── Info / warn banners ──────────────────────────────────────── */
@@ -773,9 +1638,9 @@
         grid-template-columns: 250px 1fr;
         gap: 12px;
         min-height: 0;
-        flex: 1 1 auto;
+        flex: 0 0 auto;
         min-width: 0;
-        overflow: hidden;
+        overflow: visible;
       }
       .spec-request-list {
         display: flex;
@@ -783,7 +1648,9 @@
         gap: 6px;
         max-height: none;
         min-height: 0;
+        min-width: 0;
         overflow-y: auto;
+        overflow-x: hidden;
         padding: 8px;
         border: 1px solid var(--border, #e5e7eb);
         border-radius: 8px;
@@ -823,6 +1690,14 @@
         color: var(--muted, #6b7280);
         line-height: 1.35;
       }
+      .spec-request-item-source,
+      .rq-ref-source-meta {
+        font-size: 11px;
+        color: var(--muted, #6b7280);
+        line-height: 1.35;
+        margin-top: 3px;
+        word-break: break-word;
+      }
       .spec-request-type-badge {
         display: inline-flex;
         align-items: center;
@@ -839,14 +1714,101 @@
       .spec-request-detail {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 12px;
         min-width: 0;
         min-height: 0;
-        overflow-y: auto;
+        overflow-x: hidden;
+        overflow-y: visible;
         padding: 8px;
         border: 1px solid var(--border, #e5e7eb);
         border-radius: 8px;
         background: #fff;
+      }
+      .spec-request-review-main {
+        min-width: 0;
+        min-height: 0;
+      }
+      .spec-request-panel {
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: #fff;
+        padding: 12px 14px;
+        min-width: 0;
+        flex-shrink: 0;
+      }
+      .spec-request-panel-muted {
+        background: #f9fafb;
+      }
+      .spec-request-summary-strip {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 8px 10px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: #f8fafc;
+        min-width: 0;
+        flex-shrink: 0;
+      }
+      .spec-request-summary-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 14px;
+        align-items: center;
+        min-width: 0;
+      }
+      .spec-request-summary-pair {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        min-width: 0;
+        font-size: 12px;
+        line-height: 1.35;
+      }
+      .spec-request-summary-pair .spec-request-meta-label {
+        font-size: 10px;
+        flex-shrink: 0;
+        margin-bottom: 0;
+        line-height: 1.35;
+      }
+      .spec-request-summary-pair .spec-request-meta-value {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        min-width: 0;
+      }
+      .spec-request-summary-row-primary .spec-request-meta-value {
+        font-weight: 600;
+      }
+      .spec-request-summary-row-secondary .spec-request-meta-value {
+        font-size: 11.5px;
+      }
+      [data-theme="dark"] .spec-request-panel {
+        background: var(--panel-bg, #2a2a2a);
+      }
+      [data-theme="dark"] .spec-request-panel-muted {
+        background: rgba(255, 255, 255, 0.04);
+      }
+      [data-theme="dark"] .spec-request-summary-strip {
+        background: rgba(255, 255, 255, 0.04);
+      }
+      #specRequestReviewModal.spec-request-modal--single .spec-request-review-layout {
+        grid-template-columns: 1fr;
+      }
+      #specRequestReviewModal.spec-request-modal--single .spec-request-list {
+        display: none;
+      }
+      #specRequestReviewModal.spec-request-modal--single .ov-modal {
+        width: min(1080px, calc(100vw - 32px));
+        max-width: 1080px;
+      }
+      #specRequestReviewModal.spec-request-modal--single #specRequestReviewContext {
+        display: none;
+      }
+      #specRequestReviewModal.spec-request-modal--single .spec-request-detail {
+        border: none;
+        padding: 0;
+        background: transparent;
+        gap: 12px;
       }
       .spec-request-section-title {
         font-size: 10.5px;
@@ -854,12 +1816,37 @@
         text-transform: uppercase;
         letter-spacing: 0.05em;
         color: var(--muted, #6b7280);
-        margin-bottom: 1px;
+        margin-bottom: 6px;
       }
       .spec-request-detail-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
         gap: 10px;
+        min-width: 0;
+      }
+      :root {
+        --spec-diff-current-bg: #fff5f5;
+        --spec-diff-current-border: #fecaca;
+        --spec-diff-current-accent: #dc2626;
+        --spec-diff-current-role-bg: #fee2e2;
+        --spec-diff-current-role-text: #991b1b;
+        --spec-diff-proposed-bg: #f0fdf4;
+        --spec-diff-proposed-border: #bbf7d0;
+        --spec-diff-proposed-accent: #16a34a;
+        --spec-diff-proposed-role-bg: #dcfce7;
+        --spec-diff-proposed-role-text: #166534;
+      }
+      [data-theme="dark"] {
+        --spec-diff-current-bg: rgba(127, 29, 29, 0.18);
+        --spec-diff-current-border: rgba(248, 113, 113, 0.35);
+        --spec-diff-current-accent: #f87171;
+        --spec-diff-current-role-bg: rgba(127, 29, 29, 0.35);
+        --spec-diff-current-role-text: #fecaca;
+        --spec-diff-proposed-bg: rgba(20, 83, 45, 0.18);
+        --spec-diff-proposed-border: rgba(74, 222, 128, 0.3);
+        --spec-diff-proposed-accent: #4ade80;
+        --spec-diff-proposed-role-bg: rgba(20, 83, 45, 0.35);
+        --spec-diff-proposed-role-text: #bbf7d0;
       }
       .spec-request-card {
         border: 1px solid var(--border, #e5e7eb);
@@ -867,6 +1854,38 @@
         background: #fff;
         padding: 10px 12px;
         min-height: 0;
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+      .spec-request-card-current {
+        background: var(--spec-diff-current-bg);
+        border-color: var(--spec-diff-current-border);
+        border-left: 3px solid var(--spec-diff-current-accent);
+      }
+      .spec-request-card-proposed {
+        background: var(--spec-diff-proposed-bg);
+        border-color: var(--spec-diff-proposed-border);
+        border-left: 3px solid var(--spec-diff-proposed-accent);
+      }
+      .spec-request-card-role {
+        display: inline-block;
+        margin-right: 6px;
+        padding: 1px 6px;
+        border-radius: 999px;
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        vertical-align: middle;
+        line-height: 1.4;
+      }
+      .spec-request-card-role-current {
+        background: var(--spec-diff-current-role-bg);
+        color: var(--spec-diff-current-role-text);
+      }
+      .spec-request-card-role-proposed {
+        background: var(--spec-diff-proposed-role-bg);
+        color: var(--spec-diff-proposed-role-text);
       }
       .spec-request-card-title {
         font-size: 10.5px;
@@ -900,11 +1919,14 @@
         line-height: 1.4;
         color: #0f172a;
         word-break: break-word;
+        overflow-wrap: anywhere;
+        min-width: 0;
       }
       .spec-request-meta-grid {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
         gap: 8px 10px;
+        min-width: 0;
       }
       .spec-request-meta-item {
         min-width: 0;
@@ -922,6 +1944,8 @@
         line-height: 1.35;
         color: #0f172a;
         word-break: break-word;
+        overflow-wrap: anywhere;
+        min-width: 0;
       }
       .spec-request-empty {
         display: flex;
@@ -937,22 +1961,52 @@
         padding: 12px;
       }
       #specRequestReviewModal .ov-modal {
+        display: flex;
+        flex-direction: column;
         width: min(960px, calc(100vw - 32px));
         max-width: 960px;
         min-width: 0;
         height: min(680px, calc(100vh - 32px));
+        max-height: calc(100vh - 32px);
         min-height: 0;
       }
       #specRequestReviewModal .ov-modal-body {
         display: flex;
         flex-direction: column;
-        gap: 10px;
-        padding: 12px 14px;
+        gap: 0;
+        padding: 0;
         overflow: hidden;
+        min-height: 0;
+        flex: 1 1 auto;
+      }
+      #specRequestReviewModal .spec-request-review-scroll {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-x: hidden;
+        overflow-y: auto;
+        padding: 12px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      #specRequestReviewModal .spec-request-review-decision {
+        flex-shrink: 0;
+        padding: 10px 14px 12px;
+        border-top: 1px solid var(--border, #e5e7eb);
+        background: var(--panel-bg, #fff);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      [data-theme="dark"] #specRequestReviewModal .spec-request-review-decision {
+        background: var(--panel-bg, #2a2a2a);
       }
       #specRequestReviewModal .ov-context-bar {
         padding: 8px 10px;
         font-size: 12px;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        min-width: 0;
       }
       #specRequestReviewModal .form-group {
         gap: 5px;
@@ -965,9 +2019,79 @@
         text-transform: uppercase;
         color: var(--muted, #6b7280);
       }
+      #specRequestReviewModal .spec-request-route-readonly {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text, #111827);
+        padding: 4px 0 2px;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        min-width: 0;
+      }
+      #specRequestRouteDecisionSection.hidden {
+        display: none;
+      }
+      #specRequestReviewModal .spec-info-banner {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        min-width: 0;
+      }
+      #specRequestReviewModal .form-control,
+      #specRequestReviewModal textarea {
+        max-width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+      }
       #specRequestReviewModal #specRequestReviewRemarks {
         padding: 8px 10px;
         font-size: 12px;
+      }
+      #specRequestReviewModal .ov-modal-footer .btn-secondary,
+      #specRequestReviewModal .ov-modal-footer .btn-primary {
+        text-align: center;
+        justify-content: center;
+        align-items: center;
+      }
+      #specRequestReviewModal .spec-review-modal-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px 12px;
+      }
+      #specRequestReviewModal .spec-review-footer-left {
+        flex-shrink: 0;
+      }
+      #specRequestReviewModal .spec-review-footer-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px 16px;
+        margin-left: auto;
+      }
+      #specRequestReviewModal .spec-review-action-group {
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+      }
+      #specRequestReviewModal .spec-review-btn-reject {
+        color: #b91c1c;
+        border-color: #fecaca;
+        background: #fff1f2;
+      }
+      #specRequestReviewModal .spec-review-btn-reject:hover:not(:disabled) {
+        background: #ffe4e6;
+      }
+      [data-theme="dark"] #specRequestReviewModal .spec-review-btn-reject {
+        color: #fca5a5;
+        border-color: rgba(248, 113, 113, 0.35);
+        background: rgba(127, 29, 29, 0.18);
+      }
+      [data-theme="dark"]
+        #specRequestReviewModal
+        .spec-review-btn-reject:hover:not(:disabled) {
+        background: rgba(127, 29, 29, 0.28);
       }
       .td-seq {
         width: 52px;
@@ -1383,7 +2507,10 @@
           height: 100vh;
         }
         #specRequestReviewModal .ov-modal-body {
-          overflow-y: auto;
+          overflow: hidden;
+        }
+        #specRequestReviewModal .spec-request-review-scroll {
+          padding: 12px 14px;
         }
         #specRequestReviewModal .spec-request-review-layout {
           min-height: 0;
@@ -1395,6 +2522,71 @@
         }
         #specRequestReviewModal .ov-context-bar {
           font-size: 11.5px;
+        }
+      }
+      @media (max-width: 760px) {
+        #specRequestReviewModal.ov-modal-backdrop {
+          padding: 0;
+          align-items: stretch;
+        }
+        #specRequestReviewModal .ov-modal {
+          width: min(100vw, 100%);
+          max-width: none;
+          height: 100vh;
+          max-height: 100vh;
+          border-radius: 0;
+        }
+        #specRequestReviewModal .spec-request-review-layout {
+          grid-template-columns: 1fr;
+          overflow: visible;
+        }
+        #specRequestReviewModal .spec-request-list {
+          max-height: 200px;
+        }
+        #specRequestReviewModal .spec-request-detail-grid,
+        #specRequestReviewModal .spec-request-meta-grid {
+          grid-template-columns: 1fr;
+        }
+        #specRequestReviewModal .spec-request-review-scroll {
+          padding: 12px 14px;
+        }
+        #specRequestReviewModal .spec-request-review-decision {
+          padding: 10px 14px 12px;
+        }
+        #specRequestReviewModal .spec-review-modal-footer {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 8px;
+        }
+        #specRequestReviewModal .spec-review-footer-left,
+        #specRequestReviewModal .spec-review-footer-actions {
+          width: 100%;
+          margin-left: 0;
+        }
+        #specRequestReviewModal .spec-review-footer-left .btn-secondary {
+          width: 100%;
+          text-align: center;
+          justify-content: center;
+        }
+        #specRequestReviewModal .spec-review-footer-actions {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 8px;
+        }
+        #specRequestReviewModal .spec-review-action-group {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          min-width: 0;
+        }
+        #specRequestReviewModal .spec-review-action-group .btn-secondary,
+        #specRequestReviewModal .spec-review-action-group .btn-primary {
+          flex: 1 1 auto;
+          width: 100%;
+          min-width: 0;
+          text-align: center;
+          justify-content: center;
+          align-items: center;
         }
       }
       .ov-section-title {
@@ -1477,6 +2669,136 @@
       .bs-display-text-cell.pending {
         color: #b45309;
         font-style: italic;
+      }
+      .bs-protocol-default-cell {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 3px;
+        min-width: 72px;
+      }
+      .bs-protocol-default-muted {
+        font-size: 12px;
+        color: var(--muted, #9ca3af);
+        font-style: italic;
+      }
+      .bs-protocol-default-badge {
+        font-size: 11px;
+      }
+      .bs-protocol-source-muted {
+        font-size: 10.5px;
+        color: var(--muted, #9ca3af);
+        line-height: 1.3;
+      }
+      .bs-spec-type-cell {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+      }
+      .bs-profile-exception-badge {
+        display: inline-block;
+        padding: 1px 7px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 600;
+        line-height: 1.35;
+        border: 1px solid #fde68a;
+        background: #fffbeb;
+        color: #92400e;
+        white-space: nowrap;
+      }
+      .bs-line-protocol-strip {
+        font-size: 12px;
+        line-height: 1.45;
+        padding: 10px 12px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .bs-line-protocol-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px 12px;
+      }
+      @media (max-width: 640px) {
+        .bs-line-protocol-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .bs-line-protocol-item-label {
+        display: block;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--muted, #6b7280);
+        margin-bottom: 2px;
+      }
+      .bs-line-protocol-item-value {
+        font-weight: 600;
+        color: #374151;
+      }
+      .bs-line-protocol-review {
+        font-size: 11.5px;
+        color: var(--muted, #6b7280);
+        font-style: italic;
+      }
+      .bs-line-alignment-status {
+        font-size: 12.5px;
+        line-height: 1.45;
+        padding: 8px 10px;
+        border-radius: 8px;
+      }
+      .bs-line-alignment-status.bs-line-alignment-match {
+        color: #374151;
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+      }
+      .bs-line-alignment-status.bs-line-alignment-exception {
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+      }
+      .bs-line-values-later-note {
+        margin: -4px 0 12px 26px;
+        padding: 8px 10px;
+        font-size: 12px;
+        line-height: 1.45;
+        color: var(--muted, #6b7280);
+        background: rgba(245, 158, 11, 0.08);
+        border: 1px solid rgba(245, 158, 11, 0.25);
+        border-radius: 6px;
+      }
+      .bs-line-exception-allowed-info {
+        font-size: 12px;
+        color: #92400e;
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        border-radius: 8px;
+        padding: 8px 10px;
+        line-height: 1.45;
+      }
+      .bs-line-exception-confirm {
+        margin-top: 4px;
+        padding: 12px 14px;
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        border-radius: 8px;
+      }
+      .bs-line-exception-confirm-msg {
+        margin: 0 0 12px;
+        font-size: 13px;
+        line-height: 1.5;
+        color: #92400e;
+      }
+      .bs-line-exception-confirm-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        flex-wrap: wrap;
       }
       .spec-table tbody tr.bs-row-inactive td {
         opacity: 0.52;
@@ -1646,12 +2968,6 @@
       .edit-ov-btn:hover {
         background: #f1f5f9;
         border-color: #94a3b8;
-      }
-      .ov-active-chk {
-        width: 15px;
-        height: 15px;
-        accent-color: #059669;
-        cursor: pointer;
       }
       .ov-context-bar {
         padding: 8px 10px;
@@ -1852,20 +3168,41 @@
       </div>
 
       <!-- 2. Tab strip (shown after subject is selected) -->
-      <div class="tab-strip hidden" id="tabStrip">
+      <div class="tab-nav hidden" id="tabStrip">
+        <div class="tab-strip" role="tablist" aria-label="Specification manager sections">
         <button
           class="tab-btn"
           id="reviewQueueTab"
           data-tab="reviewQueue"
           type="button"
+          role="tab"
         >
           Review Queue <span id="reviewQueueTabBadge" class="tab-badge hidden">0</span>
         </button>
         <button
-          class="tab-btn active"
+          class="tab-btn"
+          id="overrideRegisterTab"
+          data-tab="overrideRegister"
+          type="button"
+          role="tab"
+        >
+          Applied Overrides
+        </button>
+        <button
+          class="tab-btn"
+          id="changeHistoryTab"
+          data-tab="changeHistory"
+          type="button"
+          role="tab"
+        >
+          Change History
+        </button>
+        <button
+          class="tab-btn"
           id="baseSpecTab"
           data-tab="baseSpec"
           type="button"
+          role="tab"
         >
           Base Spec
         </button>
@@ -1874,6 +3211,7 @@
           id="overridesTab"
           data-tab="overrides"
           type="button"
+          role="tab"
         >
           Overrides
         </button>
@@ -1882,84 +3220,166 @@
           id="effectivePreviewTab"
           data-tab="effectivePreview"
           type="button"
+          role="tab"
         >
           Effective Preview
         </button>
+        </div>
+        <div class="tab-select-wrap">
+          <label class="sr-only" for="tabSelect">Select section</label>
+          <select id="tabSelect" class="tab-select" aria-label="Select section">
+            <option value="reviewQueue">Review Queue</option>
+            <option value="overrideRegister">Applied Overrides</option>
+            <option value="changeHistory">Change History</option>
+            <option value="baseSpec">Base Spec</option>
+            <option value="overrides">Overrides</option>
+            <option value="effectivePreview">Effective Preview</option>
+          </select>
+          <svg
+            class="tab-select-icon"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <polyline
+              points="6 9 12 15 18 9"
+              stroke="currentColor"
+              stroke-width="2"
+              fill="none"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </div>
       </div>
 
       <div class="tab-panel hidden" id="reviewQueuePanel">
-        <div class="entry-card">
-          <div class="form-section">
-            <div class="form-section-title">Manual Specification Requests</div>
-
-            <div class="spec-meta-strip">
-              <div class="spec-meta-item">
-                <div class="spec-meta-label">Total Pending</div>
-                <div class="spec-meta-value" id="rqTotalPending">0</div>
-              </div>
-              <div class="spec-meta-item">
-                <div class="spec-meta-label">Family</div>
-                <div class="spec-meta-value" id="rqFamilyPending">0</div>
-              </div>
-              <div class="spec-meta-item">
-                <div class="spec-meta-label">Product / Item</div>
-                <div class="spec-meta-value" id="rqProductPending">0</div>
-              </div>
-              <div class="spec-meta-item">
-                <div class="spec-meta-label">Overdue</div>
-                <div class="spec-meta-value" id="rqOverduePending">0</div>
-              </div>
-
-              <div class="spec-actions">
-                <button type="button" class="btn-secondary" id="rqRefreshBtn">
-                  Refresh
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="entry-card">
-          <div class="form-section">
-            <div class="form-section-title">Filters</div>
-            <div class="form-row">
-              <div class="form-group">
-                <label for="rqSubjectFilter">Subject</label>
-                <select id="rqSubjectFilter" class="form-control">
-                  <option value="">All</option>
-                  <option value="FG">FG</option>
-                  <option value="RM">RM</option>
-                  <option value="PM">PM</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label for="rqScopeFilter">Scope</label>
-                <select id="rqScopeFilter" class="form-control">
-                  <option value="">All</option>
-                  <option value="FAMILY">Family</option>
-                  <option value="PRODUCT">Product / Item</option>
-                </select>
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label for="rqSearchInput">Search</label>
-                <input
-                  id="rqSearchInput"
-                  class="form-control"
-                  type="text"
-                  placeholder="Search request, test, product, family, register no..."
-                  autocomplete="off"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
         <div class="spec-table-card" id="reviewQueueTableCard">
           <div class="spec-table-header">
-            <div class="spec-table-title">Pending Manual Requests</div>
-            <div class="spec-line-count" id="rqLineCount">0 requests</div>
+            <div class="workflow-table-header-main">
+              <div class="spec-table-title">Review Queue</div>
+              <div class="spec-line-count" id="rqLineCount">0 requests</div>
+            </div>
+            <div class="workflow-table-header-actions">
+              <input
+                id="rqSearchInput"
+                class="form-control workflow-table-search"
+                type="text"
+                placeholder="Search request, test, product, family, register no..."
+                autocomplete="off"
+                aria-label="Search review queue"
+              />
+              <button
+                type="button"
+                id="rqExportBtn"
+                class="workflow-export-btn"
+                title="Export filtered Review Queue"
+                aria-label="Export filtered Review Queue"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M12 3v12" />
+                  <polyline points="8 11 12 15 16 11" />
+                  <path d="M4 21h16" />
+                </svg>
+              </button>
+              <div class="rq-filter-wrap">
+                <button
+                  type="button"
+                  id="rqFilterBtn"
+                  class="rq-filter-btn"
+                  title="Filters"
+                  aria-label="Open filters"
+                  aria-expanded="false"
+                  aria-controls="rqFilterDrawer"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <line x1="4" y1="6" x2="20" y2="6" />
+                    <line x1="8" y1="12" x2="16" y2="12" />
+                    <line x1="11" y1="18" x2="13" y2="18" />
+                  </svg>
+                </button>
+                <span
+                  id="rqFilterBadge"
+                  class="rq-filter-badge hidden"
+                  aria-label="Active filters"
+                  >0</span
+                >
+                <div
+                  id="rqFilterDrawer"
+                  class="rq-filter-drawer"
+                  role="region"
+                  aria-label="Review queue filters"
+                >
+                  <div class="rq-filter-section-title">Filters</div>
+                  <div class="form-group">
+                    <label for="rqSubjectFilter">Subject</label>
+                    <select id="rqSubjectFilter" class="form-control">
+                      <option value="">All</option>
+                      <option value="FG">FG</option>
+                      <option value="RM">RM</option>
+                      <option value="PM">PM</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="rqScopeFilter">Scope</label>
+                    <select id="rqScopeFilter" class="form-control">
+                      <option value="">All</option>
+                      <option value="FAMILY">Family</option>
+                      <option value="PRODUCT">Product / Item</option>
+                    </select>
+                  </div>
+                  <div class="rq-filter-actions">
+                    <button
+                      type="button"
+                      id="rqFilterClear"
+                      class="rq-filter-clear"
+                    >
+                      Clear Filters
+                    </button>
+                    <div style="display: flex; gap: 6px">
+                      <button
+                        type="button"
+                        id="rqFilterClose"
+                        class="btn-secondary"
+                        style="padding: 5px 10px; font-size: 12px"
+                      >
+                        Close
+                      </button>
+                      <button
+                        type="button"
+                        id="rqFilterApply"
+                        class="btn-primary"
+                        style="padding: 5px 10px; font-size: 12px"
+                      >
+                        Apply
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="spec-table-scroll">
             <table
@@ -1968,19 +3388,374 @@
             >
               <thead>
                 <tr>
-                  <th>Req</th>
-                  <th>Scope</th>
+                  <th>Age</th>
+                  <th>Request</th>
+                  <th>Route</th>
                   <th>Subject</th>
-                  <th>Product / Family</th>
+                  <th>Entity</th>
                   <th>Test</th>
-                  <th>Current</th>
                   <th>Proposed</th>
                   <th>Source</th>
-                  <th>Age</th>
-                  <th>Action</th>
                 </tr>
               </thead>
               <tbody id="reviewQueueTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-panel hidden" id="overrideRegisterPanel">
+        <div class="spec-table-card" id="orRegisterTableCard">
+          <div class="spec-table-header">
+            <div class="workflow-table-header-main">
+              <div class="spec-table-title">Applied Overrides</div>
+              <div class="spec-line-count" id="orLineCount">0 overrides</div>
+            </div>
+            <div class="workflow-table-header-actions">
+              <input
+                id="orSearchInput"
+                class="form-control workflow-table-search"
+                type="text"
+                placeholder="Product, item, test, request, audit..."
+                autocomplete="off"
+                aria-label="Search applied overrides"
+              />
+              <button
+                type="button"
+                id="orExportBtn"
+                class="workflow-export-btn"
+                title="Export filtered Applied Overrides"
+                aria-label="Export filtered Applied Overrides"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M12 3v12" />
+                  <polyline points="8 11 12 15 16 11" />
+                  <path d="M4 21h16" />
+                </svg>
+              </button>
+              <div class="or-filter-wrap">
+                <button
+                  type="button"
+                  id="orFilterBtn"
+                  class="or-filter-btn"
+                  title="Filters"
+                  aria-label="Open filters"
+                  aria-expanded="false"
+                  aria-controls="orFilterDrawer"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <line x1="4" y1="6" x2="20" y2="6" />
+                    <line x1="8" y1="12" x2="16" y2="12" />
+                    <line x1="11" y1="18" x2="13" y2="18" />
+                  </svg>
+                </button>
+                <span
+                  id="orFilterBadge"
+                  class="or-filter-badge hidden"
+                  aria-label="Active filters"
+                  >0</span
+                >
+                <div
+                  id="orFilterDrawer"
+                  class="or-filter-drawer"
+                  role="region"
+                  aria-label="Applied overrides filters"
+                >
+                  <div class="or-filter-section-title">Filters</div>
+                  <div class="form-group">
+                    <label for="orSubjectFilter">Subject</label>
+                    <select id="orSubjectFilter" class="form-control">
+                      <option value="">All</option>
+                      <option value="FG">FG</option>
+                      <option value="RM">RM</option>
+                      <option value="PM">PM</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="orLevelFilter">Override Level</label>
+                    <select id="orLevelFilter" class="form-control">
+                      <option value="">All</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="orRouteFilter">Request Route</label>
+                    <select id="orRouteFilter" class="form-control">
+                      <option value="">All</option>
+                      <option value="product_override">Product Override</option>
+                      <option value="item_override">Item Override</option>
+                      <option value="family_base_spec">Family / Base Spec</option>
+                      <option value="direct_manual">Direct / Manual Override</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="orActionFilter">Action Type</label>
+                    <select id="orActionFilter" class="form-control">
+                      <option value="">All</option>
+                      <option value="MODIFY">MODIFY</option>
+                      <option value="ADD">ADD</option>
+                      <option value="DISABLE">DISABLE</option>
+                    </select>
+                  </div>
+                  <div class="or-filter-actions">
+                    <button
+                      type="button"
+                      id="orFilterClear"
+                      class="or-filter-clear"
+                    >
+                      Clear Filters
+                    </button>
+                    <div style="display: flex; gap: 6px">
+                      <button
+                        type="button"
+                        id="orFilterClose"
+                        class="btn-secondary"
+                        style="padding: 5px 10px; font-size: 12px"
+                      >
+                        Close
+                      </button>
+                      <button
+                        type="button"
+                        id="orFilterApply"
+                        class="btn-primary"
+                        style="padding: 5px 10px; font-size: 12px"
+                      >
+                        Apply
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="spec-table-scroll">
+            <table
+              class="spec-table"
+              aria-label="Applied product and item specification overrides"
+            >
+              <thead>
+                <tr>
+                  <th>Level</th>
+                  <th>Subject</th>
+                  <th>Entity</th>
+                  <th>Test</th>
+                  <th>Override</th>
+                  <th>Route / Source</th>
+                  <th>Last Lifecycle</th>
+                </tr>
+              </thead>
+              <tbody id="orRegisterTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-panel hidden" id="changeHistoryPanel">
+        <div class="spec-table-card" id="chHistoryTableCard">
+          <div class="spec-table-header">
+            <div class="workflow-table-header-main">
+              <div class="spec-table-title">Change History</div>
+              <div class="spec-line-count" id="chLineCount">0 events</div>
+            </div>
+            <div class="workflow-table-header-actions">
+              <input
+                id="chSearchInput"
+                class="form-control workflow-table-search"
+                type="text"
+                placeholder="Request, override, entity, test, register no..."
+                autocomplete="off"
+                aria-label="Search change history"
+              />
+              <button
+                type="button"
+                id="chExportBtn"
+                class="workflow-export-btn"
+                title="Export filtered Change History"
+                aria-label="Export filtered Change History"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M12 3v12" />
+                  <polyline points="8 11 12 15 16 11" />
+                  <path d="M4 21h16" />
+                </svg>
+              </button>
+              <div class="ch-filter-wrap">
+                <button
+                  type="button"
+                  id="chFilterBtn"
+                  class="ch-filter-btn"
+                  title="Filters"
+                  aria-label="Open filters"
+                  aria-expanded="false"
+                  aria-controls="chFilterDrawer"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <line x1="4" y1="6" x2="20" y2="6" />
+                    <line x1="8" y1="12" x2="16" y2="12" />
+                    <line x1="11" y1="18" x2="13" y2="18" />
+                  </svg>
+                </button>
+                <span
+                  id="chFilterBadge"
+                  class="ch-filter-badge hidden"
+                  aria-label="Active filters"
+                  >0</span
+                >
+                <div
+                  id="chFilterDrawer"
+                  class="ch-filter-drawer"
+                  role="region"
+                  aria-label="Change history filters"
+                >
+                  <div class="ch-filter-section-title">Filters</div>
+                  <div class="form-group">
+                    <label for="chHistoryTypeFilter">History Type</label>
+                    <select id="chHistoryTypeFilter" class="form-control">
+                      <option value="">All</option>
+                      <option value="REQUEST">Request</option>
+                      <option value="OVERRIDE_LIFECYCLE">Override Lifecycle</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="chStatusFilter">Action / Status</label>
+                    <select id="chStatusFilter" class="form-control">
+                      <option value="">All</option>
+                      <option value="pending">Pending</option>
+                      <option value="applied">Applied</option>
+                      <option value="rejected">Rejected</option>
+                      <option value="cancelled">Cancelled</option>
+                      <option value="deactivated">Deactivated</option>
+                      <option value="reactivated">Reactivated</option>
+                      <option value="superseded">Superseded</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="chScopeFilter">Scope</label>
+                    <select id="chScopeFilter" class="form-control">
+                      <option value="">All</option>
+                      <option value="FAMILY">Family</option>
+                      <option value="PRODUCT">Product</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="chSubjectFilter">Subject</label>
+                    <select id="chSubjectFilter" class="form-control">
+                      <option value="">All</option>
+                      <option value="FG">FG</option>
+                      <option value="RM">RM</option>
+                      <option value="PM">PM</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="chRouteFilter">Route</label>
+                    <select id="chRouteFilter" class="form-control">
+                      <option value="">All</option>
+                      <option value="family">Family</option>
+                      <option value="base_spec">Base Spec</option>
+                      <option value="product_override">Product Override</option>
+                      <option value="item_override">Item Override</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="chAppliedTargetFilter">Applied Target</label>
+                    <select id="chAppliedTargetFilter" class="form-control">
+                      <option value="">All</option>
+                      <option value="BASE_SPEC_VERSION">Base Spec Version</option>
+                      <option value="PRODUCT_ITEM_OVERRIDE">
+                        Product Item Override
+                      </option>
+                      <option value="PENDING_REVIEW">Pending Review</option>
+                      <option value="REJECTED_NO_APPLIED_TARGET">Rejected</option>
+                    </select>
+                  </div>
+                  <div class="ch-filter-actions">
+                    <button
+                      type="button"
+                      id="chFilterClear"
+                      class="ch-filter-clear"
+                    >
+                      Clear Filters
+                    </button>
+                    <div style="display: flex; gap: 6px">
+                      <button
+                        type="button"
+                        id="chFilterClose"
+                        class="btn-secondary"
+                        style="padding: 5px 10px; font-size: 12px"
+                      >
+                        Close
+                      </button>
+                      <button
+                        type="button"
+                        id="chFilterApply"
+                        class="btn-primary"
+                        style="padding: 5px 10px; font-size: 12px"
+                      >
+                        Apply
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="spec-table-scroll">
+            <table
+              class="spec-table"
+              aria-label="Specification lifecycle history"
+            >
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Type / Action</th>
+                  <th>Route</th>
+                  <th>Subject</th>
+                  <th>Entity</th>
+                  <th>Test</th>
+                  <th>Summary</th>
+                  <th>Outcome</th>
+                </tr>
+              </thead>
+              <tbody id="chHistoryTableBody"></tbody>
             </table>
           </div>
         </div>
@@ -2193,6 +3968,7 @@
                   <th class="td-seq">#</th>
                   <th>Test</th>
                   <th>Method</th>
+                  <th>Protocol Default</th>
                   <th>Spec Type</th>
                   <th>Display Text</th>
                   <th class="td-active">
@@ -2363,6 +4139,7 @@
                   <th class="td-seq">#</th>
                   <th>Test</th>
                   <th>Method</th>
+                  <th>Protocol Default</th>
                   <th>Spec Type</th>
                   <th>Display Text</th>
                   <th class="td-active">
@@ -2490,6 +4267,7 @@
                   <th class="td-seq">#</th>
                   <th>Test</th>
                   <th>Method</th>
+                  <th>Protocol Default</th>
                   <th>Spec Type</th>
                   <th>Display Text</th>
                   <th class="td-active">
@@ -2517,6 +4295,12 @@
 
       <!-- TAB 2 - OVERRIDES -->
       <div class="tab-panel hidden" id="overridesPanel">
+        <div class="spec-info-banner info" role="status">
+          Applied overrides are lifecycle-managed from the Applied Overrides tab.
+          To deactivate an override, open it there and use Deactivate Override.
+          Remarks and confirmation are required. Reactivation is not available from
+          this screen.
+        </div>
         <!-- FG: product selector -->
         <div class="entry-card hidden" id="ovFgCard">
           <div class="form-section">
@@ -2650,7 +4434,7 @@
                   <th>Action</th>
                   <th>Spec Type</th>
                   <th>Display Text</th>
-                  <th class="td-active">Active</th>
+                  <th class="td-active">Status</th>
                   <th style="width: 64px"></th>
                 </tr>
               </thead>
@@ -2743,7 +4527,7 @@
                   <th>Action</th>
                   <th>Spec Type</th>
                   <th>Display Text</th>
-                  <th class="td-active">Active</th>
+                  <th class="td-active">Status</th>
                   <th style="width: 64px"></th>
                 </tr>
               </thead>
@@ -2799,7 +4583,7 @@
                   <th>Action</th>
                   <th>Spec Type</th>
                   <th>Display Text</th>
-                  <th class="td-active">Active</th>
+                  <th class="td-active">Status</th>
                   <th style="width: 64px"></th>
                 </tr>
               </thead>
@@ -3230,7 +5014,7 @@
               </select>
             </div>
             <div class="form-group" id="ovModalUomRow">
-              <label for="ovModalUom">Unit of Measure</label>
+              <label for="ovModalUom" id="ovModalUomLabel">Unit of Measure</label>
               <select id="ovModalUom" class="form-control">
                 <option value="">-- No Unit --</option>
               </select>
@@ -3291,6 +5075,351 @@
     </div>
 
     <div
+      id="specLifecycleHistoryModal"
+      class="ov-modal-backdrop hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="specLifecycleHistoryTitle"
+    >
+      <div class="ov-modal">
+        <div class="ov-modal-header">
+          <h2 class="ov-modal-title" id="specLifecycleHistoryTitle">
+            Lifecycle Event Details
+          </h2>
+          <button
+            type="button"
+            class="ov-modal-close"
+            id="specLifecycleHistoryClose"
+            aria-label="Close"
+          >
+            &times;
+          </button>
+        </div>
+        <div class="ov-modal-body">
+          <div class="ov-context-bar" id="specLifecycleHistoryContext">—</div>
+          <div id="specLifecycleHistoryDetail"></div>
+        </div>
+        <div class="ov-modal-footer lifecycle-history-modal-footer">
+          <button
+            type="button"
+            id="specLifecycleHistoryFooterClose"
+            class="btn-secondary"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="specOverrideRegisterModal"
+      class="ov-modal-backdrop hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="specOverrideRegisterTitle"
+    >
+      <div class="ov-modal">
+        <div class="ov-modal-header">
+          <h2 class="ov-modal-title" id="specOverrideRegisterTitle">
+            Review Applied Override
+          </h2>
+          <button
+            type="button"
+            class="ov-modal-close"
+            id="specOverrideRegisterClose"
+            aria-label="Close"
+          >
+            &times;
+          </button>
+        </div>
+        <div class="ov-modal-body">
+          <div class="ov-context-bar" id="specOverrideRegisterContext">—</div>
+          <div id="specOverrideRegisterDetail"></div>
+          <div class="form-group" style="margin-top: 10px">
+            <label for="specOverrideRegisterRemarks"
+              >Remarks / lifecycle reason
+              <span style="color: #ef4444">*</span></label
+            >
+            <textarea
+              id="specOverrideRegisterRemarks"
+              class="form-control"
+              rows="3"
+              placeholder="Required for review or deactivation"
+              maxlength="500"
+            ></textarea>
+          </div>
+        </div>
+        <div class="ov-modal-footer spec-override-register-footer">
+          <button
+            type="button"
+            id="specOverrideRegisterCancel"
+            class="btn-secondary"
+          >
+            Cancel
+          </button>
+          <button type="button" id="specOverrideRegisterConfirmBtn" class="btn-primary">
+            Confirm Review
+          </button>
+          <button
+            type="button"
+            id="specOverrideRegisterDeactivateBtn"
+            class="btn-secondary spec-override-btn-deactivate hidden"
+          >
+            Deactivate Override
+          </button>
+          <button
+            type="button"
+            id="specOverrideRegisterSupersedeBtn"
+            class="btn-secondary spec-override-btn-supersede hidden"
+          >
+            Supersede Override
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="specOverrideDeactivateConfirmModal"
+      class="ov-modal-backdrop hidden spec-override-deactivate-confirm-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="specOverrideDeactivateConfirmTitle"
+    >
+      <div class="ov-modal ov-modal--confirm">
+        <div class="ov-modal-header">
+          <h2 class="ov-modal-title" id="specOverrideDeactivateConfirmTitle">
+            Confirm Override Deactivation
+          </h2>
+          <button
+            type="button"
+            class="ov-modal-close"
+            id="specOverrideDeactivateConfirmClose"
+            aria-label="Close"
+          >
+            &times;
+          </button>
+        </div>
+        <div class="ov-modal-body">
+          <p class="spec-override-deactivate-confirm-warning">
+            This will deactivate the applied override. The item/product will fall
+            back to the inherited or base specification wherever applicable.
+            This action will be recorded in the override audit trail.
+          </p>
+          <div id="specOverrideDeactivateConfirmDetail"></div>
+          <div class="or-register-kv" style="margin-top: 10px">
+            <div class="or-register-kv-label">Remarks / lifecycle reason</div>
+            <div
+              id="specOverrideDeactivateConfirmRemarks"
+              class="spec-override-deactivate-remarks-preview"
+            >
+              —
+            </div>
+          </div>
+        </div>
+        <div class="ov-modal-footer">
+          <button
+            type="button"
+            id="specOverrideDeactivateConfirmCancel"
+            class="btn-secondary"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            id="specOverrideDeactivateConfirmBtn"
+            class="btn-secondary spec-override-btn-deactivate"
+          >
+            Confirm Deactivation
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="specOverrideSupersedeModal"
+      class="ov-modal-backdrop hidden spec-override-supersede-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="specOverrideSupersedeTitle"
+    >
+      <div class="ov-modal">
+        <div class="ov-modal-header">
+          <h2 class="ov-modal-title" id="specOverrideSupersedeTitle">
+            Supersede Applied Override
+          </h2>
+          <button
+            type="button"
+            class="ov-modal-close"
+            id="specOverrideSupersedeClose"
+            aria-label="Close"
+          >
+            &times;
+          </button>
+        </div>
+        <div class="ov-modal-body">
+          <div class="ov-context-bar" id="specOverrideSupersedeContext">—</div>
+          <div class="form-group">
+            <label for="specOverrideSupersedeAction"
+              >Action Type <span style="color: #ef4444">*</span></label
+            >
+            <select id="specOverrideSupersedeAction" class="form-control">
+              <option value="modify">
+                Modify — change spec values for this test
+              </option>
+              <option value="add">Add — inject a new test not in base spec</option>
+              <option value="disable">
+                Disable — exclude this test from effective spec
+              </option>
+            </select>
+          </div>
+          <div id="specOverrideSupersedeSpecSection">
+            <div class="ov-section-title">Replacement Specification</div>
+            <div class="form-group" style="margin-bottom: 12px">
+              <label for="specOverrideSupersedeSpecType"
+                >Spec Type <span style="color: #ef4444">*</span></label
+              >
+              <select id="specOverrideSupersedeSpecType" class="form-control">
+                <option value="RANGE">RANGE — min to max</option>
+              </select>
+            </div>
+            <div class="form-group" id="specOverrideSupersedeUomRow">
+              <label for="specOverrideSupersedeUom" id="specOverrideSupersedeUomLabel"
+                >Unit of Measure</label
+              >
+              <select id="specOverrideSupersedeUom" class="form-control">
+                <option value="">-- No Unit --</option>
+              </select>
+            </div>
+            <div id="specOverrideSupersedeDyn" class="ov-dyn-row"></div>
+            <div class="form-group" style="margin-top: 12px">
+              <label
+                >Display Text
+                <span
+                  style="
+                    font-size: 11px;
+                    font-weight: 400;
+                    color: var(--muted, #6b7280);
+                  "
+                  >(auto-generated)</span
+                ></label
+              >
+              <div class="ov-display-preview" id="specOverrideSupersedeDisplayPreview">
+                —
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="specOverrideSupersedeMethodDisplay">Method</label>
+            <input
+              type="text"
+              id="specOverrideSupersedeMethodDisplay"
+              class="form-control"
+              readonly
+              tabindex="-1"
+            />
+          </div>
+          <div class="form-group">
+            <label for="specOverrideSupersedeReason">Reason</label>
+            <input
+              type="text"
+              id="specOverrideSupersedeReason"
+              class="form-control"
+              placeholder="Why is this replacement needed?"
+              maxlength="300"
+            />
+          </div>
+          <div class="form-group">
+            <label for="specOverrideSupersedeRemarks"
+              >Supersede remarks / lifecycle reason
+              <span style="color: #ef4444">*</span></label
+            >
+            <textarea
+              id="specOverrideSupersedeRemarks"
+              class="form-control"
+              rows="3"
+              placeholder="Required to supersede this applied override"
+              maxlength="500"
+            ></textarea>
+          </div>
+          <div
+            id="specOverrideSupersedeBanner"
+            class="spec-info-banner hidden"
+            role="alert"
+          ></div>
+        </div>
+        <div class="ov-modal-footer">
+          <button
+            type="button"
+            id="specOverrideSupersedeCancel"
+            class="btn-secondary"
+          >
+            Cancel
+          </button>
+          <button type="button" id="specOverrideSupersedeReviewBtn" class="btn-primary">
+            Review Supersede
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="specOverrideSupersedeConfirmModal"
+      class="ov-modal-backdrop hidden spec-override-supersede-confirm-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="specOverrideSupersedeConfirmTitle"
+    >
+      <div class="ov-modal ov-modal--confirm">
+        <div class="ov-modal-header">
+          <h2 class="ov-modal-title" id="specOverrideSupersedeConfirmTitle">
+            Confirm Override Supersede
+          </h2>
+          <button
+            type="button"
+            class="ov-modal-close"
+            id="specOverrideSupersedeConfirmClose"
+            aria-label="Close"
+          >
+            &times;
+          </button>
+        </div>
+        <div class="ov-modal-body">
+          <p class="spec-override-supersede-confirm-warning">
+            This will deactivate the current applied override and create a new
+            active successor. The historical override is preserved for audit.
+            This action will be recorded in the override audit trail.
+          </p>
+          <div id="specOverrideSupersedeConfirmDiff"></div>
+          <div class="or-register-kv" style="margin-top: 10px">
+            <div class="or-register-kv-label">Supersede remarks</div>
+            <div
+              id="specOverrideSupersedeConfirmRemarks"
+              class="spec-override-deactivate-remarks-preview"
+            >
+              —
+            </div>
+          </div>
+        </div>
+        <div class="ov-modal-footer">
+          <button
+            type="button"
+            id="specOverrideSupersedeConfirmCancel"
+            class="btn-secondary"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            id="specOverrideSupersedeConfirmBtn"
+            class="btn-secondary spec-override-btn-supersede"
+          >
+            Confirm Supersede
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
       id="specRequestReviewModal"
       class="ov-modal-backdrop hidden"
       role="dialog"
@@ -3312,45 +5441,123 @@
           </button>
         </div>
         <div class="ov-modal-body">
-          <div class="ov-context-bar" id="specRequestReviewContext">—</div>
-          <div class="spec-request-review-layout">
-            <div class="spec-request-list" id="specRequestReviewList"></div>
-            <div class="spec-request-detail" id="specRequestReviewDetail">
-              <div class="spec-request-empty">
-                Select a pending specification change request to review.
+          <div class="spec-request-review-scroll" id="specRequestReviewScroll">
+            <div class="ov-context-bar" id="specRequestReviewContext">—</div>
+            <div
+              id="specRequestReviewSummary"
+              class="spec-request-summary-strip hidden"
+            ></div>
+            <div class="spec-request-review-layout" id="specRequestReviewLayout">
+              <div class="spec-request-list" id="specRequestReviewList"></div>
+              <div class="spec-request-review-main" id="specRequestReviewMain">
+                <div class="spec-request-detail" id="specRequestReviewDetail">
+                  <div class="spec-request-empty">
+                    Select a pending specification change request to review.
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          <div class="form-group" style="margin-top: 4px">
-            <label for="specRequestReviewRemarks">Review Remarks</label>
-            <textarea
-              id="specRequestReviewRemarks"
-              class="form-control"
-              rows="2"
-              placeholder="Optional review remarks"
-              maxlength="500"
-            ></textarea>
+          <div class="spec-request-review-decision" id="specRequestReviewDecision">
+            <div
+              id="specRequestRouteDecisionSection"
+              class="spec-request-route-decision hidden"
+            >
+              <div class="spec-request-section-title">Route Decision</div>
+              <div class="form-group">
+                <label>Originally Requested Route</label>
+                <div
+                  id="specRequestOriginalRoute"
+                  class="spec-request-route-readonly"
+                >
+                  —
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="specRequestApplyScope">Apply As</label>
+                <select id="specRequestApplyScope" class="form-control">
+                  <option value="PRODUCT">Product / Item Override</option>
+                  <option value="FAMILY">Family / Base Spec</option>
+                </select>
+              </div>
+              <div id="specRequestRouteChangeRemarksGroup" class="form-group hidden">
+                <label for="specRequestRouteChangeRemarks"
+                  >Route Change Remarks</label
+                >
+                <textarea
+                  id="specRequestRouteChangeRemarks"
+                  class="form-control"
+                  rows="2"
+                  placeholder="Reason for applying this request through a different route"
+                  maxlength="500"
+                ></textarea>
+              </div>
+              <div
+                id="specRequestRouteWarning"
+                class="spec-info-banner warn hidden"
+                role="alert"
+              ></div>
+            </div>
+            <div class="form-group">
+              <label for="specRequestReviewRemarks">Review Remarks</label>
+              <textarea
+                id="specRequestReviewRemarks"
+                class="form-control"
+                rows="2"
+                placeholder="Optional review remarks"
+                maxlength="500"
+              ></textarea>
+            </div>
           </div>
         </div>
-        <div class="ov-modal-footer">
-          <button
-            type="button"
-            id="specRequestReviewCancel"
-            class="btn-secondary"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            id="specRequestRejectBtn"
-            class="btn-secondary"
-            style="color: #b91c1c; border-color: #fecaca; background: #fff1f2"
-          >
-            Reject
-          </button>
-          <button type="button" id="specRequestApproveBtn" class="btn-primary">
-            Approve
-          </button>
+        <div class="ov-modal-footer spec-review-modal-footer">
+          <div class="spec-review-footer-left">
+            <button
+              type="button"
+              id="specRequestReviewCancel"
+              class="btn-secondary"
+            >
+              Cancel
+            </button>
+          </div>
+          <div class="spec-review-footer-actions">
+            <div
+              class="spec-review-action-group spec-review-action-group-reject"
+            >
+              <button
+                type="button"
+                id="specRequestRejectBtn"
+                class="btn-secondary spec-review-btn-reject"
+              >
+                Reject
+              </button>
+              <button
+                type="button"
+                id="specRequestRejectNextBtn"
+                class="btn-secondary spec-review-btn-reject spec-review-next-btn hidden"
+              >
+                Reject &amp; Next
+              </button>
+            </div>
+            <div
+              class="spec-review-action-group spec-review-action-group-approve"
+            >
+              <button
+                type="button"
+                id="specRequestApproveBtn"
+                class="btn-primary"
+              >
+                Approve
+              </button>
+              <button
+                type="button"
+                id="specRequestApproveNextBtn"
+                class="btn-primary spec-review-next-btn hidden"
+              >
+                Approve &amp; Next
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -3381,14 +5588,98 @@
           <!-- Context bar: test name · method -->
           <div class="bs-line-ctx-bar" id="bsLineModalCtxBar">--</div>
 
-          <!-- Spec Type -->
+          <!-- Protocol default context (read-only) -->
+          <div class="bs-line-protocol-strip" id="bsLineModalProtocolStrip">
+            <div class="bs-line-protocol-grid">
+              <div>
+                <span class="bs-line-protocol-item-label">Protocol Default</span>
+                <span
+                  class="bs-line-protocol-item-value"
+                  id="bsLineModalProtocolDefault"
+                  >—</span
+                >
+              </div>
+              <div>
+                <span class="bs-line-protocol-item-label">Source</span>
+                <span
+                  class="bs-line-protocol-item-value"
+                  id="bsLineModalProtocolSource"
+                  >—</span
+                >
+              </div>
+              <div>
+                <span class="bs-line-protocol-item-label">Lock Status</span>
+                <span
+                  class="bs-line-protocol-item-value"
+                  id="bsLineModalProtocolLock"
+                  >—</span
+                >
+              </div>
+            </div>
+            <div
+              class="bs-line-protocol-review hidden"
+              id="bsLineModalProtocolReviewNote"
+            ></div>
+          </div>
+
+          <div
+            id="bsLineModalAlignmentStatus"
+            class="bs-line-alignment-status hidden"
+            role="status"
+          ></div>
+
+          <div
+            id="bsLineModalExceptionAllowedInfo"
+            class="bs-line-exception-allowed-info hidden"
+            role="status"
+          >
+            Profile exceptions are allowed for this protocol line.
+          </div>
+
+          <!-- Approved Base Spec Type -->
           <div class="form-group">
-            <label for="bsLineModalSpecType"
-              >Spec Type <span style="color: #ef4444">*</span></label
+            <label for="bsLineModalSpecType" id="bsLineModalSpecTypeLabel"
+              >Approved Base Spec Type</label
             >
             <select id="bsLineModalSpecType" class="form-control"></select>
           </div>
 
+          <div
+            class="form-group bs-line-values-later-row"
+            style="
+              flex-direction: row;
+              align-items: flex-start;
+              gap: 10px;
+              display: flex;
+            "
+          >
+            <input
+              type="checkbox"
+              id="bsLineModalValuesLater"
+              style="
+                width: 16px;
+                height: 16px;
+                margin-top: 2px;
+                flex-shrink: 0;
+                accent-color: var(--primary, #2563eb);
+              "
+            />
+            <label
+              for="bsLineModalValuesLater"
+              style="font-size: 13px; line-height: 1.45; cursor: pointer"
+            >
+              Values to be defined later / as per approved specification
+            </label>
+          </div>
+          <div
+            id="bsLineModalValuesLaterNote"
+            class="bs-line-values-later-note hidden"
+          >
+            Only the approved spec expression will be changed. Values will remain
+            reference-defined/to be defined.
+          </div>
+
+          <div id="bsLineModalUomHome" class="bs-line-uom-home"></div>
           <div class="form-group" id="bsLineModalUomRow">
             <label for="bsLineModalUom"
               >Unit of Measure (default from Test Master; editable for
@@ -3427,10 +5718,50 @@
             </div>
           </div>
 
-          <!-- EXACT_NUMERIC -->
+          <!-- TOLERANCE: target + tolerance + tolerance UOM -->
+          <div class="bs-line-dyn-row hidden" id="bsLineModalToleranceRow">
+            <div class="form-group">
+              <label for="bsLineModalTarget" id="bsLineModalTargetLabel"
+                >Target Value</label
+              >
+              <input
+                type="number"
+                id="bsLineModalTarget"
+                class="form-control"
+                step="any"
+                placeholder="e.g. 500"
+              />
+            </div>
+            <div class="form-group">
+              <label
+                for="bsLineModalTolerance"
+                id="bsLineModalToleranceLabel"
+                >Tolerance Value</label
+              >
+              <input
+                type="number"
+                id="bsLineModalTolerance"
+                class="form-control"
+                step="any"
+                placeholder="e.g. 10"
+              />
+            </div>
+            <div class="form-group">
+              <label
+                for="bsLineModalToleranceUom"
+                id="bsLineModalToleranceUomLabel"
+                >Tolerance UOM</label
+              >
+              <select id="bsLineModalToleranceUom" class="form-control">
+                <option value="">-- No Unit --</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- EXACT_NUMERIC (legacy stored lines only) -->
           <div class="form-group hidden" id="bsLineModalExactRow">
-            <label for="bsLineModalExact"
-              >Exact Value <span style="color: #ef4444">*</span></label
+            <label for="bsLineModalExact" id="bsLineModalExactLabel"
+              >Exact Value</label
             >
             <input
               type="number"
@@ -3443,8 +5774,8 @@
 
           <!-- TEXT -->
           <div class="form-group hidden" id="bsLineModalTextRow">
-            <label for="bsLineModalText"
-              >Text Value <span style="color: #ef4444">*</span></label
+            <label for="bsLineModalText" id="bsLineModalTextLabel"
+              >Text Value</label
             >
             <input
               type="text"
@@ -3456,8 +5787,8 @@
 
           <!-- PASS_FAIL -->
           <div class="form-group hidden" id="bsLineModalPassFailRow">
-            <label for="bsLineModalPassFail"
-              >Expected Result <span style="color: #ef4444">*</span></label
+            <label for="bsLineModalPassFail" id="bsLineModalPassFailLabel"
+              >Expected Result</label
             >
             <select id="bsLineModalPassFail" class="form-control">
               <option value="PASS">Absent</option>
@@ -3532,8 +5863,39 @@
             id="bsLineModalError"
             role="alert"
           ></div>
+
+          <div
+            id="bsLineModalExceptionConfirm"
+            class="bs-line-exception-confirm hidden"
+            role="region"
+            aria-live="polite"
+            aria-label="Confirm profile exception"
+          >
+            <p
+              id="bsLineModalExceptionConfirmMsg"
+              class="bs-line-exception-confirm-msg"
+            >
+              —
+            </p>
+            <div class="bs-line-exception-confirm-actions">
+              <button
+                type="button"
+                class="btn-secondary"
+                id="bsLineModalExceptionConfirmCancel"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                class="btn-primary"
+                id="bsLineModalExceptionConfirmOk"
+              >
+                Confirm Profile Exception
+              </button>
+            </div>
+          </div>
         </div>
-        <div class="bs-line-modal-footer">
+        <div class="bs-line-modal-footer" id="bsLineModalFooter">
           <button type="button" class="btn-secondary" id="bsLineModalCancel">
             Cancel
           </button>

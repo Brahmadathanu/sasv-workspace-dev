@@ -1146,6 +1146,224 @@
         line-height: 1.35;
         color: var(--muted, #6b7280);
       }
+      .ref-source-section {
+        gap: 10px;
+        padding-top: 4px;
+        border-top: 1px solid var(--border, #e5e7eb);
+        margin-top: 4px;
+      }
+      .ref-source-mode {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-top: 4px;
+      }
+      .ref-source-search-row {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-top: 6px;
+      }
+      .ref-source-search-status {
+        font-size: 12px;
+        color: var(--muted, #6b7280);
+        min-height: 1em;
+      }
+      .ref-source-results {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        max-height: 168px;
+        overflow-y: auto;
+      }
+      .ref-source-result {
+        display: block;
+        width: 100%;
+        min-height: 44px;
+        padding: 8px 10px;
+        text-align: left;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+        background: var(--bg-color, #f9fafb);
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+        color: var(--text-color, #111827);
+      }
+      .ref-source-result:hover:not(:disabled) {
+        border-color: #2563eb;
+        background: #eff6ff;
+      }
+      .ref-source-result-selected {
+        border-color: #2563eb;
+        background: #eff6ff;
+        font-weight: 600;
+      }
+      .ref-source-result-empty {
+        font-size: 12px;
+        color: var(--muted, #6b7280);
+        padding: 6px 2px;
+      }
+      .ref-source-summary {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        margin-top: 6px;
+        padding: 8px 10px;
+        border-radius: 6px;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        font-size: 12.5px;
+      }
+      .ref-source-clear {
+        margin-left: auto;
+        padding: 0;
+        border: none;
+        background: none;
+        color: #2563eb;
+        font: inherit;
+        font-size: 12px;
+        cursor: pointer;
+        text-decoration: underline;
+      }
+      .ref-source-create-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 6px;
+      }
+      .ref-source-create-panel .modal-field {
+        margin: 0;
+      }
+      .ref-source-optional-details {
+        margin-top: 2px;
+      }
+      .ref-source-optional-details summary {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted, #6b7280);
+        cursor: pointer;
+        padding: 4px 0;
+      }
+      .ref-source-optional-details[open] summary {
+        margin-bottom: 8px;
+      }
+      .ref-source-optional-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .ref-doi-row {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .ref-doi-row input {
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .ref-doi-lookup-btn {
+        align-self: flex-start;
+        padding: 7px 12px;
+        border-radius: 6px;
+        border: 1px solid var(--border, #e5e7eb);
+        background: var(--bg-color, #f8fafc);
+        color: var(--text-color, #111827);
+        font: inherit;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        min-height: 36px;
+        transition:
+          background 0.15s,
+          border-color 0.15s;
+      }
+      .ref-doi-lookup-btn:hover:not(:disabled) {
+        border-color: #2563eb;
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+      .ref-doi-lookup-btn:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      @media (min-width: 420px) {
+        .ref-doi-row {
+          flex-direction: row;
+          align-items: stretch;
+        }
+        .ref-doi-row input {
+          flex: 1 1 auto;
+          min-width: 0;
+        }
+        .ref-doi-lookup-btn {
+          align-self: auto;
+          flex: 0 0 auto;
+        }
+      }
+      .ref-source-citation-preview {
+        margin-top: 8px;
+        padding: 8px 10px;
+        border-radius: 6px;
+        background: #f8fafc;
+        border: 1px solid var(--border, #e5e7eb);
+      }
+      .ref-source-citation-preview-label {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--muted, #6b7280);
+        margin-bottom: 4px;
+      }
+      .ref-source-citation-preview-text {
+        font-size: 12.5px;
+        line-height: 1.4;
+        color: var(--text-color, #111827);
+        word-break: break-word;
+      }
+
+      /* Reference modal — desktop/tablet: fixed shell, scrollable body */
+      @media (min-width: 521px) {
+        #referenceModal .modal-box {
+          width: min(520px, 94vw);
+          max-height: min(90vh, calc(100dvh - 48px));
+          padding: 0;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+        }
+        #referenceModal .ref-modal-header {
+          flex-shrink: 0;
+          padding: 22px 26px 12px;
+        }
+        #referenceModal .ref-modal-header .modal-sub {
+          margin-bottom: 0;
+        }
+        #referenceModal .ref-modal-body {
+          flex: 1 1 auto;
+          min-height: 0;
+          overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
+          overscroll-behavior: contain;
+          padding: 0 26px 12px;
+        }
+        #referenceModal .ref-modal-footer-area {
+          flex-shrink: 0;
+          padding: 12px 26px 22px;
+          background: var(--panel-bg, #fff);
+          border-top: 1px solid var(--border, #e5e7eb);
+        }
+        #referenceModal .ref-modal-footer-area .modal-divider {
+          display: none;
+        }
+        #referenceModal .ref-modal-footer-area .modal-exception-section {
+          margin-bottom: 12px;
+        }
+      }
+
       .modal-divider {
         border: none;
         border-top: 1px solid var(--border, #e5e7eb);
@@ -1340,6 +1558,26 @@
         .modal-exception-section {
           flex-shrink: 0;
         }
+        #referenceModal .modal-box {
+          padding: calc(14px + env(safe-area-inset-top)) 14px
+            calc(14px + env(safe-area-inset-bottom));
+        }
+        #referenceModal .ref-modal-header {
+          flex-shrink: 0;
+          padding: 0 0 12px;
+        }
+        #referenceModal .ref-modal-body {
+          flex: 1 1 auto;
+          min-height: 0;
+          overflow: visible;
+          padding: 0;
+        }
+        #referenceModal .ref-modal-footer-area {
+          flex-shrink: 0;
+          padding: 0;
+          margin-top: 0;
+          border-top: none;
+        }
         .btn-modal {
           min-height: 40px;
         }
@@ -1432,6 +1670,28 @@
           >
             <path d="M21 12a9 9 0 1 1-4.03-7.46" />
             <path d="M21 4v5h-5" />
+          </svg>
+        </button>
+        <button
+          id="btnBackToAnalysisQueue"
+          type="button"
+          title="Back to Analysis Queue"
+          aria-label="Back to Analysis Queue"
+          class="icon-btn"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M19 12H5" />
+            <polyline points="12 19 5 12 12 5" />
           </svg>
         </button>
         <button
@@ -1722,11 +1982,14 @@
       aria-labelledby="refModalTitle"
     >
       <div class="modal-box">
-        <p class="modal-title" id="refModalTitle">Reference Proposal</p>
-        <p class="modal-sub" id="refModalSub">
-          Enter the actual reference for this test.
-        </p>
+        <div class="ref-modal-header">
+          <p class="modal-title" id="refModalTitle">Reference Proposal</p>
+          <p class="modal-sub" id="refModalSub">
+            Enter the actual reference for this test.
+          </p>
+        </div>
 
+        <div class="ref-modal-body">
         <div class="modal-field" id="refUomField">
           <label>Unit</label>
           <input type="text" id="refUomDisplayInput" readonly value="—" />
@@ -1739,6 +2002,7 @@
             <option value="MIN_ONLY">MIN_ONLY</option>
             <option value="MAX_ONLY">MAX_ONLY</option>
             <option value="EXACT_NUMERIC">EXACT_NUMERIC</option>
+            <option value="TOLERANCE">TOLERANCE</option>
             <option value="TEXT">TEXT</option>
             <option value="PASS_FAIL">PASS_FAIL</option>
           </select>
@@ -1780,6 +2044,44 @@
           />
         </div>
 
+        <!-- TOLERANCE: target ± tolerance (separate tolerance UOM) -->
+        <div class="modal-field" id="refToleranceField" style="display: none">
+          <label for="refTargetValueInput">Target Value</label>
+          <input
+            type="text"
+            class="numeric-input"
+            id="refTargetValueInput"
+            inputmode="decimal"
+            enterkeyhint="done"
+            autocomplete="off"
+          />
+        </div>
+        <div
+          class="modal-field"
+          id="refToleranceValueField"
+          style="display: none"
+        >
+          <label for="refToleranceValueInput">Tolerance Value</label>
+          <input
+            type="text"
+            class="numeric-input"
+            id="refToleranceValueInput"
+            inputmode="decimal"
+            enterkeyhint="done"
+            autocomplete="off"
+          />
+        </div>
+        <div
+          class="modal-field"
+          id="refToleranceUomField"
+          style="display: none"
+        >
+          <label for="refToleranceUomSelect">Tolerance UOM</label>
+          <select id="refToleranceUomSelect">
+            <option value="">— Select tolerance UOM —</option>
+          </select>
+        </div>
+
         <div class="modal-field" id="refTextValueField" style="display: none">
           <label for="refTextValueInput">Text Value</label>
           <input type="text" id="refTextValueInput" autocomplete="off" />
@@ -1804,6 +2106,324 @@
         <div class="modal-field">
           <label for="refDisplayPreviewInput">Display Preview</label>
           <input type="text" id="refDisplayPreviewInput" readonly />
+        </div>
+
+        <div class="modal-field ref-source-section" id="refSourceSection">
+          <label for="refSourceTypeSelect">Reference Source</label>
+          <select id="refSourceTypeSelect">
+            <option value="IN_HOUSE_STANDARD">
+              In-house standard reference
+            </option>
+            <option value="API">Ayurveda Pharmacopoeia / Pharmacopoeia</option>
+            <option value="BOOK">Book / reference text</option>
+            <option value="RESEARCH_PAPER">Research paper / DOI</option>
+            <option value="MONOGRAPH">Monograph</option>
+            <option value="OTHER">Other source</option>
+          </select>
+
+          <div class="ref-source-mode">
+            <label class="ref-scope-option"
+              ><input
+                type="radio"
+                id="refSourceModeExisting"
+                name="refSourceMode"
+                value="existing"
+                checked
+              />
+              Use existing source</label
+            >
+            <label class="ref-scope-option"
+              ><input
+                type="radio"
+                id="refSourceModeCreate"
+                name="refSourceMode"
+                value="create"
+              />
+              Create new source</label
+            >
+          </div>
+
+          <div id="refSourceExistingPanel">
+            <div class="ref-source-search-row">
+              <input
+                type="search"
+                id="refSourceSearchInput"
+                placeholder="Search by name, code, DOI…"
+                autocomplete="off"
+              />
+              <small
+                class="ref-source-search-status"
+                id="refSourceSearchStatus"
+              ></small>
+              <div
+                id="refSourceSearchResults"
+                class="ref-source-results"
+                role="listbox"
+                aria-label="Reference source search results"
+              ></div>
+            </div>
+            <div
+              class="ref-source-summary"
+              id="refSourceSelectedSummary"
+              style="display: none"
+            >
+              <span>Selected:</span>
+              <strong id="refSourceSelectedLabel"></strong>
+              <button
+                type="button"
+                class="ref-source-clear"
+                id="refSourceClearSelection"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+
+          <div
+            id="refSourceCreatePanel"
+            class="ref-source-create-panel"
+            style="display: none"
+          >
+            <div class="modal-field" id="refSourceCreateDisplayNameField">
+              <label for="refSourceCreateDisplayName">Display name</label>
+              <input
+                type="text"
+                id="refSourceCreateDisplayName"
+                autocomplete="off"
+              />
+            </div>
+
+            <div class="modal-field" id="refSourceInHouseFields" style="display: none">
+              <label for="refSourceInHouseCode"
+                >Internal reference code (optional)</label
+              >
+              <input
+                type="text"
+                id="refSourceInHouseCode"
+                autocomplete="off"
+              />
+            </div>
+
+            <div class="modal-field" id="refSourcePaperFields" style="display: none">
+              <label for="refSourceDoiInput">DOI</label>
+              <div class="ref-doi-row">
+                <input
+                  type="text"
+                  id="refSourceDoiInput"
+                  placeholder="10.1234/example or https://doi.org/…"
+                  autocomplete="off"
+                  inputmode="url"
+                />
+                <button
+                  type="button"
+                  class="ref-doi-lookup-btn"
+                  id="btnRefSourceDoiLookup"
+                  style="display: none"
+                  disabled
+                >
+                  Look up DOI
+                </button>
+              </div>
+              <div
+                class="ref-source-citation-preview"
+                id="refSourceCitationPreviewWrap"
+                style="display: none"
+              >
+                <div class="ref-source-citation-preview-label">
+                  Citation Preview
+                </div>
+                <div
+                  class="ref-source-citation-preview-text"
+                  id="refSourceCitationPreviewText"
+                  aria-live="polite"
+                ></div>
+              </div>
+            </div>
+
+            <div class="modal-field" id="refSourceCreateCitationField">
+              <label for="refSourceCreateCitation"
+                >Short citation (optional)</label
+              >
+              <input
+                type="text"
+                id="refSourceCreateCitation"
+                autocomplete="off"
+              />
+            </div>
+
+            <details class="ref-source-optional-details" id="refSourceDetailFields">
+              <summary>Optional publication details</summary>
+              <div class="ref-source-optional-grid">
+                <div class="modal-field">
+                  <label for="refSourceCreateSourceTitle"
+                    >Source title (optional)</label
+                  >
+                  <input
+                    type="text"
+                    id="refSourceCreateSourceTitle"
+                    autocomplete="off"
+                  />
+                </div>
+                <div class="modal-field">
+                  <label for="refSourceCreatePart">Part (optional)</label>
+                  <input
+                    type="text"
+                    id="refSourceCreatePart"
+                    autocomplete="off"
+                  />
+                </div>
+                <div class="modal-field">
+                  <label for="refSourceCreateVolume">Volume (optional)</label>
+                  <input
+                    type="text"
+                    id="refSourceCreateVolume"
+                    autocomplete="off"
+                  />
+                </div>
+                <div class="modal-field">
+                  <label for="refSourceCreateEdition">Edition (optional)</label>
+                  <input
+                    type="text"
+                    id="refSourceCreateEdition"
+                    autocomplete="off"
+                  />
+                </div>
+                <div class="modal-field">
+                  <label for="refSourceCreatePubYear"
+                    >Publication year (optional)</label
+                  >
+                  <input
+                    type="text"
+                    id="refSourceCreatePubYear"
+                    inputmode="numeric"
+                    autocomplete="off"
+                  />
+                </div>
+                <div class="modal-field">
+                  <label for="refSourceCreatePublisher"
+                    >Publisher (optional)</label
+                  >
+                  <input
+                    type="text"
+                    id="refSourceCreatePublisher"
+                    autocomplete="off"
+                  />
+                </div>
+                <div class="modal-field">
+                  <label for="refSourceCreateAuthorEditor"
+                    >Author / editor (optional)</label
+                  >
+                  <input
+                    type="text"
+                    id="refSourceCreateAuthorEditor"
+                    autocomplete="off"
+                  />
+                </div>
+                <div class="modal-field">
+                  <label for="refSourceCreateCommentator"
+                    >Commentator (optional)</label
+                  >
+                  <input
+                    type="text"
+                    id="refSourceCreateCommentator"
+                    autocomplete="off"
+                  />
+                </div>
+                <div class="modal-field">
+                  <label for="refSourceCreateChapterSection"
+                    >Chapter / section (optional)</label
+                  >
+                  <input
+                    type="text"
+                    id="refSourceCreateChapterSection"
+                    autocomplete="off"
+                  />
+                </div>
+                <div class="modal-field">
+                  <label for="refSourceCreatePageFrom">Page from (optional)</label>
+                  <input
+                    type="text"
+                    id="refSourceCreatePageFrom"
+                    autocomplete="off"
+                  />
+                </div>
+                <div class="modal-field">
+                  <label for="refSourceCreatePageTo">Page to (optional)</label>
+                  <input
+                    type="text"
+                    id="refSourceCreatePageTo"
+                    autocomplete="off"
+                  />
+                </div>
+              </div>
+            </details>
+
+            <details
+              class="ref-source-optional-details"
+              id="refSourcePaperDetailFields"
+              style="display: none"
+            >
+              <summary>Optional article details</summary>
+              <div class="ref-source-optional-grid">
+                <div class="modal-field">
+                  <label for="refSourceCreateArticleTitle"
+                    >Article title (optional)</label
+                  >
+                  <input
+                    type="text"
+                    id="refSourceCreateArticleTitle"
+                    autocomplete="off"
+                  />
+                </div>
+                <div class="modal-field">
+                  <label for="refSourceCreateJournal">Journal (optional)</label>
+                  <input
+                    type="text"
+                    id="refSourceCreateJournal"
+                    autocomplete="off"
+                  />
+                </div>
+                <div class="modal-field">
+                  <label for="refSourceCreateAuthors">Authors (optional)</label>
+                  <input
+                    type="text"
+                    id="refSourceCreateAuthors"
+                    autocomplete="off"
+                  />
+                </div>
+                <div class="modal-field">
+                  <label for="refSourceCreatePaperYear"
+                    >Publication year (optional)</label
+                  >
+                  <input
+                    type="text"
+                    id="refSourceCreatePaperYear"
+                    inputmode="numeric"
+                    autocomplete="off"
+                  />
+                </div>
+                <div class="modal-field">
+                  <label for="refSourceCreatePaperPublisher"
+                    >Publisher (optional)</label
+                  >
+                  <input
+                    type="text"
+                    id="refSourceCreatePaperPublisher"
+                    autocomplete="off"
+                  />
+                </div>
+              </div>
+            </details>
+
+            <div class="modal-field" id="refSourceCreateRemarksField">
+              <label for="refSourceCreateRemarks">Remarks (optional)</label>
+              <input
+                type="text"
+                id="refSourceCreateRemarks"
+                autocomplete="off"
+              />
+            </div>
+          </div>
         </div>
 
         <div class="modal-field ref-scope-group">
@@ -1844,14 +2464,17 @@
         </div>
 
         <div class="modal-field">
-          <label for="refNoteInput">Note (optional)</label>
+          <label for="refNoteInput">Reason / Note (optional)</label>
           <textarea
             id="refNoteInput"
             rows="2"
-            placeholder="Additional context…"
+            placeholder="Reason for this reference change…"
           ></textarea>
         </div>
 
+        </div>
+
+        <div class="ref-modal-footer-area">
         <hr class="modal-divider" />
 
         <div class="modal-exception-section">
@@ -1872,6 +2495,7 @@
           <button class="btn-modal btn-modal-save" id="btnRefSave">
             Save Reference
           </button>
+        </div>
         </div>
       </div>
     </div>

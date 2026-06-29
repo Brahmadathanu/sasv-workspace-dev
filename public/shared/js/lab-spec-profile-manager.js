@@ -13,30 +13,206 @@ import { Platform } from "./platform.js";
 const homeBtn = document.getElementById("homeBtn");
 const subjectPills = document.getElementById("subjectPills");
 const tabStrip = document.getElementById("tabStrip");
+const tabSelect = document.getElementById("tabSelect");
 
 // Tab buttons
 const reviewQueueTab = document.getElementById("reviewQueueTab");
+const changeHistoryTab = document.getElementById("changeHistoryTab");
+const overrideRegisterTab = document.getElementById("overrideRegisterTab");
 const baseSpecTab = document.getElementById("baseSpecTab");
 const overridesTab = document.getElementById("overridesTab");
 const effectivePreviewTab = document.getElementById("effectivePreviewTab");
 const reviewQueueTabBadge = document.getElementById("reviewQueueTabBadge");
 
+const TAB_BUTTONS = [
+  reviewQueueTab,
+  overrideRegisterTab,
+  changeHistoryTab,
+  baseSpecTab,
+  overridesTab,
+  effectivePreviewTab,
+];
+
 // Tab panels
 const reviewQueuePanel = document.getElementById("reviewQueuePanel");
+const changeHistoryPanel = document.getElementById("changeHistoryPanel");
+const overrideRegisterPanel = document.getElementById("overrideRegisterPanel");
 const baseSpecPanel = document.getElementById("baseSpecPanel");
 const overridesPanel = document.getElementById("overridesPanel");
 const effectivePreviewPanel = document.getElementById("effectivePreviewPanel");
 
-const rqTotalPending = document.getElementById("rqTotalPending");
-const rqFamilyPending = document.getElementById("rqFamilyPending");
-const rqProductPending = document.getElementById("rqProductPending");
-const rqOverduePending = document.getElementById("rqOverduePending");
-const rqRefreshBtn = document.getElementById("rqRefreshBtn");
 const rqSubjectFilter = document.getElementById("rqSubjectFilter");
 const rqScopeFilter = document.getElementById("rqScopeFilter");
 const rqSearchInput = document.getElementById("rqSearchInput");
+const rqFilterBtn = document.getElementById("rqFilterBtn");
+const rqFilterDrawer = document.getElementById("rqFilterDrawer");
+const rqFilterBadge = document.getElementById("rqFilterBadge");
+const rqFilterClear = document.getElementById("rqFilterClear");
+const rqFilterClose = document.getElementById("rqFilterClose");
+const rqFilterApply = document.getElementById("rqFilterApply");
 const rqLineCount = document.getElementById("rqLineCount");
+const rqExportBtn = document.getElementById("rqExportBtn");
 const reviewQueueTableBody = document.getElementById("reviewQueueTableBody");
+
+const chHistoryTypeFilter = document.getElementById("chHistoryTypeFilter");
+const chStatusFilter = document.getElementById("chStatusFilter");
+const chScopeFilter = document.getElementById("chScopeFilter");
+const chSubjectFilter = document.getElementById("chSubjectFilter");
+const chRouteFilter = document.getElementById("chRouteFilter");
+const chAppliedTargetFilter = document.getElementById("chAppliedTargetFilter");
+const chSearchInput = document.getElementById("chSearchInput");
+const chExportBtn = document.getElementById("chExportBtn");
+const chFilterBtn = document.getElementById("chFilterBtn");
+const chFilterDrawer = document.getElementById("chFilterDrawer");
+const chFilterBadge = document.getElementById("chFilterBadge");
+const chFilterClear = document.getElementById("chFilterClear");
+const chFilterClose = document.getElementById("chFilterClose");
+const chFilterApply = document.getElementById("chFilterApply");
+const chLineCount = document.getElementById("chLineCount");
+const chHistoryTableBody = document.getElementById("chHistoryTableBody");
+
+const specLifecycleHistoryModal = document.getElementById(
+  "specLifecycleHistoryModal",
+);
+const specLifecycleHistoryClose = document.getElementById(
+  "specLifecycleHistoryClose",
+);
+const specLifecycleHistoryFooterClose = document.getElementById(
+  "specLifecycleHistoryFooterClose",
+);
+const specLifecycleHistoryTitle = document.getElementById(
+  "specLifecycleHistoryTitle",
+);
+const specLifecycleHistoryContext = document.getElementById(
+  "specLifecycleHistoryContext",
+);
+const specLifecycleHistoryDetail = document.getElementById(
+  "specLifecycleHistoryDetail",
+);
+
+const orSubjectFilter = document.getElementById("orSubjectFilter");
+const orLevelFilter = document.getElementById("orLevelFilter");
+const orRouteFilter = document.getElementById("orRouteFilter");
+const orActionFilter = document.getElementById("orActionFilter");
+const orSearchInput = document.getElementById("orSearchInput");
+const orExportBtn = document.getElementById("orExportBtn");
+const orFilterBtn = document.getElementById("orFilterBtn");
+const orFilterDrawer = document.getElementById("orFilterDrawer");
+const orFilterBadge = document.getElementById("orFilterBadge");
+const orFilterClear = document.getElementById("orFilterClear");
+const orFilterClose = document.getElementById("orFilterClose");
+const orFilterApply = document.getElementById("orFilterApply");
+const orLineCount = document.getElementById("orLineCount");
+const orRegisterTableBody = document.getElementById("orRegisterTableBody");
+
+const specOverrideRegisterModal = document.getElementById(
+  "specOverrideRegisterModal",
+);
+const specOverrideRegisterTitle = document.getElementById(
+  "specOverrideRegisterTitle",
+);
+const specOverrideRegisterContext = document.getElementById(
+  "specOverrideRegisterContext",
+);
+const specOverrideRegisterClose = document.getElementById(
+  "specOverrideRegisterClose",
+);
+const specOverrideRegisterDetail = document.getElementById(
+  "specOverrideRegisterDetail",
+);
+const specOverrideRegisterRemarks = document.getElementById(
+  "specOverrideRegisterRemarks",
+);
+const specOverrideRegisterCancel = document.getElementById(
+  "specOverrideRegisterCancel",
+);
+const specOverrideRegisterConfirmBtn = document.getElementById(
+  "specOverrideRegisterConfirmBtn",
+);
+const specOverrideRegisterDeactivateBtn = document.getElementById(
+  "specOverrideRegisterDeactivateBtn",
+);
+const specOverrideDeactivateConfirmModal = document.getElementById(
+  "specOverrideDeactivateConfirmModal",
+);
+const specOverrideDeactivateConfirmClose = document.getElementById(
+  "specOverrideDeactivateConfirmClose",
+);
+const specOverrideDeactivateConfirmDetail = document.getElementById(
+  "specOverrideDeactivateConfirmDetail",
+);
+const specOverrideDeactivateConfirmRemarks = document.getElementById(
+  "specOverrideDeactivateConfirmRemarks",
+);
+const specOverrideDeactivateConfirmCancel = document.getElementById(
+  "specOverrideDeactivateConfirmCancel",
+);
+const specOverrideDeactivateConfirmBtn = document.getElementById(
+  "specOverrideDeactivateConfirmBtn",
+);
+const specOverrideRegisterSupersedeBtn = document.getElementById(
+  "specOverrideRegisterSupersedeBtn",
+);
+const specOverrideSupersedeModal = document.getElementById(
+  "specOverrideSupersedeModal",
+);
+const specOverrideSupersedeClose = document.getElementById(
+  "specOverrideSupersedeClose",
+);
+const specOverrideSupersedeContext = document.getElementById(
+  "specOverrideSupersedeContext",
+);
+const specOverrideSupersedeAction = document.getElementById(
+  "specOverrideSupersedeAction",
+);
+const specOverrideSupersedeSpecType = document.getElementById(
+  "specOverrideSupersedeSpecType",
+);
+const specOverrideSupersedeUom = document.getElementById(
+  "specOverrideSupersedeUom",
+);
+const specOverrideSupersedeDyn = document.getElementById(
+  "specOverrideSupersedeDyn",
+);
+const specOverrideSupersedeDisplayPreview = document.getElementById(
+  "specOverrideSupersedeDisplayPreview",
+);
+const specOverrideSupersedeMethodDisplay = document.getElementById(
+  "specOverrideSupersedeMethodDisplay",
+);
+const specOverrideSupersedeReason = document.getElementById(
+  "specOverrideSupersedeReason",
+);
+const specOverrideSupersedeRemarks = document.getElementById(
+  "specOverrideSupersedeRemarks",
+);
+const specOverrideSupersedeBanner = document.getElementById(
+  "specOverrideSupersedeBanner",
+);
+const specOverrideSupersedeCancel = document.getElementById(
+  "specOverrideSupersedeCancel",
+);
+const specOverrideSupersedeReviewBtn = document.getElementById(
+  "specOverrideSupersedeReviewBtn",
+);
+const specOverrideSupersedeConfirmModal = document.getElementById(
+  "specOverrideSupersedeConfirmModal",
+);
+const specOverrideSupersedeConfirmClose = document.getElementById(
+  "specOverrideSupersedeConfirmClose",
+);
+const specOverrideSupersedeConfirmDiff = document.getElementById(
+  "specOverrideSupersedeConfirmDiff",
+);
+const specOverrideSupersedeConfirmRemarks = document.getElementById(
+  "specOverrideSupersedeConfirmRemarks",
+);
+const specOverrideSupersedeConfirmCancel = document.getElementById(
+  "specOverrideSupersedeConfirmCancel",
+);
+const specOverrideSupersedeConfirmBtn = document.getElementById(
+  "specOverrideSupersedeConfirmBtn",
+);
 
 // BASE SPEC tab
 const bsFgCard = document.getElementById("bsFgCard");
@@ -153,6 +329,9 @@ const specRequestReviewClose = document.getElementById(
   "specRequestReviewClose",
 );
 const specRequestReviewList = document.getElementById("specRequestReviewList");
+const specRequestReviewSummary = document.getElementById(
+  "specRequestReviewSummary",
+);
 const specRequestReviewDetail = document.getElementById(
   "specRequestReviewDetail",
 );
@@ -164,6 +343,28 @@ const specRequestReviewCancel = document.getElementById(
 );
 const specRequestRejectBtn = document.getElementById("specRequestRejectBtn");
 const specRequestApproveBtn = document.getElementById("specRequestApproveBtn");
+const specRequestRejectNextBtn = document.getElementById(
+  "specRequestRejectNextBtn",
+);
+const specRequestApproveNextBtn = document.getElementById(
+  "specRequestApproveNextBtn",
+);
+const specRequestRouteDecisionSection = document.getElementById(
+  "specRequestRouteDecisionSection",
+);
+const specRequestOriginalRoute = document.getElementById(
+  "specRequestOriginalRoute",
+);
+const specRequestApplyScope = document.getElementById("specRequestApplyScope");
+const specRequestRouteChangeRemarks = document.getElementById(
+  "specRequestRouteChangeRemarks",
+);
+const specRequestRouteChangeRemarksGroup = document.getElementById(
+  "specRequestRouteChangeRemarksGroup",
+);
+const specRequestRouteWarning = document.getElementById(
+  "specRequestRouteWarning",
+);
 // PM Effective Preview
 const epPmCard = document.getElementById("epPmCard");
 const epPmItemSelect = document.getElementById("epPmItemSelect");
@@ -174,27 +375,27 @@ const epPmLineCount = document.getElementById("epPmLineCount");
 
 // ── Module state ──────────────────────────────────────────────────────────────
 let currentSubjectType = null; // "FG" | "RM" | "PM"
-let currentTab = "reviewQueue"; // "reviewQueue" | "baseSpec" | "overrides" | "effectivePreview"
+let currentTab = "reviewQueue"; // "reviewQueue" | "changeHistory" | "overrideRegister" | "baseSpec" | "overrides" | "effectivePreview"
 
 // FG Base spec state
 let bsCurrentProfileId = null;
 let bsCurrentGroupId = null;
 let bsCurrentGroupName = null;
-let bsEditedSpecLines = new Map(); // seqNo -> {seq_no, spec_type, min_value, max_value, text_value, display_text, is_active}
+let bsEditedSpecLines = new Map(); // seqNo -> {seq_no, spec_type, min_value, max_value, text_value, target_value, tolerance_value, tolerance_uom_id, display_text, is_active}
 let bsLoadedRows = []; // cached rows from last bsLoadSpecLines (for re-render after modal edit)
 
 // RM Base spec state
 let rmCurrentProfileId = null;
 let rmCurrentGroupId = null;
 let rmCurrentGroupLabel = null;
-let rmEditedSpecLines = new Map(); // seqNo -> {seq_no, spec_type, min_value, max_value, text_value, display_text, is_active}
+let rmEditedSpecLines = new Map(); // seqNo -> {seq_no, spec_type, min_value, max_value, text_value, target_value, tolerance_value, tolerance_uom_id, display_text, is_active}
 let rmLoadedRows = [];
 
 // PM Base spec state
 let pmCurrentProfileId = null;
 let pmCurrentGroupId = null;
 let pmCurrentGroupLabel = null;
-let pmEditedSpecLines = new Map(); // seqNo -> {seq_no, spec_type, min_value, max_value, text_value, display_text, is_active}
+let pmEditedSpecLines = new Map(); // seqNo -> {seq_no, spec_type, min_value, max_value, text_value, target_value, tolerance_value, tolerance_uom_id, display_text, is_active}
 let pmLoadedRows = [];
 
 let rebuildSubject = null;
@@ -206,6 +407,9 @@ let fullResetConfirmResolve = null;
 // Base Spec Line edit modal state
 let bsLineCurrentSubject = null; // "FG" | "RM" | "PM"
 let bsLineCurrentSeqNo = null;
+let bsLineProtocolContext = null;
+let bsLineModalOpenedSpecType = null;
+let bsLineExceptionConfirmAcknowledged = false;
 
 // Override editor modal state
 let ovModalMode = "add"; // "add" | "edit"
@@ -225,7 +429,27 @@ let activePendingReviewRequests = [];
 let selectedPendingReviewRequestId = null;
 let selectedPendingReviewScope = null;
 let reviewQueueRows = [];
+let changeHistoryRows = [];
+let overrideRegisterRows = [];
+let selectedLifecycleHistoryRow = null;
+let selectedOverrideRegisterRow = null;
+let overrideRegisterActionInFlight = false;
+let pendingDeactivateOverrideRow = null;
+let pendingDeactivateRemarks = "";
+let overrideDeactivateConfirmOpen = false;
+let pendingSupersedeOldRow = null;
+let pendingSupersedePayload = null;
+let pendingSupersedeRemarks = "";
+let overrideSupersedeFormOpen = false;
+let overrideSupersedeConfirmOpen = false;
+let supersedeModalPrefill = {};
+let supersedeLockedTestResultKind = "";
+let rqFilterDrawerOpen = false;
+let chFilterDrawerOpen = false;
+let orFilterDrawerOpen = false;
 let currentUserId = null;
+let specRequestReviewMode = null; // "reviewQueue" | "context"
+let specRequestReviewInFlight = false;
 
 // FG product picker cache (used by searchable combobox in OV + EP tabs)
 let fgProductPickerRows = [];
@@ -241,6 +465,8 @@ async function init() {
   wireSubjectPills();
   wireTabStrip();
   wireReviewQueueEvents();
+  wireChangeHistoryEvents();
+  wireOverrideRegisterEvents();
   wireBaseSpecEvents();
   wireBaseSpecRmEvents();
   wireOverridesEvents();
@@ -264,8 +490,10 @@ async function init() {
 // Add new subject cards here as additional subject types (e.g. PM) are introduced.
 function applyInitialHiddenState() {
   // Tab strip + all panels
-  tabStrip.classList.add("hidden");
+  tabStrip?.classList.add("hidden");
   reviewQueuePanel?.classList.add("hidden");
+  changeHistoryPanel?.classList.add("hidden");
+  overrideRegisterPanel?.classList.add("hidden");
   baseSpecPanel.classList.add("hidden");
   overridesPanel.classList.add("hidden");
   effectivePreviewPanel.classList.add("hidden");
@@ -409,10 +637,27 @@ function handleSubjectTypeChange() {
 
 // ── Tab strip ─────────────────────────────────────────────────────────────────
 function wireTabStrip() {
-  [reviewQueueTab, baseSpecTab, overridesTab, effectivePreviewTab].forEach((btn) => {
+  TAB_BUTTONS.forEach((btn) => {
     if (!btn) return;
     btn.addEventListener("click", () => switchTab(btn.dataset.tab));
   });
+  tabSelect?.addEventListener("change", () => {
+    if (tabSelect.value) switchTab(tabSelect.value);
+  });
+}
+
+function syncTabSelectValue(tabId) {
+  if (tabSelect && tabSelect.value !== tabId) {
+    tabSelect.value = tabId;
+  }
+}
+
+function syncReviewQueueTabSelectLabel(totalPending = 0) {
+  const rqOption = tabSelect?.querySelector('option[value="reviewQueue"]');
+  if (!rqOption) return;
+  const count = Number(totalPending);
+  rqOption.textContent =
+    count > 0 ? `Review Queue (${count})` : "Review Queue";
 }
 
 function switchTab(tabId, forceRefresh = false) {
@@ -420,13 +665,16 @@ function switchTab(tabId, forceRefresh = false) {
   currentTab = tabId;
 
   // Update tab buttons
-  [reviewQueueTab, baseSpecTab, overridesTab, effectivePreviewTab].forEach((btn) => {
+  TAB_BUTTONS.forEach((btn) => {
     if (!btn) return;
     btn.classList.toggle("active", btn.dataset.tab === tabId);
   });
+  syncTabSelectValue(tabId);
 
   // Show/hide panels
   reviewQueuePanel?.classList.toggle("hidden", tabId !== "reviewQueue");
+  changeHistoryPanel?.classList.toggle("hidden", tabId !== "changeHistory");
+  overrideRegisterPanel?.classList.toggle("hidden", tabId !== "overrideRegister");
   baseSpecPanel.classList.toggle("hidden", tabId !== "baseSpec");
   overridesPanel.classList.toggle("hidden", tabId !== "overrides");
   effectivePreviewPanel.classList.toggle(
@@ -447,6 +695,8 @@ function switchTab(tabId, forceRefresh = false) {
   const isRM = currentSubjectType === "RM";
   const isPM = currentSubjectType === "PM";
   const isRQ = tabId === "reviewQueue";
+  const isCH = tabId === "changeHistory";
+  const isOR = tabId === "overrideRegister";
   const isBS = tabId === "baseSpec";
   const isOV = tabId === "overrides";
   const isEP = tabId === "effectivePreview";
@@ -497,6 +747,16 @@ function switchTab(tabId, forceRefresh = false) {
   if (isRQ) {
     void loadReviewQueue();
     void loadReviewQueueCounts();
+    return;
+  }
+
+  if (isCH) {
+    void loadChangeHistory();
+    return;
+  }
+
+  if (isOR) {
+    void loadOverrideRegister();
     return;
   }
 
@@ -592,18 +852,147 @@ function wirePendingSpecRequestReviewModal() {
   specRequestRejectBtn?.addEventListener("click", () =>
     submitSpecRequestReview("reject"),
   );
+  specRequestApproveNextBtn?.addEventListener("click", () =>
+    submitSpecRequestReview("approve", { continueNext: true }),
+  );
+  specRequestRejectNextBtn?.addEventListener("click", () =>
+    submitSpecRequestReview("reject", { continueNext: true }),
+  );
+  specRequestApplyScope?.addEventListener("change", () => {
+    syncSpecRequestRouteDecisionUi(getSelectedPendingReviewRequest());
+  });
+}
+
+function getReviewQueueDefaultFilters() {
+  return {
+    subject: "",
+    scope: "",
+    search: "",
+  };
+}
+
+function getReviewQueueActiveFilterCount() {
+  const defaults = getReviewQueueDefaultFilters();
+  let count = 0;
+  if (String(rqSubjectFilter?.value ?? "") !== defaults.subject) count += 1;
+  if (String(rqScopeFilter?.value ?? "") !== defaults.scope) count += 1;
+  if (String(rqSearchInput?.value ?? "").trim() !== defaults.search) count += 1;
+  return count;
+}
+
+function updateRqFilterBadge() {
+  const count = getReviewQueueActiveFilterCount();
+  if (!rqFilterBadge) return;
+  rqFilterBadge.textContent = String(count);
+  rqFilterBadge.classList.toggle("hidden", count <= 0);
+  rqFilterBtn?.classList.toggle(
+    "rq-filter-btn--active",
+    count > 0 || rqFilterDrawerOpen,
+  );
+}
+
+function clearReviewQueueFilters() {
+  const defaults = getReviewQueueDefaultFilters();
+  if (rqSubjectFilter) rqSubjectFilter.value = defaults.subject;
+  if (rqScopeFilter) rqScopeFilter.value = defaults.scope;
+  if (rqSearchInput) rqSearchInput.value = defaults.search;
+  renderReviewQueue();
+  updateRqFilterBadge();
+}
+
+function toggleRqFilterDrawer() {
+  if (rqFilterDrawerOpen) {
+    closeRqFilterDrawer();
+    return;
+  }
+  if (orFilterDrawerOpen) closeOrFilterDrawer();
+  if (chFilterDrawerOpen) closeChFilterDrawer();
+  rqFilterDrawerOpen = true;
+  openSpecFilterDrawer(rqFilterBtn, rqFilterDrawer);
+  rqFilterBtn?.classList.add("rq-filter-btn--active");
+  updateRqFilterBadge();
+}
+
+function closeRqFilterDrawer() {
+  if (!rqFilterDrawerOpen && !rqFilterDrawer?.classList.contains("open")) {
+    return;
+  }
+  rqFilterDrawerOpen = false;
+  closeSpecFilterDrawer(rqFilterBtn, rqFilterDrawer);
+  rqFilterBtn?.classList.remove("rq-filter-btn--active");
+  updateRqFilterBadge();
 }
 
 function wireReviewQueueEvents() {
-  rqRefreshBtn?.addEventListener("click", async () => {
-    await loadReviewQueue();
-    await loadReviewQueueCounts();
-    toast("Review queue refreshed.", "info", 1800);
+  rqFilterBtn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleRqFilterDrawer();
+  });
+  rqFilterClose?.addEventListener("click", closeRqFilterDrawer);
+  rqFilterApply?.addEventListener("click", closeRqFilterDrawer);
+  rqFilterClear?.addEventListener("click", clearReviewQueueFilters);
+  rqExportBtn?.addEventListener("click", exportReviewQueueCsv);
+
+  const onFilterChange = () => {
+    renderReviewQueue();
+    updateRqFilterBadge();
+  };
+  rqSubjectFilter?.addEventListener("change", onFilterChange);
+  rqScopeFilter?.addEventListener("change", onFilterChange);
+  rqSearchInput?.addEventListener("input", onFilterChange);
+
+  rqFilterDrawer?.addEventListener("click", (e) => e.stopPropagation());
+
+  document.addEventListener("click", (e) => {
+    if (!rqFilterDrawerOpen || !rqFilterDrawer || !rqFilterBtn) return;
+    if (isSpecFilterDrawerClickInside(rqFilterBtn, rqFilterDrawer, e.target)) {
+      return;
+    }
+    closeRqFilterDrawer();
   });
 
-  rqSubjectFilter?.addEventListener("change", renderReviewQueue);
-  rqScopeFilter?.addEventListener("change", renderReviewQueue);
-  rqSearchInput?.addEventListener("input", renderReviewQueue);
+  reviewQueueTableBody?.addEventListener("click", (e) => {
+    if (
+      e.target.closest(
+        "button, a, input, select, textarea, label, [data-no-row-open]",
+      )
+    ) {
+      return;
+    }
+    const row = e.target.closest(
+      "tr.spec-review-row-clickable[data-review-request-id]",
+    );
+    if (!row) return;
+    openReviewQueueRequest(row.dataset.reviewRequestId);
+  });
+
+  reviewQueueTableBody?.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const row = e.target.closest(
+      "tr.spec-review-row-clickable[data-review-request-id]",
+    );
+    if (!row) return;
+    e.preventDefault();
+    openReviewQueueRequest(row.dataset.reviewRequestId);
+  });
+}
+
+function clearReviewQueueRowActiveState() {
+  reviewQueueTableBody
+    ?.querySelectorAll(".spec-review-row-active")
+    .forEach((row) => row.classList.remove("spec-review-row-active"));
+}
+
+function setReviewQueueRowActive(requestId) {
+  if (!reviewQueueTableBody || requestId == null || requestId === "") return;
+  clearReviewQueueRowActiveState();
+  reviewQueueTableBody
+    .querySelectorAll("tr.spec-review-row-clickable[data-review-request-id]")
+    .forEach((row) => {
+      if (String(row.dataset.reviewRequestId) === String(requestId)) {
+        row.classList.add("spec-review-row-active");
+      }
+    });
 }
 
 async function loadReviewQueueCounts() {
@@ -618,19 +1007,12 @@ async function loadReviewQueueCounts() {
   }
 
   const total = Number(data?.total_pending ?? 0);
-  const family = Number(data?.family_pending ?? 0);
-  const product = Number(data?.product_pending ?? 0);
-  const overdue = Number(data?.overdue_pending ?? 0);
-
-  if (rqTotalPending) rqTotalPending.textContent = String(total);
-  if (rqFamilyPending) rqFamilyPending.textContent = String(family);
-  if (rqProductPending) rqProductPending.textContent = String(product);
-  if (rqOverduePending) rqOverduePending.textContent = String(overdue);
 
   if (reviewQueueTabBadge) {
     reviewQueueTabBadge.textContent = String(total);
     reviewQueueTabBadge.classList.toggle("hidden", total <= 0);
   }
+  syncReviewQueueTabSelectLabel(total);
 }
 
 async function loadReviewQueue() {
@@ -680,12 +1062,40 @@ function getFilteredReviewQueueRows() {
       row.source_analysis_register_no,
       row.requested_by_name,
       row.request_remarks,
+      row.reference_source_display,
+      row.current_reference_source_display,
+      row.proposed_reference_source_display,
+      getRowCurrentReferenceSource(row),
+      getRowProposedReferenceSource(row),
     ]
       .map((v) => String(v ?? "").toLowerCase())
       .join(" | ");
 
     return haystack.includes(q);
   });
+}
+
+function pickNextReviewQueueRequestId(reviewedId, priorOrderIds) {
+  const refreshedIds = getFilteredReviewQueueRows().map((r) =>
+    String(r.request_id),
+  );
+  if (!refreshedIds.length) return null;
+
+  const reviewed = String(reviewedId);
+  const idx = priorOrderIds.indexOf(reviewed);
+
+  for (let i = idx + 1; i < priorOrderIds.length; i++) {
+    const id = priorOrderIds[i];
+    if (id !== reviewed && refreshedIds.includes(id)) return id;
+  }
+
+  const wrapEnd = idx >= 0 ? idx : priorOrderIds.length;
+  for (let i = 0; i < wrapEnd; i++) {
+    const id = priorOrderIds[i];
+    if (id !== reviewed && refreshedIds.includes(id)) return id;
+  }
+
+  return refreshedIds.find((id) => id !== reviewed) ?? null;
 }
 
 function formatAgeHours(hours) {
@@ -706,7 +1116,7 @@ function renderReviewQueue() {
   if (!reviewQueueTableBody) return;
 
   if (!rows.length) {
-    reviewQueueTableBody.innerHTML = `<tr><td colspan="10">
+    reviewQueueTableBody.innerHTML = `<tr><td colspan="8">
       <div class="spec-empty-state">
         <strong>No pending manual requests</strong>
         There are no matching specification change requests pending review.
@@ -725,35 +1135,3730 @@ function renderReviewQueue() {
             ? "rq-age-due-soon"
             : "";
 
-      return `<tr data-request-id="${esc(String(r.request_id))}">
-        <td>#${esc(String(r.request_id ?? ""))}</td>
+      const requestId = String(r.request_id);
+      const testName = String(r.test_name ?? "test");
+
+      return `<tr class="spec-review-row-clickable" data-request-id="${esc(requestId)}" data-review-request-id="${esc(requestId)}" tabindex="0" role="button" aria-label="Review request #${esc(requestId)}, ${esc(testName)}">
+        <td class="${ageClass}">${esc(formatAgeHours(r.age_hours))}</td>
+        <td>#${esc(requestId)}</td>
         <td>${esc(String(r.review_route_label ?? r.request_scope ?? ""))}</td>
         <td>${esc(String(r.subject_type ?? ""))}</td>
         <td>
           <strong>${esc(String(r.entity_label ?? "--"))}</strong>
-          <div style="font-size:11.5px;color:var(--muted,#6b7280);">${esc(String(r.family_label ?? ""))}</div>
+          <div class="workflow-compact-cell-meta">${esc(String(r.family_label ?? ""))}</div>
         </td>
         <td>${esc(String(r.test_name ?? "--"))}</td>
-        <td>${esc(String(r.current_display_text ?? "--"))}</td>
-        <td>${esc(String(r.proposed_display_text ?? "--"))}</td>
-        <td>${esc(String(r.source_analysis_register_no ?? r.analysis_register_no ?? "--"))}</td>
-        <td class="${ageClass}">${esc(formatAgeHours(r.age_hours))}</td>
         <td>
-          <button type="button" class="rq-action-btn" data-rq-action="review" data-request-id="${esc(String(r.request_id))}">
-            Review
-          </button>
+          <div>${esc(String(r.proposed_display_text ?? "--"))}</div>
+          ${renderReferenceSourceSublineHtml(r, "workflow-compact-cell-meta")}
         </td>
+        <td>${esc(String(r.source_analysis_register_no ?? r.analysis_register_no ?? "--"))}</td>
       </tr>`;
     })
     .join("");
+}
 
-  reviewQueueTableBody
-    .querySelectorAll("[data-rq-action='review']")
-    .forEach((btn) => {
-      btn.addEventListener("click", () =>
-        openReviewQueueRequest(btn.dataset.requestId),
+// ── Floating filter drawers (Change History + Applied Overrides) ────────────
+
+function positionSpecFilterDrawer(btn, drawer) {
+  if (!btn || !drawer) return;
+  const rect = btn.getBoundingClientRect();
+  const margin = 6;
+  const dropW = drawer.offsetWidth || 300;
+
+  let left = rect.left;
+  if (left + dropW > window.innerWidth - margin) {
+    left = Math.max(margin, rect.right - dropW);
+  }
+
+  let top = rect.bottom + margin;
+  const dropH = drawer.offsetHeight || 320;
+  if (top + dropH > window.innerHeight - margin) {
+    const up = rect.top - margin - dropH;
+    if (up >= margin) top = up;
+  }
+
+  const availableBelow = Math.max(
+    140,
+    window.innerHeight - top - margin,
+  );
+  const maxH = Math.min(
+    520,
+    availableBelow,
+    Math.floor(window.innerHeight * 0.8),
+  );
+  drawer.style.maxHeight = `${maxH}px`;
+  drawer.style.position = "fixed";
+  drawer.style.left = `${Math.round(left)}px`;
+  drawer.style.top = `${Math.round(top)}px`;
+  drawer.style.right = "auto";
+  drawer.style.bottom = "auto";
+  drawer.style.zIndex = "4000";
+}
+
+function stopSpecFilterDrawerTracking(drawer) {
+  if (!drawer) return;
+  if (typeof drawer._stopFollowPosition === "function") {
+    drawer._stopFollowPosition();
+    drawer._stopFollowPosition = null;
+  }
+}
+
+function startSpecFilterDrawerTracking(btn, drawer) {
+  if (!btn || !drawer) return;
+  stopSpecFilterDrawerTracking(drawer);
+
+  let rafId = 0;
+  const tick = () => {
+    if (!drawer.classList.contains("open")) {
+      rafId = 0;
+      return;
+    }
+    positionSpecFilterDrawer(btn, drawer);
+    rafId = requestAnimationFrame(tick);
+  };
+  rafId = requestAnimationFrame(tick);
+  drawer._stopFollowPosition = () => {
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = 0;
+  };
+}
+
+function clearSpecFilterDrawerInlineStyles(drawer) {
+  if (!drawer) return;
+  drawer.style.position = "";
+  drawer.style.left = "";
+  drawer.style.top = "";
+  drawer.style.right = "";
+  drawer.style.bottom = "";
+  drawer.style.zIndex = "";
+  drawer.style.maxHeight = "";
+}
+
+function openSpecFilterDrawer(btn, drawer) {
+  if (!btn || !drawer) return;
+
+  if (!drawer._portalPlaceholder) {
+    drawer._portalPlaceholder = document.createComment("spec-filter-drawer");
+  }
+  if (drawer.parentNode !== document.body) {
+    const parent = drawer.parentNode;
+    if (parent) {
+      parent.insertBefore(drawer._portalPlaceholder, drawer);
+      document.body.appendChild(drawer);
+    }
+  }
+
+  drawer.classList.add("open", "spec-filter-drawer--floating");
+  drawer._ownerBtn = btn;
+  btn.setAttribute("aria-expanded", "true");
+  positionSpecFilterDrawer(btn, drawer);
+  startSpecFilterDrawerTracking(btn, drawer);
+}
+
+function closeSpecFilterDrawer(btn, drawer) {
+  if (!drawer) return;
+  const ownerBtn = btn || drawer._ownerBtn;
+  drawer.classList.remove("open", "spec-filter-drawer--floating");
+  if (ownerBtn) ownerBtn.setAttribute("aria-expanded", "false");
+  stopSpecFilterDrawerTracking(drawer);
+  clearSpecFilterDrawerInlineStyles(drawer);
+
+  if (
+    drawer._portalPlaceholder &&
+    drawer._portalPlaceholder.parentNode instanceof Node
+  ) {
+    drawer._portalPlaceholder.parentNode.insertBefore(
+      drawer,
+      drawer._portalPlaceholder,
+    );
+    drawer._portalPlaceholder.remove();
+    drawer._portalPlaceholder = null;
+  }
+  drawer._ownerBtn = null;
+}
+
+function isSpecFilterDrawerClickInside(btn, drawer, target) {
+  if (!target) return false;
+  if (btn?.contains(target)) return true;
+  if (drawer?.contains(target)) return true;
+  return false;
+}
+
+// ── CHANGE HISTORY (read-only) ────────────────────────────────────────────────
+
+function wireChangeHistoryEvents() {
+  chFilterBtn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleChFilterDrawer();
+  });
+  chFilterClose?.addEventListener("click", closeChFilterDrawer);
+  chFilterApply?.addEventListener("click", closeChFilterDrawer);
+  chFilterClear?.addEventListener("click", clearChangeHistoryFilters);
+  chExportBtn?.addEventListener("click", exportChangeHistoryCsv);
+
+  const onFilterChange = () => {
+    renderChangeHistory();
+    updateChFilterBadge();
+  };
+  chHistoryTypeFilter?.addEventListener("change", onFilterChange);
+  chStatusFilter?.addEventListener("change", onFilterChange);
+  chScopeFilter?.addEventListener("change", onFilterChange);
+  chSubjectFilter?.addEventListener("change", onFilterChange);
+  chRouteFilter?.addEventListener("change", onFilterChange);
+  chAppliedTargetFilter?.addEventListener("change", onFilterChange);
+  chSearchInput?.addEventListener("input", onFilterChange);
+
+  chFilterDrawer?.addEventListener("click", (e) => e.stopPropagation());
+
+  document.addEventListener("click", (e) => {
+    if (!chFilterDrawerOpen || !chFilterDrawer || !chFilterBtn) return;
+    if (isSpecFilterDrawerClickInside(chFilterBtn, chFilterDrawer, e.target)) {
+      return;
+    }
+    closeChFilterDrawer();
+  });
+
+  chHistoryTableBody?.addEventListener("click", (e) => {
+    if (chFilterDrawerOpen) return;
+    if (
+      e.target.closest(
+        "button, a, input, select, textarea, label, [data-no-row-open]",
+      )
+    ) {
+      return;
+    }
+    const row = e.target.closest(
+      "tr.spec-history-row-clickable[data-history-id]",
+    );
+    if (!row) return;
+    openLifecycleHistoryModal(row.dataset.historyId);
+  });
+
+  chHistoryTableBody?.addEventListener("keydown", (e) => {
+    if (chFilterDrawerOpen) return;
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const row = e.target.closest(
+      "tr.spec-history-row-clickable[data-history-id]",
+    );
+    if (!row) return;
+    e.preventDefault();
+    openLifecycleHistoryModal(row.dataset.historyId);
+  });
+
+  specLifecycleHistoryClose?.addEventListener(
+    "click",
+    closeLifecycleHistoryModal,
+  );
+  specLifecycleHistoryFooterClose?.addEventListener(
+    "click",
+    closeLifecycleHistoryModal,
+  );
+  specLifecycleHistoryModal?.addEventListener("click", (e) => {
+    if (e.target === specLifecycleHistoryModal) closeLifecycleHistoryModal();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (
+      !specLifecycleHistoryModal ||
+      specLifecycleHistoryModal.classList.contains("hidden")
+    ) {
+      return;
+    }
+    if (isHigherPriorityModalOpenForLifecycleHistory()) return;
+    e.preventDefault();
+    closeLifecycleHistoryModal();
+  });
+}
+
+function toggleChFilterDrawer() {
+  if (chFilterDrawerOpen) {
+    closeChFilterDrawer();
+    return;
+  }
+  if (rqFilterDrawerOpen) closeRqFilterDrawer();
+  if (orFilterDrawerOpen) closeOrFilterDrawer();
+  chFilterDrawerOpen = true;
+  openSpecFilterDrawer(chFilterBtn, chFilterDrawer);
+  chFilterBtn?.classList.add("ch-filter-btn--active");
+  updateChFilterBadge();
+}
+
+function closeChFilterDrawer() {
+  if (!chFilterDrawerOpen && !chFilterDrawer?.classList.contains("open")) {
+    return;
+  }
+  chFilterDrawerOpen = false;
+  closeSpecFilterDrawer(chFilterBtn, chFilterDrawer);
+  chFilterBtn?.classList.remove("ch-filter-btn--active");
+  updateChFilterBadge();
+}
+
+function getChangeHistoryDefaultFilters() {
+  return {
+    historyType: "",
+    subject: "",
+    status: "",
+    scope: "",
+    route: "",
+    appliedTarget: "",
+    search: "",
+  };
+}
+
+function getChangeHistoryActiveFilterCount() {
+  const defaults = getChangeHistoryDefaultFilters();
+  let count = 0;
+  if (String(chHistoryTypeFilter?.value ?? "") !== defaults.historyType) count += 1;
+  if (String(chSubjectFilter?.value ?? "") !== defaults.subject) count += 1;
+  if (String(chStatusFilter?.value ?? "") !== defaults.status) count += 1;
+  if (String(chScopeFilter?.value ?? "") !== defaults.scope) count += 1;
+  if (String(chRouteFilter?.value ?? "") !== defaults.route) count += 1;
+  if (String(chAppliedTargetFilter?.value ?? "") !== defaults.appliedTarget)
+    count += 1;
+  if (String(chSearchInput?.value ?? "").trim() !== defaults.search) count += 1;
+  return count;
+}
+
+function updateChFilterBadge() {
+  const count = getChangeHistoryActiveFilterCount();
+  if (!chFilterBadge) return;
+  chFilterBadge.textContent = String(count);
+  chFilterBadge.classList.toggle("hidden", count <= 0);
+  chFilterBtn?.classList.toggle(
+    "ch-filter-btn--active",
+    count > 0 || chFilterDrawerOpen,
+  );
+}
+
+function clearChangeHistoryFilters() {
+  const defaults = getChangeHistoryDefaultFilters();
+  if (chHistoryTypeFilter) chHistoryTypeFilter.value = defaults.historyType;
+  if (chSubjectFilter) chSubjectFilter.value = defaults.subject;
+  if (chStatusFilter) chStatusFilter.value = defaults.status;
+  if (chScopeFilter) chScopeFilter.value = defaults.scope;
+  if (chRouteFilter) chRouteFilter.value = defaults.route;
+  if (chAppliedTargetFilter) chAppliedTargetFilter.value = defaults.appliedTarget;
+  if (chSearchInput) chSearchInput.value = defaults.search;
+  renderChangeHistory();
+  updateChFilterBadge();
+}
+
+function isChangeHistoryRequestRow(row) {
+  const t = String(row.history_type ?? "REQUEST").trim().toUpperCase();
+  return t === "REQUEST";
+}
+
+function isChangeHistoryOverrideRow(row) {
+  const t = String(row.history_type ?? "").trim().toUpperCase();
+  return t === "OVERRIDE_LIFECYCLE" || t === "OVERRIDE";
+}
+
+function getChangeHistoryRequestStatus(row) {
+  return String(row.history_status ?? row.request_status ?? "")
+    .trim()
+    .toUpperCase();
+}
+
+function getChangeHistoryRouteLabel(row) {
+  return String(row.route_label ?? row.review_route_label ?? "").trim();
+}
+
+function getChangeHistoryEventAt(row) {
+  return row.event_at ?? row.requested_at ?? row.performed_at ?? null;
+}
+
+function getChangeHistoryLifecycleAction(row) {
+  return String(row.history_action ?? row.audit_action ?? "")
+    .trim()
+    .toUpperCase();
+}
+
+function normalizeRequestStatus(row) {
+  return getChangeHistoryRequestStatus(row);
+}
+
+function normalizeRequestScope(row) {
+  return String(row.request_scope ?? "").trim().toUpperCase();
+}
+
+function normalizeAppliedTargetType(row) {
+  return String(row.applied_target_type ?? "").trim().toUpperCase();
+}
+
+function normalizeReviewRoute(row) {
+  return getChangeHistoryRouteLabel(row);
+}
+
+function isChangeHistoryRowPending(row) {
+  if (!isChangeHistoryRequestRow(row)) return false;
+  const status = normalizeRequestStatus(row);
+  const target = normalizeAppliedTargetType(row);
+  return status === "PENDING" || target === "PENDING_REVIEW";
+}
+
+function isChangeHistoryRowApplied(row) {
+  if (!isChangeHistoryRequestRow(row)) return false;
+  const status = normalizeRequestStatus(row);
+  const target = normalizeAppliedTargetType(row);
+  return (
+    status === "APPLIED" ||
+    status === "APPROVED" ||
+    target === "BASE_SPEC_VERSION" ||
+    target === "PRODUCT_ITEM_OVERRIDE"
+  );
+}
+
+function isChangeHistoryRowRejected(row) {
+  if (!isChangeHistoryRequestRow(row)) return false;
+  const status = normalizeRequestStatus(row);
+  const target = normalizeAppliedTargetType(row);
+  return status === "REJECTED" || target === "REJECTED_NO_APPLIED_TARGET";
+}
+
+function isChangeHistoryRowCancelled(row) {
+  if (!isChangeHistoryRequestRow(row)) return false;
+  return normalizeRequestStatus(row) === "CANCELLED";
+}
+
+function isChangeHistoryRowDeactivated(row) {
+  if (!isChangeHistoryOverrideRow(row)) return false;
+  return getChangeHistoryLifecycleAction(row) === "DEACTIVATE";
+}
+
+function isChangeHistoryRowReactivated(row) {
+  if (!isChangeHistoryOverrideRow(row)) return false;
+  return getChangeHistoryLifecycleAction(row) === "REACTIVATE";
+}
+
+function isChangeHistoryRowSuperseded(row) {
+  if (!isChangeHistoryOverrideRow(row)) return false;
+  return getChangeHistoryLifecycleAction(row) === "SUPERSEDE";
+}
+
+function shouldIncludeSupersedeRowInTable(row) {
+  const action = String(
+    row.history_action ?? row.audit_action ?? "",
+  ).toUpperCase();
+  if (action !== "SUPERSEDE") return true;
+  const role = String(row.supersede_role ?? "").toUpperCase();
+  if (!role) return true;
+  return role === "PREDECESSOR";
+}
+
+function rowMatchesChangeHistoryScopeFilter(row, scope) {
+  if (!scope) return true;
+  if (isChangeHistoryOverrideRow(row)) {
+    return scope === "PRODUCT";
+  }
+  return normalizeRequestScope(row) === scope;
+}
+
+function rowMatchesChangeHistoryAppliedTargetFilter(row, appliedTarget) {
+  if (!appliedTarget) return true;
+  if (isChangeHistoryOverrideRow(row)) {
+    return appliedTarget === "PRODUCT_ITEM_OVERRIDE";
+  }
+  return normalizeAppliedTargetType(row) === appliedTarget;
+}
+
+function rowMatchesChangeHistoryRouteFilter(row, filter) {
+  if (!filter) return true;
+
+  if (isChangeHistoryOverrideRow(row)) {
+    const subject = String(row.subject_type ?? "").toUpperCase();
+    const levelLabel = String(
+      row.override_level_label ?? row.route_label ?? "",
+    ).toLowerCase();
+    if (filter === "family" || filter === "base_spec") return false;
+    if (filter === "product_override") {
+      return subject === "FG" || levelLabel.includes("product");
+    }
+    if (filter === "item_override") {
+      return (
+        subject === "RM" ||
+        subject === "PM" ||
+        levelLabel.includes("item")
       );
+    }
+    return true;
+  }
+
+  const route = normalizeReviewRoute(row).toLowerCase();
+  const scope = normalizeRequestScope(row);
+  const subject = String(row.subject_type ?? "").toUpperCase();
+
+  if (filter === "family") {
+    return route.includes("family") || scope === "FAMILY";
+  }
+  if (filter === "base_spec") {
+    return route.includes("base spec") || scope === "FAMILY";
+  }
+  if (filter === "product_override") {
+    return (
+      route.includes("product override") ||
+      (scope === "PRODUCT" && subject === "FG")
+    );
+  }
+  if (filter === "item_override") {
+    return (
+      route.includes("item override") ||
+      (scope === "PRODUCT" && (subject === "RM" || subject === "PM"))
+    );
+  }
+  return true;
+}
+
+function formatChangeHistoryLifecycleActionLabel(action) {
+  const a = String(action ?? "").trim().toUpperCase();
+  if (a === "DEACTIVATE") return "Deactivated";
+  if (a === "REACTIVATE") return "Reactivated";
+  if (a === "SUPERSEDE") return "Superseded";
+  return action ? String(action) : "—";
+}
+
+function getChangeHistoryOverrideRouteLabel(row) {
+  const route = getChangeHistoryRouteLabel(row);
+  if (route) return route;
+  const level = String(row.override_level_label ?? "").trim();
+  if (level) return level;
+  const subject = String(row.subject_type ?? "").toUpperCase();
+  if (subject === "FG") return "Product Override";
+  if (subject === "RM" || subject === "PM") return "Item Override";
+  return "Product / Item Override";
+}
+
+function buildChangeHistorySearchHaystack(row) {
+  return [
+    row.search_text,
+    row.history_id,
+    row.history_type,
+    row.history_action,
+    row.history_status,
+    row.request_id,
+    row.audit_id,
+    row.override_id,
+    row.subject_type,
+    row.entity_label,
+    row.family_label,
+    row.test_name,
+    row.route_label,
+    row.review_route_label,
+    row.request_scope,
+    row.override_scope,
+    row.override_level_label,
+    row.current_display_text,
+    row.proposed_display_text,
+    row.override_display_text,
+    row.predecessor_display_text,
+    row.successor_display_text,
+    row.supersedes_override_label,
+    row.superseded_by_override_label,
+    row.supersede_role,
+    row.source_analysis_register_no,
+    row.analysis_register_no,
+    row.source_context,
+    row.requested_by_name,
+    row.reviewed_by_name,
+    row.request_remarks,
+    row.review_remarks,
+    row.audit_remarks,
+    row.applied_target_label,
+    row.applied_target_type,
+    row.applied_spec_profile_name,
+    row.applied_override_display_text,
+    row.reference_source_display,
+    row.current_reference_source_display,
+    row.proposed_reference_source_display,
+    getRowCurrentReferenceSource(row),
+    getRowProposedReferenceSource(row),
+    row.review_decision,
+    row.review_apply_scope,
+    row.review_applied_target_type,
+    row.review_applied_route_label,
+    row.route_changed_from_scope,
+    row.route_changed_to_scope,
+    row.route_changed_by_name,
+    row.route_change_remarks,
+    formatRouteChangedSummary(row),
+    formatApplyScopeLabel(row.route_changed_from_scope, row.subject_type),
+    formatApplyScopeLabel(row.route_changed_to_scope, row.subject_type),
+  ]
+    .map((v) => String(v ?? "").toLowerCase())
+    .join(" | ");
+}
+
+async function loadChangeHistory() {
+  let { data, error } = await labSupabase
+    .from("v_spec_lifecycle_history")
+    .select("*")
+    .order("event_at", { ascending: false });
+
+  if (error) {
+    const fallback = await labSupabase
+      .from("v_spec_lifecycle_history")
+      .select("*")
+      .order("history_id", { ascending: false });
+    data = fallback.data;
+    error = fallback.error;
+  }
+
+  if (error) {
+    toast("Failed to load change history: " + error.message, "error");
+    changeHistoryRows = [];
+    renderChangeHistory();
+    return;
+  }
+
+  changeHistoryRows = data ?? [];
+  renderChangeHistory();
+  updateChFilterBadge();
+}
+
+function getFilteredChangeHistoryRows() {
+  const historyType = String(chHistoryTypeFilter?.value ?? "")
+    .trim()
+    .toUpperCase();
+  const status = String(chStatusFilter?.value ?? "").toLowerCase();
+  const scope = String(chScopeFilter?.value ?? "").toUpperCase();
+  const subject = String(chSubjectFilter?.value ?? "").toUpperCase();
+  const route = String(chRouteFilter?.value ?? "").toLowerCase();
+  const appliedTarget = String(chAppliedTargetFilter?.value ?? "").toUpperCase();
+  const q = String(chSearchInput?.value ?? "").trim().toLowerCase();
+
+  return changeHistoryRows.filter((row) => {
+    if (!shouldIncludeSupersedeRowInTable(row)) return false;
+
+    if (historyType === "REQUEST" && !isChangeHistoryRequestRow(row)) {
+      return false;
+    }
+    if (
+      historyType === "OVERRIDE_LIFECYCLE" &&
+      !isChangeHistoryOverrideRow(row)
+    ) {
+      return false;
+    }
+
+    if (subject && String(row.subject_type ?? "").toUpperCase() !== subject) {
+      return false;
+    }
+
+    if (!rowMatchesChangeHistoryScopeFilter(row, scope)) return false;
+
+    if (status === "pending" && !isChangeHistoryRowPending(row)) return false;
+    if (status === "applied" && !isChangeHistoryRowApplied(row)) return false;
+    if (status === "rejected" && !isChangeHistoryRowRejected(row)) return false;
+    if (status === "cancelled" && !isChangeHistoryRowCancelled(row)) {
+      return false;
+    }
+    if (status === "deactivated" && !isChangeHistoryRowDeactivated(row)) {
+      return false;
+    }
+    if (status === "reactivated" && !isChangeHistoryRowReactivated(row)) {
+      return false;
+    }
+    if (status === "superseded" && !isChangeHistoryRowSuperseded(row)) {
+      return false;
+    }
+
+    if (route && !rowMatchesChangeHistoryRouteFilter(row, route)) return false;
+
+    if (!rowMatchesChangeHistoryAppliedTargetFilter(row, appliedTarget)) {
+      return false;
+    }
+
+    if (!q) return true;
+    return buildChangeHistorySearchHaystack(row).includes(q);
+  });
+}
+
+function renderChangeHistoryStatusBadge(row) {
+  if (isChangeHistoryOverrideRow(row)) {
+    const action = getChangeHistoryLifecycleAction(row);
+    let cls = "ch-status-badge-other";
+    if (action === "DEACTIVATE") cls = "ch-status-badge-deactivated";
+    else if (action === "REACTIVATE") cls = "ch-status-badge-reactivated";
+    else if (action === "SUPERSEDE") cls = "ch-status-badge-superseded";
+    const label = formatChangeHistoryLifecycleActionLabel(action);
+    return `<span class="ch-status-badge ${cls}">${esc(label)}</span><div class="ch-history-type-meta">Override lifecycle</div>`;
+  }
+
+  const status = normalizeRequestStatus(row);
+  let cls = "ch-status-badge-other";
+  if (status === "PENDING" || isChangeHistoryRowPending(row)) {
+    cls = "ch-status-badge-pending";
+  } else if (
+    status === "APPLIED" ||
+    status === "APPROVED" ||
+    isChangeHistoryRowApplied(row)
+  ) {
+    cls = "ch-status-badge-applied";
+  } else if (status === "REJECTED" || isChangeHistoryRowRejected(row)) {
+    cls = "ch-status-badge-rejected";
+  } else if (status === "CANCELLED" || isChangeHistoryRowCancelled(row)) {
+    cls = "ch-status-badge-cancelled";
+  }
+  const label =
+    row.history_status ?? row.request_status
+      ? String(row.history_status ?? row.request_status)
+      : "—";
+  return `<span class="ch-status-badge ${cls}">${esc(label)}</span><div class="ch-history-type-meta">Request</div>`;
+}
+
+function renderChangeHistoryRouteCell(row) {
+  if (isChangeHistoryOverrideRow(row)) {
+    const routeLabel = getChangeHistoryOverrideRouteLabel(row);
+    return `<div><span class="ch-route-badge">${esc(routeLabel)}</span></div>`;
+  }
+
+  const requested = getRequestOriginalRouteLabel(row);
+  const requestedHtml = `<div><span class="ch-route-badge">${esc(requested)}</span></div>`;
+
+  const appliedLabel = String(row.review_applied_route_label ?? "").trim();
+  const appliedHtml = appliedLabel
+    ? `<div class="ch-audit-meta">Applied: ${esc(appliedLabel)}</div>`
+    : "";
+
+  const changedSummary = formatRouteChangedSummary(row);
+  const changedHtml = changedSummary
+    ? `<div class="ch-route-changed-meta">${esc(changedSummary)}</div>`
+    : "";
+
+  return requestedHtml + appliedHtml + changedHtml;
+}
+
+function renderChangeHistoryCurrentCell(row) {
+  if (isChangeHistoryOverrideRow(row)) {
+    const action = getChangeHistoryLifecycleAction(row);
+    if (action === "SUPERSEDE") {
+      const pred = String(row.predecessor_display_text ?? "").trim();
+      if (pred) return esc(pred);
+    }
+    const current = String(row.current_display_text ?? "").trim();
+    if (current) return esc(current);
+    const override = String(row.override_display_text ?? "").trim();
+    return override ? esc(override) : "—";
+  }
+  return esc(String(row.current_display_text ?? "—"));
+}
+
+function renderChangeHistoryProposedCell(row) {
+  if (isChangeHistoryOverrideRow(row)) {
+    const action = getChangeHistoryLifecycleAction(row);
+    if (action === "SUPERSEDE") {
+      const successor = String(row.successor_display_text ?? "").trim();
+      if (successor) {
+        const link = row.superseded_by_override_label
+          ? `<div class="ch-audit-meta">${esc(String(row.superseded_by_override_label))}</div>`
+          : "";
+        return `<div>${esc(successor)}</div>${link}`;
+      }
+    }
+    if (action === "DEACTIVATE") return "Inactive";
+    if (action === "REACTIVATE") return "Active";
+    const proposed = String(row.proposed_display_text ?? "").trim();
+    return proposed ? esc(proposed) : "—";
+  }
+
+  return `<div>${esc(String(row.proposed_display_text ?? "—"))}</div>${renderReferenceSourceSublineHtml(row, "ch-audit-meta")}`;
+}
+
+function renderChangeHistoryRequestedCell(row) {
+  if (isChangeHistoryOverrideRow(row)) {
+    const actionLabel = formatChangeHistoryLifecycleActionLabel(
+      getChangeHistoryLifecycleAction(row),
+    );
+    const at = getChangeHistoryEventAt(row);
+    return `<div>${esc(actionLabel)}</div><div class="ch-audit-meta">${esc(at ? formatDateTime(at) : "—")}</div>`;
+  }
+
+  const by = row.requested_by_name ? String(row.requested_by_name) : "—";
+  const at = row.requested_at ? formatDateTime(row.requested_at) : "—";
+  return `<div>${esc(by)}</div><div class="ch-audit-meta">${esc(at)}</div>`;
+}
+
+function renderChangeHistoryReviewedCell(row) {
+  if (isChangeHistoryOverrideRow(row)) {
+    const remarks = row.audit_remarks ? String(row.audit_remarks).trim() : "";
+    if (!remarks) return "—";
+    return `<div class="ch-audit-meta">${esc(remarks.length > 80 ? `${remarks.slice(0, 80)}…` : remarks)}</div>`;
+  }
+
+  const by = row.reviewed_by_name ? String(row.reviewed_by_name) : "—";
+  const at = row.reviewed_at ? formatDateTime(row.reviewed_at) : "—";
+  const remarks = row.review_remarks ? String(row.review_remarks).trim() : "";
+  const remarksHtml = remarks
+    ? `<div class="ch-audit-meta">${esc(remarks.length > 60 ? `${remarks.slice(0, 60)}…` : remarks)}</div>`
+    : "";
+  return `<div>${esc(by)}</div><div class="ch-audit-meta">${esc(at)}</div>${remarksHtml}`;
+}
+
+function renderActiveStateLabel(isActive) {
+  if (isActive === true) return "Active";
+  if (isActive === false) return "Inactive";
+  return "";
+}
+
+function renderChangeHistoryAppliedTarget(row) {
+  if (isChangeHistoryOverrideRow(row)) {
+    const overrideId = row.override_id ?? row.applied_override_id;
+    const idLabel = overrideId != null ? `#${overrideId}` : "Override";
+    const display = String(row.override_display_text ?? "").trim();
+    const displayHtml = display
+      ? `<div class="ch-audit-meta">${esc(display)}</div>`
+      : "";
+    const supersedes = row.supersedes_override_label
+      ? `<div class="ch-audit-meta">Supersedes: ${esc(String(row.supersedes_override_label))}</div>`
+      : "";
+    const supersededBy = row.superseded_by_override_label
+      ? `<div class="ch-audit-meta">Superseded by: ${esc(String(row.superseded_by_override_label))}</div>`
+      : "";
+    return `<div><strong>${esc(idLabel)}</strong></div>${displayHtml}${supersedes}${supersededBy}`;
+  }
+
+  const target = normalizeAppliedTargetType(row);
+
+  if (target === "PENDING_REVIEW") {
+    return `<div>Pending review</div>`;
+  }
+  if (target === "REJECTED_NO_APPLIED_TARGET") {
+    return `<div>Rejected</div>`;
+  }
+  if (target === "BASE_SPEC_VERSION") {
+    const label = row.applied_target_label
+      ? String(row.applied_target_label)
+      : "Base Spec Version";
+    const name = row.applied_spec_profile_name
+      ? String(row.applied_spec_profile_name)
+      : "";
+    const version =
+      row.applied_spec_profile_version != null &&
+      row.applied_spec_profile_version !== ""
+        ? String(row.applied_spec_profile_version)
+        : row.version_no != null && row.version_no !== ""
+          ? String(row.version_no)
+          : "";
+    const versionPart =
+      name && version ? `${name} v${version}` : name || (version ? `v${version}` : "");
+    const state = renderActiveStateLabel(row.applied_spec_profile_is_active);
+    const stateHtml = state
+      ? `<div class="ch-audit-meta">${esc(state)}</div>`
+      : "";
+    const detailHtml = versionPart
+      ? `<div class="ch-audit-meta">${esc(versionPart)}</div>`
+      : "";
+    return `<div><strong>${esc(label)}</strong></div>${detailHtml}${stateHtml}`;
+  }
+  if (target === "PRODUCT_ITEM_OVERRIDE") {
+    const label = row.applied_target_label
+      ? String(row.applied_target_label)
+      : "Product / Item Override";
+    const display = row.applied_override_display_text
+      ? String(row.applied_override_display_text)
+      : "";
+    const state = renderActiveStateLabel(row.applied_override_is_active);
+    const displayHtml = display
+      ? `<div class="ch-audit-meta">${esc(display)}</div>`
+      : "";
+    const stateHtml = state
+      ? `<div class="ch-audit-meta">${esc(state)}</div>`
+      : "";
+    return `<div><strong>${esc(label)}</strong></div>${displayHtml}${stateHtml}`;
+  }
+
+  const fallback = row.applied_target_label
+    ? String(row.applied_target_label)
+    : "";
+  return fallback ? `<div>${esc(fallback)}</div>` : `<div>—</div>`;
+}
+
+function renderChangeHistorySourceAnalysis(row) {
+  const reg =
+    row.source_analysis_register_no ?? row.analysis_register_no ?? null;
+  if (reg) return esc(String(reg));
+  if (isChangeHistoryOverrideRow(row)) {
+    const ctx = String(row.source_context ?? "").trim();
+    if (!ctx) return "—";
+    return esc(ctx.length > 40 ? `${ctx.slice(0, 40)}…` : ctx);
+  }
+  return "—";
+}
+
+function truncateWorkflowCell(text, max = 48) {
+  const s = String(text ?? "").trim();
+  if (!s) return "—";
+  return s.length > max ? `${s.slice(0, max)}…` : s;
+}
+
+function renderWorkflowEntityCell(row) {
+  const entity = String(row.entity_label ?? "—");
+  const family = String(row.family_label ?? "").trim();
+  const familyHtml = family
+    ? `<div class="workflow-compact-cell-meta">${esc(family)}</div>`
+    : "";
+  return `<strong>${esc(entity)}</strong>${familyHtml}`;
+}
+
+function renderChangeHistoryRouteCompact(row) {
+  if (isChangeHistoryOverrideRow(row)) {
+    return `<span class="ch-route-badge">${esc(getChangeHistoryOverrideRouteLabel(row))}</span>`;
+  }
+  const route =
+    getRequestOriginalRouteLabel(row) || getChangeHistoryRouteLabel(row);
+  return route
+    ? `<span class="ch-route-badge">${esc(route)}</span>`
+    : "—";
+}
+
+function formatLifecycleHistorySummary(row) {
+  if (isChangeHistoryRequestRow(row)) {
+    const cur = truncateWorkflowCell(row.current_display_text, 42);
+    const prop = truncateWorkflowCell(row.proposed_display_text, 42);
+    return `<span class="workflow-summary-cell">${esc(cur)} → ${esc(prop)}</span>`;
+  }
+
+  const action = getChangeHistoryLifecycleAction(row);
+  if (action === "DEACTIVATE") {
+    const ov = truncateWorkflowCell(row.override_display_text, 45);
+    return `<span class="workflow-summary-cell">${esc(ov)} → Inactive</span>`;
+  }
+  if (action === "REACTIVATE") {
+    const ov = truncateWorkflowCell(row.override_display_text, 45);
+    return `<span class="workflow-summary-cell">${esc(ov)} → Active</span>`;
+  }
+  if (action === "SUPERSEDE") {
+    const pred = truncateWorkflowCell(row.predecessor_display_text, 40);
+    const succ = truncateWorkflowCell(row.successor_display_text, 40);
+    return `<span class="workflow-summary-cell">${esc(pred)} → ${esc(succ)}</span>`;
+  }
+
+  const cur = truncateWorkflowCell(row.current_display_text, 42);
+  const prop = truncateWorkflowCell(
+    row.proposed_display_text ?? row.override_display_text,
+    42,
+  );
+  if (cur !== "—" || prop !== "—") {
+    return `<span class="workflow-summary-cell">${esc(cur)} → ${esc(prop)}</span>`;
+  }
+  return `<span class="workflow-summary-cell">${renderChangeHistoryCurrentCell(row)} → ${renderChangeHistoryProposedCell(row)}</span>`;
+}
+
+function formatLifecycleHistoryOutcome(row) {
+  if (isChangeHistoryOverrideRow(row)) {
+    const overrideId = row.override_id ?? row.applied_override_id;
+    const idLabel = overrideId != null ? `Override #${overrideId}` : "Override";
+    const supersedes = row.supersedes_override_label
+      ? `<div class="workflow-compact-cell-meta">Supersedes: ${esc(String(row.supersedes_override_label))}</div>`
+      : "";
+    const supersededBy = row.superseded_by_override_label
+      ? `<div class="workflow-compact-cell-meta">Superseded by: ${esc(String(row.superseded_by_override_label))}</div>`
+      : "";
+    return `<div><strong>${esc(idLabel)}</strong></div>${supersedes}${supersededBy}`;
+  }
+
+  const targetLabel = row.applied_target_label
+    ? String(row.applied_target_label)
+    : "";
+  if (targetLabel) {
+    return `<div>${esc(truncateWorkflowCell(targetLabel, 50))}</div>`;
+  }
+  const targetType = formatAppliedTargetTypeLabel(row.applied_target_type);
+  return targetType ? `<div>${esc(targetType)}</div>` : "—";
+}
+
+function getLifecycleHistorySummaryText(row) {
+  const pair = (left, right) => {
+    const a = normalizeExportValue(left);
+    const b = normalizeExportValue(right);
+    if (!a && !b) return "";
+    return `${a || "—"} → ${b || "—"}`;
+  };
+
+  if (isChangeHistoryRequestRow(row)) {
+    return pair(row.current_display_text, row.proposed_display_text);
+  }
+
+  const action = getChangeHistoryLifecycleAction(row);
+  if (action === "DEACTIVATE") {
+    return pair(row.override_display_text, "Inactive");
+  }
+  if (action === "REACTIVATE") {
+    return pair(row.override_display_text, "Active");
+  }
+  if (action === "SUPERSEDE") {
+    return pair(row.predecessor_display_text, row.successor_display_text);
+  }
+
+  return pair(
+    row.current_display_text ?? row.override_display_text,
+    row.proposed_display_text ?? row.successor_display_text,
+  );
+}
+
+function getLifecycleHistoryOutcomeText(row) {
+  if (isChangeHistoryOverrideRow(row)) {
+    const parts = [];
+    const overrideId = row.override_id ?? row.applied_override_id;
+    if (overrideId != null && overrideId !== "") {
+      parts.push(`Override #${overrideId}`);
+    }
+    if (row.supersedes_override_label) {
+      parts.push(`Supersedes: ${row.supersedes_override_label}`);
+    }
+    if (row.superseded_by_override_label) {
+      parts.push(`Superseded by: ${row.superseded_by_override_label}`);
+    }
+    return parts.join("; ");
+  }
+
+  const label = normalizeExportValue(row.applied_target_label);
+  if (label) return label;
+  return normalizeExportValue(formatAppliedTargetTypeLabel(row.applied_target_type));
+}
+
+function pickExportField(row, keys) {
+  const list = Array.isArray(keys) ? keys : [keys];
+  for (const key of list) {
+    const v = row?.[key];
+    if (v != null && String(v).trim() !== "") return v;
+  }
+  return "";
+}
+
+function pickExportRouteLabel(row) {
+  return (
+    pickExportField(row, [
+      "review_route_label",
+      "route_label",
+      "request_scope",
+    ]) || ""
+  );
+}
+
+// ── Workflow tab CSV export ───────────────────────────────────────────────────
+
+function formatExportDateForFilename(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function normalizeExportValue(value) {
+  if (value == null) return "";
+  if (typeof value === "boolean") return formatExportBoolean(value);
+  if (typeof value === "object") return jsonToCompactExportString(value);
+  const s = String(value).trim();
+  return s === "--" || s === "—" ? "" : s;
+}
+
+function formatExportDateTime(value) {
+  if (value == null || value === "") return "";
+  const formatted = formatDateTime(value);
+  return formatted === "--" ? "" : formatted;
+}
+
+function formatExportBoolean(value) {
+  if (value === true) return "Yes";
+  if (value === false) return "No";
+  return "";
+}
+
+function jsonToCompactExportString(value) {
+  if (value == null) return "";
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function escapeCsvValue(value) {
+  const s = normalizeExportValue(value);
+  if (!/[",\n\r]/.test(s)) return s;
+  return `"${s.replace(/"/g, '""')}"`;
+}
+
+function buildDelimitedFile(rows, columns, delimiter = ",") {
+  const lines = [columns.map((col) => escapeCsvValue(col.header)).join(delimiter)];
+  rows.forEach((row) => {
+    lines.push(
+      columns
+        .map((col) => {
+          try {
+            return escapeCsvValue(col.pick(row));
+          } catch {
+            return "";
+          }
+        })
+        .join(delimiter),
+    );
+  });
+  return lines.join("\n");
+}
+
+function downloadTextFile(filename, content, mimeType) {
+  const blob = new Blob(["\uFEFF", content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+const REVIEW_QUEUE_EXPORT_COLUMNS = [
+  { header: "Request ID", pick: (r) => r.request_id },
+  {
+    header: "Status",
+    pick: (r) => pickExportField(r, ["request_status", "status"]),
+  },
+  { header: "Subject", pick: (r) => r.subject_type },
+  { header: "Route", pick: (r) => pickExportRouteLabel(r) },
+  { header: "Request Scope", pick: (r) => r.request_scope },
+  { header: "Request Type", pick: (r) => r.request_type },
+  { header: "Entity", pick: (r) => r.entity_label },
+  { header: "Family", pick: (r) => r.family_label },
+  { header: "Product ID", pick: (r) => r.product_id },
+  { header: "Product Name", pick: (r) => r.product_name },
+  { header: "Stock Item ID", pick: (r) => r.stock_item_id },
+  { header: "Stock Item Name", pick: (r) => r.stock_item_name },
+  { header: "Test ID", pick: (r) => r.test_id },
+  { header: "Test Name", pick: (r) => r.test_name },
+  { header: "Current Display", pick: (r) => r.current_display_text },
+  { header: "Proposed Display", pick: (r) => r.proposed_display_text },
+  {
+    header: "Current Spec Type",
+    pick: (r) =>
+      pickExportField(r, [
+        "current_spec_type",
+        "current_reference_spec_type",
+        "existing_spec_type",
+      ]),
+  },
+  {
+    header: "Proposed Spec Type",
+    pick: (r) =>
+      pickExportField(r, ["proposed_spec_type", "spec_type", "requested_spec_type"]),
+  },
+  {
+    header: "Current Method",
+    pick: (r) =>
+      pickExportField(r, ["current_method_name", "current_reference_method_name"]),
+  },
+  {
+    header: "Proposed Method",
+    pick: (r) =>
+      pickExportField(r, ["proposed_method_name", "proposed_reference_method_name"]),
+  },
+  {
+    header: "Current UOM",
+    pick: (r) => pickExportField(r, ["current_uom_symbol", "current_uom_code"]),
+  },
+  {
+    header: "Proposed UOM",
+    pick: (r) => pickExportField(r, ["proposed_uom_symbol", "proposed_uom_code"]),
+  },
+  { header: "Reference Source", pick: (r) => formatReferenceSourceSummary(r) },
+  {
+    header: "Current Reference Source",
+    pick: (r) => getRowCurrentReferenceSource(r),
+  },
+  {
+    header: "Proposed Reference Source",
+    pick: (r) => getRowProposedReferenceSource(r),
+  },
+  { header: "Source Analysis ID", pick: (r) => r.source_analysis_id },
+  {
+    header: "Source Analysis Register No",
+    pick: (r) => pickExportField(r, ["source_analysis_register_no", "analysis_register_no"]),
+  },
+  { header: "Source Analysis Result ID", pick: (r) => r.source_analysis_result_id },
+  { header: "Requested By", pick: (r) => r.requested_by_name },
+  { header: "Requested At", pick: (r) => formatExportDateTime(r.requested_at) },
+  { header: "Request Remarks", pick: (r) => r.request_remarks },
+  { header: "Age Hours", pick: (r) => r.age_hours },
+  { header: "Age Bucket", pick: (r) => r.age_bucket },
+  { header: "Search Text", pick: (r) => r.search_text },
+];
+
+const APPLIED_OVERRIDE_EXPORT_COLUMNS = [
+  { header: "Override ID", pick: (r) => r.override_id },
+  { header: "Subject", pick: (r) => r.subject_type },
+  { header: "Level", pick: (r) => r.override_level_label },
+  { header: "Scope", pick: (r) => pickExportField(r, ["override_scope", "scope"]) },
+  { header: "Entity", pick: (r) => r.entity_label },
+  { header: "Family", pick: (r) => r.family_label },
+  { header: "Product ID", pick: (r) => r.product_id },
+  { header: "Stock Item ID", pick: (r) => r.stock_item_id },
+  { header: "Test ID", pick: (r) => r.test_id },
+  { header: "Test Name", pick: (r) => r.test_name },
+  { header: "Action Type", pick: (r) => pickExportField(r, ["action_type", "override_action_type"]) },
+  { header: "Spec Type", pick: (r) => pickExportField(r, ["override_spec_type", "spec_type"]) },
+  { header: "Override Display", pick: (r) => formatAppliedOverrideDisplay(r) },
+  { header: "Min Value", pick: (r) => pickExportField(r, ["override_min_value", "min_value"]) },
+  { header: "Max Value", pick: (r) => pickExportField(r, ["override_max_value", "max_value"]) },
+  { header: "Text Value", pick: (r) => pickExportField(r, ["override_text_value", "text_value"]) },
+  {
+    header: "Target Value",
+    pick: (r) => pickExportField(r, ["override_target_value", "target_value"]),
+  },
+  {
+    header: "Tolerance Value",
+    pick: (r) => pickExportField(r, ["override_tolerance_value", "tolerance_value"]),
+  },
+  {
+    header: "Tolerance UOM",
+    pick: (r) => pickExportField(r, ["override_tolerance_uom", "tolerance_uom"]),
+  },
+  {
+    header: "UOM",
+    pick: (r) => pickExportField(r, ["uom_symbol", "uom_code", "uom_name"]),
+  },
+  {
+    header: "Method",
+    pick: (r) => pickExportField(r, ["override_method_name", "method_name"]),
+  },
+  { header: "Required", pick: (r) => formatExportBoolean(r.is_required) },
+  { header: "Active", pick: (r) => formatExportBoolean(r.is_active) },
+  { header: "Override Status", pick: (r) => pickExportField(r, ["override_status", "status"]) },
+  { header: "Reason", pick: (r) => pickExportField(r, ["reason", "override_reason"]) },
+  { header: "Source Request ID", pick: (r) => r.source_request_id },
+  { header: "Source Request Status", pick: (r) => r.source_request_status },
+  { header: "Source Request Scope", pick: (r) => r.source_request_scope },
+  { header: "Source Request Type", pick: (r) => r.source_request_type },
+  { header: "Source Analysis ID", pick: (r) => r.source_analysis_id },
+  { header: "Source Analysis Register No", pick: (r) => r.source_analysis_register_no },
+  { header: "Requested By", pick: (r) => r.requested_by_name },
+  { header: "Requested At", pick: (r) => formatExportDateTime(r.requested_at) },
+  { header: "Reviewed By", pick: (r) => r.reviewed_by_name },
+  { header: "Reviewed At", pick: (r) => formatExportDateTime(r.reviewed_at) },
+  { header: "Request Remarks", pick: (r) => r.request_remarks },
+  { header: "Review Remarks", pick: (r) => r.review_remarks },
+  { header: "Last Audit Action", pick: (r) => r.last_audit_action },
+  { header: "Last Audit At", pick: (r) => formatExportDateTime(r.last_audit_at) },
+  { header: "Last Audit Remarks", pick: (r) => r.last_audit_remarks },
+  { header: "Supersedes Override ID", pick: (r) => r.supersedes_override_id },
+  { header: "Superseded By Override ID", pick: (r) => r.superseded_by_override_id },
+  { header: "Supersedes Label", pick: (r) => r.supersedes_override_label },
+  { header: "Superseded By Label", pick: (r) => r.superseded_by_override_label },
+  { header: "Search Text", pick: (r) => r.search_text },
+];
+
+const CHANGE_HISTORY_EXPORT_COLUMNS = [
+  { header: "History ID", pick: (r) => r.history_id },
+  { header: "History Type", pick: (r) => r.history_type },
+  {
+    header: "History Action",
+    pick: (r) => pickExportField(r, ["history_action", "audit_action"]),
+  },
+  {
+    header: "History Status",
+    pick: (r) => pickExportField(r, ["history_status", "request_status"]),
+  },
+  {
+    header: "Event At",
+    pick: (r) => formatExportDateTime(getChangeHistoryEventAt(r)),
+  },
+  { header: "Request ID", pick: (r) => r.request_id },
+  { header: "Audit ID", pick: (r) => r.audit_id },
+  { header: "Override ID", pick: (r) => pickExportField(r, ["override_id", "applied_override_id"]) },
+  { header: "Subject", pick: (r) => r.subject_type },
+  { header: "Entity", pick: (r) => r.entity_label },
+  { header: "Family", pick: (r) => r.family_label },
+  { header: "Product ID", pick: (r) => r.product_id },
+  { header: "Product Name", pick: (r) => r.product_name },
+  { header: "Stock Item ID", pick: (r) => r.stock_item_id },
+  { header: "Stock Item Name", pick: (r) => r.stock_item_name },
+  { header: "Product Group ID", pick: (r) => r.product_group_id },
+  { header: "Product Group Name", pick: (r) => r.product_group_name },
+  { header: "Test ID", pick: (r) => r.test_id },
+  { header: "Test Name", pick: (r) => r.test_name },
+  {
+    header: "Route Label",
+    pick: (r) =>
+      pickExportField(r, ["route_label", "review_route_label"]) ||
+      getChangeHistoryOverrideRouteLabel(r),
+  },
+  { header: "Request Scope", pick: (r) => r.request_scope },
+  { header: "Request Type", pick: (r) => r.request_type },
+  { header: "Applied Target Type", pick: (r) => r.applied_target_type },
+  { header: "Applied Target Label", pick: (r) => r.applied_target_label },
+  { header: "Current Display", pick: (r) => r.current_display_text },
+  { header: "Proposed Display", pick: (r) => r.proposed_display_text },
+  {
+    header: "Current Spec Type",
+    pick: (r) =>
+      pickExportField(r, ["current_spec_type", "current_reference_spec_type"]),
+  },
+  {
+    header: "Proposed Spec Type",
+    pick: (r) => pickExportField(r, ["proposed_spec_type", "spec_type"]),
+  },
+  {
+    header: "Current Method",
+    pick: (r) => pickExportField(r, ["current_method_name", "current_reference_method_name"]),
+  },
+  {
+    header: "Proposed Method",
+    pick: (r) => pickExportField(r, ["proposed_method_name", "proposed_reference_method_name"]),
+  },
+  {
+    header: "Current UOM",
+    pick: (r) => pickExportField(r, ["current_uom_symbol", "current_uom_code"]),
+  },
+  {
+    header: "Proposed UOM",
+    pick: (r) => pickExportField(r, ["proposed_uom_symbol", "proposed_uom_code"]),
+  },
+  { header: "Requested By", pick: (r) => r.requested_by_name },
+  { header: "Requested At", pick: (r) => formatExportDateTime(r.requested_at) },
+  { header: "Request Remarks", pick: (r) => r.request_remarks },
+  { header: "Reviewed By", pick: (r) => r.reviewed_by_name },
+  { header: "Reviewed At", pick: (r) => formatExportDateTime(r.reviewed_at) },
+  { header: "Review Remarks", pick: (r) => r.review_remarks },
+  { header: "Source Analysis ID", pick: (r) => r.source_analysis_id },
+  {
+    header: "Source Analysis Register No",
+    pick: (r) => pickExportField(r, ["source_analysis_register_no", "analysis_register_no"]),
+  },
+  { header: "Source Analysis Result ID", pick: (r) => r.source_analysis_result_id },
+  { header: "Applied Override ID", pick: (r) => r.applied_override_id },
+  {
+    header: "Applied Override Active",
+    pick: (r) => formatExportBoolean(r.applied_override_is_active),
+  },
+  { header: "Applied Override Display", pick: (r) => r.applied_override_display_text },
+  { header: "Applied Spec Profile ID", pick: (r) => r.applied_spec_profile_id },
+  { header: "Applied Spec Profile Name", pick: (r) => r.applied_spec_profile_name },
+  {
+    header: "Applied Spec Profile Version",
+    pick: (r) => pickExportField(r, ["applied_spec_profile_version", "version_no"]),
+  },
+  { header: "Reference Source", pick: (r) => formatReferenceSourceSummary(r) },
+  {
+    header: "Current Reference Source",
+    pick: (r) => getRowCurrentReferenceSource(r),
+  },
+  {
+    header: "Proposed Reference Source",
+    pick: (r) => getRowProposedReferenceSource(r),
+  },
+  { header: "Review Decision", pick: (r) => r.review_decision },
+  { header: "Review Apply Scope", pick: (r) => r.review_apply_scope },
+  { header: "Review Applied Target Type", pick: (r) => r.review_applied_target_type },
+  { header: "Review Applied Route Label", pick: (r) => r.review_applied_route_label },
+  {
+    header: "Route Changed",
+    pick: (r) => formatExportBoolean(isRouteWasChanged(r)),
+  },
+  {
+    header: "Route Changed From",
+    pick: (r) =>
+      formatApplyScopeLabel(r.route_changed_from_scope ?? r.request_scope, r.subject_type),
+  },
+  {
+    header: "Route Changed To",
+    pick: (r) =>
+      formatApplyScopeLabel(
+        r.route_changed_to_scope ?? r.review_apply_scope,
+        r.subject_type,
+      ),
+  },
+  { header: "Route Changed By", pick: (r) => r.route_changed_by_name },
+  {
+    header: "Route Changed At",
+    pick: (r) => formatExportDateTime(r.route_changed_at),
+  },
+  { header: "Route Change Remarks", pick: (r) => r.route_change_remarks },
+  {
+    header: "Audit Action",
+    pick: (r) => pickExportField(r, ["audit_action", "history_action"]),
+  },
+  { header: "Old Is Active", pick: (r) => formatExportBoolean(r.old_is_active) },
+  { header: "New Is Active", pick: (r) => formatExportBoolean(r.new_is_active) },
+  { header: "Performed By User ID", pick: (r) => r.performed_by_user_id },
+  {
+    header: "Performed At",
+    pick: (r) => formatExportDateTime(r.performed_at ?? r.event_at),
+  },
+  { header: "Audit Remarks", pick: (r) => r.audit_remarks },
+  { header: "Source Context", pick: (r) => r.source_context },
+  { header: "Override Scope", pick: (r) => r.override_scope },
+  {
+    header: "Override Level",
+    pick: (r) => pickExportField(r, ["override_level_label", "override_level"]),
+  },
+  { header: "Override Status", pick: (r) => r.override_status },
+  {
+    header: "Override Action Type",
+    pick: (r) => pickExportField(r, ["override_action_type", "action_type"]),
+  },
+  { header: "Override Method", pick: (r) => r.override_method_name },
+  { header: "Override Spec Type", pick: (r) => r.override_spec_type },
+  { header: "Override Min Value", pick: (r) => r.override_min_value },
+  { header: "Override Max Value", pick: (r) => r.override_max_value },
+  { header: "Override Text Value", pick: (r) => r.override_text_value },
+  { header: "Override Target Value", pick: (r) => r.override_target_value },
+  { header: "Override Tolerance Value", pick: (r) => r.override_tolerance_value },
+  { header: "Override Tolerance UOM", pick: (r) => r.override_tolerance_uom },
+  { header: "Override Display", pick: (r) => r.override_display_text },
+  { header: "Override Reason", pick: (r) => pickExportField(r, ["reason", "override_reason"]) },
+  { header: "Supersedes Override ID", pick: (r) => r.supersedes_override_id },
+  { header: "Superseded By Override ID", pick: (r) => r.superseded_by_override_id },
+  { header: "Supersedes Label", pick: (r) => r.supersedes_override_label },
+  { header: "Superseded By Label", pick: (r) => r.superseded_by_override_label },
+  { header: "Supersede Role", pick: (r) => r.supersede_role },
+  { header: "Predecessor Override ID", pick: (r) => r.predecessor_override_id },
+  { header: "Successor Override ID", pick: (r) => r.successor_override_id },
+  { header: "Predecessor Display", pick: (r) => r.predecessor_display_text },
+  { header: "Successor Display", pick: (r) => r.successor_display_text },
+  { header: "Summary", pick: (r) => getLifecycleHistorySummaryText(r) },
+  { header: "Outcome", pick: (r) => getLifecycleHistoryOutcomeText(r) },
+  { header: "Search Text", pick: (r) => r.search_text },
+];
+
+function exportReviewQueueCsv() {
+  const rows = getFilteredReviewQueueRows();
+  if (!rows.length) {
+    toast("No rows to export.", "warn");
+    return;
+  }
+  const content = buildDelimitedFile(rows, REVIEW_QUEUE_EXPORT_COLUMNS, ",");
+  downloadTextFile(
+    `spec-review-queue-${formatExportDateForFilename()}.csv`,
+    content,
+    "text/csv;charset=utf-8",
+  );
+  toast(
+    `Exported ${rows.length} row${rows.length !== 1 ? "s" : ""}.`,
+    "success",
+    2200,
+  );
+}
+
+function exportAppliedOverridesCsv() {
+  const rows = getFilteredOverrideRegisterRows();
+  if (!rows.length) {
+    toast("No rows to export.", "warn");
+    return;
+  }
+  const content = buildDelimitedFile(rows, APPLIED_OVERRIDE_EXPORT_COLUMNS, ",");
+  downloadTextFile(
+    `spec-applied-overrides-${formatExportDateForFilename()}.csv`,
+    content,
+    "text/csv;charset=utf-8",
+  );
+  toast(
+    `Exported ${rows.length} row${rows.length !== 1 ? "s" : ""}.`,
+    "success",
+    2200,
+  );
+}
+
+function exportChangeHistoryCsv() {
+  const rows = getFilteredChangeHistoryRows();
+  if (!rows.length) {
+    toast("No rows to export.", "warn");
+    return;
+  }
+  const content = buildDelimitedFile(rows, CHANGE_HISTORY_EXPORT_COLUMNS, ",");
+  downloadTextFile(
+    `spec-change-history-${formatExportDateForFilename()}.csv`,
+    content,
+    "text/csv;charset=utf-8",
+  );
+  toast(
+    `Exported ${rows.length} row${rows.length !== 1 ? "s" : ""}.`,
+    "success",
+    2200,
+  );
+}
+
+function pickLifecycleRowValue(row, keys, fallback = "—") {
+  for (const key of keys) {
+    const v = row?.[key];
+    if (v != null && String(v).trim() !== "") return String(v);
+  }
+  return fallback;
+}
+
+function renderLifecycleHistoryKv(label, value, { html = false } = {}) {
+  const empty = value == null || value === "";
+  const valueHtml = empty
+    ? "—"
+    : html
+      ? String(value)
+      : esc(String(value));
+  return `<div class="lifecycle-history-kv">
+    <div class="lifecycle-history-kv-label">${esc(label)}</div>
+    <div class="lifecycle-history-kv-value">${valueHtml}</div>
+  </div>`;
+}
+
+function renderLifecycleHistoryComparisonSection(row) {
+  const currentDisplay = pickLifecycleRowValue(row, ["current_display_text"]);
+  const currentType = pickLifecycleRowValue(row, [
+    "current_spec_type",
+    "current_reference_spec_type",
+    "existing_spec_type",
+  ]);
+  const currentMethod = pickLifecycleRowValue(row, [
+    "current_method_name",
+    "current_reference_method_name",
+  ]);
+  const currentUom = pickLifecycleRowValue(row, [
+    "current_uom_symbol",
+    "current_uom_code",
+  ]);
+  const proposedDisplay = pickLifecycleRowValue(row, ["proposed_display_text"]);
+  const proposedType = pickLifecycleRowValue(row, [
+    "proposed_spec_type",
+    "spec_type",
+    "requested_spec_type",
+  ]);
+  const proposedMethod = pickLifecycleRowValue(row, [
+    "proposed_method_name",
+    "proposed_reference_method_name",
+  ]);
+  const proposedUom = pickLifecycleRowValue(row, [
+    "proposed_uom_symbol",
+    "proposed_uom_code",
+  ]);
+
+  return `<section class="lifecycle-history-section spec-request-panel">
+    <div class="lifecycle-history-section-title">Current vs Proposed</div>
+    <div class="spec-request-detail-grid">
+      <div class="spec-request-card spec-request-card-current">
+        <div class="spec-request-card-title">
+          <span class="spec-request-card-role spec-request-card-role-current">Current</span>
+          Existing / Current
+        </div>
+        <div class="spec-request-card-value">
+          <div class="spec-request-kv"><div class="spec-request-kv-label">Spec Type</div><div class="spec-request-kv-value">${esc(currentType)}</div></div>
+          <div class="spec-request-kv"><div class="spec-request-kv-label">Display</div><div class="spec-request-kv-value">${esc(currentDisplay)}</div></div>
+          <div class="spec-request-kv"><div class="spec-request-kv-label">Method</div><div class="spec-request-kv-value">${esc(currentMethod)}</div></div>
+          <div class="spec-request-kv"><div class="spec-request-kv-label">Unit</div><div class="spec-request-kv-value">${esc(currentUom)}</div></div>
+        </div>
+      </div>
+      <div class="spec-request-card spec-request-card-proposed">
+        <div class="spec-request-card-title">
+          <span class="spec-request-card-role spec-request-card-role-proposed">Proposed</span>
+          Requested Change
+        </div>
+        <div class="spec-request-card-value">
+          <div class="spec-request-kv"><div class="spec-request-kv-label">Spec Type</div><div class="spec-request-kv-value">${esc(proposedType)}</div></div>
+          <div class="spec-request-kv"><div class="spec-request-kv-label">Display</div><div class="spec-request-kv-value">${esc(proposedDisplay)}</div></div>
+          <div class="spec-request-kv"><div class="spec-request-kv-label">Method</div><div class="spec-request-kv-value">${esc(proposedMethod)}</div></div>
+          <div class="spec-request-kv"><div class="spec-request-kv-label">Unit</div><div class="spec-request-kv-value">${esc(proposedUom)}</div></div>
+        </div>
+      </div>
+    </div>
+  </section>`;
+}
+
+function renderLifecycleHistoryRequestDetail(row) {
+  const eventAt = getChangeHistoryEventAt(row);
+  const statusLabel = String(
+    row.history_status ?? row.request_status ?? "—",
+  );
+
+  let html = `<section class="lifecycle-history-section">
+    <div class="lifecycle-history-section-title">Event Summary</div>
+    <div class="lifecycle-history-detail-grid">
+      ${renderLifecycleHistoryKv("History ID", row.history_id)}
+      ${renderLifecycleHistoryKv("Request ID", row.request_id ? `#${row.request_id}` : "—")}
+      ${renderLifecycleHistoryKv("Status", statusLabel)}
+      ${renderLifecycleHistoryKv("Event Date", eventAt ? formatDateTime(eventAt) : "—")}
+      ${renderLifecycleHistoryKv("Subject", row.subject_type)}
+      ${renderLifecycleHistoryKv("Entity", row.entity_label)}
+      ${renderLifecycleHistoryKv("Family", row.family_label)}
+      ${renderLifecycleHistoryKv("Test", row.test_name)}
+    </div>
+    <div class="lifecycle-history-kv" style="margin-top:8px">
+      <div class="lifecycle-history-kv-label">Route</div>
+      <div class="lifecycle-history-kv-value">${renderChangeHistoryRouteCell(row)}</div>
+    </div>
+  </section>`;
+
+  html += renderLifecycleHistoryComparisonSection(row);
+
+  if (hasAnyReferenceSource(row)) {
+    html += buildReferenceSourceDetailSectionHtml(row);
+  }
+
+  const requestRemarks = pickLifecycleRowValue(row, ["request_remarks"], "");
+  const reviewRemarks = pickLifecycleRowValue(row, ["review_remarks"], "");
+
+  html += `<section class="lifecycle-history-section spec-request-panel-muted spec-request-panel">
+    <div class="lifecycle-history-section-title">Request / Review</div>
+    <div class="lifecycle-history-detail-grid">
+      <div class="lifecycle-history-kv">
+        <div class="lifecycle-history-kv-label">Requested</div>
+        <div class="lifecycle-history-kv-value">${renderChangeHistoryRequestedCell(row)}</div>
+      </div>
+      <div class="lifecycle-history-kv">
+        <div class="lifecycle-history-kv-label">Reviewed</div>
+        <div class="lifecycle-history-kv-value">${renderChangeHistoryReviewedCell(row)}</div>
+      </div>
+    </div>
+    ${requestRemarks && requestRemarks !== "—" ? `<div class="lifecycle-history-kv" style="margin-top:8px"><div class="lifecycle-history-kv-label">Request Remarks</div><div class="lifecycle-history-kv-value">${esc(requestRemarks)}</div></div>` : ""}
+    ${reviewRemarks && reviewRemarks !== "—" ? `<div class="lifecycle-history-kv" style="margin-top:8px"><div class="lifecycle-history-kv-label">Review Remarks</div><div class="lifecycle-history-kv-value">${esc(reviewRemarks)}</div></div>` : ""}
+  </section>`;
+
+  html += `<section class="lifecycle-history-section spec-request-panel">
+    <div class="lifecycle-history-section-title">Applied Outcome</div>
+    <div class="lifecycle-history-kv-value">${renderChangeHistoryAppliedTarget(row)}</div>
+    ${renderLifecycleHistoryKv("Applied Target Type", formatAppliedTargetTypeLabel(row.applied_target_type))}
+  </section>`;
+
+  return html;
+}
+
+function formatLifecycleActiveState(value) {
+  if (value === true) return "Active";
+  if (value === false) return "Inactive";
+  return "—";
+}
+
+function renderLifecycleHistoryOverrideDetail(row) {
+  const eventAt = getChangeHistoryEventAt(row);
+  const action = getChangeHistoryLifecycleAction(row);
+  const actionLabel = formatChangeHistoryLifecycleActionLabel(action);
+
+  let html = `<section class="lifecycle-history-section">
+    <div class="lifecycle-history-section-title">Event Summary</div>
+    <div class="lifecycle-history-detail-grid">
+      ${renderLifecycleHistoryKv("History ID", row.history_id)}
+      ${renderLifecycleHistoryKv("Audit ID", row.audit_id)}
+      ${renderLifecycleHistoryKv("Override ID", row.override_id != null ? `#${row.override_id}` : "—")}
+      ${renderLifecycleHistoryKv("Action", actionLabel)}
+      ${renderLifecycleHistoryKv("Event Date", eventAt ? formatDateTime(eventAt) : "—")}
+      ${renderLifecycleHistoryKv("Subject", row.subject_type)}
+      ${renderLifecycleHistoryKv("Entity", row.entity_label)}
+      ${renderLifecycleHistoryKv("Family", row.family_label)}
+      ${renderLifecycleHistoryKv("Test", row.test_name)}
+      ${renderLifecycleHistoryKv("Route / Level", getChangeHistoryOverrideRouteLabel(row))}
+    </div>
+  </section>`;
+
+  const oldState = formatLifecycleActiveState(row.old_is_active);
+  const newState = formatLifecycleActiveState(row.new_is_active);
+  const auditRemarks = pickLifecycleRowValue(row, ["audit_remarks"], "");
+  const sourceContext = pickLifecycleRowValue(row, ["source_context"], "");
+
+  html += `<section class="lifecycle-history-section spec-request-panel">
+    <div class="lifecycle-history-section-title">Lifecycle State</div>
+    <div class="lifecycle-history-detail-grid">
+      ${renderLifecycleHistoryKv("Previous State", oldState)}
+      ${renderLifecycleHistoryKv("New State", newState)}
+      ${renderLifecycleHistoryKv("State Change", oldState !== "—" || newState !== "—" ? `${oldState} → ${newState}` : "—")}
+    </div>
+    ${auditRemarks && auditRemarks !== "—" ? `<div class="lifecycle-history-kv" style="margin-top:8px"><div class="lifecycle-history-kv-label">Audit Remarks</div><div class="lifecycle-history-kv-value">${esc(auditRemarks)}</div></div>` : ""}
+    ${sourceContext && sourceContext !== "—" ? `<div class="lifecycle-history-kv" style="margin-top:8px"><div class="lifecycle-history-kv-label">Source Context</div><div class="lifecycle-history-kv-value">${esc(sourceContext)}</div></div>` : ""}
+  </section>`;
+
+  const overrideDisplay = pickLifecycleRowValue(row, [
+    "override_display_text",
+    "current_display_text",
+  ]);
+  const overrideAction = pickLifecycleRowValue(row, [
+    "override_action_type",
+    "action_type",
+  ]);
+  const overrideSpecType = pickLifecycleRowValue(row, ["override_spec_type"]);
+  const overrideMethod = pickLifecycleRowValue(row, ["override_method_name"]);
+  const overrideReason = pickLifecycleRowValue(row, ["reason", "override_reason"]);
+
+  html += `<section class="lifecycle-history-section spec-request-panel-muted spec-request-panel">
+    <div class="lifecycle-history-section-title">Override Snapshot</div>
+    <div class="lifecycle-history-detail-grid">
+      ${renderLifecycleHistoryKv("Action Type", overrideAction)}
+      ${renderLifecycleHistoryKv("Spec Type", overrideSpecType)}
+      ${renderLifecycleHistoryKv("Method", overrideMethod)}
+      ${renderLifecycleHistoryKv("Display", overrideDisplay)}
+      ${renderLifecycleHistoryKv("Min Value", row.override_min_value ?? row.min_value)}
+      ${renderLifecycleHistoryKv("Max Value", row.override_max_value ?? row.max_value)}
+      ${renderLifecycleHistoryKv("Text Value", row.override_text_value ?? row.text_value)}
+      ${renderLifecycleHistoryKv("Target Value", row.override_target_value ?? row.target_value)}
+      ${renderLifecycleHistoryKv("Tolerance", row.override_tolerance_value ?? row.tolerance_value)}
+      ${renderLifecycleHistoryKv("Reason", overrideReason)}
+    </div>
+  </section>`;
+
+  if (action === "SUPERSEDE") {
+    html += `<section class="lifecycle-history-section spec-request-panel">
+      <div class="lifecycle-history-section-title">Supersede Details</div>
+      <div class="lifecycle-history-detail-grid">
+        ${renderLifecycleHistoryKv("Supersede Role", row.supersede_role)}
+        ${renderLifecycleHistoryKv("Predecessor Override ID", row.predecessor_override_id)}
+        ${renderLifecycleHistoryKv("Successor Override ID", row.successor_override_id)}
+        ${renderLifecycleHistoryKv("Predecessor Display", row.predecessor_display_text)}
+        ${renderLifecycleHistoryKv("Successor Display", row.successor_display_text)}
+        ${renderLifecycleHistoryKv("Supersedes Label", row.supersedes_override_label)}
+        ${renderLifecycleHistoryKv("Superseded By Label", row.superseded_by_override_label)}
+      </div>
+    </section>`;
+  }
+
+  html += `<section class="lifecycle-history-section spec-request-panel-muted spec-request-panel">
+    <div class="lifecycle-history-section-title">Source Request Context</div>
+    <div class="lifecycle-history-detail-grid">
+      ${renderLifecycleHistoryKv("Source Request ID", row.source_request_id ? `#${row.source_request_id}` : row.request_id ? `#${row.request_id}` : "—")}
+      <div class="lifecycle-history-kv">
+        <div class="lifecycle-history-kv-label">Source Analysis Register No</div>
+        <div class="lifecycle-history-kv-value">${renderChangeHistorySourceAnalysis(row)}</div>
+      </div>
+      ${renderLifecycleHistoryKv("Requested By", row.requested_by_name)}
+      ${renderLifecycleHistoryKv("Reviewed By", row.reviewed_by_name)}
+    </div>
+  </section>`;
+
+  return html;
+}
+
+function renderLifecycleHistoryModalDetail(row) {
+  if (!row) return "";
+  if (isChangeHistoryRequestRow(row)) {
+    return renderLifecycleHistoryRequestDetail(row);
+  }
+  return renderLifecycleHistoryOverrideDetail(row);
+}
+
+function clearLifecycleHistoryRowActiveState() {
+  chHistoryTableBody
+    ?.querySelectorAll(".spec-history-row-active")
+    .forEach((row) => row.classList.remove("spec-history-row-active"));
+}
+
+function setLifecycleHistoryRowActive(historyId) {
+  if (!chHistoryTableBody || historyId == null || historyId === "") return;
+  clearLifecycleHistoryRowActiveState();
+  const row = chHistoryTableBody.querySelector(
+    `tr.spec-history-row-clickable[data-history-id="${CSS.escape(String(historyId))}"]`,
+  );
+  row?.classList.add("spec-history-row-active");
+}
+
+function isHigherPriorityModalOpenForLifecycleHistory() {
+  if (
+    specOverrideSupersedeConfirmModal &&
+    !specOverrideSupersedeConfirmModal.classList.contains("hidden")
+  ) {
+    return true;
+  }
+  if (
+    specOverrideSupersedeModal &&
+    !specOverrideSupersedeModal.classList.contains("hidden")
+  ) {
+    return true;
+  }
+  if (
+    specOverrideDeactivateConfirmModal &&
+    !specOverrideDeactivateConfirmModal.classList.contains("hidden")
+  ) {
+    return true;
+  }
+  if (
+    specOverrideRegisterModal &&
+    !specOverrideRegisterModal.classList.contains("hidden")
+  ) {
+    return true;
+  }
+  if (
+    specRequestReviewModal &&
+    !specRequestReviewModal.classList.contains("hidden")
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function closeLifecycleHistoryModal() {
+  specLifecycleHistoryModal?.classList.add("hidden");
+  selectedLifecycleHistoryRow = null;
+  clearLifecycleHistoryRowActiveState();
+}
+
+function openLifecycleHistoryModal(historyId) {
+  if (chFilterDrawerOpen) return;
+
+  if (
+    selectedLifecycleHistoryRow &&
+    String(selectedLifecycleHistoryRow.history_id) === String(historyId) &&
+    specLifecycleHistoryModal &&
+    !specLifecycleHistoryModal.classList.contains("hidden")
+  ) {
+    return;
+  }
+
+  const row = changeHistoryRows.find(
+    (r) => String(r.history_id) === String(historyId),
+  );
+  if (!row) {
+    toast("Lifecycle event not found.", "warn");
+    return;
+  }
+
+  selectedLifecycleHistoryRow = row;
+
+  if (specLifecycleHistoryTitle) {
+    specLifecycleHistoryTitle.textContent = "Lifecycle Event Details";
+  }
+
+  if (specLifecycleHistoryContext) {
+    const type = String(row.history_type ?? "REQUEST");
+    const actionOrStatus = isChangeHistoryOverrideRow(row)
+      ? formatChangeHistoryLifecycleActionLabel(
+          getChangeHistoryLifecycleAction(row),
+        )
+      : String(row.history_status ?? row.request_status ?? "—");
+    const entity = String(row.entity_label ?? "—");
+    const test = String(row.test_name ?? "—");
+    specLifecycleHistoryContext.textContent = `${type} · ${actionOrStatus} · ${entity} · ${test}`;
+  }
+
+  if (specLifecycleHistoryDetail) {
+    specLifecycleHistoryDetail.innerHTML =
+      renderLifecycleHistoryModalDetail(row);
+  }
+
+  setLifecycleHistoryRowActive(historyId);
+  specLifecycleHistoryModal?.classList.remove("hidden");
+}
+
+function renderChangeHistory() {
+  const rows = getFilteredChangeHistoryRows();
+
+  if (chLineCount) {
+    chLineCount.textContent = `${rows.length} event${rows.length !== 1 ? "s" : ""}`;
+  }
+
+  if (!chHistoryTableBody) return;
+
+  if (!rows.length) {
+    chHistoryTableBody.innerHTML = `<tr><td colspan="8">
+      <div class="spec-empty-state">
+        <strong>No matching lifecycle events</strong>
+        There are no specification lifecycle events matching the current filters.
+      </div>
+    </td></tr>`;
+    return;
+  }
+
+  chHistoryTableBody.innerHTML = rows
+    .map((r) => {
+      const historyId = String(r.history_id ?? "");
+      const testName = String(r.test_name ?? "event");
+      const eventAt = getChangeHistoryEventAt(r);
+      const dateLabel = eventAt ? formatDateTime(eventAt) : "—";
+
+      return `<tr class="spec-history-row-clickable" data-history-id="${esc(historyId)}" tabindex="0" role="button" aria-label="View lifecycle event ${esc(historyId)}, ${esc(testName)}">
+        <td>${esc(dateLabel)}</td>
+        <td>${renderChangeHistoryStatusBadge(r)}</td>
+        <td>${renderChangeHistoryRouteCompact(r)}</td>
+        <td>${esc(String(r.subject_type ?? ""))}</td>
+        <td>${renderWorkflowEntityCell(r)}</td>
+        <td>${esc(String(r.test_name ?? "—"))}</td>
+        <td>${formatLifecycleHistorySummary(r)}</td>
+        <td>${formatLifecycleHistoryOutcome(r)}</td>
+      </tr>`;
+    })
+    .join("");
+}
+
+// ── APPLIED OVERRIDES (internal tab id: overrideRegister) ─────────────────────
+
+function wireOverrideRegisterEvents() {
+  orFilterBtn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleOrFilterDrawer();
+  });
+  orFilterClose?.addEventListener("click", closeOrFilterDrawer);
+  orFilterApply?.addEventListener("click", closeOrFilterDrawer);
+  orFilterClear?.addEventListener("click", clearAppliedOverrideFilters);
+  orExportBtn?.addEventListener("click", exportAppliedOverridesCsv);
+
+  orSubjectFilter?.addEventListener("change", () => {
+    renderOverrideRegister();
+    updateOrFilterBadge();
+  });
+  orLevelFilter?.addEventListener("change", () => {
+    renderOverrideRegister();
+    updateOrFilterBadge();
+  });
+  orRouteFilter?.addEventListener("change", () => {
+    renderOverrideRegister();
+    updateOrFilterBadge();
+  });
+  orActionFilter?.addEventListener("change", () => {
+    renderOverrideRegister();
+    updateOrFilterBadge();
+  });
+  orSearchInput?.addEventListener("input", () => {
+    renderOverrideRegister();
+    updateOrFilterBadge();
+  });
+
+  orFilterDrawer?.addEventListener("click", (e) => e.stopPropagation());
+
+  document.addEventListener("click", (e) => {
+    if (!orFilterDrawerOpen || !orFilterDrawer || !orFilterBtn) return;
+    if (rqFilterDrawerOpen) return;
+    if (chFilterDrawerOpen) return;
+    if (isSpecFilterDrawerClickInside(orFilterBtn, orFilterDrawer, e.target)) {
+      return;
+    }
+    closeOrFilterDrawer();
+  });
+
+  specOverrideRegisterClose?.addEventListener("click", () => {
+    if (
+      overrideDeactivateConfirmOpen ||
+      overrideSupersedeFormOpen ||
+      overrideSupersedeConfirmOpen
+    ) {
+      return;
+    }
+    closeOverrideRegisterModal();
+  });
+  specOverrideRegisterCancel?.addEventListener("click", () => {
+    if (
+      overrideDeactivateConfirmOpen ||
+      overrideSupersedeFormOpen ||
+      overrideSupersedeConfirmOpen
+    ) {
+      return;
+    }
+    closeOverrideRegisterModal();
+  });
+  specOverrideRegisterModal?.addEventListener("click", (e) => {
+    if (
+      overrideDeactivateConfirmOpen ||
+      overrideSupersedeFormOpen ||
+      overrideSupersedeConfirmOpen
+    ) {
+      return;
+    }
+    if (e.target === specOverrideRegisterModal) closeOverrideRegisterModal();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (
+      specOverrideSupersedeConfirmModal &&
+      !specOverrideSupersedeConfirmModal.classList.contains("hidden")
+    ) {
+      e.preventDefault();
+      closeSupersedeConfirmModal();
+      return;
+    }
+    if (
+      specOverrideSupersedeModal &&
+      !specOverrideSupersedeModal.classList.contains("hidden")
+    ) {
+      e.preventDefault();
+      closeSupersedeAppliedOverrideModal();
+      return;
+    }
+    if (
+      specOverrideDeactivateConfirmModal &&
+      !specOverrideDeactivateConfirmModal.classList.contains("hidden")
+    ) {
+      e.preventDefault();
+      closeOverrideDeactivateConfirmModal();
+      return;
+    }
+    if (
+      specOverrideRegisterModal &&
+      !specOverrideRegisterModal.classList.contains("hidden")
+    ) {
+      e.preventDefault();
+      closeOverrideRegisterModal();
+      return;
+    }
+    if (rqFilterDrawerOpen) {
+      e.preventDefault();
+      closeRqFilterDrawer();
+      return;
+    }
+    if (chFilterDrawerOpen) {
+      e.preventDefault();
+      closeChFilterDrawer();
+      return;
+    }
+    if (orFilterDrawerOpen) {
+      e.preventDefault();
+      closeOrFilterDrawer();
+    }
+  });
+
+  specOverrideRegisterConfirmBtn?.addEventListener(
+    "click",
+    () => void submitAppliedOverrideReview(),
+  );
+  specOverrideRegisterDeactivateBtn?.addEventListener(
+    "click",
+    () => void submitAppliedOverrideDeactivation(),
+  );
+  specOverrideRegisterSupersedeBtn?.addEventListener(
+    "click",
+    beginAppliedOverrideSupersede,
+  );
+
+  specOverrideDeactivateConfirmClose?.addEventListener(
+    "click",
+    closeOverrideDeactivateConfirmModal,
+  );
+  specOverrideDeactivateConfirmCancel?.addEventListener(
+    "click",
+    closeOverrideDeactivateConfirmModal,
+  );
+  specOverrideDeactivateConfirmBtn?.addEventListener(
+    "click",
+    () => void confirmAppliedOverrideDeactivation(),
+  );
+  specOverrideDeactivateConfirmModal?.addEventListener("click", (e) => {
+    if (e.target === specOverrideDeactivateConfirmModal) {
+      closeOverrideDeactivateConfirmModal();
+    }
+  });
+
+  specOverrideSupersedeClose?.addEventListener(
+    "click",
+    closeSupersedeAppliedOverrideModal,
+  );
+  specOverrideSupersedeCancel?.addEventListener(
+    "click",
+    closeSupersedeAppliedOverrideModal,
+  );
+  specOverrideSupersedeReviewBtn?.addEventListener(
+    "click",
+    submitSupersedeFormForReview,
+  );
+  specOverrideSupersedeModal?.addEventListener("click", (e) => {
+    if (overrideSupersedeConfirmOpen) return;
+    if (e.target === specOverrideSupersedeModal) {
+      closeSupersedeAppliedOverrideModal();
+    }
+  });
+  specOverrideSupersedeAction?.addEventListener(
+    "change",
+    updateSupersedeModalDynamics,
+  );
+  specOverrideSupersedeSpecType?.addEventListener("change", () => {
+    renderSupersedeDynamicInputs();
+    updateSupersedeDisplayText();
+  });
+  specOverrideSupersedeUom?.addEventListener(
+    "change",
+    updateSupersedeDisplayText,
+  );
+
+  specOverrideSupersedeConfirmClose?.addEventListener(
+    "click",
+    closeSupersedeConfirmModal,
+  );
+  specOverrideSupersedeConfirmCancel?.addEventListener(
+    "click",
+    closeSupersedeConfirmModal,
+  );
+  specOverrideSupersedeConfirmBtn?.addEventListener(
+    "click",
+    () => void confirmAppliedOverrideSupersede(),
+  );
+  specOverrideSupersedeConfirmModal?.addEventListener("click", (e) => {
+    if (e.target === specOverrideSupersedeConfirmModal) {
+      closeSupersedeConfirmModal();
+    }
+  });
+
+  orRegisterTableBody?.addEventListener("click", (e) => {
+    if (
+      e.target.closest(
+        "button, a, input, select, textarea, label, [data-no-row-open]",
+      )
+    ) {
+      return;
+    }
+    const row = e.target.closest(
+      "tr.spec-override-row-clickable[data-override-id]",
+    );
+    if (!row) return;
+    openAppliedOverrideReviewModal(row.dataset.overrideId);
+  });
+
+  orRegisterTableBody?.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const row = e.target.closest(
+      "tr.spec-override-row-clickable[data-override-id]",
+    );
+    if (!row) return;
+    e.preventDefault();
+    openAppliedOverrideReviewModal(row.dataset.overrideId);
+  });
+}
+
+function clearOverrideRegisterRowActiveState() {
+  orRegisterTableBody
+    ?.querySelectorAll(".spec-override-row-active")
+    .forEach((row) => row.classList.remove("spec-override-row-active"));
+}
+
+function setOverrideRegisterRowActive(overrideId) {
+  if (!orRegisterTableBody || overrideId == null || overrideId === "") return;
+  clearOverrideRegisterRowActiveState();
+  orRegisterTableBody
+    .querySelectorAll("tr.spec-override-row-clickable[data-override-id]")
+    .forEach((row) => {
+      if (String(row.dataset.overrideId) === String(overrideId)) {
+        row.classList.add("spec-override-row-active");
+      }
     });
+}
+
+function toggleOrFilterDrawer() {
+  if (orFilterDrawerOpen) {
+    closeOrFilterDrawer();
+    return;
+  }
+  if (rqFilterDrawerOpen) closeRqFilterDrawer();
+  if (chFilterDrawerOpen) closeChFilterDrawer();
+  orFilterDrawerOpen = true;
+  openSpecFilterDrawer(orFilterBtn, orFilterDrawer);
+  orFilterBtn?.classList.add("or-filter-btn--active");
+  updateOrFilterBadge();
+}
+
+function closeOrFilterDrawer() {
+  if (!orFilterDrawerOpen && !orFilterDrawer?.classList.contains("open")) {
+    return;
+  }
+  orFilterDrawerOpen = false;
+  closeSpecFilterDrawer(orFilterBtn, orFilterDrawer);
+  orFilterBtn?.classList.remove("or-filter-btn--active");
+  updateOrFilterBadge();
+}
+
+function getAppliedOverrideDefaultFilters() {
+  return {
+    subject: "",
+    level: "",
+    route: "",
+    action: "",
+    search: "",
+  };
+}
+
+function getAppliedOverrideActiveFilterCount() {
+  const defaults = getAppliedOverrideDefaultFilters();
+  let count = 0;
+  if (String(orSubjectFilter?.value ?? "") !== defaults.subject) count += 1;
+  if (String(orLevelFilter?.value ?? "") !== defaults.level) count += 1;
+  if (String(orRouteFilter?.value ?? "") !== defaults.route) count += 1;
+  if (String(orActionFilter?.value ?? "") !== defaults.action) count += 1;
+  if (String(orSearchInput?.value ?? "").trim() !== defaults.search) count += 1;
+  return count;
+}
+
+function updateOrFilterBadge() {
+  const count = getAppliedOverrideActiveFilterCount();
+  if (!orFilterBadge) return;
+  orFilterBadge.textContent = String(count);
+  orFilterBadge.classList.toggle("hidden", count <= 0);
+  orFilterBtn?.classList.toggle(
+    "or-filter-btn--active",
+    count > 0 || orFilterDrawerOpen,
+  );
+}
+
+function clearAppliedOverrideFilters() {
+  const defaults = getAppliedOverrideDefaultFilters();
+  if (orSubjectFilter) orSubjectFilter.value = defaults.subject;
+  if (orLevelFilter) orLevelFilter.value = defaults.level;
+  if (orRouteFilter) orRouteFilter.value = defaults.route;
+  if (orActionFilter) orActionFilter.value = defaults.action;
+  if (orSearchInput) orSearchInput.value = defaults.search;
+  renderOverrideRegister();
+  updateOrFilterBadge();
+}
+
+function populateOrLevelFilterOptions() {
+  if (!orLevelFilter) return;
+  const current = orLevelFilter.value;
+  const levels = [
+    ...new Set(
+      overrideRegisterRows
+        .filter((row) => row.is_active === true)
+        .map((row) => String(row.override_level_label ?? "").trim())
+        .filter(Boolean),
+    ),
+  ].sort((a, b) => a.localeCompare(b));
+
+  orLevelFilter.innerHTML =
+    `<option value="">All</option>` +
+    levels
+      .map(
+        (level) =>
+          `<option value="${esc(level)}"${level === current ? " selected" : ""}>${esc(level)}</option>`,
+      )
+      .join("");
+}
+
+async function loadOverrideRegister() {
+  const { data, error } = await labSupabase
+    .from("v_spec_override_register")
+    .select("*")
+    .order("updated_at", { ascending: false });
+
+  if (error) {
+    toast("Failed to load applied overrides: " + error.message, "error");
+    overrideRegisterRows = [];
+    renderOverrideRegister();
+    return;
+  }
+
+  overrideRegisterRows = data ?? [];
+  populateOrLevelFilterOptions();
+  renderOverrideRegister();
+  updateOrFilterBadge();
+}
+
+function getFilteredOverrideRegisterRows() {
+  const subject = String(orSubjectFilter?.value ?? "").toUpperCase();
+  const level = String(orLevelFilter?.value ?? "").trim();
+  const route = String(orRouteFilter?.value ?? "").trim();
+  const action = String(orActionFilter?.value ?? "").toUpperCase();
+  const q = String(orSearchInput?.value ?? "").trim().toLowerCase();
+
+  return overrideRegisterRows.filter((row) => {
+    if (row.is_active !== true) return false;
+
+    if (subject && String(row.subject_type ?? "").toUpperCase() !== subject) {
+      return false;
+    }
+
+    if (level && String(row.override_level_label ?? "").trim() !== level) {
+      return false;
+    }
+
+    if (route && resolveOverrideRequestRoute(row) !== route) {
+      return false;
+    }
+
+    if (action && String(row.action_type ?? "").toUpperCase() !== action) {
+      return false;
+    }
+
+    if (!q) return true;
+
+    const routeLabel = getOverrideRequestRouteMainLabel(
+      resolveOverrideRequestRoute(row),
+    );
+
+    const haystack = [
+      row.search_text,
+      row.override_id,
+      row.subject_type,
+      row.override_level_label,
+      routeLabel,
+      "Product Override",
+      "Item Override",
+      "Family / Base Spec",
+      "Direct / Manual Override",
+      row.entity_label,
+      row.family_label,
+      row.test_name,
+      row.override_display_text,
+      row.reason,
+      row.override_method_name,
+      row.override_status,
+      row.source_request_id,
+      row.source_analysis_register_no,
+      row.source_request_status,
+      row.source_request_scope,
+      row.source_applied_target_type,
+      row.requested_by_name,
+      row.reviewed_by_name,
+      row.review_remarks,
+      row.last_audit_action,
+      row.last_audit_remarks,
+      row.supersedes_override_label,
+      row.superseded_by_override_label,
+      row.uom_code,
+      row.uom_name,
+      row.uom_symbol,
+    ]
+      .map((v) => String(v ?? "").toLowerCase())
+      .join(" | ");
+
+    return haystack.includes(q);
+  });
+}
+
+function renderOverrideRegisterStatusBadge(row) {
+  const isActive = row.is_active === true;
+  const statusLabel = row.override_status
+    ? String(row.override_status)
+    : isActive
+      ? "ACTIVE"
+      : "INACTIVE";
+  const cls = isActive ? "or-status-badge-active" : "or-status-badge-inactive";
+  return `<span class="or-status-badge ${cls}">${esc(statusLabel)}</span>`;
+}
+
+function formatAppliedTargetTypeLabel(raw) {
+  const target = String(raw ?? "").trim().toUpperCase();
+  if (target === "BASE_SPEC_VERSION") return "Base Spec Version";
+  if (target === "PRODUCT_ITEM_OVERRIDE") return "Product / Item Override";
+  if (target === "PENDING_REVIEW") return "Pending Review";
+  if (target === "REJECTED_NO_APPLIED_TARGET") return "Rejected";
+  return "";
+}
+
+function formatSourceRequestStatusLabel(raw) {
+  const status = String(raw ?? "").trim();
+  if (!status) return "";
+  return status
+    .toLowerCase()
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function resolveOverrideRequestRoute(row) {
+  const reqId = row.source_request_id;
+  if (reqId == null || reqId === "") return "direct_manual";
+
+  const scope = String(row.source_request_scope ?? "").trim().toUpperCase();
+  const subject = String(row.subject_type ?? "").trim().toUpperCase();
+
+  if (scope === "FAMILY") return "family_base_spec";
+  if (scope === "PRODUCT" && subject === "FG") return "product_override";
+  if (scope === "PRODUCT" && (subject === "RM" || subject === "PM")) {
+    return "item_override";
+  }
+  return "unknown";
+}
+
+function getOverrideRequestRouteMainLabel(routeKey) {
+  switch (routeKey) {
+    case "direct_manual":
+      return "Direct / Manual Override";
+    case "family_base_spec":
+      return "Family / Base Spec";
+    case "product_override":
+      return "Product Override";
+    case "item_override":
+      return "Item Override";
+    default:
+      return "—";
+  }
+}
+
+function renderOverrideRegisterRequestRoute(row) {
+  const routeKey = resolveOverrideRequestRoute(row);
+  const mainLabel = getOverrideRequestRouteMainLabel(routeKey);
+
+  if (routeKey === "direct_manual") {
+    return `<div><strong>${esc(mainLabel)}</strong></div>`;
+  }
+
+  const statusLabel = formatSourceRequestStatusLabel(row.source_request_status);
+  const statusHtml = statusLabel
+    ? `<div class="or-audit-meta">Request ${esc(statusLabel)}</div>`
+    : "";
+  return `<div>${esc(mainLabel)}</div>${statusHtml}`;
+}
+
+const MEANINGLESS_APPLIED_OVERRIDE_UOM = new Set([
+  "NONE",
+  "NO UNIT",
+  "NO UNIT / NOT APPLICABLE",
+  "NOT APPLICABLE",
+  "NA",
+  "N/A",
+  "-",
+]);
+
+function normalizeAppliedOverrideUomKey(value) {
+  return String(value ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, " ");
+}
+
+function isMeaningfulAppliedOverrideUom(uom) {
+  const s = String(uom ?? "").trim();
+  if (!s) return false;
+  return !MEANINGLESS_APPLIED_OVERRIDE_UOM.has(normalizeAppliedOverrideUomKey(s));
+}
+
+function stripMeaninglessAppliedOverrideUnit(raw) {
+  let text = String(raw ?? "").trim();
+  if (!text) return "";
+
+  const suffixRe =
+    /\s+(?:NO UNIT\s*\/\s*NOT APPLICABLE|NOT APPLICABLE|NO UNIT|NONE|N\/A|NA)\s*$/i;
+
+  let prev;
+  do {
+    prev = text;
+    text = text.replace(suffixRe, "").trim();
+  } while (text !== prev);
+
+  return text;
+}
+
+function overrideDisplayContainsUom(display, uom) {
+  if (!display || !uom || !isMeaningfulAppliedOverrideUom(uom)) return false;
+  return String(display)
+    .toLowerCase()
+    .includes(String(uom).trim().toLowerCase());
+}
+
+function formatAppliedOverrideDisplay(row) {
+  const display = stripMeaninglessAppliedOverrideUnit(row.override_display_text);
+  if (!display) return "—";
+
+  const uomCandidates = [row.uom_symbol, row.uom_code, row.uom_name].filter(
+    isMeaningfulAppliedOverrideUom,
+  );
+
+  for (const uom of uomCandidates) {
+    if (overrideDisplayContainsUom(display, uom)) {
+      return display;
+    }
+  }
+
+  const uom = uomCandidates[0];
+  if (uom && !overrideDisplayContainsUom(display, uom)) {
+    return `${display} ${String(uom).trim()}`.trim();
+  }
+
+  return display;
+}
+
+function renderOverrideRegisterSourceRequest(row) {
+  const reqId = row.source_request_id;
+  if (reqId == null || reqId === "") {
+    return `<div>—</div>`;
+  }
+  const regNo = row.source_analysis_register_no;
+  const regHtml = regNo
+    ? `<div class="or-audit-meta">${esc(String(regNo))}</div>`
+    : "";
+  return `<div><strong>Request #${esc(String(reqId))}</strong></div>${regHtml}`;
+}
+
+function renderOverrideRegisterRequestedCell(row) {
+  const by = row.requested_by_name ? String(row.requested_by_name) : "—";
+  const at = row.requested_at ? formatDateTime(row.requested_at) : "—";
+  return `<div>${esc(by)}</div><div class="or-audit-meta">${esc(at)}</div>`;
+}
+
+function renderOverrideRegisterReviewedCell(row) {
+  const by = row.reviewed_by_name ? String(row.reviewed_by_name) : "—";
+  const at = row.reviewed_at ? formatDateTime(row.reviewed_at) : "—";
+  const remarks = row.review_remarks ? String(row.review_remarks).trim() : "";
+  const remarksHtml = remarks
+    ? `<div class="or-audit-meta">${esc(remarks.length > 60 ? `${remarks.slice(0, 60)}…` : remarks)}</div>`
+    : "";
+  return `<div>${esc(by)}</div><div class="or-audit-meta">${esc(at)}</div>${remarksHtml}`;
+}
+
+function renderOverrideRegisterLastAudit(row) {
+  const action = row.last_audit_action ? String(row.last_audit_action) : "—";
+  const at = formatDateTime(row.last_audit_at);
+  const remarks = row.last_audit_remarks
+    ? String(row.last_audit_remarks).trim()
+    : "";
+  const remarksHtml = remarks
+    ? `<div class="or-audit-meta">${esc(remarks.length > 80 ? `${remarks.slice(0, 80)}…` : remarks)}</div>`
+    : "";
+  return `<div>${esc(action)}</div><div class="or-audit-meta">${esc(at)}</div>${remarksHtml}`;
+}
+
+function renderOverrideRegisterLastLifecycleCompact(row) {
+  const action = row.last_audit_action ? String(row.last_audit_action) : "—";
+  const at = row.last_audit_at ? formatDateTime(row.last_audit_at) : "—";
+  return `<div>${esc(action)}</div><div class="workflow-compact-cell-meta">${esc(at)}</div>`;
+}
+
+function renderOverrideRegister() {
+  const rows = getFilteredOverrideRegisterRows();
+
+  if (orLineCount) {
+    orLineCount.textContent = `${rows.length} override${rows.length !== 1 ? "s" : ""}`;
+  }
+
+  if (!orRegisterTableBody) return;
+
+  if (!rows.length) {
+    orRegisterTableBody.innerHTML = `<tr><td colspan="7">
+      <div class="spec-empty-state">
+        <strong>No active applied overrides</strong>
+        There are no active applied overrides matching the current filters.
+      </div>
+    </td></tr>`;
+    return;
+  }
+
+  orRegisterTableBody.innerHTML = rows
+    .map((r) => {
+      const overrideId = String(r.override_id);
+      const testName = String(r.test_name ?? "test");
+      const overrideDisplay = formatAppliedOverrideDisplay(r);
+      const levelLabel = r.override_level_label
+        ? String(r.override_level_label)
+        : "—";
+
+      return `<tr class="spec-override-row-clickable" data-override-id="${esc(overrideId)}" tabindex="0" role="button" aria-label="Review applied override #${esc(overrideId)}, ${esc(testName)}">
+        <td>${esc(levelLabel)}</td>
+        <td>${esc(String(r.subject_type ?? ""))}</td>
+        <td>${renderWorkflowEntityCell(r)}</td>
+        <td>${esc(String(r.test_name ?? "—"))}</td>
+        <td>${esc(overrideDisplay)}</td>
+        <td>${renderOverrideRegisterRequestRoute(r)}</td>
+        <td>${renderOverrideRegisterLastLifecycleCompact(r)}</td>
+      </tr>`;
+    })
+    .join("");
+}
+
+function renderOverrideRegisterModalDetail(row) {
+  const overrideDisplay = formatAppliedOverrideDisplay(row);
+  const reqBlock = renderOverrideRegisterSourceRequest(row);
+  const requestStatusLabel = formatSourceRequestStatusLabel(
+    row.source_request_status,
+  );
+  const appliedTargetLabel = formatAppliedTargetTypeLabel(
+    row.source_applied_target_type,
+  );
+  return `
+    <div class="or-register-detail-grid">
+      <div class="or-register-kv">
+        <div class="or-register-kv-label">Override ID</div>
+        <div class="or-register-kv-value">#${esc(String(row.override_id ?? "—"))}</div>
+      </div>
+      <div class="or-register-kv">
+        <div class="or-register-kv-label">Status</div>
+        <div class="or-register-kv-value">${renderOverrideRegisterStatusBadge(row)}</div>
+      </div>
+      <div class="or-register-kv">
+        <div class="or-register-kv-label">Override Level</div>
+        <div class="or-register-kv-value">${esc(String(row.override_level_label ?? "—"))}</div>
+      </div>
+      <div class="or-register-kv">
+        <div class="or-register-kv-label">Request Route</div>
+        <div class="or-register-kv-value">${renderOverrideRegisterRequestRoute(row)}</div>
+      </div>
+      <div class="or-register-kv">
+        <div class="or-register-kv-label">Source Request Status</div>
+        <div class="or-register-kv-value">${requestStatusLabel ? esc(requestStatusLabel) : "—"}</div>
+      </div>
+      <div class="or-register-kv">
+        <div class="or-register-kv-label">Applied Target Type</div>
+        <div class="or-register-kv-value">${appliedTargetLabel ? esc(appliedTargetLabel) : "—"}</div>
+      </div>
+      <div class="or-register-kv">
+        <div class="or-register-kv-label">Subject / Product / Item</div>
+        <div class="or-register-kv-value">${esc(String(row.subject_type ?? "—"))} · ${esc(String(row.entity_label ?? "—"))}</div>
+      </div>
+      <div class="or-register-kv">
+        <div class="or-register-kv-label">Family / Group Context</div>
+        <div class="or-register-kv-value">${esc(String(row.family_label ?? "—"))}</div>
+      </div>
+      <div class="or-register-kv">
+        <div class="or-register-kv-label">Test</div>
+        <div class="or-register-kv-value">${esc(String(row.test_name ?? "—"))}</div>
+      </div>
+      <div class="or-register-kv">
+        <div class="or-register-kv-label">Override</div>
+        <div class="or-register-kv-value">${esc(overrideDisplay)}</div>
+      </div>
+      <div class="or-register-kv">
+        <div class="or-register-kv-label">Source Request</div>
+        <div class="or-register-kv-value">${reqBlock}</div>
+      </div>
+      <div class="or-register-kv">
+        <div class="or-register-kv-label">Requested</div>
+        <div class="or-register-kv-value">${renderOverrideRegisterRequestedCell(row)}</div>
+      </div>
+      <div class="or-register-kv">
+        <div class="or-register-kv-label">Reviewed</div>
+        <div class="or-register-kv-value">${renderOverrideRegisterReviewedCell(row)}</div>
+      </div>
+      <div class="or-register-kv">
+        <div class="or-register-kv-label">Last Audit</div>
+        <div class="or-register-kv-value">${renderOverrideRegisterLastAudit(row)}</div>
+      </div>
+      ${
+        row.supersedes_override_label
+          ? `<div class="or-register-kv">
+        <div class="or-register-kv-label">Supersedes</div>
+        <div class="or-register-kv-value">${esc(String(row.supersedes_override_label))}</div>
+      </div>`
+          : ""
+      }
+      ${
+        row.superseded_by_override_label
+          ? `<div class="or-register-kv">
+        <div class="or-register-kv-label">Superseded By</div>
+        <div class="or-register-kv-value">${esc(String(row.superseded_by_override_label))}</div>
+      </div>`
+          : ""
+      }
+    </div>
+  `;
+}
+
+const OVERRIDE_REGISTER_CONFIRM_LABEL = "Confirm Review";
+const OVERRIDE_REGISTER_DEACTIVATE_LABEL = "Deactivate Override";
+const OVERRIDE_REGISTER_SUPERSEDE_LABEL = "Supersede Override";
+const OVERRIDE_DEACTIVATE_CONFIRM_LABEL = "Confirm Deactivation";
+const OVERRIDE_SUPERSEDE_CONFIRM_LABEL = "Confirm Supersede";
+
+function isOverrideRegisterParentBlocked() {
+  return (
+    overrideRegisterActionInFlight ||
+    overrideDeactivateConfirmOpen ||
+    overrideSupersedeFormOpen ||
+    overrideSupersedeConfirmOpen
+  );
+}
+
+function isAppliedOverrideRowActive(row) {
+  return row?.is_active === true;
+}
+
+function parseOverrideLifecycleRpcResponse(data) {
+  if (data == null) return { ok: true, message: "" };
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row || typeof row !== "object") return { ok: true, message: "" };
+
+  if (row.ok === false) {
+    return {
+      ok: false,
+      code: String(row.code ?? "").trim(),
+      message: String(row.message ?? "Action was not completed.").trim(),
+    };
+  }
+
+  return {
+    ok: true,
+    message: String(row.message ?? "").trim(),
+  };
+}
+
+function syncOverrideRegisterModalActions(row) {
+  const parentBlocked = isOverrideRegisterParentBlocked();
+  const hasRow = !!row;
+  const active = hasRow && isAppliedOverrideRowActive(row);
+  const modalOpen =
+    specOverrideRegisterModal &&
+    !specOverrideRegisterModal.classList.contains("hidden");
+
+  if (specOverrideRegisterDeactivateBtn) {
+    const showDeactivate = modalOpen && active;
+    specOverrideRegisterDeactivateBtn.classList.toggle(
+      "hidden",
+      !showDeactivate,
+    );
+    specOverrideRegisterDeactivateBtn.disabled =
+      parentBlocked || !active;
+    if (!parentBlocked) {
+      specOverrideRegisterDeactivateBtn.textContent =
+        OVERRIDE_REGISTER_DEACTIVATE_LABEL;
+    }
+  }
+
+  if (specOverrideRegisterSupersedeBtn) {
+    const showSupersede = modalOpen && active;
+    specOverrideRegisterSupersedeBtn.classList.toggle("hidden", !showSupersede);
+    specOverrideRegisterSupersedeBtn.disabled = parentBlocked || !active;
+    if (!parentBlocked) {
+      specOverrideRegisterSupersedeBtn.textContent =
+        OVERRIDE_REGISTER_SUPERSEDE_LABEL;
+    }
+  }
+
+  if (specOverrideRegisterConfirmBtn) {
+    if (!parentBlocked) {
+      specOverrideRegisterConfirmBtn.textContent = OVERRIDE_REGISTER_CONFIRM_LABEL;
+    }
+    specOverrideRegisterConfirmBtn.disabled = !hasRow || parentBlocked;
+  }
+
+  if (specOverrideRegisterCancel) {
+    specOverrideRegisterCancel.disabled = parentBlocked;
+  }
+}
+
+function renderOverrideDeactivateConfirmDetail(row) {
+  const overrideDisplay = formatAppliedOverrideDisplay(row);
+  return `
+    <div class="or-register-detail-grid">
+      <div class="or-register-kv">
+        <div class="or-register-kv-label">Override ID</div>
+        <div class="or-register-kv-value">#${esc(String(row.override_id ?? "—"))}</div>
+      </div>
+      <div class="or-register-kv">
+        <div class="or-register-kv-label">Entity</div>
+        <div class="or-register-kv-value">${esc(String(row.entity_label ?? "—"))}</div>
+      </div>
+      <div class="or-register-kv">
+        <div class="or-register-kv-label">Test</div>
+        <div class="or-register-kv-value">${esc(String(row.test_name ?? "—"))}</div>
+      </div>
+      <div class="or-register-kv">
+        <div class="or-register-kv-label">Override</div>
+        <div class="or-register-kv-value">${esc(overrideDisplay)}</div>
+      </div>
+    </div>
+  `;
+}
+
+function syncOverrideDeactivateConfirmActions(inFlight) {
+  if (specOverrideDeactivateConfirmCancel) {
+    specOverrideDeactivateConfirmCancel.disabled = inFlight;
+  }
+  if (specOverrideDeactivateConfirmClose) {
+    specOverrideDeactivateConfirmClose.disabled = inFlight;
+  }
+  if (specOverrideDeactivateConfirmBtn) {
+    specOverrideDeactivateConfirmBtn.disabled = inFlight;
+    specOverrideDeactivateConfirmBtn.textContent = inFlight
+      ? "Deactivating..."
+      : OVERRIDE_DEACTIVATE_CONFIRM_LABEL;
+  }
+}
+
+function openOverrideDeactivateConfirmModal(row, remarks) {
+  pendingDeactivateOverrideRow = row;
+  pendingDeactivateRemarks = remarks;
+
+  if (specOverrideDeactivateConfirmDetail) {
+    specOverrideDeactivateConfirmDetail.innerHTML =
+      renderOverrideDeactivateConfirmDetail(row);
+  }
+  if (specOverrideDeactivateConfirmRemarks) {
+    specOverrideDeactivateConfirmRemarks.textContent = remarks || "—";
+  }
+
+  overrideDeactivateConfirmOpen = true;
+  syncOverrideDeactivateConfirmActions(false);
+  specOverrideDeactivateConfirmModal?.classList.remove("hidden");
+  syncOverrideRegisterModalActions(selectedOverrideRegisterRow);
+}
+
+function closeOverrideDeactivateConfirmModal() {
+  specOverrideDeactivateConfirmModal?.classList.add("hidden");
+  pendingDeactivateOverrideRow = null;
+  pendingDeactivateRemarks = "";
+  overrideDeactivateConfirmOpen = false;
+  syncOverrideDeactivateConfirmActions(false);
+  if (
+    specOverrideRegisterModal &&
+    !specOverrideRegisterModal.classList.contains("hidden")
+  ) {
+    syncOverrideRegisterModalActions(selectedOverrideRegisterRow);
+  }
+}
+
+function normalizeOverrideSpecTypeForForm(raw) {
+  const t = String(raw ?? "").trim().toUpperCase();
+  if (t === "MIN_ONLY") return "NLT";
+  if (t === "MAX_ONLY") return "NMT";
+  return t;
+}
+
+function mapRegisterRowToSupersedePrefill(row) {
+  const specType = normalizeOverrideSpecTypeForForm(row.override_spec_type);
+  const textVal = String(row.override_text_value ?? "").trim();
+  return {
+    actionType: String(row.action_type ?? "modify").toLowerCase(),
+    specType,
+    min: String(row.override_min_value ?? ""),
+    max: String(row.override_max_value ?? ""),
+    text: textVal,
+    exact:
+      specType === "EXACT_NUMERIC"
+        ? String(row.override_min_value ?? "")
+        : "",
+    target: String(row.override_target_value ?? ""),
+    tolerance: String(row.override_tolerance_value ?? ""),
+    toleranceUomId:
+      row.override_tolerance_uom_id != null
+        ? String(row.override_tolerance_uom_id)
+        : "",
+    uomId: row.override_uom_id != null ? String(row.override_uom_id) : "",
+    methodId:
+      row.override_method_id != null ? Number(row.override_method_id) : null,
+    methodName: String(row.override_method_name ?? "").trim(),
+    reason: String(row.reason ?? "").trim(),
+  };
+}
+
+function supersedeSpecTypeOptionsForResultKind(resultKind, currentSpecType) {
+  const kind = String(resultKind ?? "").toUpperCase();
+  const options = [];
+
+  if (kind === "NUMERIC") {
+    options.push(
+      ["RANGE", "RANGE — min to max"],
+      ["NMT", "NMT — Not More Than"],
+      ["NLT", "NLT — Not Less Than"],
+      ["EXACT_NUMERIC", "EXACT NUMERIC — equals value"],
+      ["TOLERANCE", "TOLERANCE — target ± tolerance"],
+    );
+  } else if (kind === "TEXT") {
+    options.push(
+      ["TEXT", "TEXT — expected text"],
+      ["BOOLEAN", "BOOLEAN — true/false text"],
+    );
+  } else if (kind === "PASS_FAIL") {
+    options.push(["PASS_FAIL", "PASS / FAIL"]);
+  }
+
+  const current = normalizeOverrideSpecTypeForForm(currentSpecType);
+  if (
+    current &&
+    !options.some(([value]) => value === current) &&
+    current !== "MIN_ONLY" &&
+    current !== "MAX_ONLY"
+  ) {
+    options.push([current, current]);
+  }
+
+  return options;
+}
+
+function applySupersedeSpecTypeOptions(resultKind, currentSpecType) {
+  if (!specOverrideSupersedeSpecType) return;
+  const options = supersedeSpecTypeOptionsForResultKind(
+    resultKind,
+    currentSpecType,
+  );
+  const oldValue = specOverrideSupersedeSpecType.value;
+  if (!options.length) {
+    specOverrideSupersedeSpecType.innerHTML =
+      `<option value="">-- Spec type unavailable --</option>`;
+    specOverrideSupersedeSpecType.disabled = true;
+    return;
+  }
+  specOverrideSupersedeSpecType.innerHTML = options
+    .map(
+      ([value, label]) =>
+        `<option value="${esc(value)}">${esc(label)}</option>`,
+    )
+    .join("");
+  const normalized = normalizeOverrideSpecTypeForForm(currentSpecType);
+  if (options.some(([value]) => value === oldValue)) {
+    specOverrideSupersedeSpecType.value = oldValue;
+  } else if (options.some(([value]) => value === normalized)) {
+    specOverrideSupersedeSpecType.value = normalized;
+  }
+  specOverrideSupersedeSpecType.disabled = options.length === 1;
+}
+
+function updateSupersedeUomRowVisibility() {
+  const specType = specOverrideSupersedeSpecType?.value ?? "";
+  const uomRow = document.getElementById("specOverrideSupersedeUomRow");
+  const uomLabel = document.getElementById("specOverrideSupersedeUomLabel");
+  if (!uomRow || !specOverrideSupersedeUom) return;
+  uomRow.classList.remove("hidden");
+  specOverrideSupersedeUom.disabled = false;
+  if (uomLabel) {
+    uomLabel.textContent =
+      specType === "TOLERANCE" ? "Target Unit of Measure" : "Unit of Measure";
+  }
+}
+
+function renderSupersedeDynamicInputs() {
+  if (!specOverrideSupersedeDyn || !specOverrideSupersedeSpecType) return;
+  const specType = specOverrideSupersedeSpecType.value;
+  const { min, max, text, exact, target, tolerance, toleranceUomId } =
+    supersedeModalPrefill;
+
+  let html = "";
+  if (specType === "RANGE") {
+    html = `
+      <div class="form-group">
+        <label for="specOverrideSupersedeMin">Min Value <span style="color:#ef4444">*</span></label>
+        <input type="number" id="specOverrideSupersedeMin" class="form-control" step="any" value="${esc(min)}">
+      </div>
+      <div class="form-group">
+        <label for="specOverrideSupersedeMax">Max Value <span style="color:#ef4444">*</span></label>
+        <input type="number" id="specOverrideSupersedeMax" class="form-control" step="any" value="${esc(max)}">
+      </div>`;
+  } else if (specType === "NMT") {
+    html = `
+      <div class="form-group">
+        <label for="specOverrideSupersedeMax">Max Value (NMT) <span style="color:#ef4444">*</span></label>
+        <input type="number" id="specOverrideSupersedeMax" class="form-control" step="any" value="${esc(max)}">
+      </div>`;
+  } else if (specType === "NLT") {
+    html = `
+      <div class="form-group">
+        <label for="specOverrideSupersedeMin">Min Value (NLT) <span style="color:#ef4444">*</span></label>
+        <input type="number" id="specOverrideSupersedeMin" class="form-control" step="any" value="${esc(min)}">
+      </div>`;
+  } else if (specType === "EXACT_NUMERIC") {
+    html = `
+      <div class="form-group">
+        <label for="specOverrideSupersedeExact">Exact Value <span style="color:#ef4444">*</span></label>
+        <input type="number" id="specOverrideSupersedeExact" class="form-control" step="any" value="${esc(exact)}">
+      </div>`;
+  } else if (
+    specType === "TEXT" ||
+    specType === "PASS_FAIL" ||
+    specType === "BOOLEAN"
+  ) {
+    const label =
+      specType === "PASS_FAIL"
+        ? "Pass/Fail Text"
+        : specType === "BOOLEAN"
+          ? "Boolean Text"
+          : "Spec Text";
+    const placeholder =
+      specType === "PASS_FAIL"
+        ? "e.g. Passes"
+        : specType === "BOOLEAN"
+          ? "e.g. true"
+          : "e.g. Clear, colourless liquid";
+    html = `
+      <div class="form-group" style="grid-column:1/-1;">
+        <label for="specOverrideSupersedeText">${label} <span style="color:#ef4444">*</span></label>
+        <input type="text" id="specOverrideSupersedeText" class="form-control" placeholder="${esc(placeholder)}" value="${esc(text)}">
+      </div>`;
+  } else if (specType === "TOLERANCE") {
+    html = `
+      <div class="form-group">
+        <label for="specOverrideSupersedeTarget">Target Value <span style="color:#ef4444">*</span></label>
+        <input type="number" id="specOverrideSupersedeTarget" class="form-control" step="any" value="${esc(target)}">
+      </div>
+      <div class="form-group">
+        <label for="specOverrideSupersedeTolerance">Tolerance Value <span style="color:#ef4444">*</span></label>
+        <input type="number" id="specOverrideSupersedeTolerance" class="form-control" step="any" value="${esc(tolerance)}">
+      </div>
+      <div class="form-group">
+        <label for="specOverrideSupersedeToleranceUom">Tolerance UOM <span style="color:#ef4444">*</span></label>
+        <select id="specOverrideSupersedeToleranceUom" class="form-control"></select>
+      </div>`;
+  }
+
+  specOverrideSupersedeDyn.innerHTML = html;
+
+  if (specType === "TOLERANCE") {
+    populateLabUomSelect(
+      document.getElementById("specOverrideSupersedeToleranceUom"),
+      toleranceUomId,
+    );
+  }
+
+  updateSupersedeUomRowVisibility();
+
+  [
+    "specOverrideSupersedeMin",
+    "specOverrideSupersedeMax",
+    "specOverrideSupersedeText",
+    "specOverrideSupersedeExact",
+    "specOverrideSupersedeTarget",
+    "specOverrideSupersedeTolerance",
+  ].forEach((id) => {
+    document.getElementById(id)?.addEventListener("input", updateSupersedeDisplayText);
+  });
+  document
+    .getElementById("specOverrideSupersedeToleranceUom")
+    ?.addEventListener("change", updateSupersedeDisplayText);
+  updateSupersedeDisplayText();
+}
+
+function updateSupersedeDisplayText() {
+  if (!specOverrideSupersedeDisplayPreview || !specOverrideSupersedeSpecType) {
+    return;
+  }
+  const specType = specOverrideSupersedeSpecType.value;
+  let text = "—";
+
+  if (specType === "RANGE") {
+    const minV = document.getElementById("specOverrideSupersedeMin")?.value.trim();
+    const maxV = document.getElementById("specOverrideSupersedeMax")?.value.trim();
+    if (minV && maxV) text = `${minV} – ${maxV}`;
+    else if (minV) text = `≥ ${minV}`;
+    else if (maxV) text = `≤ ${maxV}`;
+  } else if (specType === "NMT") {
+    const maxV = document.getElementById("specOverrideSupersedeMax")?.value.trim();
+    if (maxV) text = `NMT ${maxV}`;
+  } else if (specType === "NLT") {
+    const minV = document.getElementById("specOverrideSupersedeMin")?.value.trim();
+    if (minV) text = `NLT ${minV}`;
+  } else if (specType === "EXACT_NUMERIC") {
+    const val = document.getElementById("specOverrideSupersedeExact")?.value.trim();
+    if (val) text = `= ${val}`;
+  } else if (
+    specType === "TEXT" ||
+    specType === "PASS_FAIL" ||
+    specType === "BOOLEAN"
+  ) {
+    text =
+      document.getElementById("specOverrideSupersedeText")?.value.trim() || "—";
+  } else if (specType === "TOLERANCE") {
+    const targetV = document
+      .getElementById("specOverrideSupersedeTarget")
+      ?.value.trim();
+    const tolV = document
+      .getElementById("specOverrideSupersedeTolerance")
+      ?.value.trim();
+    const tolUomSel = document.getElementById("specOverrideSupersedeToleranceUom");
+    text = buildToleranceDisplayText(
+      targetV,
+      tolV,
+      selectedUomSymbol(specOverrideSupersedeUom),
+      selectedToleranceUomSymbol(tolUomSel),
+    );
+  }
+
+  const isNumericType = ["RANGE", "NMT", "NLT", "EXACT_NUMERIC"].includes(
+    specType,
+  );
+  const uomId = specOverrideSupersedeUom?.value
+    ? Number(specOverrideSupersedeUom.value)
+    : null;
+  const uomRow = (labUomRows ?? []).find((u) => Number(u.id) === uomId);
+  const uomToken = uomRow?.symbol || uomRow?.uom_code || "";
+  if (isNumericType && text !== "—" && uomToken) {
+    text = appendUomIfNeeded(text, uomToken);
+  }
+
+  specOverrideSupersedeDisplayPreview.textContent = text;
+}
+
+function updateSupersedeModalDynamics() {
+  const action = specOverrideSupersedeAction?.value ?? "modify";
+  const specSection = document.getElementById("specOverrideSupersedeSpecSection");
+  const isDisable = action === "disable";
+  specSection?.classList.toggle("hidden", isDisable);
+  if (!isDisable) {
+    renderSupersedeDynamicInputs();
+    updateSupersedeDisplayText();
+  } else if (specOverrideSupersedeDisplayPreview) {
+    specOverrideSupersedeDisplayPreview.textContent = "—";
+  }
+}
+
+function collectSupersedeFormPayload() {
+  const remarks = specOverrideSupersedeRemarks?.value.trim() ?? "";
+  if (!remarks) {
+    return { error: "Supersede remarks are required." };
+  }
+
+  const actionType = String(specOverrideSupersedeAction?.value ?? "").trim();
+  if (!actionType) {
+    return { error: "Action type is required." };
+  }
+
+  const methodId =
+    pendingSupersedeOldRow?.override_method_id != null
+      ? Number(pendingSupersedeOldRow.override_method_id)
+      : null;
+
+  if (actionType === "disable") {
+    return {
+      payload: {
+        actionType,
+        specType: null,
+        minValue: null,
+        maxValue: null,
+        textValue: null,
+        targetValue: null,
+        toleranceValue: null,
+        toleranceUomId: null,
+        displayText: null,
+        reason: specOverrideSupersedeReason?.value.trim() || null,
+        overrideUomId: null,
+        overrideMethodId: methodId,
+      },
+      remarks,
+    };
+  }
+
+  const specType = specOverrideSupersedeSpecType?.value ?? "";
+  if (!specType) {
+    return { error: "Spec type is required." };
+  }
+
+  let minVal = null;
+  let maxVal = null;
+  let textVal = null;
+  let targetVal = null;
+  let toleranceVal = null;
+  let toleranceUomId = null;
+  let displayText = null;
+  const overrideUomId = specOverrideSupersedeUom?.value
+    ? Number(specOverrideSupersedeUom.value)
+    : null;
+
+  if (specType === "RANGE") {
+    const minRaw = document.getElementById("specOverrideSupersedeMin")?.value.trim();
+    const maxRaw = document.getElementById("specOverrideSupersedeMax")?.value.trim();
+    if (!minRaw || !maxRaw) {
+      return { error: "Both min and max values are required for RANGE." };
+    }
+    minVal = Number(minRaw);
+    maxVal = Number(maxRaw);
+  } else if (specType === "NMT") {
+    const maxRaw = document.getElementById("specOverrideSupersedeMax")?.value.trim();
+    if (!maxRaw) return { error: "Max value is required for NMT." };
+    maxVal = Number(maxRaw);
+  } else if (specType === "NLT") {
+    const minRaw = document.getElementById("specOverrideSupersedeMin")?.value.trim();
+    if (!minRaw) return { error: "Min value is required for NLT." };
+    minVal = Number(minRaw);
+  } else if (specType === "EXACT_NUMERIC") {
+    const exactRaw = document
+      .getElementById("specOverrideSupersedeExact")
+      ?.value.trim();
+    if (!exactRaw) return { error: "Value is required for EXACT NUMERIC." };
+    minVal = Number(exactRaw);
+  } else if (
+    specType === "TEXT" ||
+    specType === "PASS_FAIL" ||
+    specType === "BOOLEAN"
+  ) {
+    textVal = document.getElementById("specOverrideSupersedeText")?.value.trim();
+    if (!textVal) {
+      return {
+        error: `Text value is required for ${specType.replace(/_/g, " ")}.`,
+      };
+    }
+  } else if (specType === "TOLERANCE") {
+    const targetRaw = document
+      .getElementById("specOverrideSupersedeTarget")
+      ?.value.trim();
+    const tolRaw = document
+      .getElementById("specOverrideSupersedeTolerance")
+      ?.value.trim();
+    const tolUomRaw =
+      document.getElementById("specOverrideSupersedeToleranceUom")?.value ?? "";
+    toleranceUomId = tolUomRaw ? Number(tolUomRaw) : null;
+    if (!targetRaw || !tolRaw) {
+      return {
+        error: "Target and tolerance values are required for TOLERANCE.",
+      };
+    }
+    if (!toleranceUomId) {
+      return { error: "Tolerance UOM is required for TOLERANCE." };
+    }
+    targetVal = Number(targetRaw);
+    toleranceVal = Number(tolRaw);
+  }
+
+  updateSupersedeDisplayText();
+  const previewText = specOverrideSupersedeDisplayPreview?.textContent?.trim() ?? "";
+  displayText = previewText && previewText !== "—" ? previewText : null;
+
+  return {
+    payload: {
+      actionType,
+      specType,
+      minValue: minVal,
+      maxValue: maxVal,
+      textValue: textVal,
+      targetValue: targetVal,
+      toleranceValue: toleranceVal,
+      toleranceUomId,
+      displayText,
+      reason: specOverrideSupersedeReason?.value.trim() || null,
+      overrideUomId,
+      overrideMethodId: methodId,
+    },
+    remarks,
+  };
+}
+
+function formatSupersedePayloadSummary(payload) {
+  if (!payload) return "—";
+  if (payload.actionType === "disable") return "Disabled";
+  if (payload.displayText) return payload.displayText;
+  const parts = [];
+  if (payload.specType) parts.push(payload.specType);
+  if (payload.textValue) parts.push(payload.textValue);
+  if (payload.minValue != null && payload.maxValue != null) {
+    parts.push(`${payload.minValue} – ${payload.maxValue}`);
+  } else if (payload.minValue != null) parts.push(`≥ ${payload.minValue}`);
+  else if (payload.maxValue != null) parts.push(`≤ ${payload.maxValue}`);
+  if (payload.targetValue != null && payload.toleranceValue != null) {
+    parts.push(`${payload.targetValue} ± ${payload.toleranceValue}`);
+  }
+  return parts.length ? parts.join(" · ") : "—";
+}
+
+function renderSupersedeConfirmDiff(oldRow, payload) {
+  const oldDisplay = formatAppliedOverrideDisplay(oldRow);
+  const newDisplay = formatSupersedePayloadSummary(payload);
+  const oldAction = String(oldRow.action_type ?? "—");
+  const newAction = String(payload?.actionType ?? "—");
+  const oldSpec = String(oldRow.override_spec_type ?? "—");
+  const newSpec = String(payload?.specType ?? "—");
+  const oldReason = String(oldRow.reason ?? "—");
+  const newReason = String(payload?.reason ?? "—");
+
+  return `
+    <div class="spec-request-detail-grid">
+      <div class="spec-request-card spec-request-card-current">
+        <div class="spec-request-card-title">
+          <span class="spec-request-card-role spec-request-card-role-current">Current</span>
+          Current Applied Override
+        </div>
+        <div class="spec-request-card-value">
+          <div class="spec-request-kv"><div class="spec-request-kv-label">Override</div><div class="spec-request-kv-value">${esc(oldDisplay)}</div></div>
+          <div class="spec-request-kv"><div class="spec-request-kv-label">Action</div><div class="spec-request-kv-value">${esc(oldAction)}</div></div>
+          <div class="spec-request-kv"><div class="spec-request-kv-label">Spec Type</div><div class="spec-request-kv-value">${esc(oldSpec)}</div></div>
+          <div class="spec-request-kv"><div class="spec-request-kv-label">Reason</div><div class="spec-request-kv-value">${esc(oldReason)}</div></div>
+        </div>
+      </div>
+      <div class="spec-request-card spec-request-card-proposed">
+        <div class="spec-request-card-title">
+          <span class="spec-request-card-role spec-request-card-role-proposed">Proposed</span>
+          Replacement Override
+        </div>
+        <div class="spec-request-card-value">
+          <div class="spec-request-kv"><div class="spec-request-kv-label">Override</div><div class="spec-request-kv-value">${esc(newDisplay)}</div></div>
+          <div class="spec-request-kv"><div class="spec-request-kv-label">Action</div><div class="spec-request-kv-value">${esc(newAction)}</div></div>
+          <div class="spec-request-kv"><div class="spec-request-kv-label">Spec Type</div><div class="spec-request-kv-value">${esc(newSpec)}</div></div>
+          <div class="spec-request-kv"><div class="spec-request-kv-label">Reason</div><div class="spec-request-kv-value">${esc(newReason)}</div></div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function syncSupersedeFormActions(inFlight) {
+  if (specOverrideSupersedeCancel) {
+    specOverrideSupersedeCancel.disabled = inFlight;
+  }
+  if (specOverrideSupersedeClose) {
+    specOverrideSupersedeClose.disabled = inFlight;
+  }
+  if (specOverrideSupersedeReviewBtn) {
+    specOverrideSupersedeReviewBtn.disabled = inFlight;
+  }
+}
+
+function syncSupersedeConfirmActions(inFlight) {
+  if (specOverrideSupersedeConfirmCancel) {
+    specOverrideSupersedeConfirmCancel.disabled = inFlight;
+  }
+  if (specOverrideSupersedeConfirmClose) {
+    specOverrideSupersedeConfirmClose.disabled = inFlight;
+  }
+  if (specOverrideSupersedeConfirmBtn) {
+    specOverrideSupersedeConfirmBtn.disabled = inFlight;
+    specOverrideSupersedeConfirmBtn.textContent = inFlight
+      ? "Superseding..."
+      : OVERRIDE_SUPERSEDE_CONFIRM_LABEL;
+  }
+}
+
+async function openSupersedeAppliedOverrideModal(row) {
+  pendingSupersedeOldRow = row;
+  supersedeModalPrefill = mapRegisterRowToSupersedePrefill(row);
+  supersedeLockedTestResultKind = "";
+
+  hideBanner(specOverrideSupersedeBanner);
+  if (specOverrideSupersedeRemarks) specOverrideSupersedeRemarks.value = "";
+
+  const level = row.override_level_label ?? row.subject_type ?? "—";
+  if (specOverrideSupersedeContext) {
+    specOverrideSupersedeContext.textContent = `#${row.override_id} · ${level} · ${row.entity_label ?? "—"} · ${row.test_name ?? "—"}`;
+  }
+
+  if (specOverrideSupersedeAction) {
+    setSelectValueIfExists(
+      specOverrideSupersedeAction,
+      supersedeModalPrefill.actionType,
+    );
+  }
+  if (specOverrideSupersedeReason) {
+    specOverrideSupersedeReason.value = supersedeModalPrefill.reason;
+  }
+  if (specOverrideSupersedeMethodDisplay) {
+    specOverrideSupersedeMethodDisplay.value =
+      supersedeModalPrefill.methodName || "—";
+  }
+
+  await loadLabUoms();
+  populateLabUomSelect(
+    specOverrideSupersedeUom,
+    supersedeModalPrefill.uomId,
+  );
+
+  if (row.test_id) {
+    const { data } = await labSupabase
+      .from("test_master")
+      .select("result_kind")
+      .eq("id", Number(row.test_id))
+      .maybeSingle();
+    supersedeLockedTestResultKind = String(data?.result_kind ?? "").toUpperCase();
+  }
+
+  applySupersedeSpecTypeOptions(
+    supersedeLockedTestResultKind,
+    supersedeModalPrefill.specType,
+  );
+  if (specOverrideSupersedeSpecType) {
+    setSelectValueIfExists(
+      specOverrideSupersedeSpecType,
+      supersedeModalPrefill.specType,
+    );
+  }
+
+  updateSupersedeModalDynamics();
+
+  overrideSupersedeFormOpen = true;
+  syncSupersedeFormActions(false);
+  specOverrideSupersedeModal?.classList.remove("hidden");
+  syncOverrideRegisterModalActions(selectedOverrideRegisterRow);
+}
+
+function closeSupersedeAppliedOverrideModal() {
+  specOverrideSupersedeModal?.classList.add("hidden");
+  pendingSupersedeOldRow = null;
+  supersedeModalPrefill = {};
+  supersedeLockedTestResultKind = "";
+  overrideSupersedeFormOpen = false;
+  if (specOverrideSupersedeDyn) specOverrideSupersedeDyn.innerHTML = "";
+  hideBanner(specOverrideSupersedeBanner);
+  syncSupersedeFormActions(false);
+  if (
+    specOverrideRegisterModal &&
+    !specOverrideRegisterModal.classList.contains("hidden")
+  ) {
+    syncOverrideRegisterModalActions(selectedOverrideRegisterRow);
+  }
+}
+
+function openSupersedeConfirmModal(oldRow, payload, remarks) {
+  pendingSupersedePayload = payload;
+  pendingSupersedeRemarks = remarks;
+  if (specOverrideSupersedeConfirmDiff) {
+    specOverrideSupersedeConfirmDiff.innerHTML = renderSupersedeConfirmDiff(
+      oldRow,
+      payload,
+    );
+  }
+  if (specOverrideSupersedeConfirmRemarks) {
+    specOverrideSupersedeConfirmRemarks.textContent = remarks || "—";
+  }
+  overrideSupersedeConfirmOpen = true;
+  syncSupersedeConfirmActions(false);
+  specOverrideSupersedeConfirmModal?.classList.remove("hidden");
+  syncOverrideRegisterModalActions(selectedOverrideRegisterRow);
+}
+
+function closeSupersedeConfirmModal() {
+  specOverrideSupersedeConfirmModal?.classList.add("hidden");
+  pendingSupersedePayload = null;
+  pendingSupersedeRemarks = "";
+  overrideSupersedeConfirmOpen = false;
+  syncSupersedeConfirmActions(false);
+  if (
+    specOverrideRegisterModal &&
+    !specOverrideRegisterModal.classList.contains("hidden")
+  ) {
+    syncOverrideRegisterModalActions(selectedOverrideRegisterRow);
+  }
+}
+
+function beginAppliedOverrideSupersede() {
+  if (isOverrideRegisterParentBlocked()) return;
+  if (!selectedOverrideRegisterRow) return;
+  if (!isAppliedOverrideRowActive(selectedOverrideRegisterRow)) {
+    toast("Only an active applied override can be superseded.", "warn");
+    syncOverrideRegisterModalActions(selectedOverrideRegisterRow);
+    return;
+  }
+  void openSupersedeAppliedOverrideModal(selectedOverrideRegisterRow);
+}
+
+function submitSupersedeFormForReview() {
+  hideBanner(specOverrideSupersedeBanner);
+  const collected = collectSupersedeFormPayload();
+  if (collected.error) {
+    showBanner(specOverrideSupersedeBanner, "warn", collected.error);
+    return;
+  }
+  if (!pendingSupersedeOldRow) return;
+  openSupersedeConfirmModal(
+    pendingSupersedeOldRow,
+    collected.payload,
+    collected.remarks,
+  );
+}
+
+async function confirmAppliedOverrideSupersede() {
+  if (overrideRegisterActionInFlight) return;
+  const oldRow = pendingSupersedeOldRow;
+  const payload = pendingSupersedePayload;
+  const remarks = pendingSupersedeRemarks;
+  if (!oldRow || !payload || !remarks) return;
+
+  if (!isAppliedOverrideRowActive(oldRow)) {
+    toast("This override is no longer active.", "warn");
+    closeSupersedeConfirmModal();
+    closeSupersedeAppliedOverrideModal();
+    syncOverrideRegisterModalActions(selectedOverrideRegisterRow);
+    return;
+  }
+
+  const overrideId = Number(oldRow.override_id);
+  if (!Number.isFinite(overrideId) || overrideId <= 0) {
+    toast("Invalid override selected.", "warn");
+    closeSupersedeConfirmModal();
+    return;
+  }
+
+  overrideRegisterActionInFlight = true;
+  syncSupersedeConfirmActions(true);
+  syncSupersedeFormActions(true);
+  syncOverrideRegisterModalActions(selectedOverrideRegisterRow);
+
+  let shouldRefresh = false;
+  try {
+    const userId = await getCurrentUserId();
+    if (!userId) {
+      toast("Login session not found. Please reload.", "error");
+      closeSupersedeConfirmModal();
+      return;
+    }
+
+    const { data, error } = await labSupabase.rpc("fn_supersede_spec_override", {
+      p_user_id: userId,
+      p_old_override_id: overrideId,
+      p_supersede_remarks: remarks,
+      p_action_type: String(payload.actionType ?? "modify").toUpperCase(),
+      p_spec_type: payload.specType,
+      p_min_value: payload.minValue,
+      p_max_value: payload.maxValue,
+      p_text_value: payload.textValue,
+      p_display_text: payload.displayText,
+      p_reason: payload.reason,
+      p_override_uom_id: payload.overrideUomId,
+      p_override_method_id: payload.overrideMethodId,
+      p_override_target_value: payload.targetValue,
+      p_override_tolerance_value: payload.toleranceValue,
+      p_override_tolerance_uom_id: payload.toleranceUomId,
+    });
+
+    if (error) {
+      toast("Failed to supersede override: " + error.message, "error");
+      closeSupersedeConfirmModal();
+      return;
+    }
+
+    const result = parseOverrideLifecycleRpcResponse(data);
+    if (!result.ok) {
+      toast(result.message || "Override supersede was not completed.", "warn");
+      closeSupersedeConfirmModal();
+      return;
+    }
+
+    toast(
+      result.message || "Applied override superseded successfully.",
+      "success",
+    );
+    closeSupersedeConfirmModal();
+    closeSupersedeAppliedOverrideModal();
+    closeOverrideRegisterModal();
+    shouldRefresh = true;
+  } catch (err) {
+    toast(
+      "Failed to supersede override: " + (err?.message || String(err)),
+      "error",
+    );
+    closeSupersedeConfirmModal();
+  } finally {
+    overrideRegisterActionInFlight = false;
+    if (
+      specOverrideSupersedeConfirmModal &&
+      !specOverrideSupersedeConfirmModal.classList.contains("hidden")
+    ) {
+      syncSupersedeConfirmActions(false);
+    }
+    if (
+      specOverrideSupersedeModal &&
+      !specOverrideSupersedeModal.classList.contains("hidden")
+    ) {
+      syncSupersedeFormActions(false);
+    }
+    if (
+      specOverrideRegisterModal &&
+      !specOverrideRegisterModal.classList.contains("hidden")
+    ) {
+      syncOverrideRegisterModalActions(selectedOverrideRegisterRow);
+    }
+    if (shouldRefresh) {
+      await refreshAfterOverrideRegisterAction();
+    }
+  }
+}
+
+function openAppliedOverrideReviewModal(overrideId) {
+  const row = overrideRegisterRows.find(
+    (r) => String(r.override_id) === String(overrideId),
+  );
+
+  if (!row) {
+    toast("Override not found.", "warn");
+    return;
+  }
+
+  selectedOverrideRegisterRow = row;
+
+  if (specOverrideRegisterTitle) {
+    specOverrideRegisterTitle.textContent = "Review Applied Override";
+  }
+
+  if (specOverrideRegisterContext) {
+    const level = row.override_level_label ?? row.subject_type ?? "—";
+    specOverrideRegisterContext.textContent = `${level} · ${row.entity_label ?? "—"} · ${row.test_name ?? "—"}`;
+  }
+
+  if (specOverrideRegisterDetail) {
+    specOverrideRegisterDetail.innerHTML =
+      renderOverrideRegisterModalDetail(row);
+  }
+
+  if (specOverrideRegisterRemarks) {
+    specOverrideRegisterRemarks.value = "";
+    specOverrideRegisterRemarks.placeholder =
+      "Required for review or deactivation";
+  }
+
+  if (specOverrideRegisterConfirmBtn) {
+    specOverrideRegisterConfirmBtn.className = "btn-primary";
+    specOverrideRegisterConfirmBtn.style.cssText = "";
+    specOverrideRegisterConfirmBtn.textContent = OVERRIDE_REGISTER_CONFIRM_LABEL;
+  }
+
+  setOverrideRegisterRowActive(row.override_id);
+  specOverrideRegisterModal?.classList.remove("hidden");
+  syncOverrideRegisterModalActions(row);
+}
+
+function closeOverrideRegisterModal() {
+  closeSupersedeConfirmModal();
+  closeSupersedeAppliedOverrideModal();
+  closeOverrideDeactivateConfirmModal();
+  specOverrideRegisterModal?.classList.add("hidden");
+  clearOverrideRegisterRowActiveState();
+  selectedOverrideRegisterRow = null;
+  overrideRegisterActionInFlight = false;
+  if (specOverrideRegisterRemarks) specOverrideRegisterRemarks.value = "";
+  if (specOverrideRegisterDetail) specOverrideRegisterDetail.innerHTML = "";
+  if (specOverrideRegisterConfirmBtn) {
+    specOverrideRegisterConfirmBtn.textContent = OVERRIDE_REGISTER_CONFIRM_LABEL;
+    specOverrideRegisterConfirmBtn.disabled = false;
+  }
+  if (specOverrideRegisterDeactivateBtn) {
+    specOverrideRegisterDeactivateBtn.textContent =
+      OVERRIDE_REGISTER_DEACTIVATE_LABEL;
+    specOverrideRegisterDeactivateBtn.classList.add("hidden");
+    specOverrideRegisterDeactivateBtn.disabled = false;
+  }
+  if (specOverrideRegisterSupersedeBtn) {
+    specOverrideRegisterSupersedeBtn.textContent =
+      OVERRIDE_REGISTER_SUPERSEDE_LABEL;
+    specOverrideRegisterSupersedeBtn.classList.add("hidden");
+    specOverrideRegisterSupersedeBtn.disabled = false;
+  }
+  if (specOverrideRegisterCancel) {
+    specOverrideRegisterCancel.disabled = false;
+  }
+  syncOverrideRegisterModalActions(null);
+}
+
+async function submitAppliedOverrideReview() {
+  if (overrideRegisterActionInFlight) return;
+  if (!selectedOverrideRegisterRow) return;
+
+  const remarks = specOverrideRegisterRemarks?.value.trim() ?? "";
+  if (!remarks) {
+    toast("Review remarks are required.", "warn");
+    return;
+  }
+
+  const overrideId = Number(selectedOverrideRegisterRow.override_id);
+  if (!Number.isFinite(overrideId) || overrideId <= 0) {
+    toast("Invalid override selected.", "warn");
+    return;
+  }
+
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    toast("Login session not found. Please reload.", "error");
+    return;
+  }
+
+  const confirmBtn = specOverrideRegisterConfirmBtn;
+  overrideRegisterActionInFlight = true;
+  syncOverrideRegisterModalActions(selectedOverrideRegisterRow);
+  if (confirmBtn) {
+    confirmBtn.textContent = "Reviewing...";
+  }
+
+  let shouldRefresh = false;
+  try {
+    const { error } = await labSupabase.rpc("fn_review_spec_override", {
+      p_user_id: userId,
+      p_override_id: overrideId,
+      p_review_remarks: remarks,
+    });
+    if (error) {
+      toast("Failed to review override: " + error.message, "error");
+      return;
+    }
+
+    toast("Override review recorded.", "success");
+    closeOverrideRegisterModal();
+    shouldRefresh = true;
+  } catch (err) {
+    toast(
+      "Failed to review override: " + (err?.message || String(err)),
+      "error",
+    );
+  } finally {
+    overrideRegisterActionInFlight = false;
+    if (
+      specOverrideRegisterModal &&
+      !specOverrideRegisterModal.classList.contains("hidden")
+    ) {
+      syncOverrideRegisterModalActions(selectedOverrideRegisterRow);
+    }
+    if (shouldRefresh) {
+      await refreshAfterOverrideRegisterAction();
+    }
+  }
+}
+
+async function submitAppliedOverrideDeactivation() {
+  if (overrideRegisterActionInFlight) return;
+  if (!selectedOverrideRegisterRow) return;
+
+  if (!isAppliedOverrideRowActive(selectedOverrideRegisterRow)) {
+    toast("This override is already inactive.", "warn");
+    syncOverrideRegisterModalActions(selectedOverrideRegisterRow);
+    return;
+  }
+
+  const remarks = specOverrideRegisterRemarks?.value.trim() ?? "";
+  if (!remarks) {
+    toast("Remarks are required to deactivate an override.", "warn");
+    return;
+  }
+
+  const overrideId = Number(selectedOverrideRegisterRow.override_id);
+  if (!Number.isFinite(overrideId) || overrideId <= 0) {
+    toast("Invalid override selected.", "warn");
+    return;
+  }
+
+  openOverrideDeactivateConfirmModal(selectedOverrideRegisterRow, remarks);
+}
+
+async function confirmAppliedOverrideDeactivation() {
+  if (overrideRegisterActionInFlight) return;
+
+  const row = pendingDeactivateOverrideRow;
+  const remarks = pendingDeactivateRemarks;
+  if (!row || !remarks) return;
+
+  if (!isAppliedOverrideRowActive(row)) {
+    toast("This override is already inactive.", "warn");
+    closeOverrideDeactivateConfirmModal();
+    syncOverrideRegisterModalActions(selectedOverrideRegisterRow);
+    return;
+  }
+
+  const overrideId = Number(row.override_id);
+  if (!Number.isFinite(overrideId) || overrideId <= 0) {
+    toast("Invalid override selected.", "warn");
+    closeOverrideDeactivateConfirmModal();
+    return;
+  }
+
+  overrideRegisterActionInFlight = true;
+  syncOverrideDeactivateConfirmActions(true);
+  syncOverrideRegisterModalActions(selectedOverrideRegisterRow);
+
+  let shouldRefresh = false;
+  try {
+    const userId = await getCurrentUserId();
+    if (!userId) {
+      toast("Login session not found. Please reload.", "error");
+      closeOverrideDeactivateConfirmModal();
+      return;
+    }
+
+    const { data, error } = await labSupabase.rpc("fn_deactivate_spec_override", {
+      p_user_id: userId,
+      p_override_id: overrideId,
+      p_deactivation_remarks: remarks,
+    });
+
+    if (error) {
+      toast("Failed to deactivate override: " + error.message, "error");
+      closeOverrideDeactivateConfirmModal();
+      return;
+    }
+
+    const result = parseOverrideLifecycleRpcResponse(data);
+    if (!result.ok) {
+      toast(result.message || "Override deactivation was not completed.", "warn");
+      closeOverrideDeactivateConfirmModal();
+      return;
+    }
+
+    toast(
+      result.message || "Applied override deactivated successfully.",
+      "success",
+    );
+    closeOverrideDeactivateConfirmModal();
+    closeOverrideRegisterModal();
+    shouldRefresh = true;
+  } catch (err) {
+    toast(
+      "Failed to deactivate override: " + (err?.message || String(err)),
+      "error",
+    );
+    closeOverrideDeactivateConfirmModal();
+  } finally {
+    overrideRegisterActionInFlight = false;
+    if (
+      specOverrideDeactivateConfirmModal &&
+      !specOverrideDeactivateConfirmModal.classList.contains("hidden")
+    ) {
+      syncOverrideDeactivateConfirmActions(false);
+    }
+    if (
+      specOverrideRegisterModal &&
+      !specOverrideRegisterModal.classList.contains("hidden")
+    ) {
+      syncOverrideRegisterModalActions(selectedOverrideRegisterRow);
+    }
+    if (shouldRefresh) {
+      await refreshAfterOverrideRegisterAction();
+    }
+  }
+}
+
+async function refreshAfterOverrideRegisterAction() {
+  await loadOverrideRegister();
+  await refreshCurrentSpecReviewContext();
 }
 
 async function loadPendingSpecChangeRequests() {
@@ -1011,6 +5116,187 @@ function normalizePendingRequestScope(value) {
     .toUpperCase();
 }
 
+function formatApplyScopeLabel(scope, subjectType) {
+  const normalized = normalizePendingRequestScope(scope);
+  const subject = String(subjectType ?? "").trim().toUpperCase();
+  if (normalized === "FAMILY") return "Family / Base Spec";
+  if (normalized === "PRODUCT") {
+    return subject === "FG" ? "Product Override" : "Item Override";
+  }
+  const raw = String(scope ?? "").trim();
+  return raw || "—";
+}
+
+function getRequestOriginalRouteLabel(request) {
+  const label = String(
+    request?.route_label ?? request?.review_route_label ?? "",
+  ).trim();
+  if (label) return label;
+  return formatApplyScopeLabel(request?.request_scope, request?.subject_type);
+}
+
+function getRequestOriginalApplyScope(request) {
+  const scope = normalizePendingRequestScope(request?.request_scope);
+  return scope === "PRODUCT" || scope === "FAMILY" ? scope : "";
+}
+
+function buildSpecChangeRequestDecisionPayload({
+  action,
+  mode,
+  request,
+  userId,
+  requestId,
+  reviewRemarks,
+}) {
+  const base = {
+    p_user_id: userId,
+    p_request_id: requestId,
+    p_review_remarks: reviewRemarks,
+  };
+
+  if (action === "reject") {
+    return {
+      ...base,
+      p_decision: "REJECT",
+      p_apply_scope: null,
+      p_route_change_remarks: null,
+    };
+  }
+
+  if (mode === "reviewQueue") {
+    const applyScope =
+      normalizePendingRequestScope(specRequestApplyScope?.value) ||
+      getRequestOriginalApplyScope(request);
+    const routeChanged = isReviewRouteChanged(request, applyScope);
+    const routeChangeRemarks =
+      specRequestRouteChangeRemarks?.value.trim() || null;
+    return {
+      ...base,
+      p_decision: "APPLY",
+      p_apply_scope: applyScope,
+      p_route_change_remarks: routeChanged ? routeChangeRemarks : null,
+    };
+  }
+
+  const applyScope = getRequestOriginalApplyScope(request);
+  return {
+    ...base,
+    p_decision: "APPLY",
+    p_apply_scope: applyScope,
+    p_route_change_remarks: null,
+  };
+}
+
+function isValidSpecChangeApplyScope(scope) {
+  const normalized = normalizePendingRequestScope(scope);
+  return normalized === "PRODUCT" || normalized === "FAMILY";
+}
+
+function isReviewRouteChanged(request, selectedApplyScope) {
+  const original = getRequestOriginalApplyScope(request);
+  const selected = normalizePendingRequestScope(selectedApplyScope);
+  if (!original || !selected) return false;
+  return original !== selected;
+}
+
+function isRouteWasChanged(row) {
+  const value = row?.route_was_changed;
+  return value === true || String(value).toLowerCase() === "true";
+}
+
+function formatRouteChangedSummary(row) {
+  if (!isRouteWasChanged(row)) return "";
+  const subject = String(row?.subject_type ?? "").trim().toUpperCase();
+  const fromScope = row.route_changed_from_scope ?? row.request_scope;
+  const toScope = row.route_changed_to_scope ?? row.review_apply_scope;
+  const from = formatApplyScopeLabel(fromScope, subject);
+  const to = formatApplyScopeLabel(toScope, subject);
+  if (!from || !to || from === "—" || to === "—") return "";
+  return `Route changed: ${from} → ${to}`;
+}
+
+function resetSpecRequestRouteDecisionControls() {
+  if (specRequestRouteChangeRemarks) specRequestRouteChangeRemarks.value = "";
+  if (specRequestRouteChangeRemarksGroup) {
+    specRequestRouteChangeRemarksGroup.classList.add("hidden");
+  }
+  if (specRequestRouteWarning) {
+    specRequestRouteWarning.textContent = "";
+    specRequestRouteWarning.classList.add("hidden");
+  }
+  if (specRequestRouteDecisionSection) {
+    specRequestRouteDecisionSection.classList.add("hidden");
+  }
+  if (specRequestOriginalRoute) specRequestOriginalRoute.textContent = "—";
+}
+
+function syncSpecRequestRouteDecisionUi(request) {
+  if (!request || specRequestReviewMode !== "reviewQueue") return;
+
+  const selectedScope =
+    specRequestApplyScope?.value || getRequestOriginalApplyScope(request);
+  const routeChanged = isReviewRouteChanged(request, selectedScope);
+
+  if (specRequestRouteChangeRemarksGroup) {
+    specRequestRouteChangeRemarksGroup.classList.toggle("hidden", !routeChanged);
+  }
+
+  if (!routeChanged && specRequestRouteChangeRemarks) {
+    specRequestRouteChangeRemarks.value = "";
+  }
+
+  if (!specRequestRouteWarning) return;
+
+  const normalized = normalizePendingRequestScope(selectedScope);
+  if (normalized === "FAMILY") {
+    specRequestRouteWarning.textContent =
+      "This will create a new active Base Spec version for the family/group.";
+    specRequestRouteWarning.classList.remove("hidden");
+    return;
+  }
+  if (normalized === "PRODUCT") {
+    specRequestRouteWarning.textContent =
+      "This will create or replace a Product / Item Override for this product/item.";
+    specRequestRouteWarning.classList.remove("hidden");
+    return;
+  }
+  specRequestRouteWarning.textContent = "";
+  specRequestRouteWarning.classList.add("hidden");
+}
+
+function renderSpecRequestRouteDecision(request) {
+  if (!specRequestRouteDecisionSection) return;
+
+  if (specRequestReviewMode !== "reviewQueue") {
+    specRequestRouteDecisionSection.classList.add("hidden");
+    return;
+  }
+
+  specRequestRouteDecisionSection.classList.remove("hidden");
+
+  if (!request) {
+    if (specRequestOriginalRoute) specRequestOriginalRoute.textContent = "—";
+    return;
+  }
+
+  if (specRequestOriginalRoute) {
+    specRequestOriginalRoute.textContent = getRequestOriginalRouteLabel(request);
+  }
+
+  const originalScope = getRequestOriginalApplyScope(request);
+  const subjectType = String(request.subject_type ?? "").toUpperCase();
+
+  if (specRequestApplyScope) {
+    const productLabel = formatApplyScopeLabel("PRODUCT", subjectType);
+    const familyLabel = formatApplyScopeLabel("FAMILY", subjectType);
+    specRequestApplyScope.innerHTML = `<option value="PRODUCT">${esc(productLabel)}</option><option value="FAMILY">${esc(familyLabel)}</option>`;
+    specRequestApplyScope.value =
+      originalScope === "FAMILY" ? "FAMILY" : "PRODUCT";
+  }
+
+  syncSpecRequestRouteDecisionUi(request);
+}
+
 function isSameRequestId(left, right) {
   if (left == null || left === "" || right == null || right === "")
     return false;
@@ -1142,6 +5428,94 @@ function getPendingRequestProposedReference(request) {
   );
 }
 
+function normalizeReferenceSourceDisplay(value) {
+  return String(value ?? "").trim();
+}
+
+function getSnapshotReferenceSourceDisplay(row, snapshotKey) {
+  const snapshot = row?.[snapshotKey];
+  if (snapshot && typeof snapshot === "object") {
+    return normalizeReferenceSourceDisplay(snapshot.reference_source_display);
+  }
+  return "";
+}
+
+function getRowCurrentReferenceSource(row) {
+  return (
+    normalizeReferenceSourceDisplay(row?.current_reference_source_display) ||
+    getSnapshotReferenceSourceDisplay(row, "current_reference_snapshot")
+  );
+}
+
+function getRowProposedReferenceSource(row) {
+  return (
+    normalizeReferenceSourceDisplay(row?.proposed_reference_source_display) ||
+    normalizeReferenceSourceDisplay(row?.reference_source_display) ||
+    getSnapshotReferenceSourceDisplay(row, "proposed_reference_snapshot")
+  );
+}
+
+function hasAnyReferenceSource(row) {
+  return !!(
+    getRowCurrentReferenceSource(row) || getRowProposedReferenceSource(row)
+  );
+}
+
+function formatReferenceSourceSummary(row) {
+  const current = getRowCurrentReferenceSource(row);
+  const proposed = getRowProposedReferenceSource(row);
+  if (!current && !proposed) return "";
+  if (current && proposed && current !== proposed) {
+    return `Source: ${current} → ${proposed}`;
+  }
+  return `Source: ${proposed || current}`;
+}
+
+function renderReferenceSourceSublineHtml(row, cssClass = "rq-ref-source-meta") {
+  const summary = formatReferenceSourceSummary(row);
+  if (!summary) return "";
+  return `<div class="${cssClass}">${esc(summary)}</div>`;
+}
+
+function buildReferenceSourceDetailSectionHtml(request) {
+  if (!hasAnyReferenceSource(request)) return "";
+
+  const current = getRowCurrentReferenceSource(request);
+  const proposed = getRowProposedReferenceSource(request);
+
+  const currentCard = current
+    ? `<div class="spec-request-card spec-request-card-current">
+        <div class="spec-request-card-title">
+          <span class="spec-request-card-role spec-request-card-role-current">Current</span>
+          Current Reference Source
+        </div>
+        <div class="spec-request-card-value">
+          <div class="spec-request-kv"><div class="spec-request-kv-label">Source</div><div class="spec-request-kv-value">${esc(current)}</div></div>
+        </div>
+      </div>`
+    : "";
+
+  const proposedCard = proposed
+    ? `<div class="spec-request-card spec-request-card-proposed">
+        <div class="spec-request-card-title">
+          <span class="spec-request-card-role spec-request-card-role-proposed">Proposed</span>
+          Proposed Reference Source
+        </div>
+        <div class="spec-request-card-value">
+          <div class="spec-request-kv"><div class="spec-request-kv-label">Source</div><div class="spec-request-kv-value">${esc(proposed)}</div></div>
+        </div>
+      </div>`
+    : "";
+
+  return `
+    <section class="spec-request-panel">
+      <div class="spec-request-section-title">Reference Source</div>
+      <div class="spec-request-detail-grid">
+        ${currentCard}${proposedCard}
+      </div>
+    </section>`;
+}
+
 function getPendingRequestCurrentType(request) {
   const snapshotType = getSnapshotValue(
     request,
@@ -1262,6 +5636,8 @@ function openSpecRequestReviewModal(scope) {
   activePendingReviewRequests = requests;
   selectedPendingReviewScope = scope;
   selectedPendingReviewRequestId = getPendingRequestId(requests[0]);
+  specRequestReviewMode = "context";
+  resetSpecRequestRouteDecisionControls();
   if (specRequestReviewTitle) {
     specRequestReviewTitle.textContent =
       scope === "FAMILY"
@@ -1288,15 +5664,16 @@ function openReviewQueueRequest(requestId) {
     return;
   }
 
-  activePendingReviewRequests = reviewQueueRows;
+  activePendingReviewRequests = [request];
   selectedPendingReviewScope = normalizePendingRequestScope(
     request.request_scope,
   );
   selectedPendingReviewRequestId = String(request.request_id);
+  specRequestReviewMode = "reviewQueue";
+  resetSpecRequestRouteDecisionControls();
 
   if (specRequestReviewTitle) {
-    specRequestReviewTitle.textContent =
-      "Manual Specification Request Review";
+    specRequestReviewTitle.textContent = `Review Request #${request.request_id ?? ""}`;
   }
 
   if (specRequestReviewContext) {
@@ -1308,6 +5685,7 @@ function openReviewQueueRequest(requestId) {
   }
 
   renderSpecRequestReviewModal();
+  setReviewQueueRowActive(request.request_id);
   specRequestReviewModal?.classList.remove("hidden");
 }
 
@@ -1338,60 +5716,63 @@ function getPendingReviewContextLabel(scope) {
   );
 }
 
-function renderSpecRequestReviewModal() {
-  renderSpecRequestReviewList();
-  renderSpecRequestReviewDetail();
-  const hasSelection = !!getSelectedPendingReviewRequest();
-  if (specRequestApproveBtn) specRequestApproveBtn.disabled = !hasSelection;
-  if (specRequestRejectBtn) specRequestRejectBtn.disabled = !hasSelection;
+function isSpecRequestReviewSingleLayout() {
+  if (specRequestReviewMode === "reviewQueue") return true;
+  if (specRequestReviewMode === "context") {
+    return activePendingReviewRequests.length <= 1;
+  }
+  return true;
 }
 
-function renderSpecRequestReviewList() {
-  if (!specRequestReviewList) return;
-  specRequestReviewList.innerHTML = activePendingReviewRequests
-    .map((request) => {
-      const requestId = String(getPendingRequestId(request));
-      const isActive = requestId === String(selectedPendingReviewRequestId);
-      const requestType = pickPendingRequestValue(
-        request,
-        ["request_type", "request_scope"],
-        "",
-      );
-      return `<button type="button" class="spec-request-item ${isActive ? "active" : ""}" data-request-id="${esc(requestId)}">
-        <div class="spec-request-item-title">#${esc(requestId)} · ${esc(getPendingRequestTestName(request))}${
-          requestType
-            ? ` <span class="spec-request-type-badge">${esc(String(requestType).toUpperCase())}</span>`
-            : ""
-        }</div>
-        <div class="spec-request-item-meta">${esc(getPendingRequestRequestedBy(request))}</div>
-        <div class="spec-request-item-meta">${esc(getPendingRequestRequestedAt(request))}</div>
-      </button>`;
-    })
-    .join("");
-
-  specRequestReviewList
-    .querySelectorAll(".spec-request-item")
-    .forEach((btn) => {
-      btn.addEventListener("click", () => {
-        selectedPendingReviewRequestId = btn.dataset.requestId;
-        renderSpecRequestReviewModal();
-      });
-    });
+function applySpecRequestReviewLayoutMode() {
+  if (!specRequestReviewModal) return;
+  const single = isSpecRequestReviewSingleLayout();
+  specRequestReviewModal.classList.toggle("spec-request-modal--single", single);
+  specRequestReviewModal.classList.toggle("spec-request-modal--multi", !single);
 }
 
-function renderSpecRequestReviewDetail() {
-  if (!specRequestReviewDetail) return;
-  const request = getSelectedPendingReviewRequest();
+function renderSpecRequestReviewSummary(request) {
+  if (!specRequestReviewSummary) return;
   if (!request) {
-    specRequestReviewDetail.innerHTML = `<div class="spec-request-empty">Select a pending specification change request to review.</div>`;
+    specRequestReviewSummary.innerHTML = "";
+    specRequestReviewSummary.classList.add("hidden");
     return;
   }
 
-  specRequestReviewDetail.innerHTML = `
-    <div class="spec-request-section-title">Reference Comparison</div>
+  const routeLabel =
+    getRequestOriginalRouteLabel(request) ||
+    String(request.review_route_label ?? request.request_scope ?? "—");
+  const isSingle = isSpecRequestReviewSingleLayout();
+
+  const pairHtml = (label, value, rowClass = "") =>
+    `<span class="spec-request-summary-pair ${rowClass}"><span class="spec-request-meta-label">${esc(label)}:</span><span class="spec-request-meta-value">${esc(String(value ?? "—"))}</span></span>`;
+
+  const primaryPairs = [
+    ...(isSingle
+      ? []
+      : [["Request ID", String(getPendingRequestId(request) || "—")]]),
+    ["Test", getPendingRequestTestName(request)],
+    ["Route", routeLabel],
+  ];
+
+  const secondaryPairs = [
+    ["Entity", getPendingRequestSubjectLabel(request)],
+    ["Requested By", getPendingRequestRequestedBy(request)],
+    ["Requested At", getPendingRequestRequestedAt(request)],
+    ["Source Analysis", getPendingRequestSourceAnalysisNo(request)],
+  ];
+
+  specRequestReviewSummary.innerHTML = `<div class="spec-request-summary-row spec-request-summary-row-primary">${primaryPairs.map(([label, value]) => pairHtml(label, value)).join("")}</div>
+    <div class="spec-request-summary-row spec-request-summary-row-secondary">${secondaryPairs.map(([label, value]) => pairHtml(label, value)).join("")}</div>`;
+  specRequestReviewSummary.classList.toggle("hidden", !isSingle);
+}
+
+function renderSpecRequestComparisonHtml(request) {
+  return `<section class="spec-request-panel">
+    <div class="spec-request-section-title">Specification Comparison</div>
     <div class="spec-request-detail-grid">
-      <div class="spec-request-card">
-        <div class="spec-request-card-title">Existing / Current</div>
+      <div class="spec-request-card spec-request-card-current">
+        <div class="spec-request-card-title"><span class="spec-request-card-role spec-request-card-role-current">Current</span>Existing / Current</div>
         <div class="spec-request-card-value">
           <div class="spec-request-kv"><div class="spec-request-kv-label">Spec Type</div><div class="spec-request-kv-value">${esc(getPendingRequestCurrentType(request))}</div></div>
           <div class="spec-request-kv"><div class="spec-request-kv-label">Display</div><div class="spec-request-kv-value">${esc(getPendingRequestCurrentReference(request))}</div></div>
@@ -1399,8 +5780,8 @@ function renderSpecRequestReviewDetail() {
           <div class="spec-request-kv"><div class="spec-request-kv-label">Unit</div><div class="spec-request-kv-value">${esc(getPendingRequestCurrentUom(request))}</div></div>
         </div>
       </div>
-      <div class="spec-request-card">
-        <div class="spec-request-card-title">Requested Change</div>
+      <div class="spec-request-card spec-request-card-proposed">
+        <div class="spec-request-card-title"><span class="spec-request-card-role spec-request-card-role-proposed">Proposed</span>Requested Change</div>
         <div class="spec-request-card-value">
           <div class="spec-request-kv"><div class="spec-request-kv-label">Spec Type</div><div class="spec-request-kv-value">${esc(getPendingRequestProposedType(request))}</div></div>
           <div class="spec-request-kv"><div class="spec-request-kv-label">Display</div><div class="spec-request-kv-value">${esc(getPendingRequestProposedReference(request))}</div></div>
@@ -1409,7 +5790,20 @@ function renderSpecRequestReviewDetail() {
         </div>
       </div>
     </div>
-    <div class="spec-request-section-title">Request Metadata</div>
+  </section>`;
+}
+
+function renderSpecRequestRequestRemarksPanel(request) {
+  const remarks = getPendingRequestRemarks(request);
+  if (!remarks || remarks === "—") return "";
+  return `<section class="spec-request-panel spec-request-panel-muted">
+    <div class="spec-request-section-title">Request Remarks</div>
+    <div class="spec-request-meta-value">${esc(remarks)}</div>
+  </section>`;
+}
+
+function renderSpecRequestReviewMetadataFallback(request) {
+  return `<div class="spec-request-section-title">Request Metadata</div>
     <div class="spec-request-meta-grid">
       <div class="spec-request-meta-item">
         <div class="spec-request-meta-label">Request ID</div>
@@ -1435,7 +5829,96 @@ function renderSpecRequestReviewDetail() {
         <div class="spec-request-meta-label">Remarks</div>
         <div class="spec-request-meta-value">${esc(getPendingRequestRemarks(request))}</div>
       </div>
-    </div>
+    </div>`;
+}
+
+function renderSpecRequestReviewModal() {
+  applySpecRequestReviewLayoutMode();
+  renderSpecRequestReviewList();
+  const request = getSelectedPendingReviewRequest();
+  renderSpecRequestReviewSummary(request);
+  renderSpecRequestReviewDetail();
+  renderSpecRequestRouteDecision(request);
+  const hasSelection = !!request;
+  const busy = specRequestReviewInFlight;
+  const showNextButtons =
+    specRequestReviewMode === "reviewQueue" && hasSelection;
+  if (specRequestApproveBtn) {
+    specRequestApproveBtn.disabled = !hasSelection || busy;
+  }
+  if (specRequestRejectBtn) {
+    specRequestRejectBtn.disabled = !hasSelection || busy;
+  }
+  if (specRequestApproveNextBtn) {
+    specRequestApproveNextBtn.classList.toggle("hidden", !showNextButtons);
+    specRequestApproveNextBtn.disabled = !hasSelection || busy;
+    if (!busy) specRequestApproveNextBtn.textContent = "Approve & Next";
+  }
+  if (specRequestRejectNextBtn) {
+    specRequestRejectNextBtn.classList.toggle("hidden", !showNextButtons);
+    specRequestRejectNextBtn.disabled = !hasSelection || busy;
+    if (!busy) specRequestRejectNextBtn.textContent = "Reject & Next";
+  }
+  if (specRequestReviewCancel) {
+    specRequestReviewCancel.disabled = busy;
+  }
+}
+
+function renderSpecRequestReviewList() {
+  if (!specRequestReviewList) return;
+  if (isSpecRequestReviewSingleLayout()) {
+    specRequestReviewList.innerHTML = "";
+    return;
+  }
+  specRequestReviewList.innerHTML = activePendingReviewRequests
+    .map((request) => {
+      const requestId = String(getPendingRequestId(request));
+      const isActive = requestId === String(selectedPendingReviewRequestId);
+      const requestType = pickPendingRequestValue(
+        request,
+        ["request_type", "request_scope"],
+        "",
+      );
+      const sourceSummary = formatReferenceSourceSummary(request);
+      const sourceLineHtml = sourceSummary
+        ? `<div class="spec-request-item-meta spec-request-item-source">${esc(sourceSummary)}</div>`
+        : "";
+      return `<button type="button" class="spec-request-item ${isActive ? "active" : ""}" data-request-id="${esc(requestId)}">
+        <div class="spec-request-item-title">#${esc(requestId)} · ${esc(getPendingRequestTestName(request))}${
+          requestType
+            ? ` <span class="spec-request-type-badge">${esc(String(requestType).toUpperCase())}</span>`
+            : ""
+        }</div>
+        <div class="spec-request-item-meta">${esc(getPendingRequestRequestedBy(request))}</div>
+        <div class="spec-request-item-meta">${esc(getPendingRequestRequestedAt(request))}</div>
+        ${sourceLineHtml}
+      </button>`;
+    })
+    .join("");
+
+  specRequestReviewList
+    .querySelectorAll(".spec-request-item")
+    .forEach((btn) => {
+      btn.addEventListener("click", () => {
+        selectedPendingReviewRequestId = btn.dataset.requestId;
+        renderSpecRequestReviewModal();
+      });
+    });
+}
+
+function renderSpecRequestReviewDetail() {
+  if (!specRequestReviewDetail) return;
+  const request = getSelectedPendingReviewRequest();
+  if (!request) {
+    specRequestReviewDetail.innerHTML = `<div class="spec-request-empty">Select a pending specification change request to review.</div>`;
+    return;
+  }
+
+  specRequestReviewDetail.innerHTML = `
+    ${renderSpecRequestComparisonHtml(request)}
+    ${buildReferenceSourceDetailSectionHtml(request)}
+    ${renderSpecRequestRequestRemarksPanel(request)}
+    ${isSpecRequestReviewSingleLayout() ? "" : renderSpecRequestReviewMetadataFallback(request)}
   `;
 }
 
@@ -1451,24 +5934,59 @@ function getSelectedPendingReviewRequest() {
 
 function closeSpecRequestReviewModal() {
   specRequestReviewModal?.classList.add("hidden");
+  clearReviewQueueRowActiveState();
+  specRequestReviewModal?.classList.remove(
+    "spec-request-modal--single",
+    "spec-request-modal--multi",
+  );
   activePendingReviewRequests = [];
   selectedPendingReviewRequestId = null;
   selectedPendingReviewScope = null;
+  specRequestReviewMode = null;
+  specRequestReviewInFlight = false;
+  resetSpecRequestRouteDecisionControls();
   if (specRequestReviewRemarks) {
     specRequestReviewRemarks.value = "";
   }
+  if (specRequestReviewSummary) {
+    specRequestReviewSummary.innerHTML = "";
+    specRequestReviewSummary.classList.add("hidden");
+  }
+  if (specRequestReviewCancel) {
+    specRequestReviewCancel.disabled = false;
+  }
+  if (specRequestApproveNextBtn) {
+    specRequestApproveNextBtn.textContent = "Approve & Next";
+    specRequestApproveNextBtn.classList.add("hidden");
+    specRequestApproveNextBtn.disabled = false;
+  }
+  if (specRequestRejectNextBtn) {
+    specRequestRejectNextBtn.textContent = "Reject & Next";
+    specRequestRejectNextBtn.classList.add("hidden");
+    specRequestRejectNextBtn.disabled = false;
+  }
 }
 
-async function submitSpecRequestReview(action) {
+async function submitSpecRequestReview(action, options = {}) {
+  if (specRequestReviewInFlight) return;
+
+  const continueNext =
+    options.continueNext === true && specRequestReviewMode === "reviewQueue";
+  const approveLabel = "Approve";
+  const approveNextLabel = "Approve & Next";
+  const rejectLabel = "Reject";
+  const rejectNextLabel = "Reject & Next";
+  let shouldRefresh = false;
+  let shouldContinueNext = false;
+  let reviewedRequestIdForNext = null;
+  let priorOrderIdsForNext = null;
+
   console.log("Spec request review clicked", {
     action,
     selectedPendingReviewRequestId,
     selectedPendingReviewScope,
+    specRequestReviewMode,
   });
-
-  const approveLabel = specRequestApproveBtn?.textContent ?? "Approve";
-  const rejectLabel = specRequestRejectBtn?.textContent ?? "Reject";
-  let shouldRefresh = false;
 
   try {
     const request = getSelectedPendingReviewRequest();
@@ -1500,31 +6018,75 @@ async function submitSpecRequestReview(action) {
     }
 
     const reviewRemarks = specRequestReviewRemarks?.value.trim() || null;
-    const scope = normalizePendingRequestScope(request.request_scope);
 
-    const rpcName =
-      action === "approve"
-        ? scope === "PRODUCT"
-          ? "fn_approve_product_spec_change_request"
-          : "fn_approve_family_spec_change_request"
-        : "fn_reject_spec_change_request";
+    if (specRequestReviewMode === "reviewQueue" && action === "approve") {
+      const selectedScope = normalizePendingRequestScope(
+        specRequestApplyScope?.value,
+      );
+      const routeChanged = isReviewRouteChanged(request, selectedScope);
+      const routeChangeRemarks =
+        specRequestRouteChangeRemarks?.value.trim() || "";
+      if (routeChanged && !routeChangeRemarks) {
+        toast(
+          "Route change remarks are required when applying through a different route.",
+          "warn",
+        );
+        return;
+      }
+    }
 
-    if (action === "approve" && specRequestApproveBtn)
-      specRequestApproveBtn.textContent = "Approving...";
-    if (action === "reject" && specRequestRejectBtn)
-      specRequestRejectBtn.textContent = "Rejecting...";
+    const payload = buildSpecChangeRequestDecisionPayload({
+      action,
+      mode: specRequestReviewMode,
+      request,
+      userId: userData.user.id,
+      requestId: numericRequestId,
+      reviewRemarks,
+    });
+
+    if (
+      action === "approve" &&
+      !isValidSpecChangeApplyScope(payload.p_apply_scope)
+    ) {
+      toast(
+        "Cannot approve: request route scope is missing or invalid.",
+        "warn",
+      );
+      return;
+    }
+
+    if (continueNext) {
+      reviewedRequestIdForNext = String(rawRequestId);
+      priorOrderIdsForNext = getFilteredReviewQueueRows().map((r) =>
+        String(r.request_id),
+      );
+    }
+
+    specRequestReviewInFlight = true;
+    if (action === "approve") {
+      if (specRequestApproveBtn) specRequestApproveBtn.textContent = "Approving...";
+      if (specRequestApproveNextBtn) {
+        specRequestApproveNextBtn.textContent = "Approving...";
+      }
+    }
+    if (action === "reject") {
+      if (specRequestRejectBtn) specRequestRejectBtn.textContent = "Rejecting...";
+      if (specRequestRejectNextBtn) {
+        specRequestRejectNextBtn.textContent = "Rejecting...";
+      }
+    }
     if (specRequestApproveBtn) specRequestApproveBtn.disabled = true;
     if (specRequestRejectBtn) specRequestRejectBtn.disabled = true;
+    if (specRequestApproveNextBtn) specRequestApproveNextBtn.disabled = true;
+    if (specRequestRejectNextBtn) specRequestRejectNextBtn.disabled = true;
+    if (specRequestReviewCancel) specRequestReviewCancel.disabled = true;
 
-    const payload = {
-      p_user_id: userData.user.id,
-      p_request_id: numericRequestId,
-      p_review_remarks: reviewRemarks,
-    };
+    const rpcName = "fn_review_spec_change_request_decision";
+
     console.log("Calling RPC", {
       rpcName,
       payload,
-      scope,
+      mode: specRequestReviewMode,
       rawRequestId,
     });
 
@@ -1539,14 +6101,19 @@ async function submitSpecRequestReview(action) {
       return;
     }
 
-    toast(
-      action === "approve"
-        ? "Specification change request approved."
-        : "Specification change request rejected.",
-      "success",
-    );
-    closeSpecRequestReviewModal();
-    shouldRefresh = true;
+    if (continueNext) {
+      shouldRefresh = true;
+      shouldContinueNext = true;
+    } else {
+      toast(
+        action === "approve"
+          ? "Specification change request approved."
+          : "Specification change request rejected.",
+        "success",
+      );
+      closeSpecRequestReviewModal();
+      shouldRefresh = true;
+    }
   } catch (err) {
     const message = err?.message || String(err);
     console.error("Spec request review unexpected error", err);
@@ -1555,13 +6122,33 @@ async function submitSpecRequestReview(action) {
       "error",
     );
   } finally {
-    if (specRequestApproveBtn) {
-      specRequestApproveBtn.disabled = false;
-      specRequestApproveBtn.textContent = approveLabel;
-    }
-    if (specRequestRejectBtn) {
-      specRequestRejectBtn.disabled = false;
-      specRequestRejectBtn.textContent = rejectLabel;
+    specRequestReviewInFlight = false;
+
+    if (
+      specRequestReviewModal &&
+      !specRequestReviewModal.classList.contains("hidden")
+    ) {
+      const hasSelection = !!getSelectedPendingReviewRequest();
+      if (specRequestApproveBtn) {
+        specRequestApproveBtn.disabled = !hasSelection;
+        specRequestApproveBtn.textContent = approveLabel;
+      }
+      if (specRequestRejectBtn) {
+        specRequestRejectBtn.disabled = !hasSelection;
+        specRequestRejectBtn.textContent = rejectLabel;
+      }
+      if (specRequestApproveNextBtn) {
+        specRequestApproveNextBtn.disabled = !hasSelection;
+        specRequestApproveNextBtn.textContent = approveNextLabel;
+      }
+      if (specRequestRejectNextBtn) {
+        specRequestRejectNextBtn.disabled = !hasSelection;
+        specRequestRejectNextBtn.textContent = rejectNextLabel;
+      }
+      if (specRequestReviewCancel) {
+        specRequestReviewCancel.disabled = false;
+      }
+      renderSpecRequestReviewModal();
     }
 
     if (shouldRefresh) {
@@ -1571,6 +6158,31 @@ async function submitSpecRequestReview(action) {
 
       if (currentTab === "reviewQueue") {
         await loadReviewQueue();
+      }
+
+      await loadChangeHistory();
+
+      if (shouldContinueNext) {
+        const nextId = pickNextReviewQueueRequestId(
+          reviewedRequestIdForNext,
+          priorOrderIdsForNext ?? [],
+        );
+        const actionWord = action === "approve" ? "approved" : "rejected";
+        if (nextId) {
+          openReviewQueueRequest(nextId);
+          toast(
+            `Request ${actionWord}. Opening next pending request.`,
+            "info",
+            2200,
+          );
+        } else {
+          closeSpecRequestReviewModal();
+          toast(
+            `Request ${actionWord}. No more pending requests in the current queue.`,
+            "success",
+            2800,
+          );
+        }
       }
     }
   }
@@ -1803,12 +6415,477 @@ async function bsLoadGroupContext(groupId) {
   }
 }
 
+const V_SPEC_PROFILE_DETAIL_SELECT =
+  "spec_profile_id, seq_no, test_id, test_name, method_name, display_text, spec_type, min_value, max_value, text_value, target_value, tolerance_value, tolerance_uom_id, tolerance_uom_code, tolerance_uom_name, tolerance_uom_symbol, spec_line_is_active, uom_id, uom_code, uom_name, uom_symbol, protocol_default_spec_type, protocol_spec_type_locked, protocol_spec_type_source, protocol_spec_type_review_note, is_profile_spec_type_exception";
+
+const PROTOCOL_DEFAULT_SPEC_TYPE_LABELS = {
+  RANGE: "Range",
+  MAX_ONLY: "Max Only",
+  MIN_ONLY: "Min Only",
+  TEXT: "Text",
+  PASS_FAIL: "Pass / Fail",
+  TOLERANCE: "Tolerance",
+};
+
+const PROTOCOL_SPEC_TYPE_SOURCE_LABELS = {
+  AUTO_SINGLE_TYPE: "Auto",
+  ADMIN_SET: "Admin Set",
+  PROFILE_EXCEPTION_ALLOWED: "Exception Allowed",
+  MIGRATED_LEGACY: "Migrated",
+  MANUAL_REVIEW: "Review",
+  MULTIPLE: "Multiple",
+};
+
+function normalizeProtocolDefaultSpecType(specType) {
+  const t = String(specType ?? "")
+    .trim()
+    .toUpperCase();
+  if (t === "NMT") return "MAX_ONLY";
+  if (t === "NLT") return "MIN_ONLY";
+  return t;
+}
+
+function formatProtocolDefaultSpecTypeLabel(specType) {
+  const normalized = normalizeProtocolDefaultSpecType(specType);
+  if (!normalized) return "";
+  return PROTOCOL_DEFAULT_SPEC_TYPE_LABELS[normalized] ?? normalized;
+}
+
+function formatProtocolSpecTypeSourceLabel(source) {
+  const key = String(source ?? "")
+    .trim()
+    .toUpperCase();
+  if (!key) return "";
+  return PROTOCOL_SPEC_TYPE_SOURCE_LABELS[key] ?? String(source).trim();
+}
+
+function isProtocolSpecTypeLocked(locked) {
+  if (locked === true) return true;
+  const s = String(locked ?? "")
+    .trim()
+    .toUpperCase();
+  if (s === "TRUE" || s === "READY_LOCKED" || s === "LOCKED") return true;
+  return false;
+}
+
+function isProtocolExceptionAllowedLine(locked, source) {
+  const src = String(source ?? "")
+    .trim()
+    .toUpperCase();
+  const s = String(locked ?? "")
+    .trim()
+    .toUpperCase();
+  if (src === "PROFILE_EXCEPTION_ALLOWED") return true;
+  if (
+    s === "READY_EXCEPTION_ALLOWED" ||
+    s === "PROFILE_EXCEPTION_ALLOWED"
+  ) {
+    return true;
+  }
+  if (
+    (locked === false || s === "FALSE") &&
+    src === "PROFILE_EXCEPTION_ALLOWED"
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function formatProtocolLockStatusLabel(row) {
+  const protocolDefault = normalizeProtocolDefaultSpecType(
+    row?.protocol_default_spec_type,
+  );
+  if (!protocolDefault) return "Not mapped";
+  if (
+    isProtocolSpecTypeLocked(row?.protocol_spec_type_locked)
+  ) {
+    return "Locked";
+  }
+  if (
+    isProtocolExceptionAllowedLine(
+      row?.protocol_spec_type_locked,
+      row?.protocol_spec_type_source,
+    )
+  ) {
+    return "Exception Allowed";
+  }
+  return "Unlocked";
+}
+
+function getBaseSpecLoadedRow(subject, seqNo) {
+  const rows =
+    subject === "FG"
+      ? bsLoadedRows
+      : subject === "RM"
+        ? rmLoadedRows
+        : pmLoadedRows;
+  return rows.find((r) => Number(r.seq_no) === Number(seqNo)) ?? null;
+}
+
+const BS_VALUES_LATER_DISPLAY_TEXTS = new Set([
+  "Specification to be defined",
+  "As per approved specification",
+]);
+
+function isBsValuesLaterDisplayText(text) {
+  return BS_VALUES_LATER_DISPLAY_TEXTS.has(String(text ?? "").trim());
+}
+
+function resolveBsValuesLaterDisplayText(currentDisplay) {
+  const t = String(currentDisplay ?? "").trim();
+  if (isBsValuesLaterDisplayText(t)) return t;
+  return "Specification to be defined";
+}
+
+function isBlankBsLineValueField(val) {
+  if (val == null) return true;
+  return String(val).trim() === "";
+}
+
+function bsLineHasBlankValuesForSpecType(specType, snapshot) {
+  const type = normalizeBaseSpecTypeValue(specType);
+  switch (type) {
+    case "RANGE":
+      return (
+        isBlankBsLineValueField(snapshot.min) &&
+        isBlankBsLineValueField(snapshot.max)
+      );
+    case "MAX_ONLY":
+      return isBlankBsLineValueField(snapshot.max);
+    case "MIN_ONLY":
+      return isBlankBsLineValueField(snapshot.min);
+    case "EXACT_NUMERIC":
+      return isBlankBsLineValueField(snapshot.exact ?? snapshot.min);
+    case "TEXT":
+    case "PASS_FAIL":
+      return isBlankBsLineValueField(snapshot.text);
+    case "TOLERANCE":
+      return (
+        isBlankBsLineValueField(snapshot.target) &&
+        isBlankBsLineValueField(snapshot.tolerance)
+      );
+    default:
+      return true;
+  }
+}
+
+function shouldAutoEnableBsValuesLater(specType, displayText, snapshot) {
+  return (
+    isBsValuesLaterDisplayText(displayText) &&
+    bsLineHasBlankValuesForSpecType(specType, snapshot)
+  );
+}
+
+function isBsLineValuesLaterMode() {
+  return document.getElementById("bsLineModalValuesLater")?.checked === true;
+}
+
+function readBsModalToleranceUomId() {
+  const toleranceUomSel = document.getElementById("bsLineModalToleranceUom");
+  const raw = String(toleranceUomSel?.value ?? "").trim();
+  if (!raw) return null;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function readBsModalTargetUomId() {
+  const uomSel = document.getElementById("bsLineModalUom");
+  const raw = String(uomSel?.value ?? "").trim();
+  if (!raw) return null;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeBaseSpecEditForRpc(edit) {
+  const normalized = { ...edit };
+  const specType = normalizeBaseSpecTypeValue(edit?.spec_type);
+  if (specType !== "TOLERANCE") return normalized;
+
+  normalized.tolerance_uom_id =
+    edit?.tolerance_uom_id != null && String(edit.tolerance_uom_id).trim() !== ""
+      ? Number(edit.tolerance_uom_id)
+      : null;
+  normalized.uom_id =
+    edit?.uom_id != null && String(edit.uom_id).trim() !== ""
+      ? Number(edit.uom_id)
+      : null;
+
+  return normalized;
+}
+
+function prepareBaseSpecEditsForRpc(edits) {
+  return (edits ?? []).map((edit) => normalizeBaseSpecEditForRpc(edit));
+}
+
+const BASE_SPEC_SAVE_BTN_LABEL = "Save Spec";
+const BASE_SPEC_SAVE_BTN_SAVING_LABEL = "Saving...";
+
+function isBaseSpecSaveButtonBusy(btn) {
+  return btn?.dataset?.baseSpecSaving === "1";
+}
+
+function setBaseSpecSaveButtonSaving(btn) {
+  if (!btn) return;
+  btn.dataset.baseSpecSaving = "1";
+  btn.disabled = true;
+  btn.classList.add("loading");
+  btn.textContent = BASE_SPEC_SAVE_BTN_SAVING_LABEL;
+}
+
+function resetBaseSpecSaveButtonState(btn, editedCount = 0) {
+  if (!btn) return;
+  delete btn.dataset.baseSpecSaving;
+  btn.disabled = false;
+  btn.classList.remove("loading");
+  btn.textContent = BASE_SPEC_SAVE_BTN_LABEL;
+  btn.classList.toggle("hidden", editedCount === 0);
+}
+
+function needsProfileExceptionConfirmOnApply(selectedSpecType) {
+  const ctx = bsLineProtocolContext;
+  if (!ctx) return false;
+  const protocolDefault = normalizeProtocolDefaultSpecType(
+    ctx.protocol_default_spec_type,
+  );
+  if (!protocolDefault) return false;
+  if (
+    !isProtocolSpecTypeLocked(ctx.protocol_spec_type_locked)
+  ) {
+    return false;
+  }
+  const selected = normalizeBaseSpecTypeValue(selectedSpecType);
+  if (!selected || selected === protocolDefault) return false;
+  const opened = normalizeBaseSpecTypeValue(bsLineModalOpenedSpecType);
+  if (selected === opened) return false;
+  return true;
+}
+
+function hideBsLineExceptionConfirm(resetAck = true) {
+  document.getElementById("bsLineModalExceptionConfirm")?.classList.add("hidden");
+  document.getElementById("bsLineModalFooter")?.classList.remove("hidden");
+  if (resetAck) bsLineExceptionConfirmAcknowledged = false;
+}
+
+function showBsLineExceptionConfirm(protocolDefault, selectedSpecType) {
+  const msgEl = document.getElementById("bsLineModalExceptionConfirmMsg");
+  const protoLabel = formatProtocolDefaultSpecTypeLabel(protocolDefault);
+  const selectedLabel =
+    formatProtocolDefaultSpecTypeLabel(selectedSpecType) || selectedSpecType;
+  if (msgEl) {
+    msgEl.textContent =
+      `This creates a base-profile exception. Protocol default is ${protoLabel}, but approved base spec type will be ${selectedLabel}. Continue?`;
+  }
+  document.getElementById("bsLineModalExceptionConfirm")?.classList.remove(
+    "hidden",
+  );
+  document.getElementById("bsLineModalFooter")?.classList.add("hidden");
+  document.getElementById("bsLineModalExceptionConfirmOk")?.focus();
+}
+
+function updateBsLineModalProtocolUi() {
+  const ctx = bsLineProtocolContext;
+  const defaultEl = document.getElementById("bsLineModalProtocolDefault");
+  const sourceEl = document.getElementById("bsLineModalProtocolSource");
+  const lockEl = document.getElementById("bsLineModalProtocolLock");
+  const reviewEl = document.getElementById("bsLineModalProtocolReviewNote");
+  const alignEl = document.getElementById("bsLineModalAlignmentStatus");
+  const allowedEl = document.getElementById("bsLineModalExceptionAllowedInfo");
+  const specTypeSel = document.getElementById("bsLineModalSpecType");
+  const specTypeLabel = document.getElementById("bsLineModalSpecTypeLabel");
+
+  setBsLineLabelRequired(specTypeLabel, "Approved Base Spec Type", true);
+
+  if (!ctx) {
+    if (defaultEl) defaultEl.textContent = "—";
+    if (sourceEl) sourceEl.textContent = "—";
+    if (lockEl) lockEl.textContent = "—";
+    reviewEl?.classList.add("hidden");
+    alignEl?.classList.add("hidden");
+    allowedEl?.classList.add("hidden");
+    return;
+  }
+
+  const protocolDefault = normalizeProtocolDefaultSpecType(
+    ctx.protocol_default_spec_type,
+  );
+  const sourceLabel = formatProtocolSpecTypeSourceLabel(
+    ctx.protocol_spec_type_source,
+  );
+  const lockLabel = formatProtocolLockStatusLabel(ctx);
+  const reviewNote = String(ctx.protocol_spec_type_review_note ?? "").trim();
+  const tooltip = buildProtocolDefaultTooltip(ctx);
+
+  if (defaultEl) {
+    defaultEl.textContent = protocolDefault
+      ? formatProtocolDefaultSpecTypeLabel(protocolDefault)
+      : "Not mapped";
+    if (tooltip) defaultEl.title = tooltip;
+    else defaultEl.removeAttribute("title");
+  }
+  if (sourceEl) {
+    sourceEl.textContent = sourceLabel || "—";
+  }
+  if (lockEl) {
+    lockEl.textContent = lockLabel;
+  }
+  if (reviewEl) {
+    if (reviewNote) {
+      reviewEl.textContent = reviewNote;
+      reviewEl.classList.remove("hidden");
+    } else {
+      reviewEl.textContent = "";
+      reviewEl.classList.add("hidden");
+    }
+  }
+
+  const selected = normalizeBaseSpecTypeValue(specTypeSel?.value ?? "");
+  if (alignEl) {
+    if (!protocolDefault) {
+      alignEl.classList.add("hidden");
+      alignEl.textContent = "";
+    } else if (selected === protocolDefault) {
+      alignEl.className = "bs-line-alignment-status bs-line-alignment-match";
+      alignEl.textContent = "Base spec follows protocol default.";
+      alignEl.classList.remove("hidden");
+    } else if (selected) {
+      alignEl.className = "bs-line-alignment-status bs-line-alignment-exception";
+      alignEl.innerHTML =
+        '<span class="bs-profile-exception-badge">Profile Exception</span>';
+      alignEl.classList.remove("hidden");
+    } else {
+      alignEl.classList.add("hidden");
+      alignEl.textContent = "";
+    }
+  }
+
+  if (allowedEl) {
+    const showAllowed =
+      protocolDefault &&
+      !isProtocolSpecTypeLocked(ctx.protocol_spec_type_locked) &&
+      isProtocolExceptionAllowedLine(
+        ctx.protocol_spec_type_locked,
+        ctx.protocol_spec_type_source,
+      );
+    allowedEl.classList.toggle("hidden", !showAllowed);
+  }
+}
+
+function isBaseLineProfileSpecException(row, pending) {
+  if (row.is_profile_spec_type_exception === true) return true;
+  const protocolDefault = normalizeProtocolDefaultSpecType(
+    row.protocol_default_spec_type,
+  );
+  if (!protocolDefault) return false;
+  const baseType = pending
+    ? normalizeBaseSpecTypeValue(pending.spec_type)
+    : normalizeBaseSpecTypeValue(row.spec_type ?? "");
+  if (!baseType) return false;
+  return protocolDefault !== baseType;
+}
+
+function buildProtocolDefaultTooltip(row) {
+  const parts = [];
+  const sourceRaw = String(row.protocol_spec_type_source ?? "").trim();
+  const reviewNote = String(row.protocol_spec_type_review_note ?? "").trim();
+  const locked = row.protocol_spec_type_locked;
+  if (sourceRaw) parts.push(`Source: ${sourceRaw}`);
+  if (locked != null && String(locked).trim() !== "") {
+    parts.push(`Lock: ${locked}`);
+  }
+  if (reviewNote) parts.push(`Review: ${reviewNote}`);
+  return parts.join(" · ");
+}
+
+function renderProtocolDefaultSpecCell(row) {
+  const protocolDefault = normalizeProtocolDefaultSpecType(
+    row.protocol_default_spec_type,
+  );
+  const sourceLabel = formatProtocolSpecTypeSourceLabel(
+    row.protocol_spec_type_source,
+  );
+  const tooltip = buildProtocolDefaultTooltip(row);
+  const titleAttr = tooltip ? ` title="${esc(tooltip)}"` : "";
+
+  if (!protocolDefault) {
+    return `<div class="bs-protocol-default-cell"${titleAttr}>
+      <span class="bs-protocol-default-muted">Not mapped</span>
+      ${sourceLabel ? `<span class="bs-protocol-source-muted">${esc(sourceLabel)}</span>` : ""}
+    </div>`;
+  }
+
+  const label = formatProtocolDefaultSpecTypeLabel(protocolDefault);
+  return `<div class="bs-protocol-default-cell"${titleAttr}>
+    <span class="type-badge type-badge-other bs-protocol-default-badge">${esc(label)}</span>
+    ${sourceLabel ? `<span class="bs-protocol-source-muted">${esc(sourceLabel)}</span>` : ""}
+  </div>`;
+}
+
+function renderBaseSpecTypeCell(row, dispType, pending) {
+  const exceptionBadge = isBaseLineProfileSpecException(row, pending)
+    ? `<span class="bs-profile-exception-badge" title="Approved base spec differs from protocol default">Profile Exception</span>`
+    : "";
+  return `<div class="bs-spec-type-cell">
+    ${typeBadge(dispType)}
+    ${exceptionBadge}
+  </div>`;
+}
+
+function buildBaseSpecTableRowHtml(row, pending, activeChkClass) {
+  const seqNo = row.seq_no;
+  const dispType = pending
+    ? normalizeBaseSpecTypeValue(pending.spec_type)
+    : normalizeBaseSpecTypeValue(row.spec_type ?? "");
+  const dispText = pending
+    ? (pending.display_text ?? "")
+    : (row.display_text ?? "");
+  const isActive = pending ? pending.is_active : !!row.spec_line_is_active;
+  const origActive = !!row.spec_line_is_active;
+
+  return `<tr data-seq="${esc(String(seqNo))}"
+      data-test-id="${esc(String(row.test_id ?? ""))}"
+      data-test-name="${esc(row.test_name ?? "")}"
+      data-method-name="${esc(row.method_name ?? "")}"
+      data-orig-spec-type="${esc(normalizeBaseSpecTypeValue(row.spec_type ?? ""))}"
+      data-orig-min="${esc(String(row.min_value ?? ""))}"
+      data-orig-max="${esc(String(row.max_value ?? ""))}"
+      data-orig-text="${esc(row.text_value ?? "")}"
+      data-orig-target="${esc(String(row.target_value ?? ""))}"
+      data-orig-tolerance="${esc(String(row.tolerance_value ?? ""))}"
+      data-orig-tolerance-uom-id="${esc(String(row.tolerance_uom_id ?? ""))}"
+      data-orig-tolerance-uom-code="${esc(row.tolerance_uom_code ?? "")}"
+      data-orig-tolerance-uom-name="${esc(row.tolerance_uom_name ?? "")}"
+      data-orig-tolerance-uom-symbol="${esc(row.tolerance_uom_symbol ?? "")}"
+      data-orig-display="${esc(row.display_text ?? "")}"
+      data-orig-uom-id="${esc(String(row.uom_id ?? ""))}"
+      data-orig-uom-symbol="${esc(row.uom_symbol ?? "")}"
+      data-orig-active="${origActive ? "1" : "0"}"
+      class="${isActive ? "" : "bs-row-inactive"}">
+    <td class="td-seq">${esc(String(seqNo))}</td>
+    <td class="td-test">${esc(row.test_name ?? "")}</td>
+    <td class="td-method">${esc(row.method_name ?? "")}</td>
+    <td>${renderProtocolDefaultSpecCell(row)}</td>
+    <td>${renderBaseSpecTypeCell(row, dispType, pending)}</td>
+    <td class="bs-display-text-cell${pending ? " pending" : ""}">${esc(dispText)}</td>
+    <td class="td-active">
+      <input class="spec-active ${activeChkClass}" type="checkbox"
+             ${isActive ? "checked" : ""} aria-label="Active" />
+    </td>
+    <td class="td-edit-col">
+      <button class="bs-edit-btn" aria-label="Edit spec line" title="Edit specification values">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+      </button>
+    </td>
+  </tr>`;
+}
+
 async function bsLoadSpecLines(profileId) {
   const { data, error } = await labSupabase
     .from("v_spec_profile_detail")
-    .select(
-      "spec_profile_id, seq_no, test_id, test_name, method_name, display_text, spec_type, min_value, max_value, text_value, spec_line_is_active, uom_id, uom_code, uom_name, uom_symbol",
-    )
+    .select(V_SPEC_PROFILE_DETAIL_SELECT)
     .eq("spec_profile_id", profileId)
     .order("seq_no");
 
@@ -1841,7 +6918,7 @@ function bsRenderSpecLines(rows) {
       : `${countActive} active / ${totalCount} total`;
 
   if (!rows.length) {
-    bsTableBody.innerHTML = `<tr><td colspan="7">
+    bsTableBody.innerHTML = `<tr><td colspan="8">
       <div class="spec-empty-state">
         <strong>No specification lines</strong>
         This profile has no lines yet.
@@ -1851,50 +6928,13 @@ function bsRenderSpecLines(rows) {
   }
 
   bsTableBody.innerHTML = rows
-    .map((r) => {
-      const seqNo = r.seq_no;
-      const pending = bsEditedSpecLines.get(seqNo);
-      const dispType = pending
-        ? normalizeBaseSpecTypeValue(pending.spec_type)
-        : normalizeBaseSpecTypeValue(r.spec_type ?? "");
-      const dispText = pending
-        ? (pending.display_text ?? "")
-        : (r.display_text ?? "");
-      const isActive = pending ? pending.is_active : !!r.spec_line_is_active;
-      const origActive = !!r.spec_line_is_active;
-      return `<tr data-seq="${esc(String(seqNo))}"
-          data-test-id="${esc(String(r.test_id ?? ""))}"
-          data-test-name="${esc(r.test_name ?? "")}"
-          data-method-name="${esc(r.method_name ?? "")}"
-          data-orig-spec-type="${esc(normalizeBaseSpecTypeValue(r.spec_type ?? ""))}"
-          data-orig-min="${esc(String(r.min_value ?? ""))}"
-          data-orig-max="${esc(String(r.max_value ?? ""))}"
-          data-orig-text="${esc(r.text_value ?? "")}"
-          data-orig-display="${esc(r.display_text ?? "")}"
-          data-orig-uom-id="${esc(String(r.uom_id ?? ""))}"
-          data-orig-uom-symbol="${esc(r.uom_symbol ?? "")}"
-          data-orig-active="${origActive ? "1" : "0"}"
-          class="${isActive ? "" : "bs-row-inactive"}">
-        <td class="td-seq">${esc(String(seqNo))}</td>
-        <td class="td-test">${esc(r.test_name ?? "")}</td>
-        <td class="td-method">${esc(r.method_name ?? "")}</td>
-        <td>${typeBadge(dispType)}</td>
-        <td class="bs-display-text-cell${pending ? " pending" : ""}">${esc(dispText)}</td>
-        <td class="td-active">
-          <input class="spec-active bs-active-chk" type="checkbox"
-                 ${isActive ? "checked" : ""} aria-label="Active" />
-        </td>
-        <td class="td-edit-col">
-          <button class="bs-edit-btn" aria-label="Edit spec line" title="Edit specification values">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
-          </button>
-        </td>
-      </tr>`;
-    })
+    .map((r) =>
+      buildBaseSpecTableRowHtml(
+        r,
+        bsEditedSpecLines.get(r.seq_no),
+        "bs-active-chk",
+      ),
+    )
     .join("");
 
   bsTableBody.querySelectorAll("tr[data-seq]").forEach((tr) => {
@@ -1917,6 +6957,18 @@ function bsRenderSpecLines(rows) {
           max_value:
             tr.dataset.origMax !== "" ? Number(tr.dataset.origMax) : null,
           text_value: tr.dataset.origText || null,
+          target_value:
+            tr.dataset.origTarget !== ""
+              ? Number(tr.dataset.origTarget)
+              : null,
+          tolerance_value:
+            tr.dataset.origTolerance !== ""
+              ? Number(tr.dataset.origTolerance)
+              : null,
+          tolerance_uom_id:
+            tr.dataset.origToleranceUomId !== ""
+              ? Number(tr.dataset.origToleranceUomId)
+              : null,
           uom_id:
             tr.dataset.origUomId !== "" ? Number(tr.dataset.origUomId) : null,
           uom_symbol: tr.dataset.origUomSymbol || null,
@@ -2047,105 +7099,105 @@ async function bsGenerateSpec() {
 async function bsSaveSpec() {
   if (!bsCurrentProfileId || bsEditedSpecLines.size === 0) return;
   const btn = bsSaveSpecBtn;
-  btn.disabled = true;
-  btn.classList.add("loading");
-  btn.textContent = "Saving...";
+  if (isBaseSpecSaveButtonBusy(btn)) return;
+  setBaseSpecSaveButtonSaving(btn);
+  try {
+    const edits = prepareBaseSpecEditsForRpc(
+      Array.from(bsEditedSpecLines.values()),
+    );
+    const { data, error } = await labSupabase.rpc(
+      "fn_create_new_spec_version_from_edits",
+      {
+        p_source_spec_profile_id: bsCurrentProfileId,
+        p_edits: edits,
+        p_remarks: "Edited via Spec Profile Manager",
+      },
+    );
 
-  const edits = Array.from(bsEditedSpecLines.values());
-  const { data, error } = await labSupabase.rpc(
-    "fn_create_new_spec_version_from_edits",
-    {
-      p_source_spec_profile_id: bsCurrentProfileId,
-      p_edits: edits,
-      p_remarks: "Edited via Spec Profile Manager",
-    },
-  );
-
-  if (error) {
-    toast("Save failed: " + error.message, "error");
-    btn.disabled = false;
-    btn.classList.remove("loading");
-    btn.textContent = "Save Spec";
-    return;
-  }
-
-  const newProfileId = Number(data);
-  bsCurrentProfileId = newProfileId;
-
-  const getAffectedCount = (val) => {
-    if (typeof val === "number" && Number.isFinite(val)) return val;
-    if (
-      typeof val === "string" &&
-      val.trim() !== "" &&
-      !Number.isNaN(Number(val))
-    ) {
-      return Number(val);
+    if (error) {
+      toast("Save failed: " + error.message, "error");
+      return;
     }
-    if (Array.isArray(val) && val.length > 0) {
-      const first = val[0];
-      if (typeof first === "number") return first;
-      if (first && typeof first === "object") {
-        for (const k of ["count", "affected_count", "affected", "result"]) {
-          if (first[k] !== undefined && !Number.isNaN(Number(first[k]))) {
-            return Number(first[k]);
+
+    const newProfileId = Number(data);
+    bsCurrentProfileId = newProfileId;
+
+    const getAffectedCount = (val) => {
+      if (typeof val === "number" && Number.isFinite(val)) return val;
+      if (
+        typeof val === "string" &&
+        val.trim() !== "" &&
+        !Number.isNaN(Number(val))
+      ) {
+        return Number(val);
+      }
+      if (Array.isArray(val) && val.length > 0) {
+        const first = val[0];
+        if (typeof first === "number") return first;
+        if (first && typeof first === "object") {
+          for (const k of ["count", "affected_count", "affected", "result"]) {
+            if (first[k] !== undefined && !Number.isNaN(Number(first[k]))) {
+              return Number(first[k]);
+            }
           }
         }
       }
-    }
-    if (val && typeof val === "object") {
-      for (const k of ["count", "affected_count", "affected", "result"]) {
-        if (val[k] !== undefined && !Number.isNaN(Number(val[k]))) {
-          return Number(val[k]);
+      if (val && typeof val === "object") {
+        for (const k of ["count", "affected_count", "affected", "result"]) {
+          if (val[k] !== undefined && !Number.isNaN(Number(val[k]))) {
+            return Number(val[k]);
+          }
         }
       }
-    }
-    return null;
-  };
+      return null;
+    };
 
-  // Point the product-group mapping to the newly created spec version
-  const { data: mapData, error: mapErr } = await labSupabase.rpc(
-    "fn_set_active_fg_group_spec_profile_family",
-    {
-      p_product_group_id: Number(bsCurrentGroupId),
-      p_spec_profile_id: newProfileId,
-      p_remarks: "Activated via Spec Profile Manager family-aware save",
-    },
-  );
-  if (mapErr) {
-    toast(
-      "Spec version saved but family-aware mapping update failed: " +
-        mapErr.message,
-      "warn",
+    // Point the product-group mapping to the newly created spec version
+    const { data: mapData, error: mapErr } = await labSupabase.rpc(
+      "fn_set_active_fg_group_spec_profile_family",
+      {
+        p_product_group_id: Number(bsCurrentGroupId),
+        p_spec_profile_id: newProfileId,
+        p_remarks: "Activated via Spec Profile Manager family-aware save",
+      },
     );
-  } else {
-    const affectedCount = getAffectedCount(mapData);
-    if (affectedCount === null) {
-      toast("Spec version saved and activated for product group.", "success");
-    } else {
+    if (mapErr) {
       toast(
-        `Spec version saved and activated for ${affectedCount} equivalent product group record(s).`,
-        "success",
+        "Spec version saved but family-aware mapping update failed: " +
+          mapErr.message,
+        "warn",
       );
+    } else {
+      const affectedCount = getAffectedCount(mapData);
+      if (affectedCount === null) {
+        toast("Spec version saved and activated for product group.", "success");
+      } else {
+        toast(
+          `Spec version saved and activated for ${affectedCount} equivalent product group record(s).`,
+          "success",
+        );
+      }
     }
-  }
-  bsEditedSpecLines.clear();
-  bsSyncSaveBtn();
-  btn.disabled = false;
-  btn.classList.remove("loading");
+    bsEditedSpecLines.clear();
 
-  // Reload meta and lines
-  const { data: meta, error: metaErr } = await labSupabase
-    .from("spec_profile")
-    .select("id, spec_name, version_no, effective_from")
-    .eq("id", newProfileId)
-    .single();
+    // Reload meta and lines
+    const { data: meta, error: metaErr } = await labSupabase
+      .from("spec_profile")
+      .select("id, spec_name, version_no, effective_from")
+      .eq("id", newProfileId)
+      .single();
 
-  if (!metaErr && meta) {
-    setMetaValue(bsMetaProfileId, String(meta.id), false);
-    setMetaValue(bsMetaVersion, `v${meta.version_no}`, false);
-    setMetaValue(bsMetaEffDate, formatDate(meta.effective_from), false);
+    if (!metaErr && meta) {
+      setMetaValue(bsMetaProfileId, String(meta.id), false);
+      setMetaValue(bsMetaVersion, `v${meta.version_no}`, false);
+      setMetaValue(bsMetaEffDate, formatDate(meta.effective_from), false);
+    }
+    await bsLoadSpecLines(newProfileId);
+  } catch (err) {
+    toast("Save failed: " + (err?.message ?? String(err)), "error");
+  } finally {
+    resetBaseSpecSaveButtonState(btn, bsEditedSpecLines.size);
   }
-  await bsLoadSpecLines(newProfileId);
 }
 
 function bsResetState() {
@@ -2381,9 +7433,7 @@ async function rmLoadSpecLines(profileId) {
   const rmBanner = document.getElementById("rmBanner");
   const { data, error } = await labSupabase
     .from("v_spec_profile_detail")
-    .select(
-      "spec_profile_id, seq_no, test_id, test_name, method_name, display_text, spec_type, min_value, max_value, text_value, spec_line_is_active, uom_id, uom_code, uom_name, uom_symbol",
-    )
+    .select(V_SPEC_PROFILE_DETAIL_SELECT)
     .eq("spec_profile_id", profileId)
     .order("seq_no");
 
@@ -2419,7 +7469,7 @@ function rmRenderSpecLines(rows) {
       : `${countActive} active / ${totalCount} total`;
 
   if (!rows.length) {
-    rmTableBody.innerHTML = `<tr><td colspan="7">
+    rmTableBody.innerHTML = `<tr><td colspan="8">
       <div class="spec-empty-state">
         <strong>No specification lines</strong>
         This profile has no lines yet.
@@ -2429,50 +7479,13 @@ function rmRenderSpecLines(rows) {
   }
 
   rmTableBody.innerHTML = rows
-    .map((r) => {
-      const seqNo = r.seq_no;
-      const pending = rmEditedSpecLines.get(seqNo);
-      const dispType = pending
-        ? normalizeBaseSpecTypeValue(pending.spec_type)
-        : normalizeBaseSpecTypeValue(r.spec_type ?? "");
-      const dispText = pending
-        ? (pending.display_text ?? "")
-        : (r.display_text ?? "");
-      const isActive = pending ? pending.is_active : !!r.spec_line_is_active;
-      const origActive = !!r.spec_line_is_active;
-      return `<tr data-seq="${esc(String(seqNo))}"
-          data-test-id="${esc(String(r.test_id ?? ""))}"
-          data-test-name="${esc(r.test_name ?? "")}"
-          data-method-name="${esc(r.method_name ?? "")}"
-          data-orig-spec-type="${esc(normalizeBaseSpecTypeValue(r.spec_type ?? ""))}"
-          data-orig-min="${esc(String(r.min_value ?? ""))}"
-          data-orig-max="${esc(String(r.max_value ?? ""))}"
-          data-orig-text="${esc(r.text_value ?? "")}"
-          data-orig-display="${esc(r.display_text ?? "")}"
-          data-orig-uom-id="${esc(String(r.uom_id ?? ""))}"
-          data-orig-uom-symbol="${esc(r.uom_symbol ?? "")}"
-          data-orig-active="${origActive ? "1" : "0"}"
-          class="${isActive ? "" : "bs-row-inactive"}">
-        <td class="td-seq">${esc(String(seqNo))}</td>
-        <td class="td-test">${esc(r.test_name ?? "")}</td>
-        <td class="td-method">${esc(r.method_name ?? "")}</td>
-        <td>${typeBadge(dispType)}</td>
-        <td class="bs-display-text-cell${pending ? " pending" : ""}">${esc(dispText)}</td>
-        <td class="td-active">
-          <input class="spec-active rm-active-chk" type="checkbox"
-                 ${isActive ? "checked" : ""} aria-label="Active" />
-        </td>
-        <td class="td-edit-col">
-          <button class="bs-edit-btn" aria-label="Edit spec line" title="Edit specification values">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
-          </button>
-        </td>
-      </tr>`;
-    })
+    .map((r) =>
+      buildBaseSpecTableRowHtml(
+        r,
+        rmEditedSpecLines.get(r.seq_no),
+        "rm-active-chk",
+      ),
+    )
     .join("");
 
   rmTableBody.querySelectorAll("tr[data-seq]").forEach((tr) => {
@@ -2495,6 +7508,18 @@ function rmRenderSpecLines(rows) {
           max_value:
             tr.dataset.origMax !== "" ? Number(tr.dataset.origMax) : null,
           text_value: tr.dataset.origText || null,
+          target_value:
+            tr.dataset.origTarget !== ""
+              ? Number(tr.dataset.origTarget)
+              : null,
+          tolerance_value:
+            tr.dataset.origTolerance !== ""
+              ? Number(tr.dataset.origTolerance)
+              : null,
+          tolerance_uom_id:
+            tr.dataset.origToleranceUomId !== ""
+              ? Number(tr.dataset.origToleranceUomId)
+              : null,
           uom_id:
             tr.dataset.origUomId !== "" ? Number(tr.dataset.origUomId) : null,
           uom_symbol: tr.dataset.origUomSymbol || null,
@@ -2599,111 +7624,110 @@ async function rmGenerateSpec() {
 async function rmSaveSpec() {
   if (!rmCurrentProfileId || rmEditedSpecLines.size === 0) return;
   const btn = document.getElementById("rmSaveSpecBtn");
-  btn.disabled = true;
-  btn.classList.add("loading");
-  btn.textContent = "Saving...";
+  if (isBaseSpecSaveButtonBusy(btn)) return;
+  setBaseSpecSaveButtonSaving(btn);
+  try {
+    const edits = prepareBaseSpecEditsForRpc(
+      Array.from(rmEditedSpecLines.values()),
+    );
+    const { data, error } = await labSupabase.rpc(
+      "fn_create_new_spec_version_from_edits",
+      {
+        p_source_spec_profile_id: rmCurrentProfileId,
+        p_edits: edits,
+        p_remarks: "Edited via Spec Profile Manager",
+      },
+    );
 
-  const edits = Array.from(rmEditedSpecLines.values());
-  const { data, error } = await labSupabase.rpc(
-    "fn_create_new_spec_version_from_edits",
-    {
-      p_source_spec_profile_id: rmCurrentProfileId,
-      p_edits: edits,
-      p_remarks: "Edited via Spec Profile Manager",
-    },
-  );
-
-  if (error) {
-    toast("Save failed: " + error.message, "error");
-    btn.disabled = false;
-    btn.classList.remove("loading");
-    btn.textContent = "Save Spec";
-    return;
-  }
-
-  const newProfileId = Number(data);
-  rmCurrentProfileId = newProfileId;
-
-  const getAffectedCount = (val) => {
-    if (typeof val === "number" && Number.isFinite(val)) return val;
-    if (
-      typeof val === "string" &&
-      val.trim() !== "" &&
-      !Number.isNaN(Number(val))
-    ) {
-      return Number(val);
+    if (error) {
+      toast("Save failed: " + error.message, "error");
+      return;
     }
-    if (Array.isArray(val) && val.length > 0) {
-      const first = val[0];
-      if (typeof first === "number") return first;
-      if (first && typeof first === "object") {
-        for (const k of ["count", "affected_count", "affected", "result"]) {
-          if (first[k] !== undefined && !Number.isNaN(Number(first[k]))) {
-            return Number(first[k]);
+
+    const newProfileId = Number(data);
+    rmCurrentProfileId = newProfileId;
+
+    const getAffectedCount = (val) => {
+      if (typeof val === "number" && Number.isFinite(val)) return val;
+      if (
+        typeof val === "string" &&
+        val.trim() !== "" &&
+        !Number.isNaN(Number(val))
+      ) {
+        return Number(val);
+      }
+      if (Array.isArray(val) && val.length > 0) {
+        const first = val[0];
+        if (typeof first === "number") return first;
+        if (first && typeof first === "object") {
+          for (const k of ["count", "affected_count", "affected", "result"]) {
+            if (first[k] !== undefined && !Number.isNaN(Number(first[k]))) {
+              return Number(first[k]);
+            }
           }
         }
       }
-    }
-    if (val && typeof val === "object") {
-      for (const k of ["count", "affected_count", "affected", "result"]) {
-        if (val[k] !== undefined && !Number.isNaN(Number(val[k]))) {
-          return Number(val[k]);
+      if (val && typeof val === "object") {
+        for (const k of ["count", "affected_count", "affected", "result"]) {
+          if (val[k] !== undefined && !Number.isNaN(Number(val[k]))) {
+            return Number(val[k]);
+          }
         }
       }
-    }
-    return null;
-  };
+      return null;
+    };
 
-  const { data: mapData, error: mapErr } = await labSupabase.rpc(
-    "fn_set_active_rm_group_spec_profile_family",
-    {
-      p_inv_group_id: Number(rmCurrentGroupId),
-      p_spec_profile_id: newProfileId,
-      p_remarks: "Activated via Spec Profile Manager family-aware save",
-    },
-  );
-  if (mapErr) {
-    toast(
-      "Spec version saved but family-aware mapping update failed: " +
-        mapErr.message,
-      "warn",
+    const { data: mapData, error: mapErr } = await labSupabase.rpc(
+      "fn_set_active_rm_group_spec_profile_family",
+      {
+        p_inv_group_id: Number(rmCurrentGroupId),
+        p_spec_profile_id: newProfileId,
+        p_remarks: "Activated via Spec Profile Manager family-aware save",
+      },
     );
-  } else {
-    const affectedCount = getAffectedCount(mapData);
-    if (affectedCount === null) {
+    if (mapErr) {
       toast(
-        "RM spec version saved and activated for inventory group.",
-        "success",
+        "Spec version saved but family-aware mapping update failed: " +
+          mapErr.message,
+        "warn",
       );
     } else {
-      toast(
-        `Spec version saved and activated for ${affectedCount} equivalent raw material group record(s).`,
-        "success",
-      );
+      const affectedCount = getAffectedCount(mapData);
+      if (affectedCount === null) {
+        toast(
+          "RM spec version saved and activated for inventory group.",
+          "success",
+        );
+      } else {
+        toast(
+          `Spec version saved and activated for ${affectedCount} equivalent raw material group record(s).`,
+          "success",
+        );
+      }
     }
+
+    rmEditedSpecLines.clear();
+
+    const { data: meta, error: metaErr } = await labSupabase
+      .from("spec_profile")
+      .select("id, spec_name, version_no, effective_from")
+      .eq("id", newProfileId)
+      .single();
+
+    if (!metaErr && meta) {
+      const rmMetaProfileId = document.getElementById("rmMetaProfileId");
+      const rmMetaVersion = document.getElementById("rmMetaVersion");
+      const rmMetaEffDate = document.getElementById("rmMetaEffDate");
+      setMetaValue(rmMetaProfileId, String(meta.id), false);
+      setMetaValue(rmMetaVersion, `v${meta.version_no}`, false);
+      setMetaValue(rmMetaEffDate, formatDate(meta.effective_from), false);
+    }
+    await rmLoadSpecLines(newProfileId);
+  } catch (err) {
+    toast("Save failed: " + (err?.message ?? String(err)), "error");
+  } finally {
+    resetBaseSpecSaveButtonState(btn, rmEditedSpecLines.size);
   }
-
-  rmEditedSpecLines.clear();
-  rmSyncSaveBtn();
-  btn.disabled = false;
-  btn.classList.remove("loading");
-  btn.textContent = "Save Spec";
-
-  const { data: meta, error: metaErr } = await labSupabase
-    .from("spec_profile")
-    .select("id, spec_name, version_no, effective_from")
-    .eq("id", newProfileId)
-    .single();
-
-  if (!metaErr && meta) {
-    const rmMetaProfileId = document.getElementById("rmMetaProfileId");
-    const rmMetaVersion = document.getElementById("rmMetaVersion");
-    const rmMetaEffDate = document.getElementById("rmMetaEffDate");
-    setMetaValue(rmMetaProfileId, String(meta.id), false);
-    setMetaValue(rmMetaVersion, `v${meta.version_no}`, false);
-    setMetaValue(rmMetaEffDate, formatDate(meta.effective_from), false);
-  }
-  await rmLoadSpecLines(newProfileId);
 }
 
 function rmResetState() {
@@ -2933,9 +7957,7 @@ async function pmLoadSpecLines(profileId) {
   const pmBanner = document.getElementById("pmBanner");
   const { data, error } = await labSupabase
     .from("v_spec_profile_detail")
-    .select(
-      "spec_profile_id, seq_no, test_id, test_name, method_name, display_text, spec_type, min_value, max_value, text_value, spec_line_is_active, uom_id, uom_code, uom_name, uom_symbol",
-    )
+    .select(V_SPEC_PROFILE_DETAIL_SELECT)
     .eq("spec_profile_id", profileId)
     .order("seq_no");
 
@@ -2969,7 +7991,7 @@ function pmRenderSpecLines(rows) {
       : `${countActive} active / ${totalCount} total`;
 
   if (!rows.length) {
-    pmTableBodyEl.innerHTML = `<tr><td colspan="7">
+    pmTableBodyEl.innerHTML = `<tr><td colspan="8">
       <div class="spec-empty-state">
         <strong>No specification lines</strong>
         This profile has no lines yet.
@@ -2979,50 +8001,13 @@ function pmRenderSpecLines(rows) {
   }
 
   pmTableBodyEl.innerHTML = rows
-    .map((r) => {
-      const seqNo = r.seq_no;
-      const pending = pmEditedSpecLines.get(seqNo);
-      const dispType = pending
-        ? normalizeBaseSpecTypeValue(pending.spec_type)
-        : normalizeBaseSpecTypeValue(r.spec_type ?? "");
-      const dispText = pending
-        ? (pending.display_text ?? "")
-        : (r.display_text ?? "");
-      const isActive = pending ? pending.is_active : !!r.spec_line_is_active;
-      const origActive = !!r.spec_line_is_active;
-      return `<tr data-seq="${esc(String(seqNo))}"
-          data-test-id="${esc(String(r.test_id ?? ""))}"
-          data-test-name="${esc(r.test_name ?? "")}"
-          data-method-name="${esc(r.method_name ?? "")}"
-          data-orig-spec-type="${esc(normalizeBaseSpecTypeValue(r.spec_type ?? ""))}"
-          data-orig-min="${esc(String(r.min_value ?? ""))}"
-          data-orig-max="${esc(String(r.max_value ?? ""))}"
-          data-orig-text="${esc(r.text_value ?? "")}"
-          data-orig-display="${esc(r.display_text ?? "")}"
-          data-orig-uom-id="${esc(String(r.uom_id ?? ""))}"
-          data-orig-uom-symbol="${esc(r.uom_symbol ?? "")}"
-          data-orig-active="${origActive ? "1" : "0"}"
-          class="${isActive ? "" : "bs-row-inactive"}">
-        <td class="td-seq">${esc(String(seqNo))}</td>
-        <td class="td-test">${esc(r.test_name ?? "")}</td>
-        <td class="td-method">${esc(r.method_name ?? "")}</td>
-        <td>${typeBadge(dispType)}</td>
-        <td class="bs-display-text-cell${pending ? " pending" : ""}">${esc(dispText)}</td>
-        <td class="td-active">
-          <input class="spec-active pm-active-chk" type="checkbox"
-                 ${isActive ? "checked" : ""} aria-label="Active" />
-        </td>
-        <td class="td-edit-col">
-          <button class="bs-edit-btn" aria-label="Edit spec line" title="Edit specification values">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
-          </button>
-        </td>
-      </tr>`;
-    })
+    .map((r) =>
+      buildBaseSpecTableRowHtml(
+        r,
+        pmEditedSpecLines.get(r.seq_no),
+        "pm-active-chk",
+      ),
+    )
     .join("");
 
   pmTableBodyEl.querySelectorAll("tr[data-seq]").forEach((tr) => {
@@ -3045,6 +8030,18 @@ function pmRenderSpecLines(rows) {
           max_value:
             tr.dataset.origMax !== "" ? Number(tr.dataset.origMax) : null,
           text_value: tr.dataset.origText || null,
+          target_value:
+            tr.dataset.origTarget !== ""
+              ? Number(tr.dataset.origTarget)
+              : null,
+          tolerance_value:
+            tr.dataset.origTolerance !== ""
+              ? Number(tr.dataset.origTolerance)
+              : null,
+          tolerance_uom_id:
+            tr.dataset.origToleranceUomId !== ""
+              ? Number(tr.dataset.origToleranceUomId)
+              : null,
           uom_id:
             tr.dataset.origUomId !== "" ? Number(tr.dataset.origUomId) : null,
           uom_symbol: tr.dataset.origUomSymbol || null,
@@ -3148,111 +8145,110 @@ async function pmGenerateSpec() {
 async function pmSaveSpec() {
   if (!pmCurrentProfileId || pmEditedSpecLines.size === 0) return;
   const btn = document.getElementById("pmSaveSpecBtn");
-  btn.disabled = true;
-  btn.classList.add("loading");
-  btn.textContent = "Saving...";
+  if (isBaseSpecSaveButtonBusy(btn)) return;
+  setBaseSpecSaveButtonSaving(btn);
+  try {
+    const edits = prepareBaseSpecEditsForRpc(
+      Array.from(pmEditedSpecLines.values()),
+    );
+    const { data, error } = await labSupabase.rpc(
+      "fn_create_new_spec_version_from_edits",
+      {
+        p_source_spec_profile_id: pmCurrentProfileId,
+        p_edits: edits,
+        p_remarks: "Edited via Spec Profile Manager",
+      },
+    );
 
-  const edits = Array.from(pmEditedSpecLines.values());
-  const { data, error } = await labSupabase.rpc(
-    "fn_create_new_spec_version_from_edits",
-    {
-      p_source_spec_profile_id: pmCurrentProfileId,
-      p_edits: edits,
-      p_remarks: "Edited via Spec Profile Manager",
-    },
-  );
-
-  if (error) {
-    toast("Save failed: " + error.message, "error");
-    btn.disabled = false;
-    btn.classList.remove("loading");
-    btn.textContent = "Save Spec";
-    return;
-  }
-
-  const newProfileId = Number(data);
-  pmCurrentProfileId = newProfileId;
-
-  const getAffectedCount = (val) => {
-    if (typeof val === "number" && Number.isFinite(val)) return val;
-    if (
-      typeof val === "string" &&
-      val.trim() !== "" &&
-      !Number.isNaN(Number(val))
-    ) {
-      return Number(val);
+    if (error) {
+      toast("Save failed: " + error.message, "error");
+      return;
     }
-    if (Array.isArray(val) && val.length > 0) {
-      const first = val[0];
-      if (typeof first === "number") return first;
-      if (first && typeof first === "object") {
-        for (const k of ["count", "affected_count", "affected", "result"]) {
-          if (first[k] !== undefined && !Number.isNaN(Number(first[k]))) {
-            return Number(first[k]);
+
+    const newProfileId = Number(data);
+    pmCurrentProfileId = newProfileId;
+
+    const getAffectedCount = (val) => {
+      if (typeof val === "number" && Number.isFinite(val)) return val;
+      if (
+        typeof val === "string" &&
+        val.trim() !== "" &&
+        !Number.isNaN(Number(val))
+      ) {
+        return Number(val);
+      }
+      if (Array.isArray(val) && val.length > 0) {
+        const first = val[0];
+        if (typeof first === "number") return first;
+        if (first && typeof first === "object") {
+          for (const k of ["count", "affected_count", "affected", "result"]) {
+            if (first[k] !== undefined && !Number.isNaN(Number(first[k]))) {
+              return Number(first[k]);
+            }
           }
         }
       }
-    }
-    if (val && typeof val === "object") {
-      for (const k of ["count", "affected_count", "affected", "result"]) {
-        if (val[k] !== undefined && !Number.isNaN(Number(val[k]))) {
-          return Number(val[k]);
+      if (val && typeof val === "object") {
+        for (const k of ["count", "affected_count", "affected", "result"]) {
+          if (val[k] !== undefined && !Number.isNaN(Number(val[k]))) {
+            return Number(val[k]);
+          }
         }
       }
-    }
-    return null;
-  };
+      return null;
+    };
 
-  const { data: mapData, error: mapErr } = await labSupabase.rpc(
-    "fn_set_active_pm_subcategory_spec_profile_family",
-    {
-      p_subcategory_id: Number(pmCurrentGroupId),
-      p_spec_profile_id: newProfileId,
-      p_remarks: "Activated via Spec Profile Manager family-aware save",
-    },
-  );
-  if (mapErr) {
-    toast(
-      "Spec version saved but family-aware mapping update failed: " +
-        mapErr.message,
-      "warn",
+    const { data: mapData, error: mapErr } = await labSupabase.rpc(
+      "fn_set_active_pm_subcategory_spec_profile_family",
+      {
+        p_subcategory_id: Number(pmCurrentGroupId),
+        p_spec_profile_id: newProfileId,
+        p_remarks: "Activated via Spec Profile Manager family-aware save",
+      },
     );
-  } else {
-    const affectedCount = getAffectedCount(mapData);
-    if (affectedCount === null) {
+    if (mapErr) {
       toast(
-        "PM spec version saved and activated for packing material subcategory.",
-        "success",
+        "Spec version saved but family-aware mapping update failed: " +
+          mapErr.message,
+        "warn",
       );
     } else {
-      toast(
-        `Spec version saved and activated for ${affectedCount} equivalent packing material subcategory record(s).`,
-        "success",
-      );
+      const affectedCount = getAffectedCount(mapData);
+      if (affectedCount === null) {
+        toast(
+          "PM spec version saved and activated for packing material subcategory.",
+          "success",
+        );
+      } else {
+        toast(
+          `Spec version saved and activated for ${affectedCount} equivalent packing material subcategory record(s).`,
+          "success",
+        );
+      }
     }
+
+    pmEditedSpecLines.clear();
+
+    const { data: meta, error: metaErr } = await labSupabase
+      .from("spec_profile")
+      .select("id, spec_name, version_no, effective_from")
+      .eq("id", newProfileId)
+      .single();
+
+    if (!metaErr && meta) {
+      const pmMetaProfileId = document.getElementById("pmMetaProfileId");
+      const pmMetaVersion = document.getElementById("pmMetaVersion");
+      const pmMetaEffDate = document.getElementById("pmMetaEffDate");
+      setMetaValue(pmMetaProfileId, String(meta.id), false);
+      setMetaValue(pmMetaVersion, `v${meta.version_no}`, false);
+      setMetaValue(pmMetaEffDate, formatDate(meta.effective_from), false);
+    }
+    await pmLoadSpecLines(newProfileId);
+  } catch (err) {
+    toast("Save failed: " + (err?.message ?? String(err)), "error");
+  } finally {
+    resetBaseSpecSaveButtonState(btn, pmEditedSpecLines.size);
   }
-
-  pmEditedSpecLines.clear();
-  pmSyncSaveBtn();
-  btn.disabled = false;
-  btn.classList.remove("loading");
-  btn.textContent = "Save Spec";
-
-  const { data: meta, error: metaErr } = await labSupabase
-    .from("spec_profile")
-    .select("id, spec_name, version_no, effective_from")
-    .eq("id", newProfileId)
-    .single();
-
-  if (!metaErr && meta) {
-    const pmMetaProfileId = document.getElementById("pmMetaProfileId");
-    const pmMetaVersion = document.getElementById("pmMetaVersion");
-    const pmMetaEffDate = document.getElementById("pmMetaEffDate");
-    setMetaValue(pmMetaProfileId, String(meta.id), false);
-    setMetaValue(pmMetaVersion, `v${meta.version_no}`, false);
-    setMetaValue(pmMetaEffDate, formatDate(meta.effective_from), false);
-  }
-  await pmLoadSpecLines(newProfileId);
 }
 
 function pmResetState() {
@@ -3622,7 +8618,7 @@ async function onPmOverrideItemChange() {
   const { data: overrides, error: ovErr } = await labSupabase
     .from("spec_override")
     .select(
-      "id, test_id, action_type, override_method_id, override_spec_type, override_min_value, override_max_value, override_text_value, override_display_text, override_is_required, override_uom_id, is_active, reason",
+      "id, test_id, action_type, override_method_id, override_spec_type, override_min_value, override_max_value, override_text_value, override_target_value, override_tolerance_value, override_tolerance_uom_id, override_display_text, override_is_required, override_uom_id, is_active, reason",
     )
     .eq("subject_type", "PM")
     .eq("stock_item_id", stockItemId);
@@ -4013,7 +9009,7 @@ async function onOvProductChange() {
   const { data: overrides, error: ovErr } = await labSupabase
     .from("spec_override")
     .select(
-      "id, test_id, action_type, override_method_id, override_spec_type, override_min_value, override_max_value, override_text_value, override_display_text, override_is_required, override_uom_id, is_active, reason",
+      "id, test_id, action_type, override_method_id, override_spec_type, override_min_value, override_max_value, override_text_value, override_target_value, override_tolerance_value, override_tolerance_uom_id, override_display_text, override_is_required, override_uom_id, is_active, reason",
     )
     .eq("subject_type", "FG")
     .eq("product_id", productId);
@@ -4251,7 +9247,7 @@ async function onRmOverrideItemChange() {
   const { data: overrides, error: ovErr } = await labSupabase
     .from("spec_override")
     .select(
-      "id, test_id, action_type, override_method_id, override_spec_type, override_min_value, override_max_value, override_text_value, override_display_text, override_is_required, override_uom_id, is_active, reason",
+      "id, test_id, action_type, override_method_id, override_spec_type, override_min_value, override_max_value, override_text_value, override_target_value, override_tolerance_value, override_tolerance_uom_id, override_display_text, override_is_required, override_uom_id, is_active, reason",
     )
     .eq("subject_type", "RM")
     .eq("stock_item_id", stockItemId);
@@ -4948,6 +9944,9 @@ function wireBsLineModal() {
   const textEl = document.getElementById("bsLineModalText");
   const passFailSel = document.getElementById("bsLineModalPassFail");
   const uomSel = document.getElementById("bsLineModalUom");
+  const targetEl = document.getElementById("bsLineModalTarget");
+  const toleranceEl = document.getElementById("bsLineModalTolerance");
+  const toleranceUomSel = document.getElementById("bsLineModalToleranceUom");
 
   if (!modal) return;
 
@@ -4966,7 +9965,25 @@ function wireBsLineModal() {
   specTypeSel.addEventListener("change", () => {
     applyBaseSpecTypeUI();
     buildBsDisplayText();
+    hideBsLineExceptionConfirm();
+    updateBsLineModalProtocolUi();
   });
+
+  document
+    .getElementById("bsLineModalValuesLater")
+    ?.addEventListener("change", () => {
+      const displayEl = document.getElementById("bsLineModalDisplayText");
+      if (isBsLineValuesLaterMode()) {
+        displayEl.dataset.valuesLaterDisplayText = resolveBsValuesLaterDisplayText(
+          displayEl.value,
+        );
+      } else {
+        delete displayEl.dataset.valuesLaterDisplayText;
+      }
+      applyBaseSpecTypeUI();
+      buildBsDisplayText();
+      hideBsLineExceptionConfirm();
+    });
 
   [minEl, maxEl, exactEl].forEach((el) => {
     el.addEventListener("input", () => {
@@ -4982,8 +9999,38 @@ function wireBsLineModal() {
   uomSel.addEventListener("change", () => {
     buildBsDisplayText();
   });
+  targetEl?.addEventListener("input", () => {
+    buildBsDisplayText();
+  });
+  toleranceEl?.addEventListener("input", () => {
+    buildBsDisplayText();
+  });
+  toleranceUomSel?.addEventListener("change", () => {
+    buildBsDisplayText();
+  });
 
-  applyBtn.addEventListener("click", saveBsLineModal);
+  applyBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    saveBsLineModal();
+  });
+
+  document
+    .getElementById("bsLineModalExceptionConfirmCancel")
+    ?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      hideBsLineExceptionConfirm();
+    });
+  document
+    .getElementById("bsLineModalExceptionConfirmOk")
+    ?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      bsLineExceptionConfirmAcknowledged = true;
+      hideBsLineExceptionConfirm(false);
+      saveBsLineModal();
+    });
 }
 
 async function ensureTestMasterCacheWithUom() {
@@ -5025,9 +10072,15 @@ async function openBsLineModal(subject, seqNo) {
   const displayEl = document.getElementById("bsLineModalDisplayText");
   const activeChk = document.getElementById("bsLineModalActive");
   const errEl = document.getElementById("bsLineModalError");
+  const targetEl = document.getElementById("bsLineModalTarget");
+  const toleranceEl = document.getElementById("bsLineModalTolerance");
+  const toleranceUomSel = document.getElementById("bsLineModalToleranceUom");
 
   bsLineCurrentSubject = subject;
   bsLineCurrentSeqNo = seqNo;
+  bsLineProtocolContext = getBaseSpecLoadedRow(subject, seqNo);
+  bsLineModalOpenedSpecType = null;
+  hideBsLineExceptionConfirm();
 
   titleEl.textContent = "Edit Specification Line";
   errEl.classList.add("hidden");
@@ -5070,6 +10123,18 @@ async function openBsLineModal(subject, seqNo) {
       ? String(existing.max_value)
       : (tr.dataset.origMax ?? "");
   const curText = existing?.text_value ?? tr.dataset.origText ?? "";
+  const curTarget =
+    existing?.target_value != null
+      ? String(existing.target_value)
+      : (tr.dataset.origTarget ?? "");
+  const curTolerance =
+    existing?.tolerance_value != null
+      ? String(existing.tolerance_value)
+      : (tr.dataset.origTolerance ?? "");
+  const curToleranceUomId =
+    existing?.tolerance_uom_id != null
+      ? String(existing.tolerance_uom_id)
+      : (tr.dataset.origToleranceUomId ?? "");
   const curDisplay = existing?.display_text ?? tr.dataset.origDisplay ?? "";
   const curActive = existing
     ? existing.is_active
@@ -5088,10 +10153,16 @@ async function openBsLineModal(subject, seqNo) {
   const testDefaultUomId =
     testRow?.default_uom_id != null ? String(testRow.default_uom_id) : "";
 
-  const curUomId = pendingUomId || testDefaultUomId || specLineUomId || "";
+  const curUomId = pendingUomId || specLineUomId || testDefaultUomId || "";
 
   await loadLabUoms();
   populateLabUomSelect(uomSel, curUomId);
+  populateLabUomSelect(toleranceUomSel, curToleranceUomId);
+  if (toleranceUomSel) {
+    toleranceUomSel.dataset.displaySymbol =
+      tr.dataset.origToleranceUomSymbol ?? "";
+    toleranceUomSel.dataset.displayCode = tr.dataset.origToleranceUomCode ?? "";
+  }
 
   // Temporary debug log for UOM selection
   console.log("[BS Line UOM Debug]", {
@@ -5118,6 +10189,7 @@ async function openBsLineModal(subject, seqNo) {
       <option value="MIN_ONLY">Minimum only / NLT</option>
       <option value="MAX_ONLY">Maximum only / NMT</option>
       <option value="EXACT_NUMERIC">Exact numeric</option>
+      <option value="TOLERANCE">Tolerance (target ± value)</option>
     `;
   }
 
@@ -5127,21 +10199,48 @@ async function openBsLineModal(subject, seqNo) {
   } else if (specTypeSel.options.length) {
     specTypeSel.value = specTypeSel.options[0].value;
   }
+  bsLineModalOpenedSpecType = normalizeBaseSpecTypeValue(specTypeSel.value);
   specTypeSel.disabled = false;
   specTypeSel.title =
-    "Select how the reference value should be interpreted for this specification line.";
+    "Select the approved base specification type for this profile line.";
 
   // Pre-fill value fields
   minEl.value = curMin;
   maxEl.value = curMax;
   exactEl.value = curSpecType === "EXACT_NUMERIC" ? curMin : "";
   textEl.value = curText;
+  targetEl.value = curTarget;
+  toleranceEl.value = curTolerance;
   passFailSel.value = curText || "PASS";
   displayEl.value = curDisplay;
   activeChk.checked = curActive;
 
+  const valuesLaterChk = document.getElementById("bsLineModalValuesLater");
+  const valueSnapshot = {
+    min: curMin,
+    max: curMax,
+    exact: curSpecType === "EXACT_NUMERIC" ? curMin : "",
+    text: curText,
+    target: curTarget,
+    tolerance: curTolerance,
+    toleranceUomId: curToleranceUomId,
+  };
+  if (valuesLaterChk) {
+    valuesLaterChk.checked = shouldAutoEnableBsValuesLater(
+      curSpecType,
+      curDisplay,
+      valueSnapshot,
+    );
+  }
+  if (isBsValuesLaterDisplayText(curDisplay)) {
+    displayEl.dataset.valuesLaterDisplayText = String(curDisplay).trim();
+  } else {
+    delete displayEl.dataset.valuesLaterDisplayText;
+  }
+
   applyBaseSpecTypeUI();
   buildBsDisplayText();
+  updateBsLineModalProtocolUi();
 
   modal.classList.remove("hidden");
 }
@@ -5150,6 +10249,74 @@ function closeBsLineModal() {
   document.getElementById("bsLineModal").classList.add("hidden");
   bsLineCurrentSubject = null;
   bsLineCurrentSeqNo = null;
+  bsLineProtocolContext = null;
+  bsLineModalOpenedSpecType = null;
+  const valuesLaterChk = document.getElementById("bsLineModalValuesLater");
+  if (valuesLaterChk) valuesLaterChk.checked = false;
+  document.getElementById("bsLineModalValuesLaterNote")?.classList.add("hidden");
+  const displayEl = document.getElementById("bsLineModalDisplayText");
+  if (displayEl) delete displayEl.dataset.valuesLaterDisplayText;
+  hideBsLineExceptionConfirm();
+}
+
+function setBsLineLabelRequired(labelEl, text, required) {
+  if (!labelEl) return;
+  labelEl.textContent = text;
+  const existing = labelEl.querySelector(".bs-line-req");
+  if (existing) existing.remove();
+  if (required) {
+    const mark = document.createElement("span");
+    mark.className = "bs-line-req";
+    mark.style.color = "#ef4444";
+    mark.textContent = " *";
+    mark.setAttribute("aria-hidden", "true");
+    labelEl.appendChild(mark);
+  }
+}
+
+function setBsToleranceSubfieldVisibility(
+  showTarget,
+  showToleranceValue,
+  showToleranceUom,
+) {
+  const targetEl = document.getElementById("bsLineModalTarget");
+  const toleranceEl = document.getElementById("bsLineModalTolerance");
+  const toleranceUomSel = document.getElementById("bsLineModalToleranceUom");
+  targetEl?.closest(".form-group")?.classList.toggle("hidden", !showTarget);
+  toleranceEl
+    ?.closest(".form-group")
+    ?.classList.toggle("hidden", !showToleranceValue);
+  toleranceUomSel
+    ?.closest(".form-group")
+    ?.classList.toggle("hidden", !showToleranceUom);
+}
+
+const BS_TARGET_UOM_LABEL_DEFAULT =
+  "Unit of Measure (default from Test Master; editable for family-specific specification)";
+const BS_TARGET_UOM_LABEL_TOLERANCE =
+  "Target / Result UOM (optional; recommended)";
+const BS_TARGET_UOM_LABEL_TOLERANCE_DEFERRED =
+  "Target / Result UOM (optional reference metadata)";
+
+function positionBsTargetUomForTolerance(inToleranceRow) {
+  const uomRow = document.getElementById("bsLineModalUomRow");
+  const home = document.getElementById("bsLineModalUomHome");
+  const targetField = document
+    .getElementById("bsLineModalTarget")
+    ?.closest(".form-group");
+  if (!uomRow || !home) return;
+  if (inToleranceRow && targetField) {
+    targetField.insertAdjacentElement("afterend", uomRow);
+  } else {
+    home.insertAdjacentElement("afterend", uomRow);
+  }
+}
+
+function setBsTargetUomRowLabel(text) {
+  const uomRowLabel = document.querySelector(
+    "#bsLineModalUomRow label[for='bsLineModalUom']",
+  );
+  if (uomRowLabel) uomRowLabel.textContent = text;
 }
 
 function applyBaseSpecTypeUI() {
@@ -5158,21 +10325,101 @@ function applyBaseSpecTypeUI() {
   const exactRow = document.getElementById("bsLineModalExactRow");
   const textRow = document.getElementById("bsLineModalTextRow");
   const passFailRow = document.getElementById("bsLineModalPassFailRow");
+  const toleranceRow = document.getElementById("bsLineModalToleranceRow");
+  const uomRow = document.getElementById("bsLineModalUomRow");
   const uomSel = document.getElementById("bsLineModalUom");
   const minEl = document.getElementById("bsLineModalMin");
   const maxEl = document.getElementById("bsLineModalMax");
   const exactEl = document.getElementById("bsLineModalExact");
   const textEl = document.getElementById("bsLineModalText");
   const passFailSel = document.getElementById("bsLineModalPassFail");
+  const targetEl = document.getElementById("bsLineModalTarget");
+  const toleranceEl = document.getElementById("bsLineModalTolerance");
+  const toleranceUomSel = document.getElementById("bsLineModalToleranceUom");
   const minLabel = document.getElementById("bsLineModalMinLabel");
   const maxLabel = document.getElementById("bsLineModalMaxLabel");
-
-  [minMaxRow, exactRow, textRow, passFailRow].forEach((r) =>
-    r.classList.add("hidden"),
+  const targetLabel = document.getElementById("bsLineModalTargetLabel");
+  const toleranceLabel = document.getElementById("bsLineModalToleranceLabel");
+  const toleranceUomLabel = document.getElementById(
+    "bsLineModalToleranceUomLabel",
   );
-  [minEl, maxEl, exactEl, textEl, passFailSel].forEach((el) => {
-    el.disabled = true;
-  });
+  const exactLabel = document.getElementById("bsLineModalExactLabel");
+  const textLabel = document.getElementById("bsLineModalTextLabel");
+  const passFailLabel = document.getElementById("bsLineModalPassFailLabel");
+  const valuesLaterNote = document.getElementById("bsLineModalValuesLaterNote");
+  const isTolerance = normalizeBaseSpecTypeValue(specType) === "TOLERANCE";
+
+  setBsToleranceSubfieldVisibility(true, true, true);
+
+  valuesLaterNote?.classList.toggle("hidden", !isBsLineValuesLaterMode());
+  if (valuesLaterNote && isBsLineValuesLaterMode()) {
+    valuesLaterNote.textContent = isTolerance
+      ? "Values will remain to be defined. Target/result UOM and tolerance UOM can be selected separately as reference metadata."
+      : "Only the approved spec expression will be changed. Values will remain reference-defined/to be defined.";
+  }
+
+  if (isBsLineValuesLaterMode()) {
+    [minMaxRow, exactRow, textRow, passFailRow].forEach((r) =>
+      r?.classList.add("hidden"),
+    );
+    [
+      minEl,
+      maxEl,
+      exactEl,
+      textEl,
+      passFailSel,
+      targetEl,
+      toleranceEl,
+    ].forEach((el) => {
+      if (el) el.disabled = true;
+    });
+    setBsLineLabelRequired(minLabel, "Min Value (NLT)", false);
+    setBsLineLabelRequired(maxLabel, "Max Value (NMT)", false);
+    setBsLineLabelRequired(targetLabel, "Target Value", false);
+    setBsLineLabelRequired(toleranceLabel, "Tolerance Value", false);
+    setBsLineLabelRequired(toleranceUomLabel, "Tolerance UOM", false);
+    setBsLineLabelRequired(exactLabel, "Exact Value", false);
+    setBsLineLabelRequired(textLabel, "Text Value", false);
+    setBsLineLabelRequired(passFailLabel, "Expected Result", false);
+
+    if (isTolerance) {
+      toleranceRow?.classList.remove("hidden");
+      setBsToleranceSubfieldVisibility(false, false, true);
+      positionBsTargetUomForTolerance(true);
+      uomRow?.classList.remove("hidden");
+      if (uomSel) uomSel.disabled = false;
+      if (toleranceUomSel) toleranceUomSel.disabled = false;
+      setBsTargetUomRowLabel(BS_TARGET_UOM_LABEL_TOLERANCE_DEFERRED);
+    } else {
+      positionBsTargetUomForTolerance(false);
+      uomRow?.classList.add("hidden");
+      if (uomSel) uomSel.disabled = true;
+      toleranceRow?.classList.add("hidden");
+      if (toleranceUomSel) toleranceUomSel.disabled = true;
+    }
+    return;
+  }
+
+  positionBsTargetUomForTolerance(false);
+
+  [minMaxRow, exactRow, textRow, passFailRow, toleranceRow].forEach((r) =>
+    r?.classList.add("hidden"),
+  );
+  [minEl, maxEl, exactEl, textEl, passFailSel, targetEl, toleranceEl].forEach(
+    (el) => {
+      if (el) el.disabled = true;
+    },
+  );
+  if (toleranceUomSel) toleranceUomSel.disabled = true;
+
+  setBsLineLabelRequired(minLabel, "Min Value (NLT)", false);
+  setBsLineLabelRequired(maxLabel, "Max Value (NMT)", false);
+  setBsLineLabelRequired(targetLabel, "Target Value", false);
+  setBsLineLabelRequired(toleranceLabel, "Tolerance Value", false);
+  setBsLineLabelRequired(toleranceUomLabel, "Tolerance UOM", false);
+  setBsLineLabelRequired(exactLabel, "Exact Value", false);
+  setBsLineLabelRequired(textLabel, "Text Value", false);
+  setBsLineLabelRequired(passFailLabel, "Expected Result", false);
 
   minEl.value =
     specType === "MIN_ONLY" || specType === "RANGE" ? minEl.value : "";
@@ -5181,44 +10428,68 @@ function applyBaseSpecTypeUI() {
   if (specType !== "EXACT_NUMERIC") exactEl.value = "";
   if (specType !== "TEXT") textEl.value = "";
   if (specType !== "PASS_FAIL") passFailSel.value = "PASS";
+  if (specType !== "TOLERANCE") {
+    if (targetEl) targetEl.value = "";
+    if (toleranceEl) toleranceEl.value = "";
+    if (toleranceUomSel) toleranceUomSel.value = "";
+  }
 
-  uomSel.disabled = false;
+  if (specType === "TOLERANCE") {
+    positionBsTargetUomForTolerance(true);
+    if (uomRow) uomRow.classList.remove("hidden");
+    if (uomSel) uomSel.disabled = false;
+    setBsTargetUomRowLabel(BS_TARGET_UOM_LABEL_TOLERANCE);
+  } else {
+    positionBsTargetUomForTolerance(false);
+    if (uomSel) uomSel.disabled = false;
+    if (uomRow) uomRow.classList.remove("hidden");
+    setBsTargetUomRowLabel(BS_TARGET_UOM_LABEL_DEFAULT);
+  }
 
   switch (specType) {
     case "RANGE":
       minMaxRow.classList.remove("hidden");
-      minLabel.textContent = "Min Value (NLT) *";
-      maxLabel.textContent = "Max Value (NMT) *";
+      setBsLineLabelRequired(minLabel, "Min Value (NLT)", true);
+      setBsLineLabelRequired(maxLabel, "Max Value (NMT)", true);
       minEl.disabled = false;
       maxEl.disabled = false;
       break;
     case "MAX_ONLY":
       minMaxRow.classList.remove("hidden");
-      minLabel.textContent = "Min Value";
-      maxLabel.textContent = "Max Value (NMT) *";
+      setBsLineLabelRequired(maxLabel, "Max Value (NMT)", true);
       minEl.value = "";
       minEl.disabled = true;
       maxEl.disabled = false;
       break;
     case "MIN_ONLY":
       minMaxRow.classList.remove("hidden");
-      minLabel.textContent = "Min Value (NLT) *";
-      maxLabel.textContent = "Max Value";
+      setBsLineLabelRequired(minLabel, "Min Value (NLT)", true);
       maxEl.value = "";
       minEl.disabled = false;
       maxEl.disabled = true;
       break;
     case "EXACT_NUMERIC":
       exactRow.classList.remove("hidden");
+      setBsLineLabelRequired(exactLabel, "Exact Value", true);
       exactEl.disabled = false;
       break;
     case "TEXT":
       textRow.classList.remove("hidden");
+      setBsLineLabelRequired(textLabel, "Text Value", true);
       textEl.disabled = false;
       break;
     case "PASS_FAIL":
       passFailRow.classList.remove("hidden");
       passFailSel.disabled = false;
+      break;
+    case "TOLERANCE":
+      toleranceRow?.classList.remove("hidden");
+      setBsLineLabelRequired(targetLabel, "Target Value", true);
+      setBsLineLabelRequired(toleranceLabel, "Tolerance Value", true);
+      setBsLineLabelRequired(toleranceUomLabel, "Tolerance UOM", true);
+      if (targetEl) targetEl.disabled = false;
+      if (toleranceEl) toleranceEl.disabled = false;
+      if (toleranceUomSel) toleranceUomSel.disabled = false;
       break;
   }
 }
@@ -5230,8 +10501,21 @@ function buildBsDisplayText() {
   const exactEl = document.getElementById("bsLineModalExact");
   const textEl = document.getElementById("bsLineModalText");
   const passFailSel = document.getElementById("bsLineModalPassFail");
+  const targetEl = document.getElementById("bsLineModalTarget");
+  const toleranceEl = document.getElementById("bsLineModalTolerance");
+  const toleranceUomSel = document.getElementById("bsLineModalToleranceUom");
+  const uomSel = document.getElementById("bsLineModalUom");
   const displayEl = document.getElementById("bsLineModalDisplayText");
   const preview = document.getElementById("bsLineModalDisplayPreview");
+
+  if (isBsLineValuesLaterMode()) {
+    const valuesLaterText = resolveBsValuesLaterDisplayText(
+      displayEl.dataset.valuesLaterDisplayText || displayEl.value,
+    );
+    displayEl.value = valuesLaterText;
+    preview.textContent = valuesLaterText || "—";
+    return;
+  }
 
   let generated = "";
   let isNumericType = false;
@@ -5263,6 +10547,14 @@ function buildBsDisplayText() {
     case "PASS_FAIL":
       generated = passFailSel.value;
       break;
+    case "TOLERANCE":
+      generated = buildToleranceDisplayText(
+        targetEl?.value.trim() ?? "",
+        toleranceEl?.value.trim() ?? "",
+        selectedUomSymbol(uomSel),
+        selectedToleranceUomSymbol(toleranceUomSel),
+      );
+      break;
   }
 
   const finalText = isNumericType
@@ -5280,6 +10572,9 @@ function saveBsLineModal() {
   const textEl = document.getElementById("bsLineModalText");
   const passFailSel = document.getElementById("bsLineModalPassFail");
   const uomSel = document.getElementById("bsLineModalUom");
+  const targetEl = document.getElementById("bsLineModalTarget");
+  const toleranceEl = document.getElementById("bsLineModalTolerance");
+  const toleranceUomSel = document.getElementById("bsLineModalToleranceUom");
   const displayEl = document.getElementById("bsLineModalDisplayText");
   const activeChk = document.getElementById("bsLineModalActive");
   const errEl = document.getElementById("bsLineModalError");
@@ -5289,74 +10584,161 @@ function saveBsLineModal() {
 
   const specType = normalizeBaseSpecTypeValue(specTypeSel.value);
   if (!specType) {
-    showBanner(errEl, "error", "Spec Type is required.");
+    showBanner(errEl, "error", "Approved Base Spec Type is required.");
     return;
   }
+
+  const valuesLater = isBsLineValuesLaterMode();
 
   // Collect and validate values per spec type
   let minValue = null;
   let maxValue = null;
   let textValue = null;
+  let targetValue = null;
+  let toleranceValue = null;
+  let toleranceUomId = null;
 
-  switch (specType) {
-    case "RANGE":
-      if (!minEl.value.trim() || !maxEl.value.trim()) {
-        showBanner(errEl, "error", "RANGE requires both Min and Max values.");
-        return;
-      }
-      minValue = Number(minEl.value);
-      maxValue = Number(maxEl.value);
-      if (minValue >= maxValue) {
-        showBanner(
-          errEl,
-          "error",
-          "Min value must be less than Max value for RANGE.",
-        );
-        return;
-      }
-      break;
-    case "MAX_ONLY":
-      if (!maxEl.value.trim()) {
-        showBanner(errEl, "error", "MAX_ONLY requires a Max value.");
-        return;
-      }
-      maxValue = Number(maxEl.value);
-      break;
-    case "MIN_ONLY":
-      if (!minEl.value.trim()) {
-        showBanner(errEl, "error", "MIN_ONLY requires a Min value.");
-        return;
-      }
-      minValue = Number(minEl.value);
-      break;
-    case "EXACT_NUMERIC":
-      if (!exactEl.value.trim()) {
-        showBanner(errEl, "error", "Exact Value is required.");
-        return;
-      }
-      minValue = Number(exactEl.value); // EXACT_NUMERIC stores in min_value
-      break;
-    case "TEXT":
-      if (!textEl.value.trim()) {
-        showBanner(errEl, "error", "Text Value is required.");
-        return;
-      }
-      textValue = textEl.value.trim();
-      break;
-    case "PASS_FAIL":
-      textValue = passFailSel.value;
-      break;
+  if (valuesLater) {
+    if (specType === "TOLERANCE") {
+      toleranceUomId = readBsModalToleranceUomId();
+    }
+  } else {
+    switch (specType) {
+      case "RANGE":
+        if (!minEl.value.trim() || !maxEl.value.trim()) {
+          showBanner(errEl, "error", "RANGE requires both Min and Max values.");
+          return;
+        }
+        minValue = Number(minEl.value);
+        maxValue = Number(maxEl.value);
+        if (minValue >= maxValue) {
+          showBanner(
+            errEl,
+            "error",
+            "Min value must be less than Max value for RANGE.",
+          );
+          return;
+        }
+        break;
+      case "MAX_ONLY":
+        if (!maxEl.value.trim()) {
+          showBanner(errEl, "error", "MAX_ONLY requires a Max value.");
+          return;
+        }
+        maxValue = Number(maxEl.value);
+        break;
+      case "MIN_ONLY":
+        if (!minEl.value.trim()) {
+          showBanner(errEl, "error", "MIN_ONLY requires a Min value.");
+          return;
+        }
+        minValue = Number(minEl.value);
+        break;
+      case "EXACT_NUMERIC":
+        if (!exactEl.value.trim()) {
+          showBanner(errEl, "error", "Exact Value is required.");
+          return;
+        }
+        minValue = Number(exactEl.value); // EXACT_NUMERIC stores in min_value
+        break;
+      case "TEXT":
+        if (!textEl.value.trim()) {
+          showBanner(errEl, "error", "Text Value is required.");
+          return;
+        }
+        textValue = textEl.value.trim();
+        break;
+      case "PASS_FAIL":
+        textValue = passFailSel.value;
+        break;
+      case "TOLERANCE":
+        if (!targetEl?.value.trim() || !toleranceEl?.value.trim()) {
+          showBanner(
+            errEl,
+            "error",
+            "TOLERANCE requires Target Value and Tolerance Value.",
+          );
+          return;
+        }
+        if (!toleranceUomSel?.value) {
+          showBanner(
+            errEl,
+            "error",
+            "Tolerance UOM is required for tolerance specifications.",
+          );
+          return;
+        }
+        targetValue = Number(targetEl.value);
+        toleranceValue = Number(toleranceEl.value);
+        toleranceUomId = Number(toleranceUomSel.value);
+        minValue = null;
+        maxValue = null;
+        textValue = null;
+        break;
+    }
   }
 
-  // Display text is always system-generated from spec type, values, and selected UOM.
+  if (
+    needsProfileExceptionConfirmOnApply(specType) &&
+    !bsLineExceptionConfirmAcknowledged
+  ) {
+    const protocolDefault = normalizeProtocolDefaultSpecType(
+      bsLineProtocolContext?.protocol_default_spec_type,
+    );
+    showBsLineExceptionConfirm(protocolDefault, specType);
+    return;
+  }
+
   buildBsDisplayText();
-  const displayText = displayEl.value.trim();
-  const uomId = uomSel.value ? Number(uomSel.value) : null;
-  const uomRow = (labUomRows ?? []).find((u) => Number(u.id) === uomId);
+  const displayText = valuesLater
+    ? resolveBsValuesLaterDisplayText(
+        displayEl.dataset.valuesLaterDisplayText || displayEl.value,
+      )
+    : displayEl.value.trim();
+  let uomId = null;
+  let uomRow = null;
+  if (specType === "TOLERANCE") {
+    uomId = readBsModalTargetUomId();
+    uomRow = uomId
+      ? (labUomRows ?? []).find((u) => Number(u.id) === uomId)
+      : null;
+  } else if (!valuesLater) {
+    uomId = uomSel.value ? Number(uomSel.value) : null;
+    uomRow = (labUomRows ?? []).find((u) => Number(u.id) === uomId);
+  }
   const isActive = activeChk.checked;
   const seqNo = bsLineCurrentSeqNo;
 
-  // Write to the appropriate edits Map
+  commitBsLineModalEdits({
+    specType,
+    minValue,
+    maxValue,
+    textValue,
+    targetValue,
+    toleranceValue,
+    toleranceUomId,
+    displayText,
+    uomId,
+    uomSymbol: uomRow?.symbol ?? null,
+    isActive,
+    seqNo,
+  });
+}
+
+function commitBsLineModalEdits({
+  specType,
+  minValue,
+  maxValue,
+  textValue,
+  targetValue,
+  toleranceValue,
+  toleranceUomId,
+  displayText,
+  uomId,
+  uomSymbol,
+  isActive,
+  seqNo,
+}) {
   const editedMap =
     bsLineCurrentSubject === "FG"
       ? bsEditedSpecLines
@@ -5384,6 +10766,17 @@ function saveBsLineModal() {
       ? Number(tr.dataset.origMax)
       : null;
   const origText = tr?.dataset.origText || null;
+  const origTarget =
+    tr?.dataset.origTarget !== undefined && tr.dataset.origTarget !== ""
+      ? Number(tr.dataset.origTarget)
+      : null;
+  const origTolerance =
+    tr?.dataset.origTolerance !== undefined && tr.dataset.origTolerance !== ""
+      ? Number(tr.dataset.origTolerance)
+      : null;
+  const origToleranceUomId = tr?.dataset.origToleranceUomId
+    ? Number(tr.dataset.origToleranceUomId)
+    : null;
   const origDisplay = tr?.dataset.origDisplay || null;
   const origUomId = tr?.dataset.origUomId ? Number(tr.dataset.origUomId) : null;
   const origActive = tr?.dataset.origActive === "1";
@@ -5393,6 +10786,9 @@ function saveBsLineModal() {
     minValue !== origMin ||
     maxValue !== origMax ||
     textValue !== origText ||
+    targetValue !== origTarget ||
+    toleranceValue !== origTolerance ||
+    toleranceUomId !== origToleranceUomId ||
     displayText !== origDisplay ||
     uomId !== origUomId ||
     isActive !== origActive;
@@ -5406,14 +10802,16 @@ function saveBsLineModal() {
       min_value: minValue,
       max_value: maxValue,
       text_value: textValue,
+      target_value: targetValue,
+      tolerance_value: toleranceValue,
+      tolerance_uom_id: toleranceUomId,
       uom_id: uomId,
-      uom_symbol: uomRow?.symbol ?? null,
+      uom_symbol: uomSymbol,
       display_text: displayText,
       is_active: isActive,
     });
   }
 
-  // Re-render the table to reflect the new values
   if (bsLineCurrentSubject === "FG") {
     bsRenderSpecLines(bsLoadedRows);
   } else if (bsLineCurrentSubject === "RM") {
@@ -5527,6 +10925,7 @@ function applySpecTypeOptionsForSelectedTest() {
       ["NMT", "NMT — Not More Than"],
       ["NLT", "NLT — Not Less Than"],
       ["EXACT_NUMERIC", "EXACT NUMERIC — equals value"],
+      ["TOLERANCE", "TOLERANCE — target ± tolerance"],
     ];
   } else if (resultKind === "TEXT") {
     options = [["TEXT", "TEXT — expected text"]];
@@ -5692,8 +11091,12 @@ async function openOverrideModal(mode, row) {
   await loadLabUoms();
 
   const selectedUomId =
-    mode === "edit" && row?.override_uom_id != null
-      ? String(row.override_uom_id)
+    mode === "edit" && row
+      ? String(
+          String(row.override_spec_type ?? "").toUpperCase() === "TOLERANCE"
+            ? (row.override_tolerance_uom_id ?? row.override_uom_id ?? "")
+            : (row.override_uom_id ?? ""),
+        )
       : "";
   populateLabUomSelect(uomSel, selectedUomId);
 
@@ -5706,6 +11109,12 @@ async function openOverrideModal(mode, row) {
       max: String(row.override_max_value ?? ""),
       text: row.override_text_value ?? "",
       exact: String(row.override_min_value ?? ""), // EXACT_NUMERIC stores in min_value
+      target: String(row.override_target_value ?? ""),
+      tolerance: String(row.override_tolerance_value ?? ""),
+      toleranceUomId:
+        row.override_tolerance_uom_id != null
+          ? String(row.override_tolerance_uom_id)
+          : "",
     };
     // Restrict action options first, then restore saved action if valid
     applyActionOptionsForSelectedTest();
@@ -5722,7 +11131,7 @@ async function openOverrideModal(mode, row) {
   } else {
     testSel.value = "";
     reasonEl.value = "";
-    ovModalPrefill = { min: "", max: "", text: "", exact: "" };
+    ovModalPrefill = { min: "", max: "", text: "", exact: "", target: "", tolerance: "", toleranceUomId: "" };
     applyActionOptionsForSelectedTest(); // will show "-- Select test first --"
     applySpecTypeOptionsForSelectedTest(); // will show "-- Select test first --"
     if (uomSel) {
@@ -5747,6 +11156,22 @@ function closeOverrideModal() {
   ovModalPrefill = {};
 }
 
+function updateOverrideUomRowVisibility() {
+  const specType = document.getElementById("ovModalSpecType")?.value;
+  const uomRow = document.getElementById("ovModalUomRow");
+  const uomSel = document.getElementById("ovModalUom");
+  const uomLabel = document.getElementById("ovModalUomLabel");
+  if (!uomRow || !uomSel) return;
+  uomRow.classList.remove("hidden");
+  uomSel.disabled = false;
+  if (uomLabel) {
+    uomLabel.textContent =
+      specType === "TOLERANCE"
+        ? BS_TARGET_UOM_LABEL_TOLERANCE
+        : "Unit of Measure";
+  }
+}
+
 function updateModalDynamics() {
   const action = document.getElementById("ovModalAction").value;
   const specSection = document.getElementById("ovModalSpecSection");
@@ -5761,7 +11186,8 @@ function updateModalDynamics() {
 function renderDynamicInputs() {
   const specType = document.getElementById("ovModalSpecType").value;
   const dyn = document.getElementById("ovModalDyn");
-  const { min, max, text, exact } = ovModalPrefill;
+  const { min, max, text, exact, target, tolerance, toleranceUomId } =
+    ovModalPrefill;
 
   let html = "";
   if (specType === "RANGE") {
@@ -5801,13 +11227,47 @@ function renderDynamicInputs() {
   } else if (specType === "PASS_FAIL") {
     html = `<p style="grid-column:1/-1;color:var(--muted,#6b7280);font-size:13px;margin:0;">
       No value input required — result will be recorded as Pass or Fail.</p>`;
+  } else if (specType === "TOLERANCE") {
+    // TOLERANCE override: target ± tolerance with separate tolerance UOM
+    html = `
+      <div class="form-group">
+        <label for="ovModalTarget">Target Value <span style="color:#ef4444">*</span></label>
+        <input type="number" id="ovModalTarget" class="form-control" step="any" placeholder="e.g. 500" value="${esc(target)}">
+      </div>
+      <div class="form-group">
+        <label for="ovModalTolerance">Tolerance Value <span style="color:#ef4444">*</span></label>
+        <input type="number" id="ovModalTolerance" class="form-control" step="any" placeholder="e.g. 10" value="${esc(tolerance)}">
+      </div>
+      <div class="form-group">
+        <label for="ovModalToleranceUom">Tolerance UOM <span style="color:#ef4444">*</span></label>
+        <select id="ovModalToleranceUom" class="form-control"></select>
+      </div>`;
   }
   dyn.innerHTML = html;
 
+  if (specType === "TOLERANCE") {
+    populateLabUomSelect(
+      document.getElementById("ovModalToleranceUom"),
+      toleranceUomId,
+    );
+  }
+
+  updateOverrideUomRowVisibility();
+
   // Wire value inputs for live display-text preview
-  ["ovModalMin", "ovModalMax", "ovModalText", "ovModalExact"].forEach((id) => {
+  [
+    "ovModalMin",
+    "ovModalMax",
+    "ovModalText",
+    "ovModalExact",
+    "ovModalTarget",
+    "ovModalTolerance",
+  ].forEach((id) => {
     document.getElementById(id)?.addEventListener("input", updateDisplayText);
   });
+  document
+    .getElementById("ovModalToleranceUom")
+    ?.addEventListener("change", updateDisplayText);
   updateDisplayText();
 }
 
@@ -5835,6 +11295,17 @@ function updateDisplayText() {
     text = document.getElementById("ovModalText")?.value.trim() || "—";
   } else if (specType === "PASS_FAIL") {
     text = "Passes";
+  } else if (specType === "TOLERANCE") {
+    const targetV = document.getElementById("ovModalTarget")?.value.trim();
+    const tolV = document.getElementById("ovModalTolerance")?.value.trim();
+    const tolUomSel = document.getElementById("ovModalToleranceUom");
+    const uomSel = document.getElementById("ovModalUom");
+    text = buildToleranceDisplayText(
+      targetV,
+      tolV,
+      selectedUomSymbol(uomSel),
+      selectedToleranceUomSymbol(tolUomSel),
+    );
   }
 
   const isNumericType = ["RANGE", "NMT", "NLT", "EXACT_NUMERIC"].includes(
@@ -5916,7 +11387,7 @@ async function saveOverrideModal() {
   const testId = document.getElementById("ovModalTest").value;
   const actionType = document.getElementById("ovModalAction").value;
   const reason = document.getElementById("ovModalReason").value.trim();
-  const overrideUomId = document.getElementById("ovModalUom")?.value
+  let overrideUomId = document.getElementById("ovModalUom")?.value
     ? Number(document.getElementById("ovModalUom").value)
     : null;
 
@@ -5989,6 +11460,9 @@ async function saveOverrideModal() {
     minVal = null,
     maxVal = null,
     textVal = null,
+    targetVal = null,
+    toleranceVal = null,
+    toleranceUomId = null,
     displayText = null;
 
   if (actionType !== "disable") {
@@ -6036,6 +11510,32 @@ async function saveOverrideModal() {
       displayText = textVal;
     } else if (specType === "PASS_FAIL") {
       displayText = "Passes";
+    } else if (specType === "TOLERANCE") {
+      targetVal = document.getElementById("ovModalTarget")?.value.trim() || null;
+      toleranceVal =
+        document.getElementById("ovModalTolerance")?.value.trim() || null;
+      const tolUomRaw =
+        document.getElementById("ovModalToleranceUom")?.value || "";
+      toleranceUomId = tolUomRaw ? Number(tolUomRaw) : null;
+      if (!targetVal || !toleranceVal) {
+        showBanner(
+          banner,
+          "error",
+          "Target and tolerance values are required for TOLERANCE.",
+        );
+        return;
+      }
+      if (!toleranceUomId) {
+        showBanner(
+          banner,
+          "error",
+          "Tolerance UOM is required for tolerance specifications.",
+        );
+        return;
+      }
+      minVal = null;
+      maxVal = null;
+      textVal = null;
     }
 
     updateDisplayText();
@@ -6072,6 +11572,11 @@ async function saveOverrideModal() {
       p_min_value: minVal !== null ? Number(minVal) : null,
       p_max_value: maxVal !== null ? Number(maxVal) : null,
       p_text_value: textVal ?? null,
+      p_override_target_value:
+        targetVal !== null ? Number(targetVal) : null,
+      p_override_tolerance_value:
+        toleranceVal !== null ? Number(toleranceVal) : null,
+      p_override_tolerance_uom_id: toleranceUomId,
       p_display_text: displayText ?? null,
       p_override_uom_id: actionType === "disable" ? null : overrideUomId,
       p_reason: reason || null,
@@ -6121,9 +11626,8 @@ function renderOverrideRow(r) {
     <td><span class="action-badge ${actionClass}">${esc(r.action_type ?? "")}</span></td>
     <td style="color:var(--muted,#6b7280);">${esc(r.override_spec_type ?? "—")}</td>
     <td>${esc(r.override_display_text ?? "—")}${uomSuffix ? `<span style="color:var(--muted,#6b7280);font-size:12px;"> ${esc(uomSuffix)}</span>` : ""}</td>
-    <td class="td-active">
-      <input type="checkbox" class="ov-active-chk" data-ov-id="${esc(String(r.id))}"
-        ${r.is_active ? "checked" : ""} aria-label="Active">
+    <td class="td-active" style="text-align:center;color:var(--muted,#6b7280);">
+      ${r.is_active === false ? "No" : "Yes"}
     </td>
     <td>
       <button type="button" class="edit-ov-btn"
@@ -6134,6 +11638,9 @@ function renderOverrideRow(r) {
         data-min="${esc(String(r.override_min_value ?? ""))}"
         data-max="${esc(String(r.override_max_value ?? ""))}"
         data-text="${esc(r.override_text_value ?? "")}"
+        data-target="${esc(String(r.override_target_value ?? ""))}"
+        data-tolerance="${esc(String(r.override_tolerance_value ?? ""))}"
+        data-tolerance-uom-id="${esc(String(r.override_tolerance_uom_id ?? ""))}"
         data-display="${esc(r.override_display_text ?? "")}"
         data-uom-id="${esc(String(r.override_uom_id ?? ""))}"
         data-reason="${esc(r.reason ?? "")}"
@@ -6142,40 +11649,8 @@ function renderOverrideRow(r) {
   </tr>`;
 }
 
-// Wire active-toggle and edit-button events on an override tbody after innerHTML render
+// Wire edit-button events on an override tbody after innerHTML render
 function wireOverrideTableEvents(tbody) {
-  tbody.querySelectorAll(".ov-active-chk").forEach((chk) => {
-    chk.addEventListener("change", async () => {
-      const newActive = chk.checked;
-
-      const userId = await getCurrentUserId();
-      if (!userId) {
-        toast("User session not available. Please log in again.", "error", 4000);
-        chk.checked = !newActive;
-        return;
-      }
-
-      const { error } = await labSupabase.rpc("fn_toggle_spec_override", {
-        p_user_id: userId,
-        p_override_id: Number(chk.dataset.ovId),
-        p_is_active: newActive,
-      });
-      if (error) {
-        toast("Failed to update active status: " + error.message, "error");
-        chk.checked = !newActive; // revert
-      } else {
-        toast(
-          newActive ? "Override activated." : "Override deactivated.",
-          "success",
-        );
-        // Reload override table to reflect updated active state
-        if (currentSubjectType === "FG") await onOvProductChange();
-        else if (currentSubjectType === "RM") await onRmOverrideItemChange();
-        else if (currentSubjectType === "PM") await onPmOverrideItemChange();
-      }
-    });
-  });
-
   tbody.querySelectorAll(".edit-ov-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const d = btn.dataset;
@@ -6187,6 +11662,10 @@ function wireOverrideTableEvents(tbody) {
         override_min_value: d.min !== "" ? d.min : null,
         override_max_value: d.max !== "" ? d.max : null,
         override_text_value: d.text || null,
+        override_target_value: d.target !== "" ? d.target : null,
+        override_tolerance_value: d.tolerance !== "" ? d.tolerance : null,
+        override_tolerance_uom_id:
+          d.toleranceUomId !== "" ? Number(d.toleranceUomId) : null,
         override_display_text: d.display,
         override_uom_id: d.uomId !== "" ? Number(d.uomId) : null,
         reason: d.reason,
@@ -6248,17 +11727,57 @@ function populateLabUomSelect(selectEl, selectedId) {
       .join("");
 }
 
-function selectedUomSymbol() {
-  const uomSel = document.getElementById("bsLineModalUom");
+function selectedUomSymbol(selectEl) {
+  const uomSel = selectEl || document.getElementById("bsLineModalUom");
   const id = Number(uomSel?.value || 0);
-  if (!id) return "";
-  const row = (labUomRows ?? []).find((u) => Number(u.id) === id);
-  return String(row?.symbol ?? "").trim();
+  if (id) {
+    const row = (labUomRows ?? []).find((u) => Number(u.id) === id);
+    return normalizeToleranceUomSymbol(row?.symbol ?? row?.uom_code ?? "");
+  }
+  return "";
+}
+
+function normalizeToleranceUomSymbol(symbol) {
+  const unit = String(symbol ?? "").trim();
+  if (!unit || unit.toUpperCase() === "NONE") return "";
+  return unit;
+}
+
+/** TOLERANCE display: target [targetUOM] ± tolerance [toleranceUOM] */
+function buildToleranceDisplayText(
+  target,
+  tolerance,
+  targetUomSymbol,
+  toleranceUomSymbol,
+) {
+  const targetText = String(target ?? "").trim();
+  const toleranceText = String(tolerance ?? "").trim();
+  if (!targetText || !toleranceText) return "";
+  const targetUnit = normalizeToleranceUomSymbol(targetUomSymbol);
+  const toleranceUnit = normalizeToleranceUomSymbol(toleranceUomSymbol);
+  let text = targetUnit ? `${targetText} ${targetUnit}` : targetText;
+  text += ` ± ${toleranceText}`;
+  if (toleranceUnit) text += ` ${toleranceUnit}`;
+  return text.trim();
+}
+
+function selectedToleranceUomSymbol(selectEl) {
+  const id = Number(selectEl?.value || 0);
+  if (id) {
+    const row = (labUomRows ?? []).find((u) => Number(u.id) === id);
+    const fromPicker = normalizeToleranceUomSymbol(
+      row?.symbol ?? row?.uom_code ?? "",
+    );
+    if (fromPicker) return fromPicker;
+  }
+  const fallbackSymbol = String(selectEl?.dataset?.displaySymbol ?? "").trim();
+  const fallbackCode = String(selectEl?.dataset?.displayCode ?? "").trim();
+  return normalizeToleranceUomSymbol(fallbackSymbol || fallbackCode);
 }
 
 function appendUomIfNeeded(text, symbol) {
   const value = String(text ?? "").trim();
-  const unit = String(symbol ?? "").trim();
+  const unit = normalizeToleranceUomSymbol(symbol);
   if (!value || !unit) return value;
   if (value.toLowerCase().includes(unit.toLowerCase())) return value;
   return `${value} ${unit}`;
