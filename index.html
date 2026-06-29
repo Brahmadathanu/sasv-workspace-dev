@@ -1095,7 +1095,7 @@
         opacity: 0.34;
       }
 
-      #workspace-sections .module-link:not(.locked-module)::after {
+      #workspace-sections .module-link:not(.locked-module):not(.read-only-module)::after {
         content: "›";
         font-size: 18px;
         font-weight: 800;
@@ -1115,7 +1115,7 @@
         color: #113e5f;
         text-decoration: none;
       }
-      #workspace-sections .module-link:not(.locked-module):hover::after {
+      #workspace-sections .module-link:not(.locked-module):not(.read-only-module):hover::after {
         opacity: 1;
         transform: translateX(1px);
       }
@@ -1221,6 +1221,23 @@
         border-radius: 999px;
         background: rgba(148, 163, 184, 0.08);
         color: #64748b;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        line-height: 1.35;
+        flex-shrink: 0;
+        margin-left: auto;
+      }
+      #workspace-sections .module-link.read-only-module {
+        border-color: rgba(245, 158, 11, 0.28);
+      }
+      #workspace-sections .module-link.read-only-module::after {
+        content: "Read only";
+        padding: 2px 6px;
+        border: 1px solid rgba(245, 158, 11, 0.35);
+        border-radius: 999px;
+        background: rgba(245, 158, 11, 0.1);
+        color: #92400e;
         font-size: 0.68rem;
         font-weight: 700;
         letter-spacing: 0.02em;
@@ -1383,6 +1400,13 @@
         border-color: rgba(148, 163, 184, 0.24);
         background: rgba(148, 163, 184, 0.12);
         color: #cbd5e1;
+      }
+      [data-theme="dark"]
+        #workspace-sections
+        .module-link.read-only-module::after {
+        border-color: rgba(245, 158, 11, 0.35);
+        background: rgba(245, 158, 11, 0.14);
+        color: #fbbf24;
       }
       [data-theme="dark"] #workspace-sections .module-link:hover .ml-initial {
         background: var(--identity-color, #0ea5e9);
@@ -3071,13 +3095,25 @@
                 if (isPlaceholder) return;
 
                 if (accessLevel === "use") {
-                  anchor.classList.remove("locked-module");
+                  anchor.classList.remove("locked-module", "read-only-module");
                   anchor.removeAttribute("aria-disabled");
                   anchor.title = "";
                   if (anchor.dataset.href) {
                     anchor.setAttribute("href", anchor.dataset.href);
                   }
-                } else {
+                } else if (accessLevel === "read") {
+                  if (!anchor.dataset.href) {
+                    anchor.dataset.href = anchor.getAttribute("href") || "";
+                  }
+                  anchor.classList.remove("locked-module");
+                  anchor.classList.add("read-only-module");
+                  anchor.removeAttribute("aria-disabled");
+                  anchor.title = "Read-only access";
+                  if (anchor.dataset.href) {
+                    anchor.setAttribute("href", anchor.dataset.href);
+                  }
+                } else if (accessLevel === "view") {
+                  anchor.classList.remove("read-only-module");
                   if (!anchor.dataset.href) {
                     anchor.dataset.href = anchor.getAttribute("href") || "";
                   }

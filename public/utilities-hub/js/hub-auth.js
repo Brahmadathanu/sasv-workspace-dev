@@ -163,18 +163,23 @@ function renderUtilitiesSectioned(utilities, accessMap) {
         <div class="hub-grid">`;
 
     list.forEach((utility) => {
-      const isViewOnly = utility.accessLevel === "view";
-      const href = isViewOnly ? "#" : utility.href;
-      const title = isViewOnly
+      const isLockedView = utility.accessLevel === "view";
+      const isReadEntry = utility.accessLevel === "read";
+      const href = isLockedView ? "#" : utility.href;
+      const title = isLockedView
         ? "View-only access. Contact admin for full access."
-        : "";
-      const action = isViewOnly
+        : isReadEntry
+          ? "Read-only access"
+          : "";
+      const action = isLockedView
         ? '<span class="hub-card-note">View only</span>'
-        : "";
+        : isReadEntry
+          ? '<span class="hub-card-note">Read only</span>'
+          : "";
 
       html += `
-        <article class="hub-card${isViewOnly ? " muted" : ""}" tabindex="-1">
-          <h3><a href="${safeText(href)}" data-href="${safeText(utility.href)}" data-module-key="${safeText(utility.moduleKey)}"${isViewOnly ? ' aria-disabled="true"' : ""}${title ? ` title="${safeText(title)}"` : ""}>${safeText(utility.label)}</a></h3>
+        <article class="hub-card${isLockedView ? " muted" : ""}" tabindex="-1">
+          <h3><a href="${safeText(href)}" data-href="${safeText(utility.href)}" data-module-key="${safeText(utility.moduleKey)}"${isLockedView ? ' aria-disabled="true"' : ""}${title ? ` title="${safeText(title)}"` : ""}>${safeText(utility.label)}</a></h3>
           <p>${safeText(utility.description || "")}</p>
           ${action}
         </article>`;

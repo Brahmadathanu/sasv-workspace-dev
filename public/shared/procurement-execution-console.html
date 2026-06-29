@@ -1565,6 +1565,36 @@
           grid-template-columns: 1fr !important;
         }
       }
+
+      .status-area {
+        margin: 8px 0;
+        padding: 10px 12px;
+        border-radius: 8px;
+        border: 1px solid var(--border, #e5e7eb);
+        font-size: 13px;
+      }
+
+      .status-area.error {
+        background: var(--toast-error-bg, #fef2f2);
+        color: var(--toast-error-text, #991b1b);
+        border-color: var(--toast-error-border, #fca5a5);
+      }
+
+      .view-only-banner {
+        margin: 8px 0;
+        padding: 9px 12px;
+        border-radius: 8px;
+        border: 1px solid rgba(245, 158, 11, 0.35);
+        background: rgba(245, 158, 11, 0.1);
+        color: #92400e;
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      body.view-only-mode [data-edit-action="true"]:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
     </style>
   </head>
 
@@ -1666,7 +1696,12 @@
       </div>
     </div>
 
+    <div id="statusArea" class="status-area" role="status" aria-live="polite" hidden></div>
+
     <section class="panel page-shell" id="mainPanel">
+      <div id="viewOnlyBanner" class="view-only-banner" role="status" aria-live="polite" hidden>
+        Read-only access: workflow actions are disabled for your account.
+      </div>
       <div class="tabs-card">
         <div class="tab-select-wrap">
           <select id="procTabSelect" class="tab-select" aria-label="Select tab">
@@ -1821,6 +1856,7 @@
               <button
                 id="btnGeneratePr"
                 type="button"
+                data-edit-action="true"
                 class="icon-btn primary"
                 title="Generate Draft PR"
                 aria-label="Generate Draft PR"
@@ -2191,6 +2227,7 @@
             >
               <button
                 id="iBtnNewDraft"
+                data-edit-action="true"
                 class="icon-btn primary"
                 title="New Indent"
                 aria-label="New Indent"
@@ -2212,6 +2249,7 @@
               </button>
               <button
                 id="iBtnFromPR"
+                data-edit-action="true"
                 class="icon-btn primary"
                 title="Create from PR"
                 aria-label="Create from PR"
@@ -2240,6 +2278,7 @@
                 <span class="muted" id="iMeta"></span>
                 <button
                   id="btnRefreshProcurementSnapshots"
+                  data-edit-action="true"
                   class="icon-btn"
                   type="button"
                   title="Refresh procurement snapshots"
@@ -3054,6 +3093,7 @@
               <button
                 class="icon-btn ghost"
                 id="btnIndentCreatePrRevision"
+                data-edit-action="true"
                 title="Create PR Revision"
                 aria-label="Create PR Revision"
               >
@@ -3077,6 +3117,7 @@
               <button
                 class="icon-btn ghost"
                 id="btnIndentSetSourcePr"
+                data-edit-action="true"
                 title="Set Source PR"
                 aria-label="Set Source PR"
               >
@@ -3101,6 +3142,7 @@
                 <button
                   class="icon-btn primary"
                   id="btnIndentResyncMenu"
+                  data-edit-action="true"
                   title="Resync"
                   aria-label="Resync options"
                   aria-haspopup="true"
@@ -3124,13 +3166,14 @@
                   </svg>
                 </button>
                 <div class="export-dropdown" id="iResyncDropdown" role="menu">
-                  <button id="btnIndentResyncSafe" role="menuitem">Safe</button>
-                  <button id="btnIndentResyncFull" role="menuitem">Full</button>
+                  <button id="btnIndentResyncSafe" data-edit-action="true" role="menuitem">Safe</button>
+                  <button id="btnIndentResyncFull" data-edit-action="true" role="menuitem">Full</button>
                 </div>
               </div>
             </div>
             <button
               id="btnIndentDeleteDraft"
+              data-edit-action="true"
               class="icon-btn danger"
               title="Delete Draft Indent"
               aria-label="Delete Draft Indent"
@@ -3270,6 +3313,7 @@
               <button
                 id="iBtnAddLine"
                 type="button"
+                data-edit-action="true"
                 class="icon-btn primary"
                 title="Add Line"
                 aria-label="Add Line"
@@ -3558,6 +3602,7 @@
                   <button
                     id="btnDetailRecommend"
                     type="button"
+                    data-edit-action="true"
                     class="icon-btn primary with-label"
                     title="Recommend vendor"
                     aria-label="Recommend vendor"
@@ -3586,6 +3631,7 @@
                   <button
                     id="btnDetailSelectVendor"
                     type="button"
+                    data-edit-action="true"
                     class="icon-btn secondary with-label"
                     title="Select vendor"
                     aria-label="Select vendor"
@@ -3681,7 +3727,7 @@
 
         <div class="actions">
           <button id="btnVendorCancel">Cancel</button>
-          <button id="btnVendorSave">Save</button>
+          <button id="btnVendorSave" data-edit-action="true">Save</button>
         </div>
       </div>
     </div>
@@ -3756,7 +3802,7 @@
         </div>
         <div class="actions">
           <button id="btnVendorAcceptModeCancel" type="button">Cancel</button>
-          <button id="btnVendorAcceptModeConfirm" type="button">Confirm</button>
+          <button id="btnVendorAcceptModeConfirm" data-edit-action="true" type="button">Confirm</button>
         </div>
       </div>
     </div>
@@ -3813,7 +3859,7 @@
         </div>
         <div class="actions">
           <button id="btnIndentActionCancel">Cancel</button>
-          <button id="btnIndentActionConfirm">Confirm</button>
+          <button id="btnIndentActionConfirm" data-edit-action="true">Confirm</button>
         </div>
       </div>
     </div>
@@ -3862,7 +3908,7 @@
         </div>
         <div class="actions">
           <button id="btnIndentSourcePrCancel">Cancel</button>
-          <button id="btnIndentSourcePrConfirm">Set Source PR</button>
+          <button id="btnIndentSourcePrConfirm" data-edit-action="true">Set Source PR</button>
         </div>
       </div>
     </div>
@@ -3907,7 +3953,7 @@
         </div>
         <div class="actions">
           <button id="btnIndentResyncCancel">Cancel</button>
-          <button id="btnIndentResyncConfirm">Resync</button>
+          <button id="btnIndentResyncConfirm" data-edit-action="true">Resync</button>
         </div>
       </div>
     </div>
@@ -4013,6 +4059,7 @@
             </button>
             <button
               id="btnExcessAccept"
+              data-edit-action="true"
               class="btn primary"
               type="button"
               disabled
@@ -4099,8 +4146,8 @@
 
           <div class="actions">
             <button id="btnVendorAliasMapCancel">Cancel</button>
-            <button id="btnVamMapExisting">Map to Existing Vendor</button>
-            <button id="btnVamCreateMap">Create Vendor + Map</button>
+            <button id="btnVamMapExisting" data-edit-action="true">Map to Existing Vendor</button>
+            <button id="btnVamCreateMap" data-edit-action="true">Create Vendor + Map</button>
           </div>
         </div>
       </div>
@@ -4155,6 +4202,7 @@
             <button
               id="btnPrActivate"
               type="button"
+              data-edit-action="true"
               class="icon-btn primary"
               title="Activate PR"
               aria-label="Activate PR"
@@ -4177,6 +4225,7 @@
             <button
               id="btnPrClosePr"
               type="button"
+              data-edit-action="true"
               class="icon-btn danger"
               title="Close PR"
               aria-label="Close PR"
@@ -4199,6 +4248,7 @@
             <button
               id="btnPrDeleteDraft"
               type="button"
+              data-edit-action="true"
               class="icon-btn danger"
               title="Delete Draft PR"
               aria-label="Delete Draft PR"
@@ -4225,6 +4275,7 @@
             <button
               id="btnPrAddLine"
               type="button"
+              data-edit-action="true"
               class="icon-btn primary"
               title="Add PR Line"
               aria-label="Add PR Line"
@@ -4247,6 +4298,7 @@
             <button
               id="btnPrRebuildFromMrp"
               type="button"
+              data-edit-action="true"
               class="icon-btn primary"
               title="Rebuild from MRP"
               aria-label="Rebuild from MRP"
@@ -4270,6 +4322,7 @@
             <button
               id="btnPrCreateIndent"
               type="button"
+              data-edit-action="true"
               class="icon-btn primary"
               title="Create Indent"
               aria-label="Create Indent"
@@ -4534,7 +4587,7 @@
         </div>
         <div class="actions">
           <button id="btnPrRebuildCancel">Cancel</button>
-          <button id="btnPrRebuildConfirm">Rebuild</button>
+          <button id="btnPrRebuildConfirm" data-edit-action="true">Rebuild</button>
         </div>
       </div>
     </div>
@@ -4587,7 +4640,7 @@
         </div>
         <div class="actions">
           <button id="btnHardDeleteCancel">Cancel</button>
-          <button id="btnHardDeleteConfirm" class="danger">Delete</button>
+          <button id="btnHardDeleteConfirm" class="danger" data-edit-action="true">Delete</button>
         </div>
       </div>
     </div>
@@ -4657,7 +4710,7 @@
         </div>
         <div class="actions">
           <button id="btnGenPrCancel">Cancel</button>
-          <button id="btnGenPrConfirm">Generate</button>
+          <button id="btnGenPrConfirm" data-edit-action="true">Generate</button>
         </div>
       </div>
     </div>
@@ -4681,7 +4734,7 @@
         </div>
         <div class="actions">
           <button id="btnPrEditReqCancel">Cancel</button>
-          <button id="btnPrEditReqSave">Save</button>
+          <button id="btnPrEditReqSave" data-edit-action="true">Save</button>
         </div>
       </div>
     </div>
@@ -4712,7 +4765,7 @@
         </div>
         <div class="actions">
           <button id="btnPrEditDeltaCancel">Cancel</button>
-          <button id="btnPrEditDeltaSave">Save</button>
+          <button id="btnPrEditDeltaSave" data-edit-action="true">Save</button>
         </div>
       </div>
     </div>
@@ -4804,7 +4857,7 @@
         </div>
         <div class="actions">
           <button id="btnPrAddLineCancel">Cancel</button>
-          <button id="btnPrAddLineSave">Add Line</button>
+          <button id="btnPrAddLineSave" data-edit-action="true">Add Line</button>
         </div>
       </div>
     </div>
@@ -4849,7 +4902,7 @@
         </div>
         <div class="actions">
           <button id="btnPrSetStatusCancel">Cancel</button>
-          <button id="btnPrSetStatusConfirm">Confirm</button>
+          <button id="btnPrSetStatusConfirm" data-edit-action="true">Confirm</button>
         </div>
       </div>
     </div>
@@ -4914,7 +4967,7 @@
         </div>
         <div class="actions">
           <button id="btnCiCancel">Cancel</button>
-          <button id="btnCiCreate">Create Indent</button>
+          <button id="btnCiCreate" data-edit-action="true">Create Indent</button>
         </div>
       </div>
     </div>
@@ -4971,7 +5024,7 @@
         </div>
         <div class="actions">
           <button id="btnIfpCancel">Cancel</button>
-          <button id="btnIfpCreate">Create Indent</button>
+          <button id="btnIfpCreate" data-edit-action="true">Create Indent</button>
         </div>
       </div>
     </div>
@@ -5135,7 +5188,7 @@
         </div>
         <div class="actions">
           <button id="btnIalCancel">Cancel</button>
-          <button id="btnIalSave">Save</button>
+          <button id="btnIalSave" data-edit-action="true">Save</button>
         </div>
       </div>
     </div>

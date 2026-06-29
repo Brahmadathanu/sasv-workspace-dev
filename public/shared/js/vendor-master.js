@@ -8,6 +8,7 @@ const state = {
   lookups: {
     uomCodeToId: new Map(),
     uomIdToCode: new Map(),
+    ready: false,
   },
   loaded: {
     vendors: false,
@@ -49,6 +50,7 @@ const state = {
 };
 
 const modalFocusState = new Map();
+let rateItemComboboxCtl = null;
 
 function qs(id) {
   return document.getElementById(id);
@@ -64,6 +66,40 @@ function setFieldValue(id, value) {
   const el = qs(id);
   if (!el) return;
   el.value = value ?? "";
+}
+
+function setRateUomFromId(uomId, fallbackCode = "") {
+  const id = toNum(uomId, 0);
+  const code = id
+    ? state.lookups.uomIdToCode.get(id) || fallbackCode || ""
+    : "";
+
+  setFieldValue("rateUomId", id ? String(id) : "");
+  setFieldValue("rateUom", code);
+
+  return Boolean(id && code);
+}
+
+function clearRateItemSelection({ keepSearchText = false } = {}) {
+  setFieldValue("rateStockItemId", "");
+  setFieldValue("rateUomId", "");
+  setFieldValue("rateUom", "");
+
+  if (!keepSearchText) {
+    setFieldValue("rateItemSearch", "");
+    const input = qs("rateItemSearch");
+    if (input) {
+      input.dataset.selectedId = "";
+      input.dataset.selectedName = "";
+    }
+  }
+
+  const wrap = qs("rateItemResults");
+  if (wrap) {
+    wrap.hidden = true;
+    wrap.innerHTML = "";
+  }
+  rateItemComboboxCtl?.resetState();
 }
 
 function setTabTableLoading(tabName, active, label = "Loading...") {
@@ -790,6 +826,7 @@ async function loadUomLookup() {
 
     state.lookups.uomCodeToId = codeToId;
     state.lookups.uomIdToCode = idToCode;
+    state.lookups.ready = true;
   } catch (error) {
     console.error(error);
     toast("Failed to load UOM lookup.", "error");
@@ -872,22 +909,15 @@ function readVendorForm() {
   const displayName = getFieldValue("vendorDisplayName");
   return {
     display_name: displayName || null,
-    legal_name: getFieldValue("vendorLegalName") || null,
-    vendor_type: getFieldValue("vendorType") || null,
     is_active: getFieldValue("vendorIsActive") === "true",
     phone: getFieldValue("vendorPhone") || null,
     email: getFieldValue("vendorEmail") || null,
-    website: getFieldValue("vendorWebsite") || null,
     address_line1: getFieldValue("vendorAddress1") || null,
     address_line2: getFieldValue("vendorAddress2") || null,
     city: getFieldValue("vendorCity") || null,
-    district: getFieldValue("vendorDistrict") || null,
     state: getFieldValue("vendorState") || null,
     pincode: getFieldValue("vendorPinCode") || null,
-    country: getFieldValue("vendorCountry") || null,
     gstin: getFieldValue("vendorGst") || null,
-    pan: getFieldValue("vendorPan") || null,
-    payment_terms: getFieldValue("vendorPaymentTerms") || null,
     notes: getFieldValue("vendorNotes") || null,
   };
 }
@@ -1023,7 +1053,7 @@ function renderRateTable() {
   body.querySelectorAll("tr.clickable").forEach((tr) => {
     tr.addEventListener("click", () => {
       const row = state.rates.rows[Number(tr.dataset.idx)];
-      openRateModal(row);
+      void openRateModal(row);
     });
   });
 }
@@ -1035,7 +1065,11 @@ function renderRatePager() {
   qs("rateNext").disabled = (page + 1) * pageSize >= total;
 }
 
-function openRateModal(row = null) {
+async function openRateModal(row = null) {
+  if (!state.lookups.ready || state.lookups.uomIdToCode.size === 0) {
+    await loadUomLookup();
+  }
+
   const isNew = !row;
   qs("rateModalTitle").textContent = isNew
     ? "Add Rate Entry"
@@ -1045,93 +1079,238 @@ function openRateModal(row = null) {
   qs("ratePkCol").value = pk.col || "";
   qs("ratePkVal").value = pk.val ?? "";
 
-  qs("rateVendorId").value = row?.vendor_id ? String(row.vendor_id) : "";
-  qs("rateStockItemId").value = row?.stock_item_id
-    ? String(row.stock_item_id)
-    : "";
-  qs("rateItemSearch").value = row?.stock_item_name || "";
-  const rowUomId = toNum(row?.uom_id, 0);
-  const rowUomCode =
-    row?.uom_code || state.lookups.uomIdToCode.get(rowUomId) || "";
-  qs("rateUom").value = rowUomCode;
-  qs("rateValue").value = row?.rate_value ?? "";
-  qs("rateValidFrom").value = row?.valid_from || "";
-  qs("rateValidTo").value = row?.valid_to || "";
-  qs("rateNotes").value = row?.remarks ?? "";
-  setFieldValue("rateMinOrderQty", row?.min_order_qty);
-  setFieldValue("rateLeadTimeDays", row?.lead_time_days);
-  setFieldValue("rateMaterialClassId", row?.material_class_id);
-  qs("rateIsActive").checked = row?.is_active !== false;
-  qs("rateItemResults").hidden = true;
-  qs("rateItemResults").innerHTML = "";
+  const itemInput = qs("rateItemSearch");
+
+  if (isNew) {
+    qs("rateVendorId").value = "";
+    clearRateItemSelection();
+    qs("rateValue").value = "";
+    qs("rateValidFrom").value = "";
+    qs("rateValidTo").value = "";
+    qs("rateNotes").value = "";
+    qs("rateIsActive").checked = true;
+  } else {
+    qs("rateVendorId").value = row?.vendor_id ? String(row.vendor_id) : "";
+    setFieldValue("rateStockItemId", row?.stock_item_id);
+    setFieldValue("rateItemSearch", row?.stock_item_name || "");
+    if (itemInput) {
+      itemInput.dataset.selectedId = row?.stock_item_id
+        ? String(row.stock_item_id)
+        : "";
+      itemInput.dataset.selectedName = row?.stock_item_name || "";
+    }
+    const rowUomId = toNum(row?.uom_id, 0);
+    setRateUomFromId(rowUomId, row?.uom_code || "");
+    qs("rateValue").value = row?.rate_value ?? "";
+    qs("rateValidFrom").value = row?.valid_from || "";
+    qs("rateValidTo").value = row?.valid_to || "";
+    qs("rateNotes").value = row?.remarks ?? "";
+    qs("rateIsActive").checked = row?.is_active !== false;
+  }
+
+  rateItemComboboxCtl?.resetState();
 
   openModal("rateModalBackdrop");
   requestAnimationFrame(() => qs("rateVendorId")?.focus());
 }
 
-async function searchRateItems(term) {
-  const q = (term || "").trim();
-  if (!q) {
-    qs("rateItemResults").hidden = true;
-    qs("rateItemResults").innerHTML = "";
-    return;
+function wireRateItemCombobox() {
+  const input = qs("rateItemSearch");
+  const results = qs("rateItemResults");
+  if (!input || !results) return;
+
+  let currentItems = [];
+  let highlightedIndex = -1;
+  let searchTimer = null;
+
+  function getOptionEls() {
+    return Array.from(results.querySelectorAll(".lookup-item[data-id]"));
   }
 
-  const { data, error } = await supabase
-    .from("v_inv_stock_item_with_class")
-    .select("stock_item_id, code, name, default_uom_id")
-    .ilike("name", `%${q}%`)
-    .order("name", { ascending: true })
-    .limit(20);
-
-  if (error) {
-    toast(`Item search failed: ${error.message}`, "error");
-    return;
-  }
-
-  const rows = Array.isArray(data) ? data : [];
-  const wrap = qs("rateItemResults");
-
-  if (!rows.length) {
-    wrap.hidden = false;
-    wrap.innerHTML = '<div class="lookup-item muted">No matching items</div>';
-    return;
-  }
-
-  wrap.hidden = false;
-  wrap.innerHTML = rows
-    .map(
-      (r) =>
-        `<div class="lookup-item" data-id="${esc(r.stock_item_id)}" data-name="${esc(r.name || "")}" data-uom-id="${esc(r.default_uom_id || "")}">` +
-        `${esc(r.name || "")} <span class="muted">${esc(r.code || "")}</span></div>`,
-    )
-    .join("");
-
-  wrap.querySelectorAll(".lookup-item[data-id]").forEach((item) => {
-    item.addEventListener("click", () => {
-      qs("rateStockItemId").value = item.dataset.id || "";
-      qs("rateItemSearch").value = item.dataset.name || "";
-      const uomId = toNum(item.dataset.uomId, 0);
-      const uomCode = state.lookups.uomIdToCode.get(uomId) || "";
-      if (uomCode) qs("rateUom").value = uomCode;
-      wrap.hidden = true;
+  function resetState() {
+    currentItems = [];
+    highlightedIndex = -1;
+    input.setAttribute("aria-expanded", "false");
+    getOptionEls().forEach((el) => {
+      el.classList.remove("active");
+      el.setAttribute("aria-selected", "false");
     });
+  }
+
+  function closeRateItemDropdown() {
+    results.hidden = true;
+    resetState();
+  }
+
+  function openRateItemDropdown() {
+    results.hidden = false;
+    input.setAttribute("aria-expanded", "true");
+  }
+
+  function setRateItemHighlight(index) {
+    const els = getOptionEls();
+    if (!els.length) return;
+    highlightedIndex = Math.max(0, Math.min(index, els.length - 1));
+    els.forEach((el, i) => {
+      const active = i === highlightedIndex;
+      el.classList.toggle("active", active);
+      el.setAttribute("aria-selected", active ? "true" : "false");
+      if (active) el.scrollIntoView({ block: "nearest" });
+    });
+  }
+
+  function selectRateItem(row) {
+    setFieldValue("rateStockItemId", String(row.stock_item_id));
+    setFieldValue("rateItemSearch", row.name || "");
+    input.dataset.selectedId = String(row.stock_item_id);
+    input.dataset.selectedName = row.name || "";
+
+    const ok = setRateUomFromId(row.default_uom_id);
+    if (!ok) {
+      toast("Selected item has no resolvable default UOM.", "error");
+    }
+
+    results.innerHTML = "";
+    closeRateItemDropdown();
+  }
+
+  function renderRateItemResults(rows) {
+    currentItems = rows;
+    highlightedIndex = -1;
+    results.innerHTML = "";
+
+    if (!rows.length) {
+      results.innerHTML =
+        '<div class="lookup-item no-match muted" role="option" aria-selected="false">No matching items</div>';
+      openRateItemDropdown();
+      return;
+    }
+
+    rows.forEach((r, idx) => {
+      const div = document.createElement("div");
+      div.className = "lookup-item";
+      div.setAttribute("role", "option");
+      div.setAttribute("aria-selected", "false");
+      div.dataset.id = String(r.stock_item_id);
+      div.dataset.name = r.name || "";
+      div.dataset.uomId = String(r.default_uom_id || "");
+      div.dataset.idx = String(idx);
+      div.innerHTML = `${esc(r.name || "")} <span class="muted">${esc(r.code || "")}</span>`;
+      div.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        selectRateItem(r);
+      });
+      results.appendChild(div);
+    });
+    openRateItemDropdown();
+  }
+
+  async function searchRateItems(term) {
+    const q = (term || "").trim();
+    if (!q) {
+      results.innerHTML = "";
+      closeRateItemDropdown();
+      return;
+    }
+
+    const searchTerm = q.replace(/,/g, " ").trim();
+    const { data, error } = await supabase
+      .from("v_inv_stock_item_with_class")
+      .select("stock_item_id, code, name, default_uom_id")
+      .eq("active", true)
+      .or(`name.ilike.%${searchTerm}%,code.ilike.%${searchTerm}%`)
+      .order("name", { ascending: true })
+      .limit(20);
+
+    if (error) {
+      toast(`Item search failed: ${error.message}`, "error");
+      closeRateItemDropdown();
+      return;
+    }
+
+    renderRateItemResults(Array.isArray(data) ? data : []);
+  }
+
+  function scheduleSearch(term) {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => searchRateItems(term), 220);
+  }
+
+  input.addEventListener("input", () => {
+    const currentText = String(input.value || "").trim();
+    const selectedName = String(input.dataset.selectedName || "").trim();
+
+    if (!currentText) {
+      input.dataset.selectedId = "";
+      input.dataset.selectedName = "";
+      clearRateItemSelection({ keepSearchText: true });
+      results.innerHTML = "";
+      closeRateItemDropdown();
+      return;
+    }
+
+    if (selectedName && currentText !== selectedName) {
+      input.dataset.selectedId = "";
+      input.dataset.selectedName = "";
+      clearRateItemSelection({ keepSearchText: true });
+    }
+
+    scheduleSearch(currentText);
   });
+
+  input.addEventListener("blur", () => {
+    setTimeout(() => {
+      if (document.activeElement === input) return;
+      closeRateItemDropdown();
+    }, 150);
+  });
+
+  input.addEventListener("keydown", (e) => {
+    const open = !results.hidden && results.innerHTML.length > 0;
+    const els = getOptionEls();
+
+    if (e.key === "ArrowDown") {
+      if (!open || !els.length) return;
+      e.preventDefault();
+      setRateItemHighlight(highlightedIndex < 0 ? 0 : highlightedIndex + 1);
+    } else if (e.key === "ArrowUp") {
+      if (!open || !els.length) return;
+      e.preventDefault();
+      setRateItemHighlight(
+        highlightedIndex <= 0 ? els.length - 1 : highlightedIndex - 1,
+      );
+    } else if (e.key === "Enter") {
+      if (open && highlightedIndex >= 0 && currentItems[highlightedIndex]) {
+        e.preventDefault();
+        selectRateItem(currentItems[highlightedIndex]);
+      }
+    } else if (e.key === "Escape") {
+      if (open) {
+        e.preventDefault();
+        e.stopPropagation();
+        results.innerHTML = "";
+        closeRateItemDropdown();
+      }
+    }
+  });
+
+  rateItemComboboxCtl = {
+    resetState() {
+      results.innerHTML = "";
+      closeRateItemDropdown();
+    },
+  };
 }
 
 function readRateForm() {
-  const uomCode = getFieldValue("rateUom");
-  const uomId = state.lookups.uomCodeToId.get(uomCode.toLowerCase()) || null;
+  const uomId = toNum(getFieldValue("rateUomId"), 0) || null;
   return {
     vendor_id: toNum(qs("rateVendorId").value, 0) || null,
     stock_item_id: toNum(qs("rateStockItemId").value, 0) || null,
     uom_id: uomId,
-    material_class_id: toNum(getFieldValue("rateMaterialClassId"), 0) || null,
     rate_value: toNum(qs("rateValue").value, NaN),
     valid_from: getFieldValue("rateValidFrom") || null,
     valid_to: getFieldValue("rateValidTo") || null,
-    min_order_qty: toNum(getFieldValue("rateMinOrderQty"), 0) || null,
-    lead_time_days: toNum(getFieldValue("rateLeadTimeDays"), 0) || null,
     remarks: getFieldValue("rateNotes") || null,
     is_active: qs("rateIsActive").checked,
   };
@@ -1139,12 +1318,20 @@ function readRateForm() {
 
 async function saveRateEntry() {
   const payload = readRateForm();
-  if (
-    !payload.vendor_id ||
-    !payload.stock_item_id ||
-    Number.isNaN(payload.rate_value)
-  ) {
-    toast("Vendor, item, and rate are required.", "error");
+  if (!payload.vendor_id) {
+    toast("Vendor is required.", "error");
+    return;
+  }
+  if (!payload.stock_item_id) {
+    toast("Select a stock item from the item lookup.", "error");
+    return;
+  }
+  if (!payload.uom_id) {
+    toast("UOM could not be resolved for the selected item.", "error");
+    return;
+  }
+  if (Number.isNaN(payload.rate_value)) {
+    toast("Rate is required.", "error");
     return;
   }
 
@@ -1325,7 +1512,7 @@ function wireRateBookTab() {
     debounceMs: 250,
   });
 
-  qs("btnRateNew")?.addEventListener("click", () => openRateModal(null));
+  qs("btnRateNew")?.addEventListener("click", () => void openRateModal(null));
   qs("rateModalClose")?.addEventListener("click", () =>
     closeModal("rateModalBackdrop"),
   );
@@ -1334,10 +1521,7 @@ function wireRateBookTab() {
   );
   qs("btnRateSave")?.addEventListener("click", saveRateEntry);
 
-  const onItemSearch = debounce(async () => {
-    await searchRateItems(qs("rateItemSearch").value || "");
-  }, 220);
-  qs("rateItemSearch")?.addEventListener("input", onItemSearch);
+  wireRateItemCombobox();
 
   qs("rateModalBackdrop")?.addEventListener("click", (e) => {
     if (e.target?.id === "rateModalBackdrop") closeModal("rateModalBackdrop");
@@ -1378,7 +1562,5 @@ async function refreshSupportLookups({ rerenderRateBook = false } = {}) {
   wireModalEscapeClose();
 
   await setActiveTab(getHashTab(), false);
-  refreshSupportLookups({ rerenderRateBook: true }).catch((error) => {
-    console.error("Support lookups failed:", error);
-  });
+  await refreshSupportLookups({ rerenderRateBook: true });
 })();

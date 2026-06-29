@@ -1114,6 +1114,7 @@
       <select id="lensSelect" class="tab-select" aria-label="Select tab">
         <option value="testMaster">Test Master</option>
         <option value="methodMaster">Method Master</option>
+        <option value="uomMaster">UOM Master</option>
         <option value="defaultMapping">Default Method Mapping</option>
       </select>
       <svg
@@ -1471,6 +1472,133 @@
                 type="button"
                 class="btn-secondary"
               >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── UOM Modal ───────────────────────────────────────────────────── -->
+    <div
+      id="uomModal"
+      class="modal-overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="uomModalTitle"
+    >
+      <div class="modal-window" role="document">
+        <div class="modal-header">
+          <div>
+            <div id="uomModalTitle" class="modal-title">UOM</div>
+            <div id="uomModalSubtitle" class="modal-subtitle"></div>
+          </div>
+          <div class="modal-header-actions">
+            <button
+              id="uomModalClose"
+              class="modal-close-btn"
+              aria-label="Close"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="modal-content">
+          <div class="form-section">
+            <div
+              id="uomModalBanner"
+              style="
+                display: none;
+                padding: 10px 12px;
+                border-radius: 7px;
+                font-size: 13px;
+                margin-bottom: 4px;
+              "
+            ></div>
+            <input id="uomModalId" type="hidden" />
+            <div class="form-row">
+              <div class="form-group">
+                <label for="uomModalCode"
+                  >UOM Code <span class="req">*</span></label
+                >
+                <input
+                  id="uomModalCode"
+                  class="form-control"
+                  maxlength="50"
+                  style="text-transform: uppercase"
+                  placeholder="e.g. MG_KG"
+                  oninput="this.value = this.value.toUpperCase()"
+                />
+              </div>
+              <div class="form-group">
+                <label for="uomModalName"
+                  >UOM Name <span class="req">*</span></label
+                >
+                <input
+                  id="uomModalName"
+                  class="form-control"
+                  maxlength="120"
+                  placeholder="Full unit name"
+                />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="uomModalSymbol">Symbol (optional)</label>
+              <input
+                id="uomModalSymbol"
+                class="form-control"
+                maxlength="30"
+                placeholder="e.g. mg/kg"
+              />
+            </div>
+            <div
+              id="uomModalActiveWrap"
+              class="form-group"
+              style="display: none"
+            >
+              <label>Status</label>
+              <div id="uomModalActiveDisplay" class="ro-field"></div>
+            </div>
+            <div class="form-actions">
+              <button id="uomModalSave" type="button" class="btn-primary">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
+                  />
+                  <polyline points="17 21 17 13 7 13 7 21" />
+                  <polyline points="7 3 7 8 15 8" />
+                </svg>
+                Save
+              </button>
+              <button
+                id="uomModalDeactivate"
+                type="button"
+                class="btn-danger"
+                style="display: none"
+              >
+                Deactivate
+              </button>
+              <button id="uomModalCancel" type="button" class="btn-secondary">
                 Cancel
               </button>
             </div>

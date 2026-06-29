@@ -90,6 +90,13 @@ export function buildPermissionMap(perms) {
   return map;
 }
 
+/**
+ * Resolve module navigation access: "none" | "view" | "read" | "use".
+ * - use: can_edit (full entry)
+ * - read: can_view only when min_nav_mode is "read" (clickable read-only entry)
+ * - view: can_view only when min_nav_mode is "view" (visible, locked)
+ * - none: hidden / no access
+ */
 export function getModuleAccessLevel(moduleLike, permissionMap) {
   const moduleKey = normalizeModuleKey(
     typeof moduleLike === "string"
@@ -105,7 +112,12 @@ export function getModuleAccessLevel(moduleLike, permissionMap) {
   const permission = permissionMap?.[moduleKey];
   if (!permission) return "none";
   if (permission.can_edit) return "use";
-  if (permission.can_view && minNavMode !== "edit") return "view";
+
+  if (permission.can_view) {
+    if (minNavMode === "read") return "read";
+    if (minNavMode !== "edit") return "view";
+  }
+
   return "none";
 }
 

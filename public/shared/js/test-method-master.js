@@ -84,6 +84,22 @@ const methodModalDeactivate = $("methodModalDeactivate");
 const methodModalClose = $("methodModalClose");
 const methodModalCancel = $("methodModalCancel");
 
+// UOM modal
+const uomModal = $("uomModal");
+const uomModalTitle = $("uomModalTitle");
+const uomModalSubtitle = $("uomModalSubtitle");
+const uomModalId = $("uomModalId");
+const uomModalCode = $("uomModalCode");
+const uomModalName = $("uomModalName");
+const uomModalSymbol = $("uomModalSymbol");
+const uomModalActiveWrap = $("uomModalActiveWrap");
+const uomModalActiveDisp = $("uomModalActiveDisplay");
+const uomModalBanner = $("uomModalBanner");
+const uomModalSave = $("uomModalSave");
+const uomModalDeactivate = $("uomModalDeactivate");
+const uomModalClose = $("uomModalClose");
+const uomModalCancel = $("uomModalCancel");
+
 // Mapping modal
 const mappingModal = $("mappingModal");
 const mappingModalTestId = $("mappingModalTestId");
@@ -122,6 +138,7 @@ const filtersByTab = {
     methodId: "all",
   },
   methodMaster: { activeStatus: "all", usageStatus: "all" },
+  uomMaster: { activeStatus: "all" },
   defaultMapping: {
     activeStatus: "all",
     mappingStatus: "all",
@@ -134,6 +151,7 @@ const filtersByTab = {
 const TABS = [
   { id: "testMaster", label: "Test Master" },
   { id: "methodMaster", label: "Method Master" },
+  { id: "uomMaster", label: "UOM Master" },
   { id: "defaultMapping", label: "Default Method Mapping" },
 ];
 
@@ -141,6 +159,7 @@ const TABS = [
 const SEARCH_PLACEHOLDERS = {
   testMaster: "Search test name, result kind, or default method…",
   methodMaster: "Search method name or description…",
+  uomMaster: "Search UOM code, name, or symbol…",
   defaultMapping: "Search test name, default method, or mapping status…",
 };
 
@@ -211,21 +230,27 @@ function switchTab(tabId) {
 function updateAddButtonForTab() {
   if (!addBtn) return;
   const shouldShow =
-    currentTab === "testMaster" || currentTab === "methodMaster";
+    currentTab === "testMaster" ||
+    currentTab === "methodMaster" ||
+    currentTab === "uomMaster";
   addBtn.style.display = shouldShow ? "inline-flex" : "none";
   addBtn.title =
     currentTab === "testMaster"
       ? "Add New Test"
       : currentTab === "methodMaster"
         ? "Add New Method"
-        : "Add New";
+        : currentTab === "uomMaster"
+          ? "Add New UOM"
+          : "Add New";
   addBtn.setAttribute(
     "aria-label",
     currentTab === "testMaster"
       ? "Add new test"
       : currentTab === "methodMaster"
         ? "Add new method"
-        : "Add new record",
+        : currentTab === "uomMaster"
+          ? "Add new UOM"
+          : "Add new record",
   );
 }
 
@@ -241,6 +266,7 @@ function wireEvents() {
   addBtn.addEventListener("click", () => {
     if (currentTab === "testMaster") openNewTestModal();
     else if (currentTab === "methodMaster") openNewMethodModal();
+    else if (currentTab === "uomMaster") openNewUomModal();
     else if (currentTab === "defaultMapping") return;
   });
 
@@ -280,6 +306,7 @@ function wireEvents() {
     if (!Number.isFinite(id)) return;
     if (currentTab === "testMaster") openEditTestModal(id);
     else if (currentTab === "methodMaster") openEditMethodModal(id);
+    else if (currentTab === "uomMaster") openEditUomModal(id);
     else if (currentTab === "defaultMapping") openMappingModal(id);
   });
 
@@ -325,6 +352,15 @@ function wireEvents() {
     if (e.target === methodModal) closeMethodModal();
   });
 
+  // UOM modal
+  uomModalSave.addEventListener("click", saveUomFromModal);
+  uomModalDeactivate.addEventListener("click", deactivateUomFromModal);
+  uomModalClose.addEventListener("click", closeUomModal);
+  uomModalCancel.addEventListener("click", closeUomModal);
+  uomModal.addEventListener("click", (e) => {
+    if (e.target === uomModal) closeUomModal();
+  });
+
   // Mapping modal
   mappingModalSave.addEventListener("click", saveMappingFromModal);
   mappingModalClear.addEventListener("click", clearMappingFromModal);
@@ -339,6 +375,7 @@ function wireEvents() {
     if (e.key !== "Escape") return;
     if (!testModal.classList.contains("hidden")) closeTestModal();
     else if (!methodModal.classList.contains("hidden")) closeMethodModal();
+    else if (!uomModal.classList.contains("hidden")) closeUomModal();
     else if (!mappingModal.classList.contains("hidden")) closeMappingModal();
     else if (filterPanel.classList.contains("open")) closeFilterPanel();
   });
@@ -413,6 +450,7 @@ async function loadAllData() {
       uom_code: u.uom_code,
       uom_name: u.uom_name,
       symbol: u.symbol,
+      uom_symbol: u.symbol,
       uom_display: u.uom_display || u.symbol || u.uom_code || u.uom_name || "—",
     }));
 
@@ -454,6 +492,7 @@ function renderSummary() {
 function getRowsForCurrentTab() {
   if (currentTab === "testMaster") return tests;
   if (currentTab === "methodMaster") return methods;
+  if (currentTab === "uomMaster") return uoms;
   if (currentTab === "defaultMapping") return tests; // built from tests
   return [];
 }
@@ -526,6 +565,24 @@ function applyCurrentSearchAndFilters() {
         if (isUsed) return false;
       }
       return true;
+    } else if (currentTab === "uomMaster") {
+      const activeLabel = row.is_active ? "active yes" : "inactive no";
+      const haystack = [
+        row.uom_code,
+        row.uom_name,
+        row.symbol,
+        row.uom_symbol,
+        row.uom_display,
+        activeLabel,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      if (q && !haystack.includes(q)) return false;
+      if (f.activeStatus === "active" && !row.is_active) return false;
+      if (f.activeStatus === "inactive" && row.is_active) return false;
+      return true;
     } else if (currentTab === "defaultMapping") {
       const activeMap = activeDefaultMethodByTestId.get(Number(row.id));
       const method = methods.find(
@@ -571,6 +628,7 @@ function applyCurrentSearchAndFilters() {
 function renderCurrentTable() {
   if (currentTab === "testMaster") renderTestTable(filteredRows);
   else if (currentTab === "methodMaster") renderMethodTable(filteredRows);
+  else if (currentTab === "uomMaster") renderUomTable(filteredRows);
   else if (currentTab === "defaultMapping")
     renderDefaultMappingTable(filteredRows);
 
@@ -652,6 +710,43 @@ function renderMethodTable(rows) {
         <span class="item-secondary" style="display:block;"></span>
       </td>
       <td class="col-hide-mobile" style="color:var(--muted,#6b7280);font-size:12.5px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(row.description || "—")}</td>
+      <td>${activeBadge(row.is_active)}</td>
+      <td class="col-hide-mobile" style="font-size:12px;color:var(--muted,#6b7280)">${escHtml(formatDateTime(row.updated_at))}</td>
+    </tr>`,
+    )
+    .join("");
+}
+
+function formatUomSymbolDisplay(symbol) {
+  const s = String(symbol ?? "").trim();
+  return s || "—";
+}
+
+function renderUomTable(rows) {
+  tmThead.innerHTML = `<tr>
+    <th>UOM Code</th>
+    <th class="col-hide-mobile">UOM Name</th>
+    <th class="col-hide-mobile">Symbol</th>
+    <th>Active</th>
+    <th class="col-hide-mobile">Updated</th>
+  </tr>`;
+
+  if (!rows.length) {
+    tmTbody.innerHTML =
+      '<tr><td colspan="5" class="empty-state">No UOM records found.</td></tr>';
+    return;
+  }
+
+  tmTbody.innerHTML = rows
+    .map(
+      (row) =>
+        `<tr class="tm-row" data-id="${escHtml(row.id)}" tabindex="0">
+      <td>
+        <div class="item-primary">${escHtml(row.uom_code || "")}</div>
+        <div class="item-secondary">${escHtml(row.uom_name || "")}</div>
+      </td>
+      <td class="col-hide-mobile">${escHtml(row.uom_name || "")}</td>
+      <td class="col-hide-mobile">${escHtml(formatUomSymbolDisplay(row.symbol))}</td>
       <td>${activeBadge(row.is_active)}</td>
       <td class="col-hide-mobile" style="font-size:12px;color:var(--muted,#6b7280)">${escHtml(formatDateTime(row.updated_at))}</td>
     </tr>`,
@@ -759,6 +854,16 @@ function buildFilterPanel() {
           <option value="unused"${f.usageStatus === "unused" ? " selected" : ""}>Not Used as Default</option>
         </select>
       </div>`;
+  } else if (currentTab === "uomMaster") {
+    html = `
+      <div class="filter-group">
+        <label>Active Status</label>
+        <select id="fp_activeStatus">
+          <option value="all"${f.activeStatus === "all" ? " selected" : ""}>All</option>
+          <option value="active"${f.activeStatus === "active" ? " selected" : ""}>Active</option>
+          <option value="inactive"${f.activeStatus === "inactive" ? " selected" : ""}>Inactive</option>
+        </select>
+      </div>`;
   } else if (currentTab === "defaultMapping") {
     html = `
       <div class="filter-group">
@@ -843,6 +948,8 @@ function applyFilters() {
   } else if (currentTab === "methodMaster") {
     f.activeStatus = get("fp_activeStatus");
     f.usageStatus = get("fp_usageStatus");
+  } else if (currentTab === "uomMaster") {
+    f.activeStatus = get("fp_activeStatus");
   } else if (currentTab === "defaultMapping") {
     f.mappingStatus = get("fp_mappingStatus");
     f.activeStatus = get("fp_activeStatus");
@@ -865,6 +972,8 @@ function clearFilters() {
     };
   } else if (currentTab === "methodMaster") {
     filtersByTab.methodMaster = { activeStatus: "all", usageStatus: "all" };
+  } else if (currentTab === "uomMaster") {
+    filtersByTab.uomMaster = { activeStatus: "all" };
   } else if (currentTab === "defaultMapping") {
     filtersByTab.defaultMapping = {
       activeStatus: "all",
@@ -1281,6 +1390,126 @@ async function deactivateMethodFromModal() {
   }
 }
 
+// ── UOM Modal ─────────────────────────────────────────────────────────────────
+function openNewUomModal() {
+  rememberFocus();
+  uomModalTitle.textContent = "New UOM";
+  uomModalSubtitle.textContent =
+    "Create a new laboratory unit of measurement.";
+  uomModalId.value = "";
+  uomModalCode.value = "";
+  uomModalName.value = "";
+  uomModalSymbol.value = "";
+  uomModalActiveWrap.style.display = "none";
+  uomModalDeactivate.style.display = "none";
+  hideBanner(uomModalBanner);
+  uomModal.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+  setTimeout(() => uomModalCode.focus(), 0);
+}
+
+function openEditUomModal(uomId) {
+  rememberFocus();
+  const row = uoms.find((u) => Number(u.id) === Number(uomId));
+  if (!row) return;
+
+  uomModalTitle.textContent = "Edit UOM";
+  uomModalSubtitle.textContent = row.uom_name || "";
+  uomModalId.value = String(row.id);
+  uomModalCode.value = row.uom_code || "";
+  uomModalName.value = row.uom_name || "";
+  uomModalSymbol.value = row.symbol || "";
+  uomModalActiveWrap.style.display = "";
+  uomModalActiveDisp.innerHTML = activeBadge(row.is_active);
+  uomModalDeactivate.style.display = row.is_active ? "" : "none";
+  hideBanner(uomModalBanner);
+  uomModal.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+  setTimeout(() => uomModalName.focus(), 0);
+}
+
+function closeUomModal() {
+  uomModal.classList.add("hidden");
+  document.body.style.overflow = "";
+  restoreFocus();
+}
+
+async function saveUomFromModal() {
+  const cleanCode = String(uomModalCode.value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "_")
+    .replace(/[^A-Z0-9_]/g, "");
+  const cleanName = String(uomModalName.value || "").trim();
+  const cleanSymbol = String(uomModalSymbol.value || "").trim() || null;
+  const editId = uomModalId.value ? Number(uomModalId.value) : null;
+
+  if (!cleanCode) {
+    showModalBanner(uomModalBanner, "error", "UOM code is required.");
+    uomModalCode.focus();
+    return;
+  }
+  if (!cleanName) {
+    showModalBanner(uomModalBanner, "error", "UOM name is required.");
+    uomModalName.focus();
+    return;
+  }
+
+  uomModalSave.disabled = true;
+  hideBanner(uomModalBanner);
+
+  try {
+    const { error } = await labSupabase.rpc("fn_save_lab_uom", {
+      p_id: editId,
+      p_uom_code: cleanCode,
+      p_uom_name: cleanName,
+      p_symbol: cleanSymbol,
+    });
+    if (error) throw new Error(error.message || "Failed to save UOM");
+
+    closeUomModal();
+    showToast(editId ? "UOM updated." : "UOM created.", "success");
+    await loadAllData();
+  } catch (err) {
+    console.error("[test-method-master] saveUom:", err);
+    showModalBanner(
+      uomModalBanner,
+      "error",
+      err.message || "Failed to save.",
+    );
+    showToast(err.message || "Failed to save UOM.", "error");
+  } finally {
+    uomModalSave.disabled = false;
+  }
+}
+
+async function deactivateUomFromModal() {
+  const editId = uomModalId.value ? Number(uomModalId.value) : null;
+  if (!editId) return;
+  if (!window.confirm("Deactivate this UOM?")) return;
+
+  uomModalDeactivate.disabled = true;
+  try {
+    const { error } = await labSupabase.rpc("fn_deactivate_lab_uom", {
+      p_id: editId,
+    });
+    if (error) throw new Error(error.message || "Failed to deactivate UOM");
+    closeUomModal();
+    showToast("UOM deactivated.", "info");
+    await loadAllData();
+  } catch (err) {
+    console.error("[test-method-master] deactivateUom:", err);
+    showModalBanner(
+      uomModalBanner,
+      "error",
+      err.message || "Failed to deactivate.",
+    );
+    showToast(err.message || "Failed to deactivate UOM.", "error");
+  } finally {
+    uomModalDeactivate.disabled = false;
+  }
+}
+
 // ── Mapping Modal ─────────────────────────────────────────────────────────────
 function openMappingModal(testId) {
   rememberFocus();
@@ -1646,7 +1875,7 @@ function extractId(data) {
   if (data == null) return null;
   if (Array.isArray(data)) return data.length ? extractId(data[0]) : null;
   if (typeof data === "object") {
-    for (const key of ["id", "test_id", "p_id"]) {
+    for (const key of ["id", "test_id", "uom_id", "p_id"]) {
       const n = Number(data[key]);
       if (Number.isFinite(n) && n > 0) return n;
     }

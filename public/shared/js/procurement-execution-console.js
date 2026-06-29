@@ -2,6 +2,169 @@
 import { supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
 
+// ─── Module access (direct URL + read-only) ─────────────────────────────────
+const MODULE_ID = "procurement-execution-console";
+const MODULE_TARGET = `module:${MODULE_ID}`;
+
+const accessState = {
+  userId: null,
+  canView: false,
+  canEdit: false,
+  loaded: false,
+};
+
+function setStatus(message, type = "info") {
+  const el = qs("statusArea");
+  if (!el) return;
+  el.textContent = message || "";
+  el.hidden = !message;
+  el.classList.remove("error", "success", "info");
+  if (message) el.classList.add(type);
+}
+
+function canAccessModule() {
+  return Boolean(accessState.canView || accessState.canEdit);
+}
+
+function canWriteModule() {
+  return Boolean(accessState.canEdit);
+}
+
+function canPerformEditAction(actionLabel = "This action") {
+  if (canWriteModule()) return true;
+  toast(`${actionLabel} is not available with read-only access.`, "error");
+  return false;
+}
+
+function markEditAction(el, reason = "Read-only access") {
+  if (!el) return;
+  el.dataset.editAction = "true";
+  if (!el.dataset.originalTitle) {
+    el.dataset.originalTitle = el.getAttribute("title") || "";
+  }
+  if (!el.dataset.viewOnlyReason) {
+    el.dataset.viewOnlyReason = reason;
+  }
+}
+
+function applyPermissionUi() {
+  const hasAccess = canAccessModule();
+  const canEdit = canWriteModule();
+
+  document.body.classList.toggle("view-only-mode", hasAccess && !canEdit);
+
+  const banner = qs("viewOnlyBanner");
+  if (banner) {
+    banner.hidden = !(hasAccess && !canEdit);
+  }
+
+  document.querySelectorAll("[data-edit-action='true']").forEach((el) => {
+    if (
+      !(
+        el instanceof HTMLButtonElement ||
+        el instanceof HTMLInputElement ||
+        el instanceof HTMLSelectElement ||
+        el instanceof HTMLTextAreaElement
+      )
+    ) {
+      return;
+    }
+
+    if (!el.dataset.permissionTracked) {
+      el.dataset.permissionTracked = "true";
+      el.dataset.originalDisabled = String(el.disabled);
+      el.dataset.originalTitle = el.getAttribute("title") || "";
+    }
+
+    if (!canEdit) {
+      el.disabled = true;
+      el.setAttribute("aria-disabled", "true");
+      el.setAttribute("title", el.dataset.viewOnlyReason || "Read-only access");
+      return;
+    }
+
+    el.setAttribute("aria-disabled", String(el.disabled));
+
+    const originalTitle = el.dataset.originalTitle || "";
+    if (originalTitle) {
+      el.setAttribute("title", originalTitle);
+    } else if (!el.disabled) {
+      el.removeAttribute("title");
+    }
+  });
+}
+
+async function loadAccessState() {
+  accessState.userId = null;
+  accessState.canView = false;
+  accessState.canEdit = false;
+  accessState.loaded = false;
+
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession();
+
+  if (sessionError || !session?.user?.id) {
+    throw sessionError || new Error("No active session");
+  }
+
+  accessState.userId = session.user.id;
+  const uid = accessState.userId;
+  let found = null;
+
+  try {
+    const { data: perms, error } = await supabase.rpc("get_user_permissions", {
+      p_user_id: uid,
+    });
+    if (!error && Array.isArray(perms)) {
+      const hit = perms.find((r) => r?.target === MODULE_TARGET);
+      if (hit) found = hit;
+    }
+  } catch {
+    // fall through
+  }
+
+  if (!found) {
+    try {
+      const { data: canonicalRows } = await supabase
+        .from("user_permissions_canonical")
+        .select("can_view, can_edit")
+        .eq("user_id", uid)
+        .eq("target", MODULE_TARGET)
+        .limit(1);
+      if (Array.isArray(canonicalRows) && canonicalRows.length) {
+        found = canonicalRows[0];
+      }
+    } catch {
+      // fall through
+    }
+  }
+
+  if (!found) {
+    try {
+      const { data: rows } = await supabase
+        .from("user_permissions")
+        .select("can_view, can_edit")
+        .eq("user_id", uid)
+        .eq("module_id", MODULE_ID)
+        .limit(1);
+      if (Array.isArray(rows) && rows.length) {
+        found = rows[0];
+      }
+    } catch {
+      // fail closed
+    }
+  }
+
+  if (found) {
+    accessState.canView = Boolean(found.can_view);
+    accessState.canEdit = Boolean(found.can_edit);
+  }
+
+  accessState.loaded = true;
+}
+
 // ─── View / RPC name constants (adjust here if DB names differ) ───────────────
 const PR_HEADER_VIEW = "v_proc_pr_header";
 const PR_LINES_ORDERED_VIEW = "v_proc_pr_lines_ordered";
@@ -230,6 +393,7 @@ function upgradePrModalButtons(row) {
   );
   toIconBtn(qs("btnPrCreateIndent"), "primary", "Create Indent", "arrowRight");
   toIconBtn(qs("btnPrExportMenu"), "primary", "Export Form", "download");
+  applyPermissionUi();
 }
 
 async function requireSession() {
@@ -1029,6 +1193,7 @@ function closeHardDeleteModal(result = false) {
 }
 
 async function submitHardDeleteConfirm() {
+  if (!canPerformEditAction("Delete")) return;
   const confirmText = (qs("hardDeleteConfirmText")?.value || "").trim();
   if (confirmText !== "DELETE") {
     toast('Type "DELETE" to confirm.', "error");
@@ -1053,6 +1218,7 @@ async function submitHardDeleteConfirm() {
 }
 
 async function confirmHardDelete({ title, message, onConfirm }) {
+  if (!canPerformEditAction("Delete")) return false;
   const backdrop = qs("hardDeleteModalBackdrop");
   if (!backdrop) return false;
 
@@ -1262,8 +1428,14 @@ function openDetailModal(row) {
   const recBtn = qs("btnDetailRecommend");
   const selBtn = qs("btnDetailSelectVendor");
   const jumpBtn = qs("btnDetailJumpIndent");
-  if (recBtn) recBtn.disabled = !row.indent_line_id;
-  if (selBtn) selBtn.disabled = !row.indent_line_id;
+  if (recBtn) {
+    recBtn.disabled = !canWriteModule() || !row.indent_line_id;
+    if (!canWriteModule()) recBtn.title = "Read-only access";
+  }
+  if (selBtn) {
+    selBtn.disabled = !canWriteModule() || !row.indent_line_id;
+    if (!canWriteModule()) selBtn.title = "Read-only access";
+  }
   if (jumpBtn) jumpBtn.disabled = !row.indent_id;
 
   // open
@@ -1275,6 +1447,7 @@ function openDetailModal(row) {
   if (body) body.scrollTop = 0;
   // focus close button
   requestAnimationFrame(() => qs("btnDetailClose")?.focus());
+  applyPermissionUi();
 }
 
 function closeDetailModal() {
@@ -1601,6 +1774,7 @@ async function loadActionQueue(options = {}) {
 }
 
 async function doRecommend(indentLineId) {
+  if (!canPerformEditAction("Recommend vendor")) return;
   const { error } = await supabase.rpc("proc_indent_recommend_vendor", {
     p_indent_line_id: indentLineId,
   });
@@ -1612,6 +1786,7 @@ async function doRecommend(indentLineId) {
 }
 
 function openVendorModal(row) {
+  if (!canPerformEditAction("Select vendor")) return;
   const backdrop = qs("vendorModalBackdrop");
   backdrop.classList.add("show");
   backdrop.setAttribute("aria-hidden", "false");
@@ -1681,6 +1856,7 @@ function closeVendorModal() {
 }
 
 async function saveVendorSelection() {
+  if (!canPerformEditAction("Save vendor selection")) return;
   const backdrop = qs("vendorModalBackdrop");
   const indentLineId = Number(backdrop.dataset.indentLineId);
   const recommendedVendorId = backdrop.dataset.recommendedVendorId
@@ -2045,6 +2221,7 @@ async function openPrViewModalById(prId) {
 }
 
 async function createIndentPrRevision() {
+  if (!canPerformEditAction("Create PR revision")) return;
   const indent = state.selectedIndent;
   if (!indent) {
     toast("Select an indent first.", "error");
@@ -2085,6 +2262,7 @@ async function createIndentPrRevision() {
 }
 
 async function openIndentSourcePrModal() {
+  if (!canPerformEditAction("Set source PR")) return;
   const indent = state.selectedIndent;
   if (!indent) {
     toast("Select an indent first.", "error");
@@ -2171,6 +2349,7 @@ function closeIndentSourcePrModal() {
 }
 
 async function confirmIndentSourcePr() {
+  if (!canPerformEditAction("Set source PR")) return;
   const indent = state.selectedIndent;
   if (!indent) {
     toast("Select an indent first.", "error");
@@ -2213,6 +2392,7 @@ async function confirmIndentSourcePr() {
 }
 
 function openIndentResyncModal(mode) {
+  if (!canPerformEditAction("Resync indent")) return;
   const indent = state.selectedIndent;
   if (!indent) {
     toast("Select an indent first.", "error");
@@ -2239,6 +2419,7 @@ function closeIndentResyncModal() {
 }
 
 async function confirmIndentResync() {
+  if (!canPerformEditAction("Resync indent")) return;
   const indent = state.selectedIndent;
   const bd = qs("indentResyncModalBackdrop");
   if (!indent || !bd) {
@@ -2299,6 +2480,7 @@ function closeIndentViewModal() {
 }
 
 function openVendorAcceptModeModal(indentArg) {
+  if (!canPerformEditAction("Recommend and accept vendors")) return;
   const indent = indentArg || state.selectedIndent;
 
   if (!indent?.indent_id) {
@@ -2338,6 +2520,7 @@ function closeVendorAcceptModeModal() {
 }
 
 async function confirmVendorAcceptMode() {
+  if (!canPerformEditAction("Recommend and accept vendors")) return;
   const backdrop = qs("vendorAcceptModeModalBackdrop");
   const indentId = Number(backdrop?.dataset.indentId || 0);
   const clearSelectedInactive =
@@ -2361,9 +2544,12 @@ async function recommendAndAcceptVendorsForIndent(indentArg, options = null) {
   const indent = indentArg || state.selectedIndent;
 
   if (!options || typeof options.clearSelectedInactive !== "boolean") {
+    if (!canPerformEditAction("Recommend and accept vendors")) return;
     openVendorAcceptModeModal(indent);
     return;
   }
+
+  if (!canPerformEditAction("Recommend and accept vendors")) return;
 
   if (!indent?.indent_id) {
     toast("Select an indent first.", "error");
@@ -2528,6 +2714,7 @@ function renderIndentLinesActions(indent) {
     b.setAttribute("aria-label", label);
     b.innerHTML = svgIcon(iconName);
     b.addEventListener("click", () => openIndentActionModal(indent, act));
+    markEditAction(b);
     container.appendChild(b);
   };
   const makeVendorBulkButton = () => {
@@ -2552,6 +2739,7 @@ function renderIndentLinesActions(indent) {
     b.addEventListener("click", () =>
       recommendAndAcceptVendorsForIndent(indent),
     );
+    markEditAction(b);
     container.appendChild(b);
   };
 
@@ -2585,6 +2773,7 @@ function renderIndentLinesActions(indent) {
       "btnIndentCloseOverride",
     );
   }
+  applyPermissionUi();
 }
 
 function renderIndentLines(rows) {
@@ -2902,6 +3091,14 @@ async function loadIndents() {
 }
 
 function openIndentActionModal(indent, action) {
+  const actionLabels = {
+    approve: "Approve indent",
+    issue: "Issue indent",
+    recommend_accept: "Recommend and accept vendors",
+    close_strict: "Close indent",
+    close_override: "Close indent with override",
+  };
+  if (!canPerformEditAction(actionLabels[action] || "This action")) return;
   const backdrop = qs("indentActionModalBackdrop");
   backdrop.classList.add("show");
   backdrop.setAttribute("aria-hidden", "false");
@@ -2955,6 +3152,14 @@ async function confirmIndentAction() {
   const backdrop = qs("indentActionModalBackdrop");
   const indentId = Number(backdrop.dataset.indentId);
   const action = backdrop.dataset.action;
+  const actionLabels = {
+    approve: "Approve indent",
+    issue: "Issue indent",
+    recommend_accept: "Recommend and accept vendors",
+    close_strict: "Close indent",
+    close_override: "Close indent with override",
+  };
+  if (!canPerformEditAction(actionLabels[action] || "This action")) return;
   let error;
   if (action === "approve") {
     const approvedDate = qs("indentApproveDate").value;
@@ -3012,6 +3217,7 @@ async function confirmIndentAction() {
 }
 
 async function refreshProcurementExecutionSnapshots() {
+  if (!canPerformEditAction("Refresh procurement snapshots")) return;
   const btn = qs("btnRefreshProcurementSnapshots");
 
   const ok = confirm(
@@ -4053,6 +4259,7 @@ async function exportIndentToPdf() {
 // ─── INDENT CREATION ─────────────────────────────────────────────────────────
 
 function openCreateIndentModal() {
+  if (!canPerformEditAction("Create indent")) return;
   const backdrop = qs("createIndentModalBackdrop");
   backdrop.classList.add("show");
   backdrop.setAttribute("aria-hidden", "false");
@@ -4068,6 +4275,7 @@ function closeCreateIndentModal() {
 }
 
 async function saveCreateIndent() {
+  if (!canPerformEditAction("Create indent")) return;
   const indentDate = qs("ciIndentDate").value;
   if (!indentDate) {
     toast("Indent date is required.", "error");
@@ -4109,6 +4317,7 @@ async function saveCreateIndent() {
 }
 
 async function openIndentFromPrModal(options = {}) {
+  if (!canPerformEditAction("Create indent from PR")) return;
   const { preselectedPrId = null } = options;
   // Load active PRs
   setLoading(true);
@@ -4154,6 +4363,7 @@ function closeIndentFromPrModal() {
 }
 
 async function saveIndentFromPr() {
+  if (!canPerformEditAction("Create indent from PR")) return;
   const prId = Number(qs("ifpPrPick").value || 0);
   if (!prId) {
     toast("Select a PR.", "error");
@@ -4636,6 +4846,7 @@ function wireStockItemPicker() {
 }
 
 function openIndentAddLineModal(existingLine) {
+  if (!canPerformEditAction(existingLine ? "Edit indent line" : "Add indent line")) return;
   const backdrop = qs("indentAddLineModalBackdrop");
   const indent = state.selectedIndent;
   const itemInput = qs("ialItemSearch");
@@ -4706,6 +4917,7 @@ function closeIndentAddLineModal() {
 }
 
 async function saveIndentAddLine() {
+  if (!canPerformEditAction("Save indent line")) return;
   if (!state.selectedIndent) {
     toast("No indent selected.", "error");
     return;
@@ -4837,12 +5049,13 @@ async function loadPrHeaders() {
 }
 
 function renderPrLineRowHtml(row, isDraft) {
+  const isEditable = isDraft && canWriteModule();
   const requestedQtyNum = Number(row.requested_qty || 0);
   const deltaQtyNum = Number(row.manual_delta_qty || 0);
   const finalQtyNum = requestedQtyNum + deltaQtyNum;
   const reasonText = row.manual_reason ?? "";
   return `
-    <tr data-pr-line-id="${esc(row.pr_line_id)}" ${isDraft ? "" : 'class="locked-row"'}>
+    <tr data-pr-line-id="${esc(row.pr_line_id)}" ${isEditable ? "" : 'class="locked-row"'}>
       <td>${esc(row.stock_item_name ?? row.stock_item_code ?? row.code ?? String(row.stock_item_id ?? ""))}</td>
       <td>${esc(
         displayMaterialClassCode(row.material_class_code) ||
@@ -4856,7 +5069,7 @@ function renderPrLineRowHtml(row, isDraft) {
       <td data-col="delta">${fmtQty(deltaQtyNum)}</td>
       <td>
         ${
-          isDraft
+          isEditable
             ? `<input
                 class="pr-line-inline-input qty"
                 type="number"
@@ -4873,7 +5086,7 @@ function renderPrLineRowHtml(row, isDraft) {
       </td>
       <td>
         ${
-          isDraft
+          isEditable
             ? `<input
                 class="pr-line-inline-input reason"
                 type="text"
@@ -5000,6 +5213,7 @@ async function commitFinalQty(
   newFinalQty,
   currentReason,
 ) {
+  if (!canWriteModule()) return;
   const row = prLineAll.find((item) => Number(item.pr_line_id) === prLineId);
   if (!row) return;
   const delta = Number(newFinalQty) - Number(requestedQty || 0);
@@ -5027,6 +5241,7 @@ async function commitFinalQty(
 }
 
 async function commitReason(prLineId, reasonText) {
+  if (!canWriteModule()) return;
   const row = prLineAll.find((item) => Number(item.pr_line_id) === prLineId);
   if (!row) return;
   const currentDelta = Number(row.manual_delta_qty || 0);
@@ -5164,6 +5379,7 @@ function wirePrLineTableActions() {
   const commitInlineEdit = async (inputEl) => {
     if (!(inputEl instanceof HTMLInputElement)) return false;
     if (inputEl.disabled) return false;
+    if (!canPerformEditAction("Edit PR line")) return false;
     const rowId = Number(inputEl.dataset.lineId || "0");
     const field = inputEl.dataset.field || "";
     const row = prLineAll.find((item) => Number(item.pr_line_id) === rowId);
@@ -5340,6 +5556,7 @@ async function loadPrLines(prId) {
 }
 
 function openPrRebuildModal() {
+  if (!canPerformEditAction("Rebuild PR from MRP")) return;
   if (!state.selectedPr || state.selectedPr.status !== "draft") return;
   lastFocusedBeforePrRebuildModal =
     document.activeElement instanceof HTMLElement
@@ -5369,6 +5586,7 @@ function closePrRebuildModal() {
 }
 
 async function confirmPrRebuildFromMrp() {
+  if (!canPerformEditAction("Rebuild PR from MRP")) return;
   const backdrop = qs("prRebuildModalBackdrop");
   const prId = Number(backdrop.dataset.prId);
   const mode = qs("prRebuildMode").value || "safe";
@@ -5439,6 +5657,7 @@ function refreshPrViewModal(row) {
   };
   const hintEl = qs("prDetailHint");
   if (hintEl) hintEl.textContent = prHints[row.status] ?? "";
+  applyPermissionUi();
 }
 
 function openPrViewModal(row, options = {}) {
@@ -5718,6 +5937,7 @@ function closePrViewModal() {
 }
 
 function openGeneratePrModal() {
+  if (!canPerformEditAction("Generate PR")) return;
   lastFocusedBeforeGeneratePrModal =
     document.activeElement instanceof HTMLElement
       ? document.activeElement
@@ -5766,6 +5986,7 @@ function closeGeneratePrModal() {
 }
 
 async function createIndentFromSelectedPr() {
+  if (!canPerformEditAction("Create indent from PR")) return;
   if (!state.selectedPr) {
     toast("No PR selected.", "error");
     return;
@@ -5787,6 +6008,7 @@ function monthToFirstDate(monthStr) {
 }
 
 async function generateDraftPr() {
+  if (!canPerformEditAction("Generate PR")) return;
   const prNumber = (qs("prNewNumber").value || "").trim();
   if (!prNumber) {
     toast("PR Number is required.", "error");
@@ -5840,6 +6062,7 @@ async function generateDraftPr() {
 }
 
 function openPrAddLineModal() {
+  if (!canPerformEditAction("Add PR line")) return;
   const backdrop = qs("prAddLineModalBackdrop");
   qs("prAddLineClass").value = "";
   backdrop.dataset.stockItemId = "";
@@ -5876,6 +6099,7 @@ function closePrAddLineModal() {
 }
 
 async function savePrAddLine() {
+  if (!canPerformEditAction("Add PR line")) return;
   if (!state.selectedPr) {
     toast("No PR selected.", "error");
     return;
@@ -5933,6 +6157,12 @@ async function savePrAddLine() {
 }
 
 function openPrSetStatusModal(row, targetStatus) {
+  const statusLabels = {
+    active: "Activate PR",
+    closed: "Close PR",
+    cancelled: "Cancel PR",
+  };
+  if (!canPerformEditAction(statusLabels[targetStatus] || "Change PR status")) return;
   const backdrop = qs("prSetStatusModalBackdrop");
   const titles = {
     active: "Activate PR",
@@ -5964,8 +6194,14 @@ function closePrSetStatusModal() {
 
 async function confirmPrSetStatus() {
   const backdrop = qs("prSetStatusModalBackdrop");
-  const prId = Number(backdrop.dataset.prId);
   const targetStatus = backdrop.dataset.targetStatus;
+  const statusLabels = {
+    active: "Activate PR",
+    closed: "Close PR",
+    cancelled: "Cancel PR",
+  };
+  if (!canPerformEditAction(statusLabels[targetStatus] || "Change PR status")) return;
+  const prId = Number(backdrop.dataset.prId);
   const note = (qs("prSetStatusNote").value || "").trim() || null;
   setLoading(true);
   const { error } = await supabase.rpc("proc_pr_set_status", {
@@ -6475,7 +6711,16 @@ function updateExcessAcceptState() {
   const reason = (qs("excessAcceptReason")?.value || "").trim();
   const ok = qty > 0 && qty <= max && reason.length >= 10;
   const btn = qs("btnExcessAccept");
-  if (btn) btn.disabled = !ok;
+  if (!btn) return;
+  if (!canWriteModule()) {
+    btn.disabled = true;
+    btn.setAttribute("title", "Read-only access");
+    return;
+  }
+  btn.disabled = !ok;
+  if (ok) {
+    btn.removeAttribute("title");
+  }
 }
 
 function openExcessPurchaseModal(row) {
@@ -6519,6 +6764,7 @@ function openExcessPurchaseModal(row) {
   backdrop.dataset.purchaseFactId = String(row.purchase_fact_id);
   backdrop.dataset.maxQty = String(max);
   updateExcessAcceptState();
+  applyPermissionUi();
 }
 
 function closeAcceptExcessModal() {
@@ -6528,6 +6774,7 @@ function closeAcceptExcessModal() {
 }
 
 async function saveAcceptExcess() {
+  if (!canPerformEditAction("Accept excess purchase")) return;
   const backdrop = qs("acceptExcessModalBackdrop");
   const purchaseFactId = Number(backdrop.dataset.purchaseFactId);
   const maxQty = Number(backdrop.dataset.maxQty);
@@ -7735,6 +7982,29 @@ function wireVendorBuylistControls() {
 
 (async function main() {
   await requireSession();
+
+  try {
+    await loadAccessState();
+  } catch (err) {
+    console.error(err);
+    setStatus("Unable to verify Procurement Execution Console access.", "error");
+    const panel = qs("mainPanel");
+    if (panel) panel.hidden = true;
+    return;
+  }
+
+  if (!canAccessModule()) {
+    setStatus(
+      "You do not have permission to open Procurement Execution Console.",
+      "error",
+    );
+    const panel = qs("mainPanel");
+    if (panel) panel.hidden = true;
+    return;
+  }
+
+  applyPermissionUi();
+
   document
     .getElementById("homeBtn")
     ?.addEventListener("click", () => Platform.goHome());
@@ -7776,6 +8046,7 @@ function wireVendorBuylistControls() {
   setTab(state.tab);
   updateExportButtonStates();
   refreshAllTabCounts();
+  applyPermissionUi();
 })();
 
 
