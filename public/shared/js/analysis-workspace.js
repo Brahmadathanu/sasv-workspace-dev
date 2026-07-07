@@ -282,6 +282,30 @@ const outResultValue = $("outResultValue");
 const btnOutCancel = $("btnOutCancel");
 const btnOutSave = $("btnOutSave");
 
+// Multi-value result entry modal
+const MULTI_VALUE_INITIAL_BLANK_ROWS = 3;
+const MULTI_VALUE_MAX_OBS_ROWS = 50;
+
+const multiValueResultModal = $("multiValueResultModal");
+const mvModalTitle = $("mvModalTitle");
+const mvModalSub = $("mvModalSub");
+const mvModalMeta = $("mvModalMeta");
+const mvSummarySection = $("mvSummarySection");
+const mvSummaryGrid = $("mvSummaryGrid");
+const mvOutsideListSection = $("mvOutsideListSection");
+const mvOutsideList = $("mvOutsideList");
+const mvObsUomLabel = $("mvObsUomLabel");
+const mvObsTableBody = $("mvObsTableBody");
+const mvAddObsRowBtn = $("mvAddObsRowBtn");
+const mvRemarksInput = $("mvRemarksInput");
+const mvCancelBtn = $("mvCancelBtn");
+const mvSaveBtn = $("mvSaveBtn");
+const mvClearBtn = $("mvClearBtn");
+
+const multiValueClearConfirmModal = $("multiValueClearConfirmModal");
+const mvClearConfirmCancelBtn = $("mvClearConfirmCancelBtn");
+const mvClearConfirmProceedBtn = $("mvClearConfirmProceedBtn");
+
 // Issue COA modal
 const issueCoaModal = $("issueCoaModal");
 const coaIssueDate = $("coaIssueDate");
@@ -324,6 +348,13 @@ let pendingRefRow = null; // Row awaiting reference capture
 let pendingOutRow = null; // Row being edited (outsourced)
 let outsourcedModalMode = "EDIT_EXISTING"; // EDIT_EXISTING | MARK_EXISTING | ADD_EXTRA
 let outsourcedTestPickerRows = [];
+
+// MULTI_VALUE result entry
+let pendingMultiValueRow = null;
+let multiValueObservations = [];
+let multiValueCurrentSummary = null;
+let multiValueSaving = false;
+let multiValueClearing = false;
 
 // ── Utility: escape HTML ───────────────────────────────────────────────────────
 function esc(str) {
@@ -590,6 +621,39 @@ function getDisplayableUnit(row) {
   return symbol;
 }
 
+function isMultiValueResultRow(row) {
+  const entryMode = String(row?.result_entry_mode ?? "").toUpperCase();
+  const inputMode = String(row?.input_mode ?? "").toUpperCase();
+  return entryMode === "MULTI_VALUE" || inputMode === "MULTI_VALUE";
+}
+
+function getInitialBlankObservationCount() {
+  return MULTI_VALUE_INITIAL_BLANK_ROWS;
+}
+
+function formatCalculationRuleLabel(code) {
+  const c = String(code ?? "").trim();
+  if (!c) return "—";
+  const known = {
+    WEIGHT_VARIATION_AVG_PERCENT: "Weight Variation (average % deviation)",
+  };
+  return known[c] ?? c.replace(/_/g, " ");
+}
+
+function buildBlankObservations(count = getInitialBlankObservationCount()) {
+  const n = Math.max(
+    1,
+    Math.min(Number(count) || getInitialBlankObservationCount(), MULTI_VALUE_MAX_OBS_ROWS),
+  );
+  return Array.from({ length: n }, (_, i) => ({
+    observation_no: i + 1,
+    observed_value: null,
+    server_is_within_limit: null,
+    server_calculation_percent: null,
+    _serverObservedValue: null,
+  }));
+}
+
 function valueAlreadyEndsWithUnit(value, unit) {
   const base = String(value ?? "").trim();
   const uom = String(unit ?? "").trim();
@@ -600,6 +664,15 @@ function valueAlreadyEndsWithUnit(value, unit) {
 }
 
 function buildClientResultDisplay(row) {
+  if (isMultiValueResultRow(row)) {
+    return String(
+      row?.result_display_with_unit ??
+        row?.result_display ??
+        row?.result_text ??
+        "",
+    ).trim();
+  }
+
   const kind = String(row?.result_kind_snapshot ?? "").trim().toUpperCase();
   const isNumeric =
     kind === "NUMERIC" ||
@@ -699,8 +772,7 @@ function renderMobileEditor() {
     !isReadOnly &&
     canEnterResult &&
     statusAllowsAnalysisAction("ENTER_RESULT");
-  const specDisplay =
-    row.reference_range_display ?? row.spec_display_snapshot ?? "—";
+  const specDisplay = formatAnalysisSpecDisplay(row);
   const resultDisplay = formatResultDisplayWithUnit(row);
 
   mobileEditorTitle.textContent = row.test_name ?? "Result Editor";
@@ -728,6 +800,11 @@ function renderMobileEditor() {
       <div class="editor-sheet-meta">Reference required before entering result.</div>
       <div class="editor-sheet-actions">
         <button class="btn-sm btn-ref ${canCreateRefException ? "btn-ref-add" : ""}" data-mobile-action="add-reference" data-rid="${esc(row.analysis_result_id)}" ${canCreateRefException ? "" : "disabled"} title="${esc(canCreateRefException ? "Add or review reference for this test" : PERMISSION_DENIED_MESSAGE)}">+ Add Reference</button>
+      </div>`;
+  } else if (isMultiValueResultRow(row)) {
+    editorInputHtml = `
+      <div class="editor-sheet-actions">
+        <button type="button" class="btn-sm btn-multi-value" data-mobile-action="enter-observations" data-rid="${esc(row.analysis_result_id)}" ${resultDisabled ? "disabled" : ""} ${resultTitle ? `title="${esc(resultTitle)}"` : ""}>${esc(getMultiValueActionLabel(row))}</button>
       </div>`;
   } else if (kind === "NUMERIC") {
     editorInputHtml = `
@@ -860,9 +937,7 @@ function buildResultRow(row) {
       ? PERMISSION_DENIED_MESSAGE
       : "";
 
-  // Use reference_range_display if available, fall back to spec_display_snapshot
-  const specDisplay =
-    row.reference_range_display ?? row.spec_display_snapshot ?? "—";
+  const specDisplay = formatAnalysisSpecDisplay(row);
 
   // Input cell
   let inputCell;
@@ -879,6 +954,24 @@ function buildResultRow(row) {
   } else if (refRequired) {
     // Reference not yet captured — block entry
     inputCell = `<span style="color:var(--muted);font-size:0.78rem;">Reference required</span>`;
+  } else if (isMultiValueResultRow(row)) {
+    const reportHint = formatResultDisplayWithUnit(row);
+    const hintHtml =
+      reportHint && reportHint !== "—"
+        ? `<div class="mv-input-hint" title="${esc(reportHint)}">${esc(reportHint.length > 40 ? `${reportHint.slice(0, 40)}…` : reportHint)}</div>`
+        : "";
+    inputCell = `
+      <div class="mv-result-input-wrap">
+        <button
+          type="button"
+          class="btn-sm btn-multi-value"
+          data-action="enter-observations"
+          data-rid="${rid}"
+          ${resultDisabled ? "disabled" : ""}
+          ${resultTitle ? `title="${esc(resultTitle)}"` : 'title="Enter observed values for multi-value calculation"'}
+        >${esc(getMultiValueActionLabel(row))}</button>
+        ${hintHtml}
+      </div>`;
   } else if (kind === "NUMERIC") {
     const currentVal = formatDecimalForInput(row.result_numeric);
     inputCell = `
@@ -1743,6 +1836,16 @@ function handleResultRowAction(action, row) {
       return;
     }
     openOutsourcedModal(row, "MARK_EXISTING");
+    return;
+  }
+
+  if (action === "enter-observations") {
+    const gate = canEnterMultiValueResult(row);
+    if (!gate.ok) {
+      toast(gate.message, gate.kind ?? "warn", 4000);
+      return;
+    }
+    openMultiValueResultModal(row);
   }
 }
 
@@ -1768,6 +1871,64 @@ function normalizeReferenceSpecType(raw) {
   if (t === "PASS_FAIL") return "PASS_FAIL";
   if (t === "TOLERANCE") return "TOLERANCE";
   return "TEXT";
+}
+
+/** Normalize UOM token for TOLERANCE display (mirrors SPM buildToleranceDisplayText). */
+function normalizeToleranceUomSymbol(symbol) {
+  const unit = String(symbol ?? "").trim();
+  if (!unit) return "";
+  const upper = unit.toUpperCase();
+  if (upper === "NONE" || upper === "NO UOM" || upper === "NO_UNIT") return "";
+  return unit;
+}
+
+/** TOLERANCE display: target [targetUOM] ± tolerance [toleranceUOM] */
+function buildToleranceSpecDisplay(
+  targetValue,
+  toleranceValue,
+  targetUomSymbol,
+  toleranceUomSymbol,
+) {
+  const targetText = formatNumberForDisplay(targetValue);
+  const toleranceText = formatNumberForDisplay(toleranceValue);
+  if (!targetText || !toleranceText) return "";
+  const targetUnit = normalizeToleranceUomSymbol(targetUomSymbol);
+  const toleranceUnit = normalizeToleranceUomSymbol(toleranceUomSymbol);
+  let text = targetUnit ? `${targetText} ${targetUnit}` : targetText;
+  text += ` ± ${toleranceText}`;
+  if (toleranceUnit) text += ` ${toleranceUnit}`;
+  return text.trim();
+}
+
+function formatToleranceSpecDisplayFromRow(row) {
+  if (!row) return "";
+  const targetUom = normalizeToleranceUomSymbol(
+    row.uom_symbol_snapshot ?? row.uom_code_snapshot ?? "",
+  );
+  const toleranceUom = normalizeToleranceUomSymbol(
+    row.tolerance_uom_symbol_snapshot ?? row.tolerance_uom_code_snapshot ?? "",
+  );
+  return buildToleranceSpecDisplay(
+    row.target_value_snapshot,
+    row.tolerance_value_snapshot,
+    targetUom,
+    toleranceUom,
+  );
+}
+
+function formatAnalysisSpecDisplay(row) {
+  const specType = normalizeReferenceSpecType(row?.spec_type_snapshot);
+  if (specType === "TOLERANCE") {
+    const target = row?.target_value_snapshot;
+    const tolerance = row?.tolerance_value_snapshot;
+    const hasTarget = target != null && String(target).trim() !== "";
+    const hasTolerance = tolerance != null && String(tolerance).trim() !== "";
+    if (hasTarget && hasTolerance) {
+      const built = formatToleranceSpecDisplayFromRow(row);
+      if (built) return built;
+    }
+  }
+  return row?.reference_range_display ?? row?.spec_display_snapshot ?? "—";
 }
 
 /** TOLERANCE compliance: true when tolerance UOM is percent (%). */
@@ -1836,14 +1997,13 @@ function getRefToleranceUomSymbol(uomId) {
 }
 
 function buildRefToleranceDisplayPreview(targetVal, toleranceVal, row) {
-  if (!targetVal || !toleranceVal) return "";
-  const resultUom = getRowUnitLabel(row);
-  let text = resultUom ? `${targetVal} ${resultUom}`.trim() : targetVal;
   const tolUomId = refToleranceUomSelect?.value;
-  const tolUom = getRefToleranceUomSymbol(tolUomId);
-  text += ` ± ${toleranceVal}`;
-  if (tolUom) text = `${text} ${tolUom}`.trim();
-  return text;
+  return buildToleranceSpecDisplay(
+    targetVal,
+    toleranceVal,
+    getRowUnitLabel(row),
+    getRefToleranceUomSymbol(tolUomId),
+  );
 }
 
 async function ensureRefToleranceUomPicker() {
@@ -2625,8 +2785,7 @@ async function openReferenceModalAsync(row) {
   await ensureRefToleranceUomPicker();
   const refRequired = row.reference_capture_required === true;
   refModalTitle.textContent = `${refRequired ? "Add Reference" : "Modify Reference"} — ${row.test_name ?? "Test"}`;
-  const specDisplay =
-    row.reference_range_display ?? row.spec_display_snapshot ?? "None on file";
+  const specDisplay = formatAnalysisSpecDisplay(row);
   refModalSub.textContent = `Current specification: ${specDisplay}`;
 
   const allowedTypes = getAllowedReferenceSpecTypes(row);
@@ -2988,6 +3147,824 @@ async function grantException() {
   } finally {
     hideLoading();
     btnAddException.disabled = false;
+  }
+}
+
+// ── MULTI_VALUE result entry modal ──────────────────────────────────────────────
+
+function canEnterMultiValueResult(row) {
+  if (!row) return { ok: false, message: "Row not found." };
+  if (row.reference_capture_required === true) {
+    return { ok: false, message: "Reference required before entering result." };
+  }
+  if (isRowLocked(row.analysis_result_id)) {
+    const lock = getRowLock(row.analysis_result_id);
+    return {
+      ok: false,
+      message: String(
+        lock?.lock_message || "Pending specification review exists.",
+      ),
+    };
+  }
+  if (isReadOnly || !statusAllowsAnalysisAction("ENTER_RESULT")) {
+    return {
+      ok: false,
+      message: "Result entry is not allowed at the current workflow stage.",
+    };
+  }
+  if (!analysisPermissionVerified) {
+    return { ok: false, message: PERMISSION_VERIFY_FAILED_MESSAGE, kind: "error" };
+  }
+  if (!mayPerformAnalysisAction(analysisId, "ENTER_RESULT")) {
+    return { ok: false, message: PERMISSION_DENIED_MESSAGE };
+  }
+  return { ok: true };
+}
+
+function getMultiValueActionLabel(row) {
+  const hasResult = Boolean(
+    String(row?.result_display ?? row?.result_text ?? "").trim(),
+  );
+  return hasResult ? "View / Edit Observations" : "Enter Observations";
+}
+
+function getMultiValueReferenceContext(row) {
+  const target = parseDecimalOrNull(row?.target_value_snapshot);
+  const tolerance = parseDecimalOrNull(row?.tolerance_value_snapshot);
+  const isPercent = isPercentToleranceUom(row);
+  let lower = null;
+  let upper = null;
+  if (target != null && tolerance != null && isPercent) {
+    const delta = Math.abs((target * tolerance) / 100);
+    lower = target - delta;
+    upper = target + delta;
+  }
+  return {
+    target,
+    tolerance,
+    isPercent,
+    lower,
+    upper,
+    uom: getDisplayableUnit(row),
+  };
+}
+
+function formatDeviationPercent(value) {
+  if (value == null || Number.isNaN(Number(value))) return "—";
+  const n = Number(value);
+  const sign = n >= 0 ? "" : "";
+  return `${sign}${n.toFixed(2)}%`;
+}
+
+function calculateMultiValuePreviewForObservation(row, observedValue) {
+  const n = parseDecimalOrNull(observedValue);
+  if (n == null || Number.isNaN(n)) return null;
+
+  const ctx = getMultiValueReferenceContext(row);
+  if (ctx.target == null || ctx.tolerance == null) return null;
+
+  const deviation = n - ctx.target;
+  const deviationPercent =
+    ctx.target !== 0 ? (deviation / ctx.target) * 100 : null;
+
+  let withinLimit = false;
+  if (ctx.isPercent && deviationPercent != null) {
+    withinLimit = Math.abs(deviationPercent) <= Math.abs(ctx.tolerance);
+  } else if (ctx.lower != null && ctx.upper != null) {
+    withinLimit = n >= ctx.lower && n <= ctx.upper;
+  }
+
+  return { deviation, deviationPercent, withinLimit };
+}
+
+function getObservationRowStatus(row, observation) {
+  const hasValue =
+    observation?.observed_value != null &&
+    !Number.isNaN(Number(observation.observed_value));
+  if (!hasValue) {
+    return { statusKey: "pending", label: "Pending", deviationPct: null };
+  }
+
+  const serverValue = observation._serverObservedValue;
+  const useServer =
+    serverValue != null &&
+    Number(serverValue) === Number(observation.observed_value) &&
+    observation.server_is_within_limit != null &&
+    observation.server_calculation_percent != null;
+
+  if (useServer) {
+    const within = observation.server_is_within_limit === true;
+    return {
+      statusKey: within ? "ok" : "fail",
+      label: within ? "Within limit" : "Outside limit",
+      deviationPct: Number(observation.server_calculation_percent),
+    };
+  }
+
+  const preview = calculateMultiValuePreviewForObservation(
+    row,
+    observation.observed_value,
+  );
+  if (!preview || preview.deviationPercent == null) {
+    return { statusKey: "pending", label: "Pending", deviationPct: null };
+  }
+
+  return {
+    statusKey: preview.withinLimit ? "ok" : "fail",
+    label: preview.withinLimit ? "Within limit" : "Outside limit",
+    deviationPct: preview.deviationPercent,
+  };
+}
+
+function mapLoadedObservations(data) {
+  return (data ?? [])
+    .map((r) => ({
+      observation_no: Number(r.observation_no),
+      observed_value:
+        r.observed_value == null || r.observed_value === ""
+          ? null
+          : Number(r.observed_value),
+      server_is_within_limit:
+        r.is_within_limit === true
+          ? true
+          : r.is_within_limit === false
+            ? false
+            : null,
+      server_calculation_percent:
+        r.calculation_percent == null || r.calculation_percent === ""
+          ? null
+          : Number(r.calculation_percent),
+      _serverObservedValue:
+        r.observed_value == null || r.observed_value === ""
+          ? null
+          : Number(r.observed_value),
+    }))
+    .filter((r) => Number.isFinite(r.observation_no) && r.observation_no > 0)
+    .sort((a, b) => a.observation_no - b.observation_no)
+    .map((r, idx) => ({
+      ...r,
+      observation_no: idx + 1,
+    }));
+}
+
+function renumberMultiValueObservations() {
+  multiValueObservations.forEach((obs, idx) => {
+    obs.observation_no = idx + 1;
+  });
+}
+
+async function loadMultiValueObservations(analysisResultId) {
+  const { data, error } = await labSupabase
+    .from("v_analysis_result_observation")
+    .select("*")
+    .eq("analysis_result_id", analysisResultId)
+    .order("observation_no", { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+}
+
+async function loadMultiValueSummary(analysisResultId) {
+  const { data, error } = await labSupabase
+    .from("v_analysis_result_calculation_summary")
+    .select("*")
+    .eq("analysis_result_id", analysisResultId)
+    .maybeSingle();
+  if (error) throw error;
+  return data ?? null;
+}
+
+function parseMultiValueSaveResponse(data) {
+  if (data == null) return { ok: true };
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row || typeof row !== "object") return { ok: true };
+  if (row.ok === false) {
+    return {
+      ok: false,
+      message: String(row.message ?? "Save failed.").trim(),
+    };
+  }
+  return { ok: true };
+}
+
+function renderMultiValueModalMeta(row) {
+  if (!mvModalMeta) return;
+  const registerNo =
+    analysisInfo?.analysis_register_no ?? row?.analysis_register_no ?? "—";
+  const specDisplay = formatAnalysisSpecDisplay(row);
+  const entryMode = row?.result_entry_mode ?? row?.input_mode ?? "—";
+  const calcMode = row?.calculation_mode ?? "—";
+  const rule = formatCalculationRuleLabel(row?.calculation_rule_code);
+  mvModalMeta.innerHTML = `
+    <div><strong>Register:</strong> ${esc(String(registerNo))}</div>
+    <div><strong>Specification:</strong> ${esc(String(specDisplay))}</div>
+    <div><strong>Entry mode:</strong> ${esc(String(entryMode))} · <strong>Calculation:</strong> ${esc(String(calcMode))}</div>
+    <div><strong>Rule:</strong> ${esc(String(rule))}</div>`;
+}
+
+function renderMultiValueSummaryPanel(summary) {
+  if (!mvSummarySection || !mvSummaryGrid) return;
+
+  const fmtPct = (v) => {
+    if (v == null || v === "") return "—";
+    return formatDeviationPercent(v);
+  };
+
+  if (!summary) {
+    mvSummarySection.hidden = true;
+    mvSummaryGrid.innerHTML = "";
+    return;
+  }
+
+  const items = [
+    ["Final Status", summary.final_status ?? "—"],
+    ["Reportable Result", summary.reportable_result_text ?? "—"],
+    ["Average", formatNumberForDisplay(summary.calculated_average) || "—"],
+    ["Min", formatNumberForDisplay(summary.calculated_min) || "—"],
+    ["Max", formatNumberForDisplay(summary.calculated_max) || "—"],
+    ["Max Deviation %", fmtPct(summary.max_deviation_percent)],
+    [
+      "Outside Limit Count",
+      summary.outside_limit_count != null
+        ? String(summary.outside_limit_count)
+        : "—",
+    ],
+  ];
+
+  mvSummarySection.hidden = false;
+  mvSummaryGrid.innerHTML = items
+    .map(
+      ([label, val]) => `<div class="mv-summary-item">
+      <span class="mv-summary-label">${esc(label)}</span>
+      <span class="mv-summary-value">${esc(String(val))}</span>
+    </div>`,
+    )
+    .join("");
+}
+
+function renderMultiValueOutsideList() {
+  if (!mvOutsideListSection || !mvOutsideList) return;
+  const row = pendingMultiValueRow;
+  if (!row) {
+    mvOutsideListSection.hidden = true;
+    mvOutsideList.innerHTML = "";
+    return;
+  }
+
+  syncMultiValueObservationsFromDom();
+  const uom = getDisplayableUnit(row) || "";
+  const outside = [];
+
+  multiValueObservations.forEach((obs, idx) => {
+    const status = getObservationRowStatus(row, obs);
+    if (status.statusKey !== "fail") return;
+    outside.push({
+      rowNum: idx + 1,
+      value: obs.observed_value,
+      deviationPct: status.deviationPct,
+    });
+  });
+
+  mvOutsideListSection.hidden = false;
+  if (!outside.length) {
+    mvOutsideListSection.classList.remove("mv-outside-has-fail");
+    mvOutsideList.innerHTML =
+      '<p class="mv-outside-none">All entered observations are within the current tolerance preview.</p>';
+    return;
+  }
+
+  mvOutsideListSection.classList.add("mv-outside-has-fail");
+  const lines = outside.map((o) => {
+    const valText = formatNumberForDisplay(o.value);
+    const uomText = uom ? ` ${uom}` : "";
+    return `Row ${o.rowNum}: ${valText}${uomText}, deviation ${formatDeviationPercent(o.deviationPct)}`;
+  });
+  mvOutsideList.innerHTML = `<div class="mv-outside-title">Outside limit observations:</div><ul class="mv-outside-list">${lines.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>`;
+}
+
+function renderMultiValueObservationRowHtml(obs, idx, uom) {
+  const val =
+    obs.observed_value == null ? "" : formatDecimalForInput(obs.observed_value);
+  const status = pendingMultiValueRow
+    ? getObservationRowStatus(pendingMultiValueRow, obs)
+    : { statusKey: "pending", label: "Pending", deviationPct: null };
+  const rowClass =
+    status.statusKey === "ok"
+      ? "mv-obs-row-ok"
+      : status.statusKey === "fail"
+        ? "mv-obs-row-fail"
+        : "mv-obs-row-pending";
+  const devText =
+    status.deviationPct != null
+      ? formatDeviationPercent(status.deviationPct)
+      : "—";
+
+  return `<tr class="${rowClass}" data-obs-row-index="${idx}">
+    <td class="mv-obs-col-num">${esc(String(idx + 1))}</td>
+    <td class="mv-obs-col-value">
+      <input
+        type="text"
+        class="numeric-input mv-obs-input result-input"
+        inputmode="decimal"
+        enterkeyhint="done"
+        autocomplete="off"
+        data-obs-index="${idx}"
+        value="${esc(String(val))}"
+        aria-label="Observation ${idx + 1}"
+      />
+    </td>
+    <td class="mv-obs-col-uom">${esc(uom || "—")}</td>
+    <td class="mv-obs-col-dev mv-obs-deviation" data-obs-index="${idx}">${esc(devText)}</td>
+    <td class="mv-obs-col-status mv-obs-status" data-obs-index="${idx}">${esc(status.label)}</td>
+    <td class="mv-obs-col-action">
+      <button type="button" class="mv-obs-delete-btn" data-mv-delete-idx="${idx}" aria-label="Delete observation ${idx + 1}">Delete</button>
+    </td>
+  </tr>`;
+}
+
+function updateMultiValueObservationRowDisplay(idx) {
+  if (!mvObsTableBody || !pendingMultiValueRow) return;
+  const obs = multiValueObservations[idx];
+  if (!obs) return;
+
+  const tr = mvObsTableBody.querySelector(`tr[data-obs-row-index="${idx}"]`);
+  if (!tr) return;
+
+  const status = getObservationRowStatus(pendingMultiValueRow, obs);
+  tr.classList.remove("mv-obs-row-ok", "mv-obs-row-fail", "mv-obs-row-pending");
+  tr.classList.add(
+    status.statusKey === "ok"
+      ? "mv-obs-row-ok"
+      : status.statusKey === "fail"
+        ? "mv-obs-row-fail"
+        : "mv-obs-row-pending",
+  );
+
+  const devCell = tr.querySelector(`.mv-obs-deviation[data-obs-index="${idx}"]`);
+  const statusCell = tr.querySelector(`.mv-obs-status[data-obs-index="${idx}"]`);
+  const devText =
+    status.deviationPct != null
+      ? formatDeviationPercent(status.deviationPct)
+      : "—";
+  if (devCell) devCell.textContent = devText;
+  if (statusCell) statusCell.textContent = status.label;
+}
+
+function renderMultiValueObservationRows(preserveFocusIndex = null) {
+  if (!mvObsTableBody) return;
+  const uom = pendingMultiValueRow ? getDisplayableUnit(pendingMultiValueRow) : "";
+  if (mvObsUomLabel) {
+    mvObsUomLabel.textContent = uom ? `Unit: ${uom}` : "Unit: —";
+  }
+
+  const rowsHtml = multiValueObservations
+    .map((obs, idx) => renderMultiValueObservationRowHtml(obs, idx, uom))
+    .join("");
+
+  const addRowHtml = `<tr class="mv-obs-add-row">
+    <td colspan="6">
+      <button type="button" class="btn-sm mv-add-obs-inline">+ Add Observation</button>
+    </td>
+  </tr>`;
+
+  mvObsTableBody.innerHTML = rowsHtml + addRowHtml;
+  renderMultiValueOutsideList();
+
+  if (preserveFocusIndex != null) {
+    const input = mvObsTableBody.querySelector(
+      `input.mv-obs-input[data-obs-index="${preserveFocusIndex}"]`,
+    );
+    if (input) {
+      input.focus();
+      const len = input.value.length;
+      try {
+        input.setSelectionRange(len, len);
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+}
+
+function syncMultiValueObservationsFromDom() {
+  if (!mvObsTableBody) return;
+  const inputs = mvObsTableBody.querySelectorAll(".mv-obs-input");
+  inputs.forEach((input) => {
+    const idx = Number(input.dataset.obsIndex);
+    if (!Number.isFinite(idx) || idx < 0) return;
+    if (!multiValueObservations[idx]) {
+      multiValueObservations[idx] = {
+        observation_no: idx + 1,
+        observed_value: null,
+      };
+    }
+    const raw = String(input.value ?? "").trim();
+    if (!raw) {
+      multiValueObservations[idx].observed_value = null;
+      multiValueObservations[idx].observation_no = idx + 1;
+      return;
+    }
+    const n = parseDecimalOrNull(raw);
+    multiValueObservations[idx].observed_value = Number.isNaN(n) ? null : n;
+    multiValueObservations[idx].observation_no = idx + 1;
+  });
+}
+
+function appendMultiValueObservationRow(focusNewRow = false) {
+  syncMultiValueObservationsFromDom();
+  if (multiValueObservations.length >= MULTI_VALUE_MAX_OBS_ROWS) {
+    toast(`Maximum ${MULTI_VALUE_MAX_OBS_ROWS} observation rows.`, "warn");
+    return;
+  }
+  multiValueObservations.push({
+    observation_no: multiValueObservations.length + 1,
+    observed_value: null,
+    server_is_within_limit: null,
+    server_calculation_percent: null,
+    _serverObservedValue: null,
+  });
+  renumberMultiValueObservations();
+  const newIdx = multiValueObservations.length - 1;
+  renderMultiValueObservationRows(focusNewRow ? newIdx : null);
+}
+
+function deleteMultiValueObservationRow(index) {
+  syncMultiValueObservationsFromDom();
+  if (!Number.isFinite(index) || index < 0 || index >= multiValueObservations.length) {
+    return;
+  }
+  if (multiValueObservations.length <= 1) {
+    multiValueObservations[0].observed_value = null;
+    multiValueObservations[0].server_is_within_limit = null;
+    multiValueObservations[0].server_calculation_percent = null;
+    multiValueObservations[0]._serverObservedValue = null;
+    toast("Cleared the observation value.", "info", 2200);
+  } else {
+    multiValueObservations.splice(index, 1);
+  }
+  renumberMultiValueObservations();
+  renderMultiValueObservationRows();
+}
+
+function collectMultiValueObservationPayload() {
+  syncMultiValueObservationsFromDom();
+  const observations = [];
+  let invalidCount = 0;
+
+  multiValueObservations.forEach((obs, idx) => {
+    const input = mvObsTableBody?.querySelector(
+      `input.mv-obs-input[data-obs-index="${idx}"]`,
+    );
+    const raw = String(input?.value ?? "").trim();
+    if (!raw) return;
+    if (!isValidDecimalText(raw)) {
+      invalidCount += 1;
+      return;
+    }
+    const n = parseDecimalOrNull(raw);
+    if (Number.isNaN(n) || n === null) {
+      invalidCount += 1;
+      return;
+    }
+    observations.push({
+      observation_no: observations.length + 1,
+      observed_value: n,
+    });
+  });
+
+  if (invalidCount > 0) {
+    return { error: "One or more observed values are not valid numbers." };
+  }
+  if (!observations.length) {
+    return { error: "Enter at least one observed value." };
+  }
+
+  const remarks = String(mvRemarksInput?.value ?? "").trim() || null;
+  return { observations, remarks };
+}
+
+function hasSavedMultiValueResult(row, observations, summary) {
+  const hasResult = Boolean(
+    String(row?.result_display ?? row?.result_text ?? "").trim(),
+  );
+  const hasLoadedObs = (observations ?? []).some(
+    (o) =>
+      o?.observed_value != null && !Number.isNaN(Number(o.observed_value)),
+  );
+  const hasSummary = summary != null && typeof summary === "object";
+  return hasResult || hasLoadedObs || hasSummary;
+}
+
+function setMultiValueBusyState(isBusy) {
+  if (mvSaveBtn) mvSaveBtn.disabled = isBusy;
+  if (mvCancelBtn) mvCancelBtn.disabled = isBusy;
+  if (mvAddObsRowBtn) mvAddObsRowBtn.disabled = isBusy;
+  if (isBusy) {
+    if (mvClearBtn) mvClearBtn.disabled = true;
+  } else {
+    updateMultiValueClearButtonState();
+  }
+}
+
+function updateMultiValueClearButtonState() {
+  if (!mvClearBtn) return;
+  const canShow = hasSavedMultiValueResult(
+    pendingMultiValueRow,
+    multiValueObservations,
+    multiValueCurrentSummary,
+  );
+  const busy = multiValueSaving || multiValueClearing;
+  mvClearBtn.hidden = !canShow;
+  mvClearBtn.disabled = busy || !canShow;
+}
+
+function resetMultiValueModalToBlank() {
+  multiValueCurrentSummary = null;
+  multiValueObservations = buildBlankObservations(getInitialBlankObservationCount());
+  if (mvRemarksInput) mvRemarksInput.value = "";
+  renderMultiValueSummaryPanel(null);
+  renderMultiValueObservationRows();
+  updateMultiValueClearButtonState();
+}
+
+function focusMultiValueObservationInput(index) {
+  const input = mvObsTableBody?.querySelector(
+    `input.mv-obs-input[data-obs-index="${index}"]`,
+  );
+  if (!input) return false;
+  input.focus();
+  const len = input.value.length;
+  try {
+    input.setSelectionRange(len, len);
+  } catch {
+    /* ignore */
+  }
+  return true;
+}
+
+function handleMultiValueObservationKeydown(event) {
+  if (!event.target?.classList?.contains("mv-obs-input")) return;
+  if (multiValueSaving || multiValueClearing) return;
+
+  const idx = Number(event.target.dataset.obsIndex);
+  if (!Number.isFinite(idx) || idx < 0) return;
+
+  if (
+    (event.ctrlKey || event.metaKey) &&
+    (event.key === "s" || event.key === "S")
+  ) {
+    event.preventDefault();
+    saveMultiValueResult();
+    return;
+  }
+
+  if (
+    (event.ctrlKey || event.metaKey) &&
+    event.key === "Enter"
+  ) {
+    event.preventDefault();
+    saveMultiValueResult();
+    return;
+  }
+
+  if (event.key === "Enter" && event.shiftKey) {
+    event.preventDefault();
+    if (idx > 0) focusMultiValueObservationInput(idx - 1);
+    return;
+  }
+
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    syncMultiValueObservationsFromDom();
+    const nextIdx = idx + 1;
+    if (nextIdx < multiValueObservations.length) {
+      focusMultiValueObservationInput(nextIdx);
+      return;
+    }
+    appendMultiValueObservationRow(true);
+  }
+}
+
+function closeMultiValueResultModal() {
+  if (multiValueSaving || multiValueClearing) return;
+  closeMultiValueClearConfirmModal();
+  multiValueResultModal?.classList.remove("open");
+  pendingMultiValueRow = null;
+  multiValueObservations = [];
+  multiValueCurrentSummary = null;
+  multiValueSaving = false;
+  multiValueClearing = false;
+  if (mvObsTableBody) mvObsTableBody.innerHTML = "";
+  if (mvRemarksInput) mvRemarksInput.value = "";
+  if (mvSummarySection) mvSummarySection.hidden = true;
+  if (mvSummaryGrid) mvSummaryGrid.innerHTML = "";
+  if (mvOutsideListSection) {
+    mvOutsideListSection.hidden = true;
+    mvOutsideListSection.classList.remove("mv-outside-has-fail");
+  }
+  if (mvOutsideList) mvOutsideList.innerHTML = "";
+  if (mvClearBtn) {
+    mvClearBtn.hidden = true;
+    mvClearBtn.disabled = true;
+  }
+  setMultiValueBusyState(false);
+}
+
+async function openMultiValueResultModal(row) {
+  const gate = canEnterMultiValueResult(row);
+  if (!gate.ok) {
+    toast(gate.message, gate.kind ?? "warn", 4000);
+    return;
+  }
+
+  pendingMultiValueRow = row;
+  if (mvModalTitle) {
+    mvModalTitle.textContent = row.test_name ?? "Multi-value Entry";
+  }
+  if (mvModalSub) {
+    mvModalSub.textContent = "Enter observed values for server-side calculation.";
+  }
+  renderMultiValueModalMeta(row);
+
+  showLoading();
+  try {
+    const [obsRows, summary] = await Promise.all([
+      loadMultiValueObservations(row.analysis_result_id),
+      loadMultiValueSummary(row.analysis_result_id),
+    ]);
+
+    const mapped = mapLoadedObservations(obsRows);
+    multiValueCurrentSummary = summary;
+    multiValueObservations = mapped.length
+      ? mapped
+      : buildBlankObservations(getInitialBlankObservationCount());
+
+    renderMultiValueSummaryPanel(summary);
+    renderMultiValueObservationRows();
+    if (mvRemarksInput) mvRemarksInput.value = "";
+    updateMultiValueClearButtonState();
+    multiValueResultModal?.classList.add("open");
+  } catch (err) {
+    console.error("[AW] multi-value load failed:", err);
+    toast(
+      `Could not load observations: ${err.message}. Opening blank grid.`,
+      "warn",
+      5000,
+    );
+    multiValueCurrentSummary = null;
+    multiValueObservations = buildBlankObservations(getInitialBlankObservationCount());
+    renderMultiValueSummaryPanel(null);
+    renderMultiValueObservationRows();
+    if (mvRemarksInput) mvRemarksInput.value = "";
+    updateMultiValueClearButtonState();
+    multiValueResultModal?.classList.add("open");
+  } finally {
+    hideLoading();
+  }
+}
+
+async function saveMultiValueResult() {
+  if (!pendingMultiValueRow || multiValueSaving) return;
+
+  const gate = canEnterMultiValueResult(pendingMultiValueRow);
+  if (!gate.ok) {
+    toast(gate.message, gate.kind ?? "warn", 4000);
+    return;
+  }
+
+  const collected = collectMultiValueObservationPayload();
+  if (collected.error) {
+    toast(collected.error, "warn", 4000);
+    return;
+  }
+
+  multiValueSaving = true;
+  setMultiValueBusyState(true);
+  showLoading();
+
+  try {
+    const { data, error } = await labSupabase.rpc(
+      "fn_save_multi_value_analysis_result",
+      {
+        p_user_id: userId,
+        p_analysis_result_id: pendingMultiValueRow.analysis_result_id,
+        p_observations: collected.observations,
+        p_remarks: collected.remarks,
+      },
+    );
+    if (error) throw error;
+
+    const result = parseMultiValueSaveResponse(data);
+    if (!result.ok) {
+      toast(result.message, "error", 5000);
+      return;
+    }
+
+    toast("Observations saved.", "success");
+    closeMultiValueResultModal();
+    await reloadAndRender();
+  } catch (err) {
+    const msg = String(err.message || "");
+    if (msg.toLowerCase().includes("pending specification approval exists")) {
+      toast(
+        "Result entry blocked until specification review is completed.",
+        "warn",
+        5000,
+      );
+    } else {
+      toast(`Save failed: ${msg}`, "error", 5000);
+    }
+  } finally {
+    multiValueSaving = false;
+    setMultiValueBusyState(false);
+    hideLoading();
+  }
+}
+
+function openMultiValueClearConfirmModal() {
+  if (multiValueClearing) return;
+  multiValueClearConfirmModal?.classList.add("open");
+  window.setTimeout(() => mvClearConfirmCancelBtn?.focus(), 0);
+}
+
+function closeMultiValueClearConfirmModal() {
+  if (multiValueClearing) return;
+  multiValueClearConfirmModal?.classList.remove("open");
+  if (mvClearConfirmProceedBtn) mvClearConfirmProceedBtn.disabled = false;
+}
+
+function clearMultiValueResult() {
+  if (!pendingMultiValueRow || multiValueSaving || multiValueClearing) return;
+
+  const gate = canEnterMultiValueResult(pendingMultiValueRow);
+  if (!gate.ok) {
+    toast(gate.message, gate.kind ?? "warn", 4000);
+    return;
+  }
+
+  if (
+    !hasSavedMultiValueResult(
+      pendingMultiValueRow,
+      multiValueObservations,
+      multiValueCurrentSummary,
+    )
+  ) {
+    return;
+  }
+
+  openMultiValueClearConfirmModal();
+}
+
+async function proceedMultiValueClearConfirmed() {
+  if (!pendingMultiValueRow || multiValueSaving || multiValueClearing) return;
+
+  const gate = canEnterMultiValueResult(pendingMultiValueRow);
+  if (!gate.ok) {
+    toast(gate.message, gate.kind ?? "warn", 4000);
+    closeMultiValueClearConfirmModal();
+    return;
+  }
+
+  const resultId = pendingMultiValueRow.analysis_result_id;
+  closeMultiValueClearConfirmModal();
+  multiValueClearing = true;
+  setMultiValueBusyState(true);
+  if (mvClearConfirmProceedBtn) mvClearConfirmProceedBtn.disabled = true;
+  showLoading();
+
+  try {
+    const { data, error } = await labSupabase.rpc(
+      "fn_clear_multi_value_analysis_result",
+      {
+        p_user_id: userId,
+        p_analysis_result_id: resultId,
+        p_clear_reason: "Cleared from Analysis Workspace",
+      },
+    );
+    if (error) throw error;
+
+    const result = parseMultiValueSaveResponse(data);
+    if (!result.ok) {
+      toast(result.message, "error", 5000);
+      return;
+    }
+
+    toast("Observations cleared.", "success");
+    await reloadAndRender();
+
+    const refreshed = getRowByResultId(resultId);
+    if (refreshed) {
+      pendingMultiValueRow = refreshed;
+      renderMultiValueModalMeta(refreshed);
+    }
+
+    resetMultiValueModalToBlank();
+  } catch (err) {
+    toast(`Clear failed: ${err.message}`, "error", 5000);
+  } finally {
+    multiValueClearing = false;
+    setMultiValueBusyState(false);
+    hideLoading();
+    updateMultiValueClearButtonState();
   }
 }
 
@@ -4001,6 +4978,63 @@ function wireEvents() {
     scheduleReferenceSourceSearch();
   });
 
+  // Multi-value result modal
+  mvSaveBtn?.addEventListener("click", saveMultiValueResult);
+  mvClearBtn?.addEventListener("click", clearMultiValueResult);
+  mvClearConfirmCancelBtn?.addEventListener(
+    "click",
+    closeMultiValueClearConfirmModal,
+  );
+  mvClearConfirmProceedBtn?.addEventListener(
+    "click",
+    proceedMultiValueClearConfirmed,
+  );
+  multiValueClearConfirmModal?.addEventListener("click", (e) => {
+    if (e.target !== multiValueClearConfirmModal) return;
+    if (multiValueClearing) return;
+    closeMultiValueClearConfirmModal();
+  });
+  mvCancelBtn?.addEventListener("click", closeMultiValueResultModal);
+  mvAddObsRowBtn?.addEventListener("click", appendMultiValueObservationRow);
+  multiValueResultModal?.addEventListener("click", (e) => {
+    if (e.target !== multiValueResultModal) return;
+    if (multiValueSaving || multiValueClearing) return;
+    closeMultiValueResultModal();
+  });
+  mvObsTableBody?.addEventListener("keydown", handleMultiValueObservationKeydown);
+  multiValueResultModal?.addEventListener("keydown", (e) => {
+    if (multiValueSaving || multiValueClearing) return;
+    if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S")) {
+      e.preventDefault();
+      saveMultiValueResult();
+    }
+  });
+  mvObsTableBody?.addEventListener("click", (e) => {
+    const deleteBtn = e.target.closest("[data-mv-delete-idx]");
+    if (deleteBtn) {
+      deleteMultiValueObservationRow(Number(deleteBtn.dataset.mvDeleteIdx));
+      return;
+    }
+    const addBtn = e.target.closest(".mv-add-obs-inline");
+    if (addBtn) appendMultiValueObservationRow();
+  });
+  mvObsTableBody?.addEventListener("input", (e) => {
+    handleNumericControlInput(e.target);
+    if (!e.target?.classList?.contains("mv-obs-input")) return;
+    const idx = Number(e.target.dataset.obsIndex);
+    syncMultiValueObservationsFromDom();
+    if (multiValueObservations[idx]) {
+      multiValueObservations[idx]._serverObservedValue = null;
+      multiValueObservations[idx].server_is_within_limit = null;
+      multiValueObservations[idx].server_calculation_percent = null;
+    }
+    updateMultiValueObservationRowDisplay(idx);
+    renderMultiValueOutsideList();
+  });
+  mvObsTableBody?.addEventListener("focusout", (e) => {
+    handleNumericControlBlur(e.target);
+  });
+
   // Outsourced modal
   btnAddOutsourcedTest?.addEventListener("click", () => {
     if (!analysisPermissionVerified) {
@@ -4052,9 +5086,19 @@ function wireEvents() {
   // Keyboard: Escape closes whichever modal is open
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
+      if (multiValueClearConfirmModal?.classList.contains("open")) {
+        if (!multiValueClearing) closeMultiValueClearConfirmModal();
+        return;
+      }
       if (mobileEditorSheetOverlay?.classList.contains("open"))
         closeMobileEditor();
       if (referenceModal.classList.contains("open")) closeReferenceModal();
+      if (multiValueResultModal?.classList.contains("open")) {
+        if (!multiValueSaving && !multiValueClearing) {
+          closeMultiValueResultModal();
+        }
+        return;
+      }
       if (outsourcedModal.classList.contains("open")) closeOutsourcedModal();
       if (issueCoaConfirmModal.classList.contains("open"))
         closeIssueCoaConfirmModal();

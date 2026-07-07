@@ -404,6 +404,8 @@ async function requireSession() {
 }
 
 function setTab(tab) {
+  closeVendorBuylistDrawers();
+  closeAllProcurementFilterDrawers();
   state.tab = tab;
   document
     .querySelectorAll(".tab-btn")
@@ -665,18 +667,56 @@ function configureStaticDisclosureTriggers() {
 
 let procurementOverlayA11yBound = false;
 
+const FILTER_DRAWER_SELECT_INTERACT_MS = 750;
+
+function markFilterDrawerSelectInteraction(drawer) {
+  if (!(drawer instanceof HTMLElement)) return;
+  drawer._selectInteractUntil = Date.now() + FILTER_DRAWER_SELECT_INTERACT_MS;
+}
+
+function isFilterDrawerSelectInteractionGrace(drawer) {
+  if (!(drawer instanceof HTMLElement)) return false;
+  return (
+    typeof drawer._selectInteractUntil === "number" &&
+    Date.now() < drawer._selectInteractUntil
+  );
+}
+
+function shouldKeepFilterDrawerOpen(drawer, event) {
+  if (!(drawer instanceof HTMLElement)) return false;
+  const target = event?.target;
+
+  if (target instanceof Element) {
+    if (drawer.contains(target)) return true;
+    const ownerBtn = findControlledTrigger(drawer);
+    if (ownerBtn?.contains(target)) return true;
+  }
+
+  // Native <select> option menus render outside the DOM tree.
+  return isFilterDrawerSelectInteractionGrace(drawer);
+}
+
+function bindFilterDrawerSelectGuards() {
+  document.querySelectorAll(".pec-filter-drawer").forEach((drawer) => {
+    if (drawer._selectGuardBound) return;
+    drawer._selectGuardBound = true;
+    drawer.addEventListener("mousedown", (e) => {
+      const select =
+        e.target instanceof HTMLSelectElement
+          ? e.target
+          : e.target instanceof Element
+            ? e.target.closest("select")
+            : null;
+      if (select && drawer.contains(select)) {
+        markFilterDrawerSelectInteraction(drawer);
+      }
+    });
+  });
+}
+
 function closeProcurementFilterDrawer(drawer, { restoreFocus = false } = {}) {
   if (!drawer) return false;
   const ownerBtn = findControlledTrigger(drawer);
-
-  if (drawer.id === "vwlFilterDrawer") {
-    drawer.classList.remove("open", "show", "active");
-    drawer.setAttribute("hidden", "hidden");
-    if (ownerBtn) ownerBtn.setAttribute("aria-expanded", "false");
-    if (restoreFocus && ownerBtn) focusElementIfPossible(ownerBtn);
-    return true;
-  }
-
   const wasOpen = drawer.classList.contains("open");
   closeFloatingFilterDrawer(ownerBtn, drawer, { restoreFocus });
   return wasOpen;
@@ -700,15 +740,15 @@ function wireProcurementOverlayA11y() {
   if (procurementOverlayA11yBound) return;
   procurementOverlayA11yBound = true;
 
+  bindFilterDrawerSelectGuards();
+
   document.addEventListener(
     "click",
     (e) => {
       if (!(e.target instanceof Element)) return;
 
       document.querySelectorAll(".pec-filter-drawer.open").forEach((drawer) => {
-        const ownerBtn = findControlledTrigger(drawer);
-        if (drawer.contains(e.target)) return;
-        if (ownerBtn?.contains(e.target)) return;
+        if (shouldKeepFilterDrawerOpen(drawer, e)) return;
         closeProcurementFilterDrawer(drawer, { restoreFocus: false });
       });
 
@@ -856,28 +896,23 @@ function closeVendorBuylistDrawers(
 ) {
   let closed = false;
 
-  [
-    ["vwlExportDrawer", "vwlExportBtn"],
-    ["vwlFilterDrawer", "vwlFilterBtn"],
-  ].forEach(([id, btnId]) => {
-    if (id === exceptId) return;
-
-    const el = qs(id);
-    if (!el) return;
-    const wasOpen =
-      el.classList.contains("open") ||
-      el.classList.contains("show") ||
-      el.classList.contains("active") ||
-      !el.hasAttribute("hidden");
-
-    el.classList.remove("open", "show", "active");
-    el.setAttribute("hidden", "hidden");
-
-    const btn = qs(btnId);
-    if (btn) btn.setAttribute("aria-expanded", "false");
-    if (restoreFocus && wasOpen && btn) focusElementIfPossible(btn);
-    if (wasOpen) closed = true;
-  });
+  // Export UI only. Filter drawer follows the same pec-filter-drawer pattern as other tabs.
+  if (exceptId !== "vwlExportDrawer") {
+    const el = qs("vwlExportDrawer");
+    if (el) {
+      const wasOpen =
+        el.classList.contains("open") ||
+        el.classList.contains("show") ||
+        el.classList.contains("active") ||
+        !el.hasAttribute("hidden");
+      el.classList.remove("open", "show", "active");
+      el.setAttribute("hidden", "hidden");
+      const btn = qs("vwlExportBtn");
+      if (btn) btn.setAttribute("aria-expanded", "false");
+      if (restoreFocus && wasOpen && btn) focusElementIfPossible(btn);
+      if (wasOpen) closed = true;
+    }
+  }
 
   if (exceptId !== "vwlExportMenu") {
     const menu = qs("vwlExportMenu");
@@ -3216,13 +3251,51 @@ async function confirmIndentAction() {
   }
 }
 
-async function refreshProcurementExecutionSnapshots() {
-  if (!canPerformEditAction("Refresh procurement snapshots")) return;
-  const btn = qs("btnRefreshProcurementSnapshots");
+function parsePriorityCountFromSnapshotMessage(message) {
+  const text = String(message || "");
+  const match = text.match(/priority_count=([0-9]+)/i);
+  return match ? Number(match[1]) : null;
+}
 
-  const ok = confirm(
-    "Refresh procurement execution snapshots now?\n\n" +
-      "This updates vendor recommendation candidates and open indent balances used by Recommend & Accept Vendors.",
+function formatSnapshotRefreshToast(row) {
+  const vendorCount = row?.vendor_candidate_count;
+  const balanceCount = row?.indent_balance_count;
+  const priorityCount =
+    row?.priority_count ??
+    parsePriorityCountFromSnapshotMessage(row?.message);
+
+  const parts = [];
+
+  if (vendorCount != null) {
+    parts.push(
+      `Vendor candidates: ${Number(vendorCount).toLocaleString("en-IN")}`,
+    );
+  }
+
+  if (balanceCount != null) {
+    parts.push(
+      `Indent balances: ${Number(balanceCount).toLocaleString("en-IN")}`,
+    );
+  }
+
+  if (priorityCount != null) {
+    parts.push(`Priorities: ${Number(priorityCount).toLocaleString("en-IN")}`);
+  }
+
+  if (!parts.length) {
+    return row?.message || "Procurement snapshots refreshed.";
+  }
+
+  return `Procurement snapshots refreshed. ${parts.join(". ")}.`;
+}
+
+async function refreshProcurementSnapshotsManually() {
+  if (!canPerformEditAction("Refresh procurement snapshots")) return;
+
+  const btn = document.getElementById("btnRefreshProcurementSnapshots");
+
+  const ok = window.confirm(
+    "Refresh procurement snapshots now?\n\nThis updates vendor candidates, indent balances, and priority labels used by Action Queue and vendor recommendation.",
   );
 
   if (!ok) return;
@@ -3246,52 +3319,53 @@ async function refreshProcurementExecutionSnapshots() {
     const row = Array.isArray(data) ? data[0] : data;
 
     if (!row?.success) {
-      toast(
-        `Snapshot refresh did not complete: ${row?.message || "Unknown error"}`,
-        "error",
-      );
+      const msg =
+        row?.message ||
+        "Snapshot refresh did not complete. Another refresh may already be running.";
+
+      toast(msg, "info");
       return;
     }
 
-    toast(
-      `Snapshots refreshed. Vendor candidates: ${row.vendor_candidate_count ?? "—"}. ` +
-        `Indent balances: ${row.indent_balance_count ?? "—"}.`,
-      "success",
-    );
+    toast(formatSnapshotRefreshToast(row), "success");
+
+    if (typeof loadActionQueue === "function") {
+      await loadActionQueue();
+    }
 
     if (typeof loadIndents === "function") {
       await loadIndents();
     }
 
-    if (
-      state.selectedIndent?.indent_id &&
-      typeof loadIndentLines === "function"
-    ) {
-      await loadIndentLines(state.selectedIndent.indent_id);
-    }
-
-    if (state.actionLoaded && typeof loadActionQueue === "function") {
-      await loadActionQueue();
-    }
-
-    if (state.vwl.loaded && typeof loadVendorBuylist === "function") {
+    if (typeof loadVendorBuylist === "function") {
       await loadVendorBuylist();
     }
-  } catch (e) {
-    console.error("Snapshot refresh failed", e);
-    toast(`Snapshot refresh failed: ${e.message || e}`, "error");
+  } catch (err) {
+    console.error("Snapshot refresh failed", err);
+
+    const msg =
+      err?.message ||
+      "Snapshot refresh failed. Check console and server logs.";
+
+    toast(msg, "error");
   } finally {
     hideLoadingMask();
+
     if (btn) btn.disabled = false;
   }
 }
 
-function wireIndentControls() {
-  qs("btnRefreshProcurementSnapshots")?.addEventListener(
-    "click",
-    refreshProcurementExecutionSnapshots,
-  );
+function wireProcurementSnapshotRefreshButton() {
+  const btn = document.getElementById("btnRefreshProcurementSnapshots");
+  if (!btn) return;
 
+  if (btn.dataset.wired === "true") return;
+  btn.dataset.wired = "true";
+
+  btn.addEventListener("click", refreshProcurementSnapshotsManually);
+}
+
+function wireIndentControls() {
   qs("iBtnPrev").addEventListener("click", () => {
     state.indentsPage = Math.max(0, state.indentsPage - 1);
     loadIndents();
@@ -6948,6 +7022,7 @@ function normalizeVwlBreakdown(raw) {
       entry?.indent_no ??
       entry?.indent ??
       entry?.indentNumber ??
+      entry?.indent_id ??
       "-",
     qty_to_buy:
       entry?.qty_to_buy ??
@@ -6955,13 +7030,19 @@ function normalizeVwlBreakdown(raw) {
       entry?.remaining_qty ??
       entry?.qtyToBuy ??
       0,
+    uom_code: entry?.uom_code ?? entry?.uom ?? "",
   }));
 }
 
-function breakdownToCompactText(raw) {
-  const parts = normalizeVwlBreakdown(raw).map(
-    (b) => `${b.indent_number}:${fmt(b.qty_to_buy)}`,
-  );
+function breakdownToCompactText(raw, row = {}) {
+  const parts = normalizeVwlBreakdown(raw).map((b) => {
+    const qty = Number(b.qty_to_buy || 0).toLocaleString("en-IN", {
+      maximumFractionDigits: 3,
+    });
+    const uom = b.uom_code || row.uom_code || row.uom || "";
+    const indent = b.indent_number;
+    return `${qty}${uom ? " " + uom : ""} [${indent}]`;
+  });
   return parts.join("; ");
 }
 
@@ -7298,7 +7379,7 @@ async function exportVendorBuylist(format) {
       Qty_to_Buy: r.total_qty_to_buy ?? "",
       Rate: r.rate_value ?? "",
       Amount: r.total_amount ?? "",
-      Indent_Breakdown: breakdownToCompactText(r.indent_breakdown),
+      Indent_Breakdown: breakdownToCompactText(r.indent_breakdown, r),
     }));
 
     const headers = [
@@ -7395,55 +7476,40 @@ function getVwlPdfRate(row) {
   return Number(row.rate_value ?? row.rate ?? row.selected_rate ?? 0);
 }
 
-function formatVwlIndentSplitQty(value) {
-  const text = pdfSafeText(value);
-  if (!text) return "";
-
-  const numericText = text.match(/-?\d[\d,]*(?:\.\d+)?/)?.[0] || "";
-  if (!numericText) return text;
-
-  const n = Number(numericText.replace(/,/g, ""));
-  if (!Number.isFinite(n)) return text;
-
-  const formatted = fmtQty(n, 2);
-  return text.replace(numericText, formatted);
+function formatVwlIndentSplitEntry(x, row) {
+  const qty = Number(x.qty_to_buy || 0).toLocaleString("en-IN", {
+    maximumFractionDigits: 3,
+  });
+  const uom = pdfSafeText(x.uom_code || row.uom_code || row.uom || "");
+  const indent = pdfSafeText(x.indent_number || x.indent_id || "");
+  if (!indent) return "";
+  return `${qty}${uom ? " " + uom : ""} [${indent}]`;
 }
 
 function formatVwlIndentSplit(row) {
-  const source = row.indent_breakdown || row.indent_split || "";
-  const normalized = normalizeVwlBreakdown(source);
+  const raw = row.indent_breakdown || row.indent_split || "";
 
-  if (normalized.length) {
-    const text = normalized
-      .map((entry) => {
-        const indent = pdfSafeText(entry.indent_number);
-        const qty = formatVwlIndentSplitQty(entry.qty_to_buy);
-        if (!indent || !qty) return "";
-        return `${qty} [${indent}]`;
-      })
-      .filter(Boolean)
-      .join("; ");
-
-    if (text.length <= 120) return text;
-    return text.slice(0, 117) + "...";
+  if (Array.isArray(raw)) {
+    return raw.map((x) => formatVwlIndentSplitEntry(x, row)).filter(Boolean).join("; ");
   }
 
-  const raw = pdfSafeText(source);
+  const text = pdfSafeText(raw);
+  if (!text) return "";
 
-  if (!raw) return "";
+  try {
+    const parsed = JSON.parse(text);
+    if (Array.isArray(parsed)) {
+      return parsed
+        .map((x) => formatVwlIndentSplitEntry(x, row))
+        .filter(Boolean)
+        .join("; ");
+    }
+  } catch (_) {
+    // fall through to old text parser
+  }
 
-  /*
-    Expected source examples may vary:
-    - Ind-84: 20 Kg; Ind-156: 80 Kg
-    - 84: 20 Kg, 156: 80 Kg
-    - Ind-84 - 20 Kg | Ind-156 - 80 Kg
-
-    Output required:
-    20 Kg [Ind-84], 80 Kg [Ind-156]
-  */
-
-  const parts = raw
-    .split(/[;,|]/)
+  const parts = text
+    .split(/[;|]/)
     .map((p) => pdfSafeText(p))
     .filter(Boolean);
 
@@ -7465,18 +7531,11 @@ function formatVwlIndentSplit(row) {
 
     if (!indent || !qty) return part;
 
-    return `${formatVwlIndentSplitQty(qty)} [${indent}]`;
+    return `${qty} [${indent}]`;
   });
 
-  const text = formatted.join("; ");
-
-  /*
-    Keep the PDF compact. Very long split text can expand rows heavily.
-    The full breakdown remains available in CSV/TSV.
-  */
-  if (text.length <= 120) return text;
-
-  return text.slice(0, 117) + "...";
+  const out = formatted.join("; ");
+  return out.length <= 120 ? out : out.slice(0, 117) + "...";
 }
 
 function buildVendorBuylistPdfFileName() {
@@ -7800,66 +7859,13 @@ async function exportVendorBuylistPdf() {
 }
 
 function wireVendorBuylistControls() {
-  const vwlFilterBtn = qs("vwlFilterBtn");
-  const vwlFilterDrawer = qs("vwlFilterDrawer");
-  const vwlVendorFilter = qs("vwlVendorFilter");
-
-  const closeVwlFilterDrawer = ({ restoreFocus = false } = {}) => {
-    const wasOpen =
-      vwlFilterDrawer?.classList.contains("open") ||
-      vwlFilterDrawer?.classList.contains("show") ||
-      vwlFilterDrawer?.classList.contains("active") ||
-      (vwlFilterDrawer && !vwlFilterDrawer.hasAttribute("hidden"));
-    vwlFilterDrawer?.classList.remove("open", "show", "active");
-    vwlFilterDrawer?.setAttribute("hidden", "hidden");
-    vwlFilterBtn?.setAttribute("aria-expanded", "false");
-    if (restoreFocus && wasOpen) {
-      focusElementIfPossible(vwlFilterBtn);
-    }
-  };
-
-  closeVwlFilterDrawer();
-
-  if (vwlFilterBtn && vwlFilterDrawer) {
-    vwlFilterBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const isOpen = vwlFilterDrawer.classList.contains("open");
-      closeVendorBuylistDrawers("vwlFilterDrawer");
-      closeAllProcurementFilterDrawers({ exceptId: "vwlFilterDrawer" });
-      vwlFilterDrawer.classList.toggle("open", !isOpen);
-      if (!isOpen) {
-        vwlFilterDrawer.removeAttribute("hidden");
-      } else {
-        vwlFilterDrawer.setAttribute("hidden", "hidden");
-      }
-      vwlFilterBtn.setAttribute("aria-expanded", String(!isOpen));
-      if (!isOpen) {
-        vwlFilterDrawer._ownerBtn = vwlFilterBtn;
-        const rect = vwlFilterBtn.getBoundingClientRect();
-        vwlFilterDrawer.style.position = "fixed";
-        vwlFilterDrawer.style.top = rect.bottom + 4 + "px";
-        vwlFilterDrawer.style.left = rect.left + "px";
-        vwlFilterDrawer.style.zIndex = "10001";
-        requestAnimationFrame(() => {
-          const dropW = vwlFilterDrawer.offsetWidth || 220;
-          if (rect.left + dropW > window.innerWidth) {
-            vwlFilterDrawer.style.left = Math.max(4, rect.right - dropW) + "px";
-          }
-        });
-        focusElementIfPossible(vwlVendorFilter);
-      }
-    });
-    vwlFilterDrawer.addEventListener("click", (e) => e.stopPropagation());
-    document.addEventListener("click", (e) => {
-      if (
-        vwlFilterDrawer.classList.contains("open") &&
-        !vwlFilterDrawer.contains(e.target) &&
-        !vwlFilterBtn.contains(e.target)
-      ) {
-        closeVwlFilterDrawer();
-      }
-    });
-  }
+  qs("vwlFilterBtn")?.addEventListener(
+    "click",
+    () => {
+      closeVendorBuylistDrawers();
+    },
+    true,
+  );
 
   wireLiveSearchInput({
     inputId: "vwlSearch",
@@ -7928,6 +7934,7 @@ function wireVendorBuylistControls() {
 
   qs("vwlExportBtn")?.addEventListener("click", (e) => {
     e.stopPropagation();
+    closeProcurementFilterDrawer(qs("vwlFilterDrawer"));
     closeVendorBuylistDrawers("vwlExportDrawer");
     const drawer = qs("vwlExportDrawer");
     const menu = qs("vwlExportMenu");
@@ -8018,6 +8025,7 @@ function wireVendorBuylistControls() {
   ensureIconBtnA11y("btnExportTsv", "Export TSV");
   ensureIconBtnA11y("btnExportCsv", "Export CSV");
   ensureIconBtnA11y("globalRefreshBtn", "Refresh All Tabs");
+  ensureIconBtnA11y("btnRefreshProcurementSnapshots", "Refresh procurement snapshots");
   ensureIconBtnA11y("prBtnPrev", "Previous page");
   ensureIconBtnA11y("prBtnNext", "Next page");
   ensureIconBtnA11y("iBtnPrev", "Previous page");
@@ -8033,6 +8041,7 @@ function wireVendorBuylistControls() {
   ensureIconBtnA11y("btnIExportMenu", "Export options");
 
   wireGlobalHeaderControls();
+  wireProcurementSnapshotRefreshButton();
   wireTabs();
   wireStockItemPicker();
   wireAddPrLineItemSearch();

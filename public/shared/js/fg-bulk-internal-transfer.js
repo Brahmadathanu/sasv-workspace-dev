@@ -4,12 +4,24 @@ import { supabase } from "./supabaseClient.js";
 // DB / RPC contract preserved exactly.
 
 const state = {
-  sourceRows: [],
-  filteredRows: [],
   masters: { sections: [], subsections: [], areas: [] },
   selectedKey: null,
   selectedRow: null,
+  // Server-side source-stock infinite scroll
+  sourceRows: [],
+  sourcePageSize: 50,
+  sourceTotalRows: 0,
+  sourceOffset: 0,
+  sourceHasMore: true,
+  sourceIsLoading: false,
+  sourceQueryVersion: 0,
+  selectedSourceIdentity: null,
 };
+
+// Debounce handle for filter inputs
+let sourceFilterTimer = null;
+// IntersectionObserver for infinite scroll
+let sourceObserver = null;
 
 const els = {};
 
@@ -17,10 +29,20 @@ function cacheDom() {
   // Filters
   els.filterItem = document.getElementById("filterItem");
   els.filterBatch = document.getElementById("filterBatch");
-  els.clearFilters = document.getElementById("clearFilters");
+  els.filterItemClear = document.getElementById("filterItemClear");
+  els.filterBatchClear = document.getElementById("filterBatchClear");
   els.rowCount = document.getElementById("rowCount");
+  // Collapsible guidance (narrow screens)
+  els.guidance = document.getElementById("guidance");
+  els.guidanceToggle = document.getElementById("guidanceToggle");
   // Source table
   els.sourceTbody = document.getElementById("sourceTbody");
+  els.sourceTableWrap = document.querySelector(".source-table-wrap");
+  // Infinite scroll footer + sentinel
+  els.sourceSentinel = document.getElementById("sourceSentinel");
+  els.sourceFooter = document.getElementById("sourceFooter");
+  els.sourceFooterStatus = document.getElementById("sourceFooterStatus");
+  els.sourceLoadMore = document.getElementById("sourceLoadMore");
   // Modal
   els.transferModal = document.getElementById("transferModal");
   els.modalCloseBtn = document.getElementById("modalCloseBtn");
@@ -94,23 +116,102 @@ async function requireSession() {
 }
 
 /* -- Data loads -------------------------------------------- */
-async function loadSourceStock() {
-  const res = await supabase
-    .from("v_fg_bulk_batch_balance_by_location")
-    .select(
-      "product_id,item,batch_number,uom,section_id,section_name," +
-        "subsection_id,subsection_name,area_id,area_name,plant_id,plant_name,qty,qty_base",
-    )
-    .gt("qty_base", 0)
-    .order("item", { ascending: true });
+// Server-side, RPC-backed infinite-scroll loader.
+// Loads at most one page (p_limit = sourcePageSize) per call and appends to the
+// rows already loaded. Never requests all rows at once.
+async function loadSourceStock({ reset = false } = {}) {
+  // Guard against overlapping requests (scroll + button + filter races).
+  if (state.sourceIsLoading) return;
+  if (!reset && !state.sourceHasMore) return;
 
-  if (res.error) {
-    console.error("loadSourceStock:", res.error);
+  if (reset) {
     state.sourceRows = [];
-  } else {
-    state.sourceRows = res.data || [];
+    state.sourceOffset = 0;
+    state.sourceHasMore = true;
   }
-  applySourceFilters();
+
+  state.sourceIsLoading = true;
+  const myVersion = ++state.sourceQueryVersion;
+
+  if (reset && !state.sourceRows.length) {
+    showSourceLoading();
+  }
+  renderSourceFooter();
+
+  const itemFilter = (els.filterItem.value || "").trim();
+  const batchFilter = (els.filterBatch.value || "").trim();
+  const offset = state.sourceOffset;
+
+  let data = null;
+  let error = null;
+  try {
+    const res = await supabase.rpc(
+      "rpc_fg_bulk_internal_transfer_source_page",
+      {
+        p_item_filter: itemFilter || null,
+        p_batch_filter: batchFilter || null,
+        p_limit: state.sourcePageSize,
+        p_offset: offset,
+      },
+    );
+    data = res.data;
+    error = res.error;
+  } catch (err) {
+    error = err;
+  }
+
+  // Stale-response guard: a newer request has superseded this one.
+  if (myVersion !== state.sourceQueryVersion) return;
+
+  state.sourceIsLoading = false;
+
+  if (error) {
+    console.error("loadSourceStock:", error);
+    // Preserve any rows already loaded; only show a hard error when empty.
+    if (!state.sourceRows.length) {
+      state.sourceTotalRows = 0;
+      state.sourceHasMore = false;
+      renderSourceError();
+    }
+    renderSourceFooter();
+    return;
+  }
+
+  const rows = Array.isArray(data) ? data : [];
+
+  if (reset) {
+    state.sourceRows = rows;
+    state.sourceTotalRows = rows.length ? Number(rows[0].total_count ?? 0) : 0;
+  } else {
+    state.sourceRows = state.sourceRows.concat(rows);
+    if (rows.length) {
+      state.sourceTotalRows = Number(rows[0].total_count ?? state.sourceTotalRows);
+    }
+  }
+
+  state.sourceOffset = state.sourceRows.length;
+  state.sourceHasMore = state.sourceRows.length < state.sourceTotalRows;
+
+  renderSourceTable();
+  renderSourceFooter();
+
+  // If the loaded content is short enough that the sentinel is still visible,
+  // proactively pull the next page so the list fills the viewport.
+  maybeAutoLoadMore();
+}
+
+function showSourceLoading() {
+  if (els.sourceTbody) {
+    els.sourceTbody.innerHTML = `<tr class="empty-row"><td colspan="7">Loading source stock…</td></tr>`;
+  }
+  if (els.rowCount) els.rowCount.textContent = "Loading source stock…";
+}
+
+function renderSourceError() {
+  if (els.sourceTbody) {
+    els.sourceTbody.innerHTML = `<tr class="empty-row"><td colspan="7">Unable to load source stock. Please try again.</td></tr>`;
+  }
+  if (els.rowCount) els.rowCount.textContent = "";
 }
 
 async function loadMasterData() {
@@ -139,76 +240,230 @@ async function loadMasterData() {
   populateDestinationSections();
 }
 
-/* -- Source table ------------------------------------------ */
-function makeSourceKey(row) {
-  return [
-    row.product_id ?? "",
-    String(row.batch_number ?? ""),
-    row.section_id ?? "",
-    row.subsection_id ?? "",
-    row.area_id ?? "",
-    row.plant_id ?? "",
-  ].join("|");
+/* -- Source identity & filters ----------------------------- */
+// Structured identity for RPC lookups. Never parse source_key for business
+// logic - plant_id can legitimately be null.
+function buildSourceIdentity(row) {
+  return {
+    product_id: row.product_id ?? null,
+    batch_number: row.batch_number ?? null,
+    uom: row.uom ?? null,
+    section_id: row.section_id ?? null,
+    subsection_id: row.subsection_id ?? null,
+    area_id: row.area_id ?? null,
+    plant_id: row.plant_id ?? null,
+  };
 }
 
-function applySourceFilters() {
-  const it = (els.filterItem.value || "").trim().toLowerCase();
-  const bt = (els.filterBatch.value || "").trim().toLowerCase();
-  state.filteredRows = state.sourceRows.filter((r) => {
-    if (!r.qty_base || Number(r.qty_base) <= 0) return false;
-    if (it && !(r.item || "").toLowerCase().includes(it)) return false;
-    if (bt && !(r.batch_number || "").toLowerCase().includes(bt)) return false;
-    return true;
-  });
-  renderSourceTable();
+// Fetch a single current positive-balance source row by exact identity.
+// Returns the row, or null when the source balance is exhausted.
+async function fetchSourceByIdentity(identity) {
+  if (!identity) return null;
+  try {
+    const { data, error } = await supabase.rpc(
+      "rpc_fg_bulk_internal_transfer_source_by_identity",
+      {
+        p_product_id: identity.product_id,
+        p_batch_number: identity.batch_number,
+        p_uom: identity.uom,
+        p_section_id: identity.section_id,
+        p_subsection_id: identity.subsection_id,
+        p_area_id: identity.area_id,
+        p_plant_id: identity.plant_id ?? null,
+      },
+    );
+    if (error) {
+      console.error("fetchSourceByIdentity:", error);
+      return null;
+    }
+    const rows = Array.isArray(data) ? data : data ? [data] : [];
+    return rows.length ? rows[0] : null;
+  } catch (err) {
+    console.error("fetchSourceByIdentity unexpected:", err);
+    return null;
+  }
+}
+
+// Debounced, server-side filtering. Resets loaded source list on every change.
+function onSourceFilterChanged() {
+  if (sourceFilterTimer) clearTimeout(sourceFilterTimer);
+  sourceFilterTimer = setTimeout(() => {
+    loadSourceStock({ reset: true });
+  }, 250);
+}
+
+/* -- Source footer / infinite scroll ----------------------- */
+// The footer is intentionally quiet: the top-right #rowCount is the primary
+// count display. The footer is only shown when loading more rows or when the
+// Load more fallback is available. It stays hidden at rest and when the list
+// is fully loaded ("End of list" text is not shown).
+function renderSourceFooter() {
+  const loaded = state.sourceRows.length;
+  const loadingMore = state.sourceIsLoading && loaded > 0;
+  const showLoadMore = state.sourceHasMore && !state.sourceIsLoading && loaded > 0;
+
+  if (els.sourceFooterStatus) {
+    els.sourceFooterStatus.textContent = loadingMore ? "Loading more…" : "";
+  }
+
+  if (els.sourceLoadMore) {
+    els.sourceLoadMore.hidden = !showLoadMore;
+    els.sourceLoadMore.disabled = state.sourceIsLoading;
+  }
+
+  if (els.sourceFooter) {
+    const visible = loadingMore || showLoadMore;
+    els.sourceFooter.hidden = !visible;
+  }
+
+  adjustSourceListHeight();
+}
+
+/* -- Search filter clear controls -------------------------- */
+// Toggle each inline clear button based on whether its field has text.
+function syncFilterClearButtons() {
+  if (els.filterItemClear) {
+    els.filterItemClear.hidden = !(els.filterItem.value || "").length;
+  }
+  if (els.filterBatchClear) {
+    els.filterBatchClear.hidden = !(els.filterBatch.value || "").length;
+  }
+}
+
+// Clear a single field, refocus it, update button visibility, and reload the
+// source list from offset 0 through the existing server-side filter flow.
+function clearFilterField(fieldEl) {
+  if (!fieldEl) return;
+  fieldEl.value = "";
+  fieldEl.focus();
+  syncFilterClearButtons();
+  if (sourceFilterTimer) clearTimeout(sourceFilterTimer);
+  loadSourceStock({ reset: true });
+}
+
+/* -- Dynamic list height ----------------------------------- */
+// Height is now handled purely by the CSS flex chain (body 100vh → panel →
+// card → source-table-wrap), so the list fills the remaining viewport height
+// and scrolls internally with no leftover space under the card. This clears
+// any stale inline max-height that an earlier version may have set so it can
+// never fight the flex sizing.
+function adjustSourceListHeight() {
+  const wrap = els.sourceTableWrap;
+  if (!wrap) return;
+  if (wrap.style.maxHeight) wrap.style.maxHeight = "";
+}
+
+function maybeAutoLoadMore() {
+  if (!els.sourceTableWrap || !els.sourceSentinel) return;
+  if (state.sourceIsLoading || !state.sourceHasMore) return;
+
+  const wrapRect = els.sourceTableWrap.getBoundingClientRect();
+  const sentinelRect = els.sourceSentinel.getBoundingClientRect();
+
+  // If sentinel is already visible at/above bottom edge, pull next page.
+  if (sentinelRect.top <= wrapRect.bottom + 8) {
+    loadSourceStock({ reset: false });
+  }
+}
+
+function setupSourceInfiniteObserver() {
+  if (!els.sourceSentinel || !els.sourceTableWrap) return;
+  if (sourceObserver) sourceObserver.disconnect();
+
+  sourceObserver = new IntersectionObserver(
+    (entries) => {
+      const first = entries && entries[0];
+      if (!first || !first.isIntersecting) return;
+      if (state.sourceIsLoading || !state.sourceHasMore) return;
+      loadSourceStock({ reset: false });
+    },
+    {
+      root: els.sourceTableWrap,
+      rootMargin: "0px 0px 120px 0px",
+      threshold: 0,
+    },
+  );
+
+  sourceObserver.observe(els.sourceSentinel);
+}
+
+// Combine section / sub-section / area into one readable Location label.
+function formatLocationLabel(row) {
+  const parts = [row.section_name, row.subsection_name, row.area_name].filter(
+    (p) => p !== null && p !== undefined && String(p).trim() !== "",
+  );
+  return parts.length ? parts.join(" › ") : "—";
+}
+
+// Available quantity with UOM, e.g. "1,500 L".
+function formatAvailable(row) {
+  const qty = fmtQty(row.qty_base);
+  const uom = row.uom ? escapeHtml(row.uom) : "";
+  return uom ? `${qty} ${uom}` : qty;
 }
 
 function renderSourceTable() {
-  const rows = state.filteredRows;
+  const rows = state.sourceRows;
   if (!rows.length) {
-    els.sourceTbody.innerHTML = `<tr class="empty-row"><td colspan="8">No matching stock found. Try adjusting the filters.</td></tr>`;
-    els.rowCount.textContent = "";
+    els.sourceTbody.innerHTML = `<tr class="empty-row"><td colspan="7">No source stock found. Try adjusting the filters.</td></tr>`;
+    els.rowCount.textContent = "No source stock found";
+    adjustSourceListHeight();
     return;
   }
   els.sourceTbody.innerHTML = rows
     .map((r, idx) => {
-      const key = makeSourceKey(r);
-      const sel = state.selectedKey === key ? " row-selected" : "";
-      const sub = r.subsection_name ? escapeHtml(r.subsection_name) : "-";
+      const key = r.source_key ?? "";
+      const sel =
+        state.selectedKey && state.selectedKey === key ? " row-selected" : "";
+      const item = escapeHtml(r.item);
+      const batch = escapeHtml(r.batch_number);
+      const section = escapeHtml(r.section_name || "—");
+      const subsection = escapeHtml(r.subsection_name || "—");
+      const area = escapeHtml(r.area_name || "—");
+      const plant = r.plant_name ? escapeHtml(r.plant_name) : "—";
+      const available = formatAvailable(r);
+      // Secondary line for the <=520px card layout only.
+      const mobileLine = `${escapeHtml(formatLocationLabel(r))} · ${plant}`;
       return `<tr data-idx="${idx}" class="${sel}">
-        <td>${escapeHtml(r.item)}</td>
-        <td>${escapeHtml(r.batch_number)}</td>
-        <td>${escapeHtml(r.uom)}</td>
-        <td class="col-num">${fmtQty(r.qty_base)}</td>
-        <td>${escapeHtml(r.section_name || "")}</td>
-        <td>${sub}</td>
-        <td>${escapeHtml(r.area_name || "")}</td>
-        <td>${escapeHtml(r.plant_name || "")}</td>
+        <td class="col-item" title="${item}">${item}</td>
+        <td class="col-batch" title="${batch}">${batch}</td>
+        <td class="col-num">${available}</td>
+        <td class="col-section" title="${section}">${section}</td>
+        <td class="col-subsection" title="${subsection}">${subsection}</td>
+        <td class="col-area" title="${area}">${area}</td>
+        <td class="col-plant" title="${plant}">${plant}</td>
+        <td class="src-mobile-line">${mobileLine}</td>
       </tr>`;
     })
     .join("");
 
-  els.rowCount.textContent = `${rows.length} row${rows.length !== 1 ? "s" : ""} shown`;
+  const total = state.sourceTotalRows || rows.length;
+  const shown = rows.length;
+  els.rowCount.textContent = `Showing ${shown} of ${total}`;
+  adjustSourceListHeight();
 }
 
 function handleSourceRowClick(ev) {
   const tr = ev.target.closest("tr[data-idx]");
   if (!tr) return;
   const idx = Number(tr.dataset.idx);
-  const row = state.filteredRows[idx];
+  const row = state.sourceRows[idx];
   if (row) openTransferModal(row);
 }
 
 /* -- Selection & modal ------------------------------------- */
 function selectSourceRow(row) {
-  state.selectedKey = makeSourceKey(row);
+  // source_key is used only for row highlight, never parsed for RPC args.
+  state.selectedKey = row.source_key ?? null;
   state.selectedRow = { ...row };
+  state.selectedSourceIdentity = buildSourceIdentity(row);
   renderSourceTable();
 }
 
 function clearSelectedSource() {
   state.selectedKey = null;
   state.selectedRow = null;
+  state.selectedSourceIdentity = null;
   renderSourceTable();
 }
 
@@ -549,7 +804,7 @@ async function submitTransfer(ev) {
   if (!validateTransferForm()) return;
 
   const payload = buildRpcPayload();
-  const priorKey = state.selectedKey;
+  const priorIdentity = state.selectedSourceIdentity;
   setBusyState(true);
 
   try {
@@ -568,17 +823,16 @@ async function submitTransfer(ev) {
       return;
     }
 
-    // Reload table data
-    await loadSourceStock();
+    // Refresh source list from offset 0 so stock balances are up to date.
+    await loadSourceStock({ reset: true });
 
-    // Check whether the source location still has a positive balance
-    const stillExists = state.sourceRows.find(
-      (r) => makeSourceKey(r) === priorKey && Number(r.qty_base) > 0,
-    );
+    // Ask the server whether this exact source location still has balance.
+    const stillExists = await fetchSourceByIdentity(priorIdentity);
 
-    if (stillExists) {
+    if (stillExists && Number(stillExists.qty_base) > 0) {
       // Source location still has stock - refresh card and keep modal open
-      selectSourceRow(stillExists);
+      state.selectedRow = { ...stillExists };
+      state.selectedSourceIdentity = buildSourceIdentity(stillExists);
       populateSelectedSourceCard(stillExists);
       els.transferQty.value = "";
       els.remarks.value = "";
@@ -591,6 +845,8 @@ async function submitTransfer(ev) {
       );
     } else {
       // Source is now exhausted - close modal cleanly
+      state.selectedRow = null;
+      state.selectedSourceIdentity = null;
       closeTransferModal();
     }
   } catch (err) {
@@ -621,7 +877,7 @@ async function initPage() {
     return;
   }
 
-  await Promise.all([loadSourceStock(), loadMasterData()]);
+  await Promise.all([loadSourceStock({ reset: true }), loadMasterData()]);
 
   // Home button navigation (if present)
   if (els.homeBtn)
@@ -630,14 +886,49 @@ async function initPage() {
       () => (window.location.href = "index.html"),
     );
 
-  // Filters
-  els.filterItem.addEventListener("input", applySourceFilters);
-  els.filterBatch.addEventListener("input", applySourceFilters);
-  els.clearFilters.addEventListener("click", () => {
-    els.filterItem.value = "";
-    els.filterBatch.value = "";
-    applySourceFilters();
-  });
+  // Collapsible guidance toggle (only visible on narrow screens via CSS)
+  if (els.guidanceToggle && els.guidance) {
+    els.guidanceToggle.addEventListener("click", () => {
+      const open = els.guidance.classList.toggle("is-open");
+      els.guidanceToggle.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+  }
+
+  // Filters (debounced, server-side). Typing also toggles the inline × button.
+  const onFilterInput = () => {
+    syncFilterClearButtons();
+    onSourceFilterChanged();
+  };
+  els.filterItem.addEventListener("input", onFilterInput);
+  els.filterBatch.addEventListener("input", onFilterInput);
+
+  // Inline clear buttons: clear only their own field.
+  if (els.filterItemClear) {
+    els.filterItemClear.addEventListener("click", () =>
+      clearFilterField(els.filterItem),
+    );
+  }
+  if (els.filterBatchClear) {
+    els.filterBatchClear.addEventListener("click", () =>
+      clearFilterField(els.filterBatch),
+    );
+  }
+
+  // Initial clear-button state + list height, and keep height in sync on resize
+  syncFilterClearButtons();
+  adjustSourceListHeight();
+  window.addEventListener("resize", adjustSourceListHeight);
+
+  // Infinite-scroll fallback button
+  if (els.sourceLoadMore) {
+    els.sourceLoadMore.addEventListener("click", () => {
+      if (state.sourceIsLoading || !state.sourceHasMore) return;
+      loadSourceStock({ reset: false });
+    });
+  }
+
+  // Infinite-scroll observer
+  setupSourceInfiniteObserver();
 
   // Source table row click
   els.sourceTbody.addEventListener("click", handleSourceRowClick);
@@ -698,12 +989,29 @@ async function initPage() {
   els.cancelBtn.addEventListener("click", closeTransferModal);
   els.modalCloseBtn.addEventListener("click", closeTransferModal);
 
-  // Escape key closes modal
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !els.transferModal.hasAttribute("hidden")) {
-      closeTransferModal();
-    }
-  });
+  // Escape handling (capture phase so it fires before native input handling,
+  // e.g. the date field, and does not depend on event bubbling).
+  // Modal close takes priority; filter Escape-clear only when modal is closed.
+  document.addEventListener(
+    "keydown",
+    (e) => {
+      if (e.key !== "Escape") return;
+      if (!els.transferModal.hasAttribute("hidden")) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeTransferModal();
+        return;
+      }
+      const active = document.activeElement;
+      if (
+        (active === els.filterItem || active === els.filterBatch) &&
+        active.value
+      ) {
+        clearFilterField(active);
+      }
+    },
+    true,
+  );
 
   // Backdrop click - click directly on overlay (not modal-box) closes it
   els.transferModal.addEventListener("click", (e) => {

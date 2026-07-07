@@ -1364,6 +1364,290 @@
         }
       }
 
+      /* Multi-value result entry modal */
+      #multiValueResultModal .mv-modal-box {
+        width: min(560px, 94vw);
+        max-height: min(90vh, calc(100dvh - 48px));
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      #multiValueResultModal .mv-modal-header {
+        flex-shrink: 0;
+        padding: 22px 26px 12px;
+      }
+      #multiValueResultModal .mv-modal-header .modal-sub {
+        margin-bottom: 8px;
+      }
+      #multiValueResultModal .mv-modal-meta {
+        font-size: 12.5px;
+        line-height: 1.45;
+        color: var(--muted, #6b7280);
+        display: grid;
+        gap: 4px;
+      }
+      #multiValueResultModal .mv-modal-body {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+        padding: 0 26px 12px;
+      }
+      #multiValueResultModal .mv-modal-footer {
+        flex-shrink: 0;
+        padding: 12px 26px 22px;
+        border-top: 1px solid var(--border, #e5e7eb);
+        background: var(--panel-bg, #fff);
+      }
+      .mv-summary-section {
+        margin-bottom: 14px;
+        padding: 10px 12px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: var(--panel-bg-subtle, #f9fafb);
+      }
+      .mv-summary-title {
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--muted, #6b7280);
+        margin-bottom: 8px;
+      }
+      .mv-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px 12px;
+      }
+      .mv-summary-item {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+      }
+      .mv-summary-label {
+        font-size: 11px;
+        color: var(--muted, #6b7280);
+      }
+      .mv-summary-value {
+        font-size: 13px;
+        word-break: break-word;
+      }
+      .mv-obs-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+      }
+      .mv-obs-uom-label {
+        font-size: 12.5px;
+        color: var(--muted, #6b7280);
+        margin-right: auto;
+      }
+      .mv-obs-table-wrap {
+        max-height: 40vh;
+        overflow-y: auto;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        margin-bottom: 12px;
+      }
+      .mv-obs-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      .mv-obs-table th,
+      .mv-obs-table td {
+        padding: 6px 10px;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+        text-align: left;
+      }
+      .mv-obs-table th {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--muted, #6b7280);
+        background: var(--panel-bg-subtle, #f9fafb);
+        position: sticky;
+        top: 0;
+        z-index: 1;
+      }
+      .mv-obs-table tr:last-child td {
+        border-bottom: none;
+      }
+      .mv-obs-table .mv-obs-col-num {
+        width: 44px;
+        text-align: center;
+        color: var(--muted, #6b7280);
+      }
+      .mv-obs-table .mv-obs-col-value {
+        min-width: 88px;
+      }
+      .mv-obs-table .mv-obs-col-uom {
+        width: 48px;
+        color: var(--muted, #6b7280);
+        white-space: nowrap;
+      }
+      .mv-obs-table .mv-obs-col-dev {
+        width: 88px;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .mv-obs-table .mv-obs-col-status {
+        min-width: 100px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .mv-obs-table .mv-obs-col-action {
+        width: 72px;
+        text-align: right;
+      }
+      .mv-obs-row-ok td {
+        background: rgba(34, 197, 94, 0.08);
+      }
+      .mv-obs-row-ok .mv-obs-status {
+        color: #15803d;
+      }
+      .mv-obs-row-fail td {
+        background: rgba(239, 68, 68, 0.1);
+      }
+      .mv-obs-row-fail .mv-obs-status {
+        color: #b91c1c;
+      }
+      .mv-obs-row-pending .mv-obs-status {
+        color: var(--muted, #6b7280);
+        font-weight: 500;
+      }
+      [data-theme="dark"] .mv-obs-row-ok td {
+        background: rgba(34, 197, 94, 0.12);
+      }
+      [data-theme="dark"] .mv-obs-row-ok .mv-obs-status {
+        color: #86efac;
+      }
+      [data-theme="dark"] .mv-obs-row-fail td {
+        background: rgba(239, 68, 68, 0.16);
+      }
+      [data-theme="dark"] .mv-obs-row-fail .mv-obs-status {
+        color: #fca5a5;
+      }
+      .mv-obs-delete-btn {
+        padding: 2px 8px;
+        font-size: 11px;
+        border-radius: 4px;
+        border: 1px solid var(--border, #e5e7eb);
+        background: transparent;
+        color: var(--muted, #6b7280);
+        cursor: pointer;
+      }
+      .mv-obs-delete-btn:hover {
+        border-color: #ef4444;
+        color: #b91c1c;
+        background: rgba(239, 68, 68, 0.06);
+      }
+      .mv-obs-add-row td {
+        padding: 10px;
+        text-align: center;
+        background: var(--panel-bg-subtle, #f9fafb);
+      }
+      .mv-add-obs-inline {
+        font-weight: 600;
+      }
+      .mv-outside-section {
+        margin-bottom: 14px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        border: 1px solid var(--border, #e5e7eb);
+        background: var(--panel-bg-subtle, #f9fafb);
+      }
+      .mv-outside-section.mv-outside-has-fail {
+        border-color: #fca5a5;
+        background: rgba(254, 226, 226, 0.35);
+      }
+      .mv-outside-title {
+        font-size: 12px;
+        font-weight: 700;
+        margin-bottom: 6px;
+        color: #b91c1c;
+      }
+      .mv-outside-list {
+        margin: 0;
+        padding-left: 18px;
+        font-size: 13px;
+        line-height: 1.45;
+      }
+      .mv-outside-none {
+        margin: 0;
+        font-size: 13px;
+        color: #15803d;
+      }
+      [data-theme="dark"] .mv-outside-section.mv-outside-has-fail {
+        background: rgba(127, 29, 29, 0.25);
+        border-color: #991b1b;
+      }
+      [data-theme="dark"] .mv-outside-none {
+        color: #86efac;
+      }
+      .mv-remove-last-btn {
+        opacity: 0.55;
+        font-size: 11px;
+      }
+      .mv-obs-input {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+      }
+      .mv-result-input-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        align-items: flex-start;
+      }
+      .mv-input-hint {
+        font-size: 0.72rem;
+        color: var(--muted, #6b7280);
+        max-width: 180px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .btn-multi-value {
+        background: var(--accent, #2563eb);
+        color: #fff;
+        border: 1px solid transparent;
+      }
+      .btn-multi-value:hover:not(:disabled) {
+        filter: brightness(1.05);
+      }
+      .btn-multi-value:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      [data-theme="dark"] .mv-summary-section {
+        background: var(--panel-bg-subtle, #1f2937);
+      }
+      [data-theme="dark"] #multiValueResultModal .mv-modal-footer {
+        background: var(--panel-bg, #111827);
+      }
+      @media (max-width: 520px) {
+        #multiValueResultModal .mv-modal-box {
+          width: 100%;
+          max-height: 100dvh;
+          border-radius: 0;
+        }
+        #multiValueResultModal .mv-modal-header,
+        #multiValueResultModal .mv-modal-body,
+        #multiValueResultModal .mv-modal-footer {
+          padding-left: 16px;
+          padding-right: 16px;
+        }
+        .mv-summary-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
       .modal-divider {
         border: none;
         border-top: 1px solid var(--border, #e5e7eb);
@@ -1419,6 +1703,66 @@
       }
       .btn-modal-exception:hover {
         background: #fde68a;
+      }
+      .btn-modal-clear {
+        background: transparent;
+        border-color: #fca5a5;
+        color: #b91c1c;
+      }
+      .btn-modal-clear:hover:not(:disabled) {
+        background: rgba(254, 226, 226, 0.55);
+        border-color: #ef4444;
+        color: #991b1b;
+      }
+      .btn-modal-clear:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      [data-theme="dark"] .btn-modal-clear {
+        border-color: #991b1b;
+        color: #fca5a5;
+      }
+      [data-theme="dark"] .btn-modal-clear:hover:not(:disabled) {
+        background: rgba(127, 29, 29, 0.35);
+      }
+      #multiValueResultModal .mv-modal-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      #multiValueResultModal .mv-modal-footer-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-left: auto;
+      }
+
+      #multiValueClearConfirmModal.modal-overlay {
+        z-index: 1100;
+      }
+      #multiValueClearConfirmModal .mv-clear-confirm-warning {
+        margin: 0 0 16px;
+        font-size: 12.5px;
+        color: var(--muted, #6b7280);
+        line-height: 1.45;
+      }
+      .btn-modal-proceed-danger {
+        background: #b91c1c;
+        color: #fff;
+        border-color: #b91c1c;
+      }
+      .btn-modal-proceed-danger:hover:not(:disabled) {
+        background: #991b1b;
+        border-color: #991b1b;
+      }
+      .btn-modal-proceed-danger:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      [data-theme="dark"] .btn-modal-proceed-danger:hover:not(:disabled) {
+        background: #dc2626;
       }
 
       /* ── Loading overlay ─────────────────────────────────────────────────── */
@@ -2574,6 +2918,109 @@
             Cancel
           </button>
           <button class="btn-modal btn-modal-save" id="btnOutSave">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Multi-value result entry modal ────────────────────────────────────── -->
+    <div
+      class="modal-overlay"
+      id="multiValueResultModal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="mvModalTitle"
+    >
+      <div class="modal-box mv-modal-box">
+        <div class="mv-modal-header">
+          <p class="modal-title" id="mvModalTitle">Multi-value Entry</p>
+          <p class="modal-sub" id="mvModalSub">Enter observed values for calculation.</p>
+          <div class="mv-modal-meta" id="mvModalMeta"></div>
+        </div>
+        <div class="mv-modal-body">
+          <section id="mvOutsideListSection" class="mv-outside-section" hidden>
+            <div id="mvOutsideList"></div>
+          </section>
+          <section id="mvSummarySection" class="mv-summary-section" hidden>
+            <div class="mv-summary-title">Calculation Summary</div>
+            <div id="mvSummaryGrid" class="mv-summary-grid"></div>
+          </section>
+          <div class="mv-obs-toolbar">
+            <span id="mvObsUomLabel" class="mv-obs-uom-label"></span>
+            <button type="button" class="btn-sm" id="mvAddObsRowBtn">+ Add Row</button>
+          </div>
+          <div class="mv-obs-table-wrap">
+            <table class="mv-obs-table" id="mvObsTable" aria-label="Observation values">
+              <thead>
+                <tr>
+                  <th class="mv-obs-col-num">#</th>
+                  <th class="mv-obs-col-value">Observed Value</th>
+                  <th class="mv-obs-col-uom">UOM</th>
+                  <th class="mv-obs-col-dev">Deviation %</th>
+                  <th class="mv-obs-col-status">Status</th>
+                  <th class="mv-obs-col-action">Action</th>
+                </tr>
+              </thead>
+              <tbody id="mvObsTableBody"></tbody>
+            </table>
+          </div>
+          <div class="modal-field">
+            <label for="mvRemarksInput">Remarks</label>
+            <textarea id="mvRemarksInput" rows="2" autocomplete="off"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer mv-modal-footer">
+          <button
+            type="button"
+            class="btn-modal btn-modal-clear"
+            id="mvClearBtn"
+            hidden
+          >
+            Clear All
+          </button>
+          <div class="mv-modal-footer-actions">
+            <button type="button" class="btn-modal btn-modal-cancel" id="mvCancelBtn">
+              Cancel
+            </button>
+            <button type="button" class="btn-modal btn-modal-save" id="mvSaveBtn">
+              Save Observations
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Multi-value clear confirmation modal ────────────────────────────── -->
+    <div
+      class="modal-overlay"
+      id="multiValueClearConfirmModal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="mvClearConfirmTitle"
+    >
+      <div class="modal-box" style="width: min(440px, 94vw)">
+        <p class="modal-title" id="mvClearConfirmTitle">Clear Saved Observations</p>
+        <p class="modal-sub" id="mvClearConfirmMessage">
+          This will delete all saved observations and reset the result for this test.
+          Continue?
+        </p>
+        <p class="mv-clear-confirm-warning">
+          This action cannot be undone except by re-entering the observations.
+        </p>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn-modal btn-modal-cancel"
+            id="mvClearConfirmCancelBtn"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="btn-modal btn-modal-proceed-danger"
+            id="mvClearConfirmProceedBtn"
+          >
+            Clear Observations
+          </button>
         </div>
       </div>
     </div>

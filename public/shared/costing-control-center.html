@@ -3,9 +3,31 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Costing &amp; Pricing</title>
+    <title>Costing Control Center</title>
     <link rel="stylesheet" href="../shared/css/style.css" />
     <style>
+      :root {
+        --cp-fw-body: 400;
+        --cp-fw-muted: 500;
+        --cp-fw-label: 500;
+        --cp-fw-emphasis: 500;
+        --cp-fw-heading: 600;
+        --cp-fw-metric: 600;
+        --cp-fw-section: 600;
+      }
+      .cp-modal-title {
+        font-weight: var(--cp-fw-heading);
+        font-size: 14px;
+        color: var(--text, #0f172a);
+      }
+      .cp-cell-primary {
+        font-weight: var(--cp-fw-emphasis);
+        color: var(--text, #0f172a);
+      }
+      .cp-field-label {
+        font-weight: var(--cp-fw-label);
+        color: var(--muted, #6b7280);
+      }
       html,
       body {
         height: 100vh;
@@ -44,6 +66,7 @@
       .page-header h1 {
         margin: 0;
         color: var(--primary);
+        font-weight: var(--cp-fw-heading);
       }
       .page-sub {
         color: var(--muted, #6b7280);
@@ -92,6 +115,45 @@
       }
       .icon-btn.cp-danger-icon-btn svg {
         stroke: currentColor;
+      }
+      .icon-btn.cp-danger-text-btn {
+        width: auto;
+        height: auto;
+        min-height: 30px;
+        padding: 7px 12px;
+        border-color: #fecaca;
+        background: #fef2f2;
+        color: #991b1b;
+        font-weight: var(--cp-fw-label);
+      }
+      .icon-btn.cp-danger-text-btn:hover,
+      .icon-btn.cp-danger-text-btn:focus-visible {
+        background: #fee2e2;
+        border-color: #fca5a5;
+        color: #7f1d1d;
+      }
+      #expenseMappingDetailModal .cost-sheet-sign-body .cp-card-value,
+      #expenseMappingCloseModal .cost-sheet-sign-body .cp-card-value {
+        font-size: 13px;
+        font-weight: var(--cp-fw-body);
+        line-height: 1.4;
+      }
+      #expenseMappingDetailModal .cost-sheet-sign-body .status-chip,
+      #expenseMappingCloseModal .cost-sheet-sign-body .status-chip {
+        font-size: 10.75px;
+        line-height: 1.25;
+        padding: 1px 6px;
+        font-weight: var(--cp-fw-label);
+        vertical-align: middle;
+      }
+      #expenseMappingDetailModal .cost-sheet-sign-actions .icon-btn.icon-btn-primary,
+      #expenseMappingDetailModal .cost-sheet-sign-actions .icon-btn.cp-danger-text-btn,
+      #expenseMappingCloseModal .cost-sheet-sign-actions .icon-btn.cp-danger-text-btn {
+        font-size: 12.5px;
+        line-height: 1.2;
+        min-height: 28px;
+        padding: 6px 10px;
+        font-weight: var(--cp-fw-label);
       }
       .icon-btn.cp-muted-icon-btn {
         width: 30px;
@@ -152,7 +214,7 @@
         text-overflow: clip;
         white-space: normal;
         line-height: 1.15;
-        font-weight: 600;
+        font-weight: var(--cp-fw-label);
         font-size: 10.5px;
         color: var(--muted, #6b7280);
         text-transform: uppercase;
@@ -162,7 +224,7 @@
         flex: 0 0 auto;
         font-size: 13px;
         color: var(--text, #0f172a);
-        font-weight: 800;
+        font-weight: var(--cp-fw-metric);
         line-height: 1.15;
         font-variant-numeric: tabular-nums;
       }
@@ -253,6 +315,91 @@
         min-width: 160px;
         position: relative;
       }
+      .search-card .cp-period-item {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        min-width: 0;
+      }
+      .search-card .cp-period-select {
+        width: 132px;
+        max-width: 100%;
+        padding: 7px 28px 7px 10px;
+        border-radius: 8px;
+        border: 1px solid var(--border, #e5e7eb);
+        background: var(--panel-bg, #fff);
+        color: var(--text, #0f172a);
+        font-size: 12.5px;
+        font-weight: var(--cp-fw-label);
+        line-height: 1.2;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 8px center;
+        cursor: pointer;
+      }
+      .search-card .cp-period-select:disabled {
+        opacity: 0.72;
+        cursor: not-allowed;
+        background-color: #f8fafc;
+        color: var(--muted, #6b7280);
+      }
+      .modal-content .cp-audit-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 8px;
+      }
+      .modal-content .cp-audit-card {
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: var(--panel-bg, #fff);
+        padding: 10px 12px;
+      }
+      .modal-content .cp-audit-card-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .modal-content .cp-audit-code {
+        font-size: 12.5px;
+        font-weight: var(--cp-fw-emphasis);
+        color: var(--text, #0f172a);
+      }
+      .modal-content .cp-audit-observed {
+        margin-left: auto;
+        font-size: 11.5px;
+        color: var(--muted, #6b7280);
+        font-weight: var(--cp-fw-label);
+      }
+      .modal-content .cp-audit-kv {
+        margin-top: 0;
+      }
+      .modal-content .cp-blocker-card {
+        margin-bottom: 0;
+      }
+      .modal-content .cp-blocker-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 8px;
+        margin-top: 8px;
+      }
+      @media (max-width: 640px) {
+        .search-card {
+          flex-wrap: wrap;
+        }
+        .search-card .cp-period-item {
+          flex: 1 1 120px;
+        }
+        .search-card .cp-period-select {
+          width: 100%;
+        }
+        .search-card .filter-item.search {
+          flex: 1 1 100%;
+        }
+      }
       #search {
         background: #e6f7ff;
         border-color: rgba(14, 165, 233, 0.35);
@@ -336,7 +483,7 @@
         background: #2563eb;
         color: #fff;
         font-size: 9px;
-        font-weight: 700;
+        font-weight: var(--cp-fw-heading);
         line-height: 14px;
         text-align: center;
       }
@@ -377,7 +524,7 @@
       }
       .peq-filter-section-title {
         font-size: 11px;
-        font-weight: 700;
+        font-weight: var(--cp-fw-section);
         text-transform: uppercase;
         letter-spacing: 0.05em;
         color: var(--muted, #6b7280);
@@ -432,7 +579,7 @@
       }
       .lens-pills {
         display: flex;
-        gap: 6px;
+        gap: 8px;
         padding: 8px;
         background: linear-gradient(
           135deg,
@@ -445,13 +592,43 @@
         overflow-x: auto;
         flex-wrap: nowrap;
       }
+      .cp-lens-suite-label {
+        font-size: 12px;
+        font-weight: var(--cp-fw-label);
+        color: var(--erp-muted, var(--muted, #6b7280));
+        margin-bottom: 6px;
+        line-height: 1.35;
+      }
+      .cp-lens-suite-group {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+      }
+      .cp-lens-suite-heading {
+        font-size: 10px;
+        font-weight: var(--cp-fw-heading);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--erp-muted, var(--muted, #6b7280));
+        white-space: nowrap;
+        padding-right: 2px;
+      }
+      .cp-lens-suite-separator {
+        display: inline-block;
+        width: 1px;
+        height: 24px;
+        background: var(--erp-border, var(--border, #e5e7eb));
+        flex-shrink: 0;
+        margin: 0 2px;
+      }
       .lens-pills .pill {
         padding: 8px 16px;
         background: transparent;
         border: 1px solid transparent;
         color: var(--erp-muted, var(--muted, #6b7280));
         font-size: 13px;
-        font-weight: 700;
+        font-weight: var(--cp-fw-label);
         cursor: pointer;
         border-radius: 8px;
         transition: all 0.16s ease;
@@ -468,6 +645,7 @@
         background: var(--erp-accent, var(--primary, #2563eb));
         border-color: var(--erp-accent, var(--primary, #2563eb));
         box-shadow: 0 4px 14px rgba(37, 99, 235, 0.22);
+        font-weight: var(--cp-fw-heading);
       }
       @media (max-width: 520px) {
         .page-header h1 {
@@ -475,6 +653,10 @@
           line-height: 1.1;
         }
         .page-header .page-sub {
+          display: none;
+        }
+        .cp-lens-suite-heading,
+        .cp-lens-suite-separator {
           display: none;
         }
         .lens-pills {
@@ -498,7 +680,7 @@
             rgba(37, 99, 235, 0.06)
           );
           color: #0f172a;
-          font-weight: 600;
+          font-weight: var(--cp-fw-label);
           font-size: 14px;
           appearance: none;
           cursor: pointer;
@@ -518,8 +700,13 @@
           display: none;
         }
         #homeBtn {
-          padding-left: 8px;
-          padding-right: 8px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0;
+        }
+        #homeBtn svg {
+          display: block;
         }
       }
       @media (min-width: 521px) {
@@ -556,14 +743,21 @@
       #tableWrap.tw-visible {
         display: block;
       }
-      #manualProvisionsPanel.hidden {
+      .generic-table-meta-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        flex: 0 0 auto;
+      }
+
+      .generic-table-meta-actions.hidden {
         display: none !important;
       }
 
-      #manualProvisionsPanel {
-        flex: 1 1 auto;
-        min-height: 0;
-        overflow: auto;
+      .generic-table-meta-actions .icon-btn {
+        width: 30px;
+        height: 30px;
+        padding: 0;
       }
 
       #kpiStripWrap.hidden,
@@ -696,7 +890,7 @@
         background: var(--panel-bg, #fff);
         color: var(--muted, #6b7280);
         font-size: 13px;
-        font-weight: 600;
+        font-weight: var(--cp-fw-label);
         box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
       }
       .cp-loading-spinner {
@@ -718,51 +912,97 @@
       .status-chip,
       .chip {
         display: inline-block;
-        padding: 2px 7px;
+        padding: 2px 8px;
         border-radius: 999px;
         font-size: 11px;
         line-height: 1.35;
-        font-weight: 700;
+        font-weight: var(--cp-fw-label);
         white-space: nowrap;
-        border: 1px solid transparent;
-        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        background: #f1f5f9;
         color: #475569;
       }
       .chip.green,
       .status-chip.green {
-        background: #f0fdf4;
-        border-color: #bbf7d0;
+        background: #ecfdf5;
+        border-color: #86efac;
         color: #166534;
       }
       .chip.amber,
       .status-chip.amber {
         background: #fffbeb;
-        border-color: #fde68a;
+        border-color: #fcd34d;
         color: #92400e;
       }
       .chip.red,
       .status-chip.red {
         background: #fef2f2;
-        border-color: #fecaca;
+        border-color: #fca5a5;
         color: #991b1b;
       }
       .chip.blue,
       .status-chip.blue {
         background: #eff6ff;
-        border-color: #bfdbfe;
+        border-color: #93c5fd;
         color: #1d4ed8;
       }
       .chip.indigo,
       .status-chip.indigo {
         background: #eef2ff;
-        border-color: #c7d2fe;
+        border-color: #a5b4fc;
         color: #3730a3;
       }
       .chip.gray,
       .status-chip.gray {
-        background: #f8fafc;
-        border-color: #e2e8f0;
+        background: #f1f5f9;
+        border-color: #cbd5e1;
         color: #475569;
+      }
+      #detailsModal .modal-content .status-chip,
+      .modal-content .cp-audit-card-head .status-chip {
+        vertical-align: middle;
+      }
+      [data-theme="dark"] .status-chip,
+      [data-theme="dark"] .chip {
+        background: #1e293b;
+        border-color: #334155;
+        color: #cbd5e1;
+      }
+      [data-theme="dark"] .status-chip.green,
+      [data-theme="dark"] .chip.green {
+        background: #052e16;
+        border-color: #166534;
+        color: #86efac;
+      }
+      [data-theme="dark"] .status-chip.amber,
+      [data-theme="dark"] .chip.amber {
+        background: #451a03;
+        border-color: #92400e;
+        color: #fcd34d;
+      }
+      [data-theme="dark"] .status-chip.red,
+      [data-theme="dark"] .chip.red {
+        background: #450a0a;
+        border-color: #991b1b;
+        color: #fca5a5;
+      }
+      [data-theme="dark"] .status-chip.blue,
+      [data-theme="dark"] .chip.blue {
+        background: #172554;
+        border-color: #1d4ed8;
+        color: #93c5fd;
+      }
+      [data-theme="dark"] .status-chip.indigo,
+      [data-theme="dark"] .chip.indigo {
+        background: #1e1b4b;
+        border-color: #4338ca;
+        color: #a5b4fc;
+      }
+      [data-theme="dark"] .status-chip.gray,
+      [data-theme="dark"] .chip.gray {
+        background: #1e293b;
+        border-color: #475569;
+        color: #94a3b8;
       }
       .cp-status-chip-compact {
         padding: 1px 6px;
@@ -771,7 +1011,7 @@
       }
       .cp-status-text {
         font-size: 12px;
-        font-weight: 700;
+        font-weight: var(--cp-fw-label);
         white-space: nowrap;
       }
       .cp-status-text--green {
@@ -797,7 +1037,7 @@
       .cp-dashboard-main {
         color: var(--text, #0f172a);
         font-size: 12.5px;
-        font-weight: 700;
+        font-weight: var(--cp-fw-emphasis);
         line-height: 1.25;
         white-space: nowrap;
       }
@@ -811,11 +1051,11 @@
       }
       .cp-change-positive {
         color: #166534;
-        font-weight: 700;
+        font-weight: var(--cp-fw-emphasis);
       }
       .cp-change-negative {
         color: #991b1b;
-        font-weight: 700;
+        font-weight: var(--cp-fw-emphasis);
       }
       .cp-change-neutral {
         color: var(--muted, #6b7280);
@@ -824,7 +1064,7 @@
         margin: 0 0 8px;
         color: var(--text, #0f172a);
         font-size: 13px;
-        font-weight: 800;
+        font-weight: var(--cp-fw-section);
         text-transform: uppercase;
         letter-spacing: 0.04em;
       }
@@ -844,14 +1084,14 @@
       .cp-kv dt {
         color: var(--muted, #6b7280);
         font-size: 11px;
-        font-weight: 700;
+        font-weight: var(--cp-fw-label);
         text-transform: uppercase;
         letter-spacing: 0.04em;
       }
       .cp-card-value {
         margin-top: 4px;
         color: var(--text, #0f172a);
-        font-weight: 800;
+        font-weight: var(--cp-fw-metric);
         overflow-wrap: anywhere;
       }
       .scheme-policy-sku-card {
@@ -868,7 +1108,7 @@
       .scheme-policy-sku-card .cp-card-value {
         margin-top: 0;
         font-size: 13px;
-        font-weight: 600;
+        font-weight: var(--cp-fw-emphasis);
         text-align: right;
       }
       .cp-kv {
@@ -884,6 +1124,58 @@
       .cp-kv dd {
         overflow-wrap: anywhere;
       }
+      .cp-detail-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .cp-detail-grid--2col {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      @media (min-width: 720px) {
+        .cp-detail-grid--2col {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      .cp-detail-section {
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: var(--panel-bg, #fff);
+        padding: 10px 12px;
+      }
+      .cp-detail-section .cp-section-title {
+        margin: 0 0 8px;
+      }
+      .modal-content .cp-detail-kv {
+        grid-template-columns: minmax(132px, 38%) 1fr;
+      }
+      .modal-content .cp-detail-kv dt,
+      .modal-content .cp-detail-kv dd {
+        padding: 7px 0;
+        border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+      }
+      .modal-content .cp-detail-kv dt:nth-last-child(-n + 2),
+      .modal-content .cp-detail-kv dd:nth-last-child(-n + 2) {
+        border-bottom: none;
+        padding-bottom: 0;
+      }
+      .modal-content .cp-detail-kv dt:first-of-type,
+      .modal-content .cp-detail-kv dd:nth-of-type(2) {
+        padding-top: 0;
+      }
+      .modal-content .cp-detail-kv dd {
+        font-weight: var(--cp-fw-emphasis);
+      }
+      [data-theme="dark"] .cp-detail-section {
+        background: var(--panel-bg, #1e293b);
+        border-color: #334155;
+      }
+      [data-theme="dark"] .modal-content .cp-detail-kv dt,
+      [data-theme="dark"] .modal-content .cp-detail-kv dd {
+        border-bottom-color: rgba(148, 163, 184, 0.14);
+      }
       .cp-table-wrap {
         overflow: auto;
         border: 1px solid var(--border, #e5e7eb);
@@ -897,7 +1189,7 @@
         background: rgba(37, 99, 235, 0.055);
         color: var(--text, #0f172a);
         font-size: 12px;
-        font-weight: 800;
+        font-weight: var(--cp-fw-section);
         text-transform: uppercase;
         letter-spacing: 0.04em;
       }
@@ -988,9 +1280,17 @@
       #costSheetSignConfirmBtn.icon-btn.icon-btn-primary:hover,
       #costSheetSignConfirmBtn.icon-btn.icon-btn-primary:focus-visible {
         background: #1d4ed8 !important;
-        background: color-mix(in srgb, var(--primary, #2563eb) 86%, #000) !important;
+        background: color-mix(
+          in srgb,
+          var(--primary, #2563eb) 86%,
+          #000
+        ) !important;
         border-color: #1d4ed8 !important;
-        border-color: color-mix(in srgb, var(--primary, #2563eb) 86%, #000) !important;
+        border-color: color-mix(
+          in srgb,
+          var(--primary, #2563eb) 86%,
+          #000
+        ) !important;
         color: #fff !important;
       }
       .cost-sheet-a4-wrap {
@@ -1259,11 +1559,12 @@
         flex-direction: column;
         gap: 4px;
         font-size: 12px;
-        font-weight: 600;
+        font-weight: var(--cp-fw-label);
         color: var(--muted, #6b7280);
       }
       .sign-grid input,
-      .sign-grid select {
+      .sign-grid select,
+      .sign-grid textarea {
         padding: 8px 9px;
         border: 1px solid var(--border, #e5e7eb);
         border-radius: 7px;
@@ -1272,6 +1573,43 @@
         background: var(--surface, #fff);
         min-height: 40px;
         width: 100%;
+      }
+      .sign-grid textarea {
+        min-height: 72px;
+        resize: vertical;
+      }
+      .sign-grid input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        min-height: 0;
+        padding: 0;
+        flex-shrink: 0;
+        accent-color: #2563eb;
+      }
+      .cp-checkbox-row {
+        margin-top: 4px;
+      }
+      .cp-checkbox-row label {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: var(--cp-fw-label);
+        color: var(--text, #111827);
+        cursor: pointer;
+      }
+      .cost-sheet-sign-actions.cp-sign-actions-split {
+        justify-content: space-between;
+      }
+      .cost-sheet-sign-actions .cp-sign-actions-end {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-left: auto;
+      }
+      .cost-sheet-sign-actions
+        .icon-btn:not(.icon-btn-primary):not(.cp-danger-icon-btn) {
+        font-weight: var(--cp-fw-label);
       }
       @media (max-width: 620px) {
         .sign-grid {
@@ -1309,7 +1647,7 @@
       .cp-workbench-summary-card .cp-card-value {
         margin-top: 2px;
         font-size: 13px;
-        font-weight: 700;
+        font-weight: var(--cp-fw-emphasis);
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -1319,7 +1657,7 @@
         min-height: 26px;
         padding: 4px 10px;
         font-size: 12px;
-        font-weight: 700;
+        font-weight: var(--cp-fw-label);
       }
       .cp-manager-tab-card {
         text-align: left;
@@ -1469,7 +1807,7 @@
         border: 1px solid var(--border, #e5e7eb);
         color: var(--muted, #6b7280);
         font-size: 13px;
-        font-weight: 700;
+        font-weight: var(--cp-fw-label);
         cursor: pointer;
         white-space: nowrap;
         line-height: 1.2;
@@ -1479,6 +1817,7 @@
         background: var(--primary, #2563eb);
         color: #fff;
         border-color: var(--primary, #2563eb);
+        font-weight: var(--cp-fw-heading);
       }
       .modal-content {
         flex: 1 1 auto;
@@ -1515,10 +1854,10 @@
         font-size: 11.5px;
       }
       .modal-content .cp-printable-table strong {
-        font-weight: 600;
+        font-weight: var(--cp-fw-emphasis);
       }
       .modal-content .cp-printable-section-row td {
-        font-weight: 700;
+        font-weight: var(--cp-fw-section);
       }
       .peq-modal-subtitle {
         color: var(--muted, #6b7280);
@@ -1643,7 +1982,12 @@
       }
     </style>
   </head>
-  <body>
+  <body
+    data-costing-module-key="costing-control-center"
+    data-costing-suite-id="control-center"
+    data-costing-default-lens="dashboard"
+    data-costing-show-kpi="true"
+  >
     <div
       id="manualProvisionEditModal"
       class="cost-sheet-sign-modal hidden"
@@ -1651,7 +1995,7 @@
     >
       <div class="cost-sheet-sign-panel">
         <div class="cost-sheet-sign-header">
-          <strong id="manualProvisionEditTitle">Add Manual Provision</strong>
+          <span id="manualProvisionEditTitle" class="cp-modal-title">Add Manual Provision</span>
           <button
             id="manualProvisionEditCloseBtn"
             type="button"
@@ -1663,8 +2007,16 @@
           </button>
         </div>
         <div class="cost-sheet-sign-body">
-          <div id="manualProvisionEditBanner" class="cp-muted-text" style="margin-bottom: 10px; line-height: 1.45">
-            Saving updates the manual provision register. Active provisions are included in cost pool totals. Use Refresh Live Costing when you want downstream costing snapshots recalculated.
+          <div
+            id="manualProvisionEditBanner"
+            class="cp-muted-text"
+            style="margin-bottom: 10px; line-height: 1.45"
+          >
+            Saving updates the manual provision register. Enter monthly amount
+            only. If the approved provision is annual, divide it by 12 and enter
+            only the monthly value. Active provisions are included in cost pool
+            totals. Request Costing Refresh from the toolbar when you want
+            downstream costing snapshots rebuilt.
           </div>
           <div class="sign-grid">
             <label>
@@ -1681,29 +2033,84 @@
             </label>
             <label>
               Provision Key
-              <input id="manualProvisionKey" type="text" placeholder="HO_ADMIN_ALLOCATION" />
+              <input
+                id="manualProvisionKey"
+                type="text"
+                placeholder="HO_ADMIN_ALLOCATION"
+              />
             </label>
             <label style="grid-column: 1 / -1">
               Provision Label
-              <input id="manualProvisionLabel" type="text" placeholder="Head Office Admin Overhead Allocation" />
+              <input
+                id="manualProvisionLabel"
+                type="text"
+                placeholder="Head Office Admin Overhead Allocation"
+              />
             </label>
             <label>
-              Provision Amount
-              <input id="manualProvisionAmount" type="number" min="0" step="0.01" />
+              Monthly Provision Amount
+              <input
+                id="manualProvisionAmount"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="Monthly amount only"
+              />
             </label>
             <label>
               Source Reference
-              <input id="manualProvisionSourceReference" type="text" placeholder="GM approval / HO estimate / Finance note / Board approval" />
+              <input
+                id="manualProvisionSourceReference"
+                type="text"
+                placeholder="GM approval / HO estimate / Finance note / Board approval"
+              />
             </label>
             <label style="grid-column: 1 / -1">
               Remarks
-              <textarea id="manualProvisionRemarks" rows="3" placeholder="Optional governance note"></textarea>
+              <textarea
+                id="manualProvisionRemarks"
+                rows="3"
+                placeholder="Optional governance note"
+              ></textarea>
             </label>
           </div>
         </div>
-        <div class="cost-sheet-sign-actions">
-          <button id="manualProvisionCancelBtn" type="button" class="icon-btn">Cancel</button>
-          <button id="manualProvisionSaveBtn" type="button" class="icon-btn icon-btn-primary">Save</button>
+        <div class="cost-sheet-sign-actions cp-sign-actions-split">
+          <button
+            id="manualProvisionDeactivateBtn"
+            type="button"
+            class="icon-btn cp-danger-icon-btn hidden"
+            title="Deactivate Manual Provision"
+            aria-label="Deactivate Manual Provision"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.4"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="9"></circle>
+              <path d="M15 9l-6 6"></path>
+              <path d="M9 9l6 6"></path>
+            </svg>
+          </button>
+          <div class="cp-sign-actions-end">
+            <button id="manualProvisionCancelBtn" type="button" class="icon-btn">
+              Cancel
+            </button>
+            <button
+              id="manualProvisionSaveBtn"
+              type="button"
+              class="icon-btn icon-btn-primary"
+            >
+              Save
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1715,7 +2122,7 @@
     >
       <div class="cost-sheet-sign-panel">
         <div class="cost-sheet-sign-header">
-          <strong>Deactivate Manual Provision</strong>
+          <span class="cp-modal-title">Deactivate Manual Provision</span>
           <button
             id="manualProvisionDeactivateCloseBtn"
             type="button"
@@ -1730,20 +2137,44 @@
           <div class="cp-card scheme-policy-sku-card">
             <div>
               <div class="cp-card-label">Provision</div>
-              <div id="manualProvisionDeactivateLabel" class="cp-card-value">--</div>
+              <div id="manualProvisionDeactivateLabel" class="cp-card-value">
+                --
+              </div>
             </div>
           </div>
-          <label style="display:block; margin-top: 10px">
-            Reason / remarks
-            <textarea id="manualProvisionDeactivateReason" rows="3" placeholder="Reason for deactivation"></textarea>
-          </label>
-          <div class="cp-muted-text" style="margin-top: 10px; line-height: 1.45">
-            Deactivation excludes this provision from cost pool monthly summary and downstream costing after refresh.
+          <div class="sign-grid" style="margin-top: 10px">
+            <label style="grid-column: 1 / -1">
+              Reason / remarks
+              <textarea
+                id="manualProvisionDeactivateReason"
+                rows="3"
+                placeholder="Reason for deactivation"
+              ></textarea>
+            </label>
+          </div>
+          <div
+            class="cp-muted-text"
+            style="margin-top: 10px; line-height: 1.45"
+          >
+            Deactivation excludes this provision from cost pool monthly summary
+            and downstream costing after Request Costing Refresh completes.
           </div>
         </div>
         <div class="cost-sheet-sign-actions">
-          <button id="manualProvisionDeactivateCancelBtn" type="button" class="icon-btn">Cancel</button>
-          <button id="manualProvisionDeactivateSaveBtn" type="button" class="icon-btn icon-btn-primary">Deactivate</button>
+          <button
+            id="manualProvisionDeactivateCancelBtn"
+            type="button"
+            class="icon-btn"
+          >
+            Cancel
+          </button>
+          <button
+            id="manualProvisionDeactivateSaveBtn"
+            type="button"
+            class="icon-btn icon-btn-primary"
+          >
+            Deactivate
+          </button>
         </div>
       </div>
     </div>
@@ -1759,10 +2190,10 @@
     >
       <div class="page-header">
         <div>
-          <h1>Costing &amp; Pricing</h1>
+          <h1>Costing Control Center</h1>
           <div class="page-sub" id="subtitle">
-            SKU-level costing, selling price bridge, scheme viability, and
-            costing control workbench
+            Dashboard, costing control workbench, blockers, review queue, and
+            integrity checks
           </div>
           <div class="toolbar"></div>
         </div>
@@ -1770,8 +2201,8 @@
           <button
             id="refreshBtn"
             type="button"
-            title="Refresh Live Costing"
-            aria-label="Refresh Live Costing"
+            title="Request Costing Refresh"
+            aria-label="Request Costing Refresh"
             class="icon-btn"
           >
             <svg
@@ -1789,30 +2220,6 @@
               <polyline points="1 20 1 14 7 14"></polyline>
               <path d="M3.51 9a9 9 0 0114.13-3.36L23 10"></path>
               <path d="M20.49 15a9 9 0 01-14.13 3.36L1 14"></path>
-            </svg>
-          </button>
-          <button
-            id="snapshotRefreshBtn"
-            type="button"
-            title="Refresh Monthly Snapshot"
-            aria-label="Refresh Monthly Snapshot"
-            class="icon-btn"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M8 2v4"></path>
-              <path d="M16 2v4"></path>
-              <rect x="3" y="4" width="18" height="18" rx="2"></rect>
-              <path d="M3 10h18"></path>
             </svg>
           </button>
           <button
@@ -1928,6 +2335,16 @@
                     value="BLOCKER"
                   />
                   BLOCKER</label
+                >
+              </li>
+              <li>
+                <label
+                  ><input
+                    type="checkbox"
+                    data-filter-group="status"
+                    value="BLOCKED"
+                  />
+                  BLOCKED</label
                 >
               </li>
               <li>
@@ -2131,6 +2548,17 @@
           </div>
         </div>
       </div>
+      <div class="filter-item cp-period-item">
+        <select
+          id="costingPeriodSelect"
+          class="cp-period-select"
+          aria-label="Costing period"
+          title="Select costing period"
+          disabled
+        >
+          <option value="">Loading...</option>
+        </select>
+      </div>
       <div class="filter-item search">
         <input
           type="text"
@@ -2181,6 +2609,7 @@
         border: 1px solid var(--border);
       "
     >
+      <div id="lensSuiteLabel" class="cp-lens-suite-label">Costing Suite</div>
       <div class="tab-select-wrap">
         <select
           id="lensSelect"
@@ -2212,148 +2641,21 @@
       <div class="table-card">
         <div id="workbenchSummary" class="cp-workbench-summary"></div>
         <div id="statusArea" class="status">Loading...</div>
-        <div id="manualProvisionsPanel" class="hidden" style="margin-top: 10px">
-          <div
-            class="card"
-            style="padding: 12px; border-radius: 8px; background: var(--panel-bg); border: 1px solid var(--border); margin-bottom: 10px"
-          >
-            <div class="cp-card-label">Manual Cost Pool Provisions</div>
-            <div class="cp-card-value" style="margin-top: 4px">
-              Controlled manual overhead/provision entries included in cost pool totals.
-            </div>
-            <div class="cp-muted-text" style="margin-top: 6px">
-              Use this for approved provisions not coming from staff salary or mapped Tally expenses.
-            </div>
-          </div>
-
-          <div class="kpi-strip" style="margin-top: 8px">
-            <div class="kpi total"><div>Total Rows</div><div id="mpKpiTotalRows">0</div></div>
-            <div class="kpi ready"><div>Active Rows</div><div id="mpKpiActiveRows">0</div></div>
-            <div class="kpi"><div>Inactive Rows</div><div id="mpKpiInactiveRows">0</div></div>
-            <div class="kpi review"><div>Manual Amount</div><div id="mpKpiManualAmount">?0.00</div></div>
-          </div>
-
-          <div
-            class="card search-card"
-            style="margin-top: 10px; padding: 10px; border-radius: 8px; background: var(--panel-bg); border: 1px solid var(--border); display: flex; flex-wrap: wrap; align-items: end; gap: 8px"
-          >
-            <label class="filter-item" style="min-width: 140px; flex: 0 0 140px">
-              <div class="cp-card-label" style="margin-bottom: 4px">Period</div>
-              <input id="mpPeriodFilter" type="month" />
-            </label>
-            <label class="filter-item" style="min-width: 180px; flex: 1 1 180px">
-              <div class="cp-card-label" style="margin-bottom: 4px">Pool</div>
-              <select id="mpPoolFilter"></select>
-            </label>
-            <label class="filter-item" style="min-width: 140px; flex: 0 0 140px">
-              <div class="cp-card-label" style="margin-bottom: 4px">Status</div>
-              <select id="mpStatusFilter">
-                <option value="all">All</option>
-                <option value="active" selected>Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </label>
-            <div class="filter-item search" style="flex: 1 1 260px; min-width: 220px">
-              <div class="cp-card-label" style="margin-bottom: 4px">Search</div>
-              <div style="position: relative">
-                <input
-                  id="mpSearchInput"
-                  type="text"
-                  placeholder="Search key, label, source, remarks, type, pool"
-                  aria-label="Search manual provisions"
-                />
-                <button
-                  id="mpSearchClearBtn"
-                  type="button"
-                  class="input-clear-btn"
-                  title="Clear search"
-                  aria-label="Clear search"
-                  style="display: none"
-                >
-                  <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-                    <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
-                    <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
-                  </svg>
-                </button>
-              </div>
-            </div>
-            <button id="mpRefreshBtn" type="button" class="icon-btn" title="Refresh Manual Provisions">Refresh</button>
-            <button id="mpAddBtn" type="button" class="icon-btn icon-btn-primary" title="Add Manual Provision">Add</button>
-          </div>
-
-          <div class="cp-muted-text" style="margin-top: 10px; line-height: 1.45">
-            Manual provisions are included in cost pool totals immediately. Use Refresh Live Costing to recalculate downstream costing snapshots.
-          </div>
-
-          <div style="display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 12px">
-            <div class="card" style="padding: 10px; border-radius: 8px; background: var(--panel-bg); border: 1px solid var(--border)">
-              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
-                <div>
-                  <div class="cp-card-label">Provision Register</div>
-                  <div class="cp-muted-text">Current manual cost pool provision entries</div>
-                </div>
-                <span id="mpProvisionRowCount" class="peq-row-count">0 rows</span>
-              </div>
-              <div style="overflow:auto">
-                <table class="costing-pricing-table">
-                  <thead>
-                    <tr>
-                      <th>Period</th>
-                      <th>Pool</th>
-                      <th>Type</th>
-                      <th>Key / Label</th>
-                      <th class="c-right">Amount</th>
-                      <th>Source Ref</th>
-                      <th>Status</th>
-                      <th>Updated</th>
-                      <th class="c-center">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody id="mpProvisionTableBody"></tbody>
-                </table>
-              </div>
-            </div>
-
-            <div class="card" style="padding: 10px; border-radius: 8px; background: var(--panel-bg); border: 1px solid var(--border)">
-              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
-                <div>
-                  <div class="cp-card-label">Monthly Pool Impact</div>
-                  <div class="cp-muted-text">Current cost pool impact including manual provision amount</div>
-                </div>
-                <span id="mpPoolImpactRowCount" class="peq-row-count">0 rows</span>
-              </div>
-              <div style="overflow:auto">
-                <table class="costing-pricing-table">
-                  <thead>
-                    <tr>
-                      <th>Period</th>
-                      <th>Pool</th>
-                      <th class="c-right">Staff</th>
-                      <th class="c-right">Expense</th>
-                      <th class="c-right">Manual</th>
-                      <th class="c-right">Total</th>
-                      <th>Source Type</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody id="mpPoolImpactTableBody"></tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div id="genericTableMetaRow"
+        <div
+          id="genericTableMetaRow"
           style="
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 8px;
             margin-bottom: 8px;
           "
         >
+          <div id="genericTableMetaActions" class="generic-table-meta-actions hidden"></div>
           <span
             id="peqRowCount"
             class="peq-row-count"
-            style="display: none; margin-left: 8px"
+            style="display: none; margin-left: 0"
           ></span>
           <div
             class="pagination"
@@ -2431,11 +2733,11 @@
         </div>
       </div>
 
-      <div class="modal-overlay hidden" id="detailsModal" aria-hidden="true">
+      <div class="modal-overlay hidden" id="detailsModal" data-readonly-overlay="true" aria-hidden="true">
         <div class="modal-window">
           <div class="modal-header">
             <div>
-              <strong id="drawerTitle">Details</strong>
+              <span id="drawerTitle" class="cp-modal-title">Details</span>
               <div class="peq-modal-subtitle" id="drawerSubtitle"></div>
             </div>
             <button
@@ -2466,11 +2768,11 @@
       </div>
     </div>
 
-    <div id="costSheetModal" class="cost-sheet-modal hidden" aria-hidden="true">
+    <div id="costSheetModal" class="cost-sheet-modal hidden" data-readonly-overlay="true" aria-hidden="true">
       <div class="cost-sheet-modal-panel">
         <div class="cost-sheet-modal-toolbar">
           <div>
-            <strong id="costSheetModalTitle">Cost Sheet</strong>
+            <span id="costSheetModalTitle" class="cp-modal-title">Cost Sheet</span>
             <div
               id="costSheetModalSubtitle"
               class="cost-sheet-modal-subtitle"
@@ -2537,7 +2839,7 @@
     >
       <div class="cost-sheet-sign-panel">
         <div class="cost-sheet-sign-header">
-          <strong>Confirm Signatory Details</strong>
+          <span class="cp-modal-title">Confirm Signatory Details</span>
           <button
             id="costSheetSignCloseBtn"
             type="button"
@@ -2604,76 +2906,13 @@
     </div>
 
     <div
-      id="snapshotConfirmModal"
-      class="cost-sheet-sign-modal hidden"
-      aria-hidden="true"
-    >
-      <div class="cost-sheet-sign-panel">
-        <div class="cost-sheet-sign-header">
-          <strong>Confirm Monthly Snapshot Refresh</strong>
-          <button
-            id="snapshotConfirmCloseBtn"
-            type="button"
-            class="icon-btn"
-            title="Close"
-            aria-label="Close"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.5"
-              stroke-linecap="round"
-              aria-hidden="true"
-            >
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
-        </div>
-
-        <div class="cost-sheet-sign-body">
-          <div class="cp-card" style="margin-bottom: 10px">
-            <div class="cp-card-label">Snapshot Period</div>
-            <div id="snapshotConfirmPeriod" class="cp-card-value">--</div>
-          </div>
-
-          <div class="status" style="padding: 0; color: var(--text, #111827)">
-            This will replace the monthly cost sheet snapshot for the selected period.
-          </div>
-
-          <div class="cp-muted-text" style="margin-top: 8px; line-height: 1.45">
-            Existing snapshot rows for this month will be deleted and recreated from
-            the current live cost sheet view. This will not affect live cost sheet
-            printing.
-          </div>
-        </div>
-
-        <div class="cost-sheet-sign-actions">
-          <button id="snapshotConfirmCancelBtn" type="button" class="icon-btn">
-            Cancel
-          </button>
-          <button
-            id="snapshotConfirmProceedBtn"
-            type="button"
-            class="icon-btn icon-btn-primary"
-          >
-            Refresh Monthly Snapshot
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div
       id="sellingPolicyEditModal"
       class="cost-sheet-sign-modal hidden"
       aria-hidden="true"
     >
       <div class="cost-sheet-sign-panel">
         <div class="cost-sheet-sign-header">
-          <strong>Edit Selling Price Policy</strong>
+          <span class="cp-modal-title">Edit Selling Price Policy</span>
           <button
             id="sellingPolicyEditCloseBtn"
             type="button"
@@ -2694,32 +2933,62 @@
           <div class="sign-grid">
             <label>
               GST %
-              <input id="sellingPolicyGstPercent" type="number" step="0.01" min="0" />
+              <input
+                id="sellingPolicyGstPercent"
+                type="number"
+                step="0.01"
+                min="0"
+              />
             </label>
 
             <label>
               IK Discount %
-              <input id="sellingPolicyIkDiscountPercent" type="number" step="0.01" min="0" />
+              <input
+                id="sellingPolicyIkDiscountPercent"
+                type="number"
+                step="0.01"
+                min="0"
+              />
             </label>
 
             <label>
               OK Discount %
-              <input id="sellingPolicyOkDiscountPercent" type="number" step="0.01" min="0" />
+              <input
+                id="sellingPolicyOkDiscountPercent"
+                type="number"
+                step="0.01"
+                min="0"
+              />
             </label>
 
             <label>
               IK Fixed Discount Amount
-              <input id="sellingPolicyIkDiscountAmount" type="number" step="0.01" min="0" />
+              <input
+                id="sellingPolicyIkDiscountAmount"
+                type="number"
+                step="0.01"
+                min="0"
+              />
             </label>
 
             <label>
               OK Fixed Discount Amount
-              <input id="sellingPolicyOkDiscountAmount" type="number" step="0.01" min="0" />
+              <input
+                id="sellingPolicyOkDiscountAmount"
+                type="number"
+                step="0.01"
+                min="0"
+              />
             </label>
 
             <label>
               Contingency %
-              <input id="sellingPolicyContingencyPercent" type="number" step="0.01" min="0" />
+              <input
+                id="sellingPolicyContingencyPercent"
+                type="number"
+                step="0.01"
+                min="0"
+              />
             </label>
 
             <label>
@@ -2737,9 +3006,13 @@
             </label>
           </div>
 
-          <div class="cp-muted-text" style="margin-top: 10px; line-height: 1.45">
-            Saving this policy will not automatically recalculate costing. After saving,
-            use Refresh Live Costing to update derived selling price and cost sheet values.
+          <div
+            class="cp-muted-text"
+            style="margin-top: 10px; line-height: 1.45"
+          >
+            Saving this policy will not automatically recalculate costing. After
+            saving, request Costing Refresh from the toolbar to update derived
+            selling price and cost sheet values.
           </div>
         </div>
 
@@ -2797,7 +3070,7 @@
     >
       <div class="cost-sheet-sign-panel">
         <div class="cost-sheet-sign-header">
-          <strong>Edit Scheme Policy</strong>
+          <span class="cp-modal-title">Edit Scheme Policy</span>
           <button
             id="schemePolicyEditCloseBtn"
             type="button"
@@ -2899,7 +3172,7 @@
     >
       <div class="cost-sheet-sign-panel">
         <div class="cost-sheet-sign-header">
-          <strong>Create Hierarchy Scheme Rule</strong>
+          <span class="cp-modal-title">Create Hierarchy Scheme Rule</span>
           <button
             id="schemeRuleEditCloseBtn"
             type="button"
@@ -2983,7 +3256,10 @@
             </label>
           </div>
 
-          <div class="cp-muted-text" style="margin-top: 10px; line-height: 1.45">
+          <div
+            class="cp-muted-text"
+            style="margin-top: 10px; line-height: 1.45"
+          >
             The selected scope is saved by ID, not by name. Full hierarchy path
             is shown to avoid accidental selection when names repeat.
           </div>
@@ -3043,7 +3319,7 @@
     >
       <div class="cost-sheet-sign-panel">
         <div class="cost-sheet-sign-header">
-          <strong>Close Scheme Rule</strong>
+          <span class="cp-modal-title">Close Scheme Rule</span>
           <button
             id="schemeRuleCloseCloseBtn"
             type="button"
@@ -3077,7 +3353,10 @@
             </label>
           </div>
 
-          <div class="cp-muted-text" style="margin-top: 10px; line-height: 1.45">
+          <div
+            class="cp-muted-text"
+            style="margin-top: 10px; line-height: 1.45"
+          >
             Closing a rule will stop it from applying further, while preserving
             the audit trail.
           </div>
@@ -3105,7 +3384,7 @@
     >
       <div class="cost-sheet-sign-panel">
         <div class="cost-sheet-sign-header">
-          <strong>Set Expense Head Mapping</strong>
+          <span class="cp-modal-title">Set Expense Head Mapping</span>
           <button
             id="expenseMappingEditCloseBtn"
             type="button"
@@ -3126,14 +3405,9 @@
           </div>
 
           <div class="sign-grid">
-            <label>
+            <label style="grid-column: 1 / -1">
               Allocation Pool
               <select id="expenseMappingPool"></select>
-            </label>
-
-            <label style="display:flex;align-items:flex-end;gap:8px">
-              <input id="expenseMappingInclude" type="checkbox" />
-              <span>Include in costing</span>
             </label>
 
             <label style="grid-column: 1 / -1">
@@ -3146,9 +3420,20 @@
             </label>
           </div>
 
-          <div class="cp-muted-text" style="margin-top: 10px; line-height: 1.45">
-            Saving an expense mapping updates the governance register only.
-            Use Refresh Live Costing later when you want the costing engine to recalculate with the latest mapping state.
+          <div class="cp-checkbox-row">
+            <label for="expenseMappingInclude">
+              <input id="expenseMappingInclude" type="checkbox" />
+              <span>Include in costing</span>
+            </label>
+          </div>
+
+          <div
+            class="cp-muted-text"
+            style="margin-top: 10px; line-height: 1.45"
+          >
+            Saving an expense mapping updates the governance register only. Use
+            Request Costing Refresh from the toolbar later when you want the
+            costing engine to recalculate with the latest mapping state.
           </div>
         </div>
 
@@ -3201,13 +3486,142 @@
     </div>
 
     <div
+      id="expenseMappingDetailModal"
+      class="cost-sheet-sign-modal hidden"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel">
+        <div class="cost-sheet-sign-header">
+          <span class="cp-modal-title">Expense Head Mapping</span>
+          <button
+            id="expenseMappingDetailCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Close"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <div id="expenseMappingDetailContent" class="cost-sheet-sign-body"></div>
+
+        <div class="cost-sheet-sign-actions">
+          <div class="cp-sign-actions-end">
+            <button
+              id="expenseMappingDetailCloseMappingBtn"
+              type="button"
+              class="icon-btn cp-danger-text-btn hidden"
+              title="Close Mapping"
+              aria-label="Close Mapping"
+            >
+              Close Mapping
+            </button>
+            <button
+              id="expenseMappingDetailEditBtn"
+              type="button"
+              class="icon-btn icon-btn-primary"
+              title="Edit Mapping"
+              aria-label="Edit Mapping"
+            >
+              Edit Mapping
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="expenseMappingCloseModal"
+      class="cost-sheet-sign-modal hidden"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel">
+        <div class="cost-sheet-sign-header">
+          <span class="cp-modal-title">Close Expense Head Mapping</span>
+          <button
+            id="expenseMappingCloseModalCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Close"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="cost-sheet-sign-body">
+          <div class="cp-card scheme-policy-sku-card">
+            <div>
+              <div class="cp-card-label">Expense Head</div>
+              <div id="expenseMappingCloseLabel" class="cp-card-value">--</div>
+            </div>
+          </div>
+
+          <div class="sign-grid">
+            <label style="grid-column: 1 / -1">
+              Close Reason
+              <input
+                id="expenseMappingCloseReason"
+                type="text"
+                placeholder="Explain why this mapping is being closed"
+              />
+            </label>
+          </div>
+
+          <div
+            class="cp-muted-text"
+            style="margin-top: 10px; line-height: 1.45"
+          >
+            Closing deactivates this expense head mapping. The row is preserved
+            in the register. Request Costing Refresh from the toolbar when you
+            want downstream snapshots rebuilt.
+          </div>
+        </div>
+
+        <div class="cost-sheet-sign-actions">
+          <button
+            id="expenseMappingCloseModalCancelBtn"
+            type="button"
+            class="icon-btn cp-muted-icon-btn"
+            title="Cancel"
+            aria-label="Cancel"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.3"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+          <button
+            id="expenseMappingCloseModalSaveBtn"
+            type="button"
+            class="icon-btn cp-danger-text-btn"
+            title="Close Mapping"
+            aria-label="Close Mapping"
+          >
+            Close Mapping
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
       id="staffGovernanceReviewModal"
       class="cost-sheet-sign-modal hidden"
       aria-hidden="true"
     >
       <div class="cost-sheet-sign-panel">
         <div class="cost-sheet-sign-header">
-          <strong>Review Staff Costing Classification</strong>
+          <span class="cp-modal-title">Review Staff Costing Classification</span>
           <button
             id="staffGovernanceReviewCloseBtn"
             type="button"
@@ -3223,7 +3637,9 @@
           <div class="cp-card scheme-policy-sku-card">
             <div>
               <div class="cp-card-label">Staff</div>
-              <div id="staffGovernanceReviewLabel" class="cp-card-value">--</div>
+              <div id="staffGovernanceReviewLabel" class="cp-card-value">
+                --
+              </div>
             </div>
           </div>
 
@@ -3242,7 +3658,6 @@
       </div>
     </div>
 
-
     <div
       id="staffClassificationEditModal"
       class="cost-sheet-sign-modal hidden"
@@ -3250,7 +3665,7 @@
     >
       <div class="cost-sheet-sign-panel">
         <div class="cost-sheet-sign-header">
-          <strong>Edit Staff Costing Classification</strong>
+          <span class="cp-modal-title">Edit Staff Costing Classification</span>
           <button
             id="staffClassificationEditCloseBtn"
             type="button"
@@ -3307,14 +3722,22 @@
             </label>
           </div>
 
-          <div class="cp-muted-text" style="margin-top: 10px; line-height: 1.45">
-            Saving staff classification updates the costing governance source only.
-            Use Refresh Live Costing when you are ready to recalculate cost pools and SKU costs.
+          <div
+            class="cp-muted-text"
+            style="margin-top: 10px; line-height: 1.45"
+          >
+            Saving staff classification updates the costing governance source
+            only. Request Costing Refresh from the toolbar when you are ready to
+            recalculate cost pools and SKU costs.
           </div>
         </div>
 
         <div class="cost-sheet-sign-actions">
-          <button id="staffClassificationEditCancelBtn" type="button" class="icon-btn">
+          <button
+            id="staffClassificationEditCancelBtn"
+            type="button"
+            class="icon-btn"
+          >
             Cancel
           </button>
           <button
@@ -3334,7 +3757,7 @@
     >
       <div class="cost-sheet-sign-panel">
         <div class="cost-sheet-sign-header">
-          <strong>Set Manual Material Rate</strong>
+          <span class="cp-modal-title">Set Manual Material Rate</span>
           <button
             id="manualRateEditCloseBtn"
             type="button"
@@ -3396,9 +3819,14 @@
             </label>
           </div>
 
-          <div class="cp-muted-text" style="margin-top: 10px; line-height: 1.45">
-            Saving a manual rate will close any existing active manual rate for this stock item and create a new active rate.
-            Use Refresh Live Costing after saving to recalculate costing and Workbench status.
+          <div
+            class="cp-muted-text"
+            style="margin-top: 10px; line-height: 1.45"
+          >
+            Saving a manual rate will close any existing active manual rate for
+            this stock item and create a new active rate. Request Costing
+            Refresh from the toolbar after saving to recalculate costing and
+            Workbench status.
           </div>
         </div>
 
@@ -3457,7 +3885,7 @@
     >
       <div class="cost-sheet-sign-panel">
         <div class="cost-sheet-sign-header">
-          <strong>Close Manual Material Rate</strong>
+          <span class="cp-modal-title">Close Manual Material Rate</span>
           <button
             id="manualRateCloseCloseBtn"
             type="button"
@@ -3493,9 +3921,13 @@
             </label>
           </div>
 
-          <div class="cp-muted-text" style="margin-top: 10px; line-height: 1.45">
-            Closing the manual rate will make it inactive. After Refresh Live Costing,
-            the costing engine can use purchase rate or other available rate source.
+          <div
+            class="cp-muted-text"
+            style="margin-top: 10px; line-height: 1.45"
+          >
+            Closing the manual rate will make it inactive. After Request Costing
+            Refresh, the costing engine can use purchase rate or other available
+            rate source.
           </div>
         </div>
 
@@ -3548,10 +3980,210 @@
       </div>
     </div>
 
+    <div
+      id="materialReviewAcceptModal"
+      class="cost-sheet-sign-modal hidden"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel">
+        <div class="cost-sheet-sign-header">
+          <span class="cp-modal-title">Accept Review</span>
+          <button
+            id="materialReviewAcceptCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Close"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="cost-sheet-sign-body">
+          <div class="cp-card scheme-policy-sku-card">
+            <div>
+              <div class="cp-card-label">Stock Item</div>
+              <div id="materialReviewAcceptStockItem" class="cp-card-value">--</div>
+            </div>
+          </div>
+
+          <div class="sign-grid">
+            <label>
+              Material Area
+              <input id="materialReviewAcceptMaterialArea" type="text" readonly />
+            </label>
+            <label style="grid-column: 1 / -1">
+              Issue Code(s)
+              <input id="materialReviewAcceptIssueCodes" type="text" readonly />
+            </label>
+            <label style="grid-column: 1 / -1">
+              Warning Code(s)
+              <input id="materialReviewAcceptWarningCodes" type="text" readonly />
+            </label>
+            <label style="grid-column: 1 / -1">
+              Action Required Summary
+              <textarea
+                id="materialReviewAcceptActionSummary"
+                rows="3"
+                readonly
+              ></textarea>
+            </label>
+            <label style="grid-column: 1 / -1">
+              Acceptance Reason
+              <input
+                id="materialReviewAcceptReason"
+                type="text"
+                placeholder="Explain why this review issue is accepted for this costing period"
+              />
+            </label>
+            <label style="grid-column: 1 / -1">
+              Acceptance Note
+              <textarea
+                id="materialReviewAcceptNote"
+                rows="2"
+                placeholder="Optional note for audit trace"
+              ></textarea>
+            </label>
+          </div>
+
+          <div
+            class="cp-muted-text"
+            style="margin-top: 10px; line-height: 1.45"
+          >
+            This accepts the review issue for this costing period only. It does
+            not change the material rate and does not approve the final cost
+            sheet.
+          </div>
+        </div>
+
+        <div class="cost-sheet-sign-actions">
+          <button
+            id="materialReviewAcceptCancelBtn"
+            type="button"
+            class="icon-btn cp-muted-icon-btn"
+            title="Cancel"
+            aria-label="Cancel"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.3"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+          <button
+            id="materialReviewAcceptSaveBtn"
+            type="button"
+            class="icon-btn icon-btn-primary"
+            title="Accept Review"
+            aria-label="Accept Review"
+          >
+            Accept Review
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="materialReviewCloseAcceptanceModal"
+      class="cost-sheet-sign-modal hidden"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel">
+        <div class="cost-sheet-sign-header">
+          <span class="cp-modal-title">Close Acceptance</span>
+          <button
+            id="materialReviewCloseAcceptanceCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Close"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="cost-sheet-sign-body">
+          <div class="cp-card scheme-policy-sku-card">
+            <div>
+              <div class="cp-card-label">Stock Item</div>
+              <div id="materialReviewCloseStockItem" class="cp-card-value">--</div>
+            </div>
+          </div>
+
+          <div class="sign-grid">
+            <label style="grid-column: 1 / -1">
+              Acceptance Details
+              <textarea
+                id="materialReviewCloseDetails"
+                rows="4"
+                readonly
+              ></textarea>
+            </label>
+            <label style="grid-column: 1 / -1">
+              Close Reason
+              <input
+                id="materialReviewCloseReason"
+                type="text"
+                placeholder="Explain why this acceptance is being closed"
+              />
+            </label>
+          </div>
+
+          <div
+            class="cp-muted-text"
+            style="margin-top: 10px; line-height: 1.45"
+          >
+            Closing will make this review issue active again after costing
+            refresh completes.
+          </div>
+        </div>
+
+        <div class="cost-sheet-sign-actions">
+          <button
+            id="materialReviewCloseAcceptanceCancelBtn"
+            type="button"
+            class="icon-btn cp-muted-icon-btn"
+            title="Cancel"
+            aria-label="Cancel"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.3"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+          <button
+            id="materialReviewCloseAcceptanceSaveBtn"
+            type="button"
+            class="icon-btn cp-danger-text-btn"
+            title="Close Acceptance"
+            aria-label="Close Acceptance"
+          >
+            Close Acceptance
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div id="peqToastContainer"></div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-    <script type="module" src="js/costing-pricing.js"></script>
+    <script type="module" src="js/costing-control-center-entry.js"></script>
   </body>
 </html>
-

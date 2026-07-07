@@ -6,15 +6,30 @@
     <title>FG Bulk Internal Transfer</title>
     <link rel="stylesheet" href="public/shared/css/style.css" />
     <style>
-      /* Page-level spacing to match update-log-status */
+      /* Page-level spacing to match update-log-status.
+         Height-bound flex shell (scoped to this page only) so the source
+         list scrolls internally instead of growing the page. Body keeps
+         overflow-y:auto (not hidden) so short viewports can still scroll. */
       body {
         background: var(--bg-color);
         color: var(--text-color);
         font-family: Arial, sans-serif;
-        margin: 20px;
+        /* Use padding (inside the border-box) rather than margin so the
+           100vh flex shell does not overflow the viewport by the margin
+           amount — that was the persistent page-level scrollbar cause. */
+        margin: 0;
+        padding: 20px;
+        height: 100vh;
+        box-sizing: border-box;
         transition:
           background 0.3s,
           color 0.3s;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+      }
+      .header {
+        flex-shrink: 0;
       }
 
       /* ── Page description ─────────────────────────────────── */
@@ -47,22 +62,64 @@
         align-items: center;
         margin-bottom: 14px;
       }
-      .filters-row input {
-        padding: 7px 10px;
-        font-size: 0.875rem;
-        border: 1px solid #d1d5db;
-        border-radius: 4px;
-        background: #fff;
+      /* Search field wrapper hosts the input + inline clear button.
+         Soft light fill + focus ring follow Stock & Purchase Explorer /
+         costing-control-center patterns. */
+      .filter-input-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
       }
-      .filters-row input:focus {
-        outline: 2px solid #3b82f6;
-        outline-offset: -1px;
+      .filter-input-wrap input {
+        padding: 8px 34px 8px 10px; /* right room for the × button */
+        font-size: 0.875rem;
+        border: 1px solid #cfe3f7;
+        border-radius: 6px;
+        background: #e8f2fd; /* light blue fill */
+        box-shadow: inset 0 1px 0 rgba(15, 23, 42, 0.03);
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .filter-input-wrap input::placeholder {
+        color: #9ca3af;
+      }
+      .filter-input-wrap input:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
       }
       .filter-item {
         flex: 1;
       }
       .filter-batch {
-        width: 200px;
+        width: 220px;
+      }
+      /* Inline clear × button (hidden until the field has text) */
+      .input-clear-btn {
+        position: absolute;
+        right: 6px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 22px;
+        height: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        background: transparent;
+        color: #6b7280;
+        font-size: 1.05rem;
+        line-height: 1;
+        cursor: pointer;
+        border-radius: 4px;
+        padding: 0;
+      }
+      .input-clear-btn:hover {
+        background: rgba(15, 23, 42, 0.06);
+        color: #111827;
+      }
+      .input-clear-btn[hidden] {
+        display: none;
       }
 
       /* ── Source card ──────────────────────────────────────── */
@@ -74,6 +131,7 @@
         display: flex;
         flex-direction: column;
         flex: 1 1 auto;
+        min-height: 0; /* allow internal scroll instead of page growth */
       }
       .source-card-hdr {
         padding: 11px 16px;
@@ -87,36 +145,47 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
+        flex-shrink: 0;
       }
       .source-table-wrap {
-        /* Limit the table height to available viewport space so the page
-           does not grow indefinitely. Adjust offset (260px) to accommodate
-           header, guidance, filters and padding. */
-        max-height: calc(100vh - 350px);
+        /* The flex chain (body 100vh → panel → card → wrap) sizes this to the
+           remaining viewport height, so the list fills the available space and
+           scrolls internally. min-height keeps it usable on short viewports
+           (the page can scroll via body overflow-y in that case). No fixed
+           max-height cap, otherwise leftover space pools under the card. */
         overflow-y: auto;
+        overflow-x: auto;
+        flex: 1 1 auto;
+        min-height: 200px;
       }
 
-      /* Keep main panel normal flow so page scroll appears only when needed */
+      /* Panel is a flex column so the source card can fill remaining height.
+         Override the shared .panel bottom margin (32px) — otherwise it leaves
+         dead space below the card once the panel becomes the flex-fill item. */
       main.panel {
         display: flex;
         flex-direction: column;
         gap: 14px;
+        flex: 1 1 auto;
+        min-height: 0;
+        margin-bottom: 0;
       }
 
       /* ── Source table ─────────────────────────────────────── */
       .source-table {
         width: 100%;
         border-collapse: collapse;
-        font-size: 0.875rem;
+        font-size: 0.8rem;
+        table-layout: fixed;
       }
       .source-table thead th {
         position: sticky;
         top: 0;
         z-index: 2;
         background: #f9fafb;
-        padding: 9px 12px;
+        padding: 7px 8px;
         text-align: left;
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         font-weight: 700;
         color: #4b5563;
         text-transform: uppercase;
@@ -146,16 +215,24 @@
         background: #dbeafe;
       }
       .source-table tbody td {
-        padding: 10px 12px;
+        padding: 6px 8px;
         color: #111827;
-        white-space: nowrap;
         line-height: 1.35;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
       .source-table tbody td.col-num {
         text-align: right;
         font-variant-numeric: tabular-nums;
         font-weight: 500;
         color: #065f46;
+        white-space: nowrap;
+      }
+      /* Mobile-only helper cells are hidden on desktop */
+      .src-mobile-meta,
+      .src-mobile-line {
+        display: none;
       }
       .source-table .empty-row td {
         text-align: center;
@@ -174,6 +251,36 @@
         color: #9ca3af;
         margin: 0;
         padding: 0 2px;
+      }
+
+      /* ── Source list footer (infinite scroll) ─────────────── */
+      .source-footer {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 10px 16px;
+        border-top: 1px solid #d1d5db;
+        background: #f9fafb;
+        min-height: 20px;
+        flex-shrink: 0;
+      }
+      /* Footer is hidden at rest; shown only when loading more, when the
+         Load more fallback is needed, or when a retry action is required. */
+      .source-footer[hidden] {
+        display: none;
+      }
+      .source-footer-status {
+        font-size: 0.78rem;
+        color: #6b7280;
+      }
+      .source-footer .btn[hidden] {
+        display: none;
+      }
+      /* Sentinel is a zero-height marker used by IntersectionObserver */
+      .source-sentinel {
+        height: 1px;
+        width: 100%;
       }
 
       /* ── Modal overlay ────────────────────────────────────── */
@@ -568,6 +675,168 @@
       #homeBtn svg {
         flex-shrink: 0;
       }
+
+      /* ── Responsive: modal stacking on narrow screens ─────── */
+      @media (max-width: 900px) {
+        .modal-cards {
+          grid-template-columns: 1fr;
+        }
+      }
+      /* Guidance toggle is desktop-hidden; guidance body always visible >520px */
+      .guidance-toggle {
+        display: none;
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        font-weight: 700;
+        color: #78350f;
+        font-size: 0.84rem;
+      }
+
+      /* ── Narrow screens (phones) ──────────────────────────── */
+      @media (max-width: 520px) {
+        /* Keep padding (not margin) so the 100vh flex shell doesn't overflow */
+        body {
+          padding: 12px;
+        }
+        /* The description normally spaces the header from the panel; it is
+           hidden here, so add explicit separation to avoid the panel/card
+           touching the title and home button. */
+        .header {
+          margin-bottom: 14px;
+        }
+        /* Compact header + collapsible guidance */
+        .header h1 {
+          font-size: 1.15rem;
+        }
+        .page-desc {
+          display: none;
+        }
+        /* Home button becomes an icon-only square */
+        .home-label {
+          display: none;
+        }
+        #homeBtn {
+          padding: 8px;
+        }
+        /* Hide the verbose source-card title; keep the row count */
+        .source-card-title {
+          display: none;
+        }
+        .guidance {
+          margin-bottom: 10px;
+          padding: 6px 10px;
+        }
+        .guidance-toggle {
+          display: inline-flex;
+        }
+        .guidance-body {
+          display: none;
+        }
+        .guidance.is-open .guidance-body {
+          display: block;
+          margin-top: 8px;
+        }
+
+        /* Modal near full-viewport */
+        .modal-overlay {
+          padding: 0;
+          align-items: stretch;
+        }
+        .modal-box {
+          max-width: 100%;
+          max-height: 100vh;
+          border-radius: 0;
+        }
+        .form-row-2 {
+          grid-template-columns: 1fr;
+        }
+        /* Keep action buttons reachable at the bottom of the modal */
+        .modal-footer {
+          position: sticky;
+          bottom: 0;
+          flex-wrap: wrap;
+        }
+        /* Prevent long source/destination text from overflowing */
+        .src-val,
+        .sum-val {
+          word-break: break-word;
+        }
+
+        /* Source table becomes a stack of selectable cards */
+        .source-table,
+        .source-table tbody {
+          display: block;
+          width: 100%;
+        }
+        .source-table thead {
+          display: none;
+        }
+        .source-table tbody tr {
+          display: grid;
+          grid-template-columns: 1fr auto;
+          gap: 2px 10px;
+          padding: 10px 12px;
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+          margin: 0 0 8px;
+          background: #fff;
+          box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+          white-space: normal;
+        }
+        .source-table tbody tr:nth-child(even) {
+          background: #fff;
+        }
+        .source-table tbody tr.row-selected {
+          border-color: #93c5fd;
+          background: #eff6ff;
+        }
+        .source-table tbody td {
+          display: block;
+          padding: 0;
+          white-space: normal;
+          overflow: visible;
+          text-overflow: clip;
+        }
+        /* Hide the desktop location/plant cells; use the compact meta line */
+        .source-table tbody td.col-section,
+        .source-table tbody td.col-subsection,
+        .source-table tbody td.col-area,
+        .source-table tbody td.col-plant {
+          display: none;
+        }
+        .source-table tbody td.col-item {
+          grid-column: 1;
+          grid-row: 1;
+          font-weight: 700;
+          font-size: 0.95rem;
+        }
+        .source-table tbody td.col-num {
+          grid-column: 2;
+          grid-row: 1;
+          text-align: right;
+          font-weight: 700;
+          font-size: 0.95rem;
+        }
+        .source-table tbody td.col-batch {
+          grid-column: 1 / -1;
+          grid-row: 2;
+          font-size: 0.8rem;
+          color: #374151;
+        }
+        .src-mobile-line {
+          display: block;
+          grid-column: 1 / -1;
+          font-size: 0.78rem;
+          color: #6b7280;
+          margin-top: 2px;
+        }
+        .source-table .empty-row td {
+          grid-column: 1 / -1;
+          text-align: center;
+        }
+      }
     </style>
   </head>
   <body>
@@ -600,44 +869,74 @@
             <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
             <polyline points="9,22 9,12 15,12 15,22" />
           </svg>
-          HOME
+          <span class="home-label">HOME</span>
         </button>
       </div>
     </div>
 
     <main class="panel">
-      <!-- Guidance Strip -->
-      <div class="guidance">
-        <strong>Guidance:</strong> Use this module only to physically relocate
-        FG bulk stock. Do <em>not</em> edit the original FG Bulk Storage
-        work-log entry to change the storage location.
+      <!-- Guidance Strip (collapsible on narrow screens) -->
+      <div class="guidance" id="guidance">
+        <button
+          type="button"
+          id="guidanceToggle"
+          class="guidance-toggle"
+          aria-expanded="false"
+          aria-controls="guidanceBody"
+        >
+          Guidance
+        </button>
+        <div class="guidance-body" id="guidanceBody">
+          <strong>Guidance:</strong> Use this module only to physically relocate
+          FG bulk stock. Do <em>not</em> edit the original FG Bulk Storage
+          work-log entry to change the storage location.
+        </div>
       </div>
 
       <!-- Filters Row -->
       <div class="filters-row">
-        <input
-          id="filterItem"
-          type="text"
-          placeholder="Search item…"
-          class="filter-item"
-          autocomplete="off"
-        />
-        <input
-          id="filterBatch"
-          type="text"
-          placeholder="Search batch…"
-          class="filter-batch"
-          autocomplete="off"
-        />
-        <button id="clearFilters" type="button" class="action-link">
-          Clear
-        </button>
+        <div class="filter-input-wrap filter-item">
+          <input
+            id="filterItem"
+            type="text"
+            placeholder="Search item…"
+            autocomplete="off"
+          />
+          <button
+            id="filterItemClear"
+            type="button"
+            class="input-clear-btn"
+            aria-label="Clear item search"
+            title="Clear"
+            hidden
+          >
+            ×
+          </button>
+        </div>
+        <div class="filter-input-wrap filter-batch">
+          <input
+            id="filterBatch"
+            type="text"
+            placeholder="Search batch…"
+            autocomplete="off"
+          />
+          <button
+            id="filterBatchClear"
+            type="button"
+            class="input-clear-btn"
+            aria-label="Clear batch search"
+            title="Clear"
+            hidden
+          >
+            ×
+          </button>
+        </div>
       </div>
 
       <!-- Source Stock Table -->
       <div class="source-card">
         <div class="source-card-hdr">
-          <div>
+          <div class="source-card-title">
             FG Bulk Stock — Available by Location &nbsp;·&nbsp; Click a row to
             open transfer entry
           </div>
@@ -647,18 +946,27 @@
           <table class="source-table">
             <thead>
               <tr>
-                <th style="width: 28%">Item</th>
+                <th style="width: 22%">Item</th>
                 <th style="width: 12%">Batch</th>
-                <th style="width: 6%">UOM</th>
-                <th class="col-num" style="width: 10%">Available</th>
-                <th style="width: 12%">Section</th>
-                <th style="width: 12%">Sub-section</th>
-                <th style="width: 10%">Area</th>
-                <th style="width: 10%">Plant</th>
+                <th class="col-num" style="width: 12%">Available</th>
+                <th style="width: 14%">Section</th>
+                <th style="width: 14%">Sub-section</th>
+                <th style="width: 14%">Area</th>
+                <th style="width: 12%">Plant</th>
               </tr>
             </thead>
             <tbody id="sourceTbody"></tbody>
           </table>
+          <!-- Infinite-scroll sentinel (observed inside the scroll area) -->
+          <div id="sourceSentinel" class="source-sentinel" aria-hidden="true"></div>
+        </div>
+
+        <!-- Source list footer: bottom loading / end / load-more -->
+        <div class="source-footer" id="sourceFooter">
+          <span id="sourceFooterStatus" class="source-footer-status"></span>
+          <button id="sourceLoadMore" type="button" class="btn" hidden>
+            Load more
+          </button>
         </div>
       </div>
     </main>

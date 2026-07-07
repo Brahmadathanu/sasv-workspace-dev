@@ -17406,6 +17406,45 @@ export type Database = {
         }
         Relationships: []
       }
+      v_costing_pricing_cost_sheet_line_traceability: {
+        Row: {
+          audit_hint: string | null
+          calculation_basis: string | null
+          control_hint: string | null
+          cost_sheet_note: string | null
+          cost_sheet_status: string | null
+          drill_filter_json: Json | null
+          drill_route_lens_id: string | null
+          drill_route_module_key: string | null
+          evidence_json: Json | null
+          evidence_refreshed_at: string | null
+          is_stale_hint: boolean | null
+          line_description: string | null
+          line_label: string | null
+          line_order: number | null
+          period_start: string | null
+          product_id: number | null
+          product_name: string | null
+          refresh_stage_code: string | null
+          refreshed_at: string | null
+          section_code: string | null
+          section_title: string | null
+          sku_column_label: string | null
+          sku_id: number | null
+          source_lens_id: string | null
+          source_module_key: string | null
+          source_module_label: string | null
+          source_note: string | null
+          trace_formula: string | null
+          trace_source_snapshot: string | null
+          trace_source_type: string | null
+          trace_summary: string | null
+          value_numeric: number | null
+          value_text: string | null
+          value_type: string | null
+        }
+        Relationships: []
+      }
       v_costing_pricing_product_status_summary: {
         Row: {
           blocked_sku_count: number | null
@@ -36068,6 +36107,26 @@ export type Database = {
           total_count: number
         }[]
       }
+      rpc_get_costing_refresh_status: {
+        Args: {
+          p_refresh_run_id: number
+          p_period_start: string
+          p_requested_scope: string
+        }
+        Returns: {
+          current_stage_code: string | null
+          error_message: string | null
+          error_stage_code: string | null
+          final_blocked_count: number | null
+          final_ready_count: number | null
+          final_review_required_count: number | null
+          finished_at: string | null
+          overall_status: string | null
+          output_json: Json | null
+          refresh_run_id: number | null
+          stages: Json | null
+        }[]
+      }
       rpc_refresh_cost_sheet_line_monthly_snapshot: {
         Args: { p_period_start: string }
         Returns: {
@@ -36110,6 +36169,18 @@ export type Database = {
           drilldown_rows_inserted: number
           period_start: string
           summary_rows_inserted: number
+        }[]
+      }
+      rpc_request_costing_refresh: {
+        Args: {
+          p_period_start: string
+          p_requested_scope: string
+          p_request_note: string | null
+          p_source_trigger: string
+        }
+        Returns: {
+          overall_status: string | null
+          refresh_run_id: number | null
         }[]
       }
       rpc_retry_failed: {

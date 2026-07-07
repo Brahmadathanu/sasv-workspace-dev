@@ -211,7 +211,7 @@ let tlDirty = false;
 /**
  * tlTestMaster — canonical test list with default method info.
  * Shape: { id, test_name, default_method_id, default_method_name, result_kind }
- * Loaded from lab.v_test_with_default_method if available;
+ * Loaded from lab.v_test_with_default_method + result_kind from test_master;
  * falls back to lab.test_master (no method info) when view is absent.
  */
 let tlTestMaster = [];
@@ -982,43 +982,62 @@ async function populateTlProtocolSelect() {
 }
 
 // ── Test master: load tests with canonical default-method mapping ─────────────
-// Primary source: lab.v_test_with_default_method
-//   columns expected: id (or test_id), test_name, default_method_id, default_method_name
-// Fallback: lab.test_master (no method info)
+// Primary source: lab.v_test_with_default_method (method columns only on view)
+// result_kind merged from lab.test_master (not exposed on the view)
+// Fallback: lab.test_master without method info if the view query fails
 async function loadTlMasterData() {
   if (tlTestMasterLoaded) return;
 
-  // Attempt primary source — canonical view with test→method mapping.
-  // No .eq("is_active") filter here: is_active on the view may reflect the
-  // mapping row's status, not the test's. We want ALL active tests visible
-  // even if they have no default method mapped yet; the method cell will show
-  // the ⚠️ cue for unmapped ones. Filter only on test_active if the view
-  // exposes a dedicated test-active column.
-  const { data: viewData, error: viewErr } = await labSupabase
-    .from("v_test_with_default_method")
-    .select("id, test_name, default_method_id, default_method_name, result_kind")
-    .order("test_name");
+  const [viewResult, masterResult] = await Promise.all([
+    labSupabase
+      .from("v_test_with_default_method")
+      .select(
+        "id, test_name, default_method_id, default_method_name, is_active",
+      )
+      .order("test_name"),
+    labSupabase
+      .from("test_master")
+      .select("id, test_name, result_kind")
+      .eq("is_active", true)
+      .order("test_name"),
+  ]);
+
+  const { data: viewData, error: viewErr } = viewResult;
+  const { data: masterData, error: masterErr } = masterResult;
+
+  const resultKindById = new Map(
+    (masterData ?? []).map((r) => [Number(r.id), r.result_kind]),
+  );
 
   if (!viewErr && viewData) {
-    tlTestMaster = viewData;
+    tlTestMaster = viewData.map((r) => {
+      const id = Number(r.id);
+      return {
+        id,
+        test_name: r.test_name,
+        default_method_id:
+          r.default_method_id == null ? null : Number(r.default_method_id),
+        default_method_name: r.default_method_name ?? null,
+        is_active: r.is_active,
+        result_kind: resultKindById.get(id) ?? "NUMERIC",
+      };
+    });
     tlTestMasterLoaded = true;
     return;
   }
 
-  // Fallback: plain test_master without method info
-  // (default_method_id / default_method_name will be absent — method shows blank)
-  const { data: fallbackData, error: fallbackErr } = await labSupabase
-    .from("test_master")
-    .select("id, test_name, result_kind")
-    .eq("is_active", true)
-    .order("test_name");
+  console.error("[lab-protocol-manager] v_test_with_default_method:", viewErr);
 
-  if (!fallbackErr) {
-    tlTestMaster = (fallbackData ?? []).map((r) => ({
-      ...r,
+  if (!masterErr && masterData) {
+    tlTestMaster = masterData.map((r) => ({
+      id: Number(r.id),
+      test_name: r.test_name,
+      result_kind: r.result_kind,
       default_method_id: null,
       default_method_name: null,
     }));
+  } else if (masterErr) {
+    console.error("[lab-protocol-manager] test_master:", masterErr);
   }
   tlTestMasterLoaded = true;
 }
@@ -1088,11 +1107,15 @@ async function loadTlLines(protocolId) {
     const testEntry = tlTestMaster.find(
       (t) => String(t.id) === String(r.test_id),
     );
+    const methodId = r.method_id ?? testEntry?.default_method_id ?? null;
+    const methodName =
+      testEntry?.default_method_name ?? r.method_name ?? "";
     return {
       ...r,
+      method_id: methodId,
       default_spec_type: normalizeProtocolSpecType(r.default_spec_type) || null,
       test_name: testEntry?.test_name ?? r.test_name ?? "",
-      method_name: testEntry?.default_method_name ?? r.method_name ?? "",
+      method_name: methodName,
       _dirty: false,
       _new: false,
     };
@@ -1201,6 +1224,7 @@ function renderTlTable() {
             (t) => String(t.id) === String(el.value),
           );
           tlLines[idx].method_id = testEntry?.default_method_id ?? null;
+          tlLines[idx].method_name = testEntry?.default_method_name ?? null;
           if (tlLines[idx]._new && el.value) {
             tlLines[idx].default_spec_type = defaultSpecTypeForResultKind(
               testEntry?.result_kind,
