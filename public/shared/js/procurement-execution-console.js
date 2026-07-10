@@ -246,6 +246,8 @@ const state = {
     search: "",
     vendorId: "",
     rows: [],
+    splitRows: [],
+    splitLookup: {},
     loaded: false,
     vendorsLoaded: false,
   },
@@ -265,10 +267,15 @@ state.vwlFilters = state.vwlFilters || {
   rmScope: "",
   rateStatus: "",
   assignmentStatus: "",
+  splitOnly: false,
 };
 
 state.vwlMaterialClassOptions = state.vwlMaterialClassOptions || [];
 state.vwlRmScopeOptions = state.vwlRmScopeOptions || [];
+state.vwlSplitReview = state.vwlSplitReview || null;
+state.vwlBreakdownRow = state.vwlBreakdownRow || null;
+
+let vwlSplitActionConfirmResolve = null;
 
 // Column headers for the PDF/CSV/TSV requisition form (single source of truth)
 const INDENT_REQUISITION_HEADERS = [
@@ -425,13 +432,7 @@ function setTab(tab) {
   if (tab === "vendor-buylist") {
     if (!state.vwl.loaded) {
       state.vwl.loaded = true;
-      if (!state.vwlMaterialClassOptions?.length) {
-        loadVendorBuylistFilterOptions()
-          .catch((e) => toastError("Failed to load vendor-wise filters", e))
-          .finally(() => loadVendorBuylist());
-      } else {
-        loadVendorBuylist();
-      }
+      loadVendorBuylist();
     }
   }
 }
@@ -2410,6 +2411,14 @@ function wireActionQueueControls() {
       { id: "vendorModalBackdrop", close: closeVendorModal },
       { id: "acceptExcessModalBackdrop", close: closeAcceptExcessModal },
       { id: "eAuditModalBackdrop", close: closeExcessAuditModal },
+      {
+        id: "vwlSplitReviewModalBackdrop",
+        close: closeVwlSplitReviewModal,
+      },
+      {
+        id: "vwlSplitActionConfirmModalBackdrop",
+        close: () => closeVwlSplitActionConfirmModal(false),
+      },
       { id: "vwlBreakdownModalBackdrop", close: closeVwlBreakdownModal },
       { id: "indentViewModalBackdrop", close: closeIndentViewModal },
       { id: "prViewModalBackdrop", close: closePrViewModal },
@@ -7748,6 +7757,7 @@ function closeVwlBreakdownModal() {
   if (!backdrop) return;
   backdrop.setAttribute("inert", "");
   hideModalBackdrop(backdrop, [qs("vwlTbody"), qs("vwlSearch")]);
+  state.vwlBreakdownRow = null;
 }
 
 function openVwlBreakdown(row) {
@@ -7755,10 +7765,26 @@ function openVwlBreakdown(row) {
   const title = qs("vwlBdTitle");
   const sub = qs("vwlBdSub");
   const tbody = qs("vwlBdTbody");
+  const splitCallout = qs("vwlBdSplitCallout");
+  const splitMessage = qs("vwlBdSplitMessage");
   if (!backdrop || !title || !sub || !tbody) return;
+
+  state.vwlBreakdownRow = row;
 
   title.textContent = `${row.vendor_name ?? "-"} - ${row.stock_item_name ?? "-"}`;
   sub.textContent = `Total Qty to Buy: ${fmt(row.total_qty_to_buy)} ${row.uom_code ?? ""}`;
+
+  const splitMeta = getVwlSplitMeta(row);
+  if (splitCallout && splitMessage) {
+    if (splitMeta) {
+      const bucketCount = splitMeta.vendorBucketCount ?? "-";
+      splitMessage.textContent = `This item is split across ${bucketCount} vendor bucket${bucketCount !== 1 ? "s" : ""}. Review consolidation.`;
+      splitCallout.hidden = false;
+    } else {
+      splitCallout.hidden = true;
+      splitMessage.textContent = "";
+    }
+  }
 
   const breakdown = normalizeVwlBreakdown(row.indent_breakdown);
   tbody.innerHTML = "";
@@ -7794,11 +7820,18 @@ function renderVendorBuylistTable() {
 
   for (const row of state.vwl.rows) {
     const indentCount = normalizeVwlBreakdown(row.indent_breakdown).length;
+    const isSplit = isVwlSplitRow(row);
     const tr = document.createElement("tr");
     tr.classList.add("clickable-row");
+    if (isSplit) tr.classList.add("vwl-row-split");
+
+    const itemCell = isSplit
+      ? `${esc(row.stock_item_name ?? "-")} <span class="pill pill-warning" title="Split across multiple vendor buckets">Split vendor</span>`
+      : esc(row.stock_item_name ?? "-");
+
     tr.innerHTML = `
       <td>${esc(row.vendor_name ?? "-")}</td>
-      <td>${esc(row.stock_item_name ?? "-")}</td>
+      <td>${itemCell}</td>
       <td>${esc(row.uom_code ?? "-")}</td>
       <td class="num">${esc(fmt(row.total_qty_to_buy))}</td>
       <td class="num">${esc(fmtFixed(row.rate_value ?? 0, 2))}</td>
@@ -7933,6 +7966,7 @@ function getVwlActiveFilterCount() {
   if ((filters.rmScope || "").trim()) count += 1;
   if ((filters.rateStatus || "").trim()) count += 1;
   if ((filters.assignmentStatus || "").trim()) count += 1;
+  if (filters.splitOnly) count += 1;
   return count;
 }
 
@@ -7949,6 +7983,575 @@ function syncVwlFilterBadge() {
   btn.classList.toggle("pec-filter-btn--active", count > 0);
 }
 
+function buildVwlRpcFilterParams() {
+  const f = state.vwlFilters || {};
+  const q =
+    qs("vwlSearch")?.value?.trim() ||
+    state.vendorBuylistSearch ||
+    state.vwl.search ||
+    "";
+
+  return {
+    p_material_class_id: f.materialClassId ? Number(f.materialClassId) : null,
+    p_rm_scope: f.rmScope || null,
+    p_rate_status: f.rateStatus || null,
+    p_assignment_status: f.assignmentStatus || null,
+    p_q: q || null,
+  };
+}
+
+function pickRpcField(row, ...keys) {
+  if (!row) return null;
+  for (const key of keys) {
+    const val = row[key];
+    if (val !== undefined && val !== null && val !== "") return val;
+  }
+  return null;
+}
+
+function asRpcArray(value) {
+  if (Array.isArray(value)) return value;
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function buildVwlSplitKey(row) {
+  const mc = pickRpcField(row, "material_class_id") ?? "";
+  const si = pickRpcField(row, "stock_item_id", "item_id") ?? "";
+  const uom = pickRpcField(row, "uom_id") ?? "";
+  return `${mc}|${si}|${uom}`;
+}
+
+function buildVwlSplitLookup(rows) {
+  const lookup = {};
+  for (const row of rows || []) {
+    const key = buildVwlSplitKey(row);
+    if (!key || key === "||") continue;
+    lookup[key] = {
+      vendorBucketCount: pickRpcField(
+        row,
+        "vendor_bucket_count",
+        "vendor_count",
+        "bucket_count",
+      ),
+      totalQty: pickRpcField(
+        row,
+        "total_qty_to_buy",
+        "total_qty",
+        "total_quantity",
+      ),
+      hasUnassigned: Boolean(
+        pickRpcField(
+          row,
+          "has_unassigned_vendor",
+          "has_unassigned",
+          "unassigned_exists",
+        ),
+      ),
+      itemName: pickRpcField(row, "stock_item_name", "item_name"),
+      uomCode: pickRpcField(row, "uom_code", "uom"),
+      materialClassId: pickRpcField(row, "material_class_id"),
+      stockItemId: pickRpcField(row, "stock_item_id", "item_id"),
+      uomId: pickRpcField(row, "uom_id"),
+    };
+  }
+  return lookup;
+}
+
+function getVwlSplitMeta(row) {
+  const key = buildVwlSplitKey(row);
+  return state.vwl.splitLookup?.[key] ?? null;
+}
+
+function isVwlSplitRow(row) {
+  return Boolean(getVwlSplitMeta(row));
+}
+
+function mapVwlSplitActionError(error) {
+  const msg = String(error?.message || error || "").toLowerCase();
+  if (msg.includes("vendor") && msg.includes("required")) {
+    return "Vendor is required.";
+  }
+  if (
+    msg.includes("rate") &&
+    (msg.includes("greater than zero") ||
+      msg.includes("must be >") ||
+      msg.includes("> 0"))
+  ) {
+    return "Rate must be greater than zero.";
+  }
+  if (msg.includes("reason") && msg.includes("required")) {
+    return "Reason is required.";
+  }
+  if (msg.includes("inactive") && msg.includes("vendor")) {
+    return "Vendor inactive.";
+  }
+  if (msg.includes("no affected") || msg.includes("no lines")) {
+    return "No affected lines.";
+  }
+  return error?.message || "Could not complete vendor consolidation.";
+}
+
+function closeVwlSplitActionConfirmModal(result = false) {
+  const backdrop = qs("vwlSplitActionConfirmModalBackdrop");
+  if (!backdrop) {
+    const resolve = vwlSplitActionConfirmResolve;
+    vwlSplitActionConfirmResolve = null;
+    if (typeof resolve === "function") resolve(result);
+    return;
+  }
+  hideModalBackdrop(backdrop, [qs("btnVwlSplitApply")]);
+  backdrop.setAttribute("inert", "");
+  const resolve = vwlSplitActionConfirmResolve;
+  vwlSplitActionConfirmResolve = null;
+  if (typeof resolve === "function") resolve(result);
+}
+
+function confirmVwlSplitAction(message) {
+  const backdrop = qs("vwlSplitActionConfirmModalBackdrop");
+  const messageEl = qs("vwlSplitActionConfirmMessage");
+  if (!backdrop) return Promise.resolve(window.confirm(message));
+
+  if (messageEl) messageEl.textContent = message;
+  backdrop.classList.add("show");
+  backdrop.setAttribute("aria-hidden", "false");
+  backdrop.removeAttribute("inert");
+  setTimeout(() => qs("btnVwlSplitActionConfirm")?.focus(), 0);
+
+  return new Promise((resolve) => {
+    vwlSplitActionConfirmResolve = resolve;
+  });
+}
+
+async function afterVwlSplitActionSuccess(message) {
+  toast(message || "Changes applied.", "success");
+  closeVwlSplitReviewModal();
+  closeVwlBreakdownModal();
+  await reloadVendorBuylist();
+  if (typeof loadActionQueue === "function") {
+    await loadActionQueue();
+  }
+}
+
+async function refreshVwlSplitLookup() {
+  try {
+    const { data, error } = await supabase.rpc(
+      "proc_vendorwise_buylist_split_items",
+      buildVwlRpcFilterParams(),
+    );
+    if (error) throw error;
+    state.vwl.splitRows = data || [];
+    state.vwl.splitLookup = buildVwlSplitLookup(state.vwl.splitRows);
+  } catch (e) {
+    console.warn("Failed to load split-vendor lookup", e);
+    state.vwl.splitRows = [];
+    state.vwl.splitLookup = {};
+  }
+}
+
+function closeVwlSplitReviewModal() {
+  const backdrop = qs("vwlSplitReviewModalBackdrop");
+  if (!backdrop) return;
+  hideModalBackdrop(backdrop, [qs("vwlTbody"), qs("btnVwlBdReviewSplit")]);
+  backdrop.setAttribute("inert", "");
+  state.vwlSplitReview = null;
+}
+
+function setVwlSplitActionMode(mode) {
+  const review = state.vwlSplitReview;
+  if (!review) return;
+  review.actionMode = mode;
+
+  const consolidatePanel = qs("vwlSplitConsolidatePanel");
+  const clearPanel = qs("vwlSplitClearPanel");
+  const applyBtn = qs("btnVwlSplitApply");
+  const noteEl = qs("vwlSplitActionNote");
+
+  if (consolidatePanel) consolidatePanel.hidden = mode !== "consolidate";
+  if (clearPanel) clearPanel.hidden = mode !== "clear";
+
+  if (noteEl) {
+    noteEl.textContent =
+      mode === "consolidate"
+        ? "This will apply the selected vendor to all qualifying open lines for this item/UOM."
+        : "This will make all qualifying open lines for this item/UOM unassigned.";
+  }
+
+  if (applyBtn) {
+    applyBtn.textContent =
+      mode === "consolidate" ? "Apply vendor" : "Clear assignments";
+    applyBtn.classList.toggle("primary", mode === "consolidate");
+    applyBtn.classList.toggle("secondary", mode === "clear");
+  }
+
+  document.querySelectorAll('input[name="vwlSplitActionMode"]').forEach((el) => {
+    if (el instanceof HTMLInputElement) {
+      el.checked = el.value === mode;
+    }
+  });
+
+  document
+    .querySelectorAll(".vwl-split-review-modal .erp-choice-row[data-vwl-split-mode]")
+    .forEach((row) => {
+      row.classList.toggle(
+        "is-selected",
+        row.getAttribute("data-vwl-split-mode") === mode,
+      );
+    });
+
+  applyPermissionUi();
+}
+
+function renderVwlSplitReviewModal() {
+  const review = state.vwlSplitReview;
+  const preview = review?.preview;
+  if (!review || !preview) return;
+
+  const itemName = pickRpcField(
+    preview,
+    "stock_item_name",
+    "item_name",
+    review.itemName,
+  );
+  const uomCode = pickRpcField(preview, "uom_code", "uom", review.uomCode);
+  const lineCount = pickRpcField(preview, "affected_line_count", "line_count");
+  const indentCount = pickRpcField(
+    preview,
+    "affected_indent_count",
+    "indent_count",
+  );
+  const totalQty = pickRpcField(preview, "total_qty", "total_qty_to_buy");
+
+  const itemNameEl = qs("vwlSplitReviewItemName");
+  if (itemNameEl) itemNameEl.textContent = itemName ?? "-";
+
+  const refEl = qs("vwlSplitReviewRef");
+  if (refEl) {
+    const qtyLabel = `${fmt(totalQty ?? "-")}${uomCode ? ` ${uomCode}` : ""}`;
+    refEl.textContent = `UOM: ${uomCode ?? "-"} | Total Qty: ${qtyLabel} | Affected Lines: ${fmt(lineCount ?? "-")} | Affected Indents: ${fmt(indentCount ?? "-")}`;
+  }
+
+  const affectedLines = asRpcArray(
+    pickRpcField(preview, "affected_lines", "lines", "open_lines"),
+  );
+  const linesTbody = qs("vwlSplitReviewLinesTbody");
+  if (linesTbody) {
+    linesTbody.innerHTML = affectedLines.length
+      ? affectedLines
+          .map((line) => {
+            const indentNo = pickRpcField(line, "indent_number", "indent_no");
+            const qty = pickRpcField(
+              line,
+              "qty",
+              "qty_to_buy",
+              "remaining_qty",
+              "requested_qty",
+            );
+            const vendorName = pickRpcField(
+              line,
+              "current_vendor_name",
+              "resolved_vendor_name",
+              "selected_vendor_name",
+              "recommended_vendor_name",
+              "vendor_name",
+            );
+            const rate = pickRpcField(
+              line,
+              "rate_value",
+              "rate",
+              "resolved_rate",
+              "selected_rate",
+              "current_rate",
+            );
+            const qtyLabel = `${fmt(qty ?? "-")}${uomCode ? ` ${uomCode}` : ""}`;
+            const rateLabel =
+              rate != null && rate !== "" ? fmtFixed(rate, 2) : "-";
+            return `<tr>
+              <td>${esc(indentNo ?? "-")}</td>
+              <td>${esc(vendorName ?? "UNASSIGNED")}</td>
+              <td class="num">${esc(qtyLabel)}</td>
+              <td class="num">${esc(rateLabel)}</td>
+            </tr>`;
+          })
+          .join("")
+      : '<tr><td colspan="4" class="muted">No affected lines.</td></tr>';
+  }
+
+  const vendorPick = qs("vwlSplitVendorPick");
+  const candidates = asRpcArray(
+    pickRpcField(preview, "candidate_vendors", "vendors", "vendor_candidates"),
+  );
+  if (vendorPick) {
+    vendorPick.innerHTML = '<option value="">Select vendor…</option>';
+    candidates.forEach((vendor) => {
+      const vendorId = pickRpcField(vendor, "vendor_id", "id");
+      if (!vendorId) return;
+      const opt = document.createElement("option");
+      opt.value = String(vendorId);
+      opt.textContent =
+        pickRpcField(vendor, "vendor_name", "display_name", "vendor_display_name") ||
+        `Vendor #${vendorId}`;
+      opt.dataset.rate = String(
+        pickRpcField(vendor, "rate_value", "rate", "selected_rate") ?? "",
+      );
+      vendorPick.appendChild(opt);
+    });
+    if (review.selectedVendorId) {
+      vendorPick.value = String(review.selectedVendorId);
+    }
+  }
+
+  const rateInput = qs("vwlSplitVendorRate");
+  if (rateInput && review.selectedRate != null) {
+    rateInput.value = review.selectedRate;
+  }
+
+  setVwlSplitActionMode(review.actionMode || "consolidate");
+  applyPermissionUi();
+
+  const modalBody = document.querySelector(
+    "#vwlSplitReviewModalBackdrop .erp-modal-body",
+  );
+  if (modalBody) modalBody.scrollTop = 0;
+}
+
+async function loadVwlSplitPreview(includeCleared = false) {
+  const review = state.vwlSplitReview;
+  if (!review?.stockItemId || !review?.uomId) return;
+
+  const materialClassId =
+    review.materialClassId ||
+    (state.vwlFilters.materialClassId
+      ? Number(state.vwlFilters.materialClassId)
+      : null);
+
+  const { data, error } = await supabase.rpc(
+    "proc_preview_same_item_vendor_action",
+    {
+      p_material_class_id: materialClassId,
+      p_stock_item_id: Number(review.stockItemId),
+      p_uom_id: Number(review.uomId),
+      p_include_cleared: Boolean(includeCleared),
+    },
+  );
+
+  if (error) throw error;
+
+  review.preview = Array.isArray(data) ? data[0] : data;
+  review.materialClassId =
+    pickRpcField(review.preview, "material_class_id") || materialClassId;
+  renderVwlSplitReviewModal();
+}
+
+function getVwlSplitPreviewIncludeCleared() {
+  return Boolean(
+    qs("vwlSplitConsolidateIncludeCleared")?.checked ||
+      qs("vwlSplitClearIncludeCleared")?.checked,
+  );
+}
+
+async function reloadVwlSplitPreviewFromCheckboxes() {
+  try {
+    await loadVwlSplitPreview(getVwlSplitPreviewIncludeCleared());
+  } catch (err) {
+    toast(mapVwlSplitActionError(err), "error");
+  }
+}
+
+async function openVwlSplitReviewModal(row) {
+  const stockItemId = pickRpcField(row, "stock_item_id", "item_id");
+  const uomId = pickRpcField(row, "uom_id");
+  if (!stockItemId || !uomId) {
+    toast("Split item is missing stock item or UOM.", "error");
+    return;
+  }
+
+  state.vwlSplitReview = {
+    stockItemId,
+    uomId,
+    materialClassId: pickRpcField(row, "material_class_id"),
+    itemName: pickRpcField(row, "stock_item_name", "item_name"),
+    uomCode: pickRpcField(row, "uom_code", "uom"),
+    actionMode: "consolidate",
+    selectedVendorId: "",
+    selectedRate: "",
+    preview: null,
+  };
+
+  qs("vwlSplitConsolidateReason").value = "";
+  qs("vwlSplitClearReason").value = "";
+  if (qs("vwlSplitConsolidateIncludeCleared"))
+    qs("vwlSplitConsolidateIncludeCleared").checked = false;
+  if (qs("vwlSplitClearIncludeCleared"))
+    qs("vwlSplitClearIncludeCleared").checked = false;
+  if (qs("vwlSplitVendorRate")) qs("vwlSplitVendorRate").value = "";
+
+  setVwlSplitActionMode("consolidate");
+
+  const backdrop = qs("vwlSplitReviewModalBackdrop");
+  backdrop.removeAttribute("inert");
+  backdrop.classList.add("show");
+  backdrop.setAttribute("aria-hidden", "false");
+
+  try {
+    await loadVwlSplitPreview(false);
+  } catch (e) {
+    closeVwlSplitReviewModal();
+    toast(mapVwlSplitActionError(e), "error");
+  }
+}
+
+function onVwlSplitVendorPickChange() {
+  const review = state.vwlSplitReview;
+  if (!review) return;
+
+  const vendorPick = qs("vwlSplitVendorPick");
+  const selected = vendorPick?.selectedOptions?.[0];
+  review.selectedVendorId = vendorPick?.value || "";
+
+  const rate =
+    selected?.dataset?.rate ||
+    pickRpcField(
+      asRpcArray(
+        pickRpcField(
+          review.preview,
+          "candidate_vendors",
+          "vendors",
+          "vendor_candidates",
+        ),
+      ).find(
+        (v) =>
+          String(pickRpcField(v, "vendor_id", "id")) ===
+          String(review.selectedVendorId),
+      ),
+      "rate_value",
+      "rate",
+    );
+
+  review.selectedRate = rate ?? "";
+  if (qs("vwlSplitVendorRate")) {
+    qs("vwlSplitVendorRate").value =
+      review.selectedRate === "" ? "" : String(review.selectedRate);
+  }
+}
+
+async function submitVwlSplitApply() {
+  const mode = state.vwlSplitReview?.actionMode || "consolidate";
+  if (mode === "clear") {
+    await submitVwlClearVendorAssignments();
+  } else {
+    await submitVwlConsolidateVendor();
+  }
+}
+
+async function submitVwlConsolidateVendor() {
+  if (!canPerformEditAction("Consolidate vendor assignment")) return;
+
+  const review = state.vwlSplitReview;
+  if (!review?.stockItemId || !review?.uomId) return;
+
+  const vendorId = Number(qs("vwlSplitVendorPick")?.value || 0);
+  const rate = Number((qs("vwlSplitVendorRate")?.value || "").trim());
+  const reason = (qs("vwlSplitConsolidateReason")?.value || "").trim();
+  const includeCleared = Boolean(
+    qs("vwlSplitConsolidateIncludeCleared")?.checked,
+  );
+
+  if (!vendorId) {
+    toast("Vendor is required.", "error");
+    return;
+  }
+  if (!rate || rate <= 0) {
+    toast("Rate must be greater than zero.", "error");
+    return;
+  }
+  if (!reason) {
+    toast("Reason is required.", "error");
+    return;
+  }
+
+  const confirmed = await confirmVwlSplitAction(
+    "This will apply the selected vendor to all qualifying open lines for this item/UOM.",
+  );
+  if (!confirmed) return;
+
+  setLoading(true);
+  try {
+    const { data, error } = await supabase.rpc(
+      "proc_apply_vendor_to_same_item_lines",
+      {
+        p_material_class_id: review.materialClassId
+          ? Number(review.materialClassId)
+          : null,
+        p_stock_item_id: Number(review.stockItemId),
+        p_uom_id: Number(review.uomId),
+        p_vendor_id: vendorId,
+        p_rate_value: rate,
+        p_reason: reason,
+        p_include_cleared: includeCleared,
+      },
+    );
+    if (error) throw error;
+
+    const result = Array.isArray(data) ? data[0] : data;
+    await afterVwlSplitActionSuccess(
+      result?.message || "Vendor applied to qualifying lines.",
+    );
+  } catch (e) {
+    toast(mapVwlSplitActionError(e), "error");
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function submitVwlClearVendorAssignments() {
+  if (!canPerformEditAction("Clear vendor assignments")) return;
+
+  const review = state.vwlSplitReview;
+  if (!review?.stockItemId || !review?.uomId) return;
+
+  const reason = (qs("vwlSplitClearReason")?.value || "").trim() || null;
+  const includeCleared = Boolean(qs("vwlSplitClearIncludeCleared")?.checked);
+
+  const confirmed = await confirmVwlSplitAction(
+    "This will make all qualifying open lines for this item/UOM unassigned.",
+  );
+  if (!confirmed) return;
+
+  setLoading(true);
+  try {
+    const { data, error } = await supabase.rpc(
+      "proc_clear_vendor_assignment_for_same_item_lines",
+      {
+        p_material_class_id: review.materialClassId
+          ? Number(review.materialClassId)
+          : null,
+        p_stock_item_id: Number(review.stockItemId),
+        p_uom_id: Number(review.uomId),
+        p_reason: reason,
+        p_include_cleared: includeCleared,
+      },
+    );
+    if (error) throw error;
+
+    const result = Array.isArray(data) ? data[0] : data;
+    await afterVwlSplitActionSuccess(
+      result?.message || "Vendor assignments cleared for qualifying lines.",
+    );
+  } catch (e) {
+    toast(mapVwlSplitActionError(e), "error");
+  } finally {
+    setLoading(false);
+  }
+}
+
 function sortVendorBuylistRows(rows) {
   return [...(rows || [])].sort((a, b) => {
     const vendorCmp = String(a.vendor_name || "").localeCompare(
@@ -7962,25 +8565,9 @@ function sortVendorBuylistRows(rows) {
 }
 
 async function fetchVendorBuylistFilteredRows() {
-  const f = state.vwlFilters || {};
-
-  const q =
-    qs("vwlSearch")?.value?.trim() ||
-    state.vendorBuylistSearch ||
-    state.vwl.search ||
-    "";
-
-  const materialClassId = f.materialClassId ? Number(f.materialClassId) : null;
-
   const { data, error } = await supabase.rpc(
     "proc_vendorwise_buylist_filtered",
-    {
-      p_material_class_id: materialClassId,
-      p_rm_scope: f.rmScope || null,
-      p_rate_status: f.rateStatus || null,
-      p_assignment_status: f.assignmentStatus || null,
-      p_q: q || null,
-    },
+    buildVwlRpcFilterParams(),
   );
 
   if (error) throw error;
@@ -7997,7 +8584,16 @@ async function loadVendorBuylist() {
       await loadVendorBuylistFilterOptions();
     }
 
-    const rows = sortVendorBuylistRows(await fetchVendorBuylistFilteredRows());
+    const [rawRows] = await Promise.all([
+      fetchVendorBuylistFilteredRows(),
+      refreshVwlSplitLookup(),
+    ]);
+
+    let rows = sortVendorBuylistRows(rawRows);
+    if (state.vwlFilters.splitOnly) {
+      rows = rows.filter(isVwlSplitRow);
+    }
+
     const total = rows.length;
     const from = state.vwl.page * state.vwl.pageSize;
     if (from >= total && state.vwl.page > 0) {
@@ -8596,6 +9192,13 @@ function wireVendorBuylistControls() {
     loadVendorBuylist();
   });
 
+  qs("vwlShowSplitOnly")?.addEventListener("change", (e) => {
+    state.vwlFilters.splitOnly = Boolean(e.target.checked);
+    state.vwl.page = 0;
+    syncVwlFilterBadge();
+    loadVendorBuylist();
+  });
+
   qs("vwlPrev")?.addEventListener("click", () => {
     if (state.vwl.page <= 0) return;
     state.vwl.page -= 1;
@@ -8642,12 +9245,14 @@ function wireVendorBuylistControls() {
     state.vwlFilters.rmScope = "";
     state.vwlFilters.rateStatus = "";
     state.vwlFilters.assignmentStatus = "";
+    state.vwlFilters.splitOnly = false;
 
     if (qs("vwlMaterialClassFilter")) qs("vwlMaterialClassFilter").value = "";
     if (qs("vwlRmScopeFilter")) qs("vwlRmScopeFilter").value = "";
     if (qs("vwlRateStatusFilter")) qs("vwlRateStatusFilter").value = "";
     if (qs("vwlAssignmentStatusFilter"))
       qs("vwlAssignmentStatusFilter").value = "";
+    if (qs("vwlShowSplitOnly")) qs("vwlShowSplitOnly").checked = false;
 
     refreshVwlRmScopeAvailability();
     state.vwl.page = 0;
@@ -8660,6 +9265,46 @@ function wireVendorBuylistControls() {
   qs("btnVwlBdClose")?.addEventListener("click", closeVwlBreakdownModal);
   qs("vwlBreakdownModalBackdrop")?.addEventListener("click", (e) => {
     if (e.target.id === "vwlBreakdownModalBackdrop") closeVwlBreakdownModal();
+  });
+  qs("btnVwlBdReviewSplit")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const row = state.vwlBreakdownRow;
+    if (!row) return;
+    closeVwlBreakdownModal();
+    openVwlSplitReviewModal(row);
+  });
+
+  qs("btnVwlSplitReviewClose")?.addEventListener("click", closeVwlSplitReviewModal);
+  qs("btnVwlSplitReviewCancel")?.addEventListener("click", closeVwlSplitReviewModal);
+  qs("vwlSplitReviewModalBackdrop")?.addEventListener("click", (e) => {
+    if (e.target.id === "vwlSplitReviewModalBackdrop") closeVwlSplitReviewModal();
+  });
+  document.querySelectorAll('input[name="vwlSplitActionMode"]').forEach((el) => {
+    el.addEventListener("change", (e) => {
+      if (e.target.checked) setVwlSplitActionMode(e.target.value);
+    });
+  });
+  qs("vwlSplitVendorPick")?.addEventListener("change", onVwlSplitVendorPickChange);
+  qs("vwlSplitConsolidateIncludeCleared")?.addEventListener("change", () => {
+    reloadVwlSplitPreviewFromCheckboxes();
+  });
+  qs("vwlSplitClearIncludeCleared")?.addEventListener("change", () => {
+    reloadVwlSplitPreviewFromCheckboxes();
+  });
+  qs("btnVwlSplitApply")?.addEventListener("click", submitVwlSplitApply);
+  qs("btnVwlSplitActionConfirmClose")?.addEventListener("click", () =>
+    closeVwlSplitActionConfirmModal(false),
+  );
+  qs("btnVwlSplitActionConfirmCancel")?.addEventListener("click", () =>
+    closeVwlSplitActionConfirmModal(false),
+  );
+  qs("btnVwlSplitActionConfirm")?.addEventListener("click", () =>
+    closeVwlSplitActionConfirmModal(true),
+  );
+  qs("vwlSplitActionConfirmModalBackdrop")?.addEventListener("click", (e) => {
+    if (e.target.id === "vwlSplitActionConfirmModalBackdrop") {
+      closeVwlSplitActionConfirmModal(false);
+    }
   });
 }
 

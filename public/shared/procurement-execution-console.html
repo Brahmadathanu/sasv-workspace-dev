@@ -1596,6 +1596,123 @@
         cursor: not-allowed;
       }
 
+      /* ── Vendor-wise split-vendor (row + compact modal) ── */
+      tr.vwl-row-split td {
+        background: rgba(245, 158, 11, 0.06);
+      }
+      .vwl-split-callout {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+        padding: 10px 12px;
+        background: rgba(245, 158, 11, 0.1);
+        border: 1px solid rgba(245, 158, 11, 0.35);
+        border-radius: 8px;
+        font-size: 12px;
+      }
+      .vwl-split-callout[hidden] {
+        display: none;
+      }
+      .vwl-split-review-modal {
+        width: min(940px, calc(100vw - 32px));
+        max-width: 940px;
+        max-height: calc(100vh - 48px);
+        display: flex;
+        flex-direction: column;
+      }
+      .vwl-split-review-modal .erp-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+      }
+      .vwl-split-review-modal .vwl-split-review-heading {
+        flex: 1;
+        min-width: 0;
+      }
+      .vwl-split-review-modal .vwl-split-review-kicker {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--muted, #6b7280);
+        margin-bottom: 4px;
+      }
+      .vwl-split-review-modal .vwl-split-review-item-name {
+        margin: 0 0 6px;
+        font-size: 18px;
+        font-weight: 700;
+        line-height: 1.25;
+      }
+      .vwl-split-review-modal .vwl-split-review-meta-line {
+        font-size: 12px;
+        color: var(--muted, #6b7280);
+      }
+      .vwl-split-review-modal .modal-close-btn {
+        flex-shrink: 0;
+      }
+      .vwl-split-review-modal .erp-modal-body {
+        overflow: auto;
+        flex: 1;
+        min-height: 0;
+      }
+      .vwl-split-review-modal .detail-card {
+        margin-bottom: 10px;
+      }
+      .vwl-split-review-modal .detail-card:last-child {
+        margin-bottom: 0;
+      }
+      .vwl-split-review-modal .vwl-split-lines-scroll {
+        max-height: 260px;
+      }
+      .vwl-split-review-modal .erp-choice-row.is-selected {
+        border-color: rgba(0, 90, 141, 0.45);
+        background: rgba(0, 90, 141, 0.05);
+      }
+      .vwl-split-review-modal .vwl-split-choice-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .vwl-split-action-forms {
+        margin-top: 10px;
+      }
+      .vwl-split-review-modal .form-group label.pec-filter-check {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        margin-bottom: 0;
+        opacity: 1;
+        width: 100%;
+      }
+      .vwl-split-review-modal .form-group label.pec-filter-check input[type="checkbox"] {
+        width: auto;
+        flex: 0 0 auto;
+        margin: 2px 0 0;
+        padding: 0;
+        border: none;
+        border-radius: 0;
+      }
+      .vwl-split-review-modal .form-group label.pec-filter-check span {
+        flex: 1;
+        min-width: 0;
+        line-height: 1.35;
+      }
+      .vwl-split-review-modal .actions {
+        flex-shrink: 0;
+      }
+      @media (max-width: 760px) {
+        .vwl-split-review-modal {
+          width: min(100vw - 16px, 100%);
+          max-height: calc(100vh - 16px);
+        }
+        .vwl-split-review-modal .vwl-split-choice-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
       /* ── Procurement snapshot refresh overlay ── */
       .pec-refresh-overlay {
         position: absolute;
@@ -2579,6 +2696,12 @@
                     <option value="unassigned">Unassigned Vendor</option>
                   </select>
                 </div>
+                <div class="pec-filter-section">
+                  <label class="pec-filter-check" for="vwlShowSplitOnly">
+                    <input id="vwlShowSplitOnly" type="checkbox" />
+                    <span>Split vendor rows only</span>
+                  </label>
+                </div>
                 <div class="pec-filter-actions">
                   <button
                     id="vwlFilterClear"
@@ -2743,11 +2866,7 @@
                     <th>Indents</th>
                   </tr>
                 </thead>
-                <tbody id="vwlTbody">
-                  <tr>
-                    <td colspan="7" class="muted">Loading...</td>
-                  </tr>
-                </tbody>
+                <tbody id="vwlTbody"></tbody>
               </table>
             </div>
           </div>
@@ -3104,6 +3223,226 @@
     </div>
 
     <div
+      id="vwlSplitReviewModalBackdrop"
+      class="modal-backdrop"
+      aria-hidden="true"
+      inert
+    >
+      <div
+        class="modal erp-choice-modal vwl-split-review-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="vwlSplitReviewItemName"
+      >
+        <div class="erp-modal-header">
+          <div class="vwl-split-review-heading">
+            <div class="vwl-split-review-kicker">Review split vendor</div>
+            <h3 id="vwlSplitReviewItemName" class="vwl-split-review-item-name">-</h3>
+            <div class="erp-modal-ref vwl-split-review-meta-line" id="vwlSplitReviewRef">-</div>
+          </div>
+          <button
+            class="modal-close-btn"
+            id="btnVwlSplitReviewClose"
+            title="Close"
+            type="button"
+            aria-label="Close"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div class="erp-modal-body">
+          <section class="detail-card">
+            <div class="detail-card-title">Lines to review</div>
+            <div class="table-scroll vwl-split-lines-scroll">
+              <table class="erp-table compact">
+                <thead>
+                  <tr>
+                    <th>Indent #</th>
+                    <th>Current Vendor</th>
+                    <th class="num">Qty</th>
+                    <th class="num">Rate</th>
+                  </tr>
+                </thead>
+                <tbody id="vwlSplitReviewLinesTbody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="detail-card">
+            <div class="detail-card-title">Choose action</div>
+            <p class="erp-modal-note" id="vwlSplitActionNote">
+              This will apply the selected vendor to all qualifying open lines for
+              this item/UOM.
+            </p>
+            <div
+              class="erp-choice-list vwl-split-choice-grid"
+              role="radiogroup"
+              aria-label="Split vendor action"
+            >
+              <label class="erp-choice-row is-selected" data-vwl-split-mode="consolidate">
+                <input
+                  type="radio"
+                  name="vwlSplitActionMode"
+                  value="consolidate"
+                  checked
+                />
+                <span>
+                  <strong class="erp-choice-title">Consolidate to one vendor</strong>
+                  <span class="erp-choice-desc">
+                    Apply one vendor and rate to all qualifying open lines.
+                  </span>
+                </span>
+              </label>
+              <label class="erp-choice-row" data-vwl-split-mode="clear">
+                <input type="radio" name="vwlSplitActionMode" value="clear" />
+                <span>
+                  <strong class="erp-choice-title">Clear all vendor assignments</strong>
+                  <span class="erp-choice-desc">
+                    Make qualifying lines unassigned until a vendor is chosen again.
+                  </span>
+                </span>
+              </label>
+            </div>
+
+            <div class="vwl-split-action-forms">
+              <div id="vwlSplitConsolidatePanel">
+                <div class="form-grid">
+                  <div class="form-group full-col">
+                    <label for="vwlSplitVendorPick">Vendor</label>
+                    <select id="vwlSplitVendorPick" data-edit-action="true"></select>
+                  </div>
+                  <div class="form-group">
+                    <label for="vwlSplitVendorRate">Rate</label>
+                    <input
+                      id="vwlSplitVendorRate"
+                      type="number"
+                      step="any"
+                      min="0"
+                      data-edit-action="true"
+                    />
+                  </div>
+                  <div class="form-group full-col">
+                    <label for="vwlSplitConsolidateReason"
+                      >Reason <span style="color: red">*</span></label
+                    >
+                    <textarea
+                      id="vwlSplitConsolidateReason"
+                      placeholder="Reason for consolidating vendor assignment…"
+                      data-edit-action="true"
+                    ></textarea>
+                  </div>
+                  <div class="form-group full-col">
+                    <label class="pec-filter-check">
+                      <input
+                        id="vwlSplitConsolidateIncludeCleared"
+                        type="checkbox"
+                        data-edit-action="true"
+                      />
+                      <span>Include manually unassigned/cleared lines</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div id="vwlSplitClearPanel" hidden>
+                <div class="form-grid">
+                  <div class="form-group full-col">
+                    <label for="vwlSplitClearReason">Reason</label>
+                    <textarea
+                      id="vwlSplitClearReason"
+                      placeholder="Optional reason…"
+                      data-edit-action="true"
+                    ></textarea>
+                  </div>
+                  <div class="form-group full-col">
+                    <label class="pec-filter-check">
+                      <input
+                        id="vwlSplitClearIncludeCleared"
+                        type="checkbox"
+                        data-edit-action="true"
+                      />
+                      <span>Include already-cleared lines</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+        <div class="actions">
+          <button id="btnVwlSplitReviewCancel" type="button">Cancel</button>
+          <button
+            id="btnVwlSplitApply"
+            type="button"
+            class="primary"
+            data-edit-action="true"
+          >
+            Apply vendor
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="vwlSplitActionConfirmModalBackdrop"
+      class="modal-backdrop"
+      aria-hidden="true"
+      inert
+    >
+      <div
+        class="modal"
+        style="max-width: 460px"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="vwlSplitActionConfirmTitle"
+      >
+        <div class="modal-header page-header">
+          <h3 id="vwlSplitActionConfirmTitle" style="margin: 0">Confirm Action</h3>
+          <button
+            id="btnVwlSplitActionConfirmClose"
+            class="modal-close-btn"
+            type="button"
+            title="Close"
+            aria-label="Close"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p class="muted" id="vwlSplitActionConfirmMessage" style="margin: 0"></p>
+        </div>
+        <div class="actions">
+          <button id="btnVwlSplitActionConfirmCancel" type="button">Cancel</button>
+          <button id="btnVwlSplitActionConfirm" class="primary" type="button">
+            Confirm
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
       id="vwlBreakdownModalBackdrop"
       class="modal-backdrop"
       aria-hidden="true"
@@ -3137,6 +3476,12 @@
           </button>
         </div>
         <div class="modal-body">
+          <div id="vwlBdSplitCallout" class="vwl-split-callout" hidden>
+            <span id="vwlBdSplitMessage"></span>
+            <button type="button" class="linklike" id="btnVwlBdReviewSplit">
+              Review / Consolidate
+            </button>
+          </div>
           <div class="table-scroll" style="max-height: 55vh">
             <table class="erp-table">
               <thead>
@@ -5757,6 +6102,7 @@
           "vwlRmScopeFilter",
           "vwlRateStatusFilter",
           "vwlAssignmentStatusFilter",
+          "vwlShowSplitOnly",
         ]);
 
         // Mobile tab select parity with segmented tab pills

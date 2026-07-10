@@ -78,6 +78,368 @@ async function fetchAllQuery(q, batchSize = 200) {
   return { data: all, error: null };
 }
 
+// ── Integrated row model (WORK_LOG + FG_BULK_CURRENT_LOCATION) ───────────────
+
+const ROW_TYPE_WORK_LOG = "WORK_LOG";
+const ROW_TYPE_FG_BULK_CURRENT_LOCATION = "FG_BULK_CURRENT_LOCATION";
+const FG_BULK_STORAGE_ACTIVITY = "FG bulk storage";
+const FG_BULK_RPC_PAGE_SIZE = 200;
+const FG_BULK_MAX_ROWS = 500;
+
+const sortCollator = new Intl.Collator("en", {
+  numeric: true,
+  sensitivity: "base",
+});
+
+function isFgBulkStorageActivity(activity) {
+  return (
+    String(activity || "")
+      .trim()
+      .toLowerCase() === "fg bulk storage"
+  );
+}
+
+function normalizeWorkLogRow(r) {
+  return {
+    row_type: ROW_TYPE_WORK_LOG,
+    id: r.id,
+    log_date: r.log_date,
+    item: r.item,
+    batch_number: r.batch_number,
+    batch_size: r.batch_size,
+    batch_uom: r.batch_uom,
+    section_id: r.section_id,
+    plant_id: r.plant_id,
+    activity: r.activity,
+    status: r.status,
+    due_date: r.due_date,
+  };
+}
+
+function normalizeFgBulkRow(r) {
+  return {
+    row_type: ROW_TYPE_FG_BULK_CURRENT_LOCATION,
+    source_key: r.source_key ?? "",
+    product_id: r.product_id ?? null,
+    item: r.item,
+    batch_number: r.batch_number,
+    activity: FG_BULK_STORAGE_ACTIVITY,
+    status: "In Storage",
+    qty: r.qty_base ?? r.qty ?? null,
+    uom: r.uom ?? "",
+    section_id: r.section_id ?? null,
+    subsection_id: r.subsection_id ?? null,
+    area_id: r.area_id ?? null,
+    plant_id: r.plant_id ?? null,
+    section_name: r.section_name ?? "",
+    subsection_name: r.subsection_name ?? "",
+    area_name: r.area_name ?? "",
+    plant_name: r.plant_name ?? "",
+  };
+}
+
+function shouldLoadFgBulkRows() {
+  const statusFilter = (sStatusFilter?.value || "").trim();
+  if (statusFilter === "Doing" || statusFilter === "On Hold") return false;
+
+  const activityFilter = (sActivity?.value || "").trim();
+  if (activityFilter && !isFgBulkStorageActivity(activityFilter)) return false;
+
+  if (sLogDate?.value) return false;
+  if (sOverdue?.checked) return false;
+
+  return true;
+}
+
+function applyFgBulkLocationFilters(rows) {
+  let out = rows;
+  if (sSection?.value) {
+    out = out.filter(
+      (r) => String(r.section_id ?? "") === String(sSection.value),
+    );
+  }
+  if (sSub?.value) {
+    out = out.filter(
+      (r) => String(r.subsection_id ?? "") === String(sSub.value),
+    );
+  }
+  if (sArea?.value) {
+    out = out.filter((r) => String(r.area_id ?? "") === String(sArea.value));
+  }
+  return out;
+}
+
+function fmtQtyDisplay(v) {
+  if (v === null || v === undefined || v === "") return "";
+  const n = Number(v);
+  if (Number.isNaN(n)) return String(v);
+  return n.toLocaleString(undefined, { maximumFractionDigits: 4 });
+}
+
+function escAttr(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;");
+}
+
+function plantLabelForRow(row) {
+  if (row.row_type === ROW_TYPE_FG_BULK_CURRENT_LOCATION) {
+    return row.plant_name || "";
+  }
+  return plantMap[row.plant_id] || "";
+}
+
+function sortMergedRows(rows) {
+  const typeOrder = {
+    [ROW_TYPE_WORK_LOG]: 0,
+    [ROW_TYPE_FG_BULK_CURRENT_LOCATION]: 1,
+  };
+  rows.sort((a, b) => {
+    const it = a.item.localeCompare(b.item, undefined, { sensitivity: "base" });
+    if (it) return it;
+    const bn = String(a.batch_number ?? "").localeCompare(
+      String(b.batch_number ?? ""),
+      undefined,
+      { numeric: true },
+    );
+    if (bn) return bn;
+    const pl = sortCollator.compare(plantLabelForRow(a), plantLabelForRow(b));
+    if (pl) return pl;
+    const to = typeOrder[a.row_type] - typeOrder[b.row_type];
+    if (to) return to;
+    if (
+      a.row_type === ROW_TYPE_WORK_LOG &&
+      b.row_type === ROW_TYPE_WORK_LOG &&
+      a.log_date &&
+      b.log_date
+    ) {
+      return new Date(a.log_date) - new Date(b.log_date);
+    }
+    return 0;
+  });
+}
+
+function openFgBulkTransfer(item, batch) {
+  const url = new URL("fg-bulk-internal-transfer.html", window.location.href);
+  if (item) url.searchParams.set("item", item);
+  if (batch) url.searchParams.set("bn", batch);
+  const absUrl = url.toString();
+  if (window.app?.openModuleUrl) {
+    window.app.openModuleUrl(absUrl, { width: 1200, height: 800 });
+  } else {
+    window.open(absUrl, "_blank", "noopener");
+  }
+}
+
+function renderWorkLogRow(row) {
+  const act = row.activity.toLowerCase().trim();
+  const allowStorage = ["intermediate storage", "fg bulk storage"].includes(
+    act,
+  );
+
+  return `
+    <tr data-row-type="${ROW_TYPE_WORK_LOG}">
+      <td>${new Date(row.log_date).toLocaleDateString("en-GB")}</td>
+      <td>${row.item}</td>
+      <td>${row.batch_number}</td>
+      <td>${row.batch_size ?? ""}</td>
+      <td>${row.batch_uom ?? ""}</td>
+      <td>${sectionMap[row.section_id] || ""}</td>
+      <td>${plantMap[row.plant_id] || ""}</td>
+      <td>${row.activity}</td>
+      <td>
+        <select class="statSel"
+        data-id="${row.id}"
+        data-act="${row.activity}"
+        data-item="${row.item}"
+        data-bn="${row.batch_number}"
+        data-prev-status="${row.status}">
+  <option value="Doing"      ${row.status === "Doing" ? "selected" : ""} ${
+    allowStorage ? "disabled" : ""
+  }>Doing</option>
+  <option value="On Hold"    ${row.status === "On Hold" ? "selected" : ""} ${
+    allowStorage ? "disabled" : ""
+  }>On Hold</option>
+  <option value="In Storage" ${row.status === "In Storage" ? "selected" : ""} ${
+    allowStorage ? "" : "disabled"
+  }>In Storage</option>
+  <option value="Done"       ${
+    row.status === "Done" ? "selected" : ""
+  }>Done</option>
+</select>
+      </td>
+      <td>
+        <a href="#" class="save-link" data-id="${row.id}">Save</a>
+      </td>
+    </tr>`;
+}
+
+function renderFgBulkCurrentLocationRow(row) {
+  return `
+    <tr class="fg-bulk-active-row"
+        data-row-type="${ROW_TYPE_FG_BULK_CURRENT_LOCATION}"
+        data-source-key="${escAttr(row.source_key)}">
+      <td>Current</td>
+      <td>${row.item}</td>
+      <td>${row.batch_number}</td>
+      <td>${fmtQtyDisplay(row.qty)}</td>
+      <td>${row.uom}</td>
+      <td>${row.section_name || ""}</td>
+      <td>${row.plant_name || ""}</td>
+      <td>${FG_BULK_STORAGE_ACTIVITY} <span class="fg-storage-badge" title="Ledger-backed current stock location">Current stock</span></td>
+      <td>In Storage</td>
+      <td>
+        <a href="#" class="transfer-link open-transfer-link"
+           data-item="${escAttr(row.item)}"
+           data-bn="${escAttr(row.batch_number)}"
+           title="Open FG Bulk Internal Transfer for this item and batch">Open Transfer</a>
+      </td>
+    </tr>`;
+}
+
+function renderStatusRow(row) {
+  if (row.row_type === ROW_TYPE_FG_BULK_CURRENT_LOCATION) {
+    return renderFgBulkCurrentLocationRow(row);
+  }
+  return renderWorkLogRow(row);
+}
+
+function wireStatusTableActions() {
+  document.querySelectorAll(".save-link").forEach((a) => {
+    a.onclick = (e) => {
+      e.preventDefault();
+      const sel = document.querySelector(`.statSel[data-id="${a.dataset.id}"]`);
+      if (!sel) return;
+      saveStatus(a.dataset.id, sel);
+    };
+  });
+
+  document.querySelectorAll(".open-transfer-link").forEach((a) => {
+    a.onclick = (e) => {
+      e.preventDefault();
+      openFgBulkTransfer(a.dataset.item || "", a.dataset.bn || "");
+    };
+  });
+}
+
+function renderStatusTable(rows) {
+  bodyTbl.replaceChildren();
+  rows.forEach((row) => {
+    bodyTbl.insertAdjacentHTML("beforeend", renderStatusRow(row));
+  });
+  wireStatusTableActions();
+}
+
+async function loadWorkLogRows() {
+  const activityFilter = (sActivity?.value || "").trim();
+  if (activityFilter && isFgBulkStorageActivity(activityFilter)) {
+    return [];
+  }
+
+  let q = supabase
+    .from("daily_work_log")
+    .select(
+      "id,log_date,item,batch_number,batch_size,batch_uom,section_id,plant_id,activity,status,due_date",
+    )
+    .in("status", ["Doing", "On Hold", "In Storage"])
+    .not("activity", "ilike", "fg bulk storage");
+
+  const filter = (sStatusFilter.value || "").trim();
+  if (["Doing", "On Hold", "In Storage"].includes(filter)) {
+    q = q.eq("status", filter);
+  }
+
+  if (sLogDate.value) {
+    const [dd, mm, yyyy] = sLogDate.value
+      .split("-")
+      .map((n) => n.padStart(2, "0"));
+    q = q.eq("log_date", `${yyyy}-${mm}-${dd}`);
+  }
+  if (sSection.value) q = q.eq("section_id", sSection.value);
+  if (sSub.value) q = q.eq("subsection_id", sSub.value);
+  if (sArea.value) q = q.eq("area_id", sArea.value);
+  if (sItem.value) q = q.eq("item", sItem.value);
+  if (sBN.value) q = q.eq("batch_number", sBN.value);
+  if (activityFilter) q = q.eq("activity", activityFilter);
+  if (sOverdue.checked) {
+    const today = new Date().toISOString().slice(0, 10);
+    q = q.lt("due_date", today);
+  }
+
+  const { data, error } = await fetchAllQuery(q, 500);
+  if (error) {
+    console.error("loadWorkLogRows error:", error);
+    return [];
+  }
+
+  return (data || [])
+    .filter((r) => !isFgBulkStorageActivity(r.activity))
+    .map(normalizeWorkLogRow);
+}
+
+async function loadCurrentFgBulkLocations() {
+  if (!shouldLoadFgBulkRows()) return [];
+
+  const itemFilter = (sItem?.value || "").trim() || null;
+  const batchFilter = (sBN?.value || "").trim() || null;
+  const all = [];
+  let offset = 0;
+  let totalCount = null;
+
+  while (all.length < FG_BULK_MAX_ROWS) {
+    const { data, error } = await supabase.rpc(
+      "rpc_fg_bulk_internal_transfer_source_page",
+      {
+        p_item_filter: itemFilter,
+        p_batch_filter: batchFilter,
+        p_limit: FG_BULK_RPC_PAGE_SIZE,
+        p_offset: offset,
+      },
+    );
+
+    if (error) {
+      console.error("loadCurrentFgBulkLocations:", error);
+      return [];
+    }
+
+    const rows = Array.isArray(data) ? data : [];
+    if (!rows.length) break;
+
+    if (totalCount === null && rows[0]?.total_count != null) {
+      totalCount = Number(rows[0].total_count);
+    }
+
+    all.push(...rows.map(normalizeFgBulkRow));
+    offset += rows.length;
+
+    if (rows.length < FG_BULK_RPC_PAGE_SIZE) break;
+    if (totalCount !== null && offset >= totalCount) break;
+  }
+
+  if (all.length >= FG_BULK_MAX_ROWS) {
+    console.warn(
+      `[update-log-status] FG bulk current-location rows truncated at ${FG_BULK_MAX_ROWS}`,
+    );
+    all.length = FG_BULK_MAX_ROWS;
+  }
+
+  return applyFgBulkLocationFilters(all);
+}
+
+function ensureFgBulkStorageActivityOption() {
+  if (!sActivity) return;
+  const exists = Array.from(sActivity.options).some((o) =>
+    isFgBulkStorageActivity(o.value),
+  );
+  if (!exists) {
+    const opt = document.createElement("option");
+    opt.value = FG_BULK_STORAGE_ACTIVITY;
+    opt.textContent = FG_BULK_STORAGE_ACTIVITY;
+    sActivity.appendChild(opt);
+  }
+}
+
 // Loading overlay (blur + spinner) -------------------------------------------------
 let loadingOverlay = null;
 let loadingText = null;
@@ -1039,123 +1401,14 @@ async function loadStatus() {
   bodyTbl.replaceChildren();
   showLoading("Loading status...");
   try {
-    // Base: only show in-progress statuses in this module.
-    let q = supabase
-      .from("daily_work_log")
-      .select(
-        "id,log_date,item,batch_number,batch_size,batch_uom,section_id,plant_id,activity,status,due_date",
-      )
-      .in("status", ["Doing", "On Hold", "In Storage"]);
+    const [workRows, fgBulkRows] = await Promise.all([
+      loadWorkLogRows(),
+      loadCurrentFgBulkLocations(),
+    ]);
 
-    // Apply the user-picked filter if it’s one of the allowed statuses.
-    const filter = (sStatusFilter.value || "").trim();
-    if (["Doing", "On Hold", "In Storage"].includes(filter)) {
-      q = q.eq("status", filter);
-    }
-
-    if (sLogDate.value) {
-      const [dd, mm, yyyy] = sLogDate.value
-        .split("-")
-        .map((n) => n.padStart(2, "0"));
-      q = q.eq("log_date", `${yyyy}-${mm}-${dd}`);
-    }
-    if (sSection.value) q = q.eq("section_id", sSection.value);
-    if (sSub.value) q = q.eq("subsection_id", sSub.value);
-    if (sArea.value) q = q.eq("area_id", sArea.value);
-    if (sItem.value) q = q.eq("item", sItem.value);
-    if (sBN.value) q = q.eq("batch_number", sBN.value);
-    if (sActivity.value) q = q.eq("activity", sActivity.value);
-    if (sOverdue.checked) {
-      const today = new Date().toISOString().slice(0, 10);
-      q = q.lt("due_date", today);
-    }
-
-    const _res = await fetchAllQuery(q, 500);
-    const data = _res.data;
-    const error = _res.error;
-    if (error) return console.error("loadStatus error:", error);
-
-    const coll = new Intl.Collator("en", {
-      numeric: true,
-      sensitivity: "base",
-    });
-    data.sort((a, b) => {
-      const da = new Date(a.log_date) - new Date(b.log_date);
-      if (da) return da;
-      const it = a.item.localeCompare(b.item, undefined, {
-        sensitivity: "base",
-      });
-      if (it) return it;
-      const bn = a.batch_number.localeCompare(b.batch_number, undefined, {
-        numeric: true,
-      });
-      if (bn) return bn;
-      return coll.compare(
-        plantMap[a.plant_id] || "",
-        plantMap[b.plant_id] || "",
-      );
-    });
-
-    data.forEach((r) => {
-      const act = r.activity.toLowerCase().trim();
-      const allowStorage = ["intermediate storage", "fg bulk storage"].includes(
-        act,
-      );
-      // ERP guard: identify active FG bulk stock positions
-      const isActiveFgBulk =
-        act === "fg bulk storage" && r.status === "In Storage";
-
-      bodyTbl.insertAdjacentHTML(
-        "beforeend",
-        `
-    <tr${isActiveFgBulk ? ' class="fg-bulk-active-row"' : ""}>
-      <td>${new Date(r.log_date).toLocaleDateString("en-GB")}</td>
-      <td>${r.item}</td>
-      <td>${r.batch_number}</td>
-      <td>${r.batch_size ?? ""}</td>
-      <td>${r.batch_uom ?? ""}</td>
-      <td>${sectionMap[r.section_id] || ""}</td>
-      <td>${plantMap[r.plant_id] || ""}</td>
-      <td>${r.activity}${isActiveFgBulk ? ' <span class="fg-storage-badge" title="Active stock position \u2014 use FG Bulk Internal Transfer to relocate">In Storage</span>' : ""}</td>
-      <td>
-        <select class="statSel"
-        data-id="${r.id}"
-        data-act="${r.activity}"
-        data-item="${r.item}"
-        data-bn="${r.batch_number}"
-        data-prev-status="${r.status}">
-  <option value="Doing"      ${r.status === "Doing" ? "selected" : ""} ${
-    allowStorage ? "disabled" : ""
-  }>Doing</option>
-  <option value="On Hold"    ${r.status === "On Hold" ? "selected" : ""} ${
-    allowStorage ? "disabled" : ""
-  }>On Hold</option>
-  <option value="In Storage" ${r.status === "In Storage" ? "selected" : ""} ${
-    allowStorage ? "" : "disabled"
-  }>In Storage</option>
-  <option value="Done"       ${
-    r.status === "Done" ? "selected" : ""
-  }>Done</option>
-</select>
-      </td>
-      <td>
-        <a href="#" class="save-link" data-id="${r.id}">Save</a>${
-          isActiveFgBulk
-            ? `<a href="fg-bulk-internal-transfer.html" class="transfer-link" title="Move this stock to another location">Transfer &rarr;</a>`
-            : ""
-        }
-      </td>
-    </tr>`,
-      );
-    });
-
-    document.querySelectorAll(".save-link").forEach((a) => {
-      const sel = document.querySelector(`.statSel[data-id="${a.dataset.id}"]`);
-      a.onclick = (e) => {
-        e.preventDefault();
-        saveStatus(a.dataset.id, sel);
-      };
-    });
+    const merged = [...workRows, ...fgBulkRows];
+    sortMergedRows(merged);
+    renderStatusTable(merged);
   } finally {
     hideLoading();
   }
@@ -1276,6 +1529,9 @@ async function init() {
       .map((a) => ({ activity: a }));
 
     populate(sActivity, uniqueActs, "activity", "activity", "Activity");
+    ensureFgBulkStorageActivityOption();
+  } else {
+    ensureFgBulkStorageActivityOption();
   }
 
   sActivity.addEventListener("change", loadStatus);
