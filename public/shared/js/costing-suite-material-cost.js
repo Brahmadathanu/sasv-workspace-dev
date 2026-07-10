@@ -84,6 +84,215 @@ const MANUAL_RATE_ALIGNMENTS_BY_TAB = {
   ],
 };
 
+const HARD_BLOCKER_ISSUE_CODES = [
+  "MISSING_REQUIRED_RM_RATE",
+  "MISSING_REQUIRED_PM_RATE",
+];
+
+const MATERIAL_RATE_UI_ROUTES = new Set([
+  "MATERIAL_RATE_REVIEW",
+  "MATERIAL_RATE_MANAGER_RM",
+  "MATERIAL_RATE_MANAGER_PM",
+]);
+
+export const MATERIAL_ISSUE_GUIDANCE = {
+  MISSING_REQUIRED_RM_RATE: {
+    label: "Missing required RM rate",
+    tier: "hard_blocker",
+    guidanceText:
+      "Required raw material rate is missing. Add a valid rate; this issue cannot be accepted as review.",
+    recommendedPrimaryAction: "Add Manual Rate",
+    canAcceptByPolicy: false,
+  },
+  MISSING_REQUIRED_PM_RATE: {
+    label: "Missing required PM rate",
+    tier: "hard_blocker",
+    guidanceText:
+      "Required packing material rate is missing. Add a valid rate; this issue cannot be accepted as review.",
+    recommendedPrimaryAction: "Add Manual Rate",
+    canAcceptByPolicy: false,
+  },
+  STALE_RM_PURCHASE_RATE: {
+    label: "Stale RM purchase rate",
+    tier: "review_required",
+    guidanceText:
+      "Latest raw material purchase rate is older than the allowed freshness window. Review evidence before accepting or set a manual rate.",
+    recommendedPrimaryAction: "Review Evidence",
+    canAcceptByPolicy: true,
+  },
+  STALE_PM_PURCHASE_RATE: {
+    label: "Stale PM purchase rate",
+    tier: "review_required",
+    guidanceText:
+      "Latest packing material purchase rate is older than the allowed freshness window. Review evidence before accepting or set a manual rate.",
+    recommendedPrimaryAction: "Review Evidence",
+    canAcceptByPolicy: true,
+  },
+  RM_STOCK_VALUATION_FALLBACK: {
+    label: "RM stock valuation fallback",
+    tier: "review_required",
+    guidanceText:
+      "Stock valuation fallback is being used for raw material costing. Review impact before accepting or set a manual rate.",
+    recommendedPrimaryAction: "Review Evidence",
+    canAcceptByPolicy: true,
+  },
+  PM_STOCK_VALUATION_FALLBACK: {
+    label: "PM stock valuation fallback",
+    tier: "review_required",
+    guidanceText:
+      "Stock valuation fallback is being used for packing material costing. Review impact before accepting or set a manual rate.",
+    recommendedPrimaryAction: "Review Evidence",
+    canAcceptByPolicy: true,
+  },
+  RM_MANUAL_RATE_USED: {
+    label: "RM manual rate used",
+    tier: "review_required",
+    guidanceText:
+      "Active manual rate is being used for raw material costing. Review whether it is still valid against current evidence.",
+    recommendedPrimaryAction: "Review Manual Rate",
+    canAcceptByPolicy: true,
+  },
+  PM_MANUAL_RATE_USED: {
+    label: "PM manual rate used",
+    tier: "review_required",
+    guidanceText:
+      "Active manual rate is being used for packing material costing. Review whether it is still valid against current evidence.",
+    recommendedPrimaryAction: "Review Manual Rate",
+    canAcceptByPolicy: true,
+  },
+  OPTIONAL_PM_RATE_MISSING: {
+    label: "Optional PM rate missing",
+    tier: "optional_review",
+    guidanceText:
+      "Optional packing material rate is missing. Review whether this is acceptable or set a manual rate if required.",
+    recommendedPrimaryAction: "Review Optional Material",
+    canAcceptByPolicy: true,
+  },
+};
+
+const REVIEW_PRIORITY_ISSUE_CODES = Object.entries(MATERIAL_ISSUE_GUIDANCE)
+  .filter(([, meta]) => meta.tier === "review_required" || meta.tier === "optional_review")
+  .map(([code]) => code);
+
+function normalizeIssueToken(value) {
+  return String(value ?? "")
+    .trim()
+    .toUpperCase();
+}
+
+function splitIssueCodeField(value) {
+  if (Array.isArray(value)) {
+    const tokens = value
+      .map((entry) => normalizeIssueToken(entry))
+      .filter(Boolean);
+    return [...new Set(tokens)];
+  }
+
+  const raw = String(value ?? "").trim();
+  if (!raw) return [];
+
+  if (!/[|,;]/.test(raw)) {
+    const token = normalizeIssueToken(raw);
+    return token ? [token] : [];
+  }
+
+  const tokens = raw
+    .split(/[,|;]+/)
+    .map((part) => normalizeIssueToken(part))
+    .filter(Boolean);
+  return [...new Set(tokens)];
+}
+
+export function normalizeMaterialIssueCodes(row) {
+  if (!row || typeof row !== "object") return [];
+
+  const issueCodes = [
+    ...splitIssueCodeField(row.issue_codes),
+    ...splitIssueCodeField(row.material_issue_code),
+  ];
+
+  const codes =
+    issueCodes.length > 0
+      ? issueCodes
+      : splitIssueCodeField(row.warning_codes);
+
+  return [...new Set(codes)];
+}
+
+export function getPrimaryMaterialIssueCode(row) {
+  const codes = normalizeMaterialIssueCodes(row);
+  if (!codes.length) return null;
+
+  for (const code of HARD_BLOCKER_ISSUE_CODES) {
+    if (codes.includes(code)) return code;
+  }
+
+  for (const code of REVIEW_PRIORITY_ISSUE_CODES) {
+    if (codes.includes(code)) return code;
+  }
+
+  return codes[0] || null;
+}
+
+function resolveMaterialIssueSeverity(row) {
+  return normalizeIssueToken(
+    row?.action_severity || row?.material_line_status || "",
+  );
+}
+
+export function getMaterialIssueGuidance(row) {
+  const primaryCode = getPrimaryMaterialIssueCode(row);
+  const known = primaryCode ? MATERIAL_ISSUE_GUIDANCE[primaryCode] : null;
+  if (known) {
+    return {
+      code: primaryCode,
+      ...known,
+    };
+  }
+
+  const severity = resolveMaterialIssueSeverity(row);
+  const fallbackLabel = primaryCode || "Material cost issue";
+  const summary = String(
+    row?.action_note_summary || row?.recommended_action || "",
+  ).trim();
+
+  if (severity === "BLOCKER") {
+    return {
+      code: primaryCode,
+      label: fallbackLabel,
+      tier: "blocker",
+      guidanceText:
+        summary ||
+        "Blocking material costing issue. Correct rate or source data before refresh.",
+      recommendedPrimaryAction: "Add / Update Rate",
+      canAcceptByPolicy: false,
+    };
+  }
+
+  if (severity === "REVIEW_REQUIRED") {
+    return {
+      code: primaryCode,
+      label: fallbackLabel,
+      tier: "review_required",
+      guidanceText:
+        summary ||
+        "Material costing issue requires review before the period can be treated as ready.",
+      recommendedPrimaryAction: "Review Evidence",
+      canAcceptByPolicy: true,
+    };
+  }
+
+  return {
+    code: primaryCode,
+    label: fallbackLabel,
+    tier: "info",
+    guidanceText:
+      summary || "Review this material costing issue and take the recommended action.",
+    recommendedPrimaryAction: "Review",
+    canAcceptByPolicy: false,
+  };
+}
+
 export function createMaterialCostController(deps) {
   const {
     dom,
@@ -119,6 +328,9 @@ export function createMaterialCostController(deps) {
     setDrawerTab,
     refreshOpenDrawerIfNeeded,
     runStagedCostingRefreshAndReload,
+    canEditMaterialCostActions,
+    markCostingRefreshDirty,
+    isCostingRefreshDirty,
   } = deps;
 
   const {
@@ -131,6 +343,17 @@ export function createMaterialCostController(deps) {
     manualRateCurrentRate,
     manualRateCurrentSource,
     manualRateCurrentDate,
+    manualRateEvidenceStrip,
+    manualRateEvidenceSelectedRate,
+    manualRateEvidenceSelectedSource,
+    manualRateEvidenceSelectedDate,
+    manualRateEvidenceLatestPurchaseRate,
+    manualRateEvidenceLatestPurchaseDate,
+    manualRateEvidenceActiveManualRate,
+    manualRateEvidenceManualRateStatus,
+    manualRateEvidenceNewerPurchase,
+    manualRateEvidenceOverrideFlag,
+    manualRateEvidenceAffectedSkuCount,
     manualRateValue,
     manualRateEffectiveFrom,
     manualRateReason,
@@ -176,6 +399,80 @@ export function createMaterialCostController(deps) {
   let materialReviewAcceptBusy = false;
   let materialReviewCloseBusy = false;
   let eventsBound = false;
+  let workbenchMatchRows = [];
+  let workbenchMatchPeriodStart = null;
+  let workbenchMatchLoaded = false;
+  let workbenchMatchLoadPromise = null;
+
+  const MATERIAL_COST_READ_ONLY_TOAST =
+    "Read-only access. You do not have permission to change material costing actions.";
+
+  function canWriteMaterialCostActions() {
+    if (typeof canEditMaterialCostActions === "function") {
+      return canEditMaterialCostActions();
+    }
+    return true;
+  }
+
+  function guardMaterialCostWriteAction() {
+    if (canWriteMaterialCostActions()) return true;
+    showToast(MATERIAL_COST_READ_ONLY_TOAST, "error");
+    return false;
+  }
+
+  function manualRateEvidenceText(value, formatFn) {
+    if (value === null || value === undefined || value === "") return "—";
+    if (value === true) return "Yes";
+    if (value === false) return "No";
+    return formatFn ? formatFn(value) : String(value);
+  }
+
+  function populateManualRateEvidenceStrip(evidence) {
+    const set = (el, displayValue) => {
+      if (el) el.textContent = displayValue;
+    };
+
+    set(
+      manualRateEvidenceSelectedRate,
+      manualRateEvidenceText(evidence?.selectedRate, formatMoney),
+    );
+    set(
+      manualRateEvidenceSelectedSource,
+      manualRateEvidenceText(evidence?.selectedRateSource),
+    );
+    set(
+      manualRateEvidenceSelectedDate,
+      manualRateEvidenceText(evidence?.selectedRateDate, formatDate),
+    );
+    set(
+      manualRateEvidenceLatestPurchaseRate,
+      manualRateEvidenceText(evidence?.latestPurchaseRate, formatMoney),
+    );
+    set(
+      manualRateEvidenceLatestPurchaseDate,
+      manualRateEvidenceText(evidence?.latestPurchaseDate, formatDate),
+    );
+    set(
+      manualRateEvidenceActiveManualRate,
+      manualRateEvidenceText(evidence?.activeManualRate, formatMoney),
+    );
+    set(
+      manualRateEvidenceManualRateStatus,
+      manualRateEvidenceText(evidence?.activeManualRateStatus),
+    );
+    set(
+      manualRateEvidenceNewerPurchase,
+      manualRateEvidenceText(evidence?.newerPurchaseRateAvailable),
+    );
+    set(
+      manualRateEvidenceOverrideFlag,
+      manualRateEvidenceText(evidence?.manualRateOverridesPurchaseRate),
+    );
+    set(
+      manualRateEvidenceAffectedSkuCount,
+      manualRateEvidenceText(evidence?.affectedSkuCount, formatNumber),
+    );
+  }
 
   function splitCodeTokens(value) {
     return String(value || "")
@@ -220,11 +517,342 @@ export function createMaterialCostController(deps) {
     );
   }
 
-  function isHardBlockedMaterialIssue(row) {
-    const hardCodes = ["MISSING_REQUIRED_RM_RATE", "MISSING_REQUIRED_PM_RATE"];
-    return splitCodeTokens(row?.issue_codes).some((token) =>
-      hardCodes.includes(token),
+  function workbenchIssueCodesOverlap(mcmRow, workbenchRow) {
+    const mcmCodes = new Set(normalizeMaterialIssueCodes(mcmRow));
+    return normalizeMaterialIssueCodes(workbenchRow).some((code) =>
+      mcmCodes.has(code),
     );
+  }
+
+  async function loadWorkbenchMatchIndex(periodStart = getActivePeriodStart()) {
+    if (!periodStart) {
+      workbenchMatchRows = [];
+      workbenchMatchPeriodStart = null;
+      workbenchMatchLoaded = false;
+      workbenchMatchLoadPromise = null;
+      return [];
+    }
+
+    if (
+      workbenchMatchPeriodStart === periodStart &&
+      workbenchMatchLoaded &&
+      !workbenchMatchLoadPromise
+    ) {
+      return workbenchMatchRows;
+    }
+
+    if (
+      workbenchMatchPeriodStart === periodStart &&
+      workbenchMatchLoadPromise
+    ) {
+      return workbenchMatchLoadPromise;
+    }
+
+    workbenchMatchPeriodStart = periodStart;
+    workbenchMatchLoaded = false;
+    workbenchMatchLoadPromise = (async () => {
+      try {
+        const [queueRows] = await Promise.all([
+          fetchAllRows(
+            () =>
+              costingFrom("v_costing_pricing_material_action_queue_snapshot")
+                .select("*")
+                .eq("period_start", periodStart)
+                .order("action_severity", { ascending: true })
+                .order("affected_sku_count", { ascending: false })
+                .order("affected_product_count", { ascending: false })
+                .order("affected_line_count", { ascending: false })
+                .order("stock_item_name", { ascending: true }),
+            1000,
+          ),
+          loadMaterialReviewAcceptanceRegister(periodStart),
+        ]);
+        workbenchMatchRows = queueRows || [];
+        workbenchMatchLoaded = true;
+        return workbenchMatchRows;
+      } catch (err) {
+        workbenchMatchRows = [];
+        workbenchMatchPeriodStart = null;
+        workbenchMatchLoaded = false;
+        throw err;
+      } finally {
+        workbenchMatchLoadPromise = null;
+      }
+    })();
+
+    return workbenchMatchLoadPromise;
+  }
+
+  function findWorkbenchRowForMaterialIssue(mcmRow) {
+    if (!mcmRow?.stock_item_id || !workbenchMatchRows.length) return null;
+
+    const periodStart = mcmRow.period_start || getActivePeriodStart();
+    const mcmMaterialArea = normalizeStatus(mcmRow.material_area);
+
+    const candidates = workbenchMatchRows.filter((workbenchRow) => {
+      if (String(workbenchRow.period_start) !== String(periodStart)) return false;
+      if (String(workbenchRow.stock_item_id) !== String(mcmRow.stock_item_id)) {
+        return false;
+      }
+
+      const workbenchMaterialArea = normalizeStatus(workbenchRow.material_area);
+      if (
+        mcmMaterialArea &&
+        workbenchMaterialArea &&
+        mcmMaterialArea !== workbenchMaterialArea
+      ) {
+        return false;
+      }
+
+      return workbenchIssueCodesOverlap(mcmRow, workbenchRow);
+    });
+
+    if (!candidates.length) return null;
+
+    candidates.sort((left, right) => {
+      const leftReview =
+        normalizeStatus(left.action_severity) === "REVIEW_REQUIRED" &&
+        normalizeStatus(left.recommended_ui_route) === "MATERIAL_RATE_REVIEW";
+      const rightReview =
+        normalizeStatus(right.action_severity) === "REVIEW_REQUIRED" &&
+        normalizeStatus(right.recommended_ui_route) === "MATERIAL_RATE_REVIEW";
+      if (leftReview !== rightReview) return leftReview ? -1 : 1;
+
+      const leftAreaMatch =
+        normalizeStatus(left.material_area) === mcmMaterialArea;
+      const rightAreaMatch =
+        normalizeStatus(right.material_area) === mcmMaterialArea;
+      if (leftAreaMatch !== rightAreaMatch) return leftAreaMatch ? -1 : 1;
+
+      const leftSkuCount = Number(left.affected_sku_count) || 0;
+      const rightSkuCount = Number(right.affected_sku_count) || 0;
+      if (leftSkuCount !== rightSkuCount) return rightSkuCount - leftSkuCount;
+
+      return String(left.stock_item_name || left.stock_item_id || "").localeCompare(
+        String(right.stock_item_name || right.stock_item_id || ""),
+      );
+    });
+
+    return candidates[0];
+  }
+
+  function isHardBlockedMaterialIssue(row) {
+    return normalizeMaterialIssueCodes(row).some((code) =>
+      HARD_BLOCKER_ISSUE_CODES.includes(code),
+    );
+  }
+
+  function isMaterialRateRelatedIssue(row, codes = normalizeMaterialIssueCodes(row)) {
+    if (!row) return false;
+    const route = normalizeStatus(row.recommended_ui_route);
+    if (MATERIAL_RATE_UI_ROUTES.has(route)) return true;
+    return codes.some((code) => Boolean(MATERIAL_ISSUE_GUIDANCE[code]));
+  }
+
+  function classifyMaterialIssue(row, options = {}) {
+    const codes = normalizeMaterialIssueCodes(row);
+    const primaryCode = getPrimaryMaterialIssueCode(row);
+    const guidance = getMaterialIssueGuidance(row);
+    const workbenchRow = options.workbenchRow || null;
+    const severity = resolveMaterialIssueSeverity(
+      workbenchRow || row || {},
+    );
+    const materialArea = String(
+      row?.material_area || workbenchRow?.material_area || "",
+    ).trim();
+    const isHardBlocker = codes.some((code) =>
+      HARD_BLOCKER_ISSUE_CODES.includes(code),
+    );
+    const isReviewRequired =
+      guidance.tier === "review_required" ||
+      guidance.tier === "optional_review" ||
+      severity === "REVIEW_REQUIRED";
+    const activeAcceptance =
+      options.activeAcceptance !== undefined
+        ? options.activeAcceptance
+        : workbenchRow
+          ? findActiveMaterialReviewAcceptance(workbenchRow)
+          : row
+            ? findActiveMaterialReviewAcceptance(row)
+            : null;
+    const hasActiveAcceptance = Boolean(activeAcceptance);
+    const stockItemId = row?.stock_item_id ?? workbenchRow?.stock_item_id;
+    const canSetManualRate = Boolean(
+      stockItemId && isMaterialRateRelatedIssue(row || workbenchRow || {}, codes),
+    );
+
+    let canAcceptReview = false;
+    let blockAcceptReason = null;
+
+    if (options.canEdit === false) {
+      blockAcceptReason = "Read-only access.";
+    } else if (isHardBlocker) {
+      blockAcceptReason =
+        "Required rate is missing. Add a manual rate first; this issue cannot be accepted as review.";
+    } else if (!guidance.canAcceptByPolicy) {
+      blockAcceptReason = "This issue type cannot be accepted as review.";
+    } else if (severity !== "REVIEW_REQUIRED") {
+      blockAcceptReason =
+        "Accept Review is only available for review-required issues.";
+    } else if (!workbenchRow) {
+      blockAcceptReason =
+        "No matching Control Workbench row was found for review acceptance.";
+    } else if (hasActiveAcceptance) {
+      blockAcceptReason =
+        "An active acceptance already exists for this issue.";
+    } else if (!isMaterialReviewAcceptEligible(workbenchRow)) {
+      blockAcceptReason = "This queue row is not eligible for Accept Review.";
+    } else {
+      canAcceptReview = true;
+    }
+
+    const canCloseAcceptance =
+      hasActiveAcceptance && options.canEdit !== false;
+
+    return {
+      codes,
+      primaryCode,
+      materialArea,
+      severity,
+      tier: guidance.tier,
+      guidance,
+      guidanceText: guidance.guidanceText,
+      recommendedPrimaryAction: guidance.recommendedPrimaryAction,
+      isHardBlocker,
+      isReviewRequired,
+      hasActiveAcceptance,
+      canSetManualRate,
+      canAcceptReview,
+      canCloseAcceptance,
+      blockAcceptReason,
+    };
+  }
+
+  function evidenceValueOrNull(value) {
+    if (value === null || value === undefined || value === "") return null;
+    return value;
+  }
+
+  function buildMaterialIssueEvidenceFromRow(row) {
+    if (!row || typeof row !== "object") {
+      return {
+        selectedRate: null,
+        selectedRateSource: null,
+        selectedRateDate: null,
+        latestPurchaseRate: null,
+        latestPurchaseDate: null,
+        activeManualRate: null,
+        activeManualRateEffectiveFrom: null,
+        activeManualRateEffectiveTo: null,
+        activeManualRateStatus: null,
+        manualRateOverridesPurchaseRate: null,
+        newerPurchaseRateAvailable: null,
+        affectedLineCount: null,
+        affectedProductCount: null,
+        affectedSkuCount: null,
+        approvalBlockingSkuCount: null,
+        reviewSkuCount: null,
+        snapshotRefreshedAt: null,
+      };
+    }
+
+    return {
+      selectedRate: evidenceValueOrNull(
+        row.selected_rate ?? row.latest_system_selected_rate,
+      ),
+      selectedRateSource: evidenceValueOrNull(
+        row.rate_source ?? row.latest_system_rate_source,
+      ),
+      selectedRateDate: evidenceValueOrNull(
+        row.rate_date ?? row.latest_system_rate_date,
+      ),
+      latestPurchaseRate: evidenceValueOrNull(row.latest_purchase_rate),
+      latestPurchaseDate: evidenceValueOrNull(row.latest_purchase_date),
+      activeManualRate: evidenceValueOrNull(
+        row.manual_rate_value ?? row.rate_value,
+      ),
+      activeManualRateEffectiveFrom: evidenceValueOrNull(
+        row.manual_rate_effective_from ?? row.effective_from,
+      ),
+      activeManualRateEffectiveTo: evidenceValueOrNull(
+        row.manual_rate_effective_to ?? row.effective_to,
+      ),
+      activeManualRateStatus: evidenceValueOrNull(
+        row.manual_rate_status ?? row.status,
+      ),
+      manualRateOverridesPurchaseRate: evidenceValueOrNull(
+        row.manual_rate_overrides_purchase_rate,
+      ),
+      newerPurchaseRateAvailable: evidenceValueOrNull(
+        row.newer_purchase_rate_available,
+      ),
+      affectedLineCount: evidenceValueOrNull(row.affected_line_count),
+      affectedProductCount: evidenceValueOrNull(row.affected_product_count),
+      affectedSkuCount: evidenceValueOrNull(row.affected_sku_count),
+      approvalBlockingSkuCount: evidenceValueOrNull(
+        row.approval_blocking_sku_count,
+      ),
+      reviewSkuCount: evidenceValueOrNull(row.review_sku_count),
+      snapshotRefreshedAt: evidenceValueOrNull(row.snapshot_refreshed_at),
+    };
+  }
+
+  function mergeMaterialIssueEvidence(base, overlay) {
+    const merged = { ...base };
+    Object.entries(overlay || {}).forEach(([key, value]) => {
+      if (value !== null && value !== undefined && value !== "") {
+        merged[key] = value;
+      }
+    });
+    return merged;
+  }
+
+  function evidenceNeedsReviewFetch(evidence) {
+    return (
+      evidence.selectedRate == null &&
+      evidence.latestPurchaseRate == null &&
+      evidence.activeManualRate == null
+    );
+  }
+
+  function evidenceFromManualRateReview(review) {
+    if (!review) return {};
+    return {
+      latestPurchaseRate: evidenceValueOrNull(review.latest_purchase_rate),
+      latestPurchaseDate: evidenceValueOrNull(review.latest_purchase_date),
+      activeManualRate: evidenceValueOrNull(review.manual_rate_value),
+      activeManualRateEffectiveFrom: evidenceValueOrNull(
+        review.manual_rate_effective_from,
+      ),
+      activeManualRateEffectiveTo: evidenceValueOrNull(
+        review.manual_rate_effective_to,
+      ),
+      activeManualRateStatus: evidenceValueOrNull(review.manual_rate_status),
+      manualRateOverridesPurchaseRate: evidenceValueOrNull(
+        review.manual_rate_overrides_purchase_rate,
+      ),
+      newerPurchaseRateAvailable: evidenceValueOrNull(
+        review.newer_purchase_rate_available,
+      ),
+    };
+  }
+
+  async function enrichMaterialIssueEvidence(row, options = {}) {
+    let evidence = buildMaterialIssueEvidenceFromRow(row);
+
+    if (
+      options.allowFetch === true &&
+      row?.stock_item_id &&
+      evidenceNeedsReviewFetch(evidence)
+    ) {
+      const review = await fetchManualRateReview(row);
+      evidence = mergeMaterialIssueEvidence(
+        evidence,
+        evidenceFromManualRateReview(review),
+      );
+    }
+
+    return evidence;
   }
 
   function isMaterialReviewAcceptEligible(row) {
@@ -567,8 +1195,9 @@ export function createMaterialCostController(deps) {
     manualRateEditSaveBtn.disabled = !(validRate && validReason);
   }
 
-  function openManualRateEditModal(row) {
+  async function openManualRateEditModal(row) {
     if (!row || !manualRateEditModal) return;
+    if (!guardMaterialCostWriteAction()) return;
 
     manualRateEditRow = row;
     manualRateReturnFocus = document.activeElement;
@@ -605,6 +1234,15 @@ export function createMaterialCostController(deps) {
       manualRateCurrentDate.textContent = formatDate(currentDate);
     }
 
+    try {
+      populateManualRateEvidenceStrip(
+        await enrichMaterialIssueEvidence(row, { allowFetch: false }),
+      );
+    } catch (err) {
+      console.warn("Failed to populate manual rate evidence from row", err);
+      populateManualRateEvidenceStrip({});
+    }
+
     if (manualRateValue) {
       manualRateValue.value =
         currentRate !== null && currentRate !== undefined
@@ -626,6 +1264,12 @@ export function createMaterialCostController(deps) {
     setManualRateSaveState();
 
     setTimeout(() => manualRateValue?.focus(), 0);
+
+    enrichMaterialIssueEvidence(row, { allowFetch: true })
+      .then((evidence) => populateManualRateEvidenceStrip(evidence))
+      .catch((err) => {
+        console.warn("Failed to fetch enriched manual rate evidence", err);
+      });
   }
 
   function closeManualRateEditModal() {
@@ -655,6 +1299,8 @@ export function createMaterialCostController(deps) {
   }
 
   async function saveManualRateEdit() {
+    if (!guardMaterialCostWriteAction()) return;
+
     const row = manualRateEditRow;
 
     if (!row?.stock_item_id) {
@@ -671,7 +1317,7 @@ export function createMaterialCostController(deps) {
     }
 
     if (!values.reason || values.reason.length < 5) {
-      showToast("Reason / approval reference is required.", "error");
+      showToast("Reason / authority reference is required.", "error");
       setManualRateSaveState();
       return;
     }
@@ -692,7 +1338,7 @@ export function createMaterialCostController(deps) {
       closeManualRateEditModal();
 
       showToast(
-        "Manual rate saved. Request Costing Refresh from the toolbar when you want costing recalculated.",
+        "Manual rate saved. Costing refresh required before readiness counts and cost sheets update.",
         "success",
         5200,
       );
@@ -721,12 +1367,19 @@ export function createMaterialCostController(deps) {
               ? "manual-rate-register"
               : manualRateManagerTab === "history"
                 ? "manual-rate-history"
-                : "manual-rate-action";
+                : "resolve";
 
           await setDrawerTab(nextTab);
         } else {
           await setDrawerTab("action");
         }
+      }
+
+      if (typeof markCostingRefreshDirty === "function") {
+        markCostingRefreshDirty(
+          "Manual material rate was saved. Run costing refresh to apply it to cost sheets and readiness counts.",
+          "MATERIAL_MANUAL_RATE_SET",
+        );
       }
     } catch (err) {
       handleError("Failed to save manual material rate", err);
@@ -753,6 +1406,7 @@ export function createMaterialCostController(deps) {
 
   function openManualRateCloseModal(row) {
     if (!row || !manualRateCloseModal) return;
+    if (!guardMaterialCostWriteAction()) return;
 
     manualRateCloseRow = row;
     manualRateCloseReturnFocus = document.activeElement;
@@ -804,6 +1458,8 @@ export function createMaterialCostController(deps) {
   }
 
   async function saveManualRateClose() {
+    if (!guardMaterialCostWriteAction()) return;
+
     const row = manualRateCloseRow;
 
     if (!row?.manual_rate_id) {
@@ -834,7 +1490,7 @@ export function createMaterialCostController(deps) {
       closeManualRateCloseModal();
 
       showToast(
-        "Manual rate closed. Request Costing Refresh from the toolbar when you want costing recalculated.",
+        "Manual rate closed. Costing refresh required before readiness counts and cost sheets update.",
         "success",
         5200,
       );
@@ -843,6 +1499,13 @@ export function createMaterialCostController(deps) {
         await reloadRows();
       } else {
         await setDrawerTab("manual-rate-history");
+      }
+
+      if (typeof markCostingRefreshDirty === "function") {
+        markCostingRefreshDirty(
+          "Manual material rate was closed. Run costing refresh to apply current rate evidence.",
+          "MATERIAL_MANUAL_RATE_CLOSE",
+        );
       }
     } catch (err) {
       handleError("Failed to close manual material rate", err);
@@ -869,6 +1532,7 @@ export function createMaterialCostController(deps) {
 
   function openMaterialReviewAcceptModal(row, returnFocusEl = null) {
     if (!row || !materialReviewAcceptModal) return;
+    if (!guardMaterialCostWriteAction()) return;
     if (!isMaterialReviewAcceptEligible(row)) {
       showToast("This queue row is not eligible for Accept Review.", "info");
       return;
@@ -949,6 +1613,7 @@ export function createMaterialCostController(deps) {
     returnFocusEl = null,
   ) {
     if (!acceptanceRow || !materialReviewCloseAcceptanceModal) return;
+    if (!guardMaterialCostWriteAction()) return;
 
     materialReviewCloseRow = acceptanceRow;
     materialReviewCloseReturnFocus =
@@ -1031,6 +1696,8 @@ export function createMaterialCostController(deps) {
   }
 
   async function saveMaterialReviewAcceptance() {
+    if (!guardMaterialCostWriteAction()) return;
+
     const row = materialReviewAcceptRow;
     if (!row?.stock_item_id) {
       showToast("Stock item ID missing for selected queue row.", "error");
@@ -1084,6 +1751,8 @@ export function createMaterialCostController(deps) {
   }
 
   async function saveMaterialReviewCloseAcceptance() {
+    if (!guardMaterialCostWriteAction()) return;
+
     const acceptance = materialReviewCloseRow;
     if (!acceptance?.acceptance_id) {
       showToast("Acceptance ID missing.", "error");
@@ -1247,22 +1916,350 @@ export function createMaterialCostController(deps) {
     );
   }
 
+  function resolveTierChip(classification) {
+    if (classification.isHardBlocker) return statusChip("Hard blocker");
+    if (classification.severity === "BLOCKER") return statusChip("BLOCKER");
+    if (classification.isReviewRequired) return statusChip("Review required");
+    return statusChip(classification.severity || "--");
+  }
+
+  function resolveBooleanText(value) {
+    if (value === true) return "Yes";
+    if (value === false) return "No";
+    return "--";
+  }
+
+  async function renderMaterialIssueResolvePanel(row, context = {}) {
+    if (!row) {
+      return `<div class="cp-card"><div class="cp-card-value">No material issue selected.</div></div>`;
+    }
+
+    const lensId = context.lensId || "";
+    const isMcm = lensId === "manual-rate-manager";
+    let matchStatusNote = "";
+
+    if (isMcm) {
+      try {
+        await loadWorkbenchMatchIndex(getActivePeriodStart());
+      } catch (err) {
+        matchStatusNote =
+          "Review acceptance match could not be loaded. Manual rate actions are still available.";
+        console.error("Failed to load workbench match index", err);
+      }
+    }
+
+    const workbenchRow = isMcm
+      ? context.workbenchRow !== undefined
+        ? context.workbenchRow
+        : findWorkbenchRowForMaterialIssue(row)
+      : context.workbenchRow || row;
+
+    const canEdit = canWriteMaterialCostActions();
+
+    const activeAcceptance =
+      context.activeAcceptance !== undefined
+        ? context.activeAcceptance
+        : workbenchRow
+          ? findActiveMaterialReviewAcceptance(workbenchRow)
+          : null;
+
+    const classification = classifyMaterialIssue(row, {
+      workbenchRow: isMcm ? workbenchRow : workbenchRow || row,
+      activeAcceptance,
+      canEdit,
+    });
+    const evidence = await enrichMaterialIssueEvidence(row, {
+      allowFetch: false,
+    });
+
+    const codesText = classification.codes.length
+      ? classification.codes.join(", ")
+      : text(row.issue_codes || row.material_issue_code || "--");
+
+    const diagnosisSection = kvSection("Diagnosis", [
+      ["Stock Item", text(row.stock_item_name || row.stock_item_id)],
+      ["Stock Code", text(row.stock_item_code)],
+      ["Material Area", text(row.material_area)],
+      ["Severity", resolveTierChip(classification)],
+      ["Primary Issue", text(classification.guidance.label)],
+      ["Issue Codes", codesText],
+    ]);
+
+    const guidanceCallout = `
+      <div class="cp-card" style="margin-bottom:12px">
+        <div class="cp-card-label">${
+          classification.isHardBlocker ? "Hard blocker" : "Review required"
+        }</div>
+        <div class="cp-muted-text" style="margin-top:6px;line-height:1.45">
+          ${text(classification.guidanceText)}
+        </div>
+        <div class="cp-muted-text" style="margin-top:6px">
+          Recommended: ${text(classification.recommendedPrimaryAction)}
+        </div>
+        ${
+          classification.isHardBlocker
+            ? `<div class="cp-muted-text" style="margin-top:6px;line-height:1.45">This issue cannot be accepted as review. Add or update a valid material rate.</div>`
+            : ""
+        }
+      </div>
+    `;
+
+    const rateEvidenceItems = [
+      ["Selected Rate", formatMoney(evidence.selectedRate)],
+      ["Rate Source", text(evidence.selectedRateSource)],
+      ["Rate Date", formatDate(evidence.selectedRateDate)],
+    ];
+    if (evidence.latestPurchaseRate != null) {
+      rateEvidenceItems.push([
+        "Latest Purchase Rate",
+        formatMoney(evidence.latestPurchaseRate),
+      ]);
+    }
+    if (evidence.latestPurchaseDate != null) {
+      rateEvidenceItems.push([
+        "Latest Purchase Date",
+        formatDate(evidence.latestPurchaseDate),
+      ]);
+    }
+    if (evidence.activeManualRate != null) {
+      rateEvidenceItems.push([
+        "Manual Rate",
+        formatMoney(evidence.activeManualRate),
+      ]);
+    }
+    if (evidence.activeManualRateStatus != null) {
+      rateEvidenceItems.push([
+        "Manual Rate Status",
+        text(evidence.activeManualRateStatus),
+      ]);
+    }
+    if (evidence.newerPurchaseRateAvailable != null) {
+      rateEvidenceItems.push([
+        "Newer Purchase Rate Available",
+        resolveBooleanText(evidence.newerPurchaseRateAvailable),
+      ]);
+    }
+    if (evidence.manualRateOverridesPurchaseRate != null) {
+      rateEvidenceItems.push([
+        "Manual Rate Overrides Purchase Rate",
+        resolveBooleanText(evidence.manualRateOverridesPurchaseRate),
+      ]);
+    }
+
+    const readinessSection = kvSection("Readiness Impact", [
+      ["Affected Lines", formatNumber(row.affected_line_count)],
+      ["Affected Products", formatNumber(row.affected_product_count)],
+      ["Affected SKUs", formatNumber(row.affected_sku_count)],
+      ["Blocking SKUs", formatNumber(row.approval_blocking_sku_count)],
+      ["Review SKUs", formatNumber(row.review_sku_count)],
+      ["BOM Sources", text(row.bom_sources)],
+      ["Material Line Statuses", text(row.material_line_statuses)],
+    ]);
+
+    let acceptanceBlock = "";
+    if (classification.hasActiveAcceptance && activeAcceptance) {
+      acceptanceBlock = `
+        <div class="cp-card" style="margin-bottom:12px">
+          <div class="cp-card-label">Accepted for this costing period</div>
+          <div class="cp-card-value">${statusChip("Active Accepted")}</div>
+          <div class="cp-muted-text" style="margin-top:6px;line-height:1.45">
+            ${text(activeAcceptance.accepted_by_email || "--")} · ${formatDateTime(activeAcceptance.accepted_at)}
+          </div>
+          ${
+            activeAcceptance.acceptance_reason
+              ? `<div class="cp-muted-text" style="margin-top:6px">${text(activeAcceptance.acceptance_reason)}</div>`
+              : ""
+          }
+          ${
+            activeAcceptance.acceptance_note
+              ? `<div class="cp-muted-text" style="margin-top:4px">${text(activeAcceptance.acceptance_note)}</div>`
+              : ""
+          }
+        </div>
+      `;
+    } else if (!classification.canAcceptReview && classification.blockAcceptReason) {
+      acceptanceBlock = `
+        <div class="cp-muted-text" style="margin-bottom:12px;line-height:1.45">
+          Accept Review is not available: ${text(classification.blockAcceptReason)}
+        </div>
+      `;
+    }
+
+    if (matchStatusNote) {
+      acceptanceBlock += `
+        <div class="cp-muted-text" style="margin-bottom:12px;line-height:1.45">
+          ${text(matchStatusNote)}
+        </div>
+      `;
+    }
+
+    const readOnlyBlock = !canEdit
+      ? `<div class="cp-muted-text" style="margin-bottom:12px;line-height:1.45">Read-only access</div>`
+      : "";
+
+    const actionButtons = [];
+    if (canEdit && classification.canSetManualRate) {
+      actionButtons.push(
+        `<button type="button" class="icon-btn icon-btn-primary" id="resolveSetManualRateBtn" title="Add / Update Manual Rate" aria-label="Add / Update Manual Rate">Add / Update Manual Rate</button>`,
+      );
+    }
+    if (canEdit && classification.canAcceptReview) {
+      actionButtons.push(
+        `<button type="button" class="icon-btn" id="resolveAcceptReviewBtn" title="Accept Review" aria-label="Accept Review">Accept Review</button>`,
+      );
+    }
+    if (canEdit && classification.canCloseAcceptance) {
+      actionButtons.push(
+        `<button type="button" class="icon-btn cp-danger-text-btn" id="resolveCloseAcceptanceBtn" title="Close Acceptance" aria-label="Close Acceptance">Close Acceptance</button>`,
+      );
+    }
+    if (isMcm) {
+      actionButtons.push(
+        `<button type="button" class="icon-btn" id="resolveViewHistoryBtn" title="View Rate History" aria-label="View Rate History">View Rate History</button>`,
+      );
+      if (manualRateManagerTab === "action-queue") {
+        actionButtons.push(
+          `<button type="button" class="icon-btn" id="resolveViewAffectedBtn" title="Affected Products/SKUs" aria-label="Affected Products/SKUs">Affected Products/SKUs</button>`,
+        );
+      }
+    } else {
+      actionButtons.push(
+        `<button type="button" class="icon-btn" id="resolveViewAffectedBtn" title="Affected SKUs" aria-label="Affected SKUs">Affected SKUs</button>`,
+      );
+    }
+
+    const actionRow = `
+      <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:12px">
+        ${actionButtons.join("")}
+      </div>
+    `;
+
+    return (
+      guidanceCallout +
+      readOnlyBlock +
+      acceptanceBlock +
+      detailPanel([
+        diagnosisSection,
+        kvSection("Rate Evidence", rateEvidenceItems),
+        readinessSection,
+      ]) +
+      actionRow
+    );
+  }
+
+  function wireMaterialIssueResolveActions(lensId) {
+    if (
+      lensId !== "costing-review-workbench" &&
+      lensId !== "manual-rate-manager"
+    ) {
+      return;
+    }
+
+    const isMcm = lensId === "manual-rate-manager";
+
+    document
+      .getElementById("resolveSetManualRateBtn")
+      ?.addEventListener("click", () => {
+        if (!guardMaterialCostWriteAction()) return;
+        const selectedRow = getSelectedRow();
+        if (selectedRow) openManualRateEditModal(selectedRow);
+      });
+
+    document
+      .getElementById("resolveAcceptReviewBtn")
+      ?.addEventListener("click", async () => {
+        if (!guardMaterialCostWriteAction()) return;
+        const selectedRow = getSelectedRow();
+        if (!selectedRow) return;
+
+        if (isMcm) {
+          try {
+            await loadWorkbenchMatchIndex(getActivePeriodStart());
+          } catch (err) {
+            handleError("Failed to load review acceptance match", err);
+            return;
+          }
+          const workbenchRow = findWorkbenchRowForMaterialIssue(selectedRow);
+          if (workbenchRow) openMaterialReviewAcceptModal(workbenchRow);
+          return;
+        }
+
+        openMaterialReviewAcceptModal(selectedRow);
+      });
+
+    document
+      .getElementById("resolveCloseAcceptanceBtn")
+      ?.addEventListener("click", async () => {
+        if (!guardMaterialCostWriteAction()) return;
+        const selectedRow = getSelectedRow();
+        if (!selectedRow) return;
+
+        let workbenchRow = selectedRow;
+        if (isMcm) {
+          try {
+            await loadWorkbenchMatchIndex(getActivePeriodStart());
+          } catch (err) {
+            handleError("Failed to load review acceptance match", err);
+            return;
+          }
+          workbenchRow = findWorkbenchRowForMaterialIssue(selectedRow);
+        }
+
+        const acceptance = workbenchRow
+          ? findActiveMaterialReviewAcceptance(workbenchRow)
+          : null;
+        if (acceptance) openMaterialReviewCloseAcceptanceModal(acceptance);
+      });
+
+    document
+      .getElementById("resolveViewAffectedBtn")
+      ?.addEventListener("click", () => {
+        setDrawerTab(isMcm ? "affected-products" : "affected");
+      });
+
+    document
+      .getElementById("resolveViewHistoryBtn")
+      ?.addEventListener("click", () => {
+        setDrawerTab("manual-rate-history");
+      });
+  }
+
   async function renderMaterialWorkbenchTab(tabId, row, lensId) {
     const workbenchTabId =
       {
-        "manual-rate-action": "action",
+        "manual-rate-action":
+          lensId === "manual-rate-manager" &&
+          manualRateManagerTab === "action-queue"
+            ? "resolve"
+            : "action",
         "affected-products": "affected",
         "raw-lines": "raw",
       }[tabId] || tabId;
 
     if (lensId === "costing-review-workbench") {
-      if (workbenchTabId === "summary")
-        return renderControlWorkbenchSummaryTab(row);
+      if (workbenchTabId === "resolve" || workbenchTabId === "summary")
+        return renderMaterialIssueResolvePanel(row, {
+          lensId,
+          workbenchRow: row,
+        });
       if (workbenchTabId === "affected")
         return renderControlWorkbenchAffectedSkusTab(row);
       if (workbenchTabId === "action")
         return renderControlWorkbenchRateActionTab(row);
-      return renderControlWorkbenchSummaryTab(row);
+      return renderMaterialIssueResolvePanel(row, {
+        lensId,
+        workbenchRow: row,
+      });
+    }
+
+    if (
+      lensId === "manual-rate-manager" &&
+      manualRateManagerTab === "action-queue" &&
+      (workbenchTabId === "resolve" || tabId === "manual-rate-action")
+    ) {
+      return renderMaterialIssueResolvePanel(row, {
+        lensId: "manual-rate-manager",
+      });
     }
 
     if (workbenchTabId === "action") {
@@ -1505,13 +2502,19 @@ export function createMaterialCostController(deps) {
     if (activeTab === "history") {
       return fetchManualRateManagerHistoryRows();
     }
+    const periodStart = getActivePeriodStart();
     return fetchAllRows(
-      () =>
-        costingFrom("v_costing_manual_rate_manager_action_queue")
-          .select("*")
+      () => {
+        let query = costingFrom("v_costing_manual_rate_manager_action_queue")
+          .select("*");
+        if (periodStart) {
+          query = query.eq("period_start", periodStart);
+        }
+        return query
           .order("priority_sort", { ascending: true })
           .order("material_issue_code", { ascending: true })
-          .order("stock_item_name", { ascending: true }),
+          .order("stock_item_name", { ascending: true });
+      },
       1000,
     );
   }
@@ -1693,7 +2696,7 @@ export function createMaterialCostController(deps) {
 
     if (manualRateManagerTab === "action-queue") {
       managerTabs = [
-        { id: "manual-rate-action", label: "Action" },
+        { id: "resolve", label: "Resolve" },
         { id: "manual-rate-register", label: "Register" },
         { id: "manual-rate-history", label: "History" },
         { id: "affected-products", label: "Affected Products/SKUs" },
@@ -1712,8 +2715,13 @@ export function createMaterialCostController(deps) {
       ];
     }
 
-    const validPreferred = managerTabs.some((t) => t.id === preferredTab)
-      ? preferredTab
+    let requestedTab = preferredTab;
+    if (requestedTab === "manual-rate-action") {
+      requestedTab = manualRateManagerTab === "action-queue" ? "resolve" : "manual-rate-action";
+    }
+
+    const validPreferred = managerTabs.some((t) => t.id === requestedTab)
+      ? requestedTab
       : managerTabs[0].id;
 
     return {
@@ -1725,6 +2733,23 @@ export function createMaterialCostController(deps) {
   }
 
   function wireMaterialWorkbenchDrawerActions(tabId, lensId) {
+    if (
+      lensId === "costing-review-workbench" &&
+      (tabId === "resolve" || tabId === "summary")
+    ) {
+      wireMaterialIssueResolveActions(lensId);
+      return;
+    }
+
+    if (
+      lensId === "manual-rate-manager" &&
+      manualRateManagerTab === "action-queue" &&
+      (tabId === "resolve" || tabId === "manual-rate-action")
+    ) {
+      wireMaterialIssueResolveActions(lensId);
+      return;
+    }
+
     if (tabId === "action" || tabId === "manual-rate-action") {
       document
         .getElementById("setManualRateBtn")
@@ -1879,5 +2904,14 @@ export function createMaterialCostController(deps) {
     syncSelectedWorkbenchRow,
     renderMaterialEvidencePanel,
     buildMaterialEvidenceSection,
+    normalizeMaterialIssueCodes,
+    getPrimaryMaterialIssueCode,
+    getMaterialIssueGuidance,
+    classifyMaterialIssue,
+    enrichMaterialIssueEvidence,
+    renderMaterialIssueResolvePanel,
+    wireMaterialIssueResolveActions,
+    loadWorkbenchMatchIndex,
+    findWorkbenchRowForMaterialIssue,
   };
 }

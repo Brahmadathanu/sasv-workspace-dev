@@ -1108,23 +1108,38 @@ function setModalProcessing(backdropId, active, text = "Processing…") {
 
 const tabLoadingControlStates = new WeakMap();
 
+function isTabPanelLoadingControl(control) {
+  if (
+    !(
+      control instanceof HTMLButtonElement ||
+      control instanceof HTMLInputElement ||
+      control instanceof HTMLSelectElement ||
+      control instanceof HTMLTextAreaElement
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    control instanceof HTMLInputElement &&
+    control.classList.contains("pec-search-input")
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
 function setTabPanelControlsLoading(panel, active) {
   if (!(panel instanceof HTMLElement)) return;
 
-  const controls = panel.querySelectorAll("button, input, select, textarea");
-  controls.forEach((control) => {
-    if (
-      !(
-        control instanceof HTMLButtonElement ||
-        control instanceof HTMLInputElement ||
-        control instanceof HTMLSelectElement ||
-        control instanceof HTMLTextAreaElement
-      )
-    ) {
-      return;
-    }
+  if (active) {
+    panel._pecControlsLoadingDepth = (panel._pecControlsLoadingDepth || 0) + 1;
+    if (panel._pecControlsLoadingDepth > 1) return;
 
-    if (active) {
+    panel.querySelectorAll("button, input, select, textarea").forEach((control) => {
+      if (!isTabPanelLoadingControl(control)) return;
+
       if (!tabLoadingControlStates.has(control)) {
         tabLoadingControlStates.set(control, {
           disabled: control.disabled,
@@ -1133,6 +1148,56 @@ function setTabPanelControlsLoading(panel, active) {
       }
       control.disabled = true;
       control.setAttribute("aria-disabled", "true");
+    });
+    return;
+  }
+
+  panel._pecControlsLoadingDepth = Math.max(
+    0,
+    (panel._pecControlsLoadingDepth || 0) - 1,
+  );
+  if (panel._pecControlsLoadingDepth > 0) return;
+
+  panel.querySelectorAll("button, input, select, textarea").forEach((control) => {
+    if (!isTabPanelLoadingControl(control)) return;
+
+    const previous = tabLoadingControlStates.get(control);
+    if (!previous) return;
+
+    control.disabled = previous.disabled;
+    if (previous.ariaDisabled == null) {
+      control.removeAttribute("aria-disabled");
+    } else {
+      control.setAttribute("aria-disabled", previous.ariaDisabled);
+    }
+    tabLoadingControlStates.delete(control);
+  });
+}
+
+function resetTabPanelLoadingState(tabName) {
+  const panel = qs(`tab-${tabName}`);
+  if (!panel) return;
+
+  panel._pecControlsLoadingDepth = 0;
+  panel._pecTableLoadingDepth = 0;
+  panel.setAttribute("aria-busy", "false");
+  panel.classList.remove("is-table-loading");
+
+  panel.querySelectorAll(".card .table-scroll").forEach((area) => {
+    if (!(area instanceof HTMLElement)) return;
+    area.classList.remove("loading");
+    area.querySelector(":scope > .table-loading-mask")?.remove();
+  });
+
+  panel.querySelectorAll("button, input, select, textarea").forEach((control) => {
+    if (!isTabPanelLoadingControl(control)) {
+      if (
+        control instanceof HTMLInputElement &&
+        control.classList.contains("pec-search-input")
+      ) {
+        control.disabled = false;
+        control.removeAttribute("aria-disabled");
+      }
       return;
     }
 
@@ -1153,8 +1218,18 @@ function setTabTableLoading(tabName, active, loadingText = "Loading...") {
   const panel = qs(`tab-${tabName}`);
   if (!panel) return;
 
-  panel.setAttribute("aria-busy", active ? "true" : "false");
-  panel.classList.toggle("is-table-loading", Boolean(active));
+  if (active) {
+    panel._pecTableLoadingDepth = (panel._pecTableLoadingDepth || 0) + 1;
+  } else {
+    panel._pecTableLoadingDepth = Math.max(
+      0,
+      (panel._pecTableLoadingDepth || 0) - 1,
+    );
+  }
+
+  const isLoading = (panel._pecTableLoadingDepth || 0) > 0;
+  panel.setAttribute("aria-busy", isLoading ? "true" : "false");
+  panel.classList.toggle("is-table-loading", isLoading);
   setTabPanelControlsLoading(panel, active);
 
   const scrollAreas = panel.querySelectorAll(".card .table-scroll");
@@ -1163,7 +1238,7 @@ function setTabTableLoading(tabName, active, loadingText = "Loading...") {
   scrollAreas.forEach((area) => {
     if (!(area instanceof HTMLElement)) return;
 
-    if (active) {
+    if (isLoading) {
       area.classList.add("loading");
       let mask = area.querySelector(":scope > .table-loading-mask");
       if (!mask) {
@@ -1220,7 +1295,7 @@ let hardDeleteOnConfirm = null;
 function closeHardDeleteModal(result = false) {
   const backdrop = qs("hardDeleteModalBackdrop");
   if (!backdrop) return;
-  hideModalBackdrop(backdrop, [qs("globalRefreshBtn")]);
+  hideModalBackdrop(backdrop, [qs("workflowGuideBtn")]);
   const resolve = hardDeleteResolve;
   hardDeleteResolve = null;
   hardDeleteOnConfirm = null;
@@ -1337,6 +1412,30 @@ function parseEvidence(evidence) {
   return `<table class="kv-table">${rows}</table>`;
 }
 
+function isVendorAssignmentCleared(row) {
+  const cleared = row?.vendor_assignment_cleared;
+  return cleared === true || String(cleared) === "true";
+}
+
+function getActionQueueAssignedVendorLabel(row) {
+  if (isVendorAssignmentCleared(row)) return "UNASSIGNED";
+  return row?.resolved_vendor_name || "";
+}
+
+function getActionQueueAssignedVendorRate(row) {
+  if (isVendorAssignmentCleared(row)) return null;
+  const rate = row?.resolved_rate;
+  return rate == null || rate === "" ? null : rate;
+}
+
+function renderActionQueueVendorCell(row) {
+  if (isVendorAssignmentCleared(row)) {
+    return '<span class="pill pill-neutral" title="Vendor assignment cleared">UNASSIGNED</span>';
+  }
+  const label = getActionQueueAssignedVendorLabel(row);
+  return esc(label || "-");
+}
+
 function openDetailModal(row) {
   lastFocusedBeforeDetailModal =
     document.activeElement instanceof HTMLElement
@@ -1364,9 +1463,9 @@ function openDetailModal(row) {
   setPillVariant(qs("detailLead"), "pill-neutral");
 
   // flags
-  const hasSelectedF = Boolean(
-    row.has_selected_vendor || row.selected_vendor_id,
-  );
+  const hasSelectedF =
+    !isVendorAssignmentCleared(row) &&
+    Boolean(row.has_selected_vendor || row.selected_vendor_id);
   const hasExcessF = Boolean(row.has_net_excess);
   const mosRiskLowF =
     row.mos_risk_low != null
@@ -1431,21 +1530,28 @@ function openDetailModal(row) {
   const recName =
     row.recommended_vendor_name ??
     (row.recommended_vendor_id ? `ID ${row.recommended_vendor_id}` : null);
-  const vendorPairs = [
-    ["Recommended Vendor", recName ?? row.l1_vendor_name],
-    ["Recommended Rate", row.recommended_rate ?? row.l1_rate_value],
-    [
-      "Selected Vendor",
-      row.selected_vendor_id ? `ID ${row.selected_vendor_id}` : null,
-    ],
-    ["Selected Rate", row.selected_rate],
-    ["Selection Reason", row.selection_reason],
-  ].filter(([, v]) => v !== undefined && v !== null && v !== "");
+  const selName =
+    row.selected_vendor_name ??
+    (row.selected_vendor_id ? `ID ${row.selected_vendor_id}` : null);
+  const vendorPairs = isVendorAssignmentCleared(row)
+    ? [["Resolved Vendor", "UNASSIGNED"]]
+    : [
+        ["Resolved Vendor", row.resolved_vendor_name],
+        ["Resolved Rate", row.resolved_rate],
+        ["Recommended Vendor", recName],
+        ["Recommended Rate", row.recommended_rate],
+        ["Selected Vendor", selName],
+        ["Selected Rate", row.selected_rate],
+        ["Selection Reason", row.selection_reason],
+      ].filter(([, v]) => v !== undefined && v !== null && v !== "");
   qs("detailVendor").innerHTML = toHtmlTableFromPairs(vendorPairs);
 
   const actionHint = qs("detailActionHint");
   if (actionHint) {
-    if (row.selected_vendor_id || row.selected_vendor_name) {
+    if (isVendorAssignmentCleared(row)) {
+      actionHint.textContent =
+        "No vendor is assigned. Use Recommend or Select to assign a vendor.";
+    } else if (row.selected_vendor_id || row.selected_vendor_name) {
       actionHint.textContent =
         "A vendor is already selected for this line. Use Recommend only if you want a fresh suggestion, or Select to change the final choice.";
     } else if (row.recommended_vendor_id || row.recommended_vendor_name) {
@@ -1462,7 +1568,13 @@ function openDetailModal(row) {
 
   const recBtn = qs("btnDetailRecommend");
   const selBtn = qs("btnDetailSelectVendor");
+  const clearBtn = qs("btnDetailClearSelectedVendor");
   const jumpBtn = qs("btnDetailJumpIndent");
+  const hasSelectedVendor = Boolean(
+    row.has_selected_vendor || row.selected_vendor_id,
+  );
+  const canClear = canClearSelectedVendor(row);
+
   if (recBtn) {
     recBtn.disabled = !canWriteModule() || !row.indent_line_id;
     if (!canWriteModule()) recBtn.title = "Read-only access";
@@ -1470,6 +1582,22 @@ function openDetailModal(row) {
   if (selBtn) {
     selBtn.disabled = !canWriteModule() || !row.indent_line_id;
     if (!canWriteModule()) selBtn.title = "Read-only access";
+  }
+  if (clearBtn) {
+    if (!hasSelectedVendor) {
+      clearBtn.style.display = "none";
+      clearBtn.disabled = true;
+    } else {
+      clearBtn.style.display = "";
+      clearBtn.disabled = !canClear;
+      clearBtn.title = canClear
+        ? "Clear Vendor Assignment"
+        : "This indent is not editable.";
+      clearBtn.setAttribute(
+        "aria-label",
+        canClear ? "Clear Vendor Assignment" : "This indent is not editable.",
+      );
+    }
   }
   if (jumpBtn) jumpBtn.disabled = !row.indent_id;
 
@@ -1547,8 +1675,8 @@ function renderRows() {
   tbody.innerHTML = "";
 
   for (const row of state.rows) {
-    const vendorName = row.selected_vendor_name ?? row.l1_vendor_name ?? "-";
-    const vendorRate = row.selected_rate ?? row.l1_rate_value ?? null;
+    const vendorCell = renderActionQueueVendorCell(row);
+    const vendorRate = getActionQueueAssignedVendorRate(row);
 
     const tr = document.createElement("tr");
     tr.style.cursor = "pointer";
@@ -1558,7 +1686,7 @@ function renderRows() {
       <td>${fmt(row.remaining_qty)}</td>
       <td><span class="pill ${priorityBandPillClass(row.priority_band_final)}">${esc(row.priority_band_final ?? "-")}</span></td>
       <td>${fmt(row.priority_score_system)}</td>
-      <td title="${esc(vendorName)}">${esc(vendorName)}</td>
+      <td>${vendorCell}</td>
       <td>${vendorRate != null ? fmt(vendorRate) : "-"}</td>
     `;
 
@@ -1657,6 +1785,19 @@ async function loadActionQueueIndentOptions() {
   return true;
 }
 
+let aqLoadingDepth = 0;
+
+function bumpActionQueueLoading(active, loadingText = "Loading...") {
+  if (active) {
+    aqLoadingDepth += 1;
+    if (aqLoadingDepth === 1) setActionQueueLoading(true, loadingText);
+    return;
+  }
+
+  aqLoadingDepth = Math.max(0, aqLoadingDepth - 1);
+  if (aqLoadingDepth === 0) setActionQueueLoading(false);
+}
+
 function setActionQueueLoading(active, loadingText = "Loading...") {
   const panel = qs("tab-action");
   const searchWrap = qs("fSearch")?.closest(".pec-search-wrap");
@@ -1738,6 +1879,7 @@ async function loadActionQueue(options = {}) {
     ? captureActionQueueSearchFocus()
     : { input: null, focused: false, start: null, end: null };
   const isAppend = Boolean(append && !reset);
+  let bumpedAqLoading = false;
 
   if (reset) {
     aqRows = [];
@@ -1748,14 +1890,16 @@ async function loadActionQueue(options = {}) {
     aqLoadingMore = false;
     aqLoading = true;
     renderRows();
-    setActionQueueLoading(true);
+    bumpedAqLoading = true;
+    bumpActionQueueLoading(true);
   } else if (isAppend) {
     if (aqLoading || aqLoadingMore || !aqHasMore) return;
     aqLoadingMore = true;
     renderRows();
   } else {
     aqLoading = true;
-    setActionQueueLoading(true);
+    bumpedAqLoading = true;
+    bumpActionQueueLoading(true);
   }
 
   try {
@@ -1799,10 +1943,10 @@ async function loadActionQueue(options = {}) {
     renderRows();
     restoreActionQueueSearchFocus(focusSnapshot);
   } finally {
+    if (bumpedAqLoading) bumpActionQueueLoading(false);
     if (requestSeq === aqRequestSeq) {
       aqLoading = false;
       aqLoadingMore = false;
-      setActionQueueLoading(false);
       renderRows();
     }
   }
@@ -1818,6 +1962,132 @@ async function doRecommend(indentLineId) {
     return;
   }
   await loadActionQueue();
+}
+
+function canClearSelectedVendor(row) {
+  if (!row) return false;
+  if (typeof canWriteModule === "function" && !canWriteModule()) return false;
+  const hasSelected = Boolean(row.has_selected_vendor || row.selected_vendor_id);
+  if (!hasSelected) return false;
+  const status = String(row.status || row.indent_status || "").toLowerCase();
+  if (status === "closed" || status === "cancelled") return false;
+  return true;
+}
+
+function mapClearSelectedVendorError(error) {
+  const msg = String(error?.message || error || "").toLowerCase();
+  if (
+    msg.includes("closed") ||
+    msg.includes("cancelled") ||
+    msg.includes("not editable")
+  ) {
+    return "This indent is not editable.";
+  }
+  if (
+    msg.includes("no selected vendor") ||
+    msg.includes("not selected") ||
+    msg.includes("nothing to clear")
+  ) {
+    return "No selected vendor exists for this line.";
+  }
+  return "Could not clear vendor assignment.";
+}
+
+let clearSelectedVendorResolve = null;
+
+function closeClearSelectedVendorModal(result = false) {
+  const backdrop = qs("clearSelectedVendorModalBackdrop");
+  if (!backdrop) return;
+  hideModalBackdrop(backdrop, [qs("btnDetailClearSelectedVendor")]);
+  const resolve = clearSelectedVendorResolve;
+  clearSelectedVendorResolve = null;
+  if (typeof resolve === "function") resolve(result);
+}
+
+function confirmClearSelectedVendor() {
+  const backdrop = qs("clearSelectedVendorModalBackdrop");
+  if (!backdrop) return Promise.resolve(false);
+
+  const messageEl = qs("clearSelectedVendorMessage");
+  if (messageEl) {
+    messageEl.textContent =
+      "Clear vendor assignment for this line? This will make the line unassigned until a vendor is selected or recommended again.";
+  }
+
+  backdrop.classList.add("show");
+  backdrop.setAttribute("aria-hidden", "false");
+  setTimeout(() => qs("btnClearSelectedVendorConfirm")?.focus(), 0);
+
+  return new Promise((resolve) => {
+    clearSelectedVendorResolve = resolve;
+  });
+}
+
+function wireClearSelectedVendorModalControls() {
+  qs("btnClearSelectedVendorClose")?.addEventListener("click", () =>
+    closeClearSelectedVendorModal(false),
+  );
+  qs("btnClearSelectedVendorCancel")?.addEventListener("click", () =>
+    closeClearSelectedVendorModal(false),
+  );
+  qs("btnClearSelectedVendorConfirm")?.addEventListener("click", () =>
+    closeClearSelectedVendorModal(true),
+  );
+  qs("clearSelectedVendorModalBackdrop")?.addEventListener("click", (e) => {
+    if (e.target.id === "clearSelectedVendorModalBackdrop") {
+      closeClearSelectedVendorModal(false);
+    }
+  });
+}
+
+async function afterClearSelectedVendorSaved(indentLineId, indentId) {
+  await loadActionQueue();
+
+  if (typeof loadVendorBuylist === "function" && state.vwl?.loaded) {
+    await reloadVendorBuylist();
+  }
+
+  const openIndentId =
+    state.currentIndentId || state.selectedIndent?.indent_id || null;
+  if (openIndentId && Number(openIndentId) === Number(indentId)) {
+    await loadIndentLines(openIndentId);
+  }
+
+  if (state.selected?.indent_line_id === indentLineId) {
+    const updated = aqRawRows.find(
+      (r) => Number(r.indent_line_id) === Number(indentLineId),
+    );
+    if (updated) openDetailModal(updated);
+  }
+}
+
+async function clearSelectedVendorForRow(row) {
+  if (!canPerformEditAction("Clear vendor assignment")) return;
+  if (!canClearSelectedVendor(row)) {
+    if (row?.has_selected_vendor || row?.selected_vendor_id) {
+      toast("This indent is not editable.", "error");
+    } else {
+      toast("No selected vendor exists for this line.", "error");
+    }
+    return;
+  }
+
+  const confirmed = await confirmClearSelectedVendor();
+  if (!confirmed) return;
+
+  setLoading(true);
+  const { error } = await supabase.rpc("proc_indent_clear_vendor_assignment", {
+    p_indent_line_id: row.indent_line_id,
+  });
+  setLoading(false);
+
+  if (error) {
+    toast(mapClearSelectedVendorError(error), "error");
+    return;
+  }
+
+  toast("Vendor assignment cleared. Line is now unassigned.", "success");
+  await afterClearSelectedVendorSaved(row.indent_line_id, row.indent_id);
 }
 
 function openVendorModal(row) {
@@ -2114,6 +2384,10 @@ function wireActionQueueControls() {
     if (!state.selected) return;
     openVendorModal(state.selected);
   });
+  qs("btnDetailClearSelectedVendor")?.addEventListener("click", async () => {
+    if (!state.selected) return;
+    await clearSelectedVendorForRow(state.selected);
+  });
   qs("btnDetailJumpIndent")?.addEventListener("click", () => {
     if (!state.selected?.indent_id) return;
     closeDetailModal();
@@ -2156,6 +2430,14 @@ function wireActionQueueControls() {
       { id: "stockPickerModalBackdrop", close: closeStockItemPicker },
       { id: "exportIndentModalBackdrop", close: closeExportIndentModal },
       { id: "hardDeleteModalBackdrop", close: () => closeHardDeleteModal(false) },
+      {
+        id: "snapshotRefreshModalBackdrop",
+        close: () => closeSnapshotRefreshModal(false),
+      },
+      {
+        id: "clearSelectedVendorModalBackdrop",
+        close: () => closeClearSelectedVendorModal(false),
+      },
     ];
     for (const m of [...modals].reverse()) {
       if (qs(m.id)?.classList.contains("show")) {
@@ -2167,6 +2449,93 @@ function wireActionQueueControls() {
 }
 
 // ─── INDENT TAB ───────────────────────────────────────────────────────────────
+
+function canAddIndentLine(indent) {
+  if (!indent) return false;
+  if (typeof canWriteModule === "function" && !canWriteModule()) return false;
+  if (indent.source_pr_id) return false;
+  const status = String(indent.status || "").toLowerCase();
+  if (status === "closed" || status === "cancelled") return false;
+  return status === "draft" || status === "approved" || status === "issued";
+}
+
+function getIndentAddLinePrBlockedMessage() {
+  return "Lines for PR-linked indents must be changed through PR revision/resync.";
+}
+
+function getIndentMaterialClassPickerFilter(materialClassId) {
+  const id = Number(materialClassId);
+  if (id === 1) return { column: "is_rm", value: true };
+  if (id === 2) return { column: "is_plm", value: true };
+  if (id === 5) return { column: "is_ind", value: true };
+  return null;
+}
+
+function materialClassIdFromCategoryCode(categoryCode) {
+  const code = String(categoryCode || "").trim().toUpperCase();
+  if (code === "RM") return 1;
+  if (code === "PM" || code === "PLM") return 2;
+  if (code === "IND") return 5;
+  return null;
+}
+
+function mapIndentLineSaveError(error) {
+  const msg = String(error?.message || error || "").toLowerCase();
+  const code = String(error?.code || "");
+
+  if (
+    code === "23505" ||
+    msg.includes("duplicate") ||
+    msg.includes("already exists")
+  ) {
+    return "This item already exists in the indent. Edit the existing line instead.";
+  }
+  if (
+    msg.includes("quantity") &&
+    (msg.includes("<= 0") ||
+      msg.includes("greater than zero") ||
+      msg.includes("must be >"))
+  ) {
+    return "Requested quantity must be greater than zero.";
+  }
+  if (
+    msg.includes("pr-linked") ||
+    msg.includes("linked to a pr") ||
+    (msg.includes("source_pr") && msg.includes("pr"))
+  ) {
+    return "This indent is linked to a PR. Update the PR and resync instead.";
+  }
+  if (msg.includes("inactive") && msg.includes("stock")) {
+    return "This stock item is inactive and cannot be added.";
+  }
+  if (
+    code === "23503" ||
+    msg.includes("foreign key") ||
+    msg.includes("violates foreign key")
+  ) {
+    return "Selected item or UOM is invalid. Please reselect.";
+  }
+
+  return error?.message || "Failed to save indent line.";
+}
+
+async function afterIndentLineSaved(indentId) {
+  await loadIndentLines(indentId);
+  await loadIndents();
+  const updated = state.indentsRows.find(
+    (row) => Number(row.indent_id) === Number(indentId),
+  );
+  if (updated) {
+    state.selectedIndent = updated;
+    renderIndentModalHeader(updated);
+  }
+  if (typeof loadActionQueue === "function") {
+    await loadActionQueue();
+  }
+  if (typeof loadVendorBuylist === "function" && state.vwl?.loaded) {
+    await loadVendorBuylist();
+  }
+}
 
 function setIndentSourcePrBadge(indentRow) {
   const el = qs("indentSourcePrBadge");
@@ -2222,14 +2591,20 @@ function renderIndentModalHeader(indent) {
   setIndentSourcePrBadge(indent);
 
   const hints = {
-    draft: "Draft — use PR revision and Resync for quantity corrections.",
+    draft: indent.source_pr_id
+      ? "Draft — use PR revision and Resync for quantity corrections."
+      : "Draft manual indent — add lines here, then Approve.",
     approved: "Approved — recommend/accept vendors, then issue to purchase.",
     issued:
       "Issued — fulfilment is in progress. Unselected lines can still be assigned vendors.",
     closed: "Closed — read-only.",
     cancelled: "Cancelled — read-only.",
   };
-  qs("indentViewHint").textContent = hints[indent.status] ?? "";
+  let hint = hints[indent.status] ?? "";
+  if (indent.source_pr_id && indent.status !== "closed" && indent.status !== "cancelled") {
+    hint = `${hint} ${getIndentAddLinePrBlockedMessage()}`.trim();
+  }
+  qs("indentViewHint").textContent = hint;
   const deleteBtn = qs("btnIndentDeleteDraft");
   if (deleteBtn)
     deleteBtn.style.display = indent.status === "draft" ? "" : "none";
@@ -2727,7 +3102,33 @@ function renderIndentLinesActions(indent) {
   const btnAddLine = qs("iBtnAddLine");
   const btnEditQty = qs("iBtnEditLineQty");
   const isDraft = indent?.status === "draft";
-  if (btnAddLine) btnAddLine.style.display = isDraft ? "none" : "";
+  const canAdd = canAddIndentLine(indent);
+  const isPrLinked = !!indent?.source_pr_id;
+  const blockedMsg = getIndentAddLinePrBlockedMessage();
+
+  if (btnAddLine) {
+    if (canAdd) {
+      btnAddLine.style.display = "";
+      btnAddLine.disabled = false;
+      btnAddLine.title = "Add Line";
+      btnAddLine.setAttribute("aria-label", "Add Line");
+    } else if (
+      isPrLinked &&
+      indent?.status !== "closed" &&
+      indent?.status !== "cancelled"
+    ) {
+      btnAddLine.style.display = "";
+      btnAddLine.disabled = true;
+      btnAddLine.title = blockedMsg;
+      btnAddLine.setAttribute("aria-label", blockedMsg);
+    } else {
+      btnAddLine.style.display = "none";
+      btnAddLine.disabled = false;
+      btnAddLine.title = "Add Line";
+      btnAddLine.setAttribute("aria-label", "Add Line");
+    }
+  }
+
   if (btnEditQty) {
     btnEditQty.style.display = isDraft ? "none" : "";
     btnEditQty.disabled = !state.selectedIndentLine || isDraft;
@@ -3251,18 +3652,16 @@ async function confirmIndentAction() {
   }
 }
 
-function parsePriorityCountFromSnapshotMessage(message) {
-  const text = String(message || "");
-  const match = text.match(/priority_count=([0-9]+)/i);
-  return match ? Number(match[1]) : null;
+function getSnapshotStageCount(statusRow, stageCode) {
+  const stages = Array.isArray(statusRow?.stages) ? statusRow.stages : [];
+  const stage = stages.find((s) => s.stage_code === stageCode);
+  return stage?.row_count ?? null;
 }
 
-function formatSnapshotRefreshToast(row) {
-  const vendorCount = row?.vendor_candidate_count;
-  const balanceCount = row?.indent_balance_count;
-  const priorityCount =
-    row?.priority_count ??
-    parsePriorityCountFromSnapshotMessage(row?.message);
+function formatStagedSnapshotRefreshToast(statusRow) {
+  const vendorCount = getSnapshotStageCount(statusRow, "01_VENDOR_CANDIDATES");
+  const balanceCount = getSnapshotStageCount(statusRow, "02_INDENT_BALANCES");
+  const priorityCount = getSnapshotStageCount(statusRow, "03_PRIORITY_SNAPSHOT");
 
   const parts = [];
 
@@ -3282,11 +3681,200 @@ function formatSnapshotRefreshToast(row) {
     parts.push(`Priorities: ${Number(priorityCount).toLocaleString("en-IN")}`);
   }
 
-  if (!parts.length) {
-    return row?.message || "Procurement snapshots refreshed.";
+  return parts.length
+    ? `Procurement snapshots refreshed. ${parts.join(". ")}.`
+    : "Procurement snapshots refreshed.";
+}
+
+async function getSnapshotRefreshStatus(runId) {
+  const { data, error } = await supabase.rpc(
+    "proc_get_snapshot_refresh_status",
+    {
+      p_run_id: runId,
+    },
+  );
+
+  if (error) throw error;
+
+  return Array.isArray(data) ? data[0] : data;
+}
+
+async function processSnapshotRefreshUntilDone(runId, onStatus) {
+  const maxAttempts = 12;
+
+  for (let i = 0; i < maxAttempts; i += 1) {
+    const { error: processError } = await supabase.rpc(
+      "proc_process_snapshot_refresh_next_stage",
+    );
+
+    if (processError) throw processError;
+
+    const statusRow = await getSnapshotRefreshStatus(runId);
+
+    if (typeof onStatus === "function") onStatus(statusRow);
+
+    if (statusRow?.status === "SUCCESS") {
+      return statusRow;
+    }
+
+    if (statusRow?.status === "FAILED") {
+      const err = new Error(statusRow?.message || "Snapshot refresh failed.");
+      err.statusRow = statusRow;
+      throw err;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 600));
   }
 
-  return `Procurement snapshots refreshed. ${parts.join(". ")}.`;
+  throw new Error(
+    "Snapshot refresh is still running. Please check status after a few seconds.",
+  );
+}
+
+function showProcSnapshotRefreshOverlay() {
+  const overlay = qs("procSnapshotRefreshOverlay");
+  if (!overlay) return;
+  overlay.hidden = false;
+  overlay.classList.add("is-visible");
+}
+
+function hideProcSnapshotRefreshOverlay() {
+  const overlay = qs("procSnapshotRefreshOverlay");
+  if (!overlay) return;
+  overlay.classList.remove("is-visible");
+  overlay.hidden = true;
+}
+
+function renderProcSnapshotRefreshStages(statusRow) {
+  const wrap = qs("procSnapshotRefreshStages");
+  const msg = qs("procSnapshotRefreshMessage");
+  if (!wrap) return;
+
+  const stages = Array.isArray(statusRow?.stages) ? statusRow.stages : [];
+
+  const fallbackStages = [
+    {
+      stage_code: "01_VENDOR_CANDIDATES",
+      stage_label: "Refresh vendor candidate snapshot",
+      status: "PENDING",
+    },
+    {
+      stage_code: "02_INDENT_BALANCES",
+      stage_label: "Refresh indent line balance snapshot",
+      status: "PENDING",
+    },
+    {
+      stage_code: "03_PRIORITY_SNAPSHOT",
+      stage_label: "Refresh indent line priority snapshot",
+      status: "PENDING",
+    },
+    {
+      stage_code: "04_FINAL_STATUS_CHECK",
+      stage_label: "Final snapshot status check",
+      status: "PENDING",
+    },
+  ];
+
+  const rows = stages.length ? stages : fallbackStages;
+
+  wrap.innerHTML = rows
+    .map((stage) => {
+      const status = String(stage.status || "PENDING").toUpperCase();
+      const count =
+        stage.row_count == null
+          ? ""
+          : `${Number(stage.row_count).toLocaleString("en-IN")} rows`;
+
+      const detail = count || stage.message || "";
+
+      return `
+        <div class="pec-refresh-stage" data-status="${esc(status)}">
+          <div class="pec-refresh-stage-main">
+            <span class="pec-refresh-stage-label">${esc(stage.stage_label || stage.stage_code || "")}</span>
+            <span class="pec-refresh-stage-detail">${esc(detail)}</span>
+          </div>
+          <span class="pec-refresh-stage-pill">${esc(status)}</span>
+        </div>
+      `;
+    })
+    .join("");
+
+  if (msg) {
+    msg.textContent = statusRow?.message || "Refresh is running...";
+  }
+}
+
+let snapshotRefreshResolve = null;
+
+function closeSnapshotRefreshModal(result = false) {
+  const backdrop = qs("snapshotRefreshModalBackdrop");
+  if (!backdrop) return;
+  hideModalBackdrop(backdrop, [qs("btnRefreshProcurementSnapshots")]);
+  const resolve = snapshotRefreshResolve;
+  snapshotRefreshResolve = null;
+  if (typeof resolve === "function") resolve(result);
+}
+
+function confirmSnapshotRefresh() {
+  const backdrop = qs("snapshotRefreshModalBackdrop");
+  if (!backdrop) return Promise.resolve(false);
+
+  backdrop.classList.add("show");
+  backdrop.setAttribute("aria-hidden", "false");
+  setTimeout(() => qs("btnSnapshotRefreshConfirm")?.focus(), 0);
+
+  return new Promise((resolve) => {
+    snapshotRefreshResolve = resolve;
+  });
+}
+
+function setProcSnapshotRefreshBusy(isBusy) {
+  const btn = document.getElementById("btnRefreshProcurementSnapshots");
+  if (!btn) return;
+
+  btn.dataset.busy = isBusy ? "true" : "false";
+
+  const canEdit =
+    typeof canWriteModule === "function" ? canWriteModule() : true;
+
+  btn.disabled = Boolean(isBusy) || !canEdit;
+
+  btn.setAttribute("aria-busy", isBusy ? "true" : "false");
+}
+
+function unlockProcurementUiAfterSnapshotRefresh() {
+  setProcSnapshotRefreshBusy(false);
+  ["action", "pr", "indents", "vendor-buylist", "excess"].forEach(
+    resetTabPanelLoadingState,
+  );
+  aqLoadingDepth = 0;
+  setActionQueueLoading(false);
+  document.querySelectorAll(".pec-search-wrap.is-searching").forEach((wrap) => {
+    wrap.classList.remove("is-searching");
+  });
+}
+
+async function reloadTabsAfterSnapshotRefresh(activeTab = state.tab) {
+  const loaders = {
+    action: () => loadActionQueue({ refreshIndentOptions: false }),
+    pr: () => loadPrHeaders(),
+    indents: () => loadIndents(),
+    "vendor-buylist": () => loadVendorBuylist(),
+  };
+
+  const snapshotTabs = ["action", "indents", "vendor-buylist"];
+  const ordered = [
+    ...(loaders[activeTab] ? [activeTab] : []),
+    ...snapshotTabs.filter((tab) => tab !== activeTab),
+  ];
+
+  for (const tab of ordered) {
+    try {
+      await loaders[tab]();
+    } catch (err) {
+      console.warn(`Post-snapshot reload failed for ${tab}`, err);
+    }
+  }
 }
 
 async function refreshProcurementSnapshotsManually() {
@@ -3294,68 +3882,104 @@ async function refreshProcurementSnapshotsManually() {
 
   const btn = document.getElementById("btnRefreshProcurementSnapshots");
 
-  const ok = window.confirm(
-    "Refresh procurement snapshots now?\n\nThis updates vendor candidates, indent balances, and priority labels used by Action Queue and vendor recommendation.",
-  );
+  // Guard against a duplicate click while a refresh is already running.
+  if (btn?.dataset.busy === "true") return;
 
+  const ok = await confirmSnapshotRefresh();
   if (!ok) return;
 
   try {
-    if (btn) btn.disabled = true;
+    setProcSnapshotRefreshBusy(true);
 
-    showLoadingMask("Refreshing procurement snapshots...");
+    showProcSnapshotRefreshOverlay();
+    renderProcSnapshotRefreshStages(null);
 
     const { data, error } = await supabase.rpc(
-      "proc_refresh_procurement_execution_snapshots",
+      "proc_request_snapshot_refresh",
       {
-        p_indent_id: null,
-        p_refresh_vendor_candidates: true,
-        p_refresh_indent_balance: true,
+        p_request_source: "manual_ui",
       },
     );
 
     if (error) throw error;
 
-    const row = Array.isArray(data) ? data[0] : data;
+    const requestRow = Array.isArray(data) ? data[0] : data;
+    const runId = requestRow?.run_id;
 
-    if (!row?.success) {
-      const msg =
-        row?.message ||
-        "Snapshot refresh did not complete. Another refresh may already be running.";
-
-      toast(msg, "info");
-      return;
+    if (!runId) {
+      throw new Error("Refresh request did not return a run_id.");
     }
 
-    toast(formatSnapshotRefreshToast(row), "success");
+    const initialStatus = await getSnapshotRefreshStatus(runId);
+    renderProcSnapshotRefreshStages(initialStatus);
 
-    if (typeof loadActionQueue === "function") {
-      await loadActionQueue();
-    }
+    const statusRow = await processSnapshotRefreshUntilDone(
+      runId,
+      renderProcSnapshotRefreshStages,
+    );
 
-    if (typeof loadIndents === "function") {
-      await loadIndents();
-    }
+    renderProcSnapshotRefreshStages(statusRow);
+    toast(formatStagedSnapshotRefreshToast(statusRow), "success");
 
-    if (typeof loadVendorBuylist === "function") {
-      await loadVendorBuylist();
-    }
+    hideProcSnapshotRefreshOverlay();
+    unlockProcurementUiAfterSnapshotRefresh();
+
+    void reloadTabsAfterSnapshotRefresh(state.tab).catch((reloadErr) => {
+      console.warn(
+        "Snapshot refresh succeeded but post-refresh reload failed",
+        reloadErr,
+      );
+      toast(
+        "Snapshots refreshed, but one or more sections could not reload automatically.",
+        "info",
+      );
+    });
   } catch (err) {
-    console.error("Snapshot refresh failed", err);
+    console.error("Staged snapshot refresh failed", err);
 
     const msg =
       err?.message ||
-      "Snapshot refresh failed. Check console and server logs.";
+      "Snapshot refresh failed. Check server status and console.";
+
+    // Keep overlay visible so the user can see which stage failed.
+    if (err?.statusRow) {
+      renderProcSnapshotRefreshStages(err.statusRow);
+    }
+    const msgEl = qs("procSnapshotRefreshMessage");
+    if (msgEl) msgEl.textContent = msg;
 
     toast(msg, "error");
   } finally {
-    hideLoadingMask();
-
-    if (btn) btn.disabled = false;
+    unlockProcurementUiAfterSnapshotRefresh();
   }
 }
 
+function wireSnapshotRefreshModalControls() {
+  qs("btnSnapshotRefreshClose")?.addEventListener("click", () =>
+    closeSnapshotRefreshModal(false),
+  );
+  qs("btnSnapshotRefreshCancel")?.addEventListener("click", () =>
+    closeSnapshotRefreshModal(false),
+  );
+  qs("btnSnapshotRefreshConfirm")?.addEventListener("click", () =>
+    closeSnapshotRefreshModal(true),
+  );
+  qs("snapshotRefreshModalBackdrop")?.addEventListener("click", (e) => {
+    if (e.target.id === "snapshotRefreshModalBackdrop") {
+      closeSnapshotRefreshModal(false);
+    }
+  });
+
+  qs("procSnapshotRefreshOverlay")?.addEventListener("click", (e) => {
+    if (e.target.id === "procSnapshotRefreshOverlay") {
+      hideProcSnapshotRefreshOverlay();
+    }
+  });
+}
+
 function wireProcurementSnapshotRefreshButton() {
+  wireSnapshotRefreshModalControls();
+
   const btn = document.getElementById("btnRefreshProcurementSnapshots");
   if (!btn) return;
 
@@ -3486,11 +4110,12 @@ function wireIndentControls() {
       toast("Select an indent first.", "error");
       return;
     }
-    if (state.selectedIndent.status === "draft") {
-      toast(
-        "Draft indent lines are managed via PR revision + resync.",
-        "error",
-      );
+    if (!canAddIndentLine(state.selectedIndent)) {
+      if (state.selectedIndent.source_pr_id) {
+        toast(getIndentAddLinePrBlockedMessage(), "error");
+      } else {
+        toast("This indent cannot accept new lines in its current status.", "error");
+      }
       return;
     }
     openIndentAddLineModal(null);
@@ -3688,42 +4313,7 @@ function closeWorkflowGuideModal() {
   hideModalBackdrop(bd, [qs("workflowGuideBtn")]);
 }
 
-async function refreshAllTabsData() {
-  const btn = qs("globalRefreshBtn");
-  if (btn) btn.disabled = true;
-  try {
-    await loadActionQueue();
-    await loadPrHeaders();
-    await loadIndents();
-    await loadExcess();
-    if (qs("eAuditModalBackdrop")?.classList.contains("show")) {
-      await loadExcessAuditPaged();
-    }
-    if (state.vwl.loaded) await loadVendorBuylist();
-
-    if (state.selectedIndent?.indent_id) {
-      await loadIndentLines(state.selectedIndent.indent_id);
-    }
-    // if (
-    //   state.selectedPr?.pr_id &&
-    //   qs("prViewModalBackdrop")?.classList.contains("show")
-    // ) {
-    //   await loadPrLines(state.selectedPr.pr_id);
-    // }
-
-    await refreshAllTabCounts();
-    updateExportButtonStates();
-    toast("All tabs refreshed.", "success");
-  } catch (err) {
-    console.error("Global refresh failed:", err);
-    toast("Global refresh failed. Check console/logs.", "error");
-  } finally {
-    if (btn) btn.disabled = false;
-  }
-}
-
 function wireGlobalHeaderControls() {
-  qs("globalRefreshBtn")?.addEventListener("click", refreshAllTabsData);
   qs("workflowGuideBtn")?.addEventListener("click", openWorkflowGuideModal);
   qs("btnWorkflowGuideClose")?.addEventListener(
     "click",
@@ -4773,16 +5363,47 @@ function wireAddIndentLineItemSearch() {
   }
 
   async function selectItem(item) {
+    if (!item.default_uom_id) {
+      toast("This stock item has no default UOM and cannot be added.", "error");
+      return;
+    }
+
     backdrop.dataset.stockItemId = String(item.stock_item_id);
-    backdrop.dataset.uomId = String(item.default_uom_id ?? "");
-    input.value = `${item.code} — ${item.name}`;
+    backdrop.dataset.uomId = String(item.default_uom_id);
+    backdrop.dataset.uomCode = item.default_uom_code || "";
+
+    const code = item.stock_item_code ?? "";
+    const name = item.stock_item_name ?? "";
+    input.value = code ? `${code} — ${name}` : name;
+
     currentItems = [];
     highlighted = -1;
     results.innerHTML = "";
     results.classList.remove("show");
     input.setAttribute("aria-expanded", "false");
-    qs("ialUomText").textContent = await fetchUomCode(item.default_uom_id);
-    qs("ialMaterialClass").disabled = true;
+
+    qs("ialUomText").textContent =
+      item.default_uom_code ||
+      (await fetchUomCode(item.default_uom_id));
+
+    const indentClass = state.selectedIndent?.material_class_id ?? null;
+    const selectedClass = qs("ialMaterialClass").value || "";
+    const materialClassId =
+      indentClass ||
+      (selectedClass ? Number(selectedClass) : null) ||
+      materialClassIdFromCategoryCode(item.category_code);
+
+    if (materialClassId) {
+      backdrop.dataset.materialClassId = String(materialClassId);
+      if (!indentClass && selectedClass) {
+        qs("ialMaterialClass").value = String(materialClassId);
+      }
+    }
+
+    if (indentClass || selectedClass || materialClassId) {
+      qs("ialMaterialClass").disabled = true;
+    }
+
     if (helper) helper.textContent = "Item selected, UOM auto-filled.";
   }
 
@@ -4796,17 +5417,32 @@ function wireAddIndentLineItemSearch() {
       input.setAttribute("aria-expanded", "false");
       return;
     }
-    const classVal = qs("ialMaterialClass").value || null;
+
+    const indentClass = state.selectedIndent?.material_class_id ?? null;
+    const classVal = indentClass || qs("ialMaterialClass").value || null;
+    if (!classVal) {
+      results.innerHTML = "";
+      const li = document.createElement("li");
+      li.className = "no-results";
+      li.textContent = "Select a material class first.";
+      results.appendChild(li);
+      results.classList.add("show");
+      input.setAttribute("aria-expanded", "true");
+      return;
+    }
+
     let req = supabase
-      .from("v_inv_stock_item_with_class")
+      .from("v_stock_item_picker")
       .select(
-        "stock_item_id,code,name,default_uom_id,category_code,category_id",
+        "stock_item_id,stock_item_code,stock_item_name,default_uom_id,default_uom_code,category_code,is_rm,is_plm,is_ind",
       )
       .eq("active", true)
-      .or(`name.ilike.%${q}%,code.ilike.%${q}%`)
-      .order("name", { ascending: true })
+      .or(`stock_item_name.ilike.%${q}%,stock_item_code.ilike.%${q}%`)
+      .order("stock_item_name", { ascending: true })
       .limit(50);
-    if (classVal) req = req.eq("category_id", Number(classVal));
+
+    const classFilter = getIndentMaterialClassPickerFilter(classVal);
+    if (classFilter) req = req.eq(classFilter.column, classFilter.value);
 
     const { data, error } = await req;
     results.innerHTML = "";
@@ -4831,11 +5467,11 @@ function wireAddIndentLineItemSearch() {
     }
     currentItems = rows;
     rows.forEach((item, idx) => {
-      const classLabel = item.category_code ?? String(item.category_id ?? "");
+      const classLabel = item.category_code ?? "";
       const li = document.createElement("li");
       li.setAttribute("role", "option");
       li.dataset.idx = String(idx);
-      li.innerHTML = `<b>${esc(item.code ?? "")}</b> — ${esc(item.name ?? "")} <span style="opacity:0.5;font-size:11px">${esc(classLabel)}</span>`;
+      li.innerHTML = `<b>${esc(item.stock_item_code ?? "")}</b> — ${esc(item.stock_item_name ?? "")} <span style="opacity:0.5;font-size:11px">${esc(classLabel)}</span>`;
       li.addEventListener("mousedown", (e) => {
         e.preventDefault();
         selectItem(item);
@@ -4851,6 +5487,8 @@ function wireAddIndentLineItemSearch() {
     clearTimeout(timer);
     backdrop.dataset.stockItemId = "";
     backdrop.dataset.uomId = "";
+    backdrop.dataset.uomCode = "";
+    backdrop.dataset.materialClassId = "";
     qs("ialUomText").textContent = "—";
     if (helper) helper.textContent = "Type to search and pick a stock item.";
     timer = setTimeout(() => doSearch(e.target.value), 250);
@@ -4896,6 +5534,8 @@ function wireAddIndentLineItemSearch() {
     if (input.disabled) return;
     backdrop.dataset.stockItemId = "";
     backdrop.dataset.uomId = "";
+    backdrop.dataset.uomCode = "";
+    backdrop.dataset.materialClassId = "";
     input.value = "";
     currentItems = [];
     highlighted = -1;
@@ -4923,6 +5563,15 @@ function openIndentAddLineModal(existingLine) {
   if (!canPerformEditAction(existingLine ? "Edit indent line" : "Add indent line")) return;
   const backdrop = qs("indentAddLineModalBackdrop");
   const indent = state.selectedIndent;
+  if (!existingLine && !canAddIndentLine(indent)) {
+    if (indent?.source_pr_id) {
+      toast(getIndentAddLinePrBlockedMessage(), "error");
+    } else {
+      toast("This indent cannot accept new lines in its current status.", "error");
+    }
+    return;
+  }
+
   const itemInput = qs("ialItemSearch");
   const itemResults = qs("ialItemResults");
   const itemHelper = qs("ialItemHelper");
@@ -4940,14 +5589,18 @@ function openIndentAddLineModal(existingLine) {
   if (indentClass) {
     classRow.style.display = "none";
     classSelect.value = String(indentClass);
+    classSelect.disabled = true;
   } else {
     classRow.style.display = "";
     classSelect.value = "";
+    classSelect.disabled = false;
   }
 
   // Reset state
   backdrop.dataset.stockItemId = "";
   backdrop.dataset.uomId = "";
+  backdrop.dataset.uomCode = "";
+  backdrop.dataset.materialClassId = "";
   backdrop.dataset.existingLineId = "";
   itemInput.value = "";
   itemInput.disabled = false;
@@ -4957,18 +5610,28 @@ function openIndentAddLineModal(existingLine) {
   qs("ialUomText").textContent = "—";
   qs("ialQty").value = "";
   qs("ialReason").value = "";
-  qs("ialMaterialClass").disabled = false;
   if (itemHelper)
-    itemHelper.textContent = "Type to search and pick a stock item.";
+    itemHelper.textContent = indentClass
+      ? "Type to search and pick a stock item."
+      : "Select material class, then search for a stock item.";
 
   if (existingLine) {
     // In edit mode: lock item, only allow qty change
     backdrop.dataset.stockItemId = String(existingLine.stock_item_id ?? "");
     backdrop.dataset.uomId = String(existingLine.uom_id ?? "");
+    backdrop.dataset.uomCode = existingLine.uom_code ?? "";
+    backdrop.dataset.materialClassId = String(
+      existingLine.material_class_id ??
+        indent?.material_class_id ??
+        materialClassIdFromCategoryCode(existingLine.material_class_code) ??
+        "",
+    );
     backdrop.dataset.existingLineId = String(existingLine.indent_line_id ?? "");
-    itemInput.value = existingLine.stock_item_name
-      ? `${existingLine.stock_item_name}`
-      : `Item #${existingLine.stock_item_id}`;
+    const itemCode = existingLine.stock_item_code ?? existingLine.code ?? "";
+    const itemName = existingLine.stock_item_name ?? "";
+    itemInput.value = itemCode
+      ? `${itemCode} — ${itemName}`
+      : itemName || `Item #${existingLine.stock_item_id}`;
     itemInput.disabled = true;
     itemInput.setAttribute("aria-expanded", "false");
     qs("ialUomText").textContent = existingLine.uom_code ?? "—";
@@ -4996,6 +5659,15 @@ async function saveIndentAddLine() {
     toast("No indent selected.", "error");
     return;
   }
+  if (!canAddIndentLine(state.selectedIndent)) {
+    if (state.selectedIndent.source_pr_id) {
+      toast(getIndentAddLinePrBlockedMessage(), "error");
+    } else {
+      toast("This indent cannot accept new lines in its current status.", "error");
+    }
+    return;
+  }
+
   const backdrop = qs("indentAddLineModalBackdrop");
   const indentId = state.selectedIndent.indent_id;
   const stockItemId = Number(backdrop.dataset.stockItemId || "0");
@@ -5003,14 +5675,18 @@ async function saveIndentAddLine() {
   const qty = Number((qs("ialQty").value || "").trim());
   const reason = (qs("ialReason").value || "").trim() || null;
 
-  // Derive material class: from indent or from selector
   const indentClass = state.selectedIndent.material_class_id ?? null;
-  const materialClassId = indentClass
-    ? Number(indentClass)
-    : qs("ialMaterialClass").value
-      ? Number(qs("ialMaterialClass").value)
-      : null;
+  const materialClassId = Number(
+    indentClass ||
+      backdrop.dataset.materialClassId ||
+      qs("ialMaterialClass").value ||
+      0,
+  );
 
+  if (!materialClassId) {
+    toast("Material class is required.", "error");
+    return;
+  }
   if (!stockItemId) {
     toast("Select a stock item.", "error");
     return;
@@ -5020,7 +5696,7 @@ async function saveIndentAddLine() {
     return;
   }
   if (!qty || qty <= 0) {
-    toast("Enter a valid requested qty.", "error");
+    toast("Requested quantity must be greater than zero.", "error");
     return;
   }
   const needsReason =
@@ -5042,15 +5718,15 @@ async function saveIndentAddLine() {
   });
   setLoading(false);
   if (error) {
-    toast(`Save failed: ${error.message}`, "error");
+    toast(mapIndentLineSaveError(error), "error");
     return;
   }
-  toast("Line saved.", "success");
+  toast("Line added to indent.", "success");
   closeIndentAddLineModal();
   state.selectedIndentLine = null;
   const btnEditQty = qs("iBtnEditLineQty");
   if (btnEditQty) btnEditQty.disabled = true;
-  await loadIndentLines(indentId);
+  await afterIndentLineSaved(indentId);
 }
 
 // ─── PR TAB ───────────────────────────────────────────────────────────────────
@@ -8024,7 +8700,6 @@ function wireVendorBuylistControls() {
   ensureIconBtnA11y("btnExportPdf", "Export PDF");
   ensureIconBtnA11y("btnExportTsv", "Export TSV");
   ensureIconBtnA11y("btnExportCsv", "Export CSV");
-  ensureIconBtnA11y("globalRefreshBtn", "Refresh All Tabs");
   ensureIconBtnA11y("btnRefreshProcurementSnapshots", "Refresh procurement snapshots");
   ensureIconBtnA11y("prBtnPrev", "Previous page");
   ensureIconBtnA11y("prBtnNext", "Next page");
@@ -8052,6 +8727,7 @@ function wireVendorBuylistControls() {
   wireExcessControls();
   wirePrControls();
   wireHardDeleteControls();
+  wireClearSelectedVendorModalControls();
   setTab(state.tab);
   updateExportButtonStates();
   refreshAllTabCounts();

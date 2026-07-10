@@ -89,6 +89,12 @@
         color: inherit;
         cursor: pointer;
       }
+      .icon-btn.costing-refresh-dirty {
+        border-color: #d97706;
+        color: #b45309;
+        background: #fffbeb;
+        box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.18);
+      }
       .icon-btn:hover {
         background: #f3f4f6;
       }
@@ -1123,6 +1129,48 @@
       }
       .cp-kv dd {
         overflow-wrap: anywhere;
+      }
+      .manual-rate-evidence-strip .cp-kv {
+        row-gap: 6px;
+        column-gap: 12px;
+        align-items: baseline;
+        min-width: 0;
+      }
+      .manual-rate-evidence-strip .cp-kv dt {
+        font-size: 11px;
+        line-height: 1.3;
+        font-weight: 400;
+        min-width: 0;
+      }
+      .manual-rate-evidence-strip .cp-kv dd {
+        font-size: 12.5px;
+        line-height: 1.3;
+        font-weight: 500;
+        min-width: 0;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+      #manualRateEditModal .cp-summary-strip {
+        gap: 8px;
+      }
+      #manualRateEditModal .cp-summary-strip .cp-card {
+        min-width: 0;
+        padding: 8px 10px;
+      }
+      #manualRateEditModal .cp-summary-strip .cp-card-value {
+        font-size: 13px;
+        line-height: 1.3;
+        font-weight: 500;
+        min-width: 0;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+      #manualRateEditModal .scheme-policy-sku-card .cp-card-value {
+        font-size: 13px;
+        overflow-wrap: anywhere;
+        word-break: break-word;
       }
       .cp-detail-panel {
         display: flex;
@@ -3792,6 +3840,36 @@
             </div>
           </div>
 
+          <div
+            id="manualRateEvidenceStrip"
+            class="manual-rate-evidence-strip"
+            style="margin-top: 10px; margin-bottom: 10px"
+          >
+            <div class="cp-card-label" style="margin-bottom: 8px">Rate Evidence</div>
+            <dl class="cp-kv">
+              <dt class="cp-muted-text">Current selected rate</dt>
+              <dd id="manualRateEvidenceSelectedRate">—</dd>
+              <dt class="cp-muted-text">Selected rate source</dt>
+              <dd id="manualRateEvidenceSelectedSource">—</dd>
+              <dt class="cp-muted-text">Selected rate date</dt>
+              <dd id="manualRateEvidenceSelectedDate">—</dd>
+              <dt class="cp-muted-text">Latest purchase rate</dt>
+              <dd id="manualRateEvidenceLatestPurchaseRate">—</dd>
+              <dt class="cp-muted-text">Latest purchase date</dt>
+              <dd id="manualRateEvidenceLatestPurchaseDate">—</dd>
+              <dt class="cp-muted-text">Active manual rate</dt>
+              <dd id="manualRateEvidenceActiveManualRate">—</dd>
+              <dt class="cp-muted-text">Manual rate status</dt>
+              <dd id="manualRateEvidenceManualRateStatus">—</dd>
+              <dt class="cp-muted-text">Newer purchase available</dt>
+              <dd id="manualRateEvidenceNewerPurchase">—</dd>
+              <dt class="cp-muted-text">Manual overrides purchase</dt>
+              <dd id="manualRateEvidenceOverrideFlag">—</dd>
+              <dt class="cp-muted-text">Affected SKUs</dt>
+              <dd id="manualRateEvidenceAffectedSkuCount">—</dd>
+            </dl>
+          </div>
+
           <div class="sign-grid">
             <label>
               Manual Rate
@@ -3810,11 +3888,11 @@
             </label>
 
             <label style="grid-column: 1 / -1">
-              Reason / Approval Reference
+              Reason / authority reference
               <input
                 id="manualRateReason"
                 type="text"
-                placeholder="Example: Approved by GM Production as per note dated ..."
+                placeholder="Quote/vendor reference/internal standard basis for this manual rate"
               />
             </label>
           </div>

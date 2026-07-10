@@ -1595,6 +1595,121 @@
         opacity: 0.45;
         cursor: not-allowed;
       }
+
+      /* ── Procurement snapshot refresh overlay ── */
+      .pec-refresh-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: rgba(15, 23, 42, 0.35);
+        backdrop-filter: blur(2px);
+      }
+      .pec-refresh-overlay[hidden] {
+        display: none;
+      }
+      .pec-refresh-card {
+        width: 100%;
+        max-width: 460px;
+        max-height: 90%;
+        overflow-y: auto;
+        background: var(--panel-bg, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 12px;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+        padding: 18px 20px;
+        box-sizing: border-box;
+      }
+      .pec-refresh-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--primary, #005a8d);
+        margin-bottom: 4px;
+      }
+      .pec-refresh-subtitle {
+        font-size: 12.5px;
+        color: var(--muted, #6b7280);
+        margin-bottom: 14px;
+      }
+      .pec-refresh-stages {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .pec-refresh-stage {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 9px 11px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: var(--card-bg, rgba(148, 163, 184, 0.06));
+      }
+      .pec-refresh-stage-main {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+      }
+      .pec-refresh-stage-label {
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--text-color, #374151);
+      }
+      .pec-refresh-stage-detail {
+        font-size: 11px;
+        color: var(--muted, #6b7280);
+      }
+      .pec-refresh-stage-pill {
+        flex-shrink: 0;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        padding: 3px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--border, #e5e7eb);
+        color: var(--muted, #6b7280);
+        background: var(--panel-bg, #fff);
+      }
+      .pec-refresh-stage[data-status="RUNNING"] {
+        border-color: rgba(37, 99, 235, 0.4);
+      }
+      .pec-refresh-stage[data-status="RUNNING"] .pec-refresh-stage-pill {
+        color: #1e40af;
+        border-color: rgba(37, 99, 235, 0.4);
+        background: rgba(37, 99, 235, 0.1);
+      }
+      .pec-refresh-stage[data-status="SUCCESS"] {
+        border-color: rgba(22, 163, 74, 0.4);
+      }
+      .pec-refresh-stage[data-status="SUCCESS"] .pec-refresh-stage-pill {
+        color: #166534;
+        border-color: rgba(22, 163, 74, 0.4);
+        background: rgba(22, 163, 74, 0.12);
+      }
+      .pec-refresh-stage[data-status="FAILED"] {
+        border-color: rgba(220, 38, 38, 0.45);
+      }
+      .pec-refresh-stage[data-status="FAILED"] .pec-refresh-stage-pill {
+        color: #991b1b;
+        border-color: rgba(220, 38, 38, 0.45);
+        background: rgba(220, 38, 38, 0.1);
+      }
+      .pec-refresh-message {
+        margin-top: 14px;
+        font-size: 12px;
+        color: var(--muted, #6b7280);
+      }
+      @media (max-width: 520px) {
+        .pec-refresh-card {
+          padding: 14px;
+        }
+      }
     </style>
   </head>
 
@@ -1673,30 +1788,6 @@
               </svg>
             </button>
             <button
-              id="globalRefreshBtn"
-              type="button"
-              title="Refresh All Tabs"
-              aria-label="Refresh All Tabs"
-              class="icon-btn secondary"
-            >
-              <svg
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <polyline points="23 4 23 10 17 10" />
-                <polyline points="1 20 1 14 7 14" />
-                <path d="M3.51 9a9 9 0 0114.13-3.36L23 10" />
-                <path d="M20.49 15a9 9 0 01-14.13 3.36L1 14" />
-              </svg>
-            </button>
-            <button
               id="homeBtn"
               type="button"
               title="Home"
@@ -1723,9 +1814,36 @@
 
     <div id="statusArea" class="status-area" role="status" aria-live="polite" hidden></div>
 
-    <section class="panel page-shell" id="mainPanel">
+    <section
+      class="panel page-shell"
+      id="mainPanel"
+      style="position: relative"
+    >
       <div id="viewOnlyBanner" class="view-only-banner" role="status" aria-live="polite" hidden>
         Read-only access: workflow actions are disabled for your account.
+      </div>
+
+      <div id="procSnapshotRefreshOverlay" class="pec-refresh-overlay" hidden>
+        <div class="pec-refresh-card" role="status" aria-live="polite">
+          <div class="pec-refresh-title">Refreshing Procurement Snapshots</div>
+          <div class="pec-refresh-subtitle">
+            Updating vendor candidates, indent balances, and priority labels.
+          </div>
+
+          <div id="procSnapshotRefreshStages" class="pec-refresh-stages"></div>
+
+          <div id="procSnapshotRefreshMessage" class="pec-refresh-message">
+            Preparing refresh...
+          </div>
+
+          <div
+            class="pec-refresh-message"
+            style="margin-top: 8px; font-style: italic"
+          >
+            You can wait here; this refresh updates Action Queue,
+            recommendations, and vendor-wise buying list.
+          </div>
+        </div>
       </div>
       <div class="tabs-card">
         <div class="tab-select-wrap">
@@ -3655,6 +3773,32 @@
                     <span>Select vendor</span>
                   </button>
                   <button
+                    id="btnDetailClearSelectedVendor"
+                    type="button"
+                    data-edit-action="true"
+                    class="icon-btn ghost with-label"
+                    title="Clear Vendor Assignment"
+                    aria-label="Clear Vendor Assignment"
+                    style="display: none"
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="15" y1="9" x2="9" y2="15" />
+                      <line x1="9" y1="9" x2="15" y2="15" />
+                    </svg>
+                    <span>Clear Vendor Assignment</span>
+                  </button>
+                  <button
                     id="btnDetailJumpIndent"
                     type="button"
                     class="icon-btn ghost with-label"
@@ -4650,6 +4794,123 @@
       </div>
     </div>
 
+    <!-- Refresh Procurement Snapshots modal -->
+    <div
+      class="modal-backdrop"
+      id="snapshotRefreshModalBackdrop"
+      aria-hidden="true"
+    >
+      <div
+        class="modal"
+        style="max-width: 460px"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="snapshotRefreshTitle"
+      >
+        <div class="modal-header page-header">
+          <h3 id="snapshotRefreshTitle" style="margin: 0">
+            Refresh Procurement Snapshots
+          </h3>
+          <button
+            id="btnSnapshotRefreshClose"
+            class="modal-close-btn"
+            type="button"
+            title="Close"
+            aria-label="Close"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p class="muted" style="margin: 0">
+            This will run a staged refresh for vendor candidates, indent
+            balances, and priority labels used by the Action Queue and vendor
+            recommendation.
+          </p>
+        </div>
+        <div class="actions">
+          <button id="btnSnapshotRefreshCancel" type="button">Cancel</button>
+          <button
+            id="btnSnapshotRefreshConfirm"
+            class="primary"
+            type="button"
+            data-edit-action="true"
+          >
+            Refresh Now
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Clear Vendor Assignment modal -->
+    <div
+      class="modal-backdrop"
+      id="clearSelectedVendorModalBackdrop"
+      aria-hidden="true"
+    >
+      <div
+        class="modal"
+        style="max-width: 460px"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="clearSelectedVendorTitle"
+      >
+        <div class="modal-header page-header">
+          <h3 id="clearSelectedVendorTitle" style="margin: 0">
+            Clear Vendor Assignment
+          </h3>
+          <button
+            id="btnClearSelectedVendorClose"
+            class="modal-close-btn"
+            type="button"
+            title="Close"
+            aria-label="Close"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p class="muted" id="clearSelectedVendorMessage" style="margin: 0">
+            Clear vendor assignment for this line? This will make the line
+            unassigned until a vendor is selected or recommended again.
+          </p>
+        </div>
+        <div class="actions">
+          <button id="btnClearSelectedVendorCancel" type="button">Cancel</button>
+          <button
+            id="btnClearSelectedVendorConfirm"
+            class="primary"
+            type="button"
+            data-edit-action="true"
+          >
+            Clear Vendor Assignment
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Generate Draft PR modal -->
     <div class="modal-backdrop" id="generatePrModalBackdrop" aria-hidden="true">
       <div class="modal" style="max-width: 560px" role="dialog" aria-modal="true" aria-labelledby="generatePrTitle">
@@ -5182,12 +5443,12 @@
             </div>
             <div class="form-group full-col">
               <label
-                >Reason
+                >Reason / Remarks
                 <span id="ialReasonReq" style="color: red; display: none"
                   >*</span
                 ></label
               >
-              <textarea id="ialReason" placeholder="Reason…"></textarea>
+              <textarea id="ialReason" placeholder="Reason or remarks…"></textarea>
             </div>
           </div>
         </div>

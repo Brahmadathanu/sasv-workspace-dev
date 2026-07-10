@@ -752,13 +752,20 @@ export function createControlCenterController(deps) {
     }
 
     const tabs = [
-      { id: "summary", label: "Summary" },
+      { id: "resolve", label: "Resolve" },
       { id: "affected", label: "Affected SKUs" },
-      { id: "action", label: "Rate Action" },
     ];
-    const active = tabs.some((tab) => tab.id === preferredTab)
-      ? preferredTab
-      : "summary";
+    let requestedTab = preferredTab;
+    if (
+      requestedTab === "summary" ||
+      requestedTab === "rate-action" ||
+      requestedTab === "action"
+    ) {
+      requestedTab = "resolve";
+    }
+    const active = tabs.some((tab) => tab.id === requestedTab)
+      ? requestedTab
+      : "resolve";
 
     return {
       title: row.stock_item_name || row.stock_item_id || "Material Action",

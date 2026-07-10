@@ -192,6 +192,23 @@ const manualRateStockItemLabel = $("manualRateStockItemLabel");
 const manualRateCurrentRate = $("manualRateCurrentRate");
 const manualRateCurrentSource = $("manualRateCurrentSource");
 const manualRateCurrentDate = $("manualRateCurrentDate");
+const manualRateEvidenceStrip = $("manualRateEvidenceStrip");
+const manualRateEvidenceSelectedRate = $("manualRateEvidenceSelectedRate");
+const manualRateEvidenceSelectedSource = $("manualRateEvidenceSelectedSource");
+const manualRateEvidenceSelectedDate = $("manualRateEvidenceSelectedDate");
+const manualRateEvidenceLatestPurchaseRate = $(
+  "manualRateEvidenceLatestPurchaseRate",
+);
+const manualRateEvidenceLatestPurchaseDate = $(
+  "manualRateEvidenceLatestPurchaseDate",
+);
+const manualRateEvidenceActiveManualRate = $("manualRateEvidenceActiveManualRate");
+const manualRateEvidenceManualRateStatus = $("manualRateEvidenceManualRateStatus");
+const manualRateEvidenceNewerPurchase = $("manualRateEvidenceNewerPurchase");
+const manualRateEvidenceOverrideFlag = $("manualRateEvidenceOverrideFlag");
+const manualRateEvidenceAffectedSkuCount = $(
+  "manualRateEvidenceAffectedSkuCount",
+);
 const manualRateValue = $("manualRateValue");
 const manualRateEffectiveFrom = $("manualRateEffectiveFrom");
 const manualRateReason = $("manualRateReason");
@@ -463,6 +480,527 @@ const COSTING_REFRESH_STAGE_LABELS = {
   "06_FINAL_STATUS_CHECK": "Final status check",
 };
 
+const COSTING_REFRESH_STAGE_FALLBACK = [
+  {
+    stage_code: "01_ENSURE_PERIOD",
+    stage_label: "Ensure period",
+    status: "PENDING",
+  },
+  {
+    stage_code: "02_MATERIAL_SNAPSHOT",
+    stage_label: "Material snapshot",
+    status: "PENDING",
+  },
+  {
+    stage_code: "03_COST_BUILD_TO_SCHEME",
+    stage_label: "Cost build to scheme",
+    status: "PENDING",
+  },
+  {
+    stage_code: "04_COST_SHEET_SNAPSHOT",
+    stage_label: "Cost sheet snapshot",
+    status: "PENDING",
+  },
+  {
+    stage_code: "05_CONTROL_MAINTENANCE",
+    stage_label: "Control maintenance",
+    status: "PENDING",
+  },
+  {
+    stage_code: "06_FINAL_STATUS_CHECK",
+    stage_label: "Final status check",
+    status: "PENDING",
+  },
+];
+
+let costingRefreshOverlayWired = false;
+
+function ensureCostingRefreshOverlayStyles() {
+  if (document.getElementById("costingRefreshOverlayStyles")) return;
+
+  const style = document.createElement("style");
+  style.id = "costingRefreshOverlayStyles";
+  style.textContent = `
+    .costing-refresh-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 40;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(15, 23, 42, 0.22);
+      pointer-events: auto;
+    }
+    .costing-refresh-overlay.is-hidden {
+      display: none !important;
+    }
+    .costing-refresh-card {
+      position: relative;
+      width: 100%;
+      max-width: 480px;
+      max-height: 90%;
+      overflow-y: auto;
+      background: var(--panel-bg, #fff);
+      border: 1px solid var(--border, #e5e7eb);
+      border-radius: 12px;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16), 0 2px 8px rgba(0, 0, 0, 0.08);
+      padding: 18px 20px;
+      box-sizing: border-box;
+    }
+    .costing-refresh-header {
+      position: relative;
+      padding-right: 36px;
+      margin-bottom: 14px;
+    }
+    .costing-refresh-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text, #111827);
+      margin-bottom: 4px;
+      padding-right: 4px;
+    }
+    .costing-refresh-subtitle {
+      font-size: 12.5px;
+      color: var(--muted, #6b7280);
+      margin-bottom: 0;
+      line-height: 1.4;
+      padding-right: 4px;
+    }
+    .costing-refresh-close-icon {
+      position: absolute;
+      top: -4px;
+      right: -6px;
+      width: 30px;
+      height: 30px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted, #6b7280);
+      font-size: 20px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .costing-refresh-close-icon:hover {
+      color: var(--text, #111827);
+      background: rgba(15, 23, 42, 0.06);
+      border-color: var(--border, #e5e7eb);
+    }
+    .costing-refresh-close-icon:focus-visible {
+      outline: 2px solid var(--primary, #2563eb);
+      outline-offset: 2px;
+    }
+    .costing-refresh-stages {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .costing-refresh-stage {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1px solid var(--border, #e5e7eb);
+      border-radius: 8px;
+      background: var(--panel-bg, #fff);
+    }
+    .costing-refresh-stage-main {
+      min-width: 0;
+      flex: 1;
+    }
+    .costing-refresh-stage-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text, #111827);
+    }
+    .costing-refresh-stage-detail {
+      display: block;
+      margin-top: 2px;
+      font-size: 11.5px;
+      color: var(--muted, #6b7280);
+      line-height: 1.35;
+    }
+    .costing-refresh-stage-pill {
+      flex-shrink: 0;
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border, #e5e7eb);
+      color: var(--muted, #6b7280);
+      background: #f9fafb;
+    }
+    .costing-refresh-stage[data-status="RUNNING"] {
+      border-color: #93c5fd;
+      background: #eff6ff;
+    }
+    .costing-refresh-stage[data-status="RUNNING"] .costing-refresh-stage-pill {
+      border-color: #93c5fd;
+      color: #1d4ed8;
+      background: #dbeafe;
+    }
+    .costing-refresh-stage[data-status="SUCCESS"] .costing-refresh-stage-pill {
+      border-color: #86efac;
+      color: #166534;
+      background: #dcfce7;
+    }
+    .costing-refresh-stage[data-status="FAILED"] {
+      border-color: #fca5a5;
+      background: #fef2f2;
+    }
+    .costing-refresh-stage[data-status="FAILED"] .costing-refresh-stage-pill {
+      border-color: #fca5a5;
+      color: #991b1b;
+      background: #fee2e2;
+    }
+    .costing-refresh-stage[data-status="QUEUED"] .costing-refresh-stage-pill,
+    .costing-refresh-stage[data-status="PENDING"] .costing-refresh-stage-pill {
+      border-color: #d1d5db;
+      color: #6b7280;
+      background: #f3f4f6;
+    }
+    .costing-refresh-message {
+      font-size: 13px;
+      line-height: 1.45;
+      color: var(--text, #111827);
+      margin-bottom: 10px;
+    }
+    .costing-refresh-message.is-success {
+      color: #166534;
+    }
+    .costing-refresh-message.is-error {
+      color: #991b1b;
+    }
+    .costing-refresh-message.is-warning {
+      color: #b45309;
+    }
+    .costing-refresh-footer {
+      margin-top: 4px;
+    }
+    .costing-refresh-note {
+      font-size: 11.5px;
+      color: var(--muted, #6b7280);
+      line-height: 1.4;
+    }
+    [data-theme="dark"] .costing-refresh-overlay {
+      background: rgba(2, 6, 23, 0.48);
+    }
+    [data-theme="dark"] .costing-refresh-card {
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), 0 2px 10px rgba(0, 0, 0, 0.25);
+    }
+    [data-theme="dark"] .costing-refresh-close-icon:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text, #f9fafb);
+    }
+    [data-theme="dark"] .costing-refresh-stage[data-status="RUNNING"] {
+      background: rgba(30, 58, 138, 0.25);
+    }
+    [data-theme="dark"] .costing-refresh-stage[data-status="FAILED"] {
+      background: rgba(127, 29, 29, 0.25);
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function ensureCostingRefreshOverlay() {
+  ensureCostingRefreshOverlayStyles();
+  if (document.getElementById("costingRefreshOverlay")) {
+    wireCostingRefreshOverlayControls();
+    return document.getElementById("costingRefreshOverlay");
+  }
+
+  const loadingMask = document.getElementById("costingLoadingMask");
+  const host =
+    loadingMask?.closest(".table-card") ||
+    document.querySelector(".table-card") ||
+    document.body;
+
+  if (host !== document.body && getComputedStyle(host).position === "static") {
+    host.style.position = "relative";
+  }
+
+  const overlay = document.createElement("div");
+  overlay.id = "costingRefreshOverlay";
+  overlay.className = "costing-refresh-overlay is-hidden";
+  overlay.hidden = true;
+  overlay.setAttribute("role", "status");
+  overlay.setAttribute("aria-live", "polite");
+  overlay.innerHTML = `
+    <div class="costing-refresh-card">
+      <div class="costing-refresh-header">
+        <div class="costing-refresh-title">Refreshing Costing Snapshots</div>
+        <div id="costingRefreshSubtitle" class="costing-refresh-subtitle"></div>
+        <button
+          type="button"
+          id="costingRefreshOverlayClose"
+          class="costing-refresh-close-icon"
+          aria-label="Close refresh progress"
+          title="Close"
+        >
+          ×
+        </button>
+      </div>
+      <div id="costingRefreshStages" class="costing-refresh-stages"></div>
+      <div id="costingRefreshMessage" class="costing-refresh-message"></div>
+      <div class="costing-refresh-footer">
+        <div class="costing-refresh-note">
+          Refresh can continue in the background if this panel is closed.
+        </div>
+      </div>
+    </div>
+  `;
+
+  host.appendChild(overlay);
+  wireCostingRefreshOverlayControls();
+  return overlay;
+}
+
+function wireCostingRefreshOverlayControls() {
+  if (costingRefreshOverlayWired) return;
+  const closeBtn = document.getElementById("costingRefreshOverlayClose");
+  if (!closeBtn) return;
+  closeBtn.addEventListener("click", () => hideCostingRefreshOverlay());
+  costingRefreshOverlayWired = true;
+}
+
+function hideCostingRefreshOverlay() {
+  const overlay = document.getElementById("costingRefreshOverlay");
+  if (!overlay) return;
+  overlay.classList.add("is-hidden");
+  overlay.hidden = true;
+}
+
+function showCostingRefreshOverlay(statusRow, options = {}) {
+  const overlay = ensureCostingRefreshOverlay();
+  overlay.classList.remove("is-hidden");
+  overlay.hidden = false;
+  updateCostingRefreshOverlay(statusRow, options);
+}
+
+function setCostingRefreshOverlayMessage(message, tone = "info") {
+  const msgEl = document.getElementById("costingRefreshMessage");
+  if (!msgEl) return;
+  msgEl.textContent = message || "";
+  msgEl.classList.remove("is-success", "is-error", "is-warning");
+  if (tone === "success") msgEl.classList.add("is-success");
+  else if (tone === "error") msgEl.classList.add("is-error");
+  else if (tone === "warning") msgEl.classList.add("is-warning");
+}
+
+function getCostingRefreshStagesFromStatus(statusRow) {
+  const raw = statusRow?.stages || statusRow?.stage_rows;
+  if (!Array.isArray(raw) || !raw.length) {
+    return COSTING_REFRESH_STAGE_FALLBACK.map((stage) => ({ ...stage }));
+  }
+
+  const order = COSTING_REFRESH_STAGE_FALLBACK.map((stage) => stage.stage_code);
+  return [...raw].sort((left, right) => {
+    const leftCode = left.stage_code || left.stageCode || "";
+    const rightCode = right.stage_code || right.stageCode || "";
+    const leftIdx = order.indexOf(leftCode);
+    const rightIdx = order.indexOf(rightCode);
+    return (
+      (leftIdx === -1 ? 99 : leftIdx) - (rightIdx === -1 ? 99 : rightIdx)
+    );
+  });
+}
+
+function normalizeCostingRefreshStageStatus(stage, statusRow) {
+  const raw = normalizeStatus(
+    stage?.stage_status || stage?.status || stage?.run_status || "",
+  );
+  if (raw === "COMPLETED") return "SUCCESS";
+  if (raw === "IN_PROGRESS") return "RUNNING";
+  if (raw === "ERROR") return "FAILED";
+  if (raw) return raw;
+
+  const code = stage?.stage_code || stage?.stageCode || "";
+  const errorStage = statusRow?.error_stage_code || statusRow?.failed_stage_code;
+  if (errorStage && String(errorStage) === String(code)) return "FAILED";
+
+  if (stage?.finished_at || stage?.completed_at) return "SUCCESS";
+  if (stage?.started_at) return "RUNNING";
+  return "PENDING";
+}
+
+function costingRefreshStagePillLabel(status) {
+  const labels = {
+    PENDING: "Pending",
+    QUEUED: "Queued",
+    RUNNING: "Running",
+    SUCCESS: "Completed",
+    FAILED: "Failed",
+    SKIPPED: "Skipped",
+    PARTIAL_SUCCESS: "Partial",
+    UNKNOWN: "Unknown",
+  };
+  return labels[normalizeStatus(status)] || status || "Pending";
+}
+
+function getCostingRefreshStageLabel(stage) {
+  const code = stage?.stage_code || stage?.stageCode || "";
+  return (
+    stage?.stage_label ||
+    stage?.stageLabel ||
+    COSTING_REFRESH_STAGE_LABELS[code] ||
+    "Stage"
+  );
+}
+
+function getCostingRefreshStageDetail(stage, statusRow) {
+  const output =
+    typeof stage?.output_json === "string"
+      ? (() => {
+          try {
+            return JSON.parse(stage.output_json);
+          } catch {
+            return null;
+          }
+        })()
+      : stage?.output_json;
+
+  const parts = [];
+  const rowCount =
+    stage?.row_count ??
+    output?.row_count ??
+    output?.inserted_row_count ??
+    output?.inserted_rows;
+  if (rowCount != null && rowCount !== "") {
+    parts.push(`${formatNumber(rowCount)} rows`);
+  }
+
+  const message =
+    stage?.message ||
+    stage?.error_message ||
+    output?.message ||
+    (codeMatchesFailedStage(stage, statusRow)
+      ? statusRow?.error_message || statusRow?.failure_message
+      : "");
+  if (message) parts.push(String(message));
+
+  return parts.join(" · ");
+}
+
+function codeMatchesFailedStage(stage, statusRow) {
+  const code = stage?.stage_code || stage?.stageCode || "";
+  const errorStage = statusRow?.error_stage_code || statusRow?.failed_stage_code;
+  return errorStage && String(errorStage) === String(code);
+}
+
+function renderCostingRefreshStages(statusRow) {
+  const wrap = document.getElementById("costingRefreshStages");
+  if (!wrap) return;
+
+  const stages = getCostingRefreshStagesFromStatus(statusRow);
+  const currentStageCode = getCurrentRefreshStageInfo(statusRow)?.code || "";
+  const overall = resolveRefreshOverallStatus(statusRow);
+  const runIsActive = isRefreshRunActiveStatus(overall);
+
+  wrap.innerHTML = stages
+    .map((stage) => {
+      const stageCode = stage?.stage_code || stage?.stageCode || "";
+      let status = normalizeCostingRefreshStageStatus(stage, statusRow);
+      if (
+        runIsActive &&
+        currentStageCode &&
+        stageCode === currentStageCode &&
+        (status === "PENDING" || status === "QUEUED")
+      ) {
+        status = "RUNNING";
+      }
+      const label = escapeHtml(getCostingRefreshStageLabel(stage));
+      const detail = escapeHtml(getCostingRefreshStageDetail(stage, statusRow));
+      const pill = escapeHtml(costingRefreshStagePillLabel(status));
+      return `<div class="costing-refresh-stage" data-status="${escapeHtml(status)}">
+        <div class="costing-refresh-stage-main">
+          <span class="costing-refresh-stage-label">${label}</span>
+          ${detail ? `<span class="costing-refresh-stage-detail">${detail}</span>` : ""}
+        </div>
+        <span class="costing-refresh-stage-pill">${pill}</span>
+      </div>`;
+    })
+    .join("");
+}
+
+function getCostingRefreshOverlayRunningMessage(statusRow) {
+  const overall = resolveRefreshOverallStatus(statusRow);
+  if (overall === "QUEUED") {
+    return "Refresh is queued and will continue in the background.";
+  }
+  return "Refresh is running. This may take a few minutes.";
+}
+
+function updateCostingRefreshOverlay(statusRow, options = {}) {
+  ensureCostingRefreshOverlay();
+
+  const subtitleEl = document.getElementById("costingRefreshSubtitle");
+  const periodStart =
+    options.periodStart ||
+    statusRow?.period_start ||
+    ACTIVE_PERIOD_START ||
+    "";
+  if (subtitleEl) {
+    const periodText = periodStart
+      ? `Costing period: ${formatPeriodMonth(periodStart)}`
+      : "Updating costing snapshots for the active period.";
+    subtitleEl.textContent = periodText;
+  }
+
+  renderCostingRefreshStages(statusRow);
+
+  if (options.message) {
+    setCostingRefreshOverlayMessage(options.message, options.tone || "info");
+    return;
+  }
+
+  const overall = resolveRefreshOverallStatus(statusRow);
+  if (options.requesting) {
+    setCostingRefreshOverlayMessage("Requesting costing refresh...", "info");
+    return;
+  }
+
+  if (isRefreshRunActiveStatus(overall)) {
+    setCostingRefreshOverlayMessage(
+      getCostingRefreshOverlayRunningMessage(statusRow),
+      overall === "QUEUED" ? "warning" : "info",
+    );
+    return;
+  }
+
+  if (!statusRow) {
+    setCostingRefreshOverlayMessage("Preparing refresh...", "info");
+  }
+}
+
+function setCostingRefreshOverlayTerminalState(statusRow, outcome = {}) {
+  showCostingRefreshOverlay(statusRow, outcome);
+
+  const overall =
+    outcome.overall || resolveRefreshOverallStatus(statusRow) || "UNKNOWN";
+  const message =
+    outcome.message ||
+    formatCostingRefreshRunMessage(statusRow, { timedOut: outcome.timedOut });
+
+  renderCostingRefreshStages(statusRow);
+
+  let tone = "info";
+  if (overall === "SUCCESS") tone = "success";
+  else if (overall === "PARTIAL_SUCCESS") tone = "success";
+  else if (overall === "FAILED") tone = "error";
+  else if (outcome.timedOut) tone = "warning";
+
+  setCostingRefreshOverlayMessage(message, tone);
+}
+
 let ACTIVE_REFRESH_RUN = null;
 let refreshPollInFlight = false;
 
@@ -550,6 +1088,106 @@ function navigateToCostingRoute(moduleKey, params = {}) {
 
 function canUserTriggerCostingRefresh() {
   return PERM_CAN_EDIT || PERM_CONTROL_CENTER_EDIT;
+}
+
+function canEditMaterialCostActions() {
+  if (CURRENT_LENS === "manual-rate-manager") {
+    return PERM_CAN_EDIT;
+  }
+  if (CURRENT_LENS === "costing-review-workbench") {
+    return PERM_CAN_EDIT || PERM_CONTROL_CENTER_EDIT;
+  }
+  return PERM_CAN_EDIT;
+}
+
+const COSTING_REFRESH_DIRTY_KEY = "costing-suite:refresh-dirty";
+let costingRefreshDirty = false;
+let costingRefreshDirtyReason = null;
+let costingRefreshDirtyAt = null;
+
+function loadCostingRefreshDirtyFromSession() {
+  try {
+    const raw = sessionStorage.getItem(COSTING_REFRESH_DIRTY_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (parsed?.dirty) {
+      costingRefreshDirty = true;
+      costingRefreshDirtyReason = parsed.reasonText || null;
+      costingRefreshDirtyAt = parsed.markedAt || null;
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+function persistCostingRefreshDirtyToSession(source) {
+  try {
+    if (costingRefreshDirty) {
+      sessionStorage.setItem(
+        COSTING_REFRESH_DIRTY_KEY,
+        JSON.stringify({
+          dirty: true,
+          reasonText: costingRefreshDirtyReason,
+          source: source || "UNKNOWN",
+          markedAt: costingRefreshDirtyAt,
+        }),
+      );
+    } else {
+      sessionStorage.removeItem(COSTING_REFRESH_DIRTY_KEY);
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+function isCostingRefreshDirty() {
+  return costingRefreshDirty;
+}
+
+function markCostingRefreshDirty(reasonText, source = "UNKNOWN") {
+  costingRefreshDirty = true;
+  costingRefreshDirtyReason =
+    reasonText ||
+    "Costing changes were saved. Run costing refresh to apply them.";
+  costingRefreshDirtyAt = new Date().toISOString();
+  persistCostingRefreshDirtyToSession(source);
+  updateCostingRefreshDirtyUi();
+}
+
+function clearCostingRefreshDirty() {
+  costingRefreshDirty = false;
+  costingRefreshDirtyReason = null;
+  costingRefreshDirtyAt = null;
+  persistCostingRefreshDirtyToSession();
+  updateCostingRefreshDirtyUi();
+}
+
+function updateCostingRefreshDirtyUi() {
+  if (refreshBtn) {
+    refreshBtn.classList.toggle("costing-refresh-dirty", costingRefreshDirty);
+    if (costingRefreshDirty) {
+      const canRefresh = canUserTriggerCostingRefresh();
+      refreshBtn.title = canRefresh
+        ? "Material rate changes were saved. Run costing refresh to apply them to cost sheets and readiness counts."
+        : "Refresh required. Ask an authorized user to run costing refresh.";
+      refreshBtn.setAttribute("data-refresh-required", "true");
+    } else {
+      refreshBtn.removeAttribute("data-refresh-required");
+      syncRefreshButtonDisabled();
+    }
+  }
+
+  const lbl = lastRefreshed?.querySelector(".sc-snapshot-label");
+  if (costingRefreshDirty) {
+    if (lbl) lbl.textContent = "Refresh required";
+    const statusDetail = $("sc-status-detail");
+    if (statusDetail) {
+      statusDetail.textContent =
+        costingRefreshDirtyReason || "Refresh required after material rate change.";
+    }
+  } else {
+    updateFreshnessIndicator();
+  }
 }
 
 function applyRouteHeader() {
@@ -797,6 +1435,38 @@ function clearCompletedRefreshRunIfNeeded(statusRow) {
   return true;
 }
 
+function reconcileActiveRefreshRunStatus(statusRow) {
+  const overall = resolveRefreshOverallStatus(statusRow);
+
+  if (overall === "SUCCESS" || overall === "PARTIAL_SUCCESS") {
+    clearActiveRefreshRunSession();
+    clearCostingRefreshDirty();
+    clearStatus();
+    syncRefreshButtonDisabled();
+    updateCostingRefreshDirtyUi();
+    return { overall, terminal: true, success: true };
+  }
+
+  if (isRefreshRunActiveStatus(overall)) {
+    return { overall, terminal: false, active: true };
+  }
+
+  if (isRefreshRunTerminalStatus(overall)) {
+    clearActiveRefreshRunSession();
+    syncRefreshButtonDisabled();
+    return { overall, terminal: true, success: false };
+  }
+
+  if (!overall) {
+    clearActiveRefreshRunSession();
+    syncRefreshButtonDisabled();
+    clearStatus();
+    return { overall, terminal: false, unknown: true };
+  }
+
+  return { overall, terminal: false };
+}
+
 function extractRefreshRunId(row) {
   if (!row) return null;
   const id = row.refresh_run_id ?? row.p_refresh_run_id ?? row.run_id;
@@ -848,6 +1518,12 @@ function syncRefreshButtonDisabled() {
     "aria-disabled",
     refreshBtn.disabled ? "true" : "false",
   );
+  if (costingRefreshDirty) {
+    refreshBtn.classList.add("costing-refresh-dirty");
+    refreshBtn.title = canRefresh
+      ? "Material rate changes were saved. Run costing refresh to apply them to cost sheets and readiness counts."
+      : "Refresh required. Ask an authorized user to run costing refresh.";
+  }
 }
 
 async function requestStagedCostingRefresh(options = {}) {
@@ -1018,6 +1694,7 @@ function formatCostingRefreshRunMessage(statusRow, options = {}) {
 }
 
 async function reloadCostingUiAfterRefreshRun() {
+  costSheetCtrl.invalidatePrintableLinesCache();
   await loadRowsForLens();
   await refreshOpenDrawerIfNeeded();
   LAST_REFRESH_TIME = new Date();
@@ -1072,18 +1749,24 @@ async function handleRefreshRunOutcome(pollResult, options = {}) {
     (overall === "SUCCESS" || overall === "PARTIAL_SUCCESS");
 
   if (shouldReload) {
-    if (!options.skipReload) {
-      await reloadCostingUiAfterRefreshRun();
-    }
+    setCostingRefreshOverlayTerminalState(statusRow, { overall, timedOut: false });
     clearActiveRefreshRunSession();
-    syncRefreshButtonDisabled();
+    clearCostingRefreshDirty();
+    try {
+      if (!options.skipReload) {
+        await reloadCostingUiAfterRefreshRun();
+      }
+    } finally {
+      syncRefreshButtonDisabled();
+      updateCostingRefreshDirtyUi();
+    }
     clearStatus();
     showToast(message, overall === "SUCCESS" ? "success" : "info", 9000, true);
     return;
   }
 
   if (timedOut && isRefreshRunActiveStatus(overall)) {
-    setStatus(message, "info");
+    setCostingRefreshOverlayTerminalState(statusRow, { timedOut: true, overall });
     showToast(message, "info", 9000, true);
     return;
   }
@@ -1092,7 +1775,7 @@ async function handleRefreshRunOutcome(pollResult, options = {}) {
     clearCompletedRefreshRunIfNeeded(statusRow);
     syncRefreshButtonDisabled();
     const statusType = overall === "FAILED" ? "error" : "info";
-    setStatus(message, statusType);
+    setCostingRefreshOverlayTerminalState(statusRow, { overall, timedOut: false });
     showToast(message, statusType, 9000, true);
     return;
   }
@@ -1100,12 +1783,12 @@ async function handleRefreshRunOutcome(pollResult, options = {}) {
   if (terminal) {
     clearActiveRefreshRunSession();
     syncRefreshButtonDisabled();
-    setStatus(message, "info");
+    setCostingRefreshOverlayTerminalState(statusRow, { overall, timedOut: false });
     showToast(message, "info", 9000, true);
     return;
   }
 
-  setStatus(message, "info");
+  setCostingRefreshOverlayTerminalState(statusRow, { overall, timedOut: false });
   showToast(message, "info", 9000, true);
 }
 
@@ -1124,12 +1807,12 @@ async function runStagedCostingRefreshAndReload(options = {}) {
 
   refreshPollInFlight = true;
   syncRefreshButtonDisabled();
-  setLoadingMask(true, "Requesting costing refresh...");
-  setStatus("Requesting costing refresh...");
+  showCostingRefreshOverlay(null, { requesting: true, periodStart });
+
+  let statusRow = null;
 
   try {
     let refreshRunId = null;
-    let statusRow = null;
     const saved = loadActiveRefreshRunFromSession();
 
     if (saved?.refreshRunId) {
@@ -1153,6 +1836,7 @@ async function runStagedCostingRefreshAndReload(options = {}) {
             overallStatus: savedOverall,
           };
           showToast("Resuming in-progress costing refresh.", "info", 4200);
+          showCostingRefreshOverlay(statusRow, { periodStart });
         } else {
           clearActiveRefreshRunSession();
         }
@@ -1199,6 +1883,7 @@ async function runStagedCostingRefreshAndReload(options = {}) {
     };
     saveActiveRefreshRunToSession(ACTIVE_REFRESH_RUN);
     syncRefreshButtonDisabled();
+    updateCostingRefreshOverlay(statusRow, { periodStart });
 
     let pollResult;
 
@@ -1226,9 +1911,7 @@ async function runStagedCostingRefreshAndReload(options = {}) {
     if (isRefreshRunTerminalStatus(overall)) {
       pollResult = { statusRow, timedOut: false, terminal: true };
     } else {
-      const progressMessage = renderCostingRefreshProgress(statusRow);
-      setLoadingMask(true, progressMessage);
-      setStatus(progressMessage, "info");
+      showCostingRefreshOverlay(statusRow, { periodStart });
 
       pollResult = await pollCostingRefreshRun(refreshRunId, {
         periodStart,
@@ -1243,20 +1926,25 @@ async function runStagedCostingRefreshAndReload(options = {}) {
             overallStatus: rowOverall,
           };
           saveActiveRefreshRunToSession(ACTIVE_REFRESH_RUN);
-          const progress = renderCostingRefreshProgress(row);
-          setLoadingMask(true, progress);
-          setStatus(progress, "info");
+          updateCostingRefreshOverlay(row, { periodStart });
         },
       });
     }
 
     await handleRefreshRunOutcome(pollResult, { skipReload });
   } catch (err) {
-    handleError("Costing refresh failed", err);
+    console.error("[costing-suite] Costing refresh failed", err);
+    const detail = err?.message
+      ? `Costing refresh failed: ${err.message}`
+      : "Costing refresh failed.";
+    setCostingRefreshOverlayTerminalState(statusRow, {
+      overall: "FAILED",
+      message: detail,
+    });
+    showToast("Costing refresh failed", "error", 4200);
   } finally {
     refreshPollInFlight = false;
     syncRefreshButtonDisabled();
-    setLoadingMask(false);
   }
 }
 
@@ -1270,18 +1958,10 @@ async function resumeInFlightRefreshRunIfNeeded() {
       periodStart: saved.periodStart,
       scope: saved.scope || COSTING_REFRESH_SCOPE,
     });
-    const overall = resolveRefreshOverallStatus(statusRow);
+    const reconciled = reconcileActiveRefreshRunStatus(statusRow);
+    const overall = reconciled.overall;
 
-    if (isRefreshRunTerminalStatus(overall)) {
-      clearCompletedRefreshRunIfNeeded(statusRow);
-      clearStatus();
-      return;
-    }
-
-    if (!isRefreshRunActiveStatus(overall)) {
-      clearActiveRefreshRunSession();
-      syncRefreshButtonDisabled();
-      clearStatus();
+    if (reconciled.terminal || reconciled.unknown || !reconciled.active) {
       return;
     }
 
@@ -1290,7 +1970,9 @@ async function resumeInFlightRefreshRunIfNeeded() {
       overallStatus: overall,
     };
     syncRefreshButtonDisabled();
-    setStatus(renderCostingRefreshProgress(statusRow), "info");
+    showCostingRefreshOverlay(statusRow, {
+      periodStart: saved.periodStart,
+    });
 
     refreshPollInFlight = true;
     syncRefreshButtonDisabled();
@@ -1308,7 +1990,7 @@ async function resumeInFlightRefreshRunIfNeeded() {
           overallStatus: rowOverall,
         };
         saveActiveRefreshRunToSession(ACTIVE_REFRESH_RUN);
-        setStatus(renderCostingRefreshProgress(row), "info");
+        updateCostingRefreshOverlay(row, { periodStart: saved.periodStart });
       },
     });
 
@@ -1739,6 +2421,7 @@ async function setActiveCostingPeriod(periodStart) {
 
   ACTIVE_PERIOD_START = normalized;
   costBuildCtrl.setManualProvisionPeriodFilter(normalized);
+  costSheetCtrl.invalidatePrintableLinesCache();
   renderCostingPeriodOptions();
   syncPeriodControlState();
 
@@ -1833,7 +2516,6 @@ async function loadRowsForLens() {
   const lensLabel = LENSES.find((l) => l.id === CURRENT_LENS)?.label || "view";
   setLoadingMask(true, `Loading ${lensLabel}...`);
   try {
-    setStatus("Loading costing/pricing view...");
     costBuildCtrl.syncManualProvisionLayout();
     tableWrap?.classList.remove("tw-visible");
     costSheetCtrl.onLensLoadStart();
@@ -1860,7 +2542,9 @@ async function loadRowsForLens() {
       CURRENT_LENS === "dashboard" ||
       CURRENT_LENS === "costing-review-workbench" ||
       CURRENT_LENS === "cost-governance" ||
-      CURRENT_LENS === "staff-governance"
+      CURRENT_LENS === "staff-governance" ||
+      CURRENT_LENS === "manual-rate-manager" ||
+      CURRENT_LENS === "printable-cost-sheet"
     ) {
       SKU_STATUS_DIAGNOSIS = [];
       DIAGNOSIS_BY_SKU_ID = new Map();
@@ -2683,7 +3367,7 @@ function renderTable() {
       }
 
       if (CURRENT_LENS === "printable-cost-sheet") {
-        costSheetCtrl.handlePrintableRowClick(row);
+        void costSheetCtrl.handlePrintableRowClick(row);
         return;
       }
 
@@ -3519,6 +4203,7 @@ const costSheetCtrl = createCostSheetController({
   getCurrentExportUser: () => CURRENT_EXPORT_USER,
   canNavigateTraceabilityDrill,
   navigateTraceabilityDrill,
+  getActivePeriodStart: () => ACTIVE_PERIOD_START,
 });
 
 const pricingPolicyCtrl = createPricingPolicyController({
@@ -3748,6 +4433,17 @@ const materialCostCtrl = createMaterialCostController({
     manualRateCurrentRate,
     manualRateCurrentSource,
     manualRateCurrentDate,
+    manualRateEvidenceStrip,
+    manualRateEvidenceSelectedRate,
+    manualRateEvidenceSelectedSource,
+    manualRateEvidenceSelectedDate,
+    manualRateEvidenceLatestPurchaseRate,
+    manualRateEvidenceLatestPurchaseDate,
+    manualRateEvidenceActiveManualRate,
+    manualRateEvidenceManualRateStatus,
+    manualRateEvidenceNewerPurchase,
+    manualRateEvidenceOverrideFlag,
+    manualRateEvidenceAffectedSkuCount,
     manualRateValue,
     manualRateEffectiveFrom,
     manualRateReason,
@@ -3812,6 +4508,9 @@ const materialCostCtrl = createMaterialCostController({
   setDrawerTab,
   refreshOpenDrawerIfNeeded,
   runStagedCostingRefreshAndReload,
+  canEditMaterialCostActions,
+  markCostingRefreshDirty,
+  isCostingRefreshDirty,
 });
 
 function renderKpiStrip() {
@@ -3835,6 +4534,9 @@ async function init() {
     applyRouteHeader();
     applyKpiStripVisibility();
     applyRouteLaunchParams();
+    ensureCostingRefreshOverlay();
+    loadCostingRefreshDirtyFromSession();
+    updateCostingRefreshDirtyUi();
 
     ACTIVE_PERIOD_START = await resolveActivePeriodStart();
     await loadAvailableCostingPeriods();

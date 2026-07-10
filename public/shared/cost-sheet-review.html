@@ -89,6 +89,12 @@
         color: inherit;
         cursor: pointer;
       }
+      .icon-btn.costing-refresh-dirty {
+        border-color: #d97706;
+        color: #b45309;
+        background: #fffbeb;
+        box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.18);
+      }
       .icon-btn:hover {
         background: #f3f4f6;
       }
@@ -1449,7 +1455,7 @@
         font-weight: 650;
       }
       .cost-sheet-row-sub td:first-child {
-        padding-left: 7mm;
+        padding-left: 0;
       }
       .cost-sheet-line-label {
         display: block;
@@ -1472,40 +1478,54 @@
         overflow-wrap: anywhere;
         word-break: normal;
       }
-      .cost-sheet-value-wrap {
-        display: inline-flex;
-        align-items: center;
-        justify-content: flex-end;
-        gap: 4px;
-        max-width: 100%;
-        overflow: visible;
-      }
       .cost-sheet-modal .cost-sheet-table td:not(:first-child) {
         overflow: visible;
       }
-      .cost-sheet-explain-btn {
-        flex: 0 0 auto;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border: 1px solid color-mix(in srgb, var(--primary, #2563eb) 28%, var(--border, #d1d5db));
-        border-radius: 999px;
-        background: color-mix(in srgb, var(--primary, #2563eb) 8%, var(--panel-bg, #fff));
-        color: var(--primary, #2563eb);
-        font-size: 9px;
-        font-weight: 650;
-        letter-spacing: 0.02em;
-        line-height: 1.2;
-        padding: 1px 7px;
-        margin-top: 0;
+      .cost-sheet-value-cell-explainable {
         cursor: pointer;
-        white-space: nowrap;
+        position: relative;
       }
-      .cost-sheet-explain-btn:hover,
-      .cost-sheet-explain-btn:focus-visible {
-        background: color-mix(in srgb, var(--primary, #2563eb) 14%, var(--panel-bg, #fff));
-        border-color: var(--primary, #2563eb);
-        outline: none;
+      .cost-sheet-value-cell-explainable:hover {
+        background: color-mix(
+          in srgb,
+          var(--primary, #2563eb) 6%,
+          transparent
+        );
+        outline: 1px solid
+          color-mix(in srgb, var(--primary, #2563eb) 18%, var(--border, #e5e7eb));
+        outline-offset: -1px;
+      }
+      .cost-sheet-value-cell-selected {
+        background: color-mix(
+          in srgb,
+          var(--primary, #2563eb) 10%,
+          var(--panel-bg, #fff)
+        ) !important;
+        outline: 2px solid
+          color-mix(in srgb, var(--primary, #2563eb) 35%, var(--border, #d1d5db));
+        outline-offset: -2px;
+      }
+      .cost-sheet-row-selected td {
+        background: color-mix(
+          in srgb,
+          var(--primary, #2563eb) 3%,
+          var(--panel-bg, #fff)
+        );
+      }
+      .cost-sheet-value-cell-explainable:focus-visible {
+        outline: 2px solid var(--primary, #2563eb);
+        outline-offset: -2px;
+      }
+      .cost-sheet-explain-toolbar-btn {
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.2;
+        padding-inline: 10px;
+        min-width: auto;
+      }
+      .cost-sheet-explain-toolbar-btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
       }
       .cost-sheet-export-btn {
         display: inline-flex;
@@ -2928,6 +2948,16 @@
             </div>
           </div>
           <div class="cost-sheet-modal-actions">
+            <button
+              id="costSheetExplainBtn"
+              type="button"
+              class="icon-btn cost-sheet-explain-toolbar-btn cost-sheet-screen-only"
+              disabled
+              aria-disabled="true"
+              title="Select a value cell to explain"
+            >
+              Explain line
+            </button>
             <button
               id="costSheetPdfBtn"
               type="button"

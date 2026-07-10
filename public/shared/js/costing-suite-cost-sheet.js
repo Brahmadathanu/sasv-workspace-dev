@@ -1,6 +1,12 @@
 export const TRACEABILITY_VIEW =
   "v_costing_pricing_cost_sheet_line_traceability";
 
+export const PRINTABLE_LINES_VIEW =
+  "v_costing_pricing_printable_cost_sheet_lines";
+
+export const PRINTABLE_PRODUCT_SUMMARY_VIEW =
+  "v_costing_pricing_printable_cost_sheet_product_summary";
+
 const EVIDENCE_KEY_META = [
   ["display_value_numeric", "Display Value", "money"],
   ["display_value_text", "Display Value", "text"],
@@ -145,6 +151,7 @@ export function createCostSheetController(deps) {
     enableLineExplain = false,
     canNavigateTraceabilityDrill,
     navigateTraceabilityDrill,
+    getActivePeriodStart,
   } = deps;
 
   const {
@@ -175,11 +182,15 @@ export function createCostSheetController(deps) {
   } = dom;
 
   let printableLines = [];
+  let printableProductSummaryCache = null;
+  const printableProductLinesCache = new Map();
   let currentCostSheetProductId = null;
   let costSheetReturnFocus = null;
   let costSheetSignReturnFocus = null;
   let costSheetExplainReturnFocus = null;
   let currentExplainTraceabilityRow = null;
+  let selectedExplainContext = null;
+  let selectedExplainCell = null;
   let eventsBound = false;
 
   const COST_SHEET_SIGN_DEFAULTS = {
@@ -193,23 +204,22 @@ export function createCostSheetController(deps) {
 
   let costSheetSignatories = { ...COST_SHEET_SIGN_DEFAULTS };
 
-  async function fetchAllPrintableLinesForPeriod(periodStart) {
+  function normalizePrintableCachePeriod(periodStart) {
+    return String(periodStart ?? "").trim();
+  }
+
+  async function fetchAllProductSummaryRowsForPeriod(periodStart) {
     const pageSize = 1000;
     let from = 0;
     const rows = [];
 
     while (true) {
       const to = from + pageSize - 1;
-      const { data, error } = await costingFrom(
-        "v_costing_pricing_printable_cost_sheet_lines",
-      )
+      const { data, error } = await costingFrom(PRINTABLE_PRODUCT_SUMMARY_VIEW)
         .select("*")
         .eq("period_start", periodStart)
         .order("product_name", { ascending: true })
         .order("product_id", { ascending: true })
-        .order("pack_size", { ascending: true })
-        .order("section_code", { ascending: true })
-        .order("line_order", { ascending: true })
         .range(from, to);
 
       if (error) throw error;
@@ -220,6 +230,30 @@ export function createCostSheetController(deps) {
     }
 
     return rows;
+  }
+
+  function mapProductSummaryRowToPrintableGroup(row) {
+    return {
+      product_id: row.product_id,
+      product_name: row.product_name,
+      category_name: row.category_name,
+      subcategory_name: row.subcategory_name,
+      group_name: row.group_name,
+      sub_group_name: row.sub_group_name,
+      product_hierarchy: row.product_hierarchy,
+      period_start: row.period_start,
+      product_cost_sheet_status: row.cost_sheet_status,
+      cost_sheet_status: row.cost_sheet_status,
+      cost_sheet_note: row.cost_sheet_note,
+      refreshed_at: row.refreshed_at || row.snapshot_refreshed_at,
+      snapshot_refreshed_at: row.snapshot_refreshed_at,
+      sku_count: row.sku_count,
+      sku_column_labels: row.sku_column_labels,
+      line_count: row.line_count,
+      blocked_line_count: row.blocked_line_count,
+      review_required_line_count: row.review_required_line_count,
+      ready_line_count: row.ready_line_count,
+    };
   }
 
   function groupPrintableLinesByProduct(lines) {
@@ -419,10 +453,71 @@ export function createCostSheetController(deps) {
     );
   }
 
-  function printableRowsForProduct(productId) {
-    return printableLines.filter(
-      (r) => String(r.product_id ?? "") === String(productId ?? ""),
+  function productLinesCacheKey(periodStart, productId) {
+    return `${normalizePrintableCachePeriod(periodStart)}::${String(productId ?? "")}`;
+  }
+
+  function findCachedProductLines(periodStart, productId) {
+    const cached = printableProductLinesCache.get(
+      productLinesCacheKey(periodStart, productId),
     );
+    return cached?.lines || null;
+  }
+
+  function findProductSummaryRow(productId, periodStart) {
+    const periodKey = normalizePrintableCachePeriod(periodStart);
+    if (!printableProductSummaryCache) return null;
+    if (printableProductSummaryCache.periodStart !== periodKey) return null;
+    return (
+      printableProductSummaryCache.rows.find(
+        (row) => String(row.product_id) === String(productId),
+      ) || null
+    );
+  }
+
+  async function loadPrintableLinesForProduct(periodStart, productId) {
+    const cached = findCachedProductLines(periodStart, productId);
+    if (cached) return cached;
+
+    const pageSize = 1000;
+    let from = 0;
+    const rows = [];
+
+    while (true) {
+      const to = from + pageSize - 1;
+      const { data, error } = await costingFrom(PRINTABLE_LINES_VIEW)
+        .select("*")
+        .eq("period_start", periodStart)
+        .eq("product_id", productId)
+        .order("sku_column_label", { ascending: true })
+        .order("section_code", { ascending: true })
+        .order("line_order", { ascending: true })
+        .range(from, to);
+
+      if (error) throw error;
+      const pageRows = data || [];
+      rows.push(...pageRows);
+      if (pageRows.length < pageSize) break;
+      from += pageSize;
+    }
+
+    printableProductLinesCache.set(productLinesCacheKey(periodStart, productId), {
+      lines: rows,
+      fetchedAt: Date.now(),
+    });
+    return rows;
+  }
+
+  function printableRowsForProduct(productId, periodStart = getActivePeriodStart()) {
+    if (
+      String(currentCostSheetProductId ?? "") === String(productId ?? "") &&
+      printableLines.length
+    ) {
+      return printableLines;
+    }
+
+    const cached = findCachedProductLines(periodStart, productId);
+    return cached || [];
   }
 
   function getPrintableSkuColumns(rows) {
@@ -502,6 +597,7 @@ export function createCostSheetController(deps) {
     closeCostSheetSignModal();
 
     closeCostSheetExplainDrawer();
+    clearCostSheetExplainSelection();
 
     costSheetModal.classList.add("hidden");
     costSheetModal.setAttribute("aria-hidden", "true");
@@ -563,9 +659,11 @@ export function createCostSheetController(deps) {
   async function confirmCostSheetSignatories() {
     readCostSheetSignatoriesFromModal();
     const productId = currentCostSheetProductId;
-    if (productId) openCostSheetModal(productId);
     closeCostSheetSignModal();
-    await generateCostSheetPdf(productId);
+    if (productId) {
+      await openCostSheetModal(productId);
+      await generateCostSheetPdf(productId);
+    }
   }
 
   function shouldShowCalculationInPrint(line) {
@@ -604,6 +702,12 @@ export function createCostSheetController(deps) {
       return "Pricing Component";
     if (code === "E_PROFIT") return "Component";
     return "Component";
+  }
+
+  function normalizeCostSheetDisplayLabel(value) {
+    return String(value ?? "")
+      .replace(/^[\s\t\r\n]+/, "")
+      .replace(/[\s\t\r\n]+$/, "");
   }
 
   function costSheetLineClass(line) {
@@ -849,13 +953,19 @@ export function createCostSheetController(deps) {
     ]);
   }
 
-  function buildCostSheetExplainButton(valueRow, line, sku, explainContext = {}) {
+  function getCostSheetExplainBtn() {
+    return document.getElementById("costSheetExplainBtn");
+  }
+
+  function buildCostSheetExplainContext(valueRow, line, sku, explainContext = {}) {
     const skuId = valueRow?.sku_id ?? sku?.sku_id;
     const productId = valueRow?.product_id ?? explainContext.productId;
     const periodStart = valueRow?.period_start ?? explainContext.periodStart;
     const lineLabel = valueRow?.line_label ?? line?.line_label;
     const sectionCode = valueRow?.section_code ?? line?.section_code ?? "";
     const lineOrder = valueRow?.line_order ?? line?.line_order;
+    const skuLabel =
+      sku?.label || valueRow?.sku_column_label || skuId || "";
 
     if (
       skuId == null ||
@@ -864,21 +974,104 @@ export function createCostSheetController(deps) {
       !periodStart ||
       !lineLabel
     ) {
-      return "";
+      return null;
     }
 
-    return `<button
-      type="button"
-      class="cost-sheet-explain-btn cost-sheet-screen-only"
-      data-period-start="${attr(periodStart)}"
-      data-product-id="${attr(productId)}"
-      data-sku-id="${attr(skuId)}"
-      data-section-code="${attr(sectionCode)}"
-      data-line-order="${attr(lineOrder ?? "")}"
-      data-line-label="${attr(lineLabel)}"
-      title="Explain this line"
-      aria-label="Explain ${attr(lineLabel)} for ${attr(sku.label || sku.sku_id || "SKU")}"
-    >Explain</button>`;
+    return {
+      periodStart,
+      productId: Number(productId),
+      skuId: Number(skuId),
+      sectionCode: sectionCode || undefined,
+      lineOrder:
+        lineOrder != null && lineOrder !== "" ? Number(lineOrder) : undefined,
+      lineLabel,
+      skuLabel: String(skuLabel),
+    };
+  }
+
+  function buildExplainableValueCellAttrs(context) {
+    if (!context) return "";
+    return `data-explain-enabled="true"
+      data-explain-period-start="${attr(context.periodStart)}"
+      data-explain-product-id="${attr(context.productId)}"
+      data-explain-sku-id="${attr(context.skuId)}"
+      data-explain-section-code="${attr(context.sectionCode ?? "")}"
+      data-explain-line-order="${attr(context.lineOrder ?? "")}"
+      data-explain-line-label="${attr(context.lineLabel)}"
+      data-explain-sku-label="${attr(context.skuLabel)}"
+      tabindex="0"
+      role="button"
+      aria-label="Select ${attr(context.lineLabel)} for explanation"`;
+  }
+
+  function parseExplainContextFromCell(cell) {
+    const lineOrderRaw = cell.dataset.explainLineOrder;
+    return {
+      periodStart: cell.dataset.explainPeriodStart,
+      productId: Number(cell.dataset.explainProductId),
+      skuId: Number(cell.dataset.explainSkuId),
+      sectionCode: cell.dataset.explainSectionCode || undefined,
+      lineOrder:
+        lineOrderRaw !== undefined && lineOrderRaw !== ""
+          ? Number(lineOrderRaw)
+          : undefined,
+      lineLabel: cell.dataset.explainLineLabel,
+      skuLabel: cell.dataset.explainSkuLabel || "",
+    };
+  }
+
+  function clearCostSheetExplainSelection() {
+    if (selectedExplainCell) {
+      selectedExplainCell.classList.remove("cost-sheet-value-cell-selected");
+      selectedExplainCell
+        .closest("tr")
+        ?.classList.remove("cost-sheet-row-selected");
+    }
+    selectedExplainContext = null;
+    selectedExplainCell = null;
+    syncCostSheetExplainToolbar();
+  }
+
+  function syncCostSheetExplainToolbar() {
+    const btn = getCostSheetExplainBtn();
+    if (!btn) return;
+
+    const hasSelection = Boolean(selectedExplainContext);
+    btn.disabled = !hasSelection;
+    btn.setAttribute("aria-disabled", hasSelection ? "false" : "true");
+
+    if (hasSelection) {
+      const label = selectedExplainContext.lineLabel || "line";
+      const sku =
+        selectedExplainContext.skuLabel ||
+        selectedExplainContext.skuId ||
+        "SKU";
+      btn.title = `Explain ${label} for ${sku}`;
+    } else {
+      btn.title = "Select a value cell to explain";
+    }
+  }
+
+  function selectCostSheetExplainCell(cell) {
+    if (!cell) return;
+
+    const context = parseExplainContextFromCell(cell);
+    if (
+      !context.periodStart ||
+      !context.productId ||
+      !context.skuId ||
+      !context.lineLabel
+    ) {
+      return;
+    }
+
+    clearCostSheetExplainSelection();
+
+    selectedExplainContext = context;
+    selectedExplainCell = cell;
+    cell.classList.add("cost-sheet-value-cell-selected");
+    cell.closest("tr")?.classList.add("cost-sheet-row-selected");
+    syncCostSheetExplainToolbar();
   }
 
   function closeCostSheetExplainDrawer() {
@@ -987,25 +1180,43 @@ export function createCostSheetController(deps) {
     void handleTraceabilityDrillback();
   }
 
-  function handleCostSheetExplainClick(event) {
-    const button = event.target.closest(".cost-sheet-explain-btn");
-    if (!button || !costSheetA4?.contains(button)) return;
+  function handleCostSheetExplainCellClick(event) {
+    const cell = event.target.closest("td[data-explain-enabled='true']");
+    if (!cell || !costSheetA4?.contains(cell)) return;
 
     event.preventDefault();
     event.stopPropagation();
+    selectCostSheetExplainCell(cell);
+  }
 
-    const lineOrderRaw = button.dataset.lineOrder;
-    openCostSheetExplainDrawer({
-      periodStart: button.dataset.periodStart,
-      productId: Number(button.dataset.productId),
-      skuId: Number(button.dataset.skuId),
-      sectionCode: button.dataset.sectionCode || undefined,
-      lineOrder:
-        lineOrderRaw !== undefined && lineOrderRaw !== ""
-          ? Number(lineOrderRaw)
-          : undefined,
-      lineLabel: button.dataset.lineLabel,
-    });
+  function handleCostSheetExplainCellDblClick(event) {
+    const cell = event.target.closest("td[data-explain-enabled='true']");
+    if (!cell || !costSheetA4?.contains(cell)) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    selectCostSheetExplainCell(cell);
+    if (selectedExplainContext) {
+      void openCostSheetExplainDrawer(selectedExplainContext);
+    }
+  }
+
+  function handleCostSheetExplainCellKeydown(event) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+
+    const cell = event.target.closest("td[data-explain-enabled='true']");
+    if (!cell || !costSheetA4?.contains(cell)) return;
+
+    event.preventDefault();
+    selectCostSheetExplainCell(cell);
+    if (event.key === "Enter" && selectedExplainContext) {
+      void openCostSheetExplainDrawer(selectedExplainContext);
+    }
+  }
+
+  function handleCostSheetExplainToolbarClick() {
+    if (!selectedExplainContext) return;
+    void openCostSheetExplainDrawer(selectedExplainContext);
   }
 
   function buildCostSheetA4Table(rows, skuColumns, options = {}) {
@@ -1071,22 +1282,33 @@ export function createCostSheetController(deps) {
                 ? `<span class="cost-sheet-line-calc">${text(line.calculation_basis)}</span>`
                 : "";
             return `<tr class="${costSheetLineClass(line)}">
-            <td><span class="cost-sheet-line-label">${text(line.line_label)}</span>${calc}</td>
+            <td><span class="cost-sheet-line-label">${text(normalizeCostSheetDisplayLabel(line.line_label))}</span>${calc}</td>
             ${skuColumns
               .map((sku) => {
                 const valueRow = line.values.get(printableSkuMapKey(sku));
                 const isText =
                   String(valueRow?.value_type || "").toLowerCase() === "text";
-                const explainBtn =
+                const explainContextData =
                   enableExplain && valueRow
-                    ? buildCostSheetExplainButton(
+                    ? buildCostSheetExplainContext(
                         valueRow,
                         line,
                         sku,
                         explainContext,
                       )
-                    : "";
-                return `<td class="${isText ? "cost-sheet-text-cell" : ""}"><div class="cost-sheet-value-wrap"><span class="cost-sheet-value-text">${formatPrintableValue(valueRow)}</span>${explainBtn}</div></td>`;
+                    : null;
+                const cellClasses = [
+                  isText ? "cost-sheet-text-cell" : "",
+                  explainContextData
+                    ? "cost-sheet-value-cell-explainable cost-sheet-screen-only"
+                    : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ");
+                const explainAttrs = explainContextData
+                  ? buildExplainableValueCellAttrs(explainContextData)
+                  : "";
+                return `<td class="${cellClasses}" ${explainAttrs}><span class="cost-sheet-value-text">${formatPrintableValue(valueRow)}</span></td>`;
               })
               .join("")}
           </tr>`;
@@ -1121,38 +1343,84 @@ export function createCostSheetController(deps) {
     return `<div class="cost-sheet-status-note"><strong>Status:</strong> ${text(stat || "--")}${note ? ` &mdash; ${text(note)}` : ""}</div>`;
   }
 
-  function openCostSheetModal(productId) {
+  function resolveProductRowForModal(productId, periodStart, lines, summaryRow) {
+    return (
+      summaryRow ||
+      findProductSummaryRow(productId, periodStart) ||
+      groupPrintableLinesByProduct(lines)[0] ||
+      lines[0] ||
+      {}
+    );
+  }
+
+  async function openCostSheetModal(productId, options = {}) {
     if (!costSheetModal || !costSheetA4) return;
+
+    const periodStart = getActivePeriodStart();
+    if (!periodStart) {
+      showToast("Select a costing period first.", "info");
+      return;
+    }
+
     if (costSheetModal.classList.contains("hidden")) {
       costSheetReturnFocus = document.activeElement;
     }
     currentCostSheetProductId = productId;
-    const rows = printableRowsForProduct(productId);
-    if (!rows.length) {
-      showToast("No printable cost sheet lines found for this product.", "info");
-      return;
+
+    const summaryRow =
+      options.summaryRow || findProductSummaryRow(productId, periodStart);
+
+    if (costSheetModalTitle) {
+      costSheetModalTitle.textContent = "Cost Sheet Review";
     }
-
-    const first = rows[0] || {};
-    const productRow = groupPrintableLinesByProduct(rows)[0] || first;
-    const skuColumns = getPrintableSkuColumns(rows);
-    const tableHtml = buildCostSheetA4Table(rows, skuColumns, {
-      enableExplain: isCostSheetLineExplainEnabled(),
-      explainContext: {
-        periodStart: productRow.period_start || first.period_start,
-        productId: productRow.product_id ?? productId,
-      },
-    });
-    const notesHtml = buildCostSheetStatusNote(rows);
-
-    if (costSheetModalTitle) costSheetModalTitle.textContent = "Cost Sheet Review";
     if (costSheetModalSubtitle) {
-      costSheetModalSubtitle.textContent = `${productRow.product_name || productRow.product_id || ""} | ${formatPeriodMonth(productRow.period_start)}`;
+      costSheetModalSubtitle.textContent = `${summaryRow?.product_name || productId || ""} | ${formatPeriodMonth(periodStart)}`;
     }
     if (costSheetModalHint) {
       costSheetModalHint.textContent =
         "Printable output is available from Export PDF.";
     }
+
+    costSheetModal.classList.remove("hidden");
+    costSheetModal.setAttribute("aria-hidden", "false");
+    clearCostSheetExplainSelection();
+    costSheetA4.innerHTML = `<div class="cost-sheet-explain-loading"><span class="cp-loading-spinner" aria-hidden="true"></span><span>Loading printable cost sheet lines...</span></div>`;
+
+    let rows;
+    try {
+      rows = await loadPrintableLinesForProduct(periodStart, productId);
+    } catch (err) {
+      console.error("[costing-suite] loadPrintableLinesForProduct failed", err);
+      showToast("Failed to load cost sheet lines for this product.", "error");
+      costSheetModal.classList.add("hidden");
+      costSheetModal.setAttribute("aria-hidden", "true");
+      return;
+    }
+
+    if (!rows.length) {
+      showToast("No printable cost sheet lines found for this product.", "info");
+      costSheetModal.classList.add("hidden");
+      costSheetModal.setAttribute("aria-hidden", "true");
+      return;
+    }
+
+    printableLines = rows;
+    const first = rows[0] || {};
+    const productRow = resolveProductRowForModal(
+      productId,
+      periodStart,
+      rows,
+      summaryRow,
+    );
+    const skuColumns = getPrintableSkuColumns(rows);
+    const tableHtml = buildCostSheetA4Table(rows, skuColumns, {
+      enableExplain: isCostSheetLineExplainEnabled(),
+      explainContext: {
+        periodStart: productRow.period_start || first.period_start || periodStart,
+        productId: productRow.product_id ?? productId,
+      },
+    });
+    const notesHtml = buildCostSheetStatusNote(rows);
 
     const exportedAt = getExportedAtIst();
     costSheetA4.innerHTML = `
@@ -1208,6 +1476,8 @@ export function createCostSheetController(deps) {
     </div>`;
     costSheetModal.classList.remove("hidden");
     costSheetModal.setAttribute("aria-hidden", "false");
+
+    clearCostSheetExplainSelection();
 
     setTimeout(() => {
       costSheetPdfBtn?.focus();
@@ -1355,12 +1625,16 @@ export function createCostSheetController(deps) {
         }
       }
 
+      const displayLabel = normalizeCostSheetDisplayLabel(line.line_label);
       const hasFormula = Boolean(
         line.calculation_basis && shouldShowCalculationInPrint(line),
       );
+      const trimmedBasis = String(line.calculation_basis ?? "")
+        .replace(/^[\s\t\r\n]+/, "")
+        .replace(/[\s\t\r\n]+$/, "");
       const componentText = hasFormula
-        ? `${line.line_label || ""}\nCalculation: ${line.calculation_basis}`
-        : String(line.line_label || "");
+        ? `${displayLabel}\n[${trimmedBasis}]`
+        : displayLabel;
       const valueRow = [
         componentText,
         ...skuColumns.map((sku) => {
@@ -1374,11 +1648,8 @@ export function createCostSheetController(deps) {
           ? "sub"
           : "";
       valueRow._hasFormula = hasFormula;
-      valueRow._label = String(line.line_label || "");
-      valueRow._formula = hasFormula
-        ? `Calculation: ${line.calculation_basis}`
-        : "";
-      valueRow._lineLabel = String(line.line_label || "");
+      valueRow._label = displayLabel;
+      valueRow._lineLabel = displayLabel;
       bodyRows.push(valueRow);
     });
 
@@ -1440,14 +1711,32 @@ export function createCostSheetController(deps) {
       return;
     }
 
-    const rows = printableRowsForProduct(productId);
+    const periodStart = getActivePeriodStart();
+    if (!periodStart) {
+      showToast("Select a costing period first.", "info");
+      return;
+    }
+
+    let rows;
+    try {
+      rows = await loadPrintableLinesForProduct(periodStart, productId);
+    } catch (err) {
+      console.error("[costing-suite] generateCostSheetPdf line load failed", err);
+      showToast("Failed to load cost sheet lines for PDF.", "error");
+      return;
+    }
+
+    printableLines = rows;
     if (!rows.length) {
       showToast("No cost sheet rows available for PDF.", "error");
       return;
     }
 
     const first = rows[0] || {};
-    const productRow = groupPrintableLinesByProduct(rows)[0] || first;
+    const productRow =
+      findProductSummaryRow(productId, periodStart) ||
+      groupPrintableLinesByProduct(rows)[0] ||
+      first;
     const skuColumns = getPrintableSkuColumns(rows);
     const exportedAt = getExportedAtIst();
 
@@ -1634,15 +1923,6 @@ export function createCostSheetController(deps) {
           data.cell.styles.fontSize = 6.9;
         }
 
-        if (marker === "sub" && data.column.index === 0) {
-          data.cell.styles.cellPadding = {
-            top: 0.85,
-            right: 1.1,
-            bottom: 0.85,
-            left: 3.5,
-          };
-        }
-
         if (data.section === "body" && data.column.index > 0) {
           data.cell.styles.halign = "right";
           data.cell.styles.valign = "middle";
@@ -1666,7 +1946,7 @@ export function createCostSheetController(deps) {
           data.cell.styles.textColor = [17, 24, 39];
           data.cell.styles.overflow = "linebreak";
           data.cell.styles.valign = "top";
-          data.cell.styles.lineHeightFactor = 1.5;
+          data.cell.styles.lineHeightFactor = 1.35;
           data.cell.styles.cellPadding = {
             top: 0.9,
             right: 1,
@@ -1869,7 +2149,13 @@ export function createCostSheetController(deps) {
     costSheetSignModal?.addEventListener("click", (e) => {
       if (e.target === costSheetSignModal) closeCostSheetSignModal();
     });
-    costSheetA4?.addEventListener("click", handleCostSheetExplainClick);
+    costSheetA4?.addEventListener("click", handleCostSheetExplainCellClick);
+    costSheetA4?.addEventListener("dblclick", handleCostSheetExplainCellDblClick);
+    costSheetA4?.addEventListener("keydown", handleCostSheetExplainCellKeydown);
+    getCostSheetExplainBtn()?.addEventListener(
+      "click",
+      handleCostSheetExplainToolbarClick,
+    );
     costSheetExplainContent?.addEventListener(
       "click",
       handleCostSheetExplainDrillClick,
@@ -1907,10 +2193,34 @@ export function createCostSheetController(deps) {
     printableLines = [];
   }
 
+  function invalidatePrintableLinesCache() {
+    printableProductSummaryCache = null;
+    printableProductLinesCache.clear();
+    printableLines = [];
+  }
+
+  function isPrintableProductSummaryCacheValid(periodStart) {
+    if (!printableProductSummaryCache) return false;
+    return (
+      printableProductSummaryCache.periodStart ===
+      normalizePrintableCachePeriod(periodStart)
+    );
+  }
+
   async function loadPrintableLensRows(periodStart) {
-    const lines = await fetchAllPrintableLinesForPeriod(periodStart);
-    printableLines = lines;
-    return { lines, groupedRows: groupPrintableLinesByProduct(lines) };
+    const periodKey = normalizePrintableCachePeriod(periodStart);
+    if (isPrintableProductSummaryCacheValid(periodKey)) {
+      return { groupedRows: printableProductSummaryCache.rows };
+    }
+
+    const summaryRows = await fetchAllProductSummaryRowsForPeriod(periodStart);
+    const groupedRows = summaryRows.map(mapProductSummaryRowToPrintableGroup);
+    printableProductSummaryCache = {
+      periodStart: periodKey,
+      rows: groupedRows,
+      fetchedAt: Date.now(),
+    };
+    return { groupedRows };
   }
 
   async function loadCostSheetLineTraceability({
@@ -2013,8 +2323,8 @@ export function createCostSheetController(deps) {
     return null;
   }
 
-  function handlePrintableRowClick(row) {
-    openCostSheetModal(row.product_id);
+  async function handlePrintableRowClick(row) {
+    await openCostSheetModal(row.product_id, { summaryRow: row });
   }
 
   function getComparisonDrawerConfig(row, preferredTab) {
@@ -2044,6 +2354,8 @@ export function createCostSheetController(deps) {
     onLensSwitch,
     onLensLoadStart,
     loadPrintableLensRows,
+    loadPrintableLinesForProduct,
+    invalidatePrintableLinesCache,
     loadCostSheetLineTraceability,
     getTableHeaders,
     getTableAlignments,
