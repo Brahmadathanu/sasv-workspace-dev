@@ -244,12 +244,12 @@ const state = {
     pageSize: 75,
     totalCount: null,
     search: "",
-    vendorId: "",
+    vendorFilterKey: "",
+    vendorFilterOptions: [],
     rows: [],
     splitRows: [],
     splitLookup: {},
     loaded: false,
-    vendorsLoaded: false,
   },
   // vendor tab
   vendorPage: 0,
@@ -274,6 +274,25 @@ state.vwlMaterialClassOptions = state.vwlMaterialClassOptions || [];
 state.vwlRmScopeOptions = state.vwlRmScopeOptions || [];
 state.vwlSplitReview = state.vwlSplitReview || null;
 state.vwlBreakdownRow = state.vwlBreakdownRow || null;
+
+state.vendorLookup = state.vendorLookup || {
+  recent: [],
+  byId: new Map(),
+  requestSeq: 0,
+};
+
+state.vendorModal = state.vendorModal || {
+  row: null,
+  selectedVendorId: null,
+  selectedVendorName: "",
+  selectedSource: null,
+  suggestedVendors: [],
+  suggestedVendorIds: new Set(),
+  selectedSuggestedRate: null,
+  searchRows: [],
+  searchRequestSeq: 0,
+  searchDebounceTimer: null,
+};
 
 let vwlSplitActionConfirmResolve = null;
 
@@ -1429,6 +1448,57 @@ function getActionQueueAssignedVendorRate(row) {
   return rate == null || rate === "" ? null : rate;
 }
 
+function hasActionQueueResolvedVendor(row) {
+  if (isVendorAssignmentCleared(row)) return false;
+  return Boolean(
+    row?.resolved_vendor_name ||
+      row?.selected_vendor_id ||
+      row?.has_selected_vendor,
+  );
+}
+
+function isActionQueueRatePending(row) {
+  if (!hasActionQueueResolvedVendor(row)) return false;
+  const rate = row?.resolved_rate;
+  return rate == null || rate === "";
+}
+
+function getActionQueueRateDisplay(row) {
+  if (isVendorAssignmentCleared(row) || !hasActionQueueResolvedVendor(row)) {
+    return {
+      text: "—",
+      isPill: false,
+      pillClass: "",
+      isPending: false,
+    };
+  }
+
+  const rate = row?.resolved_rate;
+  if (rate != null && rate !== "") {
+    return {
+      text: fmt(rate),
+      isPill: false,
+      pillClass: "",
+      isPending: false,
+    };
+  }
+
+  return {
+    text: "Pending",
+    isPill: true,
+    pillClass: "pill-warning",
+    isPending: true,
+  };
+}
+
+function renderActionQueueRateCell(row) {
+  const display = getActionQueueRateDisplay(row);
+  if (display.isPill) {
+    return `<span class="pill ${display.pillClass}" title="Rate pending">Pending</span>`;
+  }
+  return esc(display.text);
+}
+
 function renderActionQueueVendorCell(row) {
   if (isVendorAssignmentCleared(row)) {
     return '<span class="pill pill-neutral" title="Vendor assignment cleared">UNASSIGNED</span>';
@@ -1467,6 +1537,7 @@ function openDetailModal(row) {
   const hasSelectedF =
     !isVendorAssignmentCleared(row) &&
     Boolean(row.has_selected_vendor || row.selected_vendor_id);
+  const hasRatePendingF = isActionQueueRatePending(row);
   const hasExcessF = Boolean(row.has_net_excess);
   const mosRiskLowF =
     row.mos_risk_low != null
@@ -1477,6 +1548,9 @@ function openDetailModal(row) {
     flagsEl.innerHTML = [
       hasSelectedF
         ? '<span class="pill pill-flag pill-success" title="Selected vendor exists">S</span>'
+        : "",
+      hasRatePendingF
+        ? '<span class="pill pill-flag pill-warning" title="Rate pending">P</span>'
         : "",
       hasExcessF
         ? '<span class="pill pill-flag pill-warning" title="Has net excess">E</span>'
@@ -1534,17 +1608,42 @@ function openDetailModal(row) {
   const selName =
     row.selected_vendor_name ??
     (row.selected_vendor_id ? `ID ${row.selected_vendor_id}` : null);
-  const vendorPairs = isVendorAssignmentCleared(row)
-    ? [["Resolved Vendor", "UNASSIGNED"]]
-    : [
-        ["Resolved Vendor", row.resolved_vendor_name],
-        ["Resolved Rate", row.resolved_rate],
-        ["Recommended Vendor", recName],
-        ["Recommended Rate", row.recommended_rate],
-        ["Selected Vendor", selName],
-        ["Selected Rate", row.selected_rate],
-        ["Selection Reason", row.selection_reason],
-      ].filter(([, v]) => v !== undefined && v !== null && v !== "");
+
+  const vendorPairs = [];
+  if (isVendorAssignmentCleared(row)) {
+    vendorPairs.push(["Resolved Vendor", "UNASSIGNED"], ["Resolved Rate", "—"]);
+  } else {
+    const resolvedName = row.resolved_vendor_name || selName;
+    if (resolvedName) vendorPairs.push(["Resolved Vendor", resolvedName]);
+
+    if (hasActionQueueResolvedVendor(row)) {
+      const resolvedRateDisplay =
+        row.resolved_rate != null && row.resolved_rate !== ""
+          ? fmt(row.resolved_rate)
+          : "Rate pending";
+      vendorPairs.push(["Resolved Rate", resolvedRateDisplay]);
+    }
+
+    if (recName) vendorPairs.push(["Recommended Vendor", recName]);
+    if (row.recommended_rate != null && row.recommended_rate !== "") {
+      vendorPairs.push(["Recommended Rate", row.recommended_rate]);
+    }
+    if (selName) vendorPairs.push(["Selected Vendor", selName]);
+    if (row.selected_vendor_id || row.selected_vendor_name) {
+      const selectedRateDisplay =
+        row.selected_rate != null && row.selected_rate !== ""
+          ? fmt(row.selected_rate)
+          : row.selected_vendor_id || row.selected_vendor_name
+            ? "Rate pending"
+            : null;
+      if (selectedRateDisplay != null) {
+        vendorPairs.push(["Selected Rate", selectedRateDisplay]);
+      }
+    }
+    if (row.selection_reason) {
+      vendorPairs.push(["Selection Reason", row.selection_reason]);
+    }
+  }
   qs("detailVendor").innerHTML = toHtmlTableFromPairs(vendorPairs);
 
   const actionHint = qs("detailActionHint");
@@ -1552,6 +1651,9 @@ function openDetailModal(row) {
     if (isVendorAssignmentCleared(row)) {
       actionHint.textContent =
         "No vendor is assigned. Use Recommend or Select to assign a vendor.";
+    } else if (isActionQueueRatePending(row)) {
+      actionHint.textContent =
+        "Vendor is assigned; rate is pending. Use Select vendor to enter the confirmed rate when available.";
     } else if (row.selected_vendor_id || row.selected_vendor_name) {
       actionHint.textContent =
         "A vendor is already selected for this line. Use Recommend only if you want a fresh suggestion, or Select to change the final choice.";
@@ -1677,7 +1779,7 @@ function renderRows() {
 
   for (const row of state.rows) {
     const vendorCell = renderActionQueueVendorCell(row);
-    const vendorRate = getActionQueueAssignedVendorRate(row);
+    const rateCell = renderActionQueueRateCell(row);
 
     const tr = document.createElement("tr");
     tr.style.cursor = "pointer";
@@ -1688,7 +1790,7 @@ function renderRows() {
       <td><span class="pill ${priorityBandPillClass(row.priority_band_final)}">${esc(row.priority_band_final ?? "-")}</span></td>
       <td>${fmt(row.priority_score_system)}</td>
       <td>${vendorCell}</td>
-      <td>${vendorRate != null ? fmt(vendorRate) : "-"}</td>
+      <td>${rateCell}</td>
     `;
 
     tr.addEventListener("click", () => renderDetail(row));
@@ -2091,116 +2193,687 @@ async function clearSelectedVendorForRow(row) {
   await afterClearSelectedVendorSaved(row.indent_line_id, row.indent_id);
 }
 
+function normalizeVendorId(value) {
+  const id = Number(value || 0);
+  return Number.isFinite(id) && id > 0 ? id : null;
+}
+
+function formatSuggestedVendorEvidence(evidence) {
+  if (!evidence || !Array.isArray(evidence) || !evidence.length) return "";
+  const first = evidence[0] || {};
+  const source = first.source ?? first.source_system ?? "";
+  if (!source) return "";
+  const meta = first.meta ?? first;
+  const metaBits = Object.entries(meta)
+    .filter(([k]) => k !== "source" && k !== "source_system")
+    .slice(0, 2)
+    .map(([k, v]) => `${k}: ${v}`)
+    .join(" · ");
+  return metaBits ? `${source} · ${metaBits}` : String(source);
+}
+
+function buildSuggestedVendorsFromRow(row) {
+  const options = [];
+  const seen = new Set();
+
+  const add = (tag, vendorId, vendorName, rate, evidence) => {
+    const id = normalizeVendorId(vendorId);
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    options.push({
+      vendor_id: id,
+      display_name: String(vendorName || `Vendor #${id}`),
+      rate: rate == null || rate === "" ? null : rate,
+      tag,
+      evidenceText: formatSuggestedVendorEvidence(evidence),
+    });
+  };
+
+  add("L1", row?.l1_vendor_id, row?.l1_vendor_name, row?.l1_rate_value, row?.l1_evidence);
+  add("L2", row?.l2_vendor_id, row?.l2_vendor_name, row?.l2_rate_value, row?.l2_evidence);
+  add("L3", row?.l3_vendor_id, row?.l3_vendor_name, row?.l3_rate_value, row?.l3_evidence);
+
+  return options;
+}
+
+function isVendorSelectionReasonRequired({ row, vendorId, rate }) {
+  const selectedId = normalizeVendorId(vendorId);
+  if (!selectedId) return false;
+
+  if (rate == null) return true;
+
+  const recommendedId = normalizeVendorId(row?.recommended_vendor_id);
+  if (!recommendedId) return true;
+
+  return selectedId !== recommendedId;
+}
+
+function getVendorSelectionReasonHint({ row, vendorId, rate }) {
+  if (!isVendorSelectionReasonRequired({ row, vendorId, rate })) {
+    return "Optional unless required by procurement policy.";
+  }
+
+  const selectedId = normalizeVendorId(vendorId);
+  const recommendedId = normalizeVendorId(row?.recommended_vendor_id);
+
+  if (rate == null) {
+    return "Reason is required while the rate is pending.";
+  }
+  if (!recommendedId) {
+    return "Reason is required for a manual vendor assignment.";
+  }
+  if (selectedId !== recommendedId) {
+    return "Reason is required because the selected vendor differs from the recommendation.";
+  }
+  return "Reason is required for this assignment.";
+}
+
+function mapVendorSelectionError(error) {
+  const msg = String(error?.message || error || "").toLowerCase();
+
+  if (msg.includes("selected vendor is required")) {
+    return "Please select a vendor.";
+  }
+  if (msg.includes("vendor not found")) {
+    return "Vendor not found.";
+  }
+  if (msg.includes("inactive") && msg.includes("vendor")) {
+    return "Selected vendor is inactive.";
+  }
+  if (
+    msg.includes("rate") &&
+    (msg.includes("greater than zero") ||
+      msg.includes("must be >") ||
+      msg.includes("> 0"))
+  ) {
+    return "Rate must be greater than zero when provided.";
+  }
+  if (msg.includes("reason is required") && msg.includes("rate pending")) {
+    return "Reason is required while the rate is pending.";
+  }
+  if (
+    msg.includes("reason is required") &&
+    msg.includes("without recommendation")
+  ) {
+    return "Reason is required for a manual vendor assignment.";
+  }
+  if (
+    msg.includes("reason is required") &&
+    msg.includes("differs from recommended")
+  ) {
+    return "Reason is required because the selected vendor differs from the recommendation.";
+  }
+  if (msg.includes("reason") && msg.includes("required")) {
+    return "Reason is required for this assignment.";
+  }
+  if (msg.includes("cannot assign vendor") && msg.includes("status")) {
+    return "This indent is not open for vendor assignment.";
+  }
+  if (msg.includes("indent line not found")) {
+    return "Indent line not found.";
+  }
+
+  return error?.message || "Could not save vendor selection.";
+}
+
+function closeVendorSearchPopover(input, results) {
+  if (results) {
+    results.innerHTML = "";
+    results.classList.remove("show");
+  }
+  if (input) input.setAttribute("aria-expanded", "false");
+}
+
+function renderVendorSearchPopover({ input, results, message, rows, onSelect }) {
+  if (!results) return;
+
+  results.innerHTML = "";
+
+  if (message) {
+    const li = document.createElement("li");
+    li.className = "no-results";
+    li.textContent = message;
+    results.appendChild(li);
+  }
+
+  for (const vendor of rows || []) {
+    const li = document.createElement("li");
+    li.setAttribute("role", "option");
+    li.textContent = vendor.display_name;
+    li.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      onSelect(vendor);
+    });
+    results.appendChild(li);
+  }
+
+  if (message || (rows && rows.length)) {
+    results.classList.add("show");
+    input?.setAttribute("aria-expanded", "true");
+  } else {
+    results.classList.remove("show");
+    input?.setAttribute("aria-expanded", "false");
+  }
+}
+
+function wireVendorSearchCombobox({
+  inputId,
+  resultsId,
+  getRows,
+  onSelect,
+}) {
+  const input = qs(inputId);
+  const results = qs(resultsId);
+  if (!input || !results) return;
+
+  let highlighted = -1;
+
+  function getOptionEls() {
+    return Array.from(results.querySelectorAll("li:not(.no-results)"));
+  }
+
+  function setHighlight(idx) {
+    const els = getOptionEls();
+    if (!els.length) return;
+    highlighted = Math.max(0, Math.min(idx, els.length - 1));
+    els.forEach((el, i) => {
+      if (i === highlighted) {
+        el.setAttribute("aria-selected", "true");
+        el.scrollIntoView({ block: "nearest" });
+      } else {
+        el.removeAttribute("aria-selected");
+      }
+    });
+  }
+
+  function handleSelect(vendor) {
+    highlighted = -1;
+    closeVendorSearchPopover(input, results);
+    if (input && vendor?.display_name) {
+      input.value = vendor.display_name;
+    }
+    onSelect(vendor);
+  }
+
+  input.addEventListener("blur", () => {
+    setTimeout(() => {
+      closeVendorSearchPopover(input, results);
+      highlighted = -1;
+    }, 150);
+  });
+
+  input.addEventListener("keydown", (e) => {
+    const open = results.classList.contains("show");
+    const rows = getRows() || [];
+    const els = getOptionEls();
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (!open || !els.length) return;
+      setHighlight(highlighted < 0 ? 0 : highlighted + 1);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (!open || !els.length) return;
+      setHighlight(highlighted <= 0 ? els.length - 1 : highlighted - 1);
+    } else if (e.key === "Enter") {
+      if (open && highlighted >= 0 && rows[highlighted]) {
+        e.preventDefault();
+        handleSelect(rows[highlighted]);
+      }
+    } else if (e.key === "Escape") {
+      if (open) {
+        closeVendorSearchPopover(input, results);
+        highlighted = -1;
+        e.stopPropagation();
+      }
+    }
+  });
+
+  return { handleSelect };
+}
+
+function resetVendorModalTransientUi() {
+  const searchInput = qs("aqVendorSearchInput");
+  const searchResults = qs("aqVendorSearchResults");
+  const manualNotice = qs("aqVendorManualNotice");
+
+  if (searchInput) {
+    searchInput.value = "";
+    searchInput.setAttribute("aria-expanded", "false");
+  }
+  closeVendorSearchPopover(searchInput, searchResults);
+  if (manualNotice) {
+    manualNotice.hidden = true;
+    manualNotice.textContent = "";
+  }
+}
+
+function updateVendorModalSelectionSummary() {
+  const summary = qs("aqSelectedVendorSummary");
+  const modal = state.vendorModal;
+  if (!summary) return;
+
+  if (!modal?.selectedVendorId) {
+    summary.hidden = true;
+    summary.textContent = "";
+    return;
+  }
+
+  summary.hidden = false;
+  summary.textContent = `Selected: ${modal.selectedVendorName || `Vendor #${modal.selectedVendorId}`}`;
+}
+
+function updateVendorModalManualNotice() {
+  const notice = qs("aqVendorManualNotice");
+  const modal = state.vendorModal;
+  if (!notice || !modal) return;
+
+  const selectedId = normalizeVendorId(modal.selectedVendorId);
+  if (!selectedId || modal.suggestedVendorIds?.has(selectedId)) {
+    notice.hidden = true;
+    notice.textContent = "";
+    return;
+  }
+
+  notice.hidden = false;
+  notice.textContent =
+    "This vendor is not in the current suggested list for this item. Confirm the reason for the manual assignment.";
+}
+
+function updateVendorModalSuggestedSelectionUi() {
+  const list = qs("vendorSuggestedList");
+  const modal = state.vendorModal;
+  if (!list || !modal) return;
+
+  const selectedId = String(modal.selectedVendorId || "");
+  list.querySelectorAll("[data-suggested-vendor-id]").forEach((el) => {
+    const isSelected =
+      selectedId &&
+      el.getAttribute("data-suggested-vendor-id") === selectedId &&
+      modal.selectedSource === "suggested";
+    el.classList.toggle("is-selected", Boolean(isSelected));
+  });
+}
+
+function updateVendorModalReasonUi() {
+  const label = qs("vendorReasonLabel");
+  const hint = qs("vendorReasonHint");
+  const modal = state.vendorModal;
+  if (!label || !hint || !modal?.row) return;
+
+  const rateInput = qs("vendorRate");
+  const { value: parsedRate, error: rateError } = parseOptionalPositiveRate(
+    rateInput?.value ?? "",
+  );
+  const effectiveRate = rateError ? null : parsedRate;
+
+  const required = isVendorSelectionReasonRequired({
+    row: modal.row,
+    vendorId: modal.selectedVendorId,
+    rate: effectiveRate,
+  });
+
+  label.textContent = required ? "Reason *" : "Reason";
+  hint.textContent = getVendorSelectionReasonHint({
+    row: modal.row,
+    vendorId: modal.selectedVendorId,
+    rate: effectiveRate,
+  });
+}
+
+function applyVendorModalRatePrefill({ preserveUserRate = false } = {}) {
+  const rateInput = qs("vendorRate");
+  const modal = state.vendorModal;
+  if (!rateInput || !modal) return;
+
+  if (preserveUserRate && rateInput.dataset.userEdited === "true") return;
+
+  if (modal.selectedSource === "suggested") {
+    rateInput.value =
+      modal.selectedSuggestedRate != null && modal.selectedSuggestedRate !== ""
+        ? String(modal.selectedSuggestedRate)
+        : "";
+    rateInput.dataset.userEdited = "false";
+    return;
+  }
+
+  if (modal.selectedSource === "existing") {
+    const existingRate = modal.row?.selected_rate;
+    rateInput.value =
+      existingRate != null && existingRate !== "" ? String(existingRate) : "";
+    rateInput.dataset.userEdited = "false";
+    return;
+  }
+
+  rateInput.value = "";
+  rateInput.dataset.userEdited = "false";
+}
+
+function selectVendorModalVendor({
+  vendorId,
+  vendorName,
+  source,
+  suggestedRate = null,
+  preserveUserRate = false,
+}) {
+  const modal = state.vendorModal;
+  const id = normalizeVendorId(vendorId);
+  if (!modal || !id) return;
+
+  modal.selectedVendorId = id;
+  modal.selectedVendorName =
+    vendorName ||
+    getRememberedVendor(id)?.display_name ||
+    `Vendor #${id}`;
+  modal.selectedSource = source || null;
+  modal.selectedSuggestedRate =
+    source === "suggested" && suggestedRate != null && suggestedRate !== ""
+      ? suggestedRate
+      : null;
+
+  rememberVendorLookupRows([
+    { vendor_id: id, display_name: modal.selectedVendorName },
+  ]);
+
+  updateVendorModalSuggestedSelectionUi();
+  updateVendorModalSelectionSummary();
+  updateVendorModalManualNotice();
+  applyVendorModalRatePrefill({ preserveUserRate });
+  updateVendorModalReasonUi();
+}
+
+function renderVendorSuggestedList() {
+  const list = qs("vendorSuggestedList");
+  const empty = qs("vendorSuggestedEmpty");
+  const modal = state.vendorModal;
+  if (!list || !modal) return;
+
+  const suggested = modal.suggestedVendors || [];
+  list.innerHTML = "";
+
+  if (!suggested.length) {
+    if (empty) empty.hidden = false;
+    return;
+  }
+
+  if (empty) empty.hidden = true;
+
+  for (const vendor of suggested) {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "erp-choice-row";
+    row.setAttribute("data-suggested-vendor-id", String(vendor.vendor_id));
+    row.style.width = "100%";
+
+    const rateLabel =
+      vendor.rate != null && vendor.rate !== ""
+        ? ` @ ${fmt(vendor.rate)}`
+        : "";
+    const evidence = vendor.evidenceText
+      ? `<span class="erp-choice-desc">${esc(vendor.evidenceText)}</span>`
+      : "";
+
+    row.innerHTML = `
+      <span aria-hidden="true">•</span>
+      <span>
+        <strong class="erp-choice-title">${esc(vendor.tag)}: ${esc(vendor.display_name)}${esc(rateLabel)}</strong>
+        ${evidence}
+      </span>
+    `;
+
+    row.addEventListener("click", () => {
+      selectVendorModalVendor({
+        vendorId: vendor.vendor_id,
+        vendorName: vendor.display_name,
+        source: "suggested",
+        suggestedRate: vendor.rate,
+      });
+    });
+
+    list.appendChild(row);
+  }
+
+  updateVendorModalSuggestedSelectionUi();
+}
+
+async function runVendorModalSearch(query) {
+  const input = qs("aqVendorSearchInput");
+  const results = qs("aqVendorSearchResults");
+  const modal = state.vendorModal;
+  if (!results || !modal) return;
+
+  const q = String(query ?? "").trim();
+  if (q.length < 2) {
+    modal.searchRows = [];
+    closeVendorSearchPopover(input, results);
+    if (q) {
+      renderVendorSearchPopover({
+        input,
+        results,
+        message: "Type at least 2 characters to search.",
+        rows: [],
+        onSelect: () => {},
+      });
+    }
+    return;
+  }
+
+  const callSeq = ++modal.searchRequestSeq;
+  modal.searchRows = [];
+  renderVendorSearchPopover({
+    input,
+    results,
+    message: "Searching…",
+    rows: [],
+    onSelect: () => {},
+  });
+
+  try {
+    const { rows, requestSeq } = await searchActiveVendors(q, { limit: 30 });
+    if (
+      callSeq !== modal.searchRequestSeq ||
+      requestSeq !== state.vendorLookup.requestSeq
+    ) {
+      return;
+    }
+
+    modal.searchRows = rows;
+
+    if (!rows.length) {
+      renderVendorSearchPopover({
+        input,
+        results,
+        message: "No active vendors found.",
+        rows: [],
+        onSelect: () => {},
+      });
+      return;
+    }
+
+    renderVendorSearchPopover({
+      input,
+      results,
+      message: "",
+      rows,
+      onSelect: (vendor) => {
+        selectVendorModalVendor({
+          vendorId: vendor.vendor_id,
+          vendorName: vendor.display_name,
+          source: "active_search",
+        });
+        if (input) input.value = vendor.display_name;
+      },
+    });
+  } catch (error) {
+    if (callSeq !== modal.searchRequestSeq) return;
+    modal.searchRows = [];
+    renderVendorSearchPopover({
+      input,
+      results,
+      message: `Search failed: ${error?.message || error}`,
+      rows: [],
+      onSelect: () => {},
+    });
+  }
+}
+
+function scheduleVendorModalSearch(query) {
+  const modal = state.vendorModal;
+  if (!modal) return;
+
+  if (modal.searchDebounceTimer) {
+    clearTimeout(modal.searchDebounceTimer);
+  }
+
+  modal.searchDebounceTimer = setTimeout(() => {
+    modal.searchDebounceTimer = null;
+    runVendorModalSearch(query);
+  }, 300);
+}
+
 function openVendorModal(row) {
   if (!canPerformEditAction("Select vendor")) return;
+
+  const modal = state.vendorModal;
+  modal.row = row;
+  modal.selectedVendorId = null;
+  modal.selectedVendorName = "";
+  modal.selectedSource = null;
+  modal.selectedSuggestedRate = null;
+  modal.searchRequestSeq = 0;
+
+  modal.suggestedVendors = buildSuggestedVendorsFromRow(row);
+  modal.suggestedVendorIds = new Set(
+    modal.suggestedVendors.map((v) => v.vendor_id),
+  );
+  rememberVendorLookupRows(modal.suggestedVendors);
+
   const backdrop = qs("vendorModalBackdrop");
   backdrop.classList.add("show");
   backdrop.setAttribute("aria-hidden", "false");
-  requestAnimationFrame(() => qs("vendorPick")?.focus());
 
   qs("vendorModalItem").textContent =
     `${row.stock_item_name} (${row.indent_number})`;
 
-  const pick = qs("vendorPick");
-  pick.innerHTML = "";
+  resetVendorModalTransientUi();
+  renderVendorSuggestedList();
 
-  const options = [];
-  if (row.l1_vendor_id)
-    options.push({
-      id: row.l1_vendor_id,
-      name: row.l1_vendor_name,
-      rate: row.l1_rate_value,
-      tag: "L1",
-    });
-  if (row.l2_vendor_id)
-    options.push({
-      id: row.l2_vendor_id,
-      name: row.l2_vendor_name,
-      rate: row.l2_rate_value,
-      tag: "L2",
-    });
-  if (row.l3_vendor_id)
-    options.push({
-      id: row.l3_vendor_id,
-      name: row.l3_vendor_name,
-      rate: row.l3_rate_value,
-      tag: "L3",
-    });
+  const rateInput = qs("vendorRate");
+  const reasonInput = qs("vendorReason");
+  if (rateInput) {
+    rateInput.value = "";
+    rateInput.dataset.userEdited = "false";
+  }
+  if (reasonInput) reasonInput.value = row.selection_reason || "";
 
-  if (!options.length) {
-    const opt = document.createElement("option");
-    opt.value = "";
-    opt.textContent = "No candidates (map vendors / rate book first)";
-    pick.appendChild(opt);
-    qs("vendorRate").value = "";
-  } else {
-    for (const o of options) {
-      const opt = document.createElement("option");
-      opt.value = String(o.id);
-      opt.textContent = `${o.tag}: ${o.name}${o.rate ? ` @ ${fmt(o.rate)}` : ""}`;
-      opt.dataset.rate = o.rate ?? "";
-      pick.appendChild(opt);
+  const existingVendorId = !isVendorAssignmentCleared(row)
+    ? normalizeVendorId(row.selected_vendor_id)
+    : null;
+
+  if (existingVendorId) {
+    const suggested = modal.suggestedVendors.find(
+      (v) => v.vendor_id === existingVendorId,
+    );
+    selectVendorModalVendor({
+      vendorId: existingVendorId,
+      vendorName:
+        row.selected_vendor_name ||
+        row.resolved_vendor_name ||
+        suggested?.display_name ||
+        getRememberedVendor(existingVendorId)?.display_name ||
+        "",
+      source: suggested ? "suggested" : "existing",
+      suggestedRate: suggested?.rate ?? null,
+      preserveUserRate: true,
+    });
+    if (rateInput) {
+      rateInput.value =
+        row.selected_rate != null && row.selected_rate !== ""
+          ? String(row.selected_rate)
+          : "";
+      rateInput.dataset.userEdited = "false";
     }
-    qs("vendorRate").value = pick.options[0].dataset.rate || "";
+    if (!suggested) {
+      modal.selectedSource = "existing";
+      updateVendorModalManualNotice();
+    }
+  } else {
+    updateVendorModalSelectionSummary();
+    updateVendorModalReasonUi();
   }
 
-  pick.onchange = () => {
-    const selected = pick.options[pick.selectedIndex];
-    qs("vendorRate").value = selected?.dataset?.rate || "";
-  };
-
-  qs("vendorReason").value = "";
-  backdrop.dataset.indentLineId = String(row.indent_line_id);
-  backdrop.dataset.recommendedVendorId = String(
-    row.recommended_vendor_id ?? "",
-  );
+  applyPermissionUi();
+  requestAnimationFrame(() => qs("aqVendorSearchInput")?.focus());
 }
 
 function closeVendorModal() {
+  const modal = state.vendorModal;
+  if (modal?.searchDebounceTimer) {
+    clearTimeout(modal.searchDebounceTimer);
+    modal.searchDebounceTimer = null;
+  }
+
+  modal.row = null;
+  modal.selectedVendorId = null;
+  modal.selectedVendorName = "";
+  modal.selectedSource = null;
+  modal.selectedSuggestedRate = null;
+  modal.suggestedVendors = [];
+  modal.suggestedVendorIds = new Set();
+
   const backdrop = qs("vendorModalBackdrop");
   hideModalBackdrop(backdrop, [qs("btnDetailSelectVendor"), qs("fSearch")]);
 }
 
 async function saveVendorSelection() {
   if (!canPerformEditAction("Save vendor selection")) return;
-  const backdrop = qs("vendorModalBackdrop");
-  const indentLineId = Number(backdrop.dataset.indentLineId);
-  const recommendedVendorId = backdrop.dataset.recommendedVendorId
-    ? Number(backdrop.dataset.recommendedVendorId)
-    : null;
 
-  const vendorId = Number(qs("vendorPick").value || 0);
-  if (!vendorId) {
-    toast("No vendor selected.", "error");
+  const modal = state.vendorModal;
+  const row = modal?.row;
+  if (!row?.indent_line_id) {
+    toast("No line selected.", "error");
     return;
   }
 
-  const rateText = (qs("vendorRate").value || "").trim();
-  const rate = rateText ? Number(rateText) : null;
-  const reason = (qs("vendorReason").value || "").trim() || null;
+  const vendorId = normalizeVendorId(modal.selectedVendorId);
+  if (!vendorId) {
+    toast("Please select a vendor.", "error");
+    return;
+  }
 
-  // Client-side hint (server already enforces)
-  if (recommendedVendorId && vendorId !== recommendedVendorId && !reason) {
-    toast(
-      "Reason required when selecting a vendor different from recommendation.",
-      "error",
-    );
+  const { value: rate, error: rateError } = parseOptionalPositiveRate(
+    qs("vendorRate")?.value ?? "",
+  );
+  if (rateError) {
+    toast(rateError, "error");
+    return;
+  }
+
+  const reason = (qs("vendorReason")?.value || "").trim() || null;
+
+  if (isVendorSelectionReasonRequired({ row, vendorId, rate }) && !reason) {
+    toast(getVendorSelectionReasonHint({ row, vendorId, rate }), "error");
     return;
   }
 
   const { error } = await supabase.rpc("proc_indent_set_vendor_selection", {
-    p_indent_line_id: indentLineId,
+    p_indent_line_id: row.indent_line_id,
     p_selected_vendor_id: vendorId,
     p_selected_rate: rate,
     p_reason: reason,
   });
 
   if (error) {
-    toast(`Selection failed: ${error.message}`, "error");
+    toast(mapVendorSelectionError(error), "error");
     return;
   }
 
   closeVendorModal();
+  toast(
+    rate == null ? "Vendor assigned. Rate is pending." : "Vendor and rate assigned.",
+    "success",
+  );
+
   await loadActionQueue();
 
   if (state.currentIndentId) {
@@ -2210,6 +2883,50 @@ async function saveVendorSelection() {
   if (state.tab === "vendor-buylist" && state.vwl.loaded) {
     await reloadVendorBuylist();
   }
+
+  if (state.selected?.indent_line_id === row.indent_line_id) {
+    const updated = aqRawRows.find(
+      (r) => Number(r.indent_line_id) === Number(row.indent_line_id),
+    );
+    if (updated) openDetailModal(updated);
+  }
+}
+
+function wireVendorModalControls() {
+  qs("btnVendorClose")?.addEventListener("click", closeVendorModal);
+  qs("btnVendorCancel")?.addEventListener("click", closeVendorModal);
+  qs("btnVendorSave")?.addEventListener("click", saveVendorSelection);
+
+  qs("vendorModalBackdrop")?.addEventListener("click", (e) => {
+    if (e.target.id === "vendorModalBackdrop") closeVendorModal();
+  });
+
+  qs("aqVendorSearchInput")?.addEventListener("input", (e) => {
+    scheduleVendorModalSearch(e.target.value);
+  });
+
+  wireVendorSearchCombobox({
+    inputId: "aqVendorSearchInput",
+    resultsId: "aqVendorSearchResults",
+    getRows: () => state.vendorModal?.searchRows || [],
+    onSelect: (vendor) => {
+      selectVendorModalVendor({
+        vendorId: vendor.vendor_id,
+        vendorName: vendor.display_name,
+        source: "active_search",
+      });
+    },
+  });
+
+  qs("vendorRate")?.addEventListener("input", () => {
+    const rateInput = qs("vendorRate");
+    if (rateInput) rateInput.dataset.userEdited = "true";
+    updateVendorModalReasonUi();
+  });
+
+  qs("vendorReason")?.addEventListener("input", () => {
+    updateVendorModalReasonUi();
+  });
 }
 
 function wireTabs() {
@@ -2360,14 +3077,7 @@ function wireActionQueueControls() {
     loadActionQueue({ reset: false, append: true, preserveFocus: false });
   });
 
-  qs("btnVendorClose")?.addEventListener("click", closeVendorModal);
-  qs("btnVendorCancel").addEventListener("click", closeVendorModal);
-  qs("btnVendorSave").addEventListener("click", saveVendorSelection);
-
-  // click outside modal closes
-  qs("vendorModalBackdrop").addEventListener("click", (e) => {
-    if (e.target.id === "vendorModalBackdrop") closeVendorModal();
-  });
+  wireVendorModalControls();
 
   // detail modal close
   qs("btnDetailClose").addEventListener("click", closeDetailModal);
@@ -7688,6 +8398,555 @@ function fmtFixed(n, digits = 2) {
   });
 }
 
+const CANONICAL_RATE_STATUSES = new Set([
+  "with_rate",
+  "rate_pending",
+  "mixed_rate",
+  "not_applicable",
+]);
+
+function isAssignedRateRow(row) {
+  const status = String(row?.assignment_status ?? "").toLowerCase();
+  if (status === "assigned") return true;
+  if (status === "unassigned") return false;
+  if (row?.has_vendor === true || String(row?.has_vendor) === "true") return true;
+  if (row?.has_vendor === false || String(row?.has_vendor) === "false")
+    return false;
+  if (row?.vendor_id != null && row?.vendor_id !== "") return true;
+  return false;
+}
+
+function getVwlOperationalBucketKey(row) {
+  const explicit = String(row?.vendor_bucket_key ?? "").trim();
+  if (explicit) return explicit;
+
+  if (!isAssignedRateRow(row)) return "UNASSIGNED";
+
+  const vendorId = normalizeVendorId(row?.vendor_id);
+  return vendorId ? `VENDOR:${vendorId}` : "UNASSIGNED";
+}
+
+function getVwlOperationalBucketName(row) {
+  const explicit = String(row?.vendor_bucket_name ?? "").trim();
+  if (explicit) return explicit;
+
+  if (getVwlOperationalBucketKey(row) === "UNASSIGNED") {
+    return "UNASSIGNED";
+  }
+
+  return String(row?.vendor_name ?? "").trim() || "UNASSIGNED";
+}
+
+function getVwlOperationalBucketType(row) {
+  const explicit = String(row?.vendor_bucket_type ?? "").trim();
+  if (explicit) return explicit;
+
+  const key = getVwlOperationalBucketKey(row);
+  if (key === "UNASSIGNED") return "UNASSIGNED";
+  if (key === "LOCAL_PURCHASE") return "LOCAL_PURCHASE";
+  return "ACTUAL_VENDOR";
+}
+
+function getVwlOperationalFilterValue(row) {
+  const type = getVwlOperationalBucketType(row);
+  const key = getVwlOperationalBucketKey(row);
+
+  if (type === "LOCAL_PURCHASE" || key === "LOCAL_PURCHASE") {
+    return "bucket:LOCAL_PURCHASE";
+  }
+
+  if (type === "UNASSIGNED" || key === "UNASSIGNED") {
+    return "bucket:UNASSIGNED";
+  }
+
+  const vendorId = normalizeVendorId(row?.vendor_id);
+  return vendorId ? `vendor:${vendorId}` : "bucket:UNASSIGNED";
+}
+
+function getVwlOperationalRowKey(row) {
+  return [
+    getVwlOperationalBucketKey(row),
+    row?.material_class_id ?? "",
+    row?.stock_item_id ?? "",
+    row?.uom_id ?? "",
+  ].join("|");
+}
+
+function matchesVwlOperationalFilter(row, filterValue) {
+  const selected = String(filterValue ?? "").trim();
+  if (!selected) return true;
+  return getVwlOperationalFilterValue(row) === selected;
+}
+
+function buildVwlOperationalFilterOptions(rows) {
+  const byValue = new Map();
+
+  for (const row of rows || []) {
+    const value = getVwlOperationalFilterValue(row);
+    const type = getVwlOperationalBucketType(row);
+    const label = getVwlOperationalBucketName(row);
+
+    if (!value || byValue.has(value)) continue;
+
+    byValue.set(value, {
+      value,
+      label,
+      type,
+    });
+  }
+
+  return [...byValue.values()].sort((a, b) => {
+    const rank = (type) => {
+      if (type === "LOCAL_PURCHASE") return 0;
+      if (type === "ACTUAL_VENDOR") return 1;
+      if (type === "UNASSIGNED") return 2;
+      return 3;
+    };
+
+    const rankDiff = rank(a.type) - rank(b.type);
+    if (rankDiff !== 0) return rankDiff;
+
+    return a.label.localeCompare(b.label);
+  });
+}
+
+function populateVwlOperationalVendorFilter(rows) {
+  const select = qs("vwlVendorFilter");
+  if (!select) return;
+
+  const current = state.vwl.vendorFilterKey || "";
+
+  const options = buildVwlOperationalFilterOptions(rows);
+  state.vwl.vendorFilterOptions = options;
+
+  select.innerHTML =
+    '<option value="">All Vendors / Local Purchase</option>';
+
+  for (const optionRow of options) {
+    const option = document.createElement("option");
+    option.value = optionRow.value;
+    option.textContent = optionRow.label;
+    option.dataset.bucketType = optionRow.type;
+    select.appendChild(option);
+  }
+
+  const stillAvailable = [...select.options].some(
+    (option) => option.value === current,
+  );
+
+  if (stillAvailable) {
+    select.value = current;
+  } else {
+    select.value = "";
+    state.vwl.vendorFilterKey = "";
+  }
+}
+
+function countVwlOperationalBuckets(rows) {
+  return new Set((rows || []).map((row) => getVwlOperationalBucketKey(row)))
+    .size;
+}
+
+function normalizeRateStatus(row) {
+  const explicit = String(row?.rate_status ?? "").trim();
+  if (CANONICAL_RATE_STATUSES.has(explicit)) return explicit;
+
+  if (!isAssignedRateRow(row)) return "not_applicable";
+
+  const rate = row?.rate_value;
+  if (rate == null || rate === "") return "rate_pending";
+
+  const numericRate = Number(rate);
+  if (Number.isFinite(numericRate) && numericRate > 0) return "with_rate";
+
+  return "rate_pending";
+}
+
+function getRateStatusLabel(status) {
+  switch (status) {
+    case "with_rate":
+      return "Rate available";
+    case "rate_pending":
+      return "Rate pending";
+    case "mixed_rate":
+      return "Mixed rates";
+    case "not_applicable":
+      return "Not applicable";
+    default:
+      return status || "—";
+  }
+}
+
+function parseOptionalPositiveRate(value) {
+  const text = String(value ?? "").trim();
+  if (!text) return { value: null, error: null };
+
+  const parsed = Number(text);
+  if (!Number.isFinite(parsed)) {
+    return { value: null, error: "Rate must be a valid number." };
+  }
+  if (parsed <= 0) {
+    return { value: null, error: "Rate must be greater than zero." };
+  }
+  return { value: parsed, error: null };
+}
+
+function fmtOptionalFixed(value, digits = 2) {
+  if (value == null || value === "") return null;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return null;
+  return fmtFixed(numeric, digits);
+}
+
+function getVwlRateDisplay(row) {
+  const status = normalizeRateStatus(row);
+  const display = {
+    status,
+    rateText: "—",
+    amountText: "—",
+    rateClass: "",
+    amountClass: "",
+    rateIsPill: false,
+    ratePillClass: "",
+  };
+
+  switch (status) {
+    case "with_rate": {
+      const rateText = fmtOptionalFixed(row?.rate_value, 2);
+      const amountText = fmtOptionalFixed(row?.total_amount, 2);
+      display.rateText = rateText ?? "—";
+      display.amountText = amountText ?? "—";
+      display.rateClass = "num";
+      display.amountClass = "num";
+      break;
+    }
+    case "rate_pending":
+      display.rateText = "Pending";
+      display.amountText = "—";
+      display.rateIsPill = true;
+      display.ratePillClass = "pill-warning";
+      break;
+    case "mixed_rate": {
+      const amountText = fmtOptionalFixed(row?.total_amount, 2);
+      display.rateText = "Mixed";
+      display.amountText = amountText ?? "—";
+      display.rateIsPill = true;
+      display.ratePillClass = "pill-neutral";
+      display.amountClass = "num";
+      break;
+    }
+    case "not_applicable":
+    default:
+      display.rateText = "—";
+      display.amountText = "—";
+      break;
+  }
+
+  return display;
+}
+
+function getVwlBreakdownLineDisplay(line) {
+  const status = normalizeRateStatus({
+    rate_status: line?.rate_status,
+    assignment_status: line?.assignment_status,
+    rate_value: line?.rate_value,
+    has_vendor: line?.assignment_status === "assigned",
+  });
+
+  const display = {
+    status,
+    rateText: "—",
+    amountText: "—",
+    statusLabel: getRateStatusLabel(status),
+    rateIsPill: false,
+    ratePillClass: "",
+  };
+
+  switch (status) {
+    case "with_rate": {
+      display.rateText = fmtOptionalFixed(line?.rate_value, 2) ?? "—";
+      display.amountText = fmtOptionalFixed(line?.line_amount, 2) ?? "—";
+      break;
+    }
+    case "rate_pending":
+      display.rateText = "Pending";
+      display.amountText = "—";
+      display.rateIsPill = true;
+      display.ratePillClass = "pill-warning";
+      break;
+    case "mixed_rate": {
+      display.rateText = "Mixed";
+      display.amountText = fmtOptionalFixed(line?.line_amount, 2) ?? "—";
+      display.rateIsPill = true;
+      display.ratePillClass = "pill-neutral";
+      break;
+    }
+    case "not_applicable":
+    default:
+      display.rateText = "—";
+      display.amountText = "—";
+      break;
+  }
+
+  return display;
+}
+
+function renderVwlRateCellContent(display) {
+  if (display.rateIsPill) {
+    return `<span class="pill ${display.ratePillClass}">${esc(display.rateText)}</span>`;
+  }
+  return esc(display.rateText);
+}
+
+function getExportRateStatus(row) {
+  return normalizeRateStatus(row);
+}
+
+function getExportRateStatusLabel(status) {
+  return getRateStatusLabel(status);
+}
+
+function getExportAssignmentStatusLabel(row) {
+  const status = String(row?.assignment_status ?? "").trim().toLowerCase();
+  if (status === "assigned") return "Assigned";
+  if (status === "unassigned") return "Unassigned";
+  return getExportRateStatus(row) === "not_applicable" ? "Unassigned" : "Assigned";
+}
+
+function getExportNumericRate(row) {
+  if (getExportRateStatus(row) !== "with_rate") return "";
+  return fmtOptionalFixed(row?.rate_value, 2) ?? "";
+}
+
+function getExportNumericAmount(row) {
+  const status = getExportRateStatus(row);
+  if (status !== "with_rate" && status !== "mixed_rate") return "";
+  return fmtOptionalFixed(row?.total_amount, 2) ?? "";
+}
+
+function isValuationComplete(row) {
+  const status = getExportRateStatus(row);
+  return status === "with_rate" || status === "mixed_rate";
+}
+
+function getExportKnownAmount(row) {
+  if (!isValuationComplete(row)) return null;
+  const amount = row?.total_amount;
+  if (amount == null || amount === "") return null;
+  const numeric = Number(amount);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function mapVendorBuylistExportRow(row) {
+  const status = getExportRateStatus(row);
+  return {
+    Vendor: row.vendor_name ?? "",
+    "Material Class":
+      row.material_class_display ||
+      row.material_class_label ||
+      row.material_class_code ||
+      "",
+    "RM Scope": row.rm_scope_label || row.rm_scope || "",
+    Item: row.stock_item_name ?? "",
+    UOM: row.uom_code ?? "",
+    "Total Qty to Buy": row.total_qty_to_buy ?? "",
+    Rate: getExportNumericRate(row),
+    Amount: getExportNumericAmount(row),
+    "Rate Status": getExportRateStatusLabel(status),
+    "Assignment Status": getExportAssignmentStatusLabel(row),
+    "Indent Breakdown": breakdownToCompactText(row.indent_breakdown, row),
+  };
+}
+
+const VWL_EXPORT_HEADERS = [
+  "Vendor",
+  "Material Class",
+  "RM Scope",
+  "Item",
+  "UOM",
+  "Total Qty to Buy",
+  "Rate",
+  "Amount",
+  "Rate Status",
+  "Assignment Status",
+  "Indent Breakdown",
+];
+
+function computeVwlExportTotals(rows) {
+  let knownGrandTotal = 0;
+  let pendingRateRowCount = 0;
+  let unassignedRowCount = 0;
+  let mixedRateRowCount = 0;
+
+  for (const row of rows || []) {
+    const status = getExportRateStatus(row);
+    const known = getExportKnownAmount(row);
+    if (known != null) knownGrandTotal += known;
+    if (status === "rate_pending") pendingRateRowCount += 1;
+    if (status === "not_applicable") unassignedRowCount += 1;
+    if (status === "mixed_rate") mixedRateRowCount += 1;
+  }
+
+  return {
+    knownGrandTotal,
+    pendingRateRowCount,
+    unassignedRowCount,
+    mixedRateRowCount,
+  };
+}
+
+function buildVwlPdfFilterParts(rows) {
+  const totals = computeVwlExportTotals(rows);
+  const vendorFilter = pdfSafeText(
+    qs("vwlVendorFilter")?.selectedOptions?.[0]?.textContent || "",
+  );
+  const searchFilter = pdfSafeText(qs("vwlSearch")?.value || "");
+  const materialClassFilter = pdfSafeText(
+    qs("vwlMaterialClassFilter")?.selectedOptions?.[0]?.textContent || "",
+  );
+  const rmScopeFilter = pdfSafeText(
+    qs("vwlRmScopeFilter")?.selectedOptions?.[0]?.textContent || "",
+  );
+  const rateStatusFilter = pdfSafeText(
+    qs("vwlRateStatusFilter")?.selectedOptions?.[0]?.textContent || "",
+  );
+  const assignmentFilter = pdfSafeText(
+    qs("vwlAssignmentStatusFilter")?.selectedOptions?.[0]?.textContent || "",
+  );
+
+  const vendorNames = new Set(
+    (rows || []).map((r) => getVwlPdfVendorName(r) || "Unassigned Vendor"),
+  );
+
+  const parts = [
+    vendorFilter && vendorFilter !== "All Vendors"
+      ? `Vendor: ${vendorFilter}`
+      : "Vendor: All",
+    searchFilter ? `Search: ${searchFilter}` : "Search: None",
+    materialClassFilter && materialClassFilter !== "All Material Classes"
+      ? `Material class: ${materialClassFilter}`
+      : "",
+    rmScopeFilter && rmScopeFilter !== "All RM Scope"
+      ? `RM scope: ${rmScopeFilter}`
+      : "",
+    rateStatusFilter && rateStatusFilter !== "All Rate Status"
+      ? `Rate status: ${rateStatusFilter}`
+      : "",
+    assignmentFilter && assignmentFilter !== "All Assignment Status"
+      ? `Assignment: ${assignmentFilter}`
+      : "",
+    state.vwlFilters?.splitOnly ? "Split vendor rows only: Yes" : "",
+    `Vendors: ${vendorNames.size}`,
+    `Rows: ${rows.length}`,
+    totals.pendingRateRowCount > 0
+      ? `Known value total: Rs. ${pdfOptionalMoney(totals.knownGrandTotal, "0.00")}`
+      : `Grand total: Rs. ${pdfOptionalMoney(totals.knownGrandTotal, "0.00")}`,
+    totals.pendingRateRowCount > 0
+      ? `Awaiting rate: ${totals.pendingRateRowCount} item row(s)`
+      : "",
+    totals.mixedRateRowCount > 0
+      ? `Mixed rates: ${totals.mixedRateRowCount} item row(s); amounts are complete from indent-level rates.`
+      : "",
+    totals.unassignedRowCount > 0
+      ? `Unassigned: ${totals.unassignedRowCount} item row(s)`
+      : "",
+  ];
+
+  return parts.filter(Boolean);
+}
+
+function normalizeVendorLookupRow(row) {
+  const vendorId = Number(
+    row?.vendor_id ?? row?.id ?? row?.vendorId ?? 0,
+  );
+  const displayName =
+    row?.display_name ??
+    row?.vendor_name ??
+    row?.vendor_display_name ??
+    "";
+  if (!vendorId || !displayName) return null;
+  return { vendor_id: vendorId, display_name: String(displayName) };
+}
+
+function rememberVendorLookupRows(rows) {
+  const lookup = state.vendorLookup;
+  if (!lookup?.byId) return;
+
+  for (const raw of rows || []) {
+    const row = normalizeVendorLookupRow(raw);
+    if (!row) continue;
+    lookup.byId.set(row.vendor_id, row);
+  }
+
+  const merged = [...(lookup.byId.values() || [])].sort((a, b) =>
+    String(a.display_name).localeCompare(String(b.display_name)),
+  );
+  lookup.recent = merged.slice(0, 200);
+}
+
+function getRememberedVendor(vendorId) {
+  const id = Number(vendorId || 0);
+  if (!id) return null;
+  return state.vendorLookup?.byId?.get(id) ?? null;
+}
+
+async function searchActiveVendors(query, { limit = 30 } = {}) {
+  const lookup = state.vendorLookup;
+  const requestSeq = ++lookup.requestSeq;
+  const normalizedQuery = String(query ?? "").trim();
+
+  let rows = [];
+
+  try {
+    const { data, error } = await supabase.rpc("proc_vendor_lookup", {
+      p_q: normalizedQuery || null,
+      p_active_only: true,
+      p_vendor_type: null,
+      p_limit: limit,
+    });
+
+    if (error) throw error;
+
+    rows = (Array.isArray(data) ? data : [])
+      .map(normalizeVendorLookupRow)
+      .filter(Boolean);
+  } catch (_) {
+    if (!normalizedQuery) return { rows: [], requestSeq };
+
+    const { data, error } = await supabase
+      .from("proc_vendor")
+      .select("vendor_id,display_name")
+      .eq("is_active", true)
+      .ilike("display_name", `%${normalizedQuery}%`)
+      .order("display_name", { ascending: true })
+      .limit(limit);
+
+    if (error) throw error;
+
+    rows = (Array.isArray(data) ? data : [])
+      .map(normalizeVendorLookupRow)
+      .filter(Boolean);
+  }
+
+  const deduped = [];
+  const seen = new Set();
+  for (const row of rows) {
+    if (seen.has(row.vendor_id)) continue;
+    seen.add(row.vendor_id);
+    deduped.push(row);
+  }
+
+  deduped.sort((a, b) =>
+    String(a.display_name).localeCompare(String(b.display_name)),
+  );
+
+  if (requestSeq === lookup.requestSeq) {
+    rememberVendorLookupRows(deduped);
+  }
+
+  return { rows: deduped, requestSeq };
+}
+
 function normalizeVwlBreakdown(raw) {
   const parsed =
     typeof raw === "string"
@@ -7709,6 +8968,8 @@ function normalizeVwlBreakdown(raw) {
       entry?.indentNumber ??
       entry?.indent_id ??
       "-",
+    indent_id: entry?.indent_id ?? null,
+    indent_line_id: entry?.indent_line_id ?? null,
     qty_to_buy:
       entry?.qty_to_buy ??
       entry?.qty ??
@@ -7716,7 +8977,81 @@ function normalizeVwlBreakdown(raw) {
       entry?.qtyToBuy ??
       0,
     uom_code: entry?.uom_code ?? entry?.uom ?? "",
+    rate_value: entry?.rate_value ?? null,
+    line_amount: entry?.line_amount ?? null,
+    rate_status: entry?.rate_status ?? null,
+    assignment_status: entry?.assignment_status ?? null,
+    actual_vendor_id:
+      entry?.actual_vendor_id ?? entry?.vendor_id ?? null,
+    actual_vendor_name:
+      entry?.actual_vendor_name ?? entry?.vendor_name ?? "",
+    actual_vendor_type:
+      entry?.actual_vendor_type ?? entry?.vendor_type ?? null,
+    vendor_bucket_key: entry?.vendor_bucket_key ?? null,
+    vendor_bucket_name: entry?.vendor_bucket_name ?? null,
+    vendor_bucket_type: entry?.vendor_bucket_type ?? null,
+    rm_scope: entry?.rm_scope ?? null,
+    rm_scope_label: entry?.rm_scope_label ?? null,
   }));
+}
+
+function isVwlLocalVariableSupplier(line) {
+  return (
+    String(line?.actual_vendor_type ?? "")
+      .trim()
+      .toUpperCase() === "LOCAL_VARIABLE_SUPPLIER"
+  );
+}
+
+function getVwlActualVendorName(line) {
+  const name = String(line?.actual_vendor_name ?? "").trim();
+  if (name) return name;
+
+  const vendorId = normalizeVendorId(line?.actual_vendor_id);
+  if (vendorId) return `Vendor #${vendorId}`;
+
+  return "UNASSIGNED";
+}
+
+function getVwlActualVendorMeta(line) {
+  const type = String(line?.actual_vendor_type ?? "")
+    .trim()
+    .toUpperCase();
+
+  if (type === "LOCAL_VARIABLE_SUPPLIER") {
+    return "Local variable supplier";
+  }
+
+  if (type === "REGULAR_SUPPLIER") {
+    return "Regular supplier";
+  }
+
+  if (type === "UNCLASSIFIED") {
+    return "Unclassified supplier";
+  }
+
+  return "";
+}
+
+function renderVwlActualVendorCell(line) {
+  const name = getVwlActualVendorName(line);
+  const meta = getVwlActualVendorMeta(line);
+  const isUnassigned = name === "UNASSIGNED";
+
+  return `
+    <div class="vwl-actual-vendor">
+      <span class="${
+        isUnassigned
+          ? "vwl-actual-vendor-unassigned"
+          : "vwl-actual-vendor-name"
+      }">${esc(name)}</span>
+      ${
+        meta
+          ? `<span class="vwl-actual-vendor-meta">${esc(meta)}</span>`
+          : ""
+      }
+    </div>
+  `;
 }
 
 function breakdownToCompactText(raw, row = {}) {
@@ -7771,7 +9106,7 @@ function openVwlBreakdown(row) {
 
   state.vwlBreakdownRow = row;
 
-  title.textContent = `${row.vendor_name ?? "-"} - ${row.stock_item_name ?? "-"}`;
+  title.textContent = `${getVwlOperationalBucketName(row)} - ${row.stock_item_name ?? "-"}`;
   sub.textContent = `Total Qty to Buy: ${fmt(row.total_qty_to_buy)} ${row.uom_code ?? ""}`;
 
   const splitMeta = getVwlSplitMeta(row);
@@ -7790,13 +9125,18 @@ function openVwlBreakdown(row) {
   tbody.innerHTML = "";
   if (!breakdown.length) {
     tbody.innerHTML =
-      '<tr><td colspan="2" class="muted">No indent breakdown.</td></tr>';
+      '<tr><td colspan="6" class="muted">No indent breakdown.</td></tr>';
   } else {
     for (const item of breakdown) {
+      const lineDisplay = getVwlBreakdownLineDisplay(item);
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${esc(item.indent_number)}</td>
+        <td>${renderVwlActualVendorCell(item)}</td>
         <td class="num">${esc(fmt(item.qty_to_buy))}</td>
+        <td class="num">${renderVwlRateCellContent(lineDisplay)}</td>
+        <td class="num">${esc(lineDisplay.amountText)}</td>
+        <td>${esc(lineDisplay.statusLabel)}</td>
       `;
       tbody.appendChild(tr);
     }
@@ -7824,18 +9164,21 @@ function renderVendorBuylistTable() {
     const tr = document.createElement("tr");
     tr.classList.add("clickable-row");
     if (isSplit) tr.classList.add("vwl-row-split");
+    tr.dataset.vwlRowKey = getVwlOperationalRowKey(row);
 
     const itemCell = isSplit
       ? `${esc(row.stock_item_name ?? "-")} <span class="pill pill-warning" title="Split across multiple vendor buckets">Split vendor</span>`
       : esc(row.stock_item_name ?? "-");
 
+    const rateDisplay = getVwlRateDisplay(row);
+
     tr.innerHTML = `
-      <td>${esc(row.vendor_name ?? "-")}</td>
+      <td>${esc(getVwlOperationalBucketName(row))}</td>
       <td>${itemCell}</td>
       <td>${esc(row.uom_code ?? "-")}</td>
       <td class="num">${esc(fmt(row.total_qty_to_buy))}</td>
-      <td class="num">${esc(fmtFixed(row.rate_value ?? 0, 2))}</td>
-      <td class="num">${esc(fmtFixed(row.total_amount ?? 0, 2))}</td>
+      <td class="${rateDisplay.rateClass}">${renderVwlRateCellContent(rateDisplay)}</td>
+      <td class="${rateDisplay.amountClass}">${esc(rateDisplay.amountText)}</td>
       <td><button type="button" class="linklike" data-act="bd">${indentCount} indent${indentCount !== 1 ? "s" : ""}</button></td>
     `;
 
@@ -7847,28 +9190,6 @@ function renderVendorBuylistTable() {
 
     tbody.appendChild(tr);
   }
-}
-
-async function ensureVendorBuylistVendorsLoaded() {
-  if (state.vwl.vendorsLoaded) return;
-  const { data, error } = await supabase
-    .from("proc_vendor")
-    .select("vendor_id, display_name")
-    .order("display_name", { ascending: true });
-  if (error) {
-    toastError("Failed to load vendor filter", error);
-    return;
-  }
-
-  const pick = qs("vwlVendorFilter");
-  if (!pick) return;
-  for (const row of data || []) {
-    const opt = document.createElement("option");
-    opt.value = String(row.vendor_id);
-    opt.textContent = row.display_name;
-    pick.appendChild(opt);
-  }
-  state.vwl.vendorsLoaded = true;
 }
 
 async function loadVendorBuylistFilterOptions() {
@@ -7961,7 +9282,7 @@ function refreshVwlRmScopeAvailability() {
 function getVwlActiveFilterCount() {
   const filters = state.vwlFilters || {};
   let count = 0;
-  if ((state.vwl.vendorId || "").trim()) count += 1;
+  if ((state.vwl.vendorFilterKey || "").trim()) count += 1;
   if ((filters.materialClassId || "").trim()) count += 1;
   if ((filters.rmScope || "").trim()) count += 1;
   if ((filters.rateStatus || "").trim()) count += 1;
@@ -8079,24 +9400,445 @@ function mapVwlSplitActionError(error) {
   if (msg.includes("vendor") && msg.includes("required")) {
     return "Vendor is required.";
   }
+  if (msg.includes("vendor not found")) {
+    return "Vendor not found.";
+  }
+  if (msg.includes("inactive") && msg.includes("vendor")) {
+    return "Vendor is inactive.";
+  }
   if (
     msg.includes("rate") &&
     (msg.includes("greater than zero") ||
       msg.includes("must be >") ||
       msg.includes("> 0"))
   ) {
-    return "Rate must be greater than zero.";
+    return "Rate must be greater than zero when provided.";
   }
   if (msg.includes("reason") && msg.includes("required")) {
     return "Reason is required.";
   }
-  if (msg.includes("inactive") && msg.includes("vendor")) {
-    return "Vendor inactive.";
+  if (msg.includes("stock item not found")) {
+    return "Stock item not found.";
+  }
+  if (msg.includes("uom not found")) {
+    return "UOM not found.";
+  }
+  if (msg.includes("material class not found")) {
+    return "Material class not found.";
   }
   if (msg.includes("no affected") || msg.includes("no lines")) {
     return "No affected lines.";
   }
   return error?.message || "Could not complete vendor consolidation.";
+}
+
+function buildSuggestedVendorsFromPreview(preview) {
+  const candidates = asRpcArray(
+    pickRpcField(preview, "candidate_vendors", "vendors", "vendor_candidates"),
+  );
+  const seen = new Set();
+  const rows = [];
+
+  for (const vendor of candidates) {
+    const vendorId = normalizeVendorId(pickRpcField(vendor, "vendor_id", "id"));
+    if (!vendorId || seen.has(vendorId)) continue;
+    seen.add(vendorId);
+
+    const displayName =
+      pickRpcField(vendor, "vendor_name", "display_name", "vendor_display_name") ||
+      `Vendor #${vendorId}`;
+    const rate = pickRpcField(vendor, "rate_value", "rate", "selected_rate");
+    const evidenceRaw = pickRpcField(
+      vendor,
+      "evidence",
+      "evidence_rows",
+      "l1_evidence",
+    );
+    const evidenceText =
+      pickRpcField(vendor, "evidence_text", "source", "evidence_label") ||
+      formatSuggestedVendorEvidence(asRpcArray(evidenceRaw));
+
+    rows.push({
+      vendor_id: vendorId,
+      display_name: String(displayName),
+      rate: rate == null || rate === "" ? null : rate,
+      evidenceText: evidenceText ? String(evidenceText) : "",
+    });
+  }
+
+  return rows;
+}
+
+function renderVwlSplitPreviewLineRate(line, vendorName) {
+  const rate = pickRpcField(
+    line,
+    "rate_value",
+    "rate",
+    "resolved_rate",
+    "selected_rate",
+    "current_rate",
+  );
+  const resolvedName = String(vendorName ?? "").trim();
+  const hasVendor =
+    resolvedName &&
+    resolvedName !== "-" &&
+    resolvedName.toUpperCase() !== "UNASSIGNED";
+
+  if (rate != null && rate !== "") {
+    const numeric = Number(rate);
+    if (Number.isFinite(numeric) && numeric > 0) {
+      return esc(fmtFixed(rate, 2));
+    }
+  }
+
+  if (hasVendor) {
+    return '<span class="pill pill-warning">Pending</span>';
+  }
+  return esc("—");
+}
+
+function syncVwlSplitVendorPickHidden() {
+  const pick = qs("vwlSplitVendorPick");
+  const review = state.vwlSplitReview;
+  if (!pick || !review) return;
+  pick.value = review.selectedVendorId
+    ? String(review.selectedVendorId)
+    : "";
+}
+
+function resetVwlSplitVendorSearchUi() {
+  const searchInput = qs("vwlSplitVendorSearchInput");
+  const searchResults = qs("vwlSplitVendorSearchResults");
+  const manualNotice = qs("vwlSplitManualVendorNotice");
+
+  if (searchInput) {
+    searchInput.value = "";
+    searchInput.setAttribute("aria-expanded", "false");
+  }
+  closeVendorSearchPopover(searchInput, searchResults);
+  if (manualNotice) {
+    manualNotice.hidden = true;
+    manualNotice.textContent = "";
+  }
+}
+
+function updateVwlSplitSelectedVendorSummary() {
+  const summary = qs("vwlSplitSelectedVendorSummary");
+  const review = state.vwlSplitReview;
+  if (!summary || !review) return;
+
+  if (!review.selectedVendorId) {
+    summary.hidden = true;
+    summary.textContent = "";
+    return;
+  }
+
+  summary.hidden = false;
+  summary.textContent = `Selected: ${review.selectedVendorName || `Vendor #${review.selectedVendorId}`}`;
+}
+
+function updateVwlSplitManualVendorNotice() {
+  const notice = qs("vwlSplitManualVendorNotice");
+  const review = state.vwlSplitReview;
+  if (!notice || !review) return;
+
+  const selectedId = normalizeVendorId(review.selectedVendorId);
+  if (!selectedId || review.suggestedVendorIds?.has(selectedId)) {
+    notice.hidden = true;
+    notice.textContent = "";
+    return;
+  }
+
+  notice.hidden = false;
+  notice.textContent =
+    "This vendor is not in the current suggested list for this item. Confirm the reason for the manual assignment.";
+}
+
+function updateVwlSplitSuggestedSelectionUi() {
+  const list = qs("vwlSplitSuggestedList");
+  const review = state.vwlSplitReview;
+  if (!list || !review) return;
+
+  const selectedId = String(review.selectedVendorId || "");
+  list.querySelectorAll("[data-split-suggested-vendor-id]").forEach((el) => {
+    const isSelected =
+      selectedId &&
+      el.getAttribute("data-split-suggested-vendor-id") === selectedId &&
+      review.selectedVendorSource === "suggested";
+    el.classList.toggle("is-selected", Boolean(isSelected));
+  });
+}
+
+function updateVwlSplitConsolidateReasonHint() {
+  const hint = qs("vwlSplitConsolidateReasonHint");
+  const rateInput = qs("vwlSplitVendorRate");
+  if (!hint) return;
+
+  const { value: rate, error: rateError } = parseOptionalPositiveRate(
+    rateInput?.value ?? "",
+  );
+  const base =
+    "Reason is required for applying this vendor across the qualifying open lines.";
+
+  if (!rateError && rate == null) {
+    hint.textContent = `${base} The vendor will be assigned and the rate will remain pending.`;
+  } else {
+    hint.textContent = base;
+  }
+}
+
+function applyVwlSplitRatePrefill({ preserveUserRate = false } = {}) {
+  const rateInput = qs("vwlSplitVendorRate");
+  const review = state.vwlSplitReview;
+  if (!rateInput || !review) return;
+
+  if (preserveUserRate && rateInput.dataset.userEdited === "true") return;
+
+  if (review.selectedVendorSource === "suggested") {
+    rateInput.value =
+      review.selectedSuggestedRate != null && review.selectedSuggestedRate !== ""
+        ? String(review.selectedSuggestedRate)
+        : "";
+    rateInput.dataset.userEdited = "false";
+    return;
+  }
+
+  rateInput.value = "";
+  rateInput.dataset.userEdited = "false";
+}
+
+function selectVwlSplitVendor({
+  vendorId,
+  vendorName,
+  source,
+  suggestedRate = null,
+  preserveUserRate = false,
+}) {
+  const review = state.vwlSplitReview;
+  const id = normalizeVendorId(vendorId);
+  if (!review || !id) return;
+
+  review.selectedVendorId = id;
+  review.selectedVendorName =
+    vendorName ||
+    getRememberedVendor(id)?.display_name ||
+    `Vendor #${id}`;
+  review.selectedVendorSource = source || null;
+  review.selectedSuggestedRate =
+    source === "suggested" && suggestedRate != null && suggestedRate !== ""
+      ? suggestedRate
+      : null;
+
+  rememberVendorLookupRows([
+    { vendor_id: id, display_name: review.selectedVendorName },
+  ]);
+
+  syncVwlSplitVendorPickHidden();
+  updateVwlSplitSuggestedSelectionUi();
+  updateVwlSplitSelectedVendorSummary();
+  updateVwlSplitManualVendorNotice();
+  applyVwlSplitRatePrefill({ preserveUserRate });
+  updateVwlSplitConsolidateReasonHint();
+}
+
+function renderVwlSplitSuggestedList() {
+  const list = qs("vwlSplitSuggestedList");
+  const empty = qs("vwlSplitSuggestedEmpty");
+  const review = state.vwlSplitReview;
+  if (!list || !review) return;
+
+  const suggested = review.suggestedVendors || [];
+  list.innerHTML = "";
+
+  if (!suggested.length) {
+    if (empty) empty.hidden = false;
+    return;
+  }
+
+  if (empty) empty.hidden = true;
+
+  for (const vendor of suggested) {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "erp-choice-row";
+    row.setAttribute("data-split-suggested-vendor-id", String(vendor.vendor_id));
+    row.style.width = "100%";
+
+    const rateLabel =
+      vendor.rate != null && vendor.rate !== ""
+        ? ` @ ${fmt(vendor.rate)}`
+        : "";
+    const evidence = vendor.evidenceText
+      ? `<span class="erp-choice-desc">${esc(vendor.evidenceText)}</span>`
+      : "";
+
+    row.innerHTML = `
+      <span aria-hidden="true">•</span>
+      <span>
+        <strong class="erp-choice-title">${esc(vendor.display_name)}${esc(rateLabel)}</strong>
+        ${evidence}
+      </span>
+    `;
+
+    row.addEventListener("click", () => {
+      selectVwlSplitVendor({
+        vendorId: vendor.vendor_id,
+        vendorName: vendor.display_name,
+        source: "suggested",
+        suggestedRate: vendor.rate,
+      });
+    });
+
+    list.appendChild(row);
+  }
+
+  updateVwlSplitSuggestedSelectionUi();
+}
+
+async function runVwlSplitVendorSearch(query) {
+  const input = qs("vwlSplitVendorSearchInput");
+  const results = qs("vwlSplitVendorSearchResults");
+  const review = state.vwlSplitReview;
+  if (!results || !review) return;
+
+  const q = String(query ?? "").trim();
+  if (q.length < 2) {
+    review.searchRows = [];
+    closeVendorSearchPopover(input, results);
+    if (q) {
+      renderVendorSearchPopover({
+        input,
+        results,
+        message: "Type at least 2 characters to search.",
+        rows: [],
+        onSelect: () => {},
+      });
+    }
+    return;
+  }
+
+  const callSeq = ++review.searchRequestSeq;
+  review.searchRows = [];
+  renderVendorSearchPopover({
+    input,
+    results,
+    message: "Searching…",
+    rows: [],
+    onSelect: () => {},
+  });
+
+  try {
+    const { rows, requestSeq } = await searchActiveVendors(q, { limit: 30 });
+    if (
+      callSeq !== review.searchRequestSeq ||
+      requestSeq !== state.vendorLookup.requestSeq
+    ) {
+      return;
+    }
+
+    review.searchRows = rows;
+
+    if (!rows.length) {
+      renderVendorSearchPopover({
+        input,
+        results,
+        message: "No active vendors found.",
+        rows: [],
+        onSelect: () => {},
+      });
+      return;
+    }
+
+    renderVendorSearchPopover({
+      input,
+      results,
+      message: "",
+      rows,
+      onSelect: (vendor) => {
+        selectVwlSplitVendor({
+          vendorId: vendor.vendor_id,
+          vendorName: vendor.display_name,
+          source: "active_search",
+        });
+        if (input) input.value = vendor.display_name;
+      },
+    });
+  } catch (error) {
+    if (callSeq !== review.searchRequestSeq) return;
+    review.searchRows = [];
+    renderVendorSearchPopover({
+      input,
+      results,
+      message: `Search failed: ${error?.message || error}`,
+      rows: [],
+      onSelect: () => {},
+    });
+  }
+}
+
+function scheduleVwlSplitVendorSearch(query) {
+  const review = state.vwlSplitReview;
+  if (!review) return;
+
+  if (review.searchDebounceTimer) {
+    clearTimeout(review.searchDebounceTimer);
+  }
+
+  review.searchDebounceTimer = setTimeout(() => {
+    review.searchDebounceTimer = null;
+    runVwlSplitVendorSearch(query);
+  }, 300);
+}
+
+function isVwlSplitSelectedVendorStillValid(review) {
+  const id = normalizeVendorId(review?.selectedVendorId);
+  if (!id) return false;
+  if (review.selectedVendorSource === "active_search") return true;
+  return Boolean(review.suggestedVendorIds?.has(id));
+}
+
+function buildVwlSplitConsolidateConfirmMessage(review, rate) {
+  const preview = review?.preview;
+  const itemName =
+    pickRpcField(preview, "stock_item_name", "item_name", review?.itemName) ||
+    "this item";
+  const uomCode =
+    pickRpcField(preview, "uom_code", "uom", review?.uomCode) || "-";
+  const vendorName = review?.selectedVendorName || "the selected vendor";
+  const lineCount = pickRpcField(preview, "affected_line_count", "line_count");
+  const indentCount = pickRpcField(
+    preview,
+    "affected_indent_count",
+    "indent_count",
+  );
+  const counts = [];
+  if (lineCount != null && lineCount !== "") {
+    counts.push(`Affected lines: ${fmt(lineCount)}`);
+  }
+  if (indentCount != null && indentCount !== "") {
+    counts.push(`Affected indents: ${fmt(indentCount)}`);
+  }
+  const countSuffix = counts.length ? ` ${counts.join(". ")}.` : "";
+
+  if (rate != null) {
+    return `This will apply ${vendorName} at ${fmt(rate)} to all qualifying open lines for ${itemName} / ${uomCode}.${countSuffix}`;
+  }
+
+  return `This will assign ${vendorName} to all qualifying open lines for ${itemName} / ${uomCode}. The rate will remain pending.${countSuffix}`;
+}
+
+function closeVwlSplitReviewModal() {
+  const review = state.vwlSplitReview;
+  if (review?.searchDebounceTimer) {
+    clearTimeout(review.searchDebounceTimer);
+    review.searchDebounceTimer = null;
+  }
+
+  const backdrop = qs("vwlSplitReviewModalBackdrop");
+  if (!backdrop) return;
+  hideModalBackdrop(backdrop, [qs("vwlTbody"), qs("btnVwlBdReviewSplit")]);
+  backdrop.setAttribute("inert", "");
+  state.vwlSplitReview = null;
 }
 
 function closeVwlSplitActionConfirmModal(result = false) {
@@ -8156,14 +9898,6 @@ async function refreshVwlSplitLookup() {
   }
 }
 
-function closeVwlSplitReviewModal() {
-  const backdrop = qs("vwlSplitReviewModalBackdrop");
-  if (!backdrop) return;
-  hideModalBackdrop(backdrop, [qs("vwlTbody"), qs("btnVwlBdReviewSplit")]);
-  backdrop.setAttribute("inert", "");
-  state.vwlSplitReview = null;
-}
-
 function setVwlSplitActionMode(mode) {
   const review = state.vwlSplitReview;
   if (!review) return;
@@ -8180,7 +9914,7 @@ function setVwlSplitActionMode(mode) {
   if (noteEl) {
     noteEl.textContent =
       mode === "consolidate"
-        ? "This will apply the selected vendor to all qualifying open lines for this item/UOM."
+        ? "Choose a vendor to apply across all qualifying open lines for this item/UOM."
         : "This will make all qualifying open lines for this item/UOM unassigned.";
   }
 
@@ -8213,6 +9947,11 @@ function renderVwlSplitReviewModal() {
   const review = state.vwlSplitReview;
   const preview = review?.preview;
   if (!review || !preview) return;
+
+  const previousVendorId = review.selectedVendorId;
+  const previousVendorName = review.selectedVendorName;
+  const previousVendorSource = review.selectedVendorSource;
+  const previousSuggestedRate = review.selectedSuggestedRate;
 
   const itemName = pickRpcField(
     preview,
@@ -8262,57 +10001,70 @@ function renderVwlSplitReviewModal() {
               "recommended_vendor_name",
               "vendor_name",
             );
-            const rate = pickRpcField(
-              line,
-              "rate_value",
-              "rate",
-              "resolved_rate",
-              "selected_rate",
-              "current_rate",
-            );
             const qtyLabel = `${fmt(qty ?? "-")}${uomCode ? ` ${uomCode}` : ""}`;
-            const rateLabel =
-              rate != null && rate !== "" ? fmtFixed(rate, 2) : "-";
+            const rateCell = renderVwlSplitPreviewLineRate(line, vendorName);
             return `<tr>
               <td>${esc(indentNo ?? "-")}</td>
               <td>${esc(vendorName ?? "UNASSIGNED")}</td>
               <td class="num">${esc(qtyLabel)}</td>
-              <td class="num">${esc(rateLabel)}</td>
+              <td class="num">${rateCell}</td>
             </tr>`;
           })
           .join("")
       : '<tr><td colspan="4" class="muted">No affected lines.</td></tr>';
   }
 
-  const vendorPick = qs("vwlSplitVendorPick");
-  const candidates = asRpcArray(
-    pickRpcField(preview, "candidate_vendors", "vendors", "vendor_candidates"),
+  review.suggestedVendors = buildSuggestedVendorsFromPreview(preview);
+  review.suggestedVendorIds = new Set(
+    review.suggestedVendors.map((v) => v.vendor_id),
   );
+  rememberVendorLookupRows(review.suggestedVendors);
+
+  const vendorPick = qs("vwlSplitVendorPick");
   if (vendorPick) {
     vendorPick.innerHTML = '<option value="">Select vendor…</option>';
-    candidates.forEach((vendor) => {
-      const vendorId = pickRpcField(vendor, "vendor_id", "id");
-      if (!vendorId) return;
+    review.suggestedVendors.forEach((vendor) => {
       const opt = document.createElement("option");
-      opt.value = String(vendorId);
-      opt.textContent =
-        pickRpcField(vendor, "vendor_name", "display_name", "vendor_display_name") ||
-        `Vendor #${vendorId}`;
-      opt.dataset.rate = String(
-        pickRpcField(vendor, "rate_value", "rate", "selected_rate") ?? "",
-      );
+      opt.value = String(vendor.vendor_id);
+      opt.textContent = vendor.display_name;
       vendorPick.appendChild(opt);
     });
-    if (review.selectedVendorId) {
-      vendorPick.value = String(review.selectedVendorId);
-    }
+  }
+
+  renderVwlSplitSuggestedList();
+
+  if (
+    previousVendorId &&
+    isVwlSplitSelectedVendorStillValid({
+      selectedVendorId: previousVendorId,
+      selectedVendorSource: previousVendorSource,
+      suggestedVendorIds: review.suggestedVendorIds,
+    })
+  ) {
+    review.selectedVendorId = previousVendorId;
+    review.selectedVendorName = previousVendorName;
+    review.selectedVendorSource = previousVendorSource;
+    review.selectedSuggestedRate = previousSuggestedRate;
+    syncVwlSplitVendorPickHidden();
+    updateVwlSplitSuggestedSelectionUi();
+    updateVwlSplitSelectedVendorSummary();
+    updateVwlSplitManualVendorNotice();
+  } else {
+    review.selectedVendorId = null;
+    review.selectedVendorName = "";
+    review.selectedVendorSource = null;
+    review.selectedSuggestedRate = null;
+    syncVwlSplitVendorPickHidden();
+    updateVwlSplitSelectedVendorSummary();
+    updateVwlSplitManualVendorNotice();
   }
 
   const rateInput = qs("vwlSplitVendorRate");
-  if (rateInput && review.selectedRate != null) {
-    rateInput.value = review.selectedRate;
+  if (rateInput && rateInput.dataset.userEdited !== "true") {
+    applyVwlSplitRatePrefill({ preserveUserRate: false });
   }
 
+  updateVwlSplitConsolidateReasonHint();
   setVwlSplitActionMode(review.actionMode || "consolidate");
   applyPermissionUi();
 
@@ -8380,8 +10132,15 @@ async function openVwlSplitReviewModal(row) {
     itemName: pickRpcField(row, "stock_item_name", "item_name"),
     uomCode: pickRpcField(row, "uom_code", "uom"),
     actionMode: "consolidate",
-    selectedVendorId: "",
-    selectedRate: "",
+    selectedVendorId: null,
+    selectedVendorName: "",
+    selectedVendorSource: null,
+    selectedSuggestedRate: null,
+    suggestedVendors: [],
+    suggestedVendorIds: new Set(),
+    searchRows: [],
+    searchRequestSeq: 0,
+    searchDebounceTimer: null,
     preview: null,
   };
 
@@ -8391,7 +10150,14 @@ async function openVwlSplitReviewModal(row) {
     qs("vwlSplitConsolidateIncludeCleared").checked = false;
   if (qs("vwlSplitClearIncludeCleared"))
     qs("vwlSplitClearIncludeCleared").checked = false;
-  if (qs("vwlSplitVendorRate")) qs("vwlSplitVendorRate").value = "";
+  if (qs("vwlSplitVendorRate")) {
+    qs("vwlSplitVendorRate").value = "";
+    qs("vwlSplitVendorRate").dataset.userEdited = "false";
+  }
+
+  resetVwlSplitVendorSearchUi();
+  updateVwlSplitSelectedVendorSummary();
+  updateVwlSplitConsolidateReasonHint();
 
   setVwlSplitActionMode("consolidate");
 
@@ -8408,57 +10174,16 @@ async function openVwlSplitReviewModal(row) {
   }
 }
 
-function onVwlSplitVendorPickChange() {
-  const review = state.vwlSplitReview;
-  if (!review) return;
-
-  const vendorPick = qs("vwlSplitVendorPick");
-  const selected = vendorPick?.selectedOptions?.[0];
-  review.selectedVendorId = vendorPick?.value || "";
-
-  const rate =
-    selected?.dataset?.rate ||
-    pickRpcField(
-      asRpcArray(
-        pickRpcField(
-          review.preview,
-          "candidate_vendors",
-          "vendors",
-          "vendor_candidates",
-        ),
-      ).find(
-        (v) =>
-          String(pickRpcField(v, "vendor_id", "id")) ===
-          String(review.selectedVendorId),
-      ),
-      "rate_value",
-      "rate",
-    );
-
-  review.selectedRate = rate ?? "";
-  if (qs("vwlSplitVendorRate")) {
-    qs("vwlSplitVendorRate").value =
-      review.selectedRate === "" ? "" : String(review.selectedRate);
-  }
-}
-
-async function submitVwlSplitApply() {
-  const mode = state.vwlSplitReview?.actionMode || "consolidate";
-  if (mode === "clear") {
-    await submitVwlClearVendorAssignments();
-  } else {
-    await submitVwlConsolidateVendor();
-  }
-}
-
 async function submitVwlConsolidateVendor() {
   if (!canPerformEditAction("Consolidate vendor assignment")) return;
 
   const review = state.vwlSplitReview;
   if (!review?.stockItemId || !review?.uomId) return;
 
-  const vendorId = Number(qs("vwlSplitVendorPick")?.value || 0);
-  const rate = Number((qs("vwlSplitVendorRate")?.value || "").trim());
+  const vendorId = normalizeVendorId(review.selectedVendorId);
+  const { value: rate, error: rateError } = parseOptionalPositiveRate(
+    qs("vwlSplitVendorRate")?.value ?? "",
+  );
   const reason = (qs("vwlSplitConsolidateReason")?.value || "").trim();
   const includeCleared = Boolean(
     qs("vwlSplitConsolidateIncludeCleared")?.checked,
@@ -8468,8 +10193,8 @@ async function submitVwlConsolidateVendor() {
     toast("Vendor is required.", "error");
     return;
   }
-  if (!rate || rate <= 0) {
-    toast("Rate must be greater than zero.", "error");
+  if (rateError) {
+    toast(rateError, "error");
     return;
   }
   if (!reason) {
@@ -8478,7 +10203,7 @@ async function submitVwlConsolidateVendor() {
   }
 
   const confirmed = await confirmVwlSplitAction(
-    "This will apply the selected vendor to all qualifying open lines for this item/UOM.",
+    buildVwlSplitConsolidateConfirmMessage(review, rate),
   );
   if (!confirmed) return;
 
@@ -8501,13 +10226,49 @@ async function submitVwlConsolidateVendor() {
     if (error) throw error;
 
     const result = Array.isArray(data) ? data[0] : data;
-    await afterVwlSplitActionSuccess(
-      result?.message || "Vendor applied to qualifying lines.",
-    );
+    const successMessage =
+      rate == null
+        ? result?.message || "Vendor applied. Rate is pending."
+        : result?.message || "Vendor and rate applied.";
+    await afterVwlSplitActionSuccess(successMessage);
   } catch (e) {
     toast(mapVwlSplitActionError(e), "error");
   } finally {
     setLoading(false);
+  }
+}
+
+function wireVwlSplitConsolidateControls() {
+  qs("vwlSplitVendorSearchInput")?.addEventListener("input", (e) => {
+    scheduleVwlSplitVendorSearch(e.target.value);
+  });
+
+  wireVendorSearchCombobox({
+    inputId: "vwlSplitVendorSearchInput",
+    resultsId: "vwlSplitVendorSearchResults",
+    getRows: () => state.vwlSplitReview?.searchRows || [],
+    onSelect: (vendor) => {
+      selectVwlSplitVendor({
+        vendorId: vendor.vendor_id,
+        vendorName: vendor.display_name,
+        source: "active_search",
+      });
+    },
+  });
+
+  qs("vwlSplitVendorRate")?.addEventListener("input", () => {
+    const rateInput = qs("vwlSplitVendorRate");
+    if (rateInput) rateInput.dataset.userEdited = "true";
+    updateVwlSplitConsolidateReasonHint();
+  });
+}
+
+async function submitVwlSplitApply() {
+  const mode = state.vwlSplitReview?.actionMode || "consolidate";
+  if (mode === "clear") {
+    await submitVwlClearVendorAssignments();
+  } else {
+    await submitVwlConsolidateVendor();
   }
 }
 
@@ -8554,12 +10315,23 @@ async function submitVwlClearVendorAssignments() {
 
 function sortVendorBuylistRows(rows) {
   return [...(rows || [])].sort((a, b) => {
-    const vendorCmp = String(a.vendor_name || "").localeCompare(
-      String(b.vendor_name || ""),
+    const bucketCompare = getVwlOperationalBucketName(a).localeCompare(
+      getVwlOperationalBucketName(b),
     );
-    if (vendorCmp !== 0) return vendorCmp;
-    return String(a.stock_item_name || "").localeCompare(
-      String(b.stock_item_name || ""),
+    if (bucketCompare !== 0) return bucketCompare;
+
+    const itemCompare = String(a?.stock_item_name || "").localeCompare(
+      String(b?.stock_item_name || ""),
+    );
+    if (itemCompare !== 0) return itemCompare;
+
+    const uomCompare = String(a?.uom_code || "").localeCompare(
+      String(b?.uom_code || ""),
+    );
+    if (uomCompare !== 0) return uomCompare;
+
+    return String(a?.vendor_name || "").localeCompare(
+      String(b?.vendor_name || ""),
     );
   });
 }
@@ -8578,8 +10350,6 @@ async function fetchVendorBuylistFilteredRows() {
 async function loadVendorBuylist() {
   showLoadingMask();
   try {
-    await ensureVendorBuylistVendorsLoaded();
-
     if (!state.vwlMaterialClassOptions?.length) {
       await loadVendorBuylistFilterOptions();
     }
@@ -8590,8 +10360,17 @@ async function loadVendorBuylist() {
     ]);
 
     let rows = sortVendorBuylistRows(rawRows);
+    populateVwlOperationalVendorFilter(rows);
+
     if (state.vwlFilters.splitOnly) {
       rows = rows.filter(isVwlSplitRow);
+    }
+
+    const vendorFilterKey = String(state.vwl.vendorFilterKey || "").trim();
+    if (vendorFilterKey) {
+      rows = rows.filter((row) =>
+        matchesVwlOperationalFilter(row, vendorFilterKey),
+      );
     }
 
     const total = rows.length;
@@ -8632,7 +10411,20 @@ function makeDateStamp() {
 }
 
 async function fetchAllVendorBuylistRows() {
-  return sortVendorBuylistRows(await fetchVendorBuylistFilteredRows());
+  let rows = sortVendorBuylistRows(await fetchVendorBuylistFilteredRows());
+
+  if (state.vwlFilters.splitOnly) {
+    rows = rows.filter(isVwlSplitRow);
+  }
+
+  const vendorFilterKey = String(state.vwl.vendorFilterKey || "").trim();
+  if (vendorFilterKey) {
+    rows = rows.filter((row) =>
+      matchesVwlOperationalFilter(row, vendorFilterKey),
+    );
+  }
+
+  return rows;
 }
 
 async function exportVendorBuylist(format) {
@@ -8644,31 +10436,12 @@ async function exportVendorBuylist(format) {
       return;
     }
 
-    const mapped = rows.map((r) => ({
-      Vendor: r.vendor_name ?? "",
-      Item: r.stock_item_name ?? "",
-      UOM: r.uom_code ?? "",
-      Qty_to_Buy: r.total_qty_to_buy ?? "",
-      Rate: r.rate_value ?? "",
-      Amount: r.total_amount ?? "",
-      Indent_Breakdown: breakdownToCompactText(r.indent_breakdown, r),
-    }));
-
-    const headers = [
-      "Vendor",
-      "Item",
-      "UOM",
-      "Qty_to_Buy",
-      "Rate",
-      "Amount",
-      "Indent_Breakdown",
-    ];
-
+    const mapped = rows.map(mapVendorBuylistExportRow);
     const stamp = makeDateStamp();
     if (format === "tsv") {
       downloadText(
         `VENDOR_WISE_BUYLIST_${stamp}.tsv`,
-        toTsv(mapped, headers),
+        toTsv(mapped, VWL_EXPORT_HEADERS),
         "text/tab-separated-values;charset=utf-8;",
       );
       return;
@@ -8676,7 +10449,7 @@ async function exportVendorBuylist(format) {
 
     downloadText(
       `VENDOR_WISE_BUYLIST_${stamp}.csv`,
-      toCsv(mapped, headers),
+      toCsv(mapped, VWL_EXPORT_HEADERS),
       "text/csv;charset=utf-8;",
     );
   } catch (e) {
@@ -8700,6 +10473,16 @@ function pdfSafeText(value) {
 function pdfMoney(value) {
   const n = Number(value || 0);
   return n.toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function pdfOptionalMoney(value, fallback = "—") {
+  if (value == null || value === "") return fallback;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return fallback;
+  return numeric.toLocaleString("en-IN", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
@@ -8739,13 +10522,138 @@ function getVwlPdfItemName(row) {
 }
 
 function getVwlPdfQty(row) {
-  return Number(
-    row.total_qty_to_buy ?? row.qty_to_buy ?? row.remaining_qty ?? row.qty ?? 0,
-  );
+  const qty =
+    row.total_qty_to_buy ?? row.qty_to_buy ?? row.remaining_qty ?? row.qty;
+  if (qty == null || qty === "") return 0;
+  const numeric = Number(qty);
+  return Number.isFinite(numeric) ? numeric : 0;
 }
 
-function getVwlPdfRate(row) {
-  return Number(row.rate_value ?? row.rate ?? row.selected_rate ?? 0);
+function getVwlPdfRateCell(row) {
+  const status = getExportRateStatus(row);
+  switch (status) {
+    case "with_rate":
+      return pdfOptionalMoney(row?.rate_value, "—");
+    case "rate_pending":
+      return "Pending";
+    case "mixed_rate":
+      return "Mixed";
+    case "not_applicable":
+    default:
+      return "—";
+  }
+}
+
+function getVwlPdfAmountCell(row) {
+  const status = getExportRateStatus(row);
+  if (status === "with_rate" || status === "mixed_rate") {
+    return pdfOptionalMoney(row?.total_amount, "—");
+  }
+  return "—";
+}
+
+const VWL_PDF_METADATA_PREFERRED_FONT_SIZE = 8;
+const VWL_PDF_METADATA_MIN_FONT_SIZE = 6.5;
+const VWL_PDF_METADATA_LINE_GAP = 2;
+const VWL_PDF_METADATA_TABLE_GAP = 6;
+
+function drawVwlPdfMetadata(
+  doc,
+  text,
+  {
+    left,
+    right,
+    y,
+    preferredFontSize = VWL_PDF_METADATA_PREFERRED_FONT_SIZE,
+    minimumFontSize = VWL_PDF_METADATA_MIN_FONT_SIZE,
+    lineGap = VWL_PDF_METADATA_LINE_GAP,
+  } = {},
+) {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const leftMargin = left ?? 30;
+  const rightMargin = right ?? 30;
+  const startY = y ?? 0;
+  const usableWidth = pageWidth - leftMargin - rightMargin;
+  const safeText = pdfSafeText(text);
+
+  if (!safeText) return startY;
+
+  const savedFontSize = doc.getFontSize();
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(0);
+
+  let fontSize = preferredFontSize;
+  let lines = [safeText];
+
+  while (fontSize >= minimumFontSize) {
+    doc.setFontSize(fontSize);
+    if (doc.getTextWidth(safeText) <= usableWidth) {
+      lines = [safeText];
+      break;
+    }
+    if (fontSize <= minimumFontSize) {
+      lines = doc.splitTextToSize(safeText, usableWidth);
+      break;
+    }
+    fontSize -= 0.25;
+  }
+
+  if (!lines.length) lines = [safeText];
+
+  doc.setFontSize(fontSize);
+  let currentY = startY;
+  const lineHeight = fontSize * 1.15 + lineGap;
+
+  for (const line of lines) {
+    doc.text(String(line), leftMargin, currentY);
+    currentY += lineHeight;
+  }
+
+  doc.setFontSize(savedFontSize);
+  return currentY + VWL_PDF_METADATA_TABLE_GAP;
+}
+
+function buildVwlPdfVendorGroupSummary(vendorRows) {
+  let knownValueSubtotal = 0;
+  let pendingRateRowCount = 0;
+  let unassignedRowCount = 0;
+  let mixedRateRowCount = 0;
+
+  for (const row of vendorRows || []) {
+    const status = getExportRateStatus(row);
+    const known = getExportKnownAmount(row);
+    if (known != null) knownValueSubtotal += known;
+    if (status === "rate_pending") pendingRateRowCount += 1;
+    if (status === "not_applicable") unassignedRowCount += 1;
+    if (status === "mixed_rate") mixedRateRowCount += 1;
+  }
+
+  const rateColParts = [];
+  if (mixedRateRowCount > 0) {
+    rateColParts.push(`Mixed rates: ${mixedRateRowCount} item row(s)`);
+  }
+  if (unassignedRowCount > 0) {
+    rateColParts.push(`Unassigned: ${unassignedRowCount} item row(s)`);
+  }
+
+  const amountFormatted =
+    knownValueSubtotal > 0
+      ? `Rs. ${pdfOptionalMoney(knownValueSubtotal, "0.00")}`
+      : "";
+
+  let amountCol = "";
+  if (pendingRateRowCount > 0) {
+    amountCol = amountFormatted
+      ? `${amountFormatted} · Awaiting rate: ${pendingRateRowCount}`
+      : `Awaiting rate: ${pendingRateRowCount}`;
+  } else if (amountFormatted) {
+    amountCol = amountFormatted;
+  }
+
+  return {
+    rateCol: rateColParts.join(" · "),
+    amountCol,
+  };
 }
 
 function formatVwlIndentSplitEntry(x, row) {
@@ -8886,11 +10794,6 @@ async function exportVendorBuylistPdf() {
       });
     }
 
-    const vendorFilter = pdfSafeText(
-      qs("vwlVendorFilter")?.selectedOptions?.[0]?.textContent || "",
-    );
-    const searchFilter = pdfSafeText(qs("vwlSearch")?.value || "");
-
     const groups = new Map();
     rows.forEach((r) => {
       const rawVendor = getVwlPdfVendorName(r);
@@ -8906,51 +10809,21 @@ async function exportVendorBuylistPdf() {
       if (!au && bu) return -1;
       return a.localeCompare(b);
     });
-    let valuedTotal = 0;
-    let rowsWithoutRate = 0;
 
-    rows.forEach((r) => {
-      const qty = getVwlPdfQty(r);
-      const rate = getVwlPdfRate(r);
-      const rawAmount = Number(
-        r.total_amount ?? r.amount ?? r.estimated_amount ?? 0,
-      );
-      const hasRate = Number.isFinite(rate) && rate > 0;
-      const hasAmount = Number.isFinite(rawAmount) && rawAmount > 0;
-      const amount = hasAmount ? rawAmount : hasRate ? qty * rate : 0;
-
-      if (!hasRate) rowsWithoutRate += 1;
-
-      valuedTotal += amount;
-    });
-
+    const exportTotals = computeVwlExportTotals(rows);
     const body = [];
+
     vendorNames.forEach((vendorName) => {
       const vendorRows = groups.get(vendorName) || [];
-      let vendorAmount = 0;
-      let vendorRowsWithoutRate = 0;
-
-      vendorRows.forEach((r) => {
-        const qty = getVwlPdfQty(r);
-        const rate = getVwlPdfRate(r);
-        const rawAmount = Number(
-          r.total_amount ?? r.amount ?? r.estimated_amount ?? 0,
-        );
-        const hasRate = Number.isFinite(rate) && rate > 0;
-        const hasAmount = Number.isFinite(rawAmount) && rawAmount > 0;
-        const amount = hasAmount ? rawAmount : hasRate ? qty * rate : 0;
-
-        if (!hasRate) vendorRowsWithoutRate += 1;
-        vendorAmount += amount;
-      });
+      const groupSummary = buildVwlPdfVendorGroupSummary(vendorRows);
 
       body.push([
         "",
         vendorName,
         "",
         "",
-        vendorRowsWithoutRate ? `${vendorRowsWithoutRate} rate missing` : "",
-        vendorAmount ? pdfMoney(vendorAmount) : "",
+        groupSummary.rateCol,
+        groupSummary.amountCol,
         "",
       ]);
 
@@ -8960,22 +10833,13 @@ async function exportVendorBuylistPdf() {
           getVwlPdfItemName(a).localeCompare(getVwlPdfItemName(b)),
         )
         .forEach((r, idx) => {
-          const qty = getVwlPdfQty(r);
-          const rate = getVwlPdfRate(r);
-          const rawAmount = Number(
-            r.total_amount ?? r.amount ?? r.estimated_amount ?? 0,
-          );
-          const hasRate = Number.isFinite(rate) && rate > 0;
-          const hasAmount = Number.isFinite(rawAmount) && rawAmount > 0;
-          const amount = hasAmount ? rawAmount : hasRate ? qty * rate : 0;
-
           body.push([
             String(idx + 1),
             getVwlPdfItemName(r),
             pdfSafeText(r.uom_code || r.uom || ""),
-            pdfQty(qty),
-            hasRate ? pdfMoney(rate) : "Rate missing",
-            amount ? pdfMoney(amount) : "",
+            pdfQty(getVwlPdfQty(r)),
+            getVwlPdfRateCell(r),
+            getVwlPdfAmountCell(r),
             formatVwlIndentSplit(r),
           ]);
         });
@@ -8990,26 +10854,20 @@ async function exportVendorBuylistPdf() {
     doc.text("Vendor-wise Buying List", marginX, 46);
 
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
     doc.setTextColor(0);
 
-    const filterLine = [
-      vendorFilter && vendorFilter !== "All Vendors"
-        ? `Vendor: ${vendorFilter}`
-        : "Vendor: All",
-      searchFilter ? `Search: ${searchFilter}` : "Search: None",
-      `Vendors: ${vendorNames.length}`,
-      `Rows: ${rows.length}`,
-      `Valued total: Rs. ${pdfMoney(valuedTotal)}`,
-      rowsWithoutRate ? `Rows without rate: ${rowsWithoutRate}` : "",
-    ]
-      .filter(Boolean)
-      .join("   |   ");
-
-    doc.text(filterLine, marginX, 63);
+    const filterLine = buildVwlPdfFilterParts(rows).join("   |   ");
+    const tableStartY = drawVwlPdfMetadata(doc, filterLine, {
+      left: marginX,
+      right: marginX,
+      y: 58,
+      preferredFontSize: VWL_PDF_METADATA_PREFERRED_FONT_SIZE,
+      minimumFontSize: VWL_PDF_METADATA_MIN_FONT_SIZE,
+      lineGap: VWL_PDF_METADATA_LINE_GAP,
+    });
 
     doc.autoTable({
-      startY: 78,
+      startY: tableStartY,
       margin: { left: marginX, right: marginX, bottom: 28 },
       tableWidth,
       theme: "grid",
@@ -9022,7 +10880,7 @@ async function exportVendorBuylistPdf() {
         fontSize: 7.1,
         cellPadding: 2,
         overflow: "linebreak",
-        valign: "top",
+        valign: "middle",
         lineColor: [0, 0, 0],
         lineWidth: 0.1,
         textColor: [0, 0, 0],
@@ -9034,6 +10892,7 @@ async function exportVendorBuylistPdf() {
         fontStyle: "bold",
         fontSize: 7.4,
         halign: "center",
+        valign: "middle",
         lineColor: [0, 0, 0],
         lineWidth: 0.1,
       },
@@ -9042,6 +10901,7 @@ async function exportVendorBuylistPdf() {
         fillColor: false,
         lineColor: [0, 0, 0],
         lineWidth: 0.1,
+        valign: "middle",
       },
       alternateRowStyles: {
         fillColor: false,
@@ -9076,6 +10936,7 @@ async function exportVendorBuylistPdf() {
           data.cell.styles.textColor = [0, 0, 0];
           data.cell.styles.lineColor = [0, 0, 0];
           data.cell.styles.lineWidth = 0.1;
+          data.cell.styles.valign = "middle";
 
           /*
             Keep vendor row visually lighter by reducing font size slightly.
@@ -9085,6 +10946,11 @@ async function exportVendorBuylistPdf() {
 
         if (data.section === "head") {
           data.cell.styles.halign = "center";
+          data.cell.styles.valign = "middle";
+        }
+
+        if (data.section === "body") {
+          data.cell.styles.valign = "middle";
         }
       },
       didDrawPage: function () {
@@ -9117,8 +10983,8 @@ async function exportVendorBuylistPdf() {
     doc.save(buildVendorBuylistPdfFileName());
 
     toast(
-      rowsWithoutRate
-        ? `Vendor-wise PDF exported. ${rowsWithoutRate} row(s) have missing rate; valued total is partial.`
+      exportTotals.pendingRateRowCount > 0
+        ? `Vendor-wise PDF exported. Known value total: Rs. ${pdfOptionalMoney(exportTotals.knownGrandTotal, "0.00")}. Awaiting rate: ${exportTotals.pendingRateRowCount} item row(s).`
         : "Vendor-wise PDF exported.",
       "success",
     );
@@ -9152,7 +11018,7 @@ function wireVendorBuylistControls() {
   });
 
   qs("vwlVendorFilter")?.addEventListener("change", (e) => {
-    state.vwl.vendorId = e.target.value || "";
+    state.vwl.vendorFilterKey = e.target.value || "";
     state.vwl.page = 0;
     syncVwlFilterBadge();
     loadVendorBuylist();
@@ -9246,6 +11112,7 @@ function wireVendorBuylistControls() {
     state.vwlFilters.rateStatus = "";
     state.vwlFilters.assignmentStatus = "";
     state.vwlFilters.splitOnly = false;
+    state.vwl.vendorFilterKey = "";
 
     if (qs("vwlMaterialClassFilter")) qs("vwlMaterialClassFilter").value = "";
     if (qs("vwlRmScopeFilter")) qs("vwlRmScopeFilter").value = "";
@@ -9253,6 +11120,7 @@ function wireVendorBuylistControls() {
     if (qs("vwlAssignmentStatusFilter"))
       qs("vwlAssignmentStatusFilter").value = "";
     if (qs("vwlShowSplitOnly")) qs("vwlShowSplitOnly").checked = false;
+    if (qs("vwlVendorFilter")) qs("vwlVendorFilter").value = "";
 
     refreshVwlRmScopeAvailability();
     state.vwl.page = 0;
@@ -9284,7 +11152,7 @@ function wireVendorBuylistControls() {
       if (e.target.checked) setVwlSplitActionMode(e.target.value);
     });
   });
-  qs("vwlSplitVendorPick")?.addEventListener("change", onVwlSplitVendorPickChange);
+  wireVwlSplitConsolidateControls();
   qs("vwlSplitConsolidateIncludeCleared")?.addEventListener("change", () => {
     reloadVwlSplitPreviewFromCheckboxes();
   });

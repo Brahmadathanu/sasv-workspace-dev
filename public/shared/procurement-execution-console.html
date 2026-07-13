@@ -751,6 +751,40 @@
         line-height: 1.35;
         color: var(--muted, #6b7280);
       }
+      .erp-choice-row.is-selected {
+        border-color: rgba(0, 90, 141, 0.55);
+        background: rgba(0, 90, 141, 0.06);
+      }
+      .aq-vendor-search-results {
+        display: grid;
+        gap: 4px;
+        margin-top: 6px;
+        max-height: 180px;
+        overflow: auto;
+      }
+      .aq-vendor-search-hit {
+        display: block;
+        width: 100%;
+        text-align: left;
+        padding: 7px 8px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+        background: var(--panel-bg, #fff);
+        cursor: pointer;
+      }
+      .aq-vendor-search-hit:hover,
+      .aq-vendor-search-hit:focus-visible {
+        border-color: rgba(0, 90, 141, 0.35);
+        background: rgba(0, 90, 141, 0.035);
+        outline: none;
+      }
+      .aq-vendor-selected-summary {
+        margin-top: 10px;
+        padding: 8px 10px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+        font-size: 13px;
+      }
       .erp-choice-modal .actions {
         margin-top: 0;
         padding: 10px 14px;
@@ -1189,6 +1223,10 @@
         cursor: default;
         font-style: italic;
       }
+      #vendorModalBackdrop .inline-item-search-wrap,
+      #vwlSplitReviewModalBackdrop .inline-item-search-wrap {
+        z-index: 1;
+      }
       /* Indent lines: sticky header */
       #iLinesTable thead th {
         position: sticky;
@@ -1615,6 +1653,25 @@
       }
       .vwl-split-callout[hidden] {
         display: none;
+      }
+      .vwl-actual-vendor {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 150px;
+      }
+      .vwl-actual-vendor-name {
+        font-weight: 600;
+        line-height: 1.3;
+      }
+      .vwl-actual-vendor-meta {
+        font-size: 11px;
+        line-height: 1.25;
+        color: var(--muted, #6b7280);
+      }
+      .vwl-actual-vendor-unassigned {
+        color: var(--muted, #6b7280);
+        font-weight: 500;
       }
       .vwl-split-review-modal {
         width: min(940px, calc(100vw - 32px));
@@ -2644,10 +2701,10 @@
                 </div>
                 <div class="pec-filter-section">
                   <label class="pec-filter-label" for="vwlVendorFilter"
-                    >Vendor</label
+                    >Vendor / Local Purchase</label
                   >
                   <select id="vwlVendorFilter" class="pec-filter-select">
-                    <option value="">All vendors</option>
+                    <option value="">All Vendors / Local Purchase</option>
                   </select>
                 </div>
                 <div class="pec-filter-section">
@@ -2676,8 +2733,10 @@
                   </label>
                   <select id="vwlRateStatusFilter" class="pec-filter-select">
                     <option value="">All Rate Status</option>
-                    <option value="with_rate">With Rate</option>
-                    <option value="missing_rate">Missing Rate</option>
+                    <option value="with_rate">Rate available</option>
+                    <option value="rate_pending">Rate pending</option>
+                    <option value="mixed_rate">Mixed rates</option>
+                    <option value="not_applicable">Not applicable</option>
                   </select>
                 </div>
                 <div class="pec-filter-section">
@@ -2857,7 +2916,7 @@
               <table class="erp-table">
                 <thead>
                   <tr>
-                    <th>Vendor</th>
+                    <th>Vendor / Local Purchase</th>
                     <th>Item</th>
                     <th>UOM</th>
                     <th class="num">Qty to Buy</th>
@@ -3300,7 +3359,7 @@
                 <span>
                   <strong class="erp-choice-title">Consolidate to one vendor</strong>
                   <span class="erp-choice-desc">
-                    Apply one vendor and rate to all qualifying open lines.
+                    Apply one vendor to all qualifying open lines; rate may remain pending.
                   </span>
                 </span>
               </label>
@@ -3319,16 +3378,73 @@
               <div id="vwlSplitConsolidatePanel">
                 <div class="form-grid">
                   <div class="form-group full-col">
-                    <label for="vwlSplitVendorPick">Vendor</label>
-                    <select id="vwlSplitVendorPick" data-edit-action="true"></select>
+                    <label class="detail-card-title" style="display: block; margin-bottom: 6px"
+                      >Suggested vendors</label
+                    >
+                    <div id="vwlSplitSuggestedList" class="erp-choice-list"></div>
+                    <p
+                      id="vwlSplitSuggestedEmpty"
+                      class="muted"
+                      style="font-size: 12px"
+                      hidden
+                    >
+                      No suggested vendors for this item. Search for an active vendor below.
+                    </p>
                   </div>
+
+                  <div class="form-group full-col inline-item-search-wrap">
+                    <label for="vwlSplitVendorSearchInput">Search other active vendor</label>
+                    <input
+                      id="vwlSplitVendorSearchInput"
+                      type="text"
+                      autocomplete="off"
+                      autocorrect="off"
+                      autocapitalize="off"
+                      spellcheck="false"
+                      placeholder="Search by vendor name…"
+                      role="combobox"
+                      aria-autocomplete="list"
+                      aria-controls="vwlSplitVendorSearchResults"
+                      aria-expanded="false"
+                    />
+                    <ul
+                      id="vwlSplitVendorSearchResults"
+                      class="inline-item-results"
+                      role="listbox"
+                      aria-label="Active vendor search results"
+                    ></ul>
+                  </div>
+
+                  <div
+                    id="vwlSplitSelectedVendorSummary"
+                    class="aq-vendor-selected-summary muted"
+                    hidden
+                  ></div>
+                  <p
+                    id="vwlSplitManualVendorNotice"
+                    class="muted"
+                    style="font-size: 12px"
+                    hidden
+                  ></p>
+
+                  <select
+                    id="vwlSplitVendorPick"
+                    hidden
+                    aria-hidden="true"
+                    tabindex="-1"
+                    data-edit-action="true"
+                  ></select>
+
                   <div class="form-group">
                     <label for="vwlSplitVendorRate">Rate</label>
+                    <p class="muted" style="font-size: 12px; margin: 2px 0 6px">
+                      Leave blank if the quotation or purchase rate is not yet available.
+                    </p>
                     <input
                       id="vwlSplitVendorRate"
-                      type="number"
-                      step="any"
-                      min="0"
+                      type="text"
+                      inputmode="decimal"
+                      placeholder="e.g. 40.00"
                       data-edit-action="true"
                     />
                   </div>
@@ -3336,6 +3452,13 @@
                     <label for="vwlSplitConsolidateReason"
                       >Reason <span style="color: red">*</span></label
                     >
+                    <p
+                      id="vwlSplitConsolidateReasonHint"
+                      class="muted"
+                      style="font-size: 12px; margin: 2px 0 6px"
+                    >
+                      Reason is required for applying this vendor across the qualifying open lines.
+                    </p>
                     <textarea
                       id="vwlSplitConsolidateReason"
                       placeholder="Reason for consolidating vendor assignment…"
@@ -3487,7 +3610,11 @@
               <thead>
                 <tr>
                   <th>Indent #</th>
+                  <th>Actual Vendor</th>
                   <th class="num">Qty to Buy</th>
+                  <th class="num">Rate</th>
+                  <th class="num">Amount</th>
+                  <th>Status</th>
                 </tr>
               </thead>
               <tbody id="vwlBdTbody"></tbody>
@@ -4174,7 +4301,13 @@
 
     <!-- Vendor selection modal -->
     <div class="modal-backdrop" id="vendorModalBackdrop" aria-hidden="true">
-      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="vendorModalTitle">
+      <div
+        class="modal"
+        style="max-width: 640px"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="vendorModalTitle"
+      >
         <div class="modal-header page-header">
           <h3 id="vendorModalTitle" style="margin: 0">Select Vendor</h3>
           <button
@@ -4198,30 +4331,77 @@
             </svg>
           </button>
         </div>
-        <div class="muted" id="vendorModalItem"></div>
+        <div class="modal-body">
+          <div class="muted" id="vendorModalItem"></div>
 
-        <div class="grid" style="margin-top: 10px">
-          <div>
-            <label>Choose vendor option</label>
-            <select id="vendorPick"></select>
+          <div style="margin-top: 12px">
+            <label class="detail-card-title" style="display: block; margin-bottom: 6px"
+              >Suggested vendors</label
+            >
+            <div id="vendorSuggestedList" class="erp-choice-list"></div>
+            <p id="vendorSuggestedEmpty" class="muted" style="font-size: 12px" hidden>
+              No suggested vendors for this item. Search for an active vendor below.
+            </p>
           </div>
-          <div>
-            <label>Selected rate (optional)</label>
-            <input id="vendorRate" placeholder="e.g. 40.00" />
-          </div>
-        </div>
 
-        <div style="margin-top: 10px">
-          <label>Reason (required if not recommended)</label>
-          <textarea
-            id="vendorReason"
-            placeholder="Reason for selecting a different vendor…"
-          ></textarea>
+          <div style="margin-top: 14px" class="form-group full-col inline-item-search-wrap">
+            <label for="aqVendorSearchInput">Search other active vendor</label>
+            <input
+              id="aqVendorSearchInput"
+              type="text"
+              placeholder="Search by vendor name…"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-controls="aqVendorSearchResults"
+              aria-expanded="false"
+            />
+            <ul
+              id="aqVendorSearchResults"
+              class="inline-item-results"
+              role="listbox"
+              aria-label="Active vendor search results"
+            ></ul>
+          </div>
+
+          <div
+            id="aqSelectedVendorSummary"
+            class="aq-vendor-selected-summary muted"
+            hidden
+          ></div>
+          <p
+            id="aqVendorManualNotice"
+            class="muted"
+            style="font-size: 12px; margin-top: 6px"
+            hidden
+          ></p>
+
+          <div class="grid" style="margin-top: 12px">
+            <div>
+              <label for="vendorRate" id="vendorRateLabel">Rate</label>
+              <p class="muted" style="font-size: 12px; margin: 2px 0 6px">
+                Leave blank if the quotation or purchase rate is not yet available.
+              </p>
+              <input id="vendorRate" type="text" inputmode="decimal" placeholder="e.g. 40.00" />
+            </div>
+          </div>
+
+          <div style="margin-top: 10px">
+            <label for="vendorReason" id="vendorReasonLabel">Reason</label>
+            <p id="vendorReasonHint" class="muted" style="font-size: 12px; margin: 2px 0 6px"></p>
+            <textarea
+              id="vendorReason"
+              placeholder="Reason for this vendor assignment…"
+            ></textarea>
+          </div>
         </div>
 
         <div class="actions">
-          <button id="btnVendorCancel">Cancel</button>
-          <button id="btnVendorSave" data-edit-action="true">Save</button>
+          <button id="btnVendorCancel" type="button">Cancel</button>
+          <button id="btnVendorSave" type="button" data-edit-action="true">Save</button>
         </div>
       </div>
     </div>
