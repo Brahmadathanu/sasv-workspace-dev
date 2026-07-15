@@ -8737,10 +8737,44 @@ function getExportKnownAmount(row) {
   return Number.isFinite(numeric) ? numeric : null;
 }
 
+function getVwlTerminalBucketRank(row) {
+  const key = getVwlOperationalBucketKey(row);
+
+  if (key === "LOCAL_PURCHASE") return 1;
+  if (key === "UNASSIGNED") return 2;
+
+  return 0;
+}
+
+function compareVwlTerminalBucketRows(a, b) {
+  const rankDiff =
+    getVwlTerminalBucketRank(a) - getVwlTerminalBucketRank(b);
+
+  if (rankDiff !== 0) return rankDiff;
+
+  return (
+    getVwlOperationalBucketName(a).localeCompare(
+      getVwlOperationalBucketName(b),
+      undefined,
+      { sensitivity: "base" },
+    ) ||
+    String(a?.stock_item_name ?? "").localeCompare(
+      String(b?.stock_item_name ?? ""),
+      undefined,
+      { sensitivity: "base" },
+    ) ||
+    String(a?.uom_code ?? "").localeCompare(
+      String(b?.uom_code ?? ""),
+      undefined,
+      { sensitivity: "base" },
+    )
+  );
+}
+
 function mapVendorBuylistExportRow(row) {
   const status = getExportRateStatus(row);
   return {
-    Vendor: row.vendor_name ?? "",
+    Vendor: getVwlOperationalBucketName(row),
     "Material Class":
       row.material_class_display ||
       row.material_class_label ||
@@ -8797,6 +8831,9 @@ function computeVwlExportTotals(rows) {
 
 function buildVwlPdfFilterParts(rows) {
   const totals = computeVwlExportTotals(rows);
+  const hasOperationalVendorFilter = Boolean(
+    String(state.vwl.vendorFilterKey || "").trim(),
+  );
   const vendorFilter = pdfSafeText(
     qs("vwlVendorFilter")?.selectedOptions?.[0]?.textContent || "",
   );
@@ -8819,7 +8856,7 @@ function buildVwlPdfFilterParts(rows) {
   );
 
   const parts = [
-    vendorFilter && vendorFilter !== "All Vendors"
+    hasOperationalVendorFilter && vendorFilter
       ? `Vendor: ${vendorFilter}`
       : "Vendor: All",
     searchFilter ? `Search: ${searchFilter}` : "Search: None",
@@ -10436,7 +10473,8 @@ async function exportVendorBuylist(format) {
       return;
     }
 
-    const mapped = rows.map(mapVendorBuylistExportRow);
+    const sortedRows = [...rows].sort(compareVwlTerminalBucketRows);
+    const mapped = sortedRows.map(mapVendorBuylistExportRow);
     const stamp = makeDateStamp();
     if (format === "tsv") {
       downloadText(
@@ -10506,13 +10544,7 @@ function pdfDateStamp() {
 }
 
 function getVwlPdfVendorName(row) {
-  return pdfSafeText(
-    row.vendor_display_name ||
-      row.vendor_name ||
-      row.resolved_vendor_name ||
-      row.selected_vendor_name ||
-      "",
-  );
+  return pdfSafeText(getVwlOperationalBucketName(row));
 }
 
 function getVwlPdfItemName(row) {
@@ -10796,25 +10828,28 @@ async function exportVendorBuylistPdf() {
 
     const groups = new Map();
     rows.forEach((r) => {
-      const rawVendor = getVwlPdfVendorName(r);
-      const vendorName = rawVendor || "Unassigned Vendor";
-      if (!groups.has(vendorName)) groups.set(vendorName, []);
-      groups.get(vendorName).push(r);
+      const bucketKey = getVwlOperationalBucketKey(r);
+      const bucketName = getVwlOperationalBucketName(r) || "Unassigned Vendor";
+      if (!groups.has(bucketKey)) {
+        groups.set(bucketKey, { name: bucketName, rows: [] });
+      }
+      groups.get(bucketKey).rows.push(r);
     });
 
-    const vendorNames = Array.from(groups.keys()).sort((a, b) => {
-      const au = a === "Unassigned Vendor";
-      const bu = b === "Unassigned Vendor";
-      if (au && !bu) return 1;
-      if (!au && bu) return -1;
-      return a.localeCompare(b);
+    const vendorNames = [...groups.keys()].sort((a, b) => {
+      const rowA = groups.get(a)?.rows?.[0];
+      const rowB = groups.get(b)?.rows?.[0];
+      if (!rowA || !rowB) return 0;
+      return compareVwlTerminalBucketRows(rowA, rowB);
     });
 
     const exportTotals = computeVwlExportTotals(rows);
     const body = [];
 
-    vendorNames.forEach((vendorName) => {
-      const vendorRows = groups.get(vendorName) || [];
+    vendorNames.forEach((bucketKey) => {
+      const group = groups.get(bucketKey) || { name: "-", rows: [] };
+      const vendorRows = group.rows || [];
+      const vendorName = group.name;
       const groupSummary = buildVwlPdfVendorGroupSummary(vendorRows);
 
       body.push([
@@ -10907,15 +10942,16 @@ async function exportVendorBuylistPdf() {
         fillColor: false,
       },
       columnStyles: {
-        0: { cellWidth: 24, halign: "center" },
-        1: { cellWidth: 185 },
-        2: { cellWidth: 34, halign: "center" },
-        3: { cellWidth: 62, halign: "right" },
-        4: { cellWidth: 58, halign: "right" },
-        5: { cellWidth: 66, halign: "right" },
+        0: { cellWidth: 24, halign: "center", valign: "middle" },
+        1: { cellWidth: 185, valign: "middle" },
+        2: { cellWidth: 34, halign: "center", valign: "middle" },
+        3: { cellWidth: 62, halign: "right", valign: "middle" },
+        4: { cellWidth: 58, halign: "right", valign: "middle" },
+        5: { cellWidth: 66, halign: "right", valign: "middle" },
         6: {
           cellWidth: tableWidth - 24 - 185 - 34 - 62 - 58 - 66,
           halign: "left",
+          valign: "middle",
         },
       },
       didParseCell: function (data) {

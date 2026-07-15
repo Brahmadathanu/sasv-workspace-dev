@@ -95,6 +95,13 @@ let PERM_CAN_VIEW = true;
 let PERM_CAN_EDIT = false;
 let PERM_CONTROL_CENTER_EDIT = false;
 
+/** @type {"RM"|null} */
+let CURRENT_TRACE_COMPONENT = "RM";
+let CAN_VIEW_TRACE = false;
+let CAN_EXPORT_TRACE = false;
+let TRACE_PERMISSIONS_RESOLVED = false;
+let LAUNCH_DRILL_CONTEXT = null;
+
 const $ = (id) => document.getElementById(id);
 const statusArea = $("statusArea");
 const tableWrap = $("tableWrap");
@@ -107,7 +114,8 @@ const searchClear = $("searchClear");
 const lastRefreshed = $("lastRefreshed");
 const kpiStrip = $("kpiStrip");
 const kpiStripWrap = $("kpiStripWrap");
-const globalSearchCard = $("globalSearchCard");
+const globalSearchCard =
+  $("globalSearchCard") || $("manualRateManagerControls");
 const costingPeriodSelect = $("costingPeriodSelect");
 const lensPills = $("lensPills");
 const lensSelect = $("lensSelect");
@@ -361,21 +369,61 @@ function drillFilterValueArray(value) {
   return [normalizeStatus(String(value))].filter(Boolean);
 }
 
-function drillFiltersFromTraceabilityPayload(drillFilterJson) {
-  const payload = parseDrillFilterJson(drillFilterJson);
+function normalizeDrillId(value) {
+  if (value == null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function normalizeDrillContext(raw = {}) {
+  const payload =
+    raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
   return {
     status: drillFilterValueArray(payload.status),
     issue: drillFilterValueArray(payload.issue),
     source: drillFilterValueArray(payload.source),
     policyTab:
       String(payload.policyTab || payload.policy_tab || "").trim() || null,
+    managerTab:
+      String(payload.manager_tab || payload.managerTab || "").trim() || null,
+    traceComponent:
+      String(
+        payload.trace_component || payload.traceComponent || "",
+      ).trim() || null,
+    materialArea:
+      String(payload.material_area || payload.materialArea || "").trim() ||
+      null,
+    periodStart:
+      normalizeMonthStart(
+        payload.period_start || payload.periodStart || "",
+      ) || null,
     search: String(
       payload.search || payload.q || payload.search_text || "",
     ).trim(),
-    skuId: payload.sku_id ?? payload.skuId ?? null,
-    productId: payload.product_id ?? payload.productId ?? null,
-    stockItemId: payload.stock_item_id ?? payload.stockItemId ?? null,
+    skuId: normalizeDrillId(payload.sku_id ?? payload.skuId),
+    productId: normalizeDrillId(payload.product_id ?? payload.productId),
+    stockItemId: normalizeDrillId(
+      payload.stock_item_id ?? payload.stockItemId,
+    ),
   };
+}
+
+function drillFiltersFromTraceabilityPayload(drillFilterJson) {
+  return normalizeDrillContext(parseDrillFilterJson(drillFilterJson));
+}
+
+function mergeDrillContext(base = {}, overlay = {}) {
+  const merged = { ...normalizeDrillContext(base) };
+  const next = normalizeDrillContext(overlay);
+  Object.keys(next).forEach((key) => {
+    const value = next[key];
+    if (Array.isArray(value)) {
+      if (value.length) merged[key] = value;
+      return;
+    }
+    if (value != null && value !== "") merged[key] = value;
+  });
+  return merged;
 }
 
 function resolveTraceabilityDrillTarget(row) {
@@ -406,15 +454,24 @@ function canNavigateTraceabilityDrill(row) {
 }
 
 function stashPendingDrillContext(filters) {
+  const normalized = normalizeDrillContext(filters);
   const pending = {};
-  if (filters.search) pending.search = filters.search;
-  if (filters.skuId != null && filters.skuId !== "") pending.skuId = filters.skuId;
-  if (filters.productId != null && filters.productId !== "") {
-    pending.productId = filters.productId;
+  if (normalized.search) pending.search = normalized.search;
+  if (normalized.skuId != null) pending.skuId = normalized.skuId;
+  if (normalized.productId != null) pending.productId = normalized.productId;
+  if (normalized.stockItemId != null) {
+    pending.stockItemId = normalized.stockItemId;
   }
-  if (filters.stockItemId != null && filters.stockItemId !== "") {
-    pending.stockItemId = filters.stockItemId;
+  if (normalized.managerTab) pending.managerTab = normalized.managerTab;
+  if (normalized.traceComponent) {
+    pending.traceComponent = normalized.traceComponent;
   }
+  if (normalized.materialArea) pending.materialArea = normalized.materialArea;
+  if (normalized.periodStart) pending.periodStart = normalized.periodStart;
+  if (normalized.policyTab) pending.policyTab = normalized.policyTab;
+  if (normalized.status?.length) pending.status = normalized.status;
+  if (normalized.issue?.length) pending.issue = normalized.issue;
+  if (normalized.source?.length) pending.source = normalized.source;
 
   if (!Object.keys(pending).length) {
     sessionStorage.removeItem(COSTING_PENDING_DRILL_CONTEXT_KEY);
@@ -425,6 +482,18 @@ function stashPendingDrillContext(filters) {
     COSTING_PENDING_DRILL_CONTEXT_KEY,
     JSON.stringify(pending),
   );
+}
+
+function consumePendingDrillContext() {
+  const raw = sessionStorage.getItem(COSTING_PENDING_DRILL_CONTEXT_KEY);
+  if (!raw) return null;
+  sessionStorage.removeItem(COSTING_PENDING_DRILL_CONTEXT_KEY);
+  try {
+    return normalizeDrillContext(JSON.parse(raw));
+  } catch (err) {
+    console.warn("[costing-suite] pending drill context parse failed", err);
+    return null;
+  }
 }
 
 async function navigateTraceabilityDrill(row, { onBeforeNavigate } = {}) {
@@ -438,30 +507,20 @@ async function navigateTraceabilityDrill(row, { onBeforeNavigate } = {}) {
   stashPendingDrillContext(filters);
   onBeforeNavigate?.();
 
-  await drillToCostingTarget(target.moduleKey, target.lensId, {
-    status: filters.status,
-    issue: filters.issue,
-    source: filters.source,
-    policyTab: filters.policyTab,
-  });
+  await drillToCostingTarget(target.moduleKey, target.lensId, filters);
   return true;
 }
 
 function applyPendingDrillContext() {
-  const raw = sessionStorage.getItem(COSTING_PENDING_DRILL_CONTEXT_KEY);
-  if (!raw) return;
+  const pending = consumePendingDrillContext();
+  if (!pending) return;
 
-  sessionStorage.removeItem(COSTING_PENDING_DRILL_CONTEXT_KEY);
-
-  try {
-    const pending = JSON.parse(raw);
-    if (pending?.search && searchBox) {
-      searchBox.value = String(pending.search);
-      if (searchClear) searchClear.style.display = "";
-    }
-  } catch (err) {
-    console.warn("[costing-suite] pending drill context parse failed", err);
+  if (pending.search && searchBox) {
+    searchBox.value = String(pending.search);
+    if (searchClear) searchClear.style.display = "";
   }
+
+  LAUNCH_DRILL_CONTEXT = mergeDrillContext(LAUNCH_DRILL_CONTEXT, pending);
 }
 const COSTING_REFRESH_TERMINAL_STATUSES = new Set([
   "SUCCESS",
@@ -1070,6 +1129,33 @@ function buildCostingRouteQuery(params = {}) {
   if (params.issue?.length) qs.set("issue", params.issue.join(","));
   if (params.source?.length) qs.set("source", params.source.join(","));
   if (params.policyTab) qs.set("policyTab", params.policyTab);
+  if (params.managerTab || params.manager_tab) {
+    qs.set("manager_tab", params.managerTab || params.manager_tab);
+  }
+  if (params.traceComponent || params.trace_component) {
+    qs.set(
+      "trace_component",
+      params.traceComponent || params.trace_component,
+    );
+  }
+  if (params.materialArea || params.material_area) {
+    qs.set("material_area", params.materialArea || params.material_area);
+  }
+  if (params.periodStart || params.period_start) {
+    qs.set("period_start", params.periodStart || params.period_start);
+  }
+  if (params.productId != null || params.product_id != null) {
+    qs.set("product_id", String(params.productId ?? params.product_id));
+  }
+  if (params.skuId != null || params.sku_id != null) {
+    qs.set("sku_id", String(params.skuId ?? params.sku_id));
+  }
+  if (params.stockItemId != null || params.stock_item_id != null) {
+    qs.set(
+      "stock_item_id",
+      String(params.stockItemId ?? params.stock_item_id),
+    );
+  }
   const query = qs.toString();
   return query ? `?${query}` : "";
 }
@@ -1229,15 +1315,30 @@ function applyRouteLaunchParams() {
     pricingPolicyCtrl.setPolicyManagerTab("sku-overview");
   }
 
+  const queryDrill = normalizeDrillContext({
+    manager_tab: qp.get("manager_tab"),
+    trace_component: qp.get("trace_component"),
+    material_area: qp.get("material_area"),
+    period_start: qp.get("period_start"),
+    product_id: qp.get("product_id"),
+    sku_id: qp.get("sku_id"),
+    stock_item_id: qp.get("stock_item_id"),
+    policyTab,
+  });
+  LAUNCH_DRILL_CONTEXT = mergeDrillContext(LAUNCH_DRILL_CONTEXT, queryDrill);
+  applyPendingDrillContext();
+
+  if (LAUNCH_DRILL_CONTEXT?.managerTab) {
+    materialCostCtrl.setManualRateManagerTab(LAUNCH_DRILL_CONTEXT.managerTab);
+  }
+
   if (!lens) {
     CURRENT_LENS = ACTIVE_ROUTE_CONFIG.defaultLens;
-    applyPendingDrillContext();
     return;
   }
 
   if (isLensAllowedForRoute(lens)) {
     CURRENT_LENS = lens;
-    applyPendingDrillContext();
     return;
   }
 
@@ -1247,7 +1348,6 @@ function applyRouteLaunchParams() {
     4200,
   );
   CURRENT_LENS = ACTIVE_ROUTE_CONFIG.defaultLens;
-  applyPendingDrillContext();
 }
 
 function paramsFromQuery(qp, key) {
@@ -1260,12 +1360,7 @@ function paramsFromQuery(qp, key) {
 }
 
 async function drillToCostingTarget(moduleKey, lensId, filters = {}) {
-  const normalizedFilters = {
-    status: filters.status || [],
-    issue: filters.issue || [],
-    source: filters.source || [],
-    policyTab: filters.policyTab || null,
-  };
+  const normalizedFilters = normalizeDrillContext(filters);
 
   const canStayOnRoute = ACTIVE_ROUTE_CONFIG.moduleKey === moduleKey;
 
@@ -1284,6 +1379,27 @@ async function drillToCostingTarget(moduleKey, lensId, filters = {}) {
     ) {
       params.policyTab = "sku-overview";
     }
+    if (normalizedFilters.managerTab) {
+      params.managerTab = normalizedFilters.managerTab;
+    }
+    if (normalizedFilters.traceComponent) {
+      params.traceComponent = normalizedFilters.traceComponent;
+    }
+    if (normalizedFilters.materialArea) {
+      params.materialArea = normalizedFilters.materialArea;
+    }
+    if (normalizedFilters.periodStart) {
+      params.periodStart = normalizedFilters.periodStart;
+    }
+    if (normalizedFilters.productId != null) {
+      params.productId = normalizedFilters.productId;
+    }
+    if (normalizedFilters.skuId != null) {
+      params.skuId = normalizedFilters.skuId;
+    }
+    if (normalizedFilters.stockItemId != null) {
+      params.stockItemId = normalizedFilters.stockItemId;
+    }
     navigateToCostingRoute(moduleKey, params);
     return;
   }
@@ -1300,6 +1416,20 @@ async function drillToCostingTarget(moduleKey, lensId, filters = {}) {
       pricingPolicyCtrl.setPolicyManagerTab(normalizedFilters.policyTab);
     } else {
       pricingPolicyCtrl.setPolicyManagerTab("sku-overview");
+    }
+  }
+
+  if (moduleKey === "material-cost-manager") {
+    if (lensId === "manual-rate-manager" && normalizedFilters.managerTab) {
+      materialCostCtrl.setManualRateManagerTab(normalizedFilters.managerTab);
+    }
+    if (lensId === "rm-cost-trace") {
+      materialCostCtrl.applyTraceLaunchContext(normalizedFilters);
+    }
+    if (normalizedFilters.periodStart && lensId === "rm-cost-trace") {
+      ACTIVE_PERIOD_START = normalizedFilters.periodStart;
+      renderCostingPeriodOptions();
+      syncPeriodControlState();
     }
   }
 
@@ -1336,8 +1466,16 @@ function costingFrom(viewName) {
   return supabase.from(viewName);
 }
 
-async function costingRpc(name, params) {
-  return supabase.rpc(name, params);
+async function costingRpc(name, params, options = null) {
+  let query = supabase.rpc(name, params);
+  if (
+    options &&
+    Number.isFinite(Number(options.rangeFrom)) &&
+    Number.isFinite(Number(options.rangeTo))
+  ) {
+    query = query.range(Number(options.rangeFrom), Number(options.rangeTo));
+  }
+  return query;
 }
 
 function sleepMs(ms) {
@@ -2254,6 +2392,9 @@ async function loadPermissions(sessionUserId) {
   PERM_CAN_VIEW = true;
   PERM_CAN_EDIT = false;
   PERM_CONTROL_CENTER_EDIT = false;
+  CAN_VIEW_TRACE = false;
+  CAN_EXPORT_TRACE = false;
+  TRACE_PERMISSIONS_RESOLVED = false;
 
   try {
     const { data: perms, error } = await supabase.rpc("get_user_permissions", {
@@ -2261,7 +2402,9 @@ async function loadPermissions(sessionUserId) {
     });
     if (!error && Array.isArray(perms)) {
       applyPermissionEntriesFromRpc(perms);
+      TRACE_PERMISSIONS_RESOLVED = true;
       syncRefreshButtonDisabled();
+      syncTraceExportButtonState();
       return;
     }
     if (error) console.warn("[costing-suite] permission RPC failed", error);
@@ -2284,7 +2427,9 @@ async function loadPermissions(sessionUserId) {
     console.warn("[costing-suite] permission fallback failed", err);
   }
 
+  TRACE_PERMISSIONS_RESOLVED = true;
   syncRefreshButtonDisabled();
+  syncTraceExportButtonState();
 }
 
 function applyPermissionEntriesFromRpc(perms) {
@@ -2300,6 +2445,12 @@ function applyPermissionEntriesFromRpc(perms) {
 
   const controlCenterEntry = byTarget.get("module:costing-control-center");
   PERM_CONTROL_CENTER_EDIT = !!controlCenterEntry?.can_edit;
+
+  const traceViewEntry = byTarget.get("role:material-cost-rm-trace");
+  CAN_VIEW_TRACE = traceViewEntry?.can_view === true;
+
+  const traceExportEntry = byTarget.get("role:material-cost-rm-trace-export");
+  CAN_EXPORT_TRACE = traceExportEntry?.can_view === true;
 }
 
 async function resolveActivePeriodStart() {
@@ -2336,6 +2487,10 @@ async function resolveActivePeriodStart() {
     .limit(1);
   if (fallbackErr) throw fallbackErr;
   return fallbackRows?.[0]?.period_start || currentMonth;
+}
+
+function isRmCostTraceLensActive() {
+  return CURRENT_LENS === "rm-cost-trace";
 }
 
 function isPeriodScopedLens() {
@@ -2512,7 +2667,7 @@ function getSkuDiagnosis(skuId, periodStart = ACTIVE_PERIOD_START) {
   return row;
 }
 
-async function loadRowsForLens() {
+async function loadRowsForLens({ preservePage = false } = {}) {
   const lensLabel = LENSES.find((l) => l.id === CURRENT_LENS)?.label || "view";
   setLoadingMask(true, `Loading ${lensLabel}...`);
   try {
@@ -2521,7 +2676,7 @@ async function loadRowsForLens() {
     costSheetCtrl.onLensLoadStart();
     ALL_ROWS = [];
     VIEW = [];
-    CURRENT_PAGE = 1;
+    if (!preservePage) CURRENT_PAGE = 1;
 
     if (shouldShowKpiStrip()) {
       await controlCenterCtrl.loadGlobalSummaries(ACTIVE_PERIOD_START);
@@ -2544,6 +2699,7 @@ async function loadRowsForLens() {
       CURRENT_LENS === "cost-governance" ||
       CURRENT_LENS === "staff-governance" ||
       CURRENT_LENS === "manual-rate-manager" ||
+      CURRENT_LENS === "rm-cost-trace" ||
       CURRENT_LENS === "printable-cost-sheet"
     ) {
       SKU_STATUS_DIAGNOSIS = [];
@@ -2610,11 +2766,23 @@ async function loadRowsForLens() {
       return;
     }
 
-    if (CURRENT_LENS === "manual-rate-manager") {
-      ALL_ROWS = await materialCostCtrl.loadManualRateManagerRows(
-        materialCostCtrl.getManualRateManagerTab(),
-      );
+    if (CURRENT_LENS === "rm-cost-trace") {
+      materialCostCtrl.syncTracePageFromShell(CURRENT_PAGE, PAGE_SIZE);
+      ALL_ROWS = await materialCostCtrl.loadRmCostTraceRows();
+      VIEW = [...ALL_ROWS];
+      materialCostCtrl.syncRmTraceChrome();
+      syncTraceExportButtonState();
+      LAST_REFRESH_TIME = new Date();
+      updateFreshnessIndicator();
+      renderTable();
+      return;
+    }
 
+    if (CURRENT_LENS === "manual-rate-manager") {
+      const activeTab = materialCostCtrl.getManualRateManagerTab();
+      ALL_ROWS = await materialCostCtrl.loadManualRateManagerRows(activeTab);
+      materialCostCtrl.syncRmTraceChrome();
+      syncTraceExportButtonState();
       applyFilters();
       LAST_REFRESH_TIME = new Date();
       updateFreshnessIndicator();
@@ -2994,6 +3162,14 @@ function filterMatch(row, group, selected) {
 }
 
 function applyFilters() {
+  if (isRmCostTraceLensActive()) {
+    VIEW = [...ALL_ROWS];
+    CURRENT_PAGE = 1;
+    renderTable();
+    updateSearchClear();
+    return;
+  }
+
   let rows = [...ALL_ROWS];
   rows = rows.filter(
     (row) =>
@@ -3040,11 +3216,15 @@ function updateSearchPlaceholder() {
     placeholder = "Search expense head, group, allocation pool, or status";
   } else if (CURRENT_LENS === "staff-governance") {
     placeholder = "Search staff, employee code, designation, class, or pool";
+  } else if (CURRENT_LENS === "rm-cost-trace") {
+    placeholder = "Use RM Cost Trace filters for material search";
   } else if (CURRENT_LENS === "manual-rate-manager") {
-    placeholder =
-      materialCostCtrl.getManualRateManagerTab() === "history"
-        ? "Search stock item, manual rate ID, reason, or status"
-        : "Search stock item, issue code, rate source, or action";
+    const managerTab = materialCostCtrl.getManualRateManagerTab();
+    if (managerTab === "history") {
+      placeholder = "Search stock item, manual rate ID, reason, or status";
+    } else {
+      placeholder = "Search stock item, issue code, rate source, or action";
+    }
   } else if (CURRENT_LENS === "policy-manager") {
     placeholder = "Search product, SKU, scheme, policy, or status";
   }
@@ -3327,18 +3507,46 @@ function renderTable() {
   } else {
     controlCenterCtrl.renderWorkbenchSummary(ALL_ROWS, CURRENT_LENS);
   }
-  const totalPages = Math.max(1, Math.ceil(VIEW.length / PAGE_SIZE));
-  if (CURRENT_PAGE > totalPages) CURRENT_PAGE = totalPages;
-  const start = (CURRENT_PAGE - 1) * PAGE_SIZE;
-  const pageRows = VIEW.slice(start, start + PAGE_SIZE);
 
-  if (!VIEW.length) {
+  materialCostCtrl.syncRmTraceChrome();
+  syncTraceExportButtonState();
+
+  const rmTraceActive = isRmCostTraceLensActive();
+  const rmTraceState = rmTraceActive
+    ? materialCostCtrl.getTraceLoadState()
+    : null;
+  const totalCount = rmTraceActive
+    ? Number(materialCostCtrl.getTraceTotalCount() || 0)
+    : VIEW.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  if (!rmTraceActive && CURRENT_PAGE > totalPages) CURRENT_PAGE = totalPages;
+  const start = rmTraceActive ? 0 : (CURRENT_PAGE - 1) * PAGE_SIZE;
+  const pageRows = rmTraceActive ? VIEW : VIEW.slice(start, start + PAGE_SIZE);
+
+  if (rmTraceActive && rmTraceState === "restricted") {
+    tableBody.innerHTML = "";
+    tableWrap?.classList.remove("tw-visible");
+    setStatus(
+      "Restricted RM contribution detail. Your Material Cost Manager access does not include confidential raw-material contribution traceability.",
+      "error",
+    );
+  } else if (rmTraceActive && rmTraceState === "error") {
+    tableBody.innerHTML = "";
+    tableWrap?.classList.remove("tw-visible");
+    setStatus(
+      materialCostCtrl.getTraceErrorMessage() ||
+        "Unable to load RM Cost Trace.",
+      "error",
+    );
+  } else if (!VIEW.length) {
     tableBody.innerHTML = "";
     tableWrap?.classList.remove("tw-visible");
     setStatus(
       CURRENT_LENS === "dashboard" && !controlCenterCtrl.hasControlSnapshot()
         ? "Control snapshot is not available for this period. Request Costing Refresh from the toolbar to rebuild costing snapshots and the control summary."
-        : `No rows found for ${LENSES.find((l) => l.id === CURRENT_LENS)?.label || CURRENT_LENS}.`,
+        : rmTraceActive
+          ? "No RM contribution rows found for the selected filters."
+          : `No rows found for ${LENSES.find((l) => l.id === CURRENT_LENS)?.label || CURRENT_LENS}.`,
     );
   } else {
     clearStatus();
@@ -3353,6 +3561,10 @@ function renderTable() {
     tr.addEventListener("click", () => {
       const row = VIEW[Number(tr.dataset.rowIndex)];
       if (!row) return;
+
+      if (isRmCostTraceLensActive()) {
+        return;
+      }
 
       if (isCostBuildLens(CURRENT_LENS)) {
         costBuildCtrl.handleCostBuildRowClick(CURRENT_LENS, row, tr);
@@ -3415,11 +3627,20 @@ function renderTable() {
 
   if (rowCount) {
     rowCount.style.display = "";
-    rowCount.textContent = `${VIEW.length.toLocaleString("en-IN")} row${VIEW.length === 1 ? "" : "s"}`;
+    rowCount.textContent = `${totalCount.toLocaleString("en-IN")} row${totalCount === 1 ? "" : "s"}`;
   }
-  if (pageLabel) pageLabel.textContent = `Page ${CURRENT_PAGE}/${totalPages}`;
-  if (prevPage) prevPage.disabled = CURRENT_PAGE <= 1;
-  if (nextPage) nextPage.disabled = CURRENT_PAGE >= totalPages;
+  if (pageLabel) {
+    const pageForLabel = rmTraceActive
+      ? materialCostCtrl.getTracePage()
+      : CURRENT_PAGE;
+    pageLabel.textContent = `Page ${pageForLabel}/${totalPages}`;
+  }
+  if (prevPage) prevPage.disabled = (rmTraceActive ? materialCostCtrl.getTracePage() : CURRENT_PAGE) <= 1;
+  if (nextPage) {
+    nextPage.disabled =
+      (rmTraceActive ? materialCostCtrl.getTracePage() : CURRENT_PAGE) >=
+      totalPages;
+  }
 }
 
 function kvCards(items) {
@@ -3880,6 +4101,84 @@ async function requestCostingRefreshFromToolbar() {
   });
 }
 
+let RM_TRACE_EXPORT_IN_PROGRESS = false;
+
+function syncTraceExportButtonState() {
+  if (!exportBtn) return;
+  if (!isRmCostTraceLensActive()) {
+    RM_TRACE_EXPORT_IN_PROGRESS = false;
+    exportBtn.disabled = false;
+    exportBtn.title = "Export CSV";
+    exportBtn.setAttribute("aria-label", "Export CSV");
+    exportBtn.removeAttribute("aria-disabled");
+    exportBtn.classList.remove("is-disabled");
+    setVisible(exportBtn, true);
+    return;
+  }
+
+  const allowed =
+    TRACE_PERMISSIONS_RESOLVED && CAN_VIEW_TRACE && CAN_EXPORT_TRACE;
+  if (!allowed) {
+    RM_TRACE_EXPORT_IN_PROGRESS = false;
+    exportBtn.disabled = true;
+    exportBtn.title =
+      "Confidential RM Cost Trace export is restricted for your access.";
+    exportBtn.setAttribute("aria-label", exportBtn.title);
+    exportBtn.setAttribute("aria-disabled", "true");
+    setVisible(exportBtn, false);
+    return;
+  }
+
+  setVisible(exportBtn, true);
+  if (RM_TRACE_EXPORT_IN_PROGRESS) {
+    exportBtn.disabled = true;
+    exportBtn.title = "Exporting…";
+    exportBtn.setAttribute("aria-label", "Exporting…");
+    exportBtn.setAttribute("aria-disabled", "true");
+    exportBtn.classList.add("is-disabled");
+    return;
+  }
+
+  exportBtn.disabled = false;
+  exportBtn.title = "Export RM Cost Trace CSV";
+  exportBtn.setAttribute("aria-label", "Export RM Cost Trace CSV");
+  exportBtn.removeAttribute("aria-disabled");
+  exportBtn.classList.remove("is-disabled");
+}
+
+function setRmTraceExportBusy(busy) {
+  RM_TRACE_EXPORT_IN_PROGRESS = !!busy;
+  syncTraceExportButtonState();
+}
+
+async function exportActiveViewCsv() {
+  if (!isRmCostTraceLensActive()) {
+    exportCsvForRows(VIEW);
+    return;
+  }
+
+  if (
+    !TRACE_PERMISSIONS_RESOLVED ||
+    !CAN_VIEW_TRACE ||
+    !CAN_EXPORT_TRACE
+  ) {
+    showToast(
+      "Confidential RM Cost Trace export is restricted for your access.",
+      "error",
+    );
+    return;
+  }
+
+  if (RM_TRACE_EXPORT_IN_PROGRESS) return;
+
+  setRmTraceExportBusy(true);
+  try {
+    await materialCostCtrl.exportRmCostTraceCsv();
+  } finally {
+    setRmTraceExportBusy(false);
+  }
+}
+
 const refreshCostingChain = requestCostingRefreshFromToolbar;
 
 function exportCsvForRows(rows) {
@@ -4204,6 +4503,8 @@ const costSheetCtrl = createCostSheetController({
   canNavigateTraceabilityDrill,
   navigateTraceabilityDrill,
   getActivePeriodStart: () => ACTIVE_PERIOD_START,
+  getCurrentLens: () => CURRENT_LENS,
+  costingRpc,
 });
 
 const pricingPolicyCtrl = createPricingPolicyController({
@@ -4482,6 +4783,7 @@ const materialCostCtrl = createMaterialCostController({
   text,
   formatMoney,
   formatNumber,
+  formatPercent,
   formatDate,
   formatDateTime,
   compactStatusText,
@@ -4511,6 +4813,13 @@ const materialCostCtrl = createMaterialCostController({
   canEditMaterialCostActions,
   markCostingRefreshDirty,
   isCostingRefreshDirty,
+  getTracePermissions: () => ({
+    currentComponent: CURRENT_TRACE_COMPONENT,
+    canViewTrace: CAN_VIEW_TRACE,
+    canExportTrace: CAN_EXPORT_TRACE,
+    permissionsResolved: TRACE_PERMISSIONS_RESOLVED,
+  }),
+  syncTraceExportButtonState,
 });
 
 function renderKpiStrip() {
@@ -4539,12 +4848,27 @@ async function init() {
     updateCostingRefreshDirtyUi();
 
     ACTIVE_PERIOD_START = await resolveActivePeriodStart();
+    if (LAUNCH_DRILL_CONTEXT?.periodStart) {
+      ACTIVE_PERIOD_START = LAUNCH_DRILL_CONTEXT.periodStart;
+    }
     await loadAvailableCostingPeriods();
     costBuildCtrl.setManualProvisionPeriodFilter(
       normalizeMonthStart(ACTIVE_PERIOD_START || new Date()),
     );
     renderCostingPeriodOptions();
     syncPeriodControlState();
+    if (LAUNCH_DRILL_CONTEXT) {
+      if (
+        LAUNCH_DRILL_CONTEXT.managerTab &&
+        CURRENT_LENS === "manual-rate-manager"
+      ) {
+        materialCostCtrl.setManualRateManagerTab(LAUNCH_DRILL_CONTEXT.managerTab);
+      }
+      if (CURRENT_LENS === "rm-cost-trace") {
+        materialCostCtrl.applyTraceLaunchContext(LAUNCH_DRILL_CONTEXT);
+      }
+      LAUNCH_DRILL_CONTEXT = null;
+    }
     renderLensPills();
     syncFilterCheckboxes();
     wireFilterDrawer();
@@ -4567,9 +4891,12 @@ costingPeriodSelect?.addEventListener("change", () => {
   if (costingPeriodSelect.disabled) return;
   setActiveCostingPeriod(costingPeriodSelect.value);
 });
-exportBtn?.addEventListener("click", () => exportCsvForRows(VIEW));
+exportBtn?.addEventListener("click", () => {
+  void exportActiveViewCsv();
+});
 $("homeBtn")?.addEventListener("click", () => Platform.goHome());
 searchBox?.addEventListener("input", () => {
+  if (isRmCostTraceLensActive()) return;
   if (CURRENT_LENS === "manual-provisions") {
     costBuildCtrl.applyManualProvisionFilters();
     return;
@@ -4577,6 +4904,7 @@ searchBox?.addEventListener("input", () => {
   applySearch();
 });
 searchClear?.addEventListener("click", () => {
+  if (isRmCostTraceLensActive()) return;
   searchBox.value = "";
   if (CURRENT_LENS === "manual-provisions") {
     costBuildCtrl.applyManualProvisionFilters();
@@ -4587,12 +4915,30 @@ searchClear?.addEventListener("click", () => {
 });
 lensSelect?.addEventListener("change", () => switchLens(lensSelect.value));
 prevPage?.addEventListener("click", () => {
+  if (isRmCostTraceLensActive()) {
+    const page = materialCostCtrl.getTracePage();
+    if (page <= 1) return;
+    CURRENT_PAGE = page - 1;
+    void loadRowsForLens({ preservePage: true });
+    return;
+  }
   if (CURRENT_PAGE > 1) {
     CURRENT_PAGE -= 1;
     renderTable();
   }
 });
 nextPage?.addEventListener("click", () => {
+  if (isRmCostTraceLensActive()) {
+    const page = materialCostCtrl.getTracePage();
+    const totalPages = Math.max(
+      1,
+      Math.ceil(Number(materialCostCtrl.getTraceTotalCount() || 0) / PAGE_SIZE),
+    );
+    if (page >= totalPages) return;
+    CURRENT_PAGE = page + 1;
+    void loadRowsForLens({ preservePage: true });
+    return;
+  }
   if (CURRENT_PAGE < Math.ceil(VIEW.length / PAGE_SIZE)) {
     CURRENT_PAGE += 1;
     renderTable();

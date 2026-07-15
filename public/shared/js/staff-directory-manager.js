@@ -99,6 +99,13 @@ const masterSaveBtn = $("masterSaveBtn");
 const masterDeactivateBtn = $("masterDeactivateBtn");
 const masterCancelBtn = $("masterCancelBtn");
 
+const confirmModal = $("confirmModal");
+const confirmModalTitle = $("confirmModalTitle");
+const confirmModalMessage = $("confirmModalMessage");
+const confirmModalClose = $("confirmModalClose");
+const confirmModalCancel = $("confirmModalCancel");
+const confirmModalOk = $("confirmModalOk");
+
 const TABS = [
   { id: "staff", label: "Staff Directory" },
   { id: "categories", label: "Categories" },
@@ -237,6 +244,7 @@ let compensationModalMode = "create";
 let compensationModalBusy = false;
 let prevCompensationFocus = null;
 let snapshotLoaded = false;
+let confirmResolve = null;
 
 initPage();
 
@@ -503,6 +511,13 @@ function wireEvents() {
     if (e.target === masterModal) closeMasterModal();
   });
 
+  confirmModalOk?.addEventListener("click", () => finishConfirmModal(true));
+  confirmModalCancel?.addEventListener("click", () => finishConfirmModal(false));
+  confirmModalClose?.addEventListener("click", () => finishConfirmModal(false));
+  confirmModal?.addEventListener("click", (e) => {
+    if (e.target === confirmModal) finishConfirmModal(false);
+  });
+
   document.addEventListener("click", (e) => {
     if (
       filterPanel.classList.contains("open") &&
@@ -515,6 +530,11 @@ function wireEvents() {
 
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
+
+    if (confirmResolve) {
+      finishConfirmModal(false);
+      return;
+    }
 
     if (
       !compensationModal.classList.contains("hidden") &&
@@ -1023,26 +1043,25 @@ function closeCompensationModal(force = false) {
   if (compensationModalBusy && force !== true) return;
 
   compensationModal.classList.add("hidden");
-  document.body.style.overflow =
-    staffModal.classList.contains("hidden") &&
-    masterModal.classList.contains("hidden")
-      ? ""
-      : "hidden";
+  syncBodyOverflow();
   clearCompensationModalBanner();
   selectedCompensationId = null;
   compensationModalMode = "create";
 
-  try {
-    if (
-      prevCompensationFocus &&
-      typeof prevCompensationFocus.focus === "function"
-    ) {
-      prevCompensationFocus.focus();
+  if (force !== true) {
+    try {
+      if (
+        prevCompensationFocus &&
+        typeof prevCompensationFocus.focus === "function"
+      ) {
+        prevCompensationFocus.focus();
+      }
+    } catch {
+      // Ignore focus restore failures.
     }
-  } catch {
-    // Ignore focus restore failures.
   }
   prevCompensationFocus = null;
+  if (force === true) ensureSearchInteractive();
 }
 
 function setCompensationModalBusy(isBusy) {
@@ -1214,6 +1233,7 @@ async function saveCompensationFromModal() {
 
     closeCompensationModal(true);
     await reloadSnapshotAndRender();
+    ensureSearchInteractive();
     showToast("Staff compensation saved.", "success");
   } catch (err) {
     console.error("[staff-directory-manager] saveCompensationFromModal:", err);
@@ -1263,21 +1283,20 @@ function closeStaffModal(force = false) {
   if (modalBusy && !forceClose) return;
 
   staffModal.classList.add("hidden");
-  document.body.style.overflow =
-    masterModal.classList.contains("hidden") &&
-    compensationModal.classList.contains("hidden")
-      ? ""
-      : "hidden";
+  syncBodyOverflow();
   clearModalBanner();
   selectedStaffId = null;
   modalMode = "create";
 
-  try {
-    if (prevFocus && typeof prevFocus.focus === "function") prevFocus.focus();
-  } catch {
-    // Ignore focus restore failures.
+  if (!forceClose) {
+    try {
+      if (prevFocus && typeof prevFocus.focus === "function") prevFocus.focus();
+    } catch {
+      // Ignore focus restore failures.
+    }
   }
   prevFocus = null;
+  if (forceClose) ensureSearchInteractive();
 }
 
 function setFormValues(staff) {
@@ -1398,13 +1417,20 @@ function showModalBanner(type, message) {
   staffModalBanner.setAttribute("data-type", type);
 }
 
-function setModalBusy(isBusy) {
+function setModalBusy(isBusy, busyLabel = "Saving...") {
   modalBusy = !!isBusy;
   staffSaveBtn.disabled = modalBusy;
   staffDeactivateBtn.disabled = modalBusy;
   staffCancelBtn.disabled = modalBusy;
   staffModalClose.disabled = modalBusy;
-  staffSaveBtn.textContent = modalBusy ? "Saving..." : "Save";
+  if (!modalBusy) {
+    staffSaveBtn.textContent = "Save";
+    staffDeactivateBtn.textContent = "Deactivate";
+  } else if (busyLabel === "Deactivating...") {
+    staffDeactivateBtn.textContent = busyLabel;
+  } else {
+    staffSaveBtn.textContent = busyLabel;
+  }
 }
 
 async function saveStaffFromModal() {
@@ -1488,6 +1514,7 @@ async function saveStaffFromModal() {
 
     closeStaffModal(true);
     await reloadSnapshotAndRender();
+    ensureSearchInteractive();
     showToast("Staff record saved.", "success");
   } catch (err) {
     console.error("[staff-directory-manager] saveStaffFromModal:", err);
@@ -1502,9 +1529,14 @@ async function deactivateStaffFromModal() {
   if (modalBusy || modalMode !== "edit") return;
   if (!Number.isFinite(Number(selectedStaffId))) return;
 
-  if (!window.confirm("Deactivate this staff record?")) return;
+  const ok = await showConfirmModal({
+    title: "Confirm Deactivation",
+    message: "Deactivate this staff record?",
+    confirmLabel: "Deactivate",
+  });
+  if (!ok) return;
 
-  setModalBusy(true);
+  setModalBusy(true, "Deactivating...");
   clearModalBanner();
   try {
     const { error } = await hrSupabase.rpc("fn_deactivate_staff", {
@@ -1517,6 +1549,7 @@ async function deactivateStaffFromModal() {
 
     closeStaffModal(true);
     await reloadSnapshotAndRender();
+    ensureSearchInteractive();
     showToast("Staff record deactivated.", "success");
   } catch (err) {
     console.error("[staff-directory-manager] deactivateStaffFromModal:", err);
@@ -1558,13 +1591,20 @@ function showMasterModalBanner(type, message) {
   masterModalBanner.setAttribute("data-type", type);
 }
 
-function setMasterModalBusy(isBusy) {
+function setMasterModalBusy(isBusy, busyLabel = "Saving...") {
   masterModalBusy = !!isBusy;
   masterSaveBtn.disabled = masterModalBusy;
   masterDeactivateBtn.disabled = masterModalBusy;
   masterCancelBtn.disabled = masterModalBusy;
   masterModalClose.disabled = masterModalBusy;
-  masterSaveBtn.textContent = masterModalBusy ? "Saving..." : "Save";
+  if (!masterModalBusy) {
+    masterSaveBtn.textContent = "Save";
+    masterDeactivateBtn.textContent = "Deactivate";
+  } else if (busyLabel === "Deactivating...") {
+    masterDeactivateBtn.textContent = busyLabel;
+  } else {
+    masterSaveBtn.textContent = busyLabel;
+  }
 }
 
 function setMasterFormValues(tabId, row) {
@@ -1634,24 +1674,23 @@ function closeMasterModal(force = false) {
   if (masterModalBusy && !forceClose) return;
 
   masterModal.classList.add("hidden");
-  document.body.style.overflow =
-    staffModal.classList.contains("hidden") &&
-    compensationModal.classList.contains("hidden")
-      ? ""
-      : "hidden";
+  syncBodyOverflow();
   clearMasterModalBanner();
   selectedMasterId = null;
   masterModalMode = "create";
   masterModalType = "categories";
 
-  try {
-    if (prevMasterFocus && typeof prevMasterFocus.focus === "function") {
-      prevMasterFocus.focus();
+  if (!forceClose) {
+    try {
+      if (prevMasterFocus && typeof prevMasterFocus.focus === "function") {
+        prevMasterFocus.focus();
+      }
+    } catch {
+      // Ignore focus restore failures.
     }
-  } catch {
-    // Ignore focus restore failures.
   }
   prevMasterFocus = null;
+  if (forceClose) ensureSearchInteractive();
 }
 
 async function saveMasterFromModal() {
@@ -1697,6 +1736,7 @@ async function saveMasterFromModal() {
 
       closeMasterModal(true);
       await reloadSnapshotAndRender();
+      ensureSearchInteractive();
       showToast("Category saved.", "success");
       return;
     }
@@ -1752,6 +1792,7 @@ async function saveMasterFromModal() {
 
       closeMasterModal(true);
       await reloadSnapshotAndRender();
+      ensureSearchInteractive();
       showToast("Status saved.", "success");
       return;
     }
@@ -1793,6 +1834,7 @@ async function saveMasterFromModal() {
 
     closeMasterModal(true);
     await reloadSnapshotAndRender();
+    ensureSearchInteractive();
     showToast("Unit saved.", "success");
   } catch (err) {
     console.error("[staff-directory-manager] saveMasterFromModal:", err);
@@ -1813,10 +1855,14 @@ async function deactivateMasterFromModal() {
   }
 
   const heading = getMasterModalHeading(masterModalType);
-  if (!window.confirm(`Deactivate this ${heading.toLowerCase()} record?`))
-    return;
+  const ok = await showConfirmModal({
+    title: "Confirm Deactivation",
+    message: `Deactivate this ${heading.toLowerCase()} record?`,
+    confirmLabel: "Deactivate",
+  });
+  if (!ok) return;
 
-  setMasterModalBusy(true);
+  setMasterModalBusy(true, "Deactivating...");
   clearMasterModalBanner();
   try {
     let error = null;
@@ -1842,6 +1888,7 @@ async function deactivateMasterFromModal() {
 
     closeMasterModal(true);
     await reloadSnapshotAndRender();
+    ensureSearchInteractive();
     showToast(`${heading} deactivated.`, "success");
   } catch (err) {
     console.error("[staff-directory-manager] deactivateMasterFromModal:", err);
@@ -2144,4 +2191,57 @@ function formatDate(dateStr) {
   } catch {
     return "-";
   }
+}
+
+function anyPageModalOpen() {
+  return (
+    (staffModal && !staffModal.classList.contains("hidden")) ||
+    (masterModal && !masterModal.classList.contains("hidden")) ||
+    (compensationModal && !compensationModal.classList.contains("hidden")) ||
+    (confirmModal && !confirmModal.classList.contains("hidden"))
+  );
+}
+
+function syncBodyOverflow() {
+  document.body.style.overflow = anyPageModalOpen() ? "hidden" : "";
+}
+
+function ensureSearchInteractive() {
+  if (!staffSearch) return;
+  staffSearch.disabled = false;
+  staffSearch.removeAttribute("readonly");
+  syncBodyOverflow();
+}
+
+function showConfirmModal({
+  title = "Confirm",
+  message = "",
+  confirmLabel = "Confirm",
+} = {}) {
+  return new Promise((resolve) => {
+    if (!confirmModal || !confirmModalOk) {
+      resolve(false);
+      return;
+    }
+    if (confirmResolve) {
+      finishConfirmModal(false);
+    }
+
+    confirmModalTitle.textContent = title;
+    confirmModalMessage.textContent = message;
+    confirmModalOk.textContent = confirmLabel || "Confirm";
+    confirmResolve = resolve;
+    confirmModal.classList.remove("hidden");
+    syncBodyOverflow();
+    confirmModalOk.focus();
+  });
+}
+
+function finishConfirmModal(result) {
+  if (!confirmResolve) return;
+  const resolve = confirmResolve;
+  confirmResolve = null;
+  confirmModal?.classList.add("hidden");
+  syncBodyOverflow();
+  resolve(!!result);
 }

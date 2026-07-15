@@ -27,7 +27,7 @@ export const COSTING_ROUTE_CONFIG = {
     subtitle:
       "RM/PM manual rates, material action queue, review acceptance, and costing material blockers",
     routePath: "public/shared/material-cost-manager.html",
-    allowedLensIds: ["manual-rate-manager"],
+    allowedLensIds: ["manual-rate-manager", "rm-cost-trace"],
   },
   "cost-build-manager": {
     moduleKey: "cost-build-manager",

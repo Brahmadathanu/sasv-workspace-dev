@@ -642,6 +642,19 @@
       .modal-overlay.hidden {
         display: none;
       }
+      #confirmModal {
+        z-index: 2100;
+      }
+      #confirmModal .modal-window {
+        width: min(420px, 96vw);
+        max-height: none;
+      }
+      #confirmModalMessage {
+        margin: 0 0 16px;
+        font-size: 0.95rem;
+        line-height: 1.45;
+        color: var(--text, #374151);
+      }
       .hidden {
         display: none !important;
       }
@@ -1520,6 +1533,53 @@
             </button>
             <button id="masterCancelBtn" type="button" class="btn-secondary">
               Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="confirmModal"
+      class="modal-overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="confirmModalTitle"
+    >
+      <div class="modal-window" role="document">
+        <div class="modal-header">
+          <div>
+            <div id="confirmModalTitle" class="modal-title">Confirm</div>
+          </div>
+          <div class="modal-header-actions">
+            <button
+              id="confirmModalClose"
+              class="modal-close-btn"
+              aria-label="Close"
+              type="button"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="modal-content">
+          <p id="confirmModalMessage"></p>
+          <div class="modal-actions">
+            <button id="confirmModalCancel" type="button" class="btn-secondary">
+              Cancel
+            </button>
+            <button id="confirmModalOk" type="button" class="btn-danger">
+              Confirm
             </button>
           </div>
         </div>

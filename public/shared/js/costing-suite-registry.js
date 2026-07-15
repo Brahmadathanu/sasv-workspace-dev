@@ -7,7 +7,7 @@ export const COSTING_SUITE_MODULES = [
   {
     id: "material-cost",
     label: "Material Cost Manager",
-    lensIds: ["manual-rate-manager"],
+    lensIds: ["manual-rate-manager", "rm-cost-trace"],
   },
   {
     id: "cost-build",
@@ -47,6 +47,14 @@ export const LENS_REGISTRY = {
     suiteId: "material-cost",
     periodScoped: false,
     description: "Manual RM/PM rates, action queue, register, and history.",
+  },
+  "rm-cost-trace": {
+    id: "rm-cost-trace",
+    label: "RM Cost Trace",
+    suiteId: "material-cost",
+    periodScoped: true,
+    description:
+      "Read-only confidential raw-material contribution traceability.",
   },
   "cost-governance": {
     id: "cost-governance",

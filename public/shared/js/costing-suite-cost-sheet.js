@@ -126,6 +126,7 @@ export function createCostSheetController(deps) {
   const {
     dom,
     costingFrom,
+    costingRpc,
     showToast,
     text,
     formatMoney,
@@ -152,6 +153,7 @@ export function createCostSheetController(deps) {
     canNavigateTraceabilityDrill,
     navigateTraceabilityDrill,
     getActivePeriodStart,
+    getCurrentLens,
   } = deps;
 
   const {
@@ -784,25 +786,14 @@ export function createCostSheetController(deps) {
   function renderEvidenceSummary(evidenceJson) {
     if (!evidenceJson || typeof evidenceJson !== "object") return "";
 
-    const usedKeys = new Set();
     const items = [];
 
     EVIDENCE_KEY_META.forEach(([key, label, valueType]) => {
       if (!(key in evidenceJson)) return;
       const formatted = formatEvidenceValue(key, evidenceJson[key], valueType);
       if (formatted === null) return;
-      usedKeys.add(key);
       items.push([label, formatted]);
     });
-
-    Object.keys(evidenceJson)
-      .filter((key) => !usedKeys.has(key))
-      .sort((a, b) => a.localeCompare(b))
-      .forEach((key) => {
-        const formatted = formatEvidenceValue(key, evidenceJson[key]);
-        if (formatted === null) return;
-        items.push([humanizeEvidenceKey(key), formatted]);
-      });
 
     if (!items.length) return "";
     return kvSection(
@@ -1138,6 +1129,138 @@ export function createCostSheetController(deps) {
     }
   }
 
+  function isRawMaterialCostExplainLine(params = {}) {
+    const label = normalizeCostSheetDisplayLabel(params.lineLabel);
+    return label === "Raw Material Cost (RM)";
+  }
+
+  function renderTraceSummary(summary, { component = "RM" } = {}) {
+    if (!summary) return "";
+    const items = [
+      ["RM Total", formatMoney(summary.rm_total)],
+      [
+        "Contribution Lines",
+        formatNumber(summary.contribution_line_count),
+      ],
+      ["OK Lines", formatNumber(summary.ok_line_count)],
+      ["Review Lines", formatNumber(summary.review_line_count)],
+      ["Blocked Lines", formatNumber(summary.blocked_line_count)],
+      [
+        "Calculation Warning Lines",
+        formatNumber(summary.calculation_warning_line_count),
+      ],
+      [
+        "Largest Contribution %",
+        formatPercent(summary.largest_contribution_share_percent),
+      ],
+      ["Summary Status", compactStatusText(summary.summary_status)],
+      [
+        "Snapshot Refreshed",
+        formatDateTime(summary.snapshot_refreshed_at),
+      ],
+    ];
+
+    const detailAvailable = summary.confidential_detail_available === true;
+    const ctaSection = detailAvailable
+      ? `<section class="cp-detail-section cost-sheet-drill-section">
+          <h3 class="cp-section-title">Confidential Detail</h3>
+          <div class="cost-sheet-drill-actions">
+            <button
+              type="button"
+              class="icon-btn icon-btn-primary cost-sheet-drill-btn"
+              data-rm-trace-drill="true"
+              data-trace-component="${text(component, "RM")}"
+            >Open RM Cost Trace</button>
+          </div>
+        </section>`
+      : `<section class="cp-detail-section">
+          <h3 class="cp-section-title">Confidential Detail</h3>
+          <div class="status">Detailed RM contribution trace is restricted.</div>
+        </section>`;
+
+    return detailPanel([
+      kvSection("RM Contribution Summary", items),
+      ctaSection,
+    ]);
+  }
+
+  async function loadCostSheetRmExplainSummary({
+    periodStart,
+    productId,
+    skuId,
+  } = {}) {
+    const period = String(periodStart ?? "").trim();
+    if (!period || productId == null || skuId == null) return null;
+    if (typeof costingRpc !== "function") return null;
+
+    try {
+      const { data, error } = await costingRpc(
+        "rpc_get_cost_sheet_rm_explain_summary",
+        {
+          p_period_start: period,
+          p_product_id: Number(productId),
+          p_sku_id: Number(skuId),
+        },
+      );
+      if (error) {
+        console.warn(
+          "[costing-suite] rpc_get_cost_sheet_rm_explain_summary failed",
+          error,
+        );
+        return null;
+      }
+      const row = Array.isArray(data) ? data[0] : data;
+      return row || null;
+    } catch (err) {
+      console.warn(
+        "[costing-suite] rpc_get_cost_sheet_rm_explain_summary exception",
+        err,
+      );
+      return null;
+    }
+  }
+
+  async function openRmCostTraceFromExplain(summary, params = {}) {
+    if (!navigateTraceabilityDrill || !summary) {
+      showExplainDrillUnavailableMessage();
+      return;
+    }
+
+    const sourceLensId =
+      (typeof getCurrentLens === "function" && getCurrentLens()) ||
+      "printable-cost-sheet";
+
+    const row = {
+      drill_route_module_key: "material-cost-manager",
+      drill_route_lens_id: "rm-cost-trace",
+      source_module_key: "cost-sheet-review",
+      source_lens_id: sourceLensId,
+      source_module_label: "Cost Sheet Review & Approval",
+      drill_filter_json: {
+        trace_component: "RM",
+        material_area: "RM",
+        period_start: summary.period_start || params.periodStart,
+        product_id: summary.product_id ?? params.productId,
+        sku_id: summary.sku_id ?? params.skuId,
+        ...(params.stockItemId != null
+          ? { stock_item_id: params.stockItemId }
+          : {}),
+      },
+    };
+
+    if (!canNavigateTraceabilityDrill?.(row)) {
+      showExplainDrillUnavailableMessage();
+      return;
+    }
+
+    const navigated = await navigateTraceabilityDrill(row, {
+      onBeforeNavigate: () => {
+        closeCostSheetExplainDrawer();
+      },
+    });
+    if (!navigated) showExplainDrillUnavailableMessage();
+  }
+
   async function openCostSheetExplainDrawer(params = {}) {
     if (!costSheetExplainDrawer || !costSheetExplainContent) return;
 
@@ -1152,6 +1275,44 @@ export function createCostSheetController(deps) {
     setTimeout(() => {
       costSheetExplainCloseBtn?.focus();
     }, 0);
+
+    if (isRawMaterialCostExplainLine(params)) {
+      const summary = await loadCostSheetRmExplainSummary(params);
+      if (!summary) {
+        if (costSheetExplainTitle) {
+          costSheetExplainTitle.textContent =
+            params.lineLabel || "Explain Line";
+        }
+        if (costSheetExplainSubtitle) {
+          costSheetExplainSubtitle.innerHTML = "";
+        }
+        costSheetExplainContent.innerHTML =
+          '<div class="status">RM contribution summary is not available for this line. Run costing refresh and try again.</div>';
+        currentExplainTraceabilityRow = null;
+        return;
+      }
+
+      setCostSheetExplainHeader(
+        {
+          line_label: params.lineLabel,
+          period_start: summary.period_start || params.periodStart,
+          product_id: summary.product_id,
+          sku_id: summary.sku_id,
+          product_name: params.productName,
+          sku_column_label: params.skuLabel,
+        },
+        params,
+      );
+      currentExplainTraceabilityRow = {
+        __rmExplainSummary: true,
+        summary,
+        params,
+      };
+      costSheetExplainContent.innerHTML = renderTraceSummary(summary, {
+        component: "RM",
+      });
+      return;
+    }
 
     const row = await loadCostSheetLineTraceability(params);
     if (!row) {
@@ -1172,6 +1333,15 @@ export function createCostSheetController(deps) {
   }
 
   function handleCostSheetExplainDrillClick(event) {
+    const rmButton = event.target.closest("[data-rm-trace-drill]");
+    if (rmButton && costSheetExplainContent?.contains(rmButton)) {
+      event.preventDefault();
+      event.stopPropagation();
+      const current = currentExplainTraceabilityRow;
+      void openRmCostTraceFromExplain(current?.summary, current?.params || {});
+      return;
+    }
+
     const button = event.target.closest("[data-traceability-drill]");
     if (!button || !costSheetExplainContent?.contains(button)) return;
 
@@ -2239,7 +2409,40 @@ export function createCostSheetController(deps) {
 
     try {
       let query = costingFrom(TRACEABILITY_VIEW)
-        .select("*")
+        .select(
+          [
+            "period_start",
+            "product_id",
+            "product_name",
+            "sku_id",
+            "sku_column_label",
+            "section_code",
+            "line_order",
+            "line_label",
+            "value_numeric",
+            "value_text",
+            "value_type",
+            "cost_sheet_status",
+            "trace_formula",
+            "calculation_basis",
+            "trace_summary",
+            "source_note",
+            "trace_source_type",
+            "trace_source_snapshot",
+            "source_module_label",
+            "source_module_key",
+            "source_lens_id",
+            "audit_hint",
+            "control_hint",
+            "refresh_stage_code",
+            "evidence_refreshed_at",
+            "refreshed_at",
+            "evidence_json",
+            "drill_route_module_key",
+            "drill_route_lens_id",
+            "drill_filter_json",
+          ].join(","),
+        )
         .eq("period_start", period)
         .eq("product_id", productId)
         .eq("sku_id", skuId)

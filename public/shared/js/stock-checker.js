@@ -103,7 +103,8 @@ function filtersAreActive() {
     if (selectedProductId) return true;
     if (state.pack_size) return true;
     if (state.uom) return true;
-    if (state.quick?.mosLt3 || state.quick?.raso) return true;
+    if (state.quick?.mosLt3 || state.quick?.raso || state.quick?.samples)
+      return true;
     if (state.category_id) return true;
     if (state.sub_category_id && state.sub_category_id.length) return true;
     if (state.product_group_id && state.product_group_id.length) return true;
@@ -208,6 +209,7 @@ function buildStockCheckerFiltersPayload() {
     mosLt3: !!(state.quick && state.quick.mosLt3),
     raso: !!(state.quick && state.quick.raso),
     capsTabs: !!(state.quick && state.quick.capsTabs),
+    samples: !!(state.quick && state.quick.samples),
   };
 
   payload.category_id =
@@ -485,6 +487,7 @@ function toggleChip(btn, stateKey) {
   if (stateKey === "mosLt3") state.quick.mosLt3 = next;
   if (stateKey === "raso") state.quick.raso = next;
   if (stateKey === "capsTabs") state.quick.capsTabs = next;
+  if (stateKey === "samples") state.quick.samples = next;
   page = 1;
   runQuery();
 }
@@ -1723,8 +1726,9 @@ let elFiltersApply, elFiltersCancel;
 let closeFiltersModalFn = null;
 
 let elExport, elExportPDF, elHome, elClear;
-let elCount, elUpdated, elPrev, elNext, elPage;
+let elCount, elUpdated, elPrev, elNext, elPage, elLoadedCount;
 let elTable, elBody;
+let elResults, elCardsWrap, elCardsList;
 
 // DOM refs for value/total UI (assigned in init)
 let elTotalValue, elToggleValue;
@@ -1733,7 +1737,7 @@ let elValueModal, elValueModalClose, elValueBody, elValueSnapshot;
 // Row modal refs (declared at module scope so assignments in init work)
 let elRowModal, elRowModalClose;
 
-let elQfMosLt3, elQfRaso, elQfCapsTabs;
+let elQfMosLt3, elQfRaso, elQfCapsTabs, elQfSamples;
 
 // Advanced drawer controls
 let exCat, exSubcat, exPgroup, exSgroup;
@@ -1747,6 +1751,13 @@ let advApply, advCount;
 
 /* ─────────────────────────── State ─────────────────────────── */
 const PAGE_SIZE = 50;
+const scNarrowMedia = window.matchMedia("(max-width: 520px)");
+let __scPresentationMobileSelect = false;
+let __totalCount = 0;
+let __hasMore = false;
+let __queryLoading = false;
+let __queryGen = 0;
+let __scrollObserversWired = false;
 const BASE_VISIBLE_COLS = 15;
 function visibleCols() {
   try {
@@ -1763,6 +1774,41 @@ let __lastRows = [];
 // totals cache removed — totals are read directly from RPC responses
 // remember element focused before opening modals so we can restore focus
 let __lastFocusBeforeRowModal = null;
+let __rowModalScrollLocked = false;
+let __rowModalPrevBodyOverflow = "";
+let __rowModalPrevHtmlOverflow = "";
+
+function lockRowModalPageScroll() {
+  if (__rowModalScrollLocked) return;
+  try {
+    __rowModalPrevBodyOverflow = document.body
+      ? document.body.style.overflow
+      : "";
+    __rowModalPrevHtmlOverflow = document.documentElement
+      ? document.documentElement.style.overflow
+      : "";
+    if (document.body) document.body.style.overflow = "hidden";
+    if (document.documentElement)
+      document.documentElement.style.overflow = "hidden";
+    __rowModalScrollLocked = true;
+  } catch {
+    void 0;
+  }
+}
+
+function unlockRowModalPageScroll() {
+  if (!__rowModalScrollLocked) return;
+  try {
+    if (document.body) document.body.style.overflow = __rowModalPrevBodyOverflow;
+    if (document.documentElement)
+      document.documentElement.style.overflow = __rowModalPrevHtmlOverflow;
+  } catch {
+    void 0;
+  }
+  __rowModalScrollLocked = false;
+  __rowModalPrevBodyOverflow = "";
+  __rowModalPrevHtmlOverflow = "";
+}
 let __lastFocusBeforeValueModal = null;
 
 let selectedProductId = "";
@@ -1770,7 +1816,7 @@ let selectedProductId = "";
 const state = {
   pack_size: "",
   uom: "",
-  quick: { mosLt3: false, raso: false, capsTabs: false },
+  quick: { mosLt3: false, raso: false, capsTabs: false, samples: false },
   category_id: "",
   sub_category_id: "",
   product_group_id: "",
@@ -1791,71 +1837,74 @@ let __advExInitDone = false;
 function renderRowModal(row) {
   if (!row) return;
 
-  // ── Item identity header ────────────────────────────────────────────────────
+  function kvRow(label, value) {
+    const text =
+      value == null || value === "" ? "" : String(value).trim();
+    if (!text) return "";
+    return (
+      `<div class="sc-row-kv-row">` +
+      `<span class="sc-row-kv-label">${escapeHtml(label)}</span>` +
+      `<span class="sc-row-kv-value">${escapeHtml(text)}</span>` +
+      `</div>`
+    );
+  }
+
+  function kvSection(title, rowsHtml) {
+    if (!rowsHtml) return "";
+    return (
+      `<div class="sc-row-kv">` +
+      `<div class="sc-row-kv-title">${escapeHtml(title)}</div>` +
+      rowsHtml +
+      `</div>`
+    );
+  }
+
+  function ledgerTable(title, locations) {
+    const body = locations
+      .map(
+        (loc, idx) =>
+          `<tr${idx === locations.length - 1 ? ' class="sc-row-ledger-total"' : ""}>` +
+          `<th scope="row">${escapeHtml(loc.label)}</th>` +
+          `<td>${loc.value}</td>` +
+          `</tr>`,
+      )
+      .join("");
+    return (
+      `<div class="sc-row-ledger-block">` +
+      `<div class="sc-row-ledger-title">${escapeHtml(title)}</div>` +
+      `<table class="sc-row-ledger">` +
+      `<tbody>${body}</tbody>` +
+      `</table></div>`
+    );
+  }
+
+  // ── Item title ──────────────────────────────────────────────────────────────
   if (elRowHeader) {
     const itemName = escapeHtml(row.item || row.item_name || "");
-    const packText = [row.pack_size, row.uom].filter(Boolean).join(" ");
-    const pillHtml = packText
-      ? `<span class="sc-row-pill">${escapeHtml(packText)}</span>`
-      : "";
-    const skuHtml = row.sku_id
-      ? `<span class="sc-row-muted">SKU\u202f${escapeHtml(String(row.sku_id))}</span>`
-      : "";
-    elRowHeader.innerHTML =
-      `<div class="sc-row-title-line">` +
-      `<span class="sc-row-title">${itemName}</span>` +
-      pillHtml +
-      `</div>` +
-      (skuHtml ? `<div class="sc-row-subline">${skuHtml}</div>` : "");
+    elRowHeader.innerHTML = `<div class="sc-row-title">${itemName}</div>`;
   }
 
-  // ── Classification breadcrumb chips ────────────────────────────────────────
+  // ── Identity + classification (key-value rows) ─────────────────────────────
   if (elRowClassif) {
-    const parts = [
-      row.category_name,
-      row.sub_category_name,
-      row.product_group_name,
-      row.sub_group_name,
-    ].filter(Boolean);
-    elRowClassif.innerHTML = parts.length
-      ? `<span class="sc-row-chip-list">` +
-        parts
-          .map((p) => `<span class="sc-row-chip">${escapeHtml(p)}</span>`)
-          .join("") +
-        `</span>`
-      : "";
+    const identityRows =
+      kvRow("Pack Size", row.pack_size != null ? String(row.pack_size) : "") +
+      kvRow("UOM", row.uom || "") +
+      kvRow("SKU", row.sku_id != null ? String(row.sku_id) : "") +
+      (row.mrp_ik != null ? kvRow("MRP IK", fmtRate(row.mrp_ik)) : "") +
+      (row.mrp_ok != null ? kvRow("MRP OK", fmtRate(row.mrp_ok)) : "") +
+      (row.shade_flag ? kvRow("Shade", "Yes") : "");
+
+    const classifRows =
+      kvRow("Category", row.category_name || "") +
+      kvRow("Sub-category", row.sub_category_name || "") +
+      kvRow("Product Group", row.product_group_name || "") +
+      kvRow("Sub-group", row.sub_group_name || "");
+
+    elRowClassif.innerHTML =
+      kvSection("Item", identityRows) + kvSection("Classification", classifRows);
   }
 
-  // ── Shared helpers ──────────────────────────────────────────────────────────
-  function metricRow(label, val) {
-    return (
-      `<div class="sc-row-metric">` +
-      `<span class="sc-row-metric-label">${escapeHtml(label)}</span>` +
-      `<span class="sc-row-metric-value">${val}</span>` +
-      `</div>`
-    );
-  }
-
-  function totalRow(label, val) {
-    return (
-      `<div class="sc-row-metric sc-row-metric--total">` +
-      `<span class="sc-row-metric-label">${escapeHtml(label)}</span>` +
-      `<span class="sc-row-metric-value">${val}</span>` +
-      `</div>`
-    );
-  }
-
-  function section(title, bodyHtml, totalHtml) {
-    return (
-      `<section class="sc-row-section">` +
-      `<div class="sc-row-card-title">${escapeHtml(title)}</div>` +
-      `<div class="sc-row-card-grid">${bodyHtml}</div>` +
-      totalHtml +
-      `</section>`
-    );
-  }
-
-  // ── Left card: Stock + Demand + MOS ─────────────────────────────────────────
+  // ── Stock / Demand / MOS — separate vertical tables ─────────────────────────
   if (elRowQty) {
     const stIK = Number(row.stock_ik) || 0;
     const stKKD = Number(row.stock_kkd) || 0;
@@ -1868,67 +1917,52 @@ function renderRowModal(row) {
     const forecastOverall = fIK + fKKD + fOK;
 
     elRowQty.innerHTML =
-      section(
-        "Stock",
-        metricRow("IK", fmtInt(stIK)) +
-          metricRow("KKD", fmtInt(stKKD)) +
-          metricRow("OK", fmtInt(stOK)),
-        totalRow("Overall", fmtInt(stockOverall)),
-      ) +
-      section(
-        "Demand",
-        metricRow("IK", fmtInt(fIK)) +
-          metricRow("KKD", fmtInt(fKKD)) +
-          metricRow("OK", fmtInt(fOK)),
-        totalRow("Overall", fmtInt(forecastOverall)),
-      ) +
-      section(
-        "MOS",
-        metricRow("IK", fmt3(row.mos_ik)) +
-          metricRow("KKD", fmt3(row.mos_kkd)) +
-          metricRow("OK", fmt3(row.mos_ok)),
-        totalRow("Overall", fmt3(row.mos_overall)),
-      );
+      `<div class="sc-row-ledger-stack">` +
+      ledgerTable("Stock", [
+        { label: "IK", value: fmtInt(stIK) },
+        { label: "OK", value: fmtInt(stOK) },
+        { label: "KKD", value: fmtInt(stKKD) },
+        { label: "Overall", value: fmtInt(stockOverall) },
+      ]) +
+      ledgerTable("Demand", [
+        { label: "IK", value: fmtInt(fIK) },
+        { label: "OK", value: fmtInt(fOK) },
+        { label: "KKD", value: fmtInt(fKKD) },
+        { label: "Overall", value: fmtInt(forecastOverall) },
+      ]) +
+      ledgerTable("MOS", [
+        { label: "IK", value: fmt3(row.mos_ik) },
+        { label: "OK", value: fmt3(row.mos_ok) },
+        { label: "KKD", value: fmt3(row.mos_kkd) },
+        { label: "Overall", value: fmt3(row.mos_overall) },
+      ]) +
+      `</div>`;
   }
 
-  // ── Right card: Value + Rate ─────────────────────────────────────────────────
+  // ── Rate / Value — separate vertical tables (Rate first) ────────────────────
   if (elRowValue) {
     elRowValue.innerHTML =
-      section(
-        "Value",
-        metricRow("IK", fmtINR(row.stock_value_ik)) +
-          metricRow("KKD", fmtINR(row.stock_value_kkd)) +
-          metricRow("OK", fmtINR(row.stock_value_ok)),
-        totalRow("Overall", fmtINR(row.stock_value_overall)),
-      ) +
-      section(
-        "Rate",
-        metricRow("IK", fmtRate(row.rate_ik)) +
-          metricRow("KKD", fmtRate(row.rate_kkd)) +
-          metricRow("OK", fmtRate(row.rate_ok)),
-        totalRow("Overall", fmtRate(row.rate_overall)),
-      );
+      `<div class="sc-row-ledger-stack">` +
+      ledgerTable("Rate", [
+        { label: "IK", value: fmtRate(row.rate_ik) },
+        { label: "OK", value: fmtRate(row.rate_ok) },
+        { label: "KKD", value: fmtRate(row.rate_kkd) },
+        { label: "Overall", value: fmtRate(row.rate_overall) },
+      ]) +
+      ledgerTable("Value", [
+        { label: "IK", value: fmtINR(row.stock_value_ik) },
+        { label: "OK", value: fmtINR(row.stock_value_ok) },
+        { label: "KKD", value: fmtINR(row.stock_value_kkd) },
+        { label: "Overall", value: fmtINR(row.stock_value_overall) },
+      ]) +
+      `</div>`;
   }
 
-  // ── Footer: MRP tokens + shade flag ─────────────────────────────────────────
+  // ── Footer: cleared (MRP/shade moved into Item section) ─────────────────────
   if (elRowFooter) {
-    const footerParts = [];
-    if (row.mrp_ik != null) {
-      footerParts.push(
-        `<span class="sc-row-footer-token"><span>MRP IK:</span>\u00a0<strong>${fmtRate(row.mrp_ik)}</strong></span>`,
-      );
-    }
-    if (row.mrp_ok != null) {
-      footerParts.push(
-        `<span class="sc-row-footer-token"><span>MRP OK:</span>\u00a0<strong>${fmtRate(row.mrp_ok)}</strong></span>`,
-      );
-    }
-    if (row.shade_flag) {
-      footerParts.push(
-        `<span class="sc-row-footer-token"><strong>Shade</strong></span>`,
-      );
-    }
-    elRowFooter.innerHTML = footerParts.join("");
+    elRowFooter.innerHTML = "";
+    const footerEl = elRowFooter.closest(".sc-modal-footer");
+    if (footerEl) footerEl.style.display = "none";
   }
 }
 
@@ -1943,6 +1977,7 @@ function openRowModal(row, triggerEl) {
   renderRowModal(row);
   elRowModal.style.display = "flex";
   elRowModal.setAttribute("aria-hidden", "false");
+  lockRowModalPageScroll();
   try {
     const closeBtn =
       elRowModal.querySelector("button[id$='-close']") || elRowModalClose;
@@ -2001,6 +2036,7 @@ async function init() {
     elPrev = $("sc-prev");
     elNext = $("sc-next");
     elPage = $("sc-page");
+    elLoadedCount = $("sc-loaded-count");
     // elCount removed; we display SKU count inside the Value modal instead
 
     // New UI elements
@@ -2028,6 +2064,9 @@ async function init() {
 
     elTable = $("sc-table");
     elBody = $("sc-body");
+    elResults = $("sc-results");
+    elCardsWrap = $("sc-cards-wrap");
+    elCardsList = $("sc-cards-list");
 
     // Add drag/scroll detection on the table body to avoid opening modals while scrolling
     if (elBody) {
@@ -2081,6 +2120,7 @@ async function init() {
     elQfMosLt3 = $("qf-moslt3");
     elQfRaso = $("qf-raso");
     elQfCapsTabs = $("qf-capstabs");
+    elQfSamples = $("qf-samples");
 
     // Advanced
     exCat = $("ex-cat");
@@ -2438,7 +2478,7 @@ async function init() {
           const tableWrap = document.querySelector(".table-wrap");
           if (tableWrap)
             tableWrap.classList.toggle("show-value", !!state.showValue);
-          renderRows(__lastRows || []);
+          presentResultRows(__lastRows || []);
           // reflect state back to checkbox if needed
           if (isInput)
             elToggleValue.setAttribute(
@@ -2968,6 +3008,7 @@ async function init() {
         }
         elRowModal.style.display = "none";
         elRowModal.setAttribute("aria-hidden", "true");
+        unlockRowModalPageScroll();
         try {
           if (
             __lastFocusBeforeRowModal &&
@@ -3337,66 +3378,6 @@ async function init() {
     }
 
     // Mobile-only Select mode toggle — bind to the static button in HTML
-    function setMobileSelectMode(enabled) {
-      const btnMobileSelect = document.getElementById(
-        "sc-mobile-select-toggle",
-      );
-      const on = !!enabled;
-      // Update selection controller
-      try {
-        if (window.scSelection && window.scSelection.controller) {
-          window.scSelection.controller.mobileSelectEnabled = on;
-        }
-      } catch {
-        /* ignore */
-      }
-      // Update button state and text
-      if (btnMobileSelect) {
-        btnMobileSelect.setAttribute("aria-pressed", String(on));
-        btnMobileSelect.classList.toggle("is-active", on);
-        btnMobileSelect.textContent = on ? "Selecting" : "Select";
-      }
-      // Toggle visual class on table wrapper for optional CSS targeting
-      try {
-        const wrap =
-          document.querySelector(".table-wrap") ||
-          document.getElementById("sc-body");
-        if (wrap) {
-          wrap.classList.toggle("sc-mobile-select-active", on);
-          // touch-action: none only when Select mode is ON so native scroll
-          // works normally when Select mode is OFF (critical for iPhone PWA).
-          wrap.style.touchAction = on ? "none" : "pan-x pan-y";
-        }
-      } catch {
-        /* ignore */
-      }
-      // When disabling, cancel any active drag, clear selection, restore scroll
-      if (!on) {
-        try {
-          if (
-            window.scSelection &&
-            typeof window.scSelection.disableActive === "function"
-          ) {
-            window.scSelection.disableActive();
-          }
-        } catch {
-          /* ignore */
-        }
-        // Clear the selection so the user exits Select mode cleanly
-        try {
-          if (
-            window.scSelection &&
-            typeof window.scSelection.clear === "function"
-          ) {
-            window.scSelection.clear();
-          }
-        } catch {
-          /* ignore */
-        }
-        document.body.style.userSelect = "";
-      }
-    }
-
     try {
       const btnMobileSelect = document.getElementById(
         "sc-mobile-select-toggle",
@@ -3418,6 +3399,16 @@ async function init() {
       }
     } catch {
       /* ignore */
+    }
+
+    try {
+      if (typeof scNarrowMedia.addEventListener === "function") {
+        scNarrowMedia.addEventListener("change", onScNarrowMediaChange);
+      } else if (typeof scNarrowMedia.addListener === "function") {
+        scNarrowMedia.addListener(onScNarrowMediaChange);
+      }
+    } catch {
+      void 0;
     }
 
     function closeExplodeModal() {
@@ -3566,19 +3557,12 @@ async function init() {
       /* ignore */
     }
 
-    // Pagination
-    elPrev &&
-      elPrev.addEventListener("click", () => {
-        if (page > 1) {
-          page--;
-          runQuery();
-        }
-      });
-    elNext &&
-      elNext.addEventListener("click", () => {
-        page++;
-        runQuery();
-      });
+    // Infinite scroll (replaces Prev/Next paginator)
+    try {
+      wireInfiniteScroll();
+    } catch {
+      void 0;
+    }
 
     // Navigation
     elHome && elHome.addEventListener("click", () => Platform.goHome());
@@ -3693,6 +3677,17 @@ async function init() {
         await runQuery();
       });
       setChip(elQfCapsTabs, state.quick.capsTabs === true);
+    }
+    if (elQfSamples) {
+      elQfSamples.addEventListener("click", () => {
+        toggleChip(elQfSamples, "samples");
+        try {
+          if (typeof closeFiltersModalFn === "function") closeFiltersModalFn();
+        } catch {
+          void 0;
+        }
+      });
+      setChip(elQfSamples, state.quick.samples === true);
     }
 
     wireClassificationFilters();
@@ -5123,12 +5118,327 @@ function attachHeaderSorting() {
   });
 }
 
+/* ───────────────────── Narrow-screen presentation ───────────────────── */
+function isNarrowViewport() {
+  return !!scNarrowMedia.matches;
+}
+
+function isMobileSelectActive() {
+  try {
+    if (
+      window.scSelection &&
+      typeof window.scSelection.isMobileEnabled === "function"
+    ) {
+      return window.scSelection.isMobileEnabled();
+    }
+  } catch {
+    void 0;
+  }
+  return !!__scPresentationMobileSelect;
+}
+
+function getResultsPresentationMode() {
+  if (!isNarrowViewport()) return "table";
+  return isMobileSelectActive() ? "table" : "cards";
+}
+
+function applyResultsViewMode() {
+  const mode = getResultsPresentationMode();
+  if (elResults) {
+    elResults.classList.remove("sc-view-table", "sc-view-cards");
+    elResults.classList.add(
+      mode === "cards" ? "sc-view-cards" : "sc-view-table",
+    );
+  }
+  if (elCardsWrap) {
+    const showCards = mode === "cards";
+    elCardsWrap.hidden = !showCards;
+    elCardsWrap.setAttribute("aria-hidden", String(!showCards));
+  }
+}
+
+function updateValuePillLabel() {
+  if (!elTotalValue) return;
+  const textSpan = elTotalValue.querySelector?.(".sc-pill-text");
+  if (!textSpan) return;
+  if (isNarrowViewport()) {
+    textSpan.textContent = "Value";
+  } else {
+    textSpan.textContent = elTotalValue.dataset.valueText || "Value: —";
+  }
+}
+
+function refreshSortHeaderVisuals() {
+  if (!elTable) return;
+  const ths = Array.from(elTable.querySelectorAll("thead th"));
+  ths.forEach((th) => {
+    const col = th.dataset.sortCol || th.dataset.col || "";
+    const indEl = th.querySelector(".sc-sort-indicator");
+    th.classList.remove("sort-asc", "sort-desc");
+    if (state.sort && state.sort.col === col && state.sort.dir) {
+      th.classList.add(
+        state.sort.dir === "desc" ? "sort-desc" : "sort-asc",
+      );
+      th.setAttribute(
+        "aria-sort",
+        state.sort.dir === "desc" ? "descending" : "ascending",
+      );
+      if (indEl) {
+        const caretSvg = (dir) => {
+          if (!dir) return "";
+          if (dir === "asc") {
+            return `<svg width="12" height="12" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill="currentColor" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>`;
+          }
+          return `<svg width="12" height="12" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill="currentColor" d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>`;
+        };
+        indEl.innerHTML = caretSvg(
+          state.sort.dir === "desc" ? "desc" : "asc",
+        );
+      }
+    } else {
+      th.setAttribute("aria-sort", "none");
+      if (indEl) indEl.innerHTML = "";
+    }
+  });
+}
+
+function onScNarrowMediaChange() {
+  updateValuePillLabel();
+  if (!scNarrowMedia.matches && isMobileSelectActive()) {
+    setMobileSelectMode(false);
+  }
+  applyResultsViewMode();
+  if (isNarrowViewport() && Array.isArray(__lastRows) && __lastRows.length) {
+    renderCardRows(__lastRows);
+  } else if (elCardsList) {
+    elCardsList.innerHTML = "";
+  }
+}
+
+function setMobileSelectMode(enabled) {
+  const btnMobileSelect = document.getElementById("sc-mobile-select-toggle");
+  const on = !!enabled;
+  __scPresentationMobileSelect = on;
+  try {
+    if (window.scSelection && window.scSelection.controller) {
+      window.scSelection.controller.mobileSelectEnabled = on;
+    }
+    if (typeof window.scSelection?.setMobileEnabled === "function") {
+      window.scSelection.setMobileEnabled(on);
+    }
+  } catch {
+    void 0;
+  }
+  if (btnMobileSelect) {
+    btnMobileSelect.setAttribute("aria-pressed", String(on));
+    btnMobileSelect.classList.toggle("is-active", on);
+    btnMobileSelect.textContent = on ? "Selecting" : "Select";
+  }
+  try {
+    const wrap =
+      document.querySelector("#sc-results .table-wrap") ||
+      document.querySelector(".table-wrap") ||
+      document.getElementById("sc-body");
+    if (wrap) {
+      wrap.classList.toggle("sc-mobile-select-active", on);
+      wrap.style.touchAction = on ? "none" : "pan-x pan-y";
+    }
+  } catch {
+    void 0;
+  }
+  if (!on) {
+    try {
+      if (
+        window.scSelection &&
+        typeof window.scSelection.disableActive === "function"
+      ) {
+        window.scSelection.disableActive();
+      }
+    } catch {
+      void 0;
+    }
+    try {
+      if (
+        window.scSelection &&
+        typeof window.scSelection.clear === "function"
+      ) {
+        window.scSelection.clear();
+      }
+    } catch {
+      void 0;
+    }
+    document.body.style.userSelect = "";
+  }
+  applyResultsViewMode();
+}
+
+function renderCardStatus(kind, message) {
+  if (!elCardsList || !isNarrowViewport()) return;
+  const msgs = {
+    loading: "Loading…",
+    empty: "No rows found for the selected filters.",
+    error: message || "Error loading data.",
+  };
+  const text = msgs[kind] || message || "";
+  elCardsList.innerHTML = `<div class="sc-result-card sc-result-card--status" role="status">${escapeHtml(text)}</div>`;
+}
+
+function buildResultCard(r, i) {
+  const alt = i % 2 === 1 ? " sc-result-card--alt" : "";
+  const name = escapeHtml(r.item || "");
+  const pack = escapeHtml(String(r.pack_size ?? ""));
+  const uom = escapeHtml(r.uom || "");
+  const label = name || "item";
+  return `<article class="sc-result-card${alt}" role="button" tabindex="0" data-row-idx="${i}" aria-label="Open details for ${label}">
+    <svg class="sc-result-card-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false">
+      <polyline points="9 6 15 12 9 18"></polyline>
+    </svg>
+    <div class="sc-result-card-line1">
+      <span class="sc-result-card-name">${name}</span>
+      ${pack ? `<span class="sc-result-card-pack">${pack}</span>` : ""}
+      ${uom ? `<span class="sc-result-card-uom">${uom}</span>` : ""}
+    </div>
+    <div class="sc-result-card-line2"><span class="sc-result-card-k">Stock:</span> IK - ${fmtInt(r.stock_ik)} || OK - ${fmtInt(r.stock_ok)} || KKD - ${fmtInt(r.stock_kkd)}</div>
+    <div class="sc-result-card-line-demand"><span class="sc-result-card-k">Demand:</span> IK - ${fmtInt(r.forecast_ik)} || OK - ${fmtInt(r.forecast_ok)} || KKD - ${fmtInt(r.forecast_kkd)}</div>
+    <div class="sc-result-card-line3"><span class="sc-result-card-k">MOS:</span> IK - ${fmt3(r.mos_ik)} || OK - ${fmt3(r.mos_ok)} || KKD - ${fmt3(r.mos_kkd)}</div>
+  </article>`;
+}
+
+function wireCardInteractions() {
+  if (!elCardsList) return;
+  elCardsList.querySelectorAll(".sc-result-card:not(.sc-result-card--status)").forEach((card) => {
+    const openForCard = (ev) => {
+      try {
+        ev.preventDefault();
+        ev.stopPropagation();
+      } catch {
+        void 0;
+      }
+      let idx = NaN;
+      try {
+        if (card.dataset && card.dataset.rowIdx !== undefined) {
+          idx = Number(card.dataset.rowIdx);
+        }
+      } catch {
+        void 0;
+      }
+      if (!Number.isFinite(idx)) return;
+      if (!Array.isArray(__lastRows) || idx >= __lastRows.length) return;
+      openRowModal(
+        __lastRows[idx],
+        card instanceof HTMLElement ? card : null,
+      );
+    };
+    card.addEventListener("click", openForCard, { passive: false });
+    card.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" || ev.key === " ") openForCard(ev);
+    });
+  });
+}
+
+function renderCardRows(rows) {
+  if (!elCardsList) return;
+  if (!Array.isArray(rows) || !rows.length) {
+    renderCardStatus("empty");
+    return;
+  }
+  elCardsList.innerHTML = rows.map((r, i) => buildResultCard(r, i)).join("");
+  wireCardInteractions();
+}
+
+function presentResultRows(rows) {
+  renderRows(rows);
+  if (isNarrowViewport()) {
+    if (!rows || !rows.length) {
+      renderCardStatus("empty");
+    } else {
+      renderCardRows(rows);
+    }
+  } else if (elCardsList) {
+    elCardsList.innerHTML = "";
+  }
+  applyResultsViewMode();
+  refreshSortHeaderVisuals();
+}
+
+function updateLoadedCountLabel() {
+  if (!elLoadedCount) return;
+  const loaded = Array.isArray(__lastRows) ? __lastRows.length : 0;
+  const total = Number(__totalCount) || 0;
+  if (!total && !loaded) {
+    elLoadedCount.textContent = "";
+    return;
+  }
+  elLoadedCount.textContent = total
+    ? `Showing ${fmtInt(loaded)} of ${fmtInt(total)}`
+    : `Showing ${fmtInt(loaded)}`;
+}
+
+function setScrollSentinelText(text) {
+  ["sc-table-sentinel", "sc-cards-sentinel"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text || "";
+  });
+}
+
+async function loadMoreRows() {
+  if (__queryLoading || !__hasMore) return;
+  page += 1;
+  await runQuery({ append: true });
+}
+
+function wireInfiniteScroll() {
+  if (__scrollObserversWired) return;
+  __scrollObserversWired = true;
+
+  const tableWrap = document.querySelector("#sc-results .table-wrap");
+  if (tableWrap) {
+    tableWrap.addEventListener(
+      "scroll",
+      () => {
+        if (getResultsPresentationMode() !== "table") return;
+        if (__queryLoading || !__hasMore) return;
+        const nearBottom =
+          tableWrap.scrollTop + tableWrap.clientHeight >=
+          tableWrap.scrollHeight - 100;
+        if (nearBottom) loadMoreRows();
+      },
+      { passive: true },
+    );
+  }
+
+  const cardsSentinel = document.getElementById("sc-cards-sentinel");
+  if (cardsSentinel && typeof IntersectionObserver === "function") {
+    const io = new IntersectionObserver(
+      (entries) => {
+        const hit = entries.some((e) => e.isIntersecting);
+        if (!hit) return;
+        if (getResultsPresentationMode() !== "cards") return;
+        loadMoreRows();
+      },
+      { root: null, rootMargin: "120px", threshold: 0 },
+    );
+    io.observe(cardsSentinel);
+  }
+}
+
 /* ───────────────────── Query ───────────────────── */
-async function runQuery() {
+async function runQuery(opts = {}) {
+  const append = !!opts.append;
+  if (append && __queryLoading) return;
+  const gen = append ? __queryGen : ++__queryGen;
+  __queryLoading = true;
   try {
     setMsg("");
-    if (elBody)
-      elBody.innerHTML = `<tr><td colspan="${visibleCols()}">Loading…</td></tr>`;
+    if (!append) {
+      page = page || 1;
+      if (elBody)
+        elBody.innerHTML = `<tr><td colspan="${visibleCols()}">Loading…</td></tr>`;
+      if (isNarrowViewport()) renderCardStatus("loading");
+      setScrollSentinelText("");
+    } else {
+      setScrollSentinelText("Loading more…");
+    }
 
     const filters = buildStockCheckerFiltersPayload();
 
@@ -5142,36 +5452,46 @@ async function runQuery() {
 
     if (error) throw error;
 
+    // A newer non-append query superseded this one
+    if (gen !== __queryGen) return;
+
     let rows = (data && data.rows) || [];
     const total = (data && (data.count ?? data.total ?? 0)) || 0;
     const totals = (data && data.totals) || null;
     const snapshot_date =
       data && data.snapshot_date ? data.snapshot_date : null;
 
-    // cache rows for UI actions
-    __lastRows = Array.isArray(rows) ? rows.slice() : [];
+    __totalCount = total;
 
-    // compute derived fields. Sorting is handled server-side; do not
-    // apply client-side sorting for server-backed columns.
+    if (append) {
+      __lastRows = (__lastRows || []).concat(
+        Array.isArray(rows) ? rows : [],
+      );
+    } else {
+      __lastRows = Array.isArray(rows) ? rows.slice() : [];
+    }
+
     try {
       computeDerivedFields(__lastRows);
     } catch (e) {
       console.error("Derived fields error", e);
     }
 
-    renderRows(__lastRows);
+    presentResultRows(__lastRows);
 
-    if (elTable && elTable.parentElement) {
+    if (!append && elTable && elTable.parentElement) {
       elTable.parentElement.scrollTop = 0;
     }
 
-    // total is available in RPC response (kept in __lastTotals)
-    const maxPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
-    page = clamp(page, 1, maxPage);
-    if (elCount) elCount.textContent = `${fmtInt(total)} rows`;
-    if (elPage) elPage.textContent = `Page ${page} / ${maxPage}`;
-    if (elPrev) elPrev.disabled = page <= 1;
-    if (elNext) elNext.disabled = page >= maxPage;
+    __hasMore = __lastRows.length < total && rows.length > 0;
+    if (!rows.length && append) {
+      // reached end
+      __hasMore = false;
+      page = Math.max(1, page - 1);
+    }
+
+    updateLoadedCountLabel();
+    setScrollSentinelText(__hasMore ? "" : "");
 
     // Update total value pill from totals returned by RPC
     try {
@@ -5181,13 +5501,14 @@ async function runQuery() {
           totals &&
           (totals.value_overall != null || totals.value_overall === 0)
         ) {
-          const txt = `Value: ${fmtINR(totals.value_overall)}`;
-          if (textSpan) textSpan.textContent = txt;
-          else elTotalValue.textContent = txt;
-        } else {
-          const txt = `Value: —`;
-          if (textSpan) textSpan.textContent = txt;
-          else elTotalValue.textContent = txt;
+          elTotalValue.dataset.valueText = `Value: ${fmtINR(totals.value_overall)}`;
+        } else if (!append) {
+          elTotalValue.dataset.valueText = `Value: —`;
+        }
+        updateValuePillLabel();
+        if (!textSpan && !isNarrowViewport()) {
+          elTotalValue.textContent =
+            elTotalValue.dataset.valueText || "Value: —";
         }
       }
     } catch {
@@ -5238,17 +5559,17 @@ async function runQuery() {
       } catch (err) {
         console.error("Failed to update snapshot from RPC", err);
       }
-    } else {
+    } else if (!append) {
       try {
-        // fallback to existing DB-based label updater
         updateStockSnapshotLabel();
       } catch {
         void 0;
       }
     }
 
-    if (!rows || rows.length === 0) {
+    if ((!rows || rows.length === 0) && !append) {
       elBody.innerHTML = `<tr><td colspan="${visibleCols()}">No rows found for the selected filters.</td></tr>`;
+      if (isNarrowViewport()) renderCardStatus("empty");
     }
 
     try {
@@ -5259,13 +5580,23 @@ async function runQuery() {
   } catch (err) {
     console.error(err);
     setMsg(err.message || String(err));
-    if (elBody)
-      elBody.innerHTML = `<tr><td colspan="${visibleCols()}">Error loading data.</td></tr>`;
+    if (append) {
+      page = Math.max(1, page - 1);
+      setScrollSentinelText("Could not load more");
+    } else {
+      if (elBody)
+        elBody.innerHTML = `<tr><td colspan="${visibleCols()}">Error loading data.</td></tr>`;
+      if (isNarrowViewport())
+        renderCardStatus("error", err.message || String(err));
+      applyResultsViewMode();
+    }
     try {
       updateFiltersButtonState();
     } catch {
       void 0;
     }
+  } finally {
+    if (gen === __queryGen) __queryLoading = false;
   }
 }
 
@@ -6419,12 +6750,13 @@ function clearAll() {
       ok: { en: false, op: "gt", v1: "", v2: "", notNull: false },
       ov: { en: false, op: "gt", v1: "", v2: "", notNull: false },
     },
-    quick: { mosLt3: false, raso: false, capsTabs: false },
+    quick: { mosLt3: false, raso: false, capsTabs: false, samples: false },
   });
 
   setChip(elQfMosLt3, false);
   setChip(elQfRaso, false);
   setChip(elQfCapsTabs, false);
+  setChip(elQfSamples, false);
 
   // clear any preset-managed ids so Clear truly resets UI state
   try {

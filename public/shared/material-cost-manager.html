@@ -327,13 +327,14 @@
         align-items: center;
         min-width: 0;
       }
-      .search-card .cp-period-select {
-        width: 132px;
-        max-width: 100%;
+      .search-card .cp-period-select,
+      .rm-cost-trace-toolbar .cp-period-select,
+      .rm-cost-trace-toolbar .rm-trace-select-wrap select,
+      .rm-trace-advanced-panel select {
         padding: 7px 28px 7px 10px;
         border-radius: 8px;
         border: 1px solid var(--border, #e5e7eb);
-        background: var(--panel-bg, #fff);
+        background-color: var(--panel-bg, #fff);
         color: var(--text, #0f172a);
         font-size: 12.5px;
         font-weight: var(--cp-fw-label);
@@ -343,8 +344,19 @@
         background-repeat: no-repeat;
         background-position: right 8px center;
         cursor: pointer;
+        box-sizing: border-box;
       }
-      .search-card .cp-period-select:disabled {
+      .search-card .cp-period-select {
+        width: 132px;
+        max-width: 100%;
+      }
+      .rm-cost-trace-toolbar .cp-period-select,
+      .rm-cost-trace-toolbar .rm-trace-select-wrap select,
+      .rm-trace-advanced-panel select {
+        width: 100%;
+      }
+      .search-card .cp-period-select:disabled,
+      .rm-cost-trace-toolbar .cp-period-select:disabled {
         opacity: 0.72;
         cursor: not-allowed;
         background-color: #f8fafc;
@@ -406,10 +418,10 @@
           flex: 1 1 100%;
         }
       }
-      #search {
+      #search,
+      #rmTraceSearch {
         background: #e6f7ff;
         border-color: rgba(14, 165, 233, 0.35);
-        padding-right: 38px;
         padding: 8px 10px;
         border-radius: 8px;
         border: 1px solid var(--border, #e5e7eb);
@@ -417,12 +429,17 @@
         width: 100%;
         box-sizing: border-box;
       }
-      #search::placeholder {
+      #search {
+        padding-right: 38px;
+      }
+      #search::placeholder,
+      #rmTraceSearch::placeholder {
         font-weight: 400;
         color: var(--muted, #6b7280);
         opacity: 0.9;
       }
-      #search:focus {
+      #search:focus,
+      #rmTraceSearch:focus {
         outline: none;
         border-color: var(--erp-accent-2, #0ea5e9);
         box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.08);
@@ -1724,6 +1741,132 @@
       .cp-manager-tab-card.active .cp-card-value {
         color: var(--primary, #2563eb);
       }
+      #manualRateManagerControls {
+        margin: 8px 0 6px;
+        padding: 8px 10px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: var(--panel-bg, #fff);
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+      }
+      #manualRateManagerControls.hidden {
+        display: none !important;
+      }
+      .rm-cost-trace-chrome {
+        margin: 6px 0 8px;
+        display: grid;
+        gap: 6px;
+      }
+      .rm-cost-trace-chrome.hidden {
+        display: none !important;
+      }
+      #rmCostTraceFilters.hidden,
+      #rmCostTraceSnapshot.hidden,
+      #rmCostTraceRestricted.hidden {
+        display: none !important;
+      }
+      .rm-cost-trace-meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 6px 10px;
+        font-size: 12px;
+        color: var(--muted, #6b7280);
+        line-height: 1.35;
+        min-height: 0;
+      }
+      .rm-cost-trace-meta-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text, inherit);
+      }
+      .rm-cost-trace-meta-sep {
+        opacity: 0.55;
+      }
+      .rm-cost-trace-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: var(--panel-bg, #fff);
+      }
+      .rm-cost-trace-toolbar .cp-period-item {
+        flex: 0 1 150px;
+        min-width: 120px;
+      }
+      .rm-cost-trace-toolbar .rm-trace-select-wrap {
+        flex: 0 1 170px;
+        min-width: 130px;
+      }
+      .rm-cost-trace-toolbar .rm-trace-search-wrap {
+        flex: 1 1 220px;
+        min-width: 160px;
+      }
+      .rm-cost-trace-toolbar .link-btn {
+        background: none;
+        border: none;
+        color: var(--primary, #2563eb);
+        cursor: pointer;
+        padding: 6px 2px;
+        font-size: 13px;
+        text-decoration: underline;
+        white-space: nowrap;
+        margin-left: auto;
+        flex: 0 0 auto;
+      }
+      .rm-trace-advanced-wrap {
+        position: relative;
+        flex: 0 0 auto;
+      }
+      .rm-trace-advanced-panel {
+        display: none;
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        z-index: 40;
+        width: min(360px, 86vw);
+        padding: 10px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: var(--panel-bg, #fff);
+        box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+      .rm-trace-advanced-panel.open {
+        display: grid;
+      }
+      .rm-trace-advanced-panel label {
+        display: grid;
+        gap: 4px;
+        font-size: 12px;
+        color: var(--muted, #6b7280);
+      }
+      #tableWrap[data-lens="rm-cost-trace"] table {
+        min-width: 1280px;
+      }
+      .rm-trace-warning-cell {
+        display: inline-block;
+        max-width: 180px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      @media (max-width: 960px) {
+        .rm-cost-trace-toolbar .link-btn {
+          margin-left: 0;
+        }
+        .rm-trace-advanced-panel {
+          left: 0;
+          right: auto;
+        }
+      }
       #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
         table {
         min-width: 980px;
@@ -2328,326 +2471,6 @@
     </div>
 
     <div
-      id="globalSearchCard"
-      class="card search-card"
-      style="
-        margin-top: 8px;
-        padding: 8px 10px;
-        border-radius: 8px;
-        background: var(--panel-bg);
-        border: 1px solid var(--border);
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-        gap: 8px;
-      "
-    >
-      <div id="peqFilterWrapper" style="position: relative; flex-shrink: 0">
-        <button
-          id="peqFilterBtn"
-          type="button"
-          class="peq-filter-btn"
-          title="Filters"
-          aria-label="Filters"
-          aria-haspopup="true"
-        >
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-          </svg>
-          <span class="peq-filter-badge" style="display: none"></span>
-        </button>
-        <div
-          id="peqFilterDrawer"
-          class="peq-filter-drawer"
-          role="dialog"
-          aria-label="Costing filters"
-        >
-          <div class="peq-filter-section">
-            <div class="peq-filter-section-title">Status</div>
-            <ul class="peq-filter-checklist">
-              <li>
-                <label
-                  ><input
-                    type="checkbox"
-                    data-filter-group="status"
-                    value="BLOCKER"
-                  />
-                  BLOCKER</label
-                >
-              </li>
-              <li>
-                <label
-                  ><input
-                    type="checkbox"
-                    data-filter-group="status"
-                    value="BLOCKED"
-                  />
-                  BLOCKED</label
-                >
-              </li>
-              <li>
-                <label
-                  ><input
-                    type="checkbox"
-                    data-filter-group="status"
-                    value="REVIEW_REQUIRED"
-                  />
-                  REVIEW_REQUIRED</label
-                >
-              </li>
-              <li>
-                <label
-                  ><input
-                    type="checkbox"
-                    data-filter-group="status"
-                    value="READY"
-                  />
-                  READY</label
-                >
-              </li>
-            </ul>
-          </div>
-          <div class="peq-filter-section">
-            <div class="peq-filter-section-title">Issue / Route</div>
-            <ul class="peq-filter-checklist">
-              <li>
-                <label
-                  ><input
-                    type="checkbox"
-                    data-filter-group="issue"
-                    value="MISSING_REQUIRED_RM_RATE"
-                  />
-                  Missing RM rate</label
-                >
-              </li>
-              <li>
-                <label
-                  ><input
-                    type="checkbox"
-                    data-filter-group="issue"
-                    value="MISSING_REQUIRED_PM_RATE"
-                  />
-                  Missing PM rate</label
-                >
-              </li>
-              <li>
-                <label
-                  ><input
-                    type="checkbox"
-                    data-filter-group="issue"
-                    value="STALE_RM_PURCHASE_RATE"
-                  />
-                  Stale RM purchase rate</label
-                >
-              </li>
-              <li>
-                <label
-                  ><input
-                    type="checkbox"
-                    data-filter-group="issue"
-                    value="STALE_PM_PURCHASE_RATE"
-                  />
-                  Stale PM purchase rate</label
-                >
-              </li>
-              <li>
-                <label
-                  ><input
-                    type="checkbox"
-                    data-filter-group="issue"
-                    value="RM_STOCK_VALUATION_FALLBACK"
-                  />
-                  RM stock valuation fallback</label
-                >
-              </li>
-              <li>
-                <label
-                  ><input
-                    type="checkbox"
-                    data-filter-group="issue"
-                    value="PM_STOCK_VALUATION_FALLBACK"
-                  />
-                  PM stock valuation fallback</label
-                >
-              </li>
-              <li>
-                <label
-                  ><input
-                    type="checkbox"
-                    data-filter-group="issue"
-                    value="MANUAL_RATE_USED"
-                  />
-                  Manual rate used</label
-                >
-              </li>
-              <li>
-                <label
-                  ><input
-                    type="checkbox"
-                    data-filter-group="issue"
-                    value="MATERIAL_RATE_MANAGER_RM"
-                  />
-                  Material Rate Manager RM</label
-                >
-              </li>
-              <li>
-                <label
-                  ><input
-                    type="checkbox"
-                    data-filter-group="issue"
-                    value="MATERIAL_RATE_MANAGER_PM"
-                  />
-                  Material Rate Manager PM</label
-                >
-              </li>
-              <li>
-                <label
-                  ><input
-                    type="checkbox"
-                    data-filter-group="issue"
-                    value="MATERIAL_RATE_REVIEW"
-                  />
-                  Material Rate Review</label
-                >
-              </li>
-            </ul>
-          </div>
-          <div class="peq-filter-section">
-            <div class="peq-filter-section-title">Source / Area</div>
-            <ul class="peq-filter-checklist">
-              <li>
-                <label
-                  ><input
-                    type="checkbox"
-                    data-filter-group="source"
-                    value="RM"
-                  />
-                  RM</label
-                >
-              </li>
-              <li>
-                <label
-                  ><input
-                    type="checkbox"
-                    data-filter-group="source"
-                    value="PM"
-                  />
-                  PM</label
-                >
-              </li>
-              <li>
-                <label
-                  ><input
-                    type="checkbox"
-                    data-filter-group="source"
-                    value="RM_BOM"
-                  />
-                  RM_BOM</label
-                >
-              </li>
-              <li>
-                <label
-                  ><input
-                    type="checkbox"
-                    data-filter-group="source"
-                    value="PM_BOM"
-                  />
-                  PM_BOM</label
-                >
-              </li>
-              <li>
-                <label
-                  ><input
-                    type="checkbox"
-                    data-filter-group="source"
-                    value="PM_SKU_OVERRIDE"
-                  />
-                  PM_SKU_OVERRIDE</label
-                >
-              </li>
-            </ul>
-            <div class="peq-filter-summary">No filters applied</div>
-          </div>
-          <div class="peq-filter-actions">
-            <button
-              id="peqFilterSelectAll"
-              type="button"
-              class="peq-filter-action-btn"
-            >
-              Select all
-            </button>
-            <button
-              id="peqFilterClear"
-              type="button"
-              class="peq-filter-action-btn"
-            >
-              Clear
-            </button>
-          </div>
-        </div>
-      </div>
-      <div class="filter-item cp-period-item">
-        <select
-          id="costingPeriodSelect"
-          class="cp-period-select"
-          aria-label="Costing period"
-          title="Select costing period"
-          disabled
-        >
-          <option value="">Loading...</option>
-        </select>
-      </div>
-      <div class="filter-item search">
-        <input
-          type="text"
-          id="search"
-          placeholder="Search product, SKU, ID, or material issue item"
-          title="Search product, SKU, ID, or material issue item"
-          aria-label="Search costing rows"
-        />
-        <button
-          id="searchClear"
-          type="button"
-          class="input-clear-btn"
-          title="Clear search"
-          aria-label="Clear search"
-          style="display: none"
-        >
-          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-            <line
-              x1="18"
-              y1="6"
-              x2="6"
-              y2="18"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-            ></line>
-            <line
-              x1="6"
-              y1="6"
-              x2="18"
-              y2="18"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-            ></line>
-          </svg>
-        </button>
-      </div>
-    </div>
-
-    <div
       class="card tabs-card"
       style="
         margin-top: 6px;
@@ -2688,6 +2511,414 @@
     <div class="main" style="margin-top: 8px">
       <div class="table-card">
         <div id="workbenchSummary" class="cp-workbench-summary"></div>
+        <div
+          id="manualRateManagerControls"
+          class="card search-card hidden"
+          aria-hidden="true"
+        >
+          <div id="peqFilterWrapper" style="position: relative; flex-shrink: 0">
+            <button
+              id="peqFilterBtn"
+              type="button"
+              class="peq-filter-btn"
+              title="Filters"
+              aria-label="Filters"
+              aria-haspopup="true"
+            >
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+              </svg>
+              <span class="peq-filter-badge" style="display: none"></span>
+            </button>
+            <div
+              id="peqFilterDrawer"
+              class="peq-filter-drawer"
+              role="dialog"
+              aria-label="Costing filters"
+            >
+              <div class="peq-filter-section">
+                <div class="peq-filter-section-title">Status</div>
+                <ul class="peq-filter-checklist">
+                  <li>
+                    <label
+                      ><input
+                        type="checkbox"
+                        data-filter-group="status"
+                        value="BLOCKER"
+                      />
+                      BLOCKER</label
+                    >
+                  </li>
+                  <li>
+                    <label
+                      ><input
+                        type="checkbox"
+                        data-filter-group="status"
+                        value="BLOCKED"
+                      />
+                      BLOCKED</label
+                    >
+                  </li>
+                  <li>
+                    <label
+                      ><input
+                        type="checkbox"
+                        data-filter-group="status"
+                        value="REVIEW_REQUIRED"
+                      />
+                      REVIEW_REQUIRED</label
+                    >
+                  </li>
+                  <li>
+                    <label
+                      ><input
+                        type="checkbox"
+                        data-filter-group="status"
+                        value="READY"
+                      />
+                      READY</label
+                    >
+                  </li>
+                </ul>
+              </div>
+              <div class="peq-filter-section">
+                <div class="peq-filter-section-title">Issue / Route</div>
+                <ul class="peq-filter-checklist">
+                  <li>
+                    <label
+                      ><input
+                        type="checkbox"
+                        data-filter-group="issue"
+                        value="MISSING_REQUIRED_RM_RATE"
+                      />
+                      Missing RM rate</label
+                    >
+                  </li>
+                  <li>
+                    <label
+                      ><input
+                        type="checkbox"
+                        data-filter-group="issue"
+                        value="MISSING_REQUIRED_PM_RATE"
+                      />
+                      Missing PM rate</label
+                    >
+                  </li>
+                  <li>
+                    <label
+                      ><input
+                        type="checkbox"
+                        data-filter-group="issue"
+                        value="STALE_RM_PURCHASE_RATE"
+                      />
+                      Stale RM purchase rate</label
+                    >
+                  </li>
+                  <li>
+                    <label
+                      ><input
+                        type="checkbox"
+                        data-filter-group="issue"
+                        value="STALE_PM_PURCHASE_RATE"
+                      />
+                      Stale PM purchase rate</label
+                    >
+                  </li>
+                  <li>
+                    <label
+                      ><input
+                        type="checkbox"
+                        data-filter-group="issue"
+                        value="RM_STOCK_VALUATION_FALLBACK"
+                      />
+                      RM stock valuation fallback</label
+                    >
+                  </li>
+                  <li>
+                    <label
+                      ><input
+                        type="checkbox"
+                        data-filter-group="issue"
+                        value="PM_STOCK_VALUATION_FALLBACK"
+                      />
+                      PM stock valuation fallback</label
+                    >
+                  </li>
+                  <li>
+                    <label
+                      ><input
+                        type="checkbox"
+                        data-filter-group="issue"
+                        value="MANUAL_RATE_USED"
+                      />
+                      Manual rate used</label
+                    >
+                  </li>
+                  <li>
+                    <label
+                      ><input
+                        type="checkbox"
+                        data-filter-group="issue"
+                        value="MATERIAL_RATE_MANAGER_RM"
+                      />
+                      Material Rate Manager RM</label
+                    >
+                  </li>
+                  <li>
+                    <label
+                      ><input
+                        type="checkbox"
+                        data-filter-group="issue"
+                        value="MATERIAL_RATE_MANAGER_PM"
+                      />
+                      Material Rate Manager PM</label
+                    >
+                  </li>
+                  <li>
+                    <label
+                      ><input
+                        type="checkbox"
+                        data-filter-group="issue"
+                        value="MATERIAL_RATE_REVIEW"
+                      />
+                      Material Rate Review</label
+                    >
+                  </li>
+                </ul>
+              </div>
+              <div class="peq-filter-section">
+                <div class="peq-filter-section-title">Source / Area</div>
+                <ul class="peq-filter-checklist">
+                  <li>
+                    <label
+                      ><input
+                        type="checkbox"
+                        data-filter-group="source"
+                        value="RM"
+                      />
+                      RM</label
+                    >
+                  </li>
+                  <li>
+                    <label
+                      ><input
+                        type="checkbox"
+                        data-filter-group="source"
+                        value="PM"
+                      />
+                      PM</label
+                    >
+                  </li>
+                  <li>
+                    <label
+                      ><input
+                        type="checkbox"
+                        data-filter-group="source"
+                        value="RM_BOM"
+                      />
+                      RM_BOM</label
+                    >
+                  </li>
+                  <li>
+                    <label
+                      ><input
+                        type="checkbox"
+                        data-filter-group="source"
+                        value="PM_BOM"
+                      />
+                      PM_BOM</label
+                    >
+                  </li>
+                  <li>
+                    <label
+                      ><input
+                        type="checkbox"
+                        data-filter-group="source"
+                        value="PM_SKU_OVERRIDE"
+                      />
+                      PM_SKU_OVERRIDE</label
+                    >
+                  </li>
+                </ul>
+                <div class="peq-filter-summary">No filters applied</div>
+              </div>
+              <div class="peq-filter-actions">
+                <button
+                  id="peqFilterSelectAll"
+                  type="button"
+                  class="peq-filter-action-btn"
+                >
+                  Select all
+                </button>
+                <button
+                  id="peqFilterClear"
+                  type="button"
+                  class="peq-filter-action-btn"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="filter-item search">
+            <input
+              type="text"
+              id="search"
+              placeholder="Search product, SKU, ID, or material issue item"
+              title="Search product, SKU, ID, or material issue item"
+              aria-label="Search costing rows"
+            />
+            <button
+              id="searchClear"
+              type="button"
+              class="input-clear-btn"
+              title="Clear search"
+              aria-label="Clear search"
+              style="display: none"
+            >
+              <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+                <line
+                  x1="18"
+                  y1="6"
+                  x2="6"
+                  y2="18"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                ></line>
+                <line
+                  x1="6"
+                  y1="6"
+                  x2="18"
+                  y2="18"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                ></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div
+          id="rmCostTraceChrome"
+          class="rm-cost-trace-chrome hidden"
+          aria-hidden="true"
+        >
+          <div id="rmCostTraceSnapshot" class="rm-cost-trace-meta"></div>
+          <div id="rmCostTraceRestricted" class="rm-cost-trace-restricted hidden"></div>
+          <div id="rmCostTraceFilters" class="rm-cost-trace-filters">
+            <div class="rm-cost-trace-toolbar">
+              <div class="filter-item cp-period-item">
+                <select
+                  id="costingPeriodSelect"
+                  class="cp-period-select"
+                  aria-label="Costing period"
+                  title="Select costing period"
+                  disabled
+                >
+                  <option value="">Loading...</option>
+                </select>
+              </div>
+              <div class="rm-trace-select-wrap">
+                <select id="rmTraceProduct" aria-label="RM trace product"></select>
+              </div>
+              <div class="rm-trace-select-wrap">
+                <select id="rmTraceSku" aria-label="RM trace SKU"></select>
+              </div>
+              <div id="rmTraceAdvancedWrap" class="rm-trace-advanced-wrap">
+                <button
+                  type="button"
+                  id="rmTraceAdvancedBtn"
+                  class="peq-filter-btn"
+                  title="Filters"
+                  aria-label="Filters"
+                  aria-haspopup="true"
+                  aria-expanded="false"
+                  aria-controls="rmTraceAdvancedPanel"
+                >
+                  <svg
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                  </svg>
+                  <span
+                    id="rmTraceFilterBadge"
+                    class="peq-filter-badge"
+                    style="display: none"
+                  ></span>
+                </button>
+                <div
+                  id="rmTraceAdvancedPanel"
+                  class="rm-trace-advanced-panel"
+                  role="dialog"
+                  aria-label="RM Cost Trace secondary filters"
+                >
+                  <label>
+                    BOM source
+                    <select
+                      id="rmTraceBomSource"
+                      aria-label="RM trace BOM source"
+                    ></select>
+                  </label>
+                  <label>
+                    Review state
+                    <select
+                      id="rmTraceReviewState"
+                      aria-label="RM trace review state"
+                    ></select>
+                  </label>
+                  <label>
+                    Warning / status
+                    <select
+                      id="rmTraceWarningStatus"
+                      aria-label="RM trace warning status"
+                    ></select>
+                  </label>
+                  <label>
+                    Semi-process source
+                    <select
+                      id="rmTraceSemiProcess"
+                      aria-label="RM trace semi-process"
+                    >
+                      <option value="">All</option>
+                      <option value="true">Yes</option>
+                      <option value="false">No</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+              <div class="rm-trace-search-wrap">
+                <input
+                  id="rmTraceSearch"
+                  type="search"
+                  placeholder="Material code or name"
+                  aria-label="RM trace material search"
+                />
+              </div>
+              <button type="button" id="rmTraceClearFilters" class="link-btn">
+                Clear
+              </button>
+            </div>
+          </div>
+        </div>
         <div id="statusArea" class="status">Loading...</div>
         <div
           id="genericTableMetaRow"
