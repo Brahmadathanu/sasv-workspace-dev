@@ -1533,20 +1533,37 @@ async function onUnlinkBmr(evt) {
     Number(evt?.currentTarget?.dataset?.batch) ||
     Number(q("mapBatchSel").value);
   if (!batchId) return toast("Pick a batch");
-  const ok = await showConfirm(
-    "Unlink the mapped BMR from this planned batch?",
-    "Unlink BMR",
-  );
+
+  const isApplied = _headerStatus === "applied";
+  const title = isApplied ? "Force Unlink BMR" : "Unlink BMR";
+  const confirmMsg = isApplied
+    ? "Plan is applied. Force-unlink this batch only? The plan stays applied; Manage BMR will unlock for size edits. Adjust Overrides separately if month qty must change."
+    : "Unlink the mapped BMR from this planned batch?";
+
+  const ok = await showConfirm(confirmMsg, title);
   if (!ok) return;
-  const { error } = await supabase
-    .from("batch_plan_batches")
-    .update({ bmr_id: null, updated_at: new Date().toISOString() })
-    .eq("id", batchId);
+
+  const reason = await showPrompt(
+    isApplied
+      ? "Reason for force unlink (required):"
+      : "Reason for unlink (required):",
+    "",
+  );
+  if (reason === null) return;
+  const trimmed = String(reason).trim();
+  if (trimmed.length < 3) {
+    return toast("Reason is required (at least 3 characters)");
+  }
+
+  const { error } = await supabase.rpc("force_unlink_plan_batch", {
+    p_batch_id: batchId,
+    p_reason: trimmed,
+  });
   if (error) {
     console.error(error);
-    return toast("Unlink failed");
+    return toast(`Unlink failed: ${error.message || "unknown error"}`);
   }
-  toast("Unlinked ✔");
+  toast(isApplied ? "Force unlinked ✔" : "Unlinked ✔");
   await loadBatches();
   await loadMapRollup();
   await loadUnmappedBatches();
@@ -2765,6 +2782,13 @@ function renderBatches() {
       ];
     } else {
       // mapped or WIP
+      const unlinkLabel =
+        _headerStatus === "applied" ? "Force Unlink…" : "Unlink";
+      const unlinkTitle = isWip
+        ? "Cannot unlink WIP"
+        : _headerStatus === "applied"
+          ? "Rare correction: unlink this batch while plan stays applied"
+          : "Unlink mapped BMR (reason required)";
       menuItems = [
         `<button class="kebab-item" onclick="window.location.href='public/shared/manage-bmr.html?item=${encodeURIComponent(
           productDisplay,
@@ -2772,8 +2796,8 @@ function renderBatches() {
         `<button class="kebab-item" data-batch="${
           r.batch_id
         }" onclick="onUnlinkBmr(event)" ${
-          isWip ? 'disabled title="Cannot unlink WIP"' : ""
-        }>Unlink</button>`,
+          isWip ? "disabled" : ""
+        } title="${unlinkTitle}">${unlinkLabel}</button>`,
       ];
     }
 
@@ -3842,7 +3866,8 @@ window.updateHealthChecks = updateHealthChecks;
     mapBatchSel: "Pick an UNMAPPED planned batch to map.",
     mapBmrSel: "Candidate BMR cards for the selected product/size.",
     btnLinkBmr: "Link the UNMAPPED batch to the selected BMR (BN).",
-    btnUnlinkBmr: "Unlink a mapped BMR from this planned batch (if allowed).",
+    btnUnlinkBmr:
+      "Unlink a mapped BMR (reason required). On applied plans uses Force Unlink for that batch only.",
     btnReloadMap: "Rebuild mapping rollup and candidates.",
 
     // Overrides

@@ -193,17 +193,12 @@ const schemeRuleCloseLabel = $("schemeRuleCloseLabel");
 const schemeRuleCloseEffectiveTo = $("schemeRuleCloseEffectiveTo");
 const schemeRuleCloseRemarks = $("schemeRuleCloseRemarks");
 const manualRateEditModal = $("manualRateEditModal");
+const manualRateEditTitle = $("manualRateEditTitle");
 const manualRateEditCloseBtn = $("manualRateEditCloseBtn");
-const manualRateEditCancelBtn = $("manualRateEditCancelBtn");
 const manualRateEditSaveBtn = $("manualRateEditSaveBtn");
-const manualRateStockItemLabel = $("manualRateStockItemLabel");
-const manualRateCurrentRate = $("manualRateCurrentRate");
-const manualRateCurrentSource = $("manualRateCurrentSource");
-const manualRateCurrentDate = $("manualRateCurrentDate");
 const manualRateEvidenceStrip = $("manualRateEvidenceStrip");
 const manualRateEvidenceSelectedRate = $("manualRateEvidenceSelectedRate");
-const manualRateEvidenceSelectedSource = $("manualRateEvidenceSelectedSource");
-const manualRateEvidenceSelectedDate = $("manualRateEvidenceSelectedDate");
+const manualRateEvidenceSelectedMeta = $("manualRateEvidenceSelectedMeta");
 const manualRateEvidenceLatestPurchaseRate = $(
   "manualRateEvidenceLatestPurchaseRate",
 );
@@ -212,11 +207,20 @@ const manualRateEvidenceLatestPurchaseDate = $(
 );
 const manualRateEvidenceActiveManualRate = $("manualRateEvidenceActiveManualRate");
 const manualRateEvidenceManualRateStatus = $("manualRateEvidenceManualRateStatus");
-const manualRateEvidenceNewerPurchase = $("manualRateEvidenceNewerPurchase");
-const manualRateEvidenceOverrideFlag = $("manualRateEvidenceOverrideFlag");
-const manualRateEvidenceAffectedSkuCount = $(
-  "manualRateEvidenceAffectedSkuCount",
-);
+const manualRateEvidenceNotes = $("manualRateEvidenceNotes");
+const manualRateRateBasis = $("manualRateRateBasis");
+const manualRateVendorOffersSection = $("manualRateVendorOffersSection");
+const manualRateVendorOffersBody = $("manualRateVendorOffersBody");
+const manualRateVendorSourceInfo = $("manualRateVendorSourceInfo");
+const manualRateRateLabel = $("manualRateRateLabel");
+const manualRateMaterialCombobox = $("manualRateMaterialCombobox");
+const manualRateMaterialSearch = $("manualRateMaterialSearch");
+const manualRateMaterialSuggestions = $("manualRateMaterialSuggestions");
+const manualRateMaterialSearchStatus = $("manualRateMaterialSearchStatus");
+const manualRateChangeMaterialBtn = $("manualRateChangeMaterialBtn");
+const manualRateFormSections = $("manualRateFormSections");
+const manualRateInactiveHint = $("manualRateInactiveHint");
+const manualRateError = $("manualRateError");
 const manualRateValue = $("manualRateValue");
 const manualRateEffectiveFrom = $("manualRateEffectiveFrom");
 const manualRateReason = $("manualRateReason");
@@ -3431,6 +3435,8 @@ function renderTable() {
   updateSearchPlaceholder();
   if (CURRENT_LENS === "manual-provisions") {
     costBuildCtrl.syncManualProvisionMetaActions();
+  } else if (CURRENT_LENS === "manual-rate-manager") {
+    materialCostCtrl.syncRegisterMetaActions();
   } else if (genericTableMetaActions) {
     genericTableMetaActions.innerHTML = "";
     setVisible(genericTableMetaActions, false);
@@ -3603,15 +3609,6 @@ function renderTable() {
 
   if (CURRENT_LENS === "staff-governance") {
     costBuildCtrl.wireStaffGovernanceTableActions(tableBody, (index) =>
-      VIEW[index],
-    );
-  }
-
-  if (
-    CURRENT_LENS === "manual-rate-manager" &&
-    materialCostCtrl.getManualRateManagerTab() === "register"
-  ) {
-    materialCostCtrl.wireManualRateManagerTableActions(tableBody, (index) =>
       VIEW[index],
     );
   }
@@ -4727,24 +4724,30 @@ const materialCostCtrl = createMaterialCostController({
   dom: {
     drawerClose,
     manualRateEditModal,
+    manualRateEditTitle,
     manualRateEditCloseBtn,
-    manualRateEditCancelBtn,
     manualRateEditSaveBtn,
-    manualRateStockItemLabel,
-    manualRateCurrentRate,
-    manualRateCurrentSource,
-    manualRateCurrentDate,
     manualRateEvidenceStrip,
     manualRateEvidenceSelectedRate,
-    manualRateEvidenceSelectedSource,
-    manualRateEvidenceSelectedDate,
+    manualRateEvidenceSelectedMeta,
     manualRateEvidenceLatestPurchaseRate,
     manualRateEvidenceLatestPurchaseDate,
     manualRateEvidenceActiveManualRate,
     manualRateEvidenceManualRateStatus,
-    manualRateEvidenceNewerPurchase,
-    manualRateEvidenceOverrideFlag,
-    manualRateEvidenceAffectedSkuCount,
+    manualRateEvidenceNotes,
+    manualRateRateBasis,
+    manualRateVendorOffersSection,
+    manualRateVendorOffersBody,
+    manualRateVendorSourceInfo,
+    manualRateRateLabel,
+    manualRateMaterialCombobox,
+    manualRateMaterialSearch,
+    manualRateMaterialSuggestions,
+    manualRateMaterialSearchStatus,
+    manualRateChangeMaterialBtn,
+    manualRateFormSections,
+    manualRateInactiveHint,
+    manualRateError,
     manualRateValue,
     manualRateEffectiveFrom,
     manualRateReason,
@@ -4820,6 +4823,9 @@ const materialCostCtrl = createMaterialCostController({
     permissionsResolved: TRACE_PERMISSIONS_RESOLVED,
   }),
   syncTraceExportButtonState,
+  genericTableMetaActions,
+  setVisible,
+  escapeHtml,
 });
 
 function renderKpiStrip() {

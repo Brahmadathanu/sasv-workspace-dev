@@ -1,3 +1,5 @@
+import { supabase } from "./supabaseClient.js";
+
 export const MATERIAL_COST_LENS_IDS = ["manual-rate-manager", "rm-cost-trace"];
 
 export function isMaterialCostLens(lensId) {
@@ -20,7 +22,8 @@ const MANUAL_RATE_HEADERS_BY_TAB = {
   register: [
     "",
     "Stock Item",
-    "Manual Rate",
+    "Costing Rate",
+    "Origin",
     "Effective From",
     "Effective To",
     "Status",
@@ -28,13 +31,13 @@ const MANUAL_RATE_HEADERS_BY_TAB = {
     "Latest Purchase Rate",
     "Latest Purchase Date",
     "Recommended Action",
-    "Action",
   ],
   history: [
     "",
     "Manual Rate ID",
     "Stock Item",
     "Rate",
+    "Origin / Evidence",
     "Effective From",
     "Effective To",
     "Status",
@@ -81,16 +84,17 @@ const MANUAL_RATE_ALIGNMENTS_BY_TAB = {
     "c-left",
     "c-left",
     "c-left",
+    "c-left",
     "c-right",
     "c-left",
     "c-left",
-    "c-center",
   ],
   history: [
     "c-center",
     "c-left",
     "c-left",
     "c-right",
+    "c-left",
     "c-left",
     "c-left",
     "c-left",
@@ -121,6 +125,25 @@ const MANUAL_RATE_MANAGER_TAB_IDS = new Set([
   "register",
   "history",
 ]);
+
+const RATE_ORIGIN_MANUAL = "MANUAL_ENTRY";
+const RATE_ORIGIN_VENDOR = "VENDOR_RATE_BOOK";
+
+const MANUAL_RATE_HISTORY_TABLE_HEADERS = [
+  "Manual Rate ID",
+  "Rate",
+  "Origin / Evidence",
+  "Effective From",
+  "Effective To",
+  "Status",
+  "Reason / Approval Reference",
+  "Created At",
+  "Last Updated At",
+];
+
+const MATERIAL_LOOKUP_MIN_CHARS = 2;
+const MATERIAL_LOOKUP_LIMIT = 25;
+const MATERIAL_LOOKUP_DEBOUNCE_MS = 300;
 
 const RM_TRACE_EXPORT_BATCH_SIZE = 1000;
 
@@ -399,32 +422,41 @@ export function createMaterialCostController(deps) {
     isCostingRefreshDirty,
     getTracePermissions,
     syncTraceExportButtonState,
+    genericTableMetaActions,
+    setVisible,
+    escapeHtml,
   } = deps;
 
   const {
     drawerClose,
     manualRateEditModal,
+    manualRateEditTitle,
     manualRateEditCloseBtn,
-    manualRateEditCancelBtn,
     manualRateEditSaveBtn,
-    manualRateStockItemLabel,
-    manualRateCurrentRate,
-    manualRateCurrentSource,
-    manualRateCurrentDate,
     manualRateEvidenceStrip,
     manualRateEvidenceSelectedRate,
-    manualRateEvidenceSelectedSource,
-    manualRateEvidenceSelectedDate,
+    manualRateEvidenceSelectedMeta,
     manualRateEvidenceLatestPurchaseRate,
     manualRateEvidenceLatestPurchaseDate,
     manualRateEvidenceActiveManualRate,
     manualRateEvidenceManualRateStatus,
-    manualRateEvidenceNewerPurchase,
-    manualRateEvidenceOverrideFlag,
-    manualRateEvidenceAffectedSkuCount,
+    manualRateEvidenceNotes,
+    manualRateRateBasis,
+    manualRateVendorOffersSection,
+    manualRateVendorOffersBody,
+    manualRateVendorSourceInfo,
+    manualRateRateLabel,
     manualRateValue,
     manualRateEffectiveFrom,
     manualRateReason,
+    manualRateMaterialCombobox,
+    manualRateMaterialSearch,
+    manualRateMaterialSuggestions,
+    manualRateMaterialSearchStatus,
+    manualRateChangeMaterialBtn,
+    manualRateFormSections,
+    manualRateInactiveHint,
+    manualRateError,
     manualRateCloseModal,
     manualRateCloseCloseBtn,
     manualRateCloseCancelBtn,
@@ -460,6 +492,15 @@ export function createMaterialCostController(deps) {
   let manualRateReturnFocus = null;
   let manualRateCloseRow = null;
   let manualRateCloseReturnFocus = null;
+  let manualRateSourceMode = RATE_ORIGIN_MANUAL;
+  let manualRateVendorOffers = [];
+  let manualRateSelectedOffer = null;
+  let manualRateEditIsRevise = false;
+  let manualRateAllowMaterialChange = false;
+  let materialLookupSearchTimer = null;
+  let materialLookupRequestSeq = 0;
+  let materialLookupResults = [];
+  let materialLookupActiveIndex = -1;
   let materialReviewAcceptRow = null;
   let materialReviewAcceptReturnFocus = null;
   let materialReviewCloseRow = null;
@@ -506,6 +547,119 @@ export function createMaterialCostController(deps) {
   const MATERIAL_COST_READ_ONLY_TOAST =
     "Read-only access. You do not have permission to change material costing actions.";
 
+  function formatRateOriginLabel(origin) {
+    const normalized = normalizeStatus(origin);
+    if (normalized === RATE_ORIGIN_MANUAL) return "Manual Entry";
+    if (normalized === RATE_ORIGIN_VENDOR) return "Vendor Rate Book";
+    return "Unknown";
+  }
+
+  function isVendorRateBookOrigin(row) {
+    return normalizeStatus(row?.rate_origin) === RATE_ORIGIN_VENDOR;
+  }
+
+  function provenanceDetailValue(value, formatFn) {
+    if (value === null || value === undefined || value === "") return "—";
+    return formatFn ? formatFn(value) : text(value);
+  }
+
+  function renderRateOriginSummary(row) {
+    const label = formatRateOriginLabel(row?.rate_origin);
+    if (!isVendorRateBookOrigin(row)) {
+      return `<div class="cp-dashboard-main">${text(label)}</div>`;
+    }
+
+    const vendor =
+      row?.source_vendor_display_name != null &&
+      row?.source_vendor_display_name !== ""
+        ? row.source_vendor_display_name
+        : row?.source_vendor_id != null
+          ? `Vendor #${row.source_vendor_id}`
+          : null;
+    const offerId = row?.source_vendor_rate_id;
+    const subParts = [];
+    if (vendor != null) subParts.push(String(vendor));
+    if (offerId != null && offerId !== "") subParts.push(`Offer #${offerId}`);
+    const sub = subParts.length ? subParts.join(" · ") : "—";
+
+    return `<div class="cp-dashboard-main">${text(label)}</div>
+      <div class="cp-dashboard-sub">${text(sub)}</div>`;
+  }
+
+  function buildRateProvenanceDetailItems(row) {
+    const items = [
+      ["Rate Origin", text(formatRateOriginLabel(row?.rate_origin))],
+    ];
+
+    if (!isVendorRateBookOrigin(row)) {
+      return items;
+    }
+
+    items.push(
+      [
+        "Source Vendor",
+        provenanceDetailValue(
+          row?.source_vendor_display_name || row?.source_vendor_id,
+        ),
+      ],
+      [
+        "Source Offer",
+        provenanceDetailValue(
+          row?.source_vendor_rate_id,
+          (value) => `#${value}`,
+        ),
+      ],
+      [
+        "Adopted Rate",
+        provenanceDetailValue(row?.source_rate_value, formatMoney),
+      ],
+      [
+        "Source UOM",
+        provenanceDetailValue(row?.source_uom_code || row?.source_uom_id),
+      ],
+      [
+        "Offer Valid From",
+        provenanceDetailValue(row?.source_valid_from, formatDate),
+      ],
+      [
+        "Offer Valid To",
+        provenanceDetailValue(row?.source_valid_to, formatDate),
+      ],
+      [
+        "Minimum Order Quantity",
+        provenanceDetailValue(row?.source_min_order_qty, formatNumber),
+      ],
+      [
+        "Lead Time",
+        provenanceDetailValue(
+          row?.source_lead_time_days,
+          (value) => `${formatNumber(value)} days`,
+        ),
+      ],
+      ["Source Remarks", provenanceDetailValue(row?.source_remarks)],
+      [
+        "Adopted At",
+        provenanceDetailValue(row?.source_adopted_at, formatDateTime),
+      ],
+    );
+
+    return items;
+  }
+
+  function renderManualRateHistoryTableRow(row) {
+    return `<tr>
+      <td>${text(row.manual_rate_id)}</td>
+      <td class="c-right">${formatMoney(row.rate_value)}</td>
+      <td>${renderRateOriginSummary(row)}</td>
+      <td>${formatDate(row.effective_from)}</td>
+      <td>${formatDate(row.effective_to)}</td>
+      <td>${statusChip(row.status)}</td>
+      <td>${text(row.reason)}</td>
+      <td>${formatDateTime(row.created_at)}</td>
+      <td>${formatDateTime(row.last_updated_at)}</td>
+    </tr>`;
+  }
+
   function canWriteMaterialCostActions() {
     if (typeof canEditMaterialCostActions === "function") {
       return canEditMaterialCostActions();
@@ -531,18 +685,26 @@ export function createMaterialCostController(deps) {
       if (el) el.textContent = displayValue;
     };
 
-    set(
-      manualRateEvidenceSelectedRate,
-      manualRateEvidenceText(evidence?.selectedRate, formatMoney),
+    const selectedRate = manualRateEvidenceText(
+      evidence?.selectedRate,
+      formatMoney,
     );
-    set(
-      manualRateEvidenceSelectedSource,
-      manualRateEvidenceText(evidence?.selectedRateSource),
+    const selectedSource = manualRateEvidenceText(evidence?.selectedRateSource);
+    const selectedDate = manualRateEvidenceText(
+      evidence?.selectedRateDate,
+      formatDate,
     );
-    set(
-      manualRateEvidenceSelectedDate,
-      manualRateEvidenceText(evidence?.selectedRateDate, formatDate),
-    );
+
+    set(manualRateEvidenceSelectedRate, selectedRate);
+    if (manualRateEvidenceSelectedMeta) {
+      const metaParts = [];
+      if (selectedSource !== "—") metaParts.push(selectedSource);
+      if (selectedDate !== "—") metaParts.push(selectedDate);
+      manualRateEvidenceSelectedMeta.textContent = metaParts.length
+        ? metaParts.join(" · ")
+        : "—";
+    }
+
     set(
       manualRateEvidenceLatestPurchaseRate,
       manualRateEvidenceText(evidence?.latestPurchaseRate, formatMoney),
@@ -559,18 +721,68 @@ export function createMaterialCostController(deps) {
       manualRateEvidenceManualRateStatus,
       manualRateEvidenceText(evidence?.activeManualRateStatus),
     );
-    set(
-      manualRateEvidenceNewerPurchase,
-      manualRateEvidenceText(evidence?.newerPurchaseRateAvailable),
-    );
-    set(
-      manualRateEvidenceOverrideFlag,
-      manualRateEvidenceText(evidence?.manualRateOverridesPurchaseRate),
-    );
-    set(
-      manualRateEvidenceAffectedSkuCount,
-      manualRateEvidenceText(evidence?.affectedSkuCount, formatNumber),
-    );
+
+    if (manualRateEvidenceNotes) {
+      const notes = [];
+      if (evidence?.newerPurchaseRateAvailable === true) {
+        notes.push("Newer purchase rate available");
+      }
+      if (evidence?.manualRateOverridesPurchaseRate === true) {
+        notes.push("Governed rate overrides purchase");
+      }
+      if (
+        evidence?.affectedSkuCount != null &&
+        Number(evidence.affectedSkuCount) > 0
+      ) {
+        notes.push(
+          `Affected SKUs: ${manualRateEvidenceText(evidence.affectedSkuCount, formatNumber)}`,
+        );
+      }
+      manualRateEvidenceNotes.innerHTML = notes
+        .map((note) => `<span>${text(note)}</span>`)
+        .join("");
+      manualRateEvidenceNotes.classList.toggle("hidden", !notes.length);
+    }
+  }
+
+  function populateSelectedMaterialLabel(row) {
+    if (!manualRateMaterialSearch) return;
+    if (!row?.stock_item_id) {
+      if (!manualRateMaterialSearch.readOnly) return;
+      manualRateMaterialSearch.value = "";
+      return;
+    }
+    const code = row.stock_item_code ? `${row.stock_item_code} · ` : "";
+    const name = row.stock_item_name || row.stock_item_id || "--";
+    manualRateMaterialSearch.value = `${code}${name}`;
+  }
+
+  function setMaterialSearchEditable(editable) {
+    if (!manualRateMaterialSearch) return;
+    manualRateMaterialSearch.readOnly = !editable;
+    if (editable) {
+      manualRateMaterialSearch.removeAttribute("aria-readonly");
+    } else {
+      manualRateMaterialSearch.setAttribute("aria-readonly", "true");
+    }
+  }
+
+  function setManualRateFormEnabled(enabled) {
+    if (manualRateFormSections) {
+      manualRateFormSections.classList.toggle("is-inactive", !enabled);
+    }
+    if (manualRateInactiveHint) {
+      manualRateInactiveHint.classList.toggle("hidden", enabled);
+    }
+    [
+      manualRateRateBasis,
+      manualRateValue,
+      manualRateEffectiveFrom,
+      manualRateReason,
+    ].forEach((el) => {
+      if (!el) return;
+      el.disabled = !enabled;
+    });
   }
 
   function splitCodeTokens(value) {
@@ -1284,94 +1496,887 @@ export function createMaterialCostController(deps) {
     };
   }
 
-  function setManualRateSaveState() {
-    if (!manualRateEditSaveBtn) return;
-
-    const values = readManualRateFormValues();
-    const validRate = Number(values.rateValue || 0) > 0;
-    const validReason = values.reason.length >= 5;
-
-    manualRateEditSaveBtn.disabled = !(validRate && validReason);
+  function isoDateOnly(value) {
+    if (!value) return "";
+    return String(value).slice(0, 10);
   }
 
-  async function openManualRateEditModal(row) {
-    if (!row || !manualRateEditModal) return;
-    if (!guardMaterialCostWriteAction()) return;
+  function maxIsoDate(left, right) {
+    const a = isoDateOnly(left);
+    const b = isoDateOnly(right);
+    if (!a) return b;
+    if (!b) return a;
+    return a >= b ? a : b;
+  }
 
-    manualRateEditRow = row;
-    manualRateReturnFocus = document.activeElement;
+  function evidenceFromReviewRow(review) {
+    if (!review) return {};
+    return {
+      selectedRate: evidenceValueOrNull(
+        review.latest_system_selected_rate ?? review.manual_rate_value,
+      ),
+      selectedRateSource: evidenceValueOrNull(
+        review.latest_system_rate_source ??
+          (review.manual_rate_value != null ? "MANUAL_RATE" : null),
+      ),
+      selectedRateDate: evidenceValueOrNull(
+        review.latest_system_rate_date ?? review.manual_rate_effective_from,
+      ),
+      latestPurchaseRate: evidenceValueOrNull(review.latest_purchase_rate),
+      latestPurchaseDate: evidenceValueOrNull(review.latest_purchase_date),
+      activeManualRate: evidenceValueOrNull(review.manual_rate_value),
+      activeManualRateStatus: evidenceValueOrNull(review.manual_rate_status),
+      manualRateOverridesPurchaseRate: evidenceValueOrNull(
+        review.manual_rate_overrides_purchase_rate,
+      ),
+      newerPurchaseRateAvailable: evidenceValueOrNull(
+        review.newer_purchase_rate_available,
+      ),
+    };
+  }
 
-    if (manualRateStockItemLabel) {
-      manualRateStockItemLabel.textContent =
-        row.stock_item_name || row.stock_item_id || "--";
+  function rowContextFromReview(review, stockItem = null) {
+    if (!review && !stockItem) return null;
+    return {
+      stock_item_id: review?.stock_item_id ?? stockItem?.id ?? stockItem?.stock_item_id,
+      stock_item_code: review?.stock_item_code ?? stockItem?.code ?? stockItem?.stock_item_code,
+      stock_item_name: review?.stock_item_name ?? stockItem?.name ?? stockItem?.stock_item_name,
+      manual_rate_value: review?.manual_rate_value ?? null,
+      manual_rate_id: review?.manual_rate_id ?? null,
+      rate_value: review?.manual_rate_value ?? null,
+      effective_from: review?.manual_rate_effective_from ?? null,
+      rate_source:
+        review?.manual_rate_value != null ? "MANUAL_RATE" : null,
+      latest_purchase_rate: review?.latest_purchase_rate ?? null,
+      latest_purchase_date: review?.latest_purchase_date ?? null,
+    };
+  }
+
+  async function fetchManualRateReviewByStockItemId(stockItemId) {
+    if (stockItemId == null) return null;
+    const { data, error } = await costingFrom("v_costing_material_manual_rate_review")
+      .select("*")
+      .eq("stock_item_id", stockItemId)
+      .limit(1);
+    if (error) throw error;
+    return data?.[0] || null;
+  }
+
+  async function fetchVendorOffersForStockItem(stockItemId) {
+    if (stockItemId == null) return [];
+    const { data, error } = await costingFrom("v_proc_vendor_item_rate_effective")
+      .select("*")
+      .eq("stock_item_id", stockItemId)
+      .eq("is_active", true)
+      .order("vendor_display_name", { ascending: true })
+      .order("valid_from", { ascending: false });
+    if (error) throw error;
+    return Array.isArray(data) ? data : [];
+  }
+
+  async function searchActiveStockItems(query) {
+    const q = String(query || "").trim();
+    if (q.length < MATERIAL_LOOKUP_MIN_CHARS) return [];
+
+    const escaped = q.replace(/[%_]/g, (ch) => `\\${ch}`);
+    const { data, error } = await supabase
+      .from("inv_stock_item")
+      .select("id, code, name, active")
+      .eq("active", true)
+      .or(`code.ilike.%${escaped}%,name.ilike.%${escaped}%`)
+      .order("code", { ascending: true })
+      .limit(MATERIAL_LOOKUP_LIMIT);
+
+    if (error) throw error;
+    return Array.isArray(data) ? data : [];
+  }
+
+  async function fetchLookupReviewMap(stockItemIds) {
+    if (!stockItemIds.length) return new Map();
+    const { data, error } = await costingFrom("v_costing_material_manual_rate_review")
+      .select("*")
+      .in("stock_item_id", stockItemIds);
+    if (error) throw error;
+    const map = new Map();
+    (Array.isArray(data) ? data : []).forEach((row) => {
+      if (row?.stock_item_id != null) map.set(String(row.stock_item_id), row);
+    });
+    return map;
+  }
+
+  function setManualRateSourceMode(mode, options = {}) {
+    const previousMode = manualRateSourceMode;
+    const nextMode =
+      mode === RATE_ORIGIN_VENDOR ? RATE_ORIGIN_VENDOR : RATE_ORIGIN_MANUAL;
+    const clearDerivedRate = options.clearDerivedRate === true;
+    manualRateSourceMode = nextMode;
+
+    if (manualRateRateBasis && manualRateRateBasis.value !== nextMode) {
+      manualRateRateBasis.value = nextMode;
     }
 
-    const currentRate =
-      row.selected_rate ?? row.manual_rate_value ?? row.rate_value ?? null;
-
-    const currentSource =
-      row.rate_source ||
-      (row.manual_rate_value !== undefined || row.rate_value !== undefined
-        ? "MANUAL_RATE"
-        : "--");
-
-    const currentDate =
-      row.rate_date ||
-      row.manual_rate_effective_from ||
-      row.effective_from ||
-      null;
-
-    if (manualRateCurrentRate) {
-      manualRateCurrentRate.textContent = formatMoney(currentRate);
+    if (nextMode === RATE_ORIGIN_MANUAL) {
+      manualRateSelectedOffer = null;
+      if (manualRateVendorSourceInfo) manualRateVendorSourceInfo.textContent = "";
+      if (manualRateVendorOffersSection) {
+        manualRateVendorOffersSection.classList.add("hidden");
+      }
+      if (manualRateValue) {
+        manualRateValue.readOnly = false;
+        if (
+          clearDerivedRate ||
+          previousMode === RATE_ORIGIN_VENDOR
+        ) {
+          manualRateValue.value = "";
+        }
+      }
+      if (manualRateRateLabel) {
+        manualRateRateLabel.textContent = "Costing Rate";
+      }
+      syncVendorOfferDateConstraints();
+      // Re-render without selection handlers active while hidden.
+      renderVendorOffersTable({ selectable: false });
+    } else {
+      if (manualRateVendorOffersSection) {
+        manualRateVendorOffersSection.classList.remove("hidden");
+      }
+      if (manualRateValue) {
+        manualRateValue.readOnly = true;
+        if (!manualRateSelectedOffer) {
+          manualRateValue.value = "";
+        } else {
+          manualRateValue.value = Number(manualRateSelectedOffer.rate_value);
+        }
+      }
+      if (manualRateRateLabel) {
+        manualRateRateLabel.textContent = "Costing Rate (from offer)";
+      }
+      renderVendorOffersTable({ selectable: true });
+      syncVendorOfferDateConstraints();
     }
-
-    if (manualRateCurrentSource) {
-      manualRateCurrentSource.textContent = currentSource;
-    }
-
-    if (manualRateCurrentDate) {
-      manualRateCurrentDate.textContent = formatDate(currentDate);
-    }
-
-    try {
-      populateManualRateEvidenceStrip(
-        await enrichMaterialIssueEvidence(row, { allowFetch: false }),
-      );
-    } catch (err) {
-      console.warn("Failed to populate manual rate evidence from row", err);
-      populateManualRateEvidenceStrip({});
-    }
-
-    if (manualRateValue) {
-      manualRateValue.value =
-        currentRate !== null && currentRate !== undefined
-          ? Number(currentRate)
-          : "";
-    }
-
-    if (manualRateEffectiveFrom) {
-      manualRateEffectiveFrom.value = activePeriodIso();
-    }
-
-    if (manualRateReason) {
-      manualRateReason.value = "";
-    }
-
-    manualRateEditModal.classList.remove("hidden");
-    manualRateEditModal.setAttribute("aria-hidden", "false");
 
     setManualRateSaveState();
+  }
 
-    setTimeout(() => manualRateValue?.focus(), 0);
+  function syncVendorOfferDateConstraints() {
+    if (!manualRateEffectiveFrom) return;
+    if (manualRateSourceMode === RATE_ORIGIN_VENDOR && manualRateSelectedOffer) {
+      const minDate = isoDateOnly(manualRateSelectedOffer.valid_from);
+      const maxDate = isoDateOnly(manualRateSelectedOffer.valid_to);
+      manualRateEffectiveFrom.min = minDate || "";
+      manualRateEffectiveFrom.max = maxDate || "";
+      if (
+        manualRateEffectiveFrom.value &&
+        minDate &&
+        manualRateEffectiveFrom.value < minDate
+      ) {
+        manualRateEffectiveFrom.value = minDate;
+      }
+      if (
+        manualRateEffectiveFrom.value &&
+        maxDate &&
+        manualRateEffectiveFrom.value > maxDate
+      ) {
+        manualRateEffectiveFrom.value = maxDate;
+      }
+    } else {
+      manualRateEffectiveFrom.removeAttribute("min");
+      manualRateEffectiveFrom.removeAttribute("max");
+    }
+  }
 
-    enrichMaterialIssueEvidence(row, { allowFetch: true })
-      .then((evidence) => populateManualRateEvidenceStrip(evidence))
-      .catch((err) => {
-        console.warn("Failed to fetch enriched manual rate evidence", err);
+  function renderVendorOffersTable(options = {}) {
+    if (!manualRateVendorOffersBody) return;
+    const selectable =
+      options.selectable !== false &&
+      manualRateSourceMode === RATE_ORIGIN_VENDOR;
+
+    if (!manualRateVendorOffers.length) {
+      manualRateVendorOffersBody.innerHTML =
+        '<tr><td colspan="5" class="empty-row">No effective Vendor Rate Book offers for this material.</td></tr>';
+      if (manualRateVendorSourceInfo) {
+        manualRateVendorSourceInfo.textContent =
+          "No effective vendor offers are available. Use Manual Entry or maintain offers in Vendor Master.";
+      }
+      return;
+    }
+
+    manualRateVendorOffersBody.innerHTML = manualRateVendorOffers
+      .map((offer, index) => {
+        const selected =
+          selectable &&
+          manualRateSelectedOffer &&
+          String(manualRateSelectedOffer.rate_id) === String(offer.rate_id);
+        const validity = [
+          formatDate(offer.valid_from),
+          formatDate(offer.valid_to),
+        ]
+          .filter((part) => part && part !== "—")
+          .join(" → ");
+        const moqLead = [
+          offer.min_order_qty != null
+            ? `MOQ ${formatNumber(offer.min_order_qty)}`
+            : null,
+          offer.lead_time_days != null
+            ? `Lead ${formatNumber(offer.lead_time_days)}d`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+        const remarks = String(offer.remarks || "").trim();
+        return `<tr>
+          <td class="c-center">
+            <input
+              type="radio"
+              name="manualRateVendorOffer"
+              value="${text(offer.rate_id)}"
+              data-offer-index="${index}"
+              ${selected ? "checked" : ""}
+              ${selectable ? "" : "disabled"}
+              aria-label="Select vendor offer ${text(offer.rate_id)}"
+            />
+          </td>
+          <td>
+            ${text(offer.vendor_display_name || offer.vendor_id)}
+            ${
+              remarks
+                ? `<span class="manual-rate-vendor-offer-secondary">${text(remarks)}</span>`
+                : ""
+            }
+          </td>
+          <td class="c-right">
+            ${formatMoney(offer.rate_value)}
+            ${
+              offer.uom_code
+                ? `<span class="manual-rate-vendor-offer-secondary">${text(offer.uom_code)}</span>`
+                : ""
+            }
+          </td>
+          <td>${text(validity || "—")}</td>
+          <td>${text(moqLead || "—")}</td>
+        </tr>`;
+      })
+      .join("");
+
+    if (!selectable) return;
+
+    manualRateVendorOffersBody
+      .querySelectorAll("input[name='manualRateVendorOffer']")
+      .forEach((input) => {
+        input.addEventListener("change", () => {
+          if (manualRateSourceMode !== RATE_ORIGIN_VENDOR) return;
+          const index = Number(input.dataset.offerIndex);
+          selectVendorOffer(manualRateVendorOffers[index]);
+        });
       });
   }
 
+  function selectVendorOffer(offer) {
+    if (manualRateSourceMode !== RATE_ORIGIN_VENDOR) {
+      manualRateSelectedOffer = null;
+      setManualRateSaveState();
+      return;
+    }
+
+    manualRateSelectedOffer = offer || null;
+    if (!offer) {
+      if (manualRateVendorSourceInfo) manualRateVendorSourceInfo.textContent = "";
+      if (manualRateValue) {
+        manualRateValue.value = "";
+        manualRateValue.readOnly = true;
+      }
+      setManualRateSaveState();
+      return;
+    }
+
+    if (manualRateValue) {
+      manualRateValue.value = Number(offer.rate_value);
+      manualRateValue.readOnly = true;
+    }
+
+    const defaultFrom = maxIsoDate(activePeriodIso(), offer.valid_from);
+    if (manualRateEffectiveFrom) {
+      manualRateEffectiveFrom.value = defaultFrom;
+    }
+
+    if (manualRateVendorSourceInfo) {
+      manualRateVendorSourceInfo.textContent = `Vendor Rate Book offer from ${offer.vendor_display_name || offer.vendor_id || "vendor"}, rate ID ${offer.rate_id || "—"}.`;
+    }
+
+    renderVendorOffersTable({ selectable: true });
+    syncVendorOfferDateConstraints();
+    setManualRateSaveState();
+  }
+
+  function populateGovernedRateHeader(row) {
+    populateSelectedMaterialLabel(row);
+  }
+
+  function validateGovernedRateForm(values) {
+    if (!manualRateEditRow?.stock_item_id) {
+      return "No material selected.";
+    }
+    if (!values.reason || values.reason.length < 5) {
+      return "Reason / approval reference is required (minimum 5 characters).";
+    }
+
+    if (manualRateSourceMode === RATE_ORIGIN_VENDOR) {
+      if (!manualRateSelectedOffer?.rate_id) {
+        return "Select an effective Vendor Rate Book offer.";
+      }
+      if (!values.effectiveFrom) {
+        return "Effective from date is required.";
+      }
+      const offerRate = Number(manualRateSelectedOffer.rate_value);
+      if (!Number.isFinite(offerRate) || offerRate <= 0) {
+        return "Selected Vendor Rate Book offer does not have a valid rate.";
+      }
+      return "";
+    }
+
+    if (!Number.isFinite(values.rateValue) || values.rateValue <= 0) {
+      return "Enter a valid costing rate greater than zero.";
+    }
+    if (!values.effectiveFrom) {
+      return "Effective from date is required.";
+    }
+    return "";
+  }
+
+  function setManualRateSaveState() {
+    if (!manualRateEditSaveBtn) return;
+    if (!manualRateEditRow) {
+      setVisible(manualRateEditSaveBtn, false);
+      manualRateEditSaveBtn.disabled = true;
+      return;
+    }
+    setVisible(manualRateEditSaveBtn, true);
+    const values = readManualRateFormValues();
+    manualRateEditSaveBtn.disabled = Boolean(validateGovernedRateForm(values));
+  }
+
+  function invalidateMaterialLookup() {
+    materialLookupRequestSeq += 1;
+    if (materialLookupSearchTimer) {
+      clearTimeout(materialLookupSearchTimer);
+      materialLookupSearchTimer = null;
+    }
+  }
+
+  function closeMaterialSuggestions() {
+    materialLookupActiveIndex = -1;
+    if (manualRateMaterialSuggestions) {
+      manualRateMaterialSuggestions.classList.add("hidden");
+      manualRateMaterialSuggestions.innerHTML = "";
+    }
+    if (manualRateMaterialSearch) {
+      manualRateMaterialSearch.setAttribute("aria-expanded", "false");
+      manualRateMaterialSearch.removeAttribute("aria-activedescendant");
+    }
+  }
+
+  function setMaterialLookupStatus(message, isError = false) {
+    if (!manualRateMaterialSearchStatus) return;
+    manualRateMaterialSearchStatus.textContent = message || "";
+    manualRateMaterialSearchStatus.classList.toggle("is-error", Boolean(isError));
+  }
+
+  function clearManualRateError() {
+    if (!manualRateError) return;
+    manualRateError.hidden = true;
+    manualRateError.textContent = "";
+  }
+
+  function showManualRateError(message) {
+    if (!manualRateError) {
+      if (message) showToast(message, "error");
+      return;
+    }
+    manualRateError.hidden = !message;
+    manualRateError.textContent = message || "";
+  }
+
+  function syncMaterialSelectionUi() {
+    const hasSelection = Boolean(manualRateEditRow);
+
+    setVisible(
+      manualRateChangeMaterialBtn,
+      hasSelection && manualRateAllowMaterialChange,
+    );
+    setMaterialSearchEditable(!hasSelection);
+    if (hasSelection) {
+      populateSelectedMaterialLabel(manualRateEditRow);
+      setMaterialLookupStatus(
+        manualRateAllowMaterialChange
+          ? "Selected material. Use Change material to choose another."
+          : "Material is fixed for this costing-rate action.",
+      );
+    }
+
+    setManualRateFormEnabled(hasSelection);
+
+    if (!hasSelection) {
+      setVisible(manualRateEditSaveBtn, false);
+      if (manualRateEditSaveBtn) manualRateEditSaveBtn.disabled = true;
+    } else {
+      setManualRateSaveState();
+    }
+  }
+
+  function resetMaterialComboboxUi() {
+    invalidateMaterialLookup();
+    materialLookupResults = [];
+    materialLookupActiveIndex = -1;
+    if (manualRateMaterialSearch) {
+      manualRateMaterialSearch.value = "";
+      setMaterialSearchEditable(true);
+    }
+    closeMaterialSuggestions();
+    setMaterialLookupStatus(
+      "Type at least 2 characters to search active stock items.",
+    );
+  }
+
+  function clearMaterialSelectionForChange() {
+    invalidateMaterialLookup();
+    closeMaterialSuggestions();
+    manualRateEditRow = null;
+    manualRateVendorOffers = [];
+    manualRateSelectedOffer = null;
+    manualRateSourceMode = RATE_ORIGIN_MANUAL;
+    clearManualRateError();
+    if (manualRateEvidenceNotes) {
+      manualRateEvidenceNotes.innerHTML = "";
+      manualRateEvidenceNotes.classList.add("hidden");
+    }
+    populateManualRateEvidenceStrip({});
+    renderVendorOffersTable({ selectable: false });
+    setManualRateSourceMode(RATE_ORIGIN_MANUAL, { clearDerivedRate: true });
+    if (manualRateValue) {
+      manualRateValue.value = "";
+      manualRateValue.readOnly = false;
+    }
+    if (manualRateEffectiveFrom) {
+      manualRateEffectiveFrom.value = activePeriodIso();
+    }
+    if (manualRateReason) manualRateReason.value = "";
+    resetMaterialComboboxUi();
+    syncMaterialSelectionUi();
+    window.setTimeout(() => manualRateMaterialSearch?.focus(), 0);
+  }
+
+  function renderMaterialSuggestions(rows, query) {
+    if (!manualRateMaterialSuggestions) return;
+    materialLookupResults = Array.isArray(rows) ? rows : [];
+    materialLookupActiveIndex = -1;
+    manualRateMaterialSuggestions.innerHTML = "";
+
+    if (!materialLookupResults.length) {
+      manualRateMaterialSuggestions.classList.add("hidden");
+      manualRateMaterialSearch?.setAttribute("aria-expanded", "false");
+      setMaterialLookupStatus(`No active materials matched “${query}”.`);
+      return;
+    }
+
+    const frag = document.createDocumentFragment();
+    materialLookupResults.forEach((row, index) => {
+      const optionId = `manualRateMaterialOption-${index}`;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.id = optionId;
+      btn.className = "manual-rate-material-option";
+      btn.setAttribute("role", "option");
+      btn.setAttribute("aria-selected", "false");
+      btn.dataset.index = String(index);
+
+      const title = document.createElement("div");
+      title.className = "manual-rate-material-option-title";
+      title.textContent = `${row.stock_item_code || "—"} · ${row.stock_item_name || row.stock_item_id || "—"}`;
+
+      const meta = document.createElement("div");
+      meta.className = "manual-rate-material-option-meta";
+      const purchasePart =
+        row.latest_purchase_rate != null
+          ? `Latest purchase ${formatMoney(row.latest_purchase_rate)}`
+          : "Latest purchase —";
+      const governedPart =
+        row.manual_rate_value != null
+          ? `Governed rate ${formatMoney(row.manual_rate_value)}`
+          : "Governed rate —";
+      meta.textContent = `${purchasePart} · ${governedPart}`;
+
+      btn.append(title, meta);
+      btn.addEventListener("click", () => {
+        void selectMaterialSuggestion(row);
+      });
+      frag.appendChild(btn);
+    });
+
+    manualRateMaterialSuggestions.appendChild(frag);
+    manualRateMaterialSuggestions.classList.remove("hidden");
+    manualRateMaterialSearch?.setAttribute("aria-expanded", "true");
+    setMaterialLookupStatus(
+      `${materialLookupResults.length} match${materialLookupResults.length === 1 ? "" : "es"}. Use arrows and Enter to select.`,
+    );
+  }
+
+  function setActiveSuggestionIndex(nextIndex) {
+    if (!manualRateMaterialSuggestions || !materialLookupResults.length) return;
+    const options = manualRateMaterialSuggestions.querySelectorAll(
+      ".manual-rate-material-option",
+    );
+    if (!options.length) return;
+
+    materialLookupActiveIndex = Math.max(
+      0,
+      Math.min(nextIndex, options.length - 1),
+    );
+    options.forEach((option, index) => {
+      const active = index === materialLookupActiveIndex;
+      option.classList.toggle("is-active", active);
+      option.setAttribute("aria-selected", active ? "true" : "false");
+      if (active) {
+        manualRateMaterialSearch?.setAttribute(
+          "aria-activedescendant",
+          option.id,
+        );
+        option.scrollIntoView({ block: "nearest" });
+      }
+    });
+  }
+
+  function handleMaterialSearchKeydown(event) {
+    if (manualRateMaterialSearch?.readOnly) return;
+    const open =
+      manualRateMaterialSuggestions &&
+      !manualRateMaterialSuggestions.classList.contains("hidden");
+    if (event.key === "ArrowDown") {
+      if (!open || !materialLookupResults.length) return;
+      event.preventDefault();
+      setActiveSuggestionIndex(
+        materialLookupActiveIndex < 0 ? 0 : materialLookupActiveIndex + 1,
+      );
+      return;
+    }
+    if (event.key === "ArrowUp") {
+      if (!open || !materialLookupResults.length) return;
+      event.preventDefault();
+      setActiveSuggestionIndex(
+        materialLookupActiveIndex <= 0
+          ? materialLookupResults.length - 1
+          : materialLookupActiveIndex - 1,
+      );
+      return;
+    }
+    if (event.key === "Enter") {
+      if (!open || materialLookupActiveIndex < 0) return;
+      event.preventDefault();
+      const row = materialLookupResults[materialLookupActiveIndex];
+      if (row) void selectMaterialSuggestion(row);
+      return;
+    }
+    if (event.key === "Escape") {
+      if (!open) return;
+      event.preventDefault();
+      closeMaterialSuggestions();
+      setMaterialLookupStatus(
+        "Type at least 2 characters to search active stock items.",
+      );
+    }
+  }
+
+  async function runMaterialLookup(rawQuery) {
+    const query = String(rawQuery || "").trim();
+    if (query.length < MATERIAL_LOOKUP_MIN_CHARS) {
+      invalidateMaterialLookup();
+      materialLookupResults = [];
+      closeMaterialSuggestions();
+      setMaterialLookupStatus(
+        "Type at least 2 characters to search active stock items.",
+      );
+      return;
+    }
+
+    const requestSeq = ++materialLookupRequestSeq;
+    setMaterialLookupStatus("Searching…");
+    if (manualRateMaterialSuggestions) {
+      manualRateMaterialSuggestions.classList.remove("hidden");
+      manualRateMaterialSuggestions.innerHTML =
+        '<div class="manual-rate-material-empty">Searching…</div>';
+      manualRateMaterialSearch?.setAttribute("aria-expanded", "true");
+    }
+
+    try {
+      const baseRows = await searchActiveStockItems(query);
+      if (requestSeq !== materialLookupRequestSeq) return;
+
+      const ids = baseRows.map((row) => row.id).filter((id) => id != null);
+      const reviewById = await fetchLookupReviewMap(ids);
+      if (requestSeq !== materialLookupRequestSeq) return;
+
+      const enriched = baseRows.map((item) => {
+        const review = reviewById.get(String(item.id)) || {};
+        return {
+          stock_item_id: item.id,
+          stock_item_code: item.code || review.stock_item_code || "",
+          stock_item_name: item.name || review.stock_item_name || "",
+          latest_purchase_rate: review.latest_purchase_rate ?? null,
+          latest_purchase_date: review.latest_purchase_date ?? null,
+          manual_rate_value: review.manual_rate_value ?? null,
+          manual_rate_effective_from: review.manual_rate_effective_from ?? null,
+          selected_rate:
+            review.latest_system_selected_rate ?? review.selected_rate ?? null,
+          rate_source:
+            review.latest_system_rate_source ?? review.rate_source ?? null,
+          rate_date: review.latest_system_rate_date ?? review.rate_date ?? null,
+          affected_sku_count:
+            review.affected_sku_count ??
+            review.sku_count_using_material ??
+            null,
+        };
+      });
+
+      renderMaterialSuggestions(enriched, query);
+    } catch (error) {
+      if (requestSeq !== materialLookupRequestSeq) return;
+      console.error("[MaterialCost] material lookup failed", error);
+      materialLookupResults = [];
+      closeMaterialSuggestions();
+      setMaterialLookupStatus(
+        error?.message || "Material search failed. Try again.",
+        true,
+      );
+    }
+  }
+
+  function scheduleMaterialLookup() {
+    if (manualRateMaterialSearch?.readOnly) return;
+    if (materialLookupSearchTimer) clearTimeout(materialLookupSearchTimer);
+    const query = String(manualRateMaterialSearch?.value || "").trim();
+    if (query.length < MATERIAL_LOOKUP_MIN_CHARS) {
+      invalidateMaterialLookup();
+      materialLookupResults = [];
+      closeMaterialSuggestions();
+      setMaterialLookupStatus(
+        "Type at least 2 characters to search active stock items.",
+      );
+      return;
+    }
+    materialLookupSearchTimer = setTimeout(() => {
+      materialLookupSearchTimer = null;
+      void runMaterialLookup(query);
+    }, MATERIAL_LOOKUP_DEBOUNCE_MS);
+  }
+
+  async function selectMaterialSuggestion(row) {
+    if (!row?.stock_item_id) return;
+    if (!guardMaterialCostWriteAction()) return;
+
+    invalidateMaterialLookup();
+    closeMaterialSuggestions();
+    populateSelectedMaterialLabel(row);
+    setMaterialSearchEditable(false);
+
+    await applySelectedMaterialToModal(row, {
+      allowMaterialChange: true,
+      focusRate: true,
+      showLoading: true,
+      refreshReview: true,
+    });
+  }
+
+  async function applySelectedMaterialToModal(row, options = {}) {
+    const allowMaterialChange = options.allowMaterialChange !== false;
+    const focusRate = options.focusRate !== false;
+    const showLoading = options.showLoading === true;
+    const refreshReview = options.refreshReview !== false;
+
+    if (showLoading) {
+      setLoadingMask(true, "Loading material review…");
+    }
+
+    try {
+      let reviewRow = row;
+      if (refreshReview && row?.stock_item_id) {
+        try {
+          const fresh = await fetchManualRateReviewByStockItemId(
+            row.stock_item_id,
+          );
+          if (fresh?.stock_item_id) {
+            reviewRow = { ...row, ...fresh };
+          }
+        } catch (error) {
+          console.warn(
+            "[MaterialCost] review refresh failed; using selected row",
+            error,
+          );
+        }
+      }
+
+      if (!reviewRow?.stock_item_id) {
+        throw new Error("Selected material is no longer available for costing.");
+      }
+
+      manualRateAllowMaterialChange = allowMaterialChange;
+      manualRateEditRow = rowContextFromReview(reviewRow, row) || reviewRow;
+      manualRateVendorOffers = [];
+      manualRateSelectedOffer = null;
+      manualRateSourceMode = RATE_ORIGIN_MANUAL;
+      clearManualRateError();
+
+      if (manualRateEvidenceNotes) {
+        manualRateEvidenceNotes.innerHTML = "";
+        manualRateEvidenceNotes.classList.add("hidden");
+      }
+
+      populateSelectedMaterialLabel(manualRateEditRow);
+      syncMaterialSelectionUi();
+      setManualRateSourceMode(RATE_ORIGIN_MANUAL, { clearDerivedRate: true });
+
+      if (manualRateValue) {
+        manualRateValue.readOnly = false;
+        manualRateValue.value =
+          reviewRow?.manual_rate_value != null
+            ? String(reviewRow.manual_rate_value)
+            : reviewRow?.latest_purchase_rate != null
+              ? String(reviewRow.latest_purchase_rate)
+              : "";
+      }
+      if (manualRateEffectiveFrom) {
+        manualRateEffectiveFrom.value =
+          isoDateOnly(reviewRow?.manual_rate_effective_from) ||
+          activePeriodIso();
+      }
+      if (manualRateReason) {
+        manualRateReason.value = "";
+      }
+
+      try {
+        const evidence = mergeMaterialIssueEvidence(
+          buildMaterialIssueEvidenceFromRow(reviewRow),
+          evidenceFromManualRateReview(reviewRow),
+        );
+        if (
+          evidence.affectedSkuCount == null &&
+          reviewRow.sku_count_using_material != null
+        ) {
+          evidence.affectedSkuCount = evidenceValueOrNull(
+            reviewRow.sku_count_using_material,
+          );
+        }
+        populateManualRateEvidenceStrip(evidence);
+
+        manualRateVendorOffers = await fetchVendorOffersForStockItem(
+          reviewRow.stock_item_id,
+        );
+        manualRateSelectedOffer = null;
+        renderVendorOffersTable({ selectable: false });
+      } catch (error) {
+        console.error(
+          "[MaterialCost] evidence load after selection failed",
+          error,
+        );
+        populateManualRateEvidenceStrip({});
+        manualRateVendorOffers = [];
+        renderVendorOffersTable({ selectable: false });
+        showManualRateError(
+          error?.message ||
+            "Could not load rate evidence for this material. You can still enter a manual rate, or choose Change material.",
+        );
+      }
+
+      syncMaterialSelectionUi();
+      if (focusRate) {
+        window.setTimeout(() => manualRateValue?.focus(), 0);
+      }
+    } catch (error) {
+      console.error("[MaterialCost] material selection failed", error);
+      if (row?.stock_item_id) {
+        manualRateEditRow = {
+          stock_item_id: row.stock_item_id,
+          stock_item_code: row.stock_item_code || "",
+          stock_item_name: row.stock_item_name || "",
+        };
+        populateSelectedMaterialLabel(manualRateEditRow);
+        syncMaterialSelectionUi();
+      }
+      showManualRateError(
+        error?.message ||
+          "Could not load material evidence. Keep this material selected and retry, or choose Change material.",
+      );
+      showToast(
+        error?.message || "Could not load material review details.",
+        "error",
+      );
+    } finally {
+      if (showLoading) {
+        setLoadingMask(false);
+      }
+    }
+  }
+
+  function openSetCostingRatePicker() {
+    if (!guardMaterialCostWriteAction()) return;
+    manualRateReturnFocus = document.activeElement;
+    manualRateEditIsRevise = false;
+    manualRateAllowMaterialChange = true;
+    manualRateEditRow = null;
+    manualRateVendorOffers = [];
+    manualRateSelectedOffer = null;
+    manualRateSourceMode = RATE_ORIGIN_MANUAL;
+    clearManualRateError();
+    populateManualRateEvidenceStrip({});
+    renderVendorOffersTable({ selectable: false });
+    setManualRateSourceMode(RATE_ORIGIN_MANUAL, { clearDerivedRate: true });
+    if (manualRateValue) {
+      manualRateValue.value = "";
+      manualRateValue.readOnly = false;
+    }
+    if (manualRateEffectiveFrom) {
+      manualRateEffectiveFrom.value = activePeriodIso();
+    }
+    if (manualRateReason) manualRateReason.value = "";
+    resetMaterialComboboxUi();
+    syncMaterialSelectionUi();
+    if (manualRateEditModal) {
+      manualRateEditModal.classList.remove("hidden");
+      manualRateEditModal.setAttribute("aria-hidden", "false");
+    }
+    window.setTimeout(() => manualRateMaterialSearch?.focus(), 0);
+  }
+
+  async function openGovernedCostingRateModal(row, options = {}) {
+    if (!row?.stock_item_id) return;
+    if (!guardMaterialCostWriteAction()) return;
+
+    manualRateReturnFocus = document.activeElement;
+    manualRateEditIsRevise = Boolean(options.isRevise);
+    invalidateMaterialLookup();
+    closeMaterialSuggestions();
+
+    await applySelectedMaterialToModal(row, {
+      allowMaterialChange: options.allowMaterialChange === true,
+      focusRate: true,
+      showLoading: true,
+      refreshReview: true,
+    });
+
+    if (manualRateEditRow && manualRateEditModal) {
+      manualRateEditModal.classList.remove("hidden");
+      manualRateEditModal.setAttribute("aria-hidden", "false");
+    }
+  }
+
+  function openManualRateEditModal(row, options = {}) {
+    void openGovernedCostingRateModal(row, {
+      isRevise: Boolean(options.isRevise),
+      allowMaterialChange: false,
+    });
+  }
+
   function closeManualRateEditModal() {
+    invalidateMaterialLookup();
+    closeMaterialSuggestions();
     if (!manualRateEditModal) return;
 
     const active = document.activeElement;
@@ -1391,10 +2396,82 @@ export function createMaterialCostController(deps) {
 
     manualRateReturnFocus = null;
     manualRateEditRow = null;
+    manualRateEditIsRevise = false;
+    manualRateVendorOffers = [];
+    manualRateSelectedOffer = null;
+    manualRateSourceMode = RATE_ORIGIN_MANUAL;
+    manualRateAllowMaterialChange = false;
+    materialLookupResults = [];
+    if (manualRateValue) manualRateValue.readOnly = false;
+    clearManualRateError();
+    if (manualRateEvidenceNotes) {
+      manualRateEvidenceNotes.innerHTML = "";
+      manualRateEvidenceNotes.classList.add("hidden");
+    }
+    populateManualRateEvidenceStrip({});
+    renderVendorOffersTable({ selectable: false });
+    setManualRateSourceMode(RATE_ORIGIN_MANUAL, { clearDerivedRate: true });
+    resetMaterialComboboxUi();
+    syncMaterialSelectionUi();
 
     if (returnTarget && typeof returnTarget.focus === "function") {
       setTimeout(() => returnTarget.focus(), 0);
     }
+  }
+
+  function syncRegisterMetaActions() {
+    const slot = document.getElementById("registerSetCostingRateSlot");
+    if (!slot) return;
+
+    if (genericTableMetaActions) {
+      genericTableMetaActions.innerHTML = "";
+      setVisible(genericTableMetaActions, false);
+    }
+
+    const showSetCostingRate =
+      getCurrentLens() === "manual-rate-manager" &&
+      manualRateManagerTab === "register" &&
+      canWriteMaterialCostActions();
+
+    if (!showSetCostingRate) {
+      slot.innerHTML = "";
+      slot.classList.add("hidden");
+      slot.setAttribute("aria-hidden", "true");
+      return;
+    }
+
+    slot.innerHTML = `
+      <button
+        id="registerSetCostingRateBtn"
+        type="button"
+        class="icon-btn icon-btn-primary"
+        title="Set Costing Rate"
+        aria-label="Set Costing Rate"
+      >
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.4"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M12 5v14"></path>
+          <path d="M5 12h14"></path>
+        </svg>
+      </button>
+    `;
+    slot.classList.remove("hidden");
+    slot.setAttribute("aria-hidden", "false");
+
+    document
+      .getElementById("registerSetCostingRateBtn")
+      ?.addEventListener("click", () => {
+        openSetCostingRatePicker();
+      });
   }
 
   async function saveManualRateEdit() {
@@ -1402,34 +2479,35 @@ export function createMaterialCostController(deps) {
 
     const row = manualRateEditRow;
 
-    if (!row?.stock_item_id) {
-      showToast("Stock item ID missing for selected Workbench row.", "error");
-      return;
-    }
-
     const values = readManualRateFormValues();
-
-    if (!values.rateValue || values.rateValue <= 0) {
-      showToast("Manual rate must be greater than zero.", "error");
-      setManualRateSaveState();
-      return;
-    }
-
-    if (!values.reason || values.reason.length < 5) {
-      showToast("Reason / authority reference is required.", "error");
+    const validationError = validateGovernedRateForm(values);
+    if (validationError) {
+      showToast(validationError, "error");
       setManualRateSaveState();
       return;
     }
 
     manualRateEditSaveBtn.disabled = true;
-    setLoadingMask(true, "Saving manual material rate...");
+    setLoadingMask(true, "Saving governed costing rate...");
 
     try {
       const { error } = await costingRpc("rpc_set_material_manual_rate", {
         p_stock_item_id: row.stock_item_id,
-        p_rate_value: values.rateValue,
+        p_rate_value:
+          manualRateSourceMode === RATE_ORIGIN_VENDOR
+            ? Number(manualRateSelectedOffer.rate_value)
+            : values.rateValue,
         p_effective_from: values.effectiveFrom,
         p_reason: values.reason,
+        p_rate_origin: manualRateSourceMode,
+        p_source_vendor_rate_id:
+          manualRateSourceMode === RATE_ORIGIN_VENDOR
+            ? manualRateSelectedOffer?.rate_id ?? null
+            : null,
+        p_source_vendor_id:
+          manualRateSourceMode === RATE_ORIGIN_VENDOR
+            ? manualRateSelectedOffer?.vendor_id ?? null
+            : null,
       });
 
       if (error) throw error;
@@ -1437,10 +2515,14 @@ export function createMaterialCostController(deps) {
       closeManualRateEditModal();
 
       showToast(
-        "Manual rate saved. Costing refresh required before readiness counts and cost sheets update.",
+        "Governed costing rate saved. Run costing refresh to propagate downstream calculations.",
         "success",
         5200,
       );
+
+      if (getCurrentLens() === "manual-rate-manager") {
+        manualRateManagerTab = "register";
+      }
 
       await reloadRows();
 
@@ -1476,12 +2558,24 @@ export function createMaterialCostController(deps) {
 
       if (typeof markCostingRefreshDirty === "function") {
         markCostingRefreshDirty(
-          "Manual material rate was saved. Run costing refresh to apply it to cost sheets and readiness counts.",
+          "Governed costing rate was saved. Run costing refresh to apply it to cost sheets and readiness counts.",
           "MATERIAL_MANUAL_RATE_SET",
         );
       }
     } catch (err) {
-      handleError("Failed to save manual material rate", err);
+      const message = String(err?.message || err || "");
+      if (
+        message.includes("schema cache") ||
+        message.includes("Could not find the function") ||
+        message.includes("p_rate_origin")
+      ) {
+        showToast(
+          "Server contract mismatch for governed costing rate save. Verify rpc_set_material_manual_rate is deployed and types are current.",
+          "error",
+          9000,
+        );
+      }
+      handleError("Failed to save governed costing rate", err);
     } finally {
       setLoadingMask(false);
       manualRateEditSaveBtn.disabled = false;
@@ -1575,7 +2669,7 @@ export function createMaterialCostController(deps) {
     }
 
     manualRateCloseSaveBtn.disabled = true;
-    setLoadingMask(true, "Closing manual material rate...");
+    setLoadingMask(true, "Ending governed costing rate...");
 
     try {
       const { error } = await costingRpc("rpc_close_material_manual_rate", {
@@ -1589,7 +2683,7 @@ export function createMaterialCostController(deps) {
       closeManualRateCloseModal();
 
       showToast(
-        "Manual rate closed. Costing refresh required before readiness counts and cost sheets update.",
+        "Governed costing rate ended. Run costing refresh to propagate downstream calculations.",
         "success",
         5200,
       );
@@ -1602,12 +2696,12 @@ export function createMaterialCostController(deps) {
 
       if (typeof markCostingRefreshDirty === "function") {
         markCostingRefreshDirty(
-          "Manual material rate was closed. Run costing refresh to apply current rate evidence.",
+          "Governed costing rate was ended. Run costing refresh to apply current rate evidence.",
           "MATERIAL_MANUAL_RATE_CLOSE",
         );
       }
     } catch (err) {
-      handleError("Failed to close manual material rate", err);
+      handleError("Failed to end governed costing rate", err);
     } finally {
       setLoadingMask(false);
       manualRateCloseSaveBtn.disabled = false;
@@ -2199,7 +3293,7 @@ export function createMaterialCostController(deps) {
     const actionButtons = [];
     if (canEdit && classification.canSetManualRate) {
       actionButtons.push(
-        `<button type="button" class="icon-btn icon-btn-primary" id="resolveSetManualRateBtn" title="Add / Update Manual Rate" aria-label="Add / Update Manual Rate">Add / Update Manual Rate</button>`,
+        `<button type="button" class="icon-btn icon-btn-primary" id="resolveSetManualRateBtn" title="Set Costing Rate" aria-label="Set Costing Rate">Set Costing Rate</button>`,
       );
     }
     if (canEdit && classification.canAcceptReview) {
@@ -2323,6 +3417,71 @@ export function createMaterialCostController(deps) {
       });
   }
 
+  function renderRegisterRowActionTab(row) {
+    const isActive = normalizeStatus(row?.status) === "ACTIVE";
+    const hasRateId = row?.manual_rate_id != null;
+    const canWrite = canWriteMaterialCostActions();
+    const showActions = isActive && hasRateId && canWrite;
+
+    let actionArea = "";
+    if (showActions) {
+      actionArea = `
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 10px">
+          <button
+            type="button"
+            class="icon-btn icon-btn-primary"
+            id="registerReviseRateBtn"
+            title="Revise Costing Rate"
+            aria-label="Revise Costing Rate"
+          >Revise Costing Rate</button>
+          <button
+            type="button"
+            class="icon-btn cp-danger-text-btn"
+            id="registerEndRateBtn"
+            title="End Costing Rate"
+            aria-label="End Costing Rate"
+          >End Costing Rate</button>
+        </div>
+      `;
+    } else if (!canWrite) {
+      actionArea = `
+        <div class="cp-muted-text" style="margin:2px 0 10px">
+          Read-only access. Costing-rate actions are not available.
+        </div>
+      `;
+    } else if (!isActive) {
+      actionArea = `
+        <div class="cp-muted-text" style="margin:2px 0 10px">
+          This governed rate is not active. Use the History tab to review past
+          rates, or set a new costing rate from the Register toolbar.
+        </div>
+      `;
+    }
+
+    return `
+      <div class="cp-card-label" style="margin-bottom:8px">
+        Governed Costing Rate
+      </div>
+      ${actionArea}
+      ${detailPanel([
+        kvSection("Rate Details", [
+          ["Manual Rate ID", text(row.manual_rate_id)],
+          ["Stock Item", text(row.stock_item_name || row.stock_item_id)],
+          ["Stock Item Code", text(row.stock_item_code)],
+          ["Costing Rate", formatMoney(row.rate_value)],
+          ...buildRateProvenanceDetailItems(row),
+          ["Effective From", formatDate(row.effective_from)],
+          ["Effective To", formatDate(row.effective_to)],
+          ["Status", statusChip(row.status)],
+          ["Register Status", compactStatusText(row.register_status)],
+          ["Latest Purchase Rate", formatMoney(row.latest_purchase_rate)],
+          ["Latest Purchase Date", formatDate(row.latest_purchase_date)],
+          ["Recommended Action", text(row.recommended_action)],
+        ]),
+      ])}
+    `;
+  }
+
   async function renderMaterialWorkbenchTab(tabId, row, lensId) {
     const workbenchTabId =
       {
@@ -2361,6 +3520,14 @@ export function createMaterialCostController(deps) {
       });
     }
 
+    if (
+      lensId === "manual-rate-manager" &&
+      manualRateManagerTab === "register" &&
+      workbenchTabId === "action"
+    ) {
+      return renderRegisterRowActionTab(row);
+    }
+
     if (workbenchTabId === "action") {
       const manualRateButton = `
       <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
@@ -2368,8 +3535,8 @@ export function createMaterialCostController(deps) {
           type="button"
           class="icon-btn icon-btn-primary"
           id="setManualRateBtn"
-          title="Set Manual Material Rate"
-          aria-label="Set Manual Material Rate"
+          title="Set Costing Rate"
+          aria-label="Set Costing Rate"
         >
           <svg
             width="16"
@@ -2552,8 +3719,8 @@ export function createMaterialCostController(deps) {
         return (
           reviewCard +
           `<div class="cp-card">
-          <div class="cp-card-label">Manual Rate History</div>
-          <div class="cp-card-value">No manual rate history found for this stock item.</div>
+          <div class="cp-card-label">Governed Costing Rate History</div>
+          <div class="cp-card-value">No governed costing rate history found for this stock item.</div>
         </div>`
         );
       }
@@ -2561,28 +3728,9 @@ export function createMaterialCostController(deps) {
       return (
         reviewCard +
         simpleTable(
-          [
-            "Manual Rate ID",
-            "Rate",
-            "Effective From",
-            "Effective To",
-            "Status",
-            "Reason / Approval Reference",
-            "Created At",
-            "Last Updated At",
-          ],
+          MANUAL_RATE_HISTORY_TABLE_HEADERS,
           historyRows,
-          (x) =>
-            `<tr>
-            <td>${text(x.manual_rate_id)}</td>
-            <td class="c-right">${formatMoney(x.rate_value)}</td>
-            <td>${formatDate(x.effective_from)}</td>
-            <td>${formatDate(x.effective_to)}</td>
-            <td>${statusChip(x.status)}</td>
-            <td>${text(x.reason)}</td>
-            <td>${formatDateTime(x.created_at)}</td>
-            <td>${formatDateTime(x.last_updated_at)}</td>
-          </tr>`,
+          renderManualRateHistoryTableRow,
         )
       );
     }
@@ -3315,6 +4463,7 @@ export function createMaterialCostController(deps) {
           <div class="cp-muted-text">${text(row.stock_item_code || "")}</div>
         </td>
         <td class="c-right">${formatMoney(row.rate_value)}</td>
+        <td>${renderRateOriginSummary(row)}</td>
         <td>${formatDate(row.effective_from)}</td>
         <td>${formatDate(row.effective_to)}</td>
         <td>${statusChip(row.status)}</td>
@@ -3322,35 +4471,6 @@ export function createMaterialCostController(deps) {
         <td class="c-right">${formatMoney(row.latest_purchase_rate)}</td>
         <td>${formatDate(row.latest_purchase_date)}</td>
         <td>${text(row.recommended_action)}</td>
-        <td class="c-center">
-          ${
-            normalizeStatus(row.status) === "ACTIVE"
-              ? `<button
-                  type="button"
-                  class="icon-btn cp-danger-icon-btn"
-                  data-manager-close-manual-rate-id="${text(row.manual_rate_id)}"
-                  title="Close Manual Rate"
-                  aria-label="Close Manual Rate"
-                >
-                  <svg
-                    width="15"
-                    height="15"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.4"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <circle cx="12" cy="12" r="9"></circle>
-                    <path d="M9 9l6 6"></path>
-                    <path d="M15 9l-6 6"></path>
-                  </svg>
-                </button>`
-              : '<span class="cp-muted-text">--</span>'
-          }
-        </td>
       </tr>`;
     }
 
@@ -3363,6 +4483,7 @@ export function createMaterialCostController(deps) {
           <div class="cp-muted-text">${text(row.stock_item_code || "")}</div>
         </td>
         <td class="c-right">${formatMoney(row.rate_value)}</td>
+        <td>${renderRateOriginSummary(row)}</td>
         <td>${formatDate(row.effective_from)}</td>
         <td>${formatDate(row.effective_to)}</td>
         <td>${statusChip(row.status)}</td>
@@ -3399,7 +4520,7 @@ export function createMaterialCostController(deps) {
     const tabs = [
       ["action-queue", "Action Queue"],
       ["register", "Register"],
-      ["history", "History"],
+      ["history", "Rate History"],
     ];
 
     workbenchSummaryEl.classList.add("is-visible");
@@ -3434,25 +4555,6 @@ export function createMaterialCostController(deps) {
       });
   }
 
-  function wireManualRateManagerTableActions(tableBody, getViewRow) {
-    if (manualRateManagerTab !== "register") return;
-
-    tableBody
-      .querySelectorAll("[data-manager-close-manual-rate-id]")
-      .forEach((btn) => {
-        btn.addEventListener("click", (event) => {
-          event.stopPropagation();
-
-          const manualRateId = btn.dataset.managerCloseManualRateId;
-          const row = getViewRow((r) =>
-            String(r.manual_rate_id) === String(manualRateId),
-          );
-
-          if (row) openManualRateCloseModal(row);
-        });
-      });
-  }
-
   function getManualRateManagerDrawerConfig(row, preferredTab) {
     const title =
       row.stock_item_name || row.stock_item_id || "Manual Rate Manager";
@@ -3467,7 +4569,7 @@ export function createMaterialCostController(deps) {
       managerTabs = [
         { id: "resolve", label: "Resolve" },
         { id: "manual-rate-register", label: "Register" },
-        { id: "manual-rate-history", label: "History" },
+        { id: "manual-rate-history", label: "Rate History" },
         { id: "affected-products", label: "Affected Products/SKUs" },
         { id: "raw-lines", label: "Raw Issue Lines" },
       ];
@@ -3475,12 +4577,12 @@ export function createMaterialCostController(deps) {
       managerTabs = [
         { id: "manual-rate-action", label: "Action" },
         { id: "manual-rate-register", label: "Register" },
-        { id: "manual-rate-history", label: "History" },
+        { id: "manual-rate-history", label: "Rate History" },
       ];
     } else {
       managerTabs = [
         { id: "manual-rate-register", label: "Register" },
-        { id: "manual-rate-history", label: "History" },
+        { id: "manual-rate-history", label: "Rate History" },
       ];
     }
 
@@ -3519,12 +4621,43 @@ export function createMaterialCostController(deps) {
       return;
     }
 
+    if (
+      lensId === "manual-rate-manager" &&
+      manualRateManagerTab === "register" &&
+      (tabId === "action" || tabId === "manual-rate-action")
+    ) {
+      document
+        .getElementById("registerReviseRateBtn")
+        ?.addEventListener("click", () => {
+          if (!guardMaterialCostWriteAction()) return;
+          const selectedRow = getSelectedRow();
+          if (selectedRow?.manual_rate_id) {
+            void openManualRateEditModal(selectedRow, { isRevise: true });
+          }
+        });
+      document
+        .getElementById("registerEndRateBtn")
+        ?.addEventListener("click", () => {
+          if (!guardMaterialCostWriteAction()) return;
+          const selectedRow = getSelectedRow();
+          if (selectedRow?.manual_rate_id) {
+            openManualRateCloseModal(selectedRow);
+          }
+        });
+      return;
+    }
+
     if (tabId === "action" || tabId === "manual-rate-action") {
       document
         .getElementById("setManualRateBtn")
         ?.addEventListener("click", () => {
+          if (!guardMaterialCostWriteAction()) return;
           const selectedRow = getSelectedRow();
-          if (selectedRow) openManualRateEditModal(selectedRow);
+          if (selectedRow) {
+            void openManualRateEditModal(selectedRow, {
+              isRevise: Boolean(selectedRow.manual_rate_id || selectedRow.rate_value),
+            });
+          }
         });
     }
 
@@ -3589,8 +4722,34 @@ export function createMaterialCostController(deps) {
 
     bindRmTraceFilterEvents();
 
+    manualRateMaterialSearch?.addEventListener("input", () => {
+      if (manualRateMaterialSearch.readOnly) return;
+      scheduleMaterialLookup();
+    });
+    manualRateMaterialSearch?.addEventListener(
+      "keydown",
+      handleMaterialSearchKeydown,
+    );
+    manualRateChangeMaterialBtn?.addEventListener("click", () => {
+      clearMaterialSelectionForChange();
+    });
+
+    manualRateRateBasis?.addEventListener("change", () => {
+      const nextMode =
+        manualRateRateBasis.value === RATE_ORIGIN_VENDOR
+          ? RATE_ORIGIN_VENDOR
+          : RATE_ORIGIN_MANUAL;
+      if (nextMode === RATE_ORIGIN_MANUAL) {
+        setManualRateSourceMode(RATE_ORIGIN_MANUAL, {
+          clearDerivedRate: true,
+        });
+      } else {
+        manualRateSelectedOffer = null;
+        setManualRateSourceMode(RATE_ORIGIN_VENDOR);
+      }
+    });
+
     manualRateEditCloseBtn?.addEventListener("click", closeManualRateEditModal);
-    manualRateEditCancelBtn?.addEventListener("click", closeManualRateEditModal);
     manualRateEditSaveBtn?.addEventListener("click", saveManualRateEdit);
     manualRateEditModal?.addEventListener("click", (e) => {
       if (e.target === manualRateEditModal) closeManualRateEditModal();
@@ -3667,12 +4826,13 @@ export function createMaterialCostController(deps) {
     getTableAlignments,
     renderTableRow,
     renderManualRateManagerTabs,
-    wireManualRateManagerTableActions,
+    syncRegisterMetaActions,
     getManualRateManagerDrawerConfig,
     renderMaterialWorkbenchTab,
     wireMaterialWorkbenchDrawerActions,
     openManualRateEditModal,
     closeManualRateEditModal,
+    openSetCostingRatePicker,
     openManualRateCloseModal,
     closeManualRateCloseModal,
     openMaterialReviewAcceptModal,

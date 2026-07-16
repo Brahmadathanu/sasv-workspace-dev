@@ -321,6 +321,14 @@
         min-width: 160px;
         position: relative;
       }
+      .search-card .register-set-costing-rate-slot {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+      }
+      .search-card .register-set-costing-rate-slot.hidden {
+        display: none;
+      }
       .search-card .cp-period-item {
         flex: 0 0 auto;
         display: flex;
@@ -1614,6 +1622,226 @@
       .cost-sheet-sign-body {
         padding: 12px;
       }
+      #manualRateEditModal .cost-sheet-sign-panel {
+        width: min(820px, calc(100vw - 24px));
+        max-width: none;
+        min-height: min(560px, calc(100vh - 24px));
+        min-height: min(560px, calc(100dvh - 24px));
+        max-height: calc(100vh - 24px);
+        max-height: calc(100dvh - 24px);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      #manualRateEditModal .cost-sheet-sign-header,
+      #manualRateEditModal .cost-sheet-sign-actions {
+        flex: 0 0 auto;
+      }
+      #manualRateEditModal .cost-sheet-sign-body.manual-rate-modal-body {
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        padding: 12px;
+      }
+      #manualRateEditModal .manual-rate-form-scroll {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding-top: 2px;
+      }
+      .manual-rate-material-combobox {
+        position: relative;
+        flex: 0 0 auto;
+        margin-bottom: 8px;
+        overflow: visible;
+        z-index: 2;
+      }
+      .manual-rate-material-row {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+      }
+      .manual-rate-material-row > label {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 12px;
+        font-weight: var(--cp-fw-label);
+        color: var(--muted, #6b7280);
+      }
+      .manual-rate-material-combobox input[type="search"] {
+        padding: 8px 9px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 7px;
+        font-size: 13px;
+        color: var(--text, #111827);
+        background: var(--surface, #fff);
+        min-height: 40px;
+        width: 100%;
+      }
+      .manual-rate-material-combobox input[type="search"][readonly] {
+        background: rgba(15, 23, 42, 0.03);
+        color: var(--text, #111827);
+        cursor: default;
+      }
+      .manual-rate-material-suggestions {
+        position: absolute;
+        z-index: 50;
+        left: 0;
+        right: 0;
+        top: calc(100% + 4px);
+        max-height: min(320px, 48vh);
+        max-height: min(320px, 48dvh);
+        overflow-y: auto;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: var(--panel-bg, #fff);
+        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
+      }
+      .manual-rate-material-suggestions.hidden {
+        display: none;
+      }
+      .manual-rate-material-option {
+        width: 100%;
+        display: block;
+        text-align: left;
+        padding: 8px 10px;
+        border: 0;
+        border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+        background: transparent;
+        color: var(--text, #111827);
+        cursor: pointer;
+      }
+      .manual-rate-material-option:last-child {
+        border-bottom: none;
+      }
+      .manual-rate-material-option:hover,
+      .manual-rate-material-option.is-active {
+        background: rgba(37, 99, 235, 0.07);
+      }
+      .manual-rate-material-option-title {
+        font-size: 13px;
+        font-weight: var(--cp-fw-label);
+        line-height: 1.3;
+      }
+      .manual-rate-material-option-meta {
+        margin-top: 2px;
+        font-size: 11.5px;
+        color: var(--muted, #6b7280);
+        line-height: 1.35;
+      }
+      .manual-rate-material-empty {
+        padding: 10px;
+        font-size: 12.5px;
+        color: var(--muted, #6b7280);
+      }
+      #manualRateMaterialSearchStatus.is-error {
+        color: var(--danger, #b91c1c);
+      }
+      #manualRateInactiveHint {
+        margin: 4px 0 12px;
+        line-height: 1.45;
+      }
+      #manualRateInactiveHint.hidden {
+        display: none;
+      }
+      .manual-rate-form-sections.is-inactive {
+        opacity: 0.55;
+        pointer-events: none;
+      }
+      .manual-rate-form-sections.is-inactive .manual-rate-evidence-compact .cp-card-value,
+      .manual-rate-form-sections.is-inactive .manual-rate-evidence-compact .cp-muted-text {
+        color: var(--muted, #6b7280);
+      }
+      .manual-rate-rate-basis {
+        margin: 4px 0 12px;
+        max-width: 320px;
+      }
+      .manual-rate-rate-basis label {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 12px;
+        font-weight: var(--cp-fw-label);
+        color: var(--muted, #6b7280);
+      }
+      .manual-rate-rate-basis select {
+        padding: 8px 9px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 7px;
+        font-size: 13px;
+        color: var(--text, #111827);
+        background: var(--surface, #fff);
+        min-height: 40px;
+        width: 100%;
+      }
+      .manual-rate-vendor-offers {
+        margin-bottom: 12px;
+      }
+      .manual-rate-vendor-offers .table-card {
+        max-height: 180px;
+        overflow: auto;
+      }
+      .manual-rate-vendor-offer-secondary {
+        display: block;
+        margin-top: 2px;
+        font-size: 11.5px;
+        color: var(--muted, #6b7280);
+        line-height: 1.35;
+      }
+      .manual-rate-evidence-compact {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        margin: 0 0 10px;
+      }
+      .manual-rate-evidence-compact .cp-card {
+        padding: 8px 10px;
+        min-height: 0;
+      }
+      .manual-rate-evidence-compact .cp-card-label {
+        margin-bottom: 4px;
+      }
+      .manual-rate-evidence-compact .cp-card-value {
+        font-size: 13px;
+        line-height: 1.35;
+      }
+      .manual-rate-evidence-notes {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 12px;
+        margin: -2px 0 10px;
+        font-size: 11.5px;
+        color: var(--muted, #6b7280);
+        line-height: 1.35;
+      }
+      .manual-rate-evidence-notes.hidden,
+      .manual-rate-evidence-notes:empty {
+        display: none;
+      }
+      @media (max-width: 620px) {
+        #manualRateEditModal {
+          padding: 6px;
+          align-items: stretch;
+        }
+        #manualRateEditModal .cost-sheet-sign-panel {
+          width: 100%;
+          min-height: 0;
+          max-height: calc(100vh - 12px);
+          max-height: calc(100dvh - 12px);
+        }
+        .manual-rate-evidence-compact {
+          grid-template-columns: 1fr;
+        }
+        .manual-rate-rate-basis {
+          max-width: none;
+        }
+      }
       .sign-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -1872,47 +2100,36 @@
         min-width: 980px;
       }
       #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
-        th:nth-child(11),
-      #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
-        td:nth-child(11) {
-        position: sticky;
-        right: 0;
-        z-index: 5;
-        background: var(--panel-bg, #fff);
-        box-shadow: -8px 0 12px rgba(15, 23, 42, 0.08);
-      }
-      #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
-        thead
-        th:nth-child(11) {
-        z-index: 8;
-        background: var(--table-header, #fafafa);
-      }
-      #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
         td:nth-child(2) {
         min-width: 220px;
         max-width: 320px;
       }
       #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
-        td:nth-child(10) {
-        min-width: 260px;
+        td:nth-child(4) {
+        min-width: 150px;
+        max-width: 220px;
+      }
+      #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
+        td:nth-child(11) {
+        min-width: 220px;
       }
       @media (max-width: 760px) {
         #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
           table {
-          min-width: 760px;
+          min-width: 820px;
         }
         #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
-          th:nth-child(5),
+          th:nth-child(6),
         #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
-          td:nth-child(5),
-        #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
-          th:nth-child(9),
-        #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
-          td:nth-child(9),
+          td:nth-child(6),
         #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
           th:nth-child(10),
         #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
-          td:nth-child(10) {
+          td:nth-child(10),
+        #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
+          th:nth-child(11),
+        #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
+          td:nth-child(11) {
           display: none;
         }
         #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
@@ -2808,6 +3025,11 @@
               </svg>
             </button>
           </div>
+          <div
+            id="registerSetCostingRateSlot"
+            class="register-set-costing-rate-slot hidden"
+            aria-hidden="true"
+          ></div>
         </div>
         <div
           id="rmCostTraceChrome"
@@ -4036,7 +4258,9 @@
     >
       <div class="cost-sheet-sign-panel">
         <div class="cost-sheet-sign-header">
-          <span class="cp-modal-title">Set Manual Material Rate</span>
+          <span id="manualRateEditTitle" class="cp-modal-title"
+            >Set Costing Rate</span
+          >
           <button
             id="manualRateEditCloseBtn"
             type="button"
@@ -4048,126 +4272,244 @@
           </button>
         </div>
 
-        <div class="cost-sheet-sign-body">
-          <div class="cp-card scheme-policy-sku-card">
-            <div>
-              <div class="cp-card-label">Stock Item</div>
-              <div id="manualRateStockItemLabel" class="cp-card-value">--</div>
-            </div>
-          </div>
-
-          <div class="cp-summary-strip">
-            <div class="cp-card">
-              <div class="cp-card-label">Current Selected Rate</div>
-              <div id="manualRateCurrentRate" class="cp-card-value">--</div>
-            </div>
-            <div class="cp-card">
-              <div class="cp-card-label">Current Rate Source</div>
-              <div id="manualRateCurrentSource" class="cp-card-value">--</div>
-            </div>
-            <div class="cp-card">
-              <div class="cp-card-label">Current Rate Date</div>
-              <div id="manualRateCurrentDate" class="cp-card-value">--</div>
-            </div>
-          </div>
-
+        <div class="cost-sheet-sign-body manual-rate-modal-body">
           <div
-            id="manualRateEvidenceStrip"
-            class="manual-rate-evidence-strip"
-            style="margin-top: 10px; margin-bottom: 10px"
+            id="manualRateMaterialCombobox"
+            class="manual-rate-material-combobox"
           >
-            <div class="cp-card-label" style="margin-bottom: 8px">Rate Evidence</div>
-            <dl class="cp-kv">
-              <dt class="cp-muted-text">Current selected rate</dt>
-              <dd id="manualRateEvidenceSelectedRate">—</dd>
-              <dt class="cp-muted-text">Selected rate source</dt>
-              <dd id="manualRateEvidenceSelectedSource">—</dd>
-              <dt class="cp-muted-text">Selected rate date</dt>
-              <dd id="manualRateEvidenceSelectedDate">—</dd>
-              <dt class="cp-muted-text">Latest purchase rate</dt>
-              <dd id="manualRateEvidenceLatestPurchaseRate">—</dd>
-              <dt class="cp-muted-text">Latest purchase date</dt>
-              <dd id="manualRateEvidenceLatestPurchaseDate">—</dd>
-              <dt class="cp-muted-text">Active manual rate</dt>
-              <dd id="manualRateEvidenceActiveManualRate">—</dd>
-              <dt class="cp-muted-text">Manual rate status</dt>
-              <dd id="manualRateEvidenceManualRateStatus">—</dd>
-              <dt class="cp-muted-text">Newer purchase available</dt>
-              <dd id="manualRateEvidenceNewerPurchase">—</dd>
-              <dt class="cp-muted-text">Manual overrides purchase</dt>
-              <dd id="manualRateEvidenceOverrideFlag">—</dd>
-              <dt class="cp-muted-text">Affected SKUs</dt>
-              <dd id="manualRateEvidenceAffectedSkuCount">—</dd>
-            </dl>
+            <div class="manual-rate-material-row">
+              <label for="manualRateMaterialSearch">
+                Material
+                <input
+                  id="manualRateMaterialSearch"
+                  type="search"
+                  role="combobox"
+                  aria-autocomplete="list"
+                  aria-expanded="false"
+                  aria-controls="manualRateMaterialSuggestions"
+                  aria-haspopup="listbox"
+                  placeholder="Search stock code or material name…"
+                  autocomplete="off"
+                />
+              </label>
+              <button
+                id="manualRateChangeMaterialBtn"
+                type="button"
+                class="icon-btn hidden"
+                title="Change material"
+                aria-label="Change material"
+                style="flex-shrink: 0; margin-bottom: 0"
+              >
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+                  ></path>
+                  <path
+                    d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4Z"
+                  ></path>
+                </svg>
+              </button>
+            </div>
+            <div
+              id="manualRateMaterialSuggestions"
+              class="manual-rate-material-suggestions hidden"
+              role="listbox"
+              aria-label="Material suggestions"
+            ></div>
+            <div
+              id="manualRateMaterialSearchStatus"
+              class="cp-muted-text"
+              style="margin-top: 6px"
+            >
+              Type at least 2 characters to search active materials.
+            </div>
           </div>
 
-          <div class="sign-grid">
-            <label>
-              Manual Rate
-              <input
-                id="manualRateValue"
-                type="number"
-                step="0.0001"
-                min="0"
-                placeholder="Enter approved manual rate"
-              />
-            </label>
+          <div id="manualRateFormScroll" class="manual-rate-form-scroll">
+            <div
+              id="manualRateError"
+              class="cp-muted-text"
+              hidden
+              style="
+                margin-bottom: 10px;
+                color: var(--danger, #b91c1c);
+                line-height: 1.4;
+              "
+              role="alert"
+            ></div>
 
-            <label>
-              Effective From
-              <input id="manualRateEffectiveFrom" type="date" />
-            </label>
+            <div id="manualRateInactiveHint" class="cp-muted-text">
+              Select a material to review rate evidence and maintain its costing
+              rate.
+            </div>
 
-            <label style="grid-column: 1 / -1">
-              Reason / authority reference
-              <input
-                id="manualRateReason"
-                type="text"
-                placeholder="Quote/vendor reference/internal standard basis for this manual rate"
-              />
-            </label>
-          </div>
+            <div
+              id="manualRateFormSections"
+              class="manual-rate-form-sections is-inactive"
+            >
+              <div
+                id="manualRateEvidenceStrip"
+                class="manual-rate-evidence-compact"
+                aria-label="Rate evidence"
+              >
+                <div class="cp-card">
+                  <div class="cp-card-label">Current costing rate</div>
+                  <div
+                    id="manualRateEvidenceSelectedRate"
+                    class="cp-card-value"
+                  >
+                    —
+                  </div>
+                  <div
+                    id="manualRateEvidenceSelectedMeta"
+                    class="cp-muted-text"
+                    style="margin-top: 2px; font-size: 11.5px"
+                  >
+                    —
+                  </div>
+                </div>
+                <div class="cp-card">
+                  <div class="cp-card-label">Latest purchase</div>
+                  <div
+                    id="manualRateEvidenceLatestPurchaseRate"
+                    class="cp-card-value"
+                  >
+                    —
+                  </div>
+                  <div
+                    id="manualRateEvidenceLatestPurchaseDate"
+                    class="cp-muted-text"
+                    style="margin-top: 2px; font-size: 11.5px"
+                  >
+                    —
+                  </div>
+                </div>
+                <div class="cp-card">
+                  <div class="cp-card-label">Active governed rate</div>
+                  <div
+                    id="manualRateEvidenceActiveManualRate"
+                    class="cp-card-value"
+                  >
+                    —
+                  </div>
+                  <div
+                    id="manualRateEvidenceManualRateStatus"
+                    class="cp-muted-text"
+                    style="margin-top: 2px; font-size: 11.5px"
+                  >
+                    —
+                  </div>
+                </div>
+              </div>
+              <div
+                id="manualRateEvidenceNotes"
+                class="manual-rate-evidence-notes"
+              ></div>
 
-          <div
-            class="cp-muted-text"
-            style="margin-top: 10px; line-height: 1.45"
-          >
-            Saving a manual rate will close any existing active manual rate for
-            this stock item and create a new active rate. Request Costing
-            Refresh from the toolbar after saving to recalculate costing and
-            Workbench status.
+              <div class="manual-rate-rate-basis">
+                <label for="manualRateRateBasis">
+                  Rate Basis
+                  <select id="manualRateRateBasis" aria-label="Rate Basis">
+                    <option value="MANUAL_ENTRY">
+                      Manual Entry — Enter costing rate manually
+                    </option>
+                    <option value="VENDOR_RATE_BOOK">
+                      Vendor Rate Book — Adopt Vendor Rate Book offer
+                    </option>
+                  </select>
+                </label>
+              </div>
+
+              <div
+                id="manualRateVendorOffersSection"
+                class="manual-rate-vendor-offers hidden"
+              >
+                <div class="cp-card-label" style="margin-bottom: 8px">
+                  Effective Vendor Rate Book offers
+                </div>
+                <div class="table-card">
+                  <table class="erp-table" aria-label="Vendor rate offers">
+                    <thead>
+                      <tr>
+                        <th class="c-center">Select</th>
+                        <th>Vendor</th>
+                        <th class="c-right">Rate / UOM</th>
+                        <th>Validity</th>
+                        <th>MOQ / Lead time</th>
+                      </tr>
+                    </thead>
+                    <tbody id="manualRateVendorOffersBody">
+                      <tr>
+                        <td colspan="5" class="empty-row">No offers loaded.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div
+                  id="manualRateVendorSourceInfo"
+                  class="cp-muted-text"
+                  style="margin-top: 8px; line-height: 1.45"
+                ></div>
+              </div>
+
+              <div class="sign-grid">
+                <label>
+                  <span id="manualRateRateLabel">Costing Rate</span>
+                  <input
+                    id="manualRateValue"
+                    type="number"
+                    step="0.0001"
+                    min="0"
+                    placeholder="Enter approved costing rate"
+                  />
+                </label>
+
+                <label>
+                  Effective From
+                  <input id="manualRateEffectiveFrom" type="date" />
+                </label>
+
+                <label style="grid-column: 1 / -1">
+                  Reason / Approval Reference
+                  <input
+                    id="manualRateReason"
+                    type="text"
+                    placeholder="Approval reference or authority basis for this governed rate"
+                  />
+                </label>
+              </div>
+
+              <div
+                class="cp-muted-text"
+                style="margin-top: 10px; line-height: 1.45"
+              >
+                Saving closes any existing active governed rate for this material
+                and creates a new active costing rate. Run Costing Refresh from
+                the toolbar after saving to propagate downstream calculations.
+              </div>
+            </div>
           </div>
         </div>
 
         <div class="cost-sheet-sign-actions">
           <button
-            id="manualRateEditCancelBtn"
-            type="button"
-            class="icon-btn"
-            title="Cancel"
-            aria-label="Cancel"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.3"
-              stroke-linecap="round"
-              aria-hidden="true"
-            >
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
-
-          <button
             id="manualRateEditSaveBtn"
             type="button"
-            class="icon-btn icon-btn-primary"
-            title="Save Manual Rate"
-            aria-label="Save Manual Rate"
+            class="icon-btn icon-btn-primary hidden"
+            title="Save Costing Rate"
+            aria-label="Save Costing Rate"
+            style="display: none"
+            disabled
           >
             <svg
               width="16"
@@ -4194,7 +4536,7 @@
     >
       <div class="cost-sheet-sign-panel">
         <div class="cost-sheet-sign-header">
-          <span class="cp-modal-title">Close Manual Material Rate</span>
+          <span class="cp-modal-title">End Governed Costing Rate</span>
           <button
             id="manualRateCloseCloseBtn"
             type="button"
@@ -4209,7 +4551,7 @@
         <div class="cost-sheet-sign-body">
           <div class="cp-card scheme-policy-sku-card">
             <div>
-              <div class="cp-card-label">Manual Rate</div>
+              <div class="cp-card-label">Governed Costing Rate</div>
               <div id="manualRateCloseLabel" class="cp-card-value">--</div>
             </div>
           </div>

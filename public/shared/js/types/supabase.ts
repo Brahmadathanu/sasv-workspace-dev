@@ -17063,9 +17063,22 @@ export type Database = {
           latest_system_rate_source: string | null
           latest_system_selected_rate: number | null
           manual_rate_id: number | null
+          rate_origin: string | null
           rate_uom_id: number | null
           rate_value: number | null
           reason: string | null
+          source_adopted_at: string | null
+          source_lead_time_days: number | null
+          source_min_order_qty: number | null
+          source_rate_value: number | null
+          source_remarks: string | null
+          source_uom_code: string | null
+          source_uom_id: number | null
+          source_valid_from: string | null
+          source_valid_to: string | null
+          source_vendor_display_name: string | null
+          source_vendor_id: number | null
+          source_vendor_rate_id: number | null
           status: string | null
           stock_item_code: string | null
           stock_item_id: number | null
@@ -17086,12 +17099,25 @@ export type Database = {
           manual_rate_id: number | null
           manual_rate_overrides_purchase_rate: boolean | null
           newer_purchase_rate_available: boolean | null
+          rate_origin: string | null
           rate_uom_id: number | null
           rate_value: number | null
           reason: string | null
           recommended_action: string | null
           register_status: string | null
           review_message: string | null
+          source_adopted_at: string | null
+          source_lead_time_days: number | null
+          source_min_order_qty: number | null
+          source_rate_value: number | null
+          source_remarks: string | null
+          source_uom_code: string | null
+          source_uom_id: number | null
+          source_valid_from: string | null
+          source_valid_to: string | null
+          source_vendor_display_name: string | null
+          source_vendor_id: number | null
+          source_vendor_rate_id: number | null
           status: string | null
           stock_item_code: string | null
           stock_item_id: number | null
@@ -36194,8 +36220,11 @@ export type Database = {
       rpc_set_material_manual_rate: {
         Args: {
           p_effective_from?: string
+          p_rate_origin?: string
           p_rate_value: number
           p_reason?: string
+          p_source_vendor_id?: number | null
+          p_source_vendor_rate_id?: number | null
           p_stock_item_id: number
         }
         Returns: {
@@ -36204,8 +36233,11 @@ export type Database = {
           effective_to: string
           last_updated_at: string
           manual_rate_id: number
+          rate_origin: string | null
           rate_value: number
           reason: string
+          source_vendor_id: number | null
+          source_vendor_rate_id: number | null
           status: string
           stock_item_id: number
         }[]

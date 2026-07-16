@@ -1902,9 +1902,11 @@
         .modal-exception-section {
           flex-shrink: 0;
         }
+        /* Full-page Add Reference: pin footer (exception + actions); scroll form body.
+           overflow:visible on the body caused fields to paint under the exception card. */
         #referenceModal .modal-box {
-          padding: calc(14px + env(safe-area-inset-top)) 14px
-            calc(14px + env(safe-area-inset-bottom));
+          padding: calc(14px + env(safe-area-inset-top)) 14px 0;
+          overflow: hidden;
         }
         #referenceModal .ref-modal-header {
           flex-shrink: 0;
@@ -1913,14 +1915,30 @@
         #referenceModal .ref-modal-body {
           flex: 1 1 auto;
           min-height: 0;
-          overflow: visible;
+          overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
+          overscroll-behavior: contain;
           padding: 0;
         }
         #referenceModal .ref-modal-footer-area {
           flex-shrink: 0;
-          padding: 0;
+          padding: 12px 0 calc(14px + env(safe-area-inset-bottom));
           margin-top: 0;
+          background: var(--panel-bg, #fff);
+          border-top: 1px solid var(--border, #e5e7eb);
+        }
+        #referenceModal .ref-modal-footer-area .modal-divider {
+          display: none;
+        }
+        #referenceModal .ref-modal-footer-area .modal-exception-section {
+          margin-bottom: 12px;
+        }
+        #referenceModal .ref-modal-footer-area .modal-footer {
+          position: static;
           border-top: none;
+          padding-top: 0;
+          padding-bottom: 0;
+          background: transparent;
         }
         .btn-modal {
           min-height: 40px;
