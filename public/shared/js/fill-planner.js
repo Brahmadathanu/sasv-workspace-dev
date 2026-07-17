@@ -520,25 +520,44 @@ async function fetchSkuInfo(skuIds) {
       id,
       pack_size,
       uom,
-      product:product_id ( conversion_to_base ),
-      sku_prices ( mrp_ik, mrp_ok )
+      product:product_id ( conversion_to_base )
     `,
     )
     .in("id", skuIds);
 
   if (error) throw error;
 
+  const mrpMap = await fetchCanonicalMrp(skuIds);
+
   const out = {};
   data.forEach((r) => {
+    const mrp = mrpMap[r.id];
     out[r.id] = {
       label: `${r.pack_size} ${r.uom}`,
       packSize: r.pack_size,
       convBase: r.product?.conversion_to_base ?? 1,
-      priceIK: r.sku_prices?.mrp_ik ?? null,
-      priceOK: r.sku_prices?.mrp_ok ?? null,
+      priceIK: mrp?.mrp_ik ?? null,
+      priceOK: mrp?.mrp_ok ?? null,
     };
   });
   return out;
+}
+
+/* ─── helper: batched canonical MRP lookup (v_sku_mrp_current) ─────────── */
+// Returns { [sku_id]: { mrp_ik, mrp_ok } }; SKUs without a current MRP are
+// simply absent from the map (callers treat that as null).
+async function fetchCanonicalMrp(skuIds) {
+  if (!skuIds.length) return {};
+  const { data, error } = await supabase
+    .from("v_sku_mrp_current")
+    .select("sku_id, mrp_ik, mrp_ok")
+    .in("sku_id", skuIds);
+  if (error) throw error;
+  const map = {};
+  (data || []).forEach((r) => {
+    map[r.sku_id] = { mrp_ik: r.mrp_ik ?? null, mrp_ok: r.mrp_ok ?? null };
+  });
+  return map;
 }
 
 // Fetch product conversion_to_base and UOM for audit/readable maths
@@ -565,18 +584,20 @@ async function loadMetrics(skus, productId) {
     return;
   }
 
-  /* 1) prices */
-  const { data: priceRows } = await supabase
-    .from("product_skus")
-    .select("id, sku_prices(mrp_ik,mrp_ok)")
-    .in("id", ids);
+  /* 1) prices — canonical current MRP (v_sku_mrp_current) */
   const priceMap = {};
-  (priceRows || []).forEach((r) => {
-    priceMap[r.id] = {
-      ik: r.sku_prices?.mrp_ik ?? "—",
-      ok: r.sku_prices?.mrp_ok ?? "—",
-    };
-  });
+  try {
+    const mrpMap = await fetchCanonicalMrp(ids);
+    ids.forEach((id) => {
+      const mrp = mrpMap[id];
+      priceMap[id] = {
+        ik: mrp?.mrp_ik ?? "—",
+        ok: mrp?.mrp_ok ?? "—",
+      };
+    });
+  } catch (e) {
+    console.error("Fill Planner: canonical MRP fetch failed", e);
+  }
 
   /* 2+3) stock & forecast from existing v_fill_inputs ------------------ */
   const { data: vfRows, error: vfErr } = await supabase

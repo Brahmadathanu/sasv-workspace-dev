@@ -1117,6 +1117,121 @@
         font-weight: var(--cp-fw-emphasis);
         text-align: right;
       }
+      .cp-drawer-action-bar {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .cp-policy-manager-tab-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .cp-policy-manager-tab-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .cp-scheme-master-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        justify-content: center;
+      }
+
+      .cp-scheme-master-actions .icon-btn {
+        min-width: auto;
+        padding: 4px 8px;
+        font-size: 12px;
+      }
+
+      .cp-table-scroll-wrap {
+        overflow-x: auto;
+      }
+
+      .cp-policy-manager-tab-cards {
+        flex: 1 1 220px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .cp-policy-create-rule-btn {
+        flex: 0 0 auto;
+        align-self: center;
+        min-height: 40px;
+        padding: 0 14px;
+        white-space: nowrap;
+      }
+      @media (max-width: 520px) {
+        .cp-policy-manager-tab-bar {
+          flex-direction: column;
+        }
+        .cp-policy-create-rule-btn {
+          width: 100%;
+        }
+        .cp-drawer-action-bar {
+          justify-content: stretch;
+        }
+        .cp-drawer-action-bar .icon-btn {
+          flex: 1 1 140px;
+          justify-content: center;
+        }
+      }
+      .cp-modal-error {
+        margin-bottom: 10px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        background: #fef2f2;
+        color: #b91c1c;
+        font-size: 13px;
+        line-height: 1.45;
+      }
+      .cp-mrp-preview {
+        margin-top: 12px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        font-size: 12.5px;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+      }
+      .cp-mrp-preview .cp-card-label {
+        margin-bottom: 6px;
+      }
+      .cp-mrp-preview .cp-preview-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 4px;
+        font-size: 12.5px;
+      }
+      .cp-mrp-preview .cp-preview-row span:first-child {
+        color: var(--muted, #6b7280);
+        font-weight: var(--cp-fw-label);
+      }
+      .cp-mrp-preview .cp-preview-value {
+        color: var(--text, #0f172a);
+        font-size: 12.5px;
+        font-weight: 600;
+        text-align: right;
+      }
+      .cp-mrp-preview .cp-muted-text {
+        font-size: 12px;
+        margin-top: 4px;
+      }
+      .cp-mrp-blocker-card {
+        margin-bottom: 10px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        border: 1px solid #fecaca;
+        background: #fff1f2;
+      }
       .cp-kv {
         display: grid;
         grid-template-columns: minmax(110px, 0.35fr) 1fr;
@@ -3058,6 +3173,158 @@
     </div>
 
     <div
+      id="mrpPolicyEditModal"
+      class="cost-sheet-sign-modal hidden"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel">
+        <div class="cost-sheet-sign-header">
+          <span id="mrpPolicyEditTitle" class="cp-modal-title">Set SKU MRP</span>
+          <button
+            id="mrpPolicyEditCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Close"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="cost-sheet-sign-body">
+          <div
+            id="mrpPolicyEditError"
+            class="cp-modal-error"
+            hidden
+            role="alert"
+          ></div>
+
+          <div class="cp-card scheme-policy-sku-card">
+            <div class="cp-card-label">SKU</div>
+            <div id="mrpPolicyEditSkuLabel" class="cp-card-value">--</div>
+          </div>
+
+          <div
+            class="cp-muted-text"
+            style="margin-bottom: 10px; line-height: 1.45"
+          >
+            MRP OK and OK uplift are automatically synchronized.
+          </div>
+
+          <div class="sign-grid">
+            <label>
+              MRP IK (₹)
+              <input
+                id="mrpPolicyEditMrpIk"
+                type="number"
+                step="0.01"
+                min="0"
+              />
+            </label>
+
+            <label>
+              MRP OK (₹)
+              <input
+                id="mrpPolicyEditMrpOk"
+                type="number"
+                step="0.01"
+                min="0"
+              />
+            </label>
+
+            <label>
+              OK Uplift %
+              <input
+                id="mrpPolicyEditOkPct"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="e.g. 20 for 20%"
+              />
+            </label>
+
+            <label>
+              Effective From
+              <input id="mrpPolicyEditEffectiveFrom" type="date" />
+            </label>
+
+            <label style="grid-column: 1 / -1">
+              Reason
+              <input
+                id="mrpPolicyEditReason"
+                type="text"
+                placeholder="Required reason for this MRP policy"
+              />
+            </label>
+
+            <label style="grid-column: 1 / -1">
+              Approval Reference
+              <input
+                id="mrpPolicyEditApprovalReference"
+                type="text"
+                placeholder="Optional approval reference"
+              />
+            </label>
+          </div>
+
+          <div id="mrpPolicyEditPreview" class="cp-mrp-preview" aria-live="polite">
+            <div class="cp-card-label">Preview (advisory)</div>
+            <div class="cp-muted-text">Enter values to see a preview.</div>
+          </div>
+
+          <div class="cp-muted-text" style="margin-top: 10px; line-height: 1.45">
+            Final normalized values are confirmed by the server when saved.
+          </div>
+        </div>
+
+        <div class="cost-sheet-sign-actions">
+          <button
+            id="mrpPolicyEditCancelBtn"
+            type="button"
+            class="icon-btn"
+            title="Cancel"
+            aria-label="Cancel"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.3"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+          <button
+            id="mrpPolicyEditSaveBtn"
+            type="button"
+            class="icon-btn icon-btn-primary"
+            title="Save MRP Policy"
+            aria-label="Save MRP Policy"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M20 6 9 17l-5-5"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
       id="schemePolicyEditModal"
       class="cost-sheet-sign-modal hidden"
       aria-hidden="true"
@@ -3301,6 +3568,434 @@
             >
               <path d="M20 6 9 17l-5-5"></path>
             </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="schemeMasterCreateModal"
+      class="cost-sheet-sign-modal hidden"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel">
+        <div class="cost-sheet-sign-header">
+          <span class="cp-modal-title">Create Scheme</span>
+          <button
+            id="schemeMasterCreateCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Close"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="cost-sheet-sign-body">
+          <div
+            id="schemeMasterCreateError"
+            class="cp-modal-error"
+            hidden
+            role="alert"
+          ></div>
+
+          <div class="sign-grid">
+            <label style="grid-column: 1 / -1">
+              Scheme Name
+              <input
+                id="schemeMasterCreateName"
+                type="text"
+                placeholder="Commercial scheme name"
+              />
+            </label>
+
+            <label>
+              Paid Quantity
+              <input
+                id="schemeMasterCreatePaidQty"
+                type="number"
+                step="1"
+                min="1"
+              />
+            </label>
+
+            <label>
+              Free Quantity
+              <input
+                id="schemeMasterCreateFreeQty"
+                type="number"
+                step="1"
+                min="0"
+              />
+            </label>
+
+            <label style="grid-column: 1 / -1">
+              Remarks
+              <input
+                id="schemeMasterCreateRemarks"
+                type="text"
+                placeholder="Optional remarks"
+              />
+            </label>
+
+            <label style="grid-column: 1 / -1">
+              Approval Reference
+              <input
+                id="schemeMasterCreateApprovalReference"
+                type="text"
+                placeholder="Optional approval reference"
+              />
+            </label>
+          </div>
+
+          <div id="schemeMasterCreatePreview" class="cp-mrp-preview" aria-live="polite">
+            <div class="cp-card-label">Preview</div>
+            <div class="cp-muted-text">Enter values to see a preview.</div>
+          </div>
+
+          <div class="cp-muted-text" style="margin-top: 10px; line-height: 1.45">
+            Paid and free quantities become immutable after creation. A changed
+            commercial structure must be created as a new scheme.
+          </div>
+        </div>
+
+        <div class="cost-sheet-sign-actions">
+          <button
+            id="schemeMasterCreateCancelBtn"
+            type="button"
+            class="icon-btn cp-muted-icon-btn"
+            title="Cancel"
+            aria-label="Cancel"
+          >
+            Cancel
+          </button>
+          <button
+            id="schemeMasterCreateSaveBtn"
+            type="button"
+            class="icon-btn icon-btn-primary"
+            title="Create Scheme"
+            aria-label="Create Scheme"
+          >
+            Create Scheme
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="schemeMasterMetadataModal"
+      class="cost-sheet-sign-modal hidden"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel">
+        <div class="cost-sheet-sign-header">
+          <span class="cp-modal-title">Correct Scheme Metadata</span>
+          <button
+            id="schemeMasterMetadataCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Close"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="cost-sheet-sign-body">
+          <div
+            id="schemeMasterMetadataError"
+            class="cp-modal-error"
+            hidden
+            role="alert"
+          ></div>
+
+          <div class="cp-card scheme-policy-sku-card">
+            <div class="cp-card-label">Commercial Structure (read-only)</div>
+            <div id="schemeMasterMetadataStructure" class="cp-card-value">--</div>
+          </div>
+
+          <div class="sign-grid">
+            <label style="grid-column: 1 / -1">
+              Scheme Name
+              <input id="schemeMasterMetadataName" type="text" />
+            </label>
+
+            <label style="grid-column: 1 / -1">
+              Remarks
+              <input
+                id="schemeMasterMetadataRemarks"
+                type="text"
+                placeholder="Optional remarks"
+              />
+            </label>
+
+            <label style="grid-column: 1 / -1">
+              Correction Reason
+              <input
+                id="schemeMasterMetadataReason"
+                type="text"
+                placeholder="Required reason for this metadata correction"
+              />
+            </label>
+
+            <label style="grid-column: 1 / -1">
+              Approval Reference
+              <input
+                id="schemeMasterMetadataApprovalReference"
+                type="text"
+                placeholder="Optional approval reference"
+              />
+            </label>
+          </div>
+        </div>
+
+        <div class="cost-sheet-sign-actions">
+          <button
+            id="schemeMasterMetadataCancelBtn"
+            type="button"
+            class="icon-btn cp-muted-icon-btn"
+            title="Cancel"
+            aria-label="Cancel"
+          >
+            Cancel
+          </button>
+          <button
+            id="schemeMasterMetadataSaveBtn"
+            type="button"
+            class="icon-btn icon-btn-primary"
+            title="Save Metadata"
+            aria-label="Save Metadata"
+          >
+            Save Metadata
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="schemeMasterDeactivateModal"
+      class="cost-sheet-sign-modal hidden"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel">
+        <div class="cost-sheet-sign-header">
+          <span class="cp-modal-title">Deactivate Scheme</span>
+          <button
+            id="schemeMasterDeactivateCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Close"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="cost-sheet-sign-body">
+          <div
+            id="schemeMasterDeactivateError"
+            class="cp-modal-error"
+            hidden
+            role="alert"
+          ></div>
+
+          <div class="cp-card scheme-policy-sku-card">
+            <div class="cp-card-label">Scheme</div>
+            <div id="schemeMasterDeactivateIdentity" class="cp-card-value">--</div>
+          </div>
+
+          <div class="cp-summary-strip" style="margin-bottom: 10px">
+            <div class="cp-card">
+              <div class="cp-card-label">Active Direct Policies</div>
+              <div
+                id="schemeMasterDeactivateDirectPolicies"
+                class="cp-card-value"
+              >
+                --
+              </div>
+            </div>
+            <div class="cp-card">
+              <div class="cp-card-label">Active Hierarchy Rules</div>
+              <div
+                id="schemeMasterDeactivateHierarchyRules"
+                class="cp-card-value"
+              >
+                --
+              </div>
+            </div>
+            <div class="cp-card">
+              <div class="cp-card-label">Active Replacement References</div>
+              <div
+                id="schemeMasterDeactivateReplacementRefs"
+                class="cp-card-value"
+              >
+                --
+              </div>
+            </div>
+          </div>
+
+          <div class="sign-grid">
+            <label style="grid-column: 1 / -1">
+              Deactivation Reason
+              <input
+                id="schemeMasterDeactivateReason"
+                type="text"
+                placeholder="Required reason for deactivation"
+              />
+            </label>
+
+            <label style="grid-column: 1 / -1">
+              Approval Reference
+              <input
+                id="schemeMasterDeactivateApprovalReference"
+                type="text"
+                placeholder="Optional approval reference"
+              />
+            </label>
+          </div>
+
+          <div class="cp-muted-text" style="margin-top: 10px; line-height: 1.45">
+            Inactive schemes are removed from new assignments and future viability
+            refreshes. Existing history remains unchanged.
+          </div>
+        </div>
+
+        <div class="cost-sheet-sign-actions">
+          <button
+            id="schemeMasterDeactivateCancelBtn"
+            type="button"
+            class="icon-btn cp-muted-icon-btn"
+            title="Cancel"
+            aria-label="Cancel"
+          >
+            Cancel
+          </button>
+          <button
+            id="schemeMasterDeactivateSaveBtn"
+            type="button"
+            class="icon-btn cp-danger-icon-btn"
+            title="Deactivate Scheme"
+            aria-label="Deactivate Scheme"
+          >
+            Deactivate
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="schemeMasterReactivateModal"
+      class="cost-sheet-sign-modal hidden"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel">
+        <div class="cost-sheet-sign-header">
+          <span class="cp-modal-title">Reactivate Scheme</span>
+          <button
+            id="schemeMasterReactivateCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Close"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="cost-sheet-sign-body">
+          <div
+            id="schemeMasterReactivateError"
+            class="cp-modal-error"
+            hidden
+            role="alert"
+          ></div>
+
+          <div class="cp-card scheme-policy-sku-card">
+            <div class="cp-card-label">Scheme</div>
+            <div id="schemeMasterReactivateIdentity" class="cp-card-value">--</div>
+          </div>
+
+          <div class="sign-grid">
+            <label style="grid-column: 1 / -1">
+              Reactivation Reason
+              <input
+                id="schemeMasterReactivateReason"
+                type="text"
+                placeholder="Required reason for reactivation"
+              />
+            </label>
+
+            <label style="grid-column: 1 / -1">
+              Approval Reference
+              <input
+                id="schemeMasterReactivateApprovalReference"
+                type="text"
+                placeholder="Optional approval reference"
+              />
+            </label>
+          </div>
+        </div>
+
+        <div class="cost-sheet-sign-actions">
+          <button
+            id="schemeMasterReactivateCancelBtn"
+            type="button"
+            class="icon-btn cp-muted-icon-btn"
+            title="Cancel"
+            aria-label="Cancel"
+          >
+            Cancel
+          </button>
+          <button
+            id="schemeMasterReactivateSaveBtn"
+            type="button"
+            class="icon-btn icon-btn-primary"
+            title="Reactivate Scheme"
+            aria-label="Reactivate Scheme"
+          >
+            Reactivate
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="schemeMasterHistoryModal"
+      class="cost-sheet-sign-modal hidden"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel" style="max-width: min(960px, 96vw)">
+        <div class="cost-sheet-sign-header">
+          <span id="schemeMasterHistoryTitle" class="cp-modal-title"
+            >Scheme History</span
+          >
+          <button
+            id="schemeMasterHistoryCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Close"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="cost-sheet-sign-body">
+          <div id="schemeMasterHistoryBody" class="cp-table-scroll-wrap">
+            <div class="cp-muted-text">Loading history...</div>
+          </div>
+        </div>
+
+        <div class="cost-sheet-sign-actions">
+          <button
+            id="schemeMasterHistoryDismissBtn"
+            type="button"
+            class="icon-btn cp-muted-icon-btn"
+            title="Close"
+            aria-label="Close"
+          >
+            Close
           </button>
         </div>
       </div>

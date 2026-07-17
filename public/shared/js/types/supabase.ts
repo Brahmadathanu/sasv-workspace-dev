@@ -7497,6 +7497,195 @@ export type Database = {
             referencedRelation: "inv_class_category"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "inv_stock_item"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_costing_material_manual_rate_review"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_inv_stock_item_with_class"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_item_consumption_consumables_monthly"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_item_consumption_rm_pm_monthly"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_picker_sp_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_purchases_by_item"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_purchases_summary_by_item"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_rm_seasonal_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_rm_stock_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_semiprocess_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_item_picker"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_items_with_semiflag"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "inv_uom"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_picker"
+            referencedColumns: ["uom_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_uom_picker"
+            referencedColumns: ["id"]
+          },
         ]
       }
       proc_indent_line_balance_snapshot: {
@@ -7526,6 +7715,141 @@ export type Database = {
         }
         Relationships: []
       }
+      proc_indent_line_priority_snapshot: {
+        Row: {
+          aging_days: number | null
+          approved_date: string | null
+          avg_monthly_6m: number | null
+          criticality_class: string | null
+          criticality_reason: string | null
+          indent_id: number | null
+          indent_line_id: number
+          indent_number: string | null
+          lead_time_days: number | null
+          material_class_code: string | null
+          material_class_id: number | null
+          material_class_label: string | null
+          missing_consumption_record: boolean | null
+          missing_stock_record: boolean | null
+          mos_months: number | null
+          net_excess_qty: number | null
+          overridden_at: string | null
+          overridden_by: string | null
+          override_band: string | null
+          override_reason: string | null
+          penalty_oversupply: number | null
+          priority_band_final: string | null
+          priority_band_system: string | null
+          priority_score_system: number | null
+          priority_why: Json | null
+          prod_pull_score: number | null
+          prod_pull_why: Json | null
+          refreshed_at: string
+          score_aging: number | null
+          score_criticality: number | null
+          score_lead_time: number | null
+          score_manual_urgency: number | null
+          score_mos: number | null
+          score_prod_pull: number | null
+          stock_item_id: number | null
+          stock_item_name: string | null
+          stock_qty: number | null
+          uom_code: string | null
+          uom_id: number | null
+          urgency_band: string | null
+          urgency_reason: string | null
+          urgency_score: number | null
+        }
+        Insert: {
+          aging_days?: number | null
+          approved_date?: string | null
+          avg_monthly_6m?: number | null
+          criticality_class?: string | null
+          criticality_reason?: string | null
+          indent_id?: number | null
+          indent_line_id: number
+          indent_number?: string | null
+          lead_time_days?: number | null
+          material_class_code?: string | null
+          material_class_id?: number | null
+          material_class_label?: string | null
+          missing_consumption_record?: boolean | null
+          missing_stock_record?: boolean | null
+          mos_months?: number | null
+          net_excess_qty?: number | null
+          overridden_at?: string | null
+          overridden_by?: string | null
+          override_band?: string | null
+          override_reason?: string | null
+          penalty_oversupply?: number | null
+          priority_band_final?: string | null
+          priority_band_system?: string | null
+          priority_score_system?: number | null
+          priority_why?: Json | null
+          prod_pull_score?: number | null
+          prod_pull_why?: Json | null
+          refreshed_at?: string
+          score_aging?: number | null
+          score_criticality?: number | null
+          score_lead_time?: number | null
+          score_manual_urgency?: number | null
+          score_mos?: number | null
+          score_prod_pull?: number | null
+          stock_item_id?: number | null
+          stock_item_name?: string | null
+          stock_qty?: number | null
+          uom_code?: string | null
+          uom_id?: number | null
+          urgency_band?: string | null
+          urgency_reason?: string | null
+          urgency_score?: number | null
+        }
+        Update: {
+          aging_days?: number | null
+          approved_date?: string | null
+          avg_monthly_6m?: number | null
+          criticality_class?: string | null
+          criticality_reason?: string | null
+          indent_id?: number | null
+          indent_line_id?: number
+          indent_number?: string | null
+          lead_time_days?: number | null
+          material_class_code?: string | null
+          material_class_id?: number | null
+          material_class_label?: string | null
+          missing_consumption_record?: boolean | null
+          missing_stock_record?: boolean | null
+          mos_months?: number | null
+          net_excess_qty?: number | null
+          overridden_at?: string | null
+          overridden_by?: string | null
+          override_band?: string | null
+          override_reason?: string | null
+          penalty_oversupply?: number | null
+          priority_band_final?: string | null
+          priority_band_system?: string | null
+          priority_score_system?: number | null
+          priority_why?: Json | null
+          prod_pull_score?: number | null
+          prod_pull_why?: Json | null
+          refreshed_at?: string
+          score_aging?: number | null
+          score_criticality?: number | null
+          score_lead_time?: number | null
+          score_manual_urgency?: number | null
+          score_mos?: number | null
+          score_prod_pull?: number | null
+          stock_item_id?: number | null
+          stock_item_name?: string | null
+          stock_qty?: number | null
+          uom_code?: string | null
+          uom_id?: number | null
+          urgency_band?: string | null
+          urgency_reason?: string | null
+          urgency_score?: number | null
+        }
+        Relationships: []
+      }
       proc_indent_line_sourcing_decision: {
         Row: {
           decided_at: string
@@ -7538,6 +7862,7 @@ export type Database = {
           selected_rate: number | null
           selected_vendor_id: number | null
           selection_reason: string | null
+          vendor_assignment_cleared: boolean
         }
         Insert: {
           decided_at?: string
@@ -7550,6 +7875,7 @@ export type Database = {
           selected_rate?: number | null
           selected_vendor_id?: number | null
           selection_reason?: string | null
+          vendor_assignment_cleared?: boolean
         }
         Update: {
           decided_at?: string
@@ -7562,6 +7888,7 @@ export type Database = {
           selected_rate?: number | null
           selected_vendor_id?: number | null
           selection_reason?: string | null
+          vendor_assignment_cleared?: boolean
         }
         Relationships: [
           {
@@ -7898,6 +8225,13 @@ export type Database = {
             foreignKeyName: "proc_pr_indent_line_map_indent_line_id_fkey"
             columns: ["indent_line_id"]
             isOneToOne: true
+            referencedRelation: "v_proc_indent_lines_console_ordered"
+            referencedColumns: ["indent_line_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_indent_line_map_indent_line_id_fkey"
+            columns: ["indent_line_id"]
+            isOneToOne: true
             referencedRelation: "v_proc_indent_open_lines"
             referencedColumns: ["indent_line_id"]
           },
@@ -7955,6 +8289,13 @@ export type Database = {
             columns: ["pr_line_id"]
             isOneToOne: false
             referencedRelation: "v_proc_pr_lines"
+            referencedColumns: ["pr_line_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_indent_line_map_pr_line_id_fkey"
+            columns: ["pr_line_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_pr_lines_ordered"
             referencedColumns: ["pr_line_id"]
           },
         ]
@@ -8178,6 +8519,125 @@ export type Database = {
           },
         ]
       }
+      proc_snapshot_refresh_log: {
+        Row: {
+          finished_at: string | null
+          indent_balance_count: number | null
+          message: string | null
+          priority_count: number | null
+          refresh_name: string
+          run_id: number
+          started_at: string
+          success: boolean | null
+          vendor_candidate_count: number | null
+        }
+        Insert: {
+          finished_at?: string | null
+          indent_balance_count?: number | null
+          message?: string | null
+          priority_count?: number | null
+          refresh_name: string
+          run_id?: number
+          started_at?: string
+          success?: boolean | null
+          vendor_candidate_count?: number | null
+        }
+        Update: {
+          finished_at?: string | null
+          indent_balance_count?: number | null
+          message?: string | null
+          priority_count?: number | null
+          refresh_name?: string
+          run_id?: number
+          started_at?: string
+          success?: boolean | null
+          vendor_candidate_count?: number | null
+        }
+        Relationships: []
+      }
+      proc_snapshot_refresh_run: {
+        Row: {
+          finished_at: string | null
+          message: string | null
+          refresh_name: string
+          request_source: string
+          requested_at: string
+          requested_by: string | null
+          run_id: number
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          finished_at?: string | null
+          message?: string | null
+          refresh_name?: string
+          request_source?: string
+          requested_at?: string
+          requested_by?: string | null
+          run_id?: number
+          started_at?: string | null
+          status?: string
+        }
+        Update: {
+          finished_at?: string | null
+          message?: string | null
+          refresh_name?: string
+          request_source?: string
+          requested_at?: string
+          requested_by?: string | null
+          run_id?: number
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      proc_snapshot_refresh_run_stage: {
+        Row: {
+          finished_at: string | null
+          message: string | null
+          row_count: number | null
+          run_id: number
+          stage_code: string
+          stage_id: number
+          stage_label: string
+          stage_no: number
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          finished_at?: string | null
+          message?: string | null
+          row_count?: number | null
+          run_id: number
+          stage_code: string
+          stage_id?: number
+          stage_label: string
+          stage_no: number
+          started_at?: string | null
+          status?: string
+        }
+        Update: {
+          finished_at?: string | null
+          message?: string | null
+          row_count?: number | null
+          run_id?: number
+          stage_code?: string
+          stage_id?: number
+          stage_label?: string
+          stage_no?: number
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proc_snapshot_refresh_run_stage_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "proc_snapshot_refresh_run"
+            referencedColumns: ["run_id"]
+          },
+        ]
+      }
       proc_vendor: {
         Row: {
           address_line1: string | null
@@ -8202,7 +8662,7 @@ export type Database = {
           updated_at: string
           updated_by: string | null
           vendor_id: number
-          vendor_type: string | null
+          vendor_type: string
           website: string | null
         }
         Insert: {
@@ -8228,7 +8688,7 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
           vendor_id?: number
-          vendor_type?: string | null
+          vendor_type?: string
           website?: string | null
         }
         Update: {
@@ -8254,7 +8714,7 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
           vendor_id?: number
-          vendor_type?: string | null
+          vendor_type?: string
           website?: string | null
         }
         Relationships: []
@@ -8302,6 +8762,80 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "proc_vendor_alias_vendor_fk"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "proc_vendor"
+            referencedColumns: ["vendor_id"]
+          },
+        ]
+      }
+      proc_vendor_identity_action: {
+        Row: {
+          action_id: number
+          action_type: string
+          alias_key: string | null
+          details: Json
+          new_vendor_id: number | null
+          performed_at: string
+          performed_by: string | null
+          previous_vendor_id: number | null
+          reason: string | null
+          related_vendor_id: number | null
+          source_system: string | null
+          vendor_id: number | null
+        }
+        Insert: {
+          action_id?: number
+          action_type: string
+          alias_key?: string | null
+          details?: Json
+          new_vendor_id?: number | null
+          performed_at?: string
+          performed_by?: string | null
+          previous_vendor_id?: number | null
+          reason?: string | null
+          related_vendor_id?: number | null
+          source_system?: string | null
+          vendor_id?: number | null
+        }
+        Update: {
+          action_id?: number
+          action_type?: string
+          alias_key?: string | null
+          details?: Json
+          new_vendor_id?: number | null
+          performed_at?: string
+          performed_by?: string | null
+          previous_vendor_id?: number | null
+          reason?: string | null
+          related_vendor_id?: number | null
+          source_system?: string | null
+          vendor_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proc_vendor_identity_action_new_vendor_fk"
+            columns: ["new_vendor_id"]
+            isOneToOne: false
+            referencedRelation: "proc_vendor"
+            referencedColumns: ["vendor_id"]
+          },
+          {
+            foreignKeyName: "proc_vendor_identity_action_previous_vendor_fk"
+            columns: ["previous_vendor_id"]
+            isOneToOne: false
+            referencedRelation: "proc_vendor"
+            referencedColumns: ["vendor_id"]
+          },
+          {
+            foreignKeyName: "proc_vendor_identity_action_related_vendor_fk"
+            columns: ["related_vendor_id"]
+            isOneToOne: false
+            referencedRelation: "proc_vendor"
+            referencedColumns: ["vendor_id"]
+          },
+          {
+            foreignKeyName: "proc_vendor_identity_action_vendor_fk"
             columns: ["vendor_id"]
             isOneToOne: false
             referencedRelation: "proc_vendor"
@@ -8880,6 +9414,7 @@ export type Database = {
         Row: {
           id: number
           is_active: boolean
+          is_sample: boolean
           pack_size: number
           product_id: number
           uom: string
@@ -8887,6 +9422,7 @@ export type Database = {
         Insert: {
           id?: number
           is_active?: boolean
+          is_sample?: boolean
           pack_size: number
           product_id: number
           uom: string
@@ -8894,6 +9430,7 @@ export type Database = {
         Update: {
           id?: number
           is_active?: boolean
+          is_sample?: boolean
           pack_size?: number
           product_id?: number
           uom?: string
@@ -11236,146 +11773,6 @@ export type Database = {
           },
         ]
       }
-      sku_prices: {
-        Row: {
-          calc_mode: string
-          mrp_ik: number
-          mrp_ok: number
-          ok_pct: number
-          sku_id: number
-          updated_at: string
-        }
-        Insert: {
-          calc_mode?: string
-          mrp_ik: number
-          mrp_ok: number
-          ok_pct?: number
-          sku_id: number
-          updated_at?: string
-        }
-        Update: {
-          calc_mode?: string
-          mrp_ik?: number
-          mrp_ok?: number
-          ok_pct?: number
-          sku_id?: number
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "sku_prices_sku_id_fkey"
-            columns: ["sku_id"]
-            isOneToOne: true
-            referencedRelation: "product_skus"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "sku_prices_sku_id_fkey"
-            columns: ["sku_id"]
-            isOneToOne: true
-            referencedRelation: "v_costing_scheme_policy_rule_register"
-            referencedColumns: ["sku_id"]
-          },
-          {
-            foreignKeyName: "sku_prices_sku_id_fkey"
-            columns: ["sku_id"]
-            isOneToOne: true
-            referencedRelation: "v_costing_scheme_policy_selected_overview"
-            referencedColumns: ["sku_id"]
-          },
-          {
-            foreignKeyName: "sku_prices_sku_id_fkey"
-            columns: ["sku_id"]
-            isOneToOne: true
-            referencedRelation: "v_dwl_fg_transfer_event_lines"
-            referencedColumns: ["sku_id"]
-          },
-          {
-            foreignKeyName: "sku_prices_sku_id_fkey"
-            columns: ["sku_id"]
-            isOneToOne: true
-            referencedRelation: "v_mrp_plm_issue_monthly_enriched"
-            referencedColumns: ["sku_id"]
-          },
-          {
-            foreignKeyName: "sku_prices_sku_id_fkey"
-            columns: ["sku_id"]
-            isOneToOne: true
-            referencedRelation: "v_product_sku_share_current_month"
-            referencedColumns: ["sku_id"]
-          },
-          {
-            foreignKeyName: "sku_prices_sku_id_fkey"
-            columns: ["sku_id"]
-            isOneToOne: true
-            referencedRelation: "v_sdv_dim_sku"
-            referencedColumns: ["sku_id"]
-          },
-          {
-            foreignKeyName: "sku_prices_sku_id_fkey"
-            columns: ["sku_id"]
-            isOneToOne: true
-            referencedRelation: "v_sku_catalog_enriched"
-            referencedColumns: ["sku_id"]
-          },
-          {
-            foreignKeyName: "sku_prices_sku_id_fkey"
-            columns: ["sku_id"]
-            isOneToOne: true
-            referencedRelation: "v_sku_llt_attrs"
-            referencedColumns: ["sku_id"]
-          },
-          {
-            foreignKeyName: "sku_prices_sku_id_fkey"
-            columns: ["sku_id"]
-            isOneToOne: true
-            referencedRelation: "v_sku_picker"
-            referencedColumns: ["sku_id"]
-          },
-          {
-            foreignKeyName: "sku_prices_sku_id_fkey"
-            columns: ["sku_id"]
-            isOneToOne: true
-            referencedRelation: "v_sku_planning_attrs"
-            referencedColumns: ["sku_id"]
-          },
-          {
-            foreignKeyName: "sku_prices_sku_id_fkey"
-            columns: ["sku_id"]
-            isOneToOne: true
-            referencedRelation: "v_sku_plm_requirement_unit"
-            referencedColumns: ["sku_id"]
-          },
-          {
-            foreignKeyName: "sku_prices_sku_id_fkey"
-            columns: ["sku_id"]
-            isOneToOne: true
-            referencedRelation: "v_sku_seasonal_attrs"
-            referencedColumns: ["sku_id"]
-          },
-          {
-            foreignKeyName: "sku_prices_sku_id_fkey"
-            columns: ["sku_id"]
-            isOneToOne: true
-            referencedRelation: "v_sku_to_base_multiplier"
-            referencedColumns: ["sku_id"]
-          },
-          {
-            foreignKeyName: "sku_prices_sku_id_fkey"
-            columns: ["sku_id"]
-            isOneToOne: true
-            referencedRelation: "v_sku_without_pack_format_map"
-            referencedColumns: ["sku_id"]
-          },
-          {
-            foreignKeyName: "sku_prices_sku_id_fkey"
-            columns: ["sku_id"]
-            isOneToOne: true
-            referencedRelation: "v_stock_checker"
-            referencedColumns: ["sku_id"]
-          },
-        ]
-      }
       sku_stock_snapshot: {
         Row: {
           as_of_date: string
@@ -13663,7 +14060,22 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_staff_map_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: true
+            referencedRelation: "v_costing_staff_classification_register"
+            referencedColumns: ["staff_id"]
+          },
+          {
+            foreignKeyName: "user_staff_map_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: true
+            referencedRelation: "v_costing_unclassified_staff_for_costing"
+            referencedColumns: ["staff_id"]
+          },
+        ]
       }
       vreg_sales_baseline: {
         Row: {
@@ -17017,6 +17429,121 @@ export type Database = {
         }
         Relationships: []
       }
+      v_costing_cost_pool_monthly_summary: {
+        Row: {
+          allocation_pool: string | null
+          allocation_pool_label: string | null
+          expense_provision_amount: number | null
+          manual_provision_amount: number | null
+          period_start: string | null
+          pool_source_type: string | null
+          pool_status: string | null
+          staff_pool_amount: number | null
+          total_pool_amount: number | null
+        }
+        Relationships: []
+      }
+      v_costing_expense_allocation_pool_options: {
+        Row: {
+          allocation_pool: string | null
+          allocation_pool_label: string | null
+          include_in_costing_default: boolean | null
+          pool_note: string | null
+          sort_order: number | null
+        }
+        Relationships: []
+      }
+      v_costing_expense_head_mapping_register: {
+        Row: {
+          allocation_pool: string | null
+          allocation_pool_label: string | null
+          created_at: string | null
+          expense_group: string | null
+          first_seen_date: string | null
+          head_name: string | null
+          id: number | null
+          include_in_costing: boolean | null
+          is_active: boolean | null
+          latest_seen_date: string | null
+          mapping_status: string | null
+          max_seen_value: number | null
+          remarks: string | null
+          snapshot_count: number | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
+      v_costing_manual_cost_pool_monthly_summary: {
+        Row: {
+          active_provision_count: number | null
+          allocation_pool: string | null
+          allocation_pool_label: string | null
+          manual_provision_amount: number | null
+          period_start: string | null
+          provision_details: Json | null
+        }
+        Relationships: []
+      }
+      v_costing_manual_cost_pool_provision_register: {
+        Row: {
+          allocation_pool: string | null
+          allocation_pool_label: string | null
+          created_at: string | null
+          is_active: boolean | null
+          period_start: string | null
+          provision_amount: number | null
+          provision_id: number | null
+          provision_key: string | null
+          provision_label: string | null
+          provision_note: string | null
+          provision_status: string | null
+          provision_type: string | null
+          provision_type_label: string | null
+          remarks: string | null
+          source_reference: string | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
+      v_costing_manual_provision_pool_options: {
+        Row: {
+          allocation_pool: string | null
+          allocation_pool_label: string | null
+          sort_order: number | null
+        }
+        Relationships: []
+      }
+      v_costing_manual_provision_type_options: {
+        Row: {
+          provision_type: string | null
+          provision_type_label: string | null
+          provision_type_note: string | null
+          sort_order: number | null
+        }
+        Relationships: []
+      }
+      v_costing_manual_rate_live_rm_blockers: {
+        Row: {
+          affected_line_count: number | null
+          affected_product_count: number | null
+          affected_sku_count: number | null
+          bom_source: string | null
+          manager_action_code: string | null
+          material_issue_code: string | null
+          material_line_status: string | null
+          period_start: string | null
+          priority_sort: number | null
+          rate_date: string | null
+          rate_source: string | null
+          recommended_action: string | null
+          selected_rate: number | null
+          snapshot_refreshed_at: string | null
+          stock_item_code: string | null
+          stock_item_id: number | null
+          stock_item_name: string | null
+        }
+        Relationships: []
+      }
       v_costing_manual_rate_manager_action_queue: {
         Row: {
           action_source: string | null
@@ -17143,6 +17670,49 @@ export type Database = {
           stock_item_code: string | null
           stock_item_id: number | null
           stock_item_name: string | null
+        }
+        Relationships: []
+      }
+      v_costing_material_review_acceptance_register: {
+        Row: {
+          acceptance_id: number | null
+          acceptance_note: string | null
+          acceptance_reason: string | null
+          acceptance_register_status: string | null
+          acceptance_scope: string | null
+          acceptance_status: string | null
+          accepted_at: string | null
+          accepted_by: string | null
+          accepted_by_email: string | null
+          action_note_summary: string | null
+          action_required_summary: string | null
+          action_severity: string | null
+          affected_line_count: number | null
+          affected_product_count: number | null
+          affected_sku_count: number | null
+          approval_blocking_line_count: number | null
+          approval_blocking_sku_count: number | null
+          bom_sources: string | null
+          created_at: string | null
+          current_queue_action_severity: string | null
+          current_queue_affected_sku_count: number | null
+          current_queue_row_exists: boolean | null
+          current_queue_snapshot_refreshed_at: string | null
+          effective_from: string | null
+          effective_to: string | null
+          issue_codes: string | null
+          material_area: string | null
+          material_line_statuses: string | null
+          period_start: string | null
+          recommended_ui_route: string | null
+          review_line_count: number | null
+          review_sku_count: number | null
+          source_snapshot_refreshed_at: string | null
+          stock_item_code: string | null
+          stock_item_id: number | null
+          stock_item_name: string | null
+          updated_at: string | null
+          warning_codes: string | null
         }
         Relationships: []
       }
@@ -17307,6 +17877,527 @@ export type Database = {
         }
         Relationships: []
       }
+      v_costing_pricing_commercial_sales_basis: {
+        Row: {
+          actual_sales_base_qty_12m: number | null
+          actual_sales_units_12m: number | null
+          allocation_basis_status: string | null
+          assumption_id: number | null
+          assumption_source: string | null
+          commercial_sales_basis: string | null
+          commercial_sales_status: string | null
+          commercial_sales_units: number | null
+          commercial_sales_value: number | null
+          commercial_sales_warning: string | null
+          lookback_end: string | null
+          lookback_start: string | null
+          manual_assumed_sales_units: number | null
+          manual_assumed_sales_value: number | null
+          manual_assumption_basis: string | null
+          manual_assumption_remarks: string | null
+          manual_assumption_status: string | null
+          manual_effective_from: string | null
+          manual_effective_to: string | null
+          pack_size: number | null
+          pack_uom: string | null
+          period_start: string | null
+          product_allocation_share: number | null
+          product_id: number | null
+          product_name: string | null
+          product_sales_base_qty_12m: number | null
+          product_sales_units_12m: number | null
+          sku_id: number | null
+        }
+        Relationships: []
+      }
+      v_costing_pricing_control_dashboard: {
+        Row: {
+          blocked_sku_count: number | null
+          generated_at: string | null
+          material_cost_blocked_sku_count: number | null
+          material_review_required_sku_count: number | null
+          overall_control_note: string | null
+          overall_control_status: string | null
+          pm_blocker_affected_sku_count: number | null
+          pm_blocker_item_count: number | null
+          pm_review_affected_sku_count: number | null
+          pm_review_item_count: number | null
+          ready_sku_count: number | null
+          review_required_sku_count: number | null
+          rm_blocker_affected_sku_count: number | null
+          rm_blocker_item_count: number | null
+          rm_review_affected_sku_count: number | null
+          rm_review_item_count: number | null
+          top_pm_blocker_affected_line_count: number | null
+          top_pm_blocker_affected_product_count: number | null
+          top_pm_blocker_affected_sku_count: number | null
+          top_pm_blocker_stock_item_code: string | null
+          top_pm_blocker_stock_item_id: number | null
+          top_pm_blocker_stock_item_name: string | null
+          top_pm_review_affected_line_count: number | null
+          top_pm_review_affected_product_count: number | null
+          top_pm_review_affected_sku_count: number | null
+          top_pm_review_stock_item_code: string | null
+          top_pm_review_stock_item_id: number | null
+          top_pm_review_stock_item_name: string | null
+          top_rm_blocker_affected_line_count: number | null
+          top_rm_blocker_affected_product_count: number | null
+          top_rm_blocker_affected_sku_count: number | null
+          top_rm_blocker_stock_item_code: string | null
+          top_rm_blocker_stock_item_id: number | null
+          top_rm_blocker_stock_item_name: string | null
+          top_rm_review_affected_line_count: number | null
+          top_rm_review_affected_product_count: number | null
+          top_rm_review_affected_sku_count: number | null
+          top_rm_review_stock_item_code: string | null
+          top_rm_review_stock_item_id: number | null
+          top_rm_review_stock_item_name: string | null
+          total_sku_count: number | null
+        }
+        Relationships: []
+      }
+      v_costing_pricing_control_dashboard_snapshot: {
+        Row: {
+          blocked_sku_count: number | null
+          generated_at: string | null
+          material_cost_blocked_sku_count: number | null
+          material_review_required_sku_count: number | null
+          overall_control_note: string | null
+          overall_control_status: string | null
+          period_start: string | null
+          pm_blocker_affected_sku_count: number | null
+          pm_blocker_item_count: number | null
+          pm_review_affected_sku_count: number | null
+          pm_review_item_count: number | null
+          ready_sku_count: number | null
+          review_required_sku_count: number | null
+          rm_blocker_affected_sku_count: number | null
+          rm_blocker_item_count: number | null
+          rm_review_affected_sku_count: number | null
+          rm_review_item_count: number | null
+          snapshot_refreshed_at: string | null
+          top_pm_blocker_affected_line_count: number | null
+          top_pm_blocker_affected_product_count: number | null
+          top_pm_blocker_affected_sku_count: number | null
+          top_pm_blocker_stock_item_code: string | null
+          top_pm_blocker_stock_item_id: number | null
+          top_pm_blocker_stock_item_name: string | null
+          top_pm_review_affected_line_count: number | null
+          top_pm_review_affected_product_count: number | null
+          top_pm_review_affected_sku_count: number | null
+          top_pm_review_stock_item_code: string | null
+          top_pm_review_stock_item_id: number | null
+          top_pm_review_stock_item_name: string | null
+          top_rm_blocker_affected_line_count: number | null
+          top_rm_blocker_affected_product_count: number | null
+          top_rm_blocker_affected_sku_count: number | null
+          top_rm_blocker_stock_item_code: string | null
+          top_rm_blocker_stock_item_id: number | null
+          top_rm_blocker_stock_item_name: string | null
+          top_rm_review_affected_line_count: number | null
+          top_rm_review_affected_product_count: number | null
+          top_rm_review_affected_sku_count: number | null
+          top_rm_review_stock_item_code: string | null
+          top_rm_review_stock_item_id: number | null
+          top_rm_review_stock_item_name: string | null
+          total_sku_count: number | null
+        }
+        Insert: {
+          blocked_sku_count?: number | null
+          generated_at?: string | null
+          material_cost_blocked_sku_count?: number | null
+          material_review_required_sku_count?: number | null
+          overall_control_note?: string | null
+          overall_control_status?: string | null
+          period_start?: string | null
+          pm_blocker_affected_sku_count?: number | null
+          pm_blocker_item_count?: number | null
+          pm_review_affected_sku_count?: number | null
+          pm_review_item_count?: number | null
+          ready_sku_count?: number | null
+          review_required_sku_count?: number | null
+          rm_blocker_affected_sku_count?: number | null
+          rm_blocker_item_count?: number | null
+          rm_review_affected_sku_count?: number | null
+          rm_review_item_count?: number | null
+          snapshot_refreshed_at?: string | null
+          top_pm_blocker_affected_line_count?: number | null
+          top_pm_blocker_affected_product_count?: number | null
+          top_pm_blocker_affected_sku_count?: number | null
+          top_pm_blocker_stock_item_code?: string | null
+          top_pm_blocker_stock_item_id?: number | null
+          top_pm_blocker_stock_item_name?: string | null
+          top_pm_review_affected_line_count?: number | null
+          top_pm_review_affected_product_count?: number | null
+          top_pm_review_affected_sku_count?: number | null
+          top_pm_review_stock_item_code?: string | null
+          top_pm_review_stock_item_id?: number | null
+          top_pm_review_stock_item_name?: string | null
+          top_rm_blocker_affected_line_count?: number | null
+          top_rm_blocker_affected_product_count?: number | null
+          top_rm_blocker_affected_sku_count?: number | null
+          top_rm_blocker_stock_item_code?: string | null
+          top_rm_blocker_stock_item_id?: number | null
+          top_rm_blocker_stock_item_name?: string | null
+          top_rm_review_affected_line_count?: number | null
+          top_rm_review_affected_product_count?: number | null
+          top_rm_review_affected_sku_count?: number | null
+          top_rm_review_stock_item_code?: string | null
+          top_rm_review_stock_item_id?: number | null
+          top_rm_review_stock_item_name?: string | null
+          total_sku_count?: number | null
+        }
+        Update: {
+          blocked_sku_count?: number | null
+          generated_at?: string | null
+          material_cost_blocked_sku_count?: number | null
+          material_review_required_sku_count?: number | null
+          overall_control_note?: string | null
+          overall_control_status?: string | null
+          period_start?: string | null
+          pm_blocker_affected_sku_count?: number | null
+          pm_blocker_item_count?: number | null
+          pm_review_affected_sku_count?: number | null
+          pm_review_item_count?: number | null
+          ready_sku_count?: number | null
+          review_required_sku_count?: number | null
+          rm_blocker_affected_sku_count?: number | null
+          rm_blocker_item_count?: number | null
+          rm_review_affected_sku_count?: number | null
+          rm_review_item_count?: number | null
+          snapshot_refreshed_at?: string | null
+          top_pm_blocker_affected_line_count?: number | null
+          top_pm_blocker_affected_product_count?: number | null
+          top_pm_blocker_affected_sku_count?: number | null
+          top_pm_blocker_stock_item_code?: string | null
+          top_pm_blocker_stock_item_id?: number | null
+          top_pm_blocker_stock_item_name?: string | null
+          top_pm_review_affected_line_count?: number | null
+          top_pm_review_affected_product_count?: number | null
+          top_pm_review_affected_sku_count?: number | null
+          top_pm_review_stock_item_code?: string | null
+          top_pm_review_stock_item_id?: number | null
+          top_pm_review_stock_item_name?: string | null
+          top_rm_blocker_affected_line_count?: number | null
+          top_rm_blocker_affected_product_count?: number | null
+          top_rm_blocker_affected_sku_count?: number | null
+          top_rm_blocker_stock_item_code?: string | null
+          top_rm_blocker_stock_item_id?: number | null
+          top_rm_blocker_stock_item_name?: string | null
+          top_rm_review_affected_line_count?: number | null
+          top_rm_review_affected_product_count?: number | null
+          top_rm_review_affected_sku_count?: number | null
+          top_rm_review_stock_item_code?: string | null
+          top_rm_review_stock_item_id?: number | null
+          top_rm_review_stock_item_name?: string | null
+          total_sku_count?: number | null
+        }
+        Relationships: []
+      }
+      v_costing_pricing_control_integrity_audit: {
+        Row: {
+          check_code: string | null
+          check_status: string | null
+          diagnostic_note: string | null
+          expected_rule: string | null
+          observed_count: number | null
+        }
+        Relationships: []
+      }
+      v_costing_pricing_control_integrity_audit_snapshot: {
+        Row: {
+          check_code: string | null
+          check_status: string | null
+          diagnostic_note: string | null
+          expected_rule: string | null
+          observed_count: number | null
+          period_start: string | null
+          snapshot_refreshed_at: string | null
+        }
+        Insert: {
+          check_code?: string | null
+          check_status?: string | null
+          diagnostic_note?: string | null
+          expected_rule?: string | null
+          observed_count?: number | null
+          period_start?: string | null
+          snapshot_refreshed_at?: string | null
+        }
+        Update: {
+          check_code?: string | null
+          check_status?: string | null
+          diagnostic_note?: string | null
+          expected_rule?: string | null
+          observed_count?: number | null
+          period_start?: string | null
+          snapshot_refreshed_at?: string | null
+        }
+        Relationships: []
+      }
+      v_costing_pricing_cost_sheet_line_traceability: {
+        Row: {
+          audit_hint: string | null
+          calculation_basis: string | null
+          control_hint: string | null
+          cost_sheet_note: string | null
+          cost_sheet_status: string | null
+          created_at: string | null
+          drill_filter_json: Json | null
+          drill_route_lens_id: string | null
+          drill_route_module_key: string | null
+          evidence_json: Json | null
+          evidence_refreshed_at: string | null
+          line_description: string | null
+          line_label: string | null
+          line_order: number | null
+          line_trace_id: number | null
+          period_start: string | null
+          product_id: number | null
+          product_name: string | null
+          refresh_stage_code: string | null
+          refreshed_at: string | null
+          section_code: string | null
+          section_title: string | null
+          sku_column_label: string | null
+          sku_id: number | null
+          source_lens_id: string | null
+          source_module_key: string | null
+          source_module_label: string | null
+          source_note: string | null
+          trace_formula: string | null
+          trace_source_snapshot: string | null
+          trace_source_type: string | null
+          trace_summary: string | null
+          value_numeric: number | null
+          value_text: string | null
+          value_type: string | null
+        }
+        Insert: {
+          audit_hint?: string | null
+          calculation_basis?: string | null
+          control_hint?: string | null
+          cost_sheet_note?: string | null
+          cost_sheet_status?: string | null
+          created_at?: string | null
+          drill_filter_json?: Json | null
+          drill_route_lens_id?: string | null
+          drill_route_module_key?: string | null
+          evidence_json?: Json | null
+          evidence_refreshed_at?: string | null
+          line_description?: string | null
+          line_label?: string | null
+          line_order?: number | null
+          line_trace_id?: number | null
+          period_start?: string | null
+          product_id?: number | null
+          product_name?: string | null
+          refresh_stage_code?: string | null
+          refreshed_at?: string | null
+          section_code?: string | null
+          section_title?: string | null
+          sku_column_label?: string | null
+          sku_id?: number | null
+          source_lens_id?: string | null
+          source_module_key?: string | null
+          source_module_label?: string | null
+          source_note?: string | null
+          trace_formula?: string | null
+          trace_source_snapshot?: string | null
+          trace_source_type?: string | null
+          trace_summary?: string | null
+          value_numeric?: number | null
+          value_text?: string | null
+          value_type?: string | null
+        }
+        Update: {
+          audit_hint?: string | null
+          calculation_basis?: string | null
+          control_hint?: string | null
+          cost_sheet_note?: string | null
+          cost_sheet_status?: string | null
+          created_at?: string | null
+          drill_filter_json?: Json | null
+          drill_route_lens_id?: string | null
+          drill_route_module_key?: string | null
+          evidence_json?: Json | null
+          evidence_refreshed_at?: string | null
+          line_description?: string | null
+          line_label?: string | null
+          line_order?: number | null
+          line_trace_id?: number | null
+          period_start?: string | null
+          product_id?: number | null
+          product_name?: string | null
+          refresh_stage_code?: string | null
+          refreshed_at?: string | null
+          section_code?: string | null
+          section_title?: string | null
+          sku_column_label?: string | null
+          sku_id?: number | null
+          source_lens_id?: string | null
+          source_module_key?: string | null
+          source_module_label?: string | null
+          source_note?: string | null
+          trace_formula?: string | null
+          trace_source_snapshot?: string | null
+          trace_source_type?: string | null
+          trace_summary?: string | null
+          value_numeric?: number | null
+          value_text?: string | null
+          value_type?: string | null
+        }
+        Relationships: []
+      }
+      v_costing_pricing_cost_sheet_rm_line_traceability: {
+        Row: {
+          action_required: string | null
+          approval_block_flag: boolean | null
+          bom_source: string | null
+          calculation_warning_code: string | null
+          calculation_warning_flag: boolean | null
+          consume_stock_item_id: number | null
+          consume_stock_item_name: string | null
+          consume_uom_code: string | null
+          conversion_to_base: number | null
+          drill_filter_json: Json | null
+          drill_route_lens_id: string | null
+          drill_route_module_key: string | null
+          expansion_note: string | null
+          explosion_path: Json | null
+          form_conversion_applied: boolean | null
+          form_conversion_factor: number | null
+          level: number | null
+          line_sort: number | null
+          line_trace_key: string | null
+          pack_size: number | null
+          pack_uom: string | null
+          parent_bom_type: string | null
+          period_start: string | null
+          product_base_uom: string | null
+          product_id: number | null
+          product_name: string | null
+          purchase_stock_item_id: number | null
+          purchase_stock_item_name: string | null
+          purchase_uom_code: string | null
+          qty_consume_form_per_base_unit: number | null
+          qty_purchase_form_per_base_unit: number | null
+          rate_date: string | null
+          rate_source: string | null
+          rate_warning_code: string | null
+          rate_warning_flag: boolean | null
+          rate_warning_text: string | null
+          review_state_label: string | null
+          rm_cost_per_base_unit_line: number | null
+          rm_cost_per_sku_line: number | null
+          rm_cost_share_percent: number | null
+          selected_rate: number | null
+          semi_stock_item_ids: Json | null
+          semi_stock_item_names: string | null
+          sku_column_label: string | null
+          sku_id: number | null
+          sku_qty_purchase_form: number | null
+          snapshot_refreshed_at: string | null
+        }
+        Insert: {
+          action_required?: string | null
+          approval_block_flag?: boolean | null
+          bom_source?: string | null
+          calculation_warning_code?: string | null
+          calculation_warning_flag?: boolean | null
+          consume_stock_item_id?: number | null
+          consume_stock_item_name?: string | null
+          consume_uom_code?: string | null
+          conversion_to_base?: number | null
+          drill_filter_json?: Json | null
+          drill_route_lens_id?: string | null
+          drill_route_module_key?: string | null
+          expansion_note?: string | null
+          explosion_path?: Json | null
+          form_conversion_applied?: boolean | null
+          form_conversion_factor?: number | null
+          level?: number | null
+          line_sort?: number | null
+          line_trace_key?: string | null
+          pack_size?: number | null
+          pack_uom?: string | null
+          parent_bom_type?: string | null
+          period_start?: string | null
+          product_base_uom?: string | null
+          product_id?: number | null
+          product_name?: string | null
+          purchase_stock_item_id?: number | null
+          purchase_stock_item_name?: string | null
+          purchase_uom_code?: string | null
+          qty_consume_form_per_base_unit?: number | null
+          qty_purchase_form_per_base_unit?: number | null
+          rate_date?: string | null
+          rate_source?: string | null
+          rate_warning_code?: string | null
+          rate_warning_flag?: boolean | null
+          rate_warning_text?: string | null
+          review_state_label?: string | null
+          rm_cost_per_base_unit_line?: number | null
+          rm_cost_per_sku_line?: number | null
+          rm_cost_share_percent?: number | null
+          selected_rate?: number | null
+          semi_stock_item_ids?: Json | null
+          semi_stock_item_names?: string | null
+          sku_column_label?: string | null
+          sku_id?: number | null
+          sku_qty_purchase_form?: number | null
+          snapshot_refreshed_at?: string | null
+        }
+        Update: {
+          action_required?: string | null
+          approval_block_flag?: boolean | null
+          bom_source?: string | null
+          calculation_warning_code?: string | null
+          calculation_warning_flag?: boolean | null
+          consume_stock_item_id?: number | null
+          consume_stock_item_name?: string | null
+          consume_uom_code?: string | null
+          conversion_to_base?: number | null
+          drill_filter_json?: Json | null
+          drill_route_lens_id?: string | null
+          drill_route_module_key?: string | null
+          expansion_note?: string | null
+          explosion_path?: Json | null
+          form_conversion_applied?: boolean | null
+          form_conversion_factor?: number | null
+          level?: number | null
+          line_sort?: number | null
+          line_trace_key?: string | null
+          pack_size?: number | null
+          pack_uom?: string | null
+          parent_bom_type?: string | null
+          period_start?: string | null
+          product_base_uom?: string | null
+          product_id?: number | null
+          product_name?: string | null
+          purchase_stock_item_id?: number | null
+          purchase_stock_item_name?: string | null
+          purchase_uom_code?: string | null
+          qty_consume_form_per_base_unit?: number | null
+          qty_purchase_form_per_base_unit?: number | null
+          rate_date?: string | null
+          rate_source?: string | null
+          rate_warning_code?: string | null
+          rate_warning_flag?: boolean | null
+          rate_warning_text?: string | null
+          review_state_label?: string | null
+          rm_cost_per_base_unit_line?: number | null
+          rm_cost_per_sku_line?: number | null
+          rm_cost_share_percent?: number | null
+          selected_rate?: number | null
+          semi_stock_item_ids?: Json | null
+          semi_stock_item_names?: string | null
+          sku_column_label?: string | null
+          sku_id?: number | null
+          sku_qty_purchase_form?: number | null
+          snapshot_refreshed_at?: string | null
+        }
+        Relationships: []
+      }
       v_costing_pricing_dashboard_summary: {
         Row: {
           latest_refresh_error: string | null
@@ -17327,6 +18418,426 @@ export type Database = {
           selling_price_ready_count: number | null
           selling_price_review_required_count: number | null
           selling_price_sku_count: number | null
+        }
+        Relationships: []
+      }
+      v_costing_pricing_material_action_drilldown: {
+        Row: {
+          action_note: string | null
+          action_required: string | null
+          action_severity: string | null
+          approval_block_flag: boolean | null
+          bom_source: string | null
+          drilldown_resolution_type: string | null
+          first_control_status: string | null
+          form_conversion_applied: boolean | null
+          form_conversion_consume_uom_id: number | null
+          form_conversion_factor: number | null
+          form_conversion_purchase_uom_id: number | null
+          ik_margin_amount_before_scheme: number | null
+          ik_margin_percent_before_scheme: number | null
+          ik_selling_price: number | null
+          is_optional: boolean | null
+          line_no: number | null
+          material_area: string | null
+          material_cost_per_sku: number | null
+          material_costing_status: string | null
+          material_issue_code: string | null
+          material_line_status: string | null
+          mrp_ik: number | null
+          mrp_ok: number | null
+          ok_margin_amount_before_scheme: number | null
+          ok_margin_percent_before_scheme: number | null
+          ok_selling_price: number | null
+          pack_size: number | null
+          pack_uom: string | null
+          pm_blocking_line_count: number | null
+          pm_costing_status: string | null
+          pm_manual_rate_line_count: number | null
+          pm_review_rate_line_count: number | null
+          pm_stale_purchase_rate_line_count: number | null
+          pm_stock_valuation_fallback_line_count: number | null
+          product_hierarchy: string | null
+          product_id: number | null
+          product_name: string | null
+          qty_per_reference_output: number | null
+          rate_date: string | null
+          rate_lookup_basis: string | null
+          rate_resolution_note: string | null
+          rate_source: string | null
+          recommended_ui_route: string | null
+          resolved_rate_stock_item_code: string | null
+          resolved_rate_stock_item_default_uom_id: number | null
+          resolved_rate_stock_item_id: number | null
+          resolved_rate_stock_item_name: string | null
+          rm_blocking_line_count: number | null
+          rm_costing_status: string | null
+          rm_manual_rate_line_count: number | null
+          rm_review_rate_line_count: number | null
+          rm_stale_purchase_rate_line_count: number | null
+          rm_stock_valuation_fallback_line_count: number | null
+          selected_rate: number | null
+          sku_control_note: string | null
+          sku_control_severity: string | null
+          sku_id: number | null
+          sku_recommended_ui_route: string | null
+          source_line_key: string | null
+          source_pack_size: number | null
+          source_sku_id: number | null
+          source_sku_uom: string | null
+          stock_item_code: string | null
+          stock_item_id: number | null
+          stock_item_name: string | null
+          uom_id: number | null
+          warning_code: string | null
+          warning_text: string | null
+          wastage_pct: number | null
+        }
+        Relationships: []
+      }
+      v_costing_pricing_material_action_drilldown_snapshot: {
+        Row: {
+          action_note: string | null
+          action_required: string | null
+          action_severity: string | null
+          approval_block_flag: boolean | null
+          bom_source: string | null
+          drilldown_resolution_type: string | null
+          first_control_status: string | null
+          form_conversion_applied: boolean | null
+          form_conversion_consume_uom_id: number | null
+          form_conversion_factor: number | null
+          form_conversion_purchase_uom_id: number | null
+          ik_margin_amount_before_scheme: number | null
+          ik_margin_percent_before_scheme: number | null
+          ik_selling_price: number | null
+          is_optional: boolean | null
+          line_no: number | null
+          material_area: string | null
+          material_cost_per_sku: number | null
+          material_costing_status: string | null
+          material_issue_code: string | null
+          material_line_status: string | null
+          mrp_ik: number | null
+          mrp_ok: number | null
+          ok_margin_amount_before_scheme: number | null
+          ok_margin_percent_before_scheme: number | null
+          ok_selling_price: number | null
+          pack_size: number | null
+          pack_uom: string | null
+          period_start: string | null
+          pm_blocking_line_count: number | null
+          pm_costing_status: string | null
+          pm_manual_rate_line_count: number | null
+          pm_review_rate_line_count: number | null
+          pm_stale_purchase_rate_line_count: number | null
+          pm_stock_valuation_fallback_line_count: number | null
+          product_hierarchy: string | null
+          product_id: number | null
+          product_name: string | null
+          qty_per_reference_output: number | null
+          rate_date: string | null
+          rate_lookup_basis: string | null
+          rate_resolution_note: string | null
+          rate_source: string | null
+          recommended_ui_route: string | null
+          resolved_rate_stock_item_code: string | null
+          resolved_rate_stock_item_default_uom_id: number | null
+          resolved_rate_stock_item_id: number | null
+          resolved_rate_stock_item_name: string | null
+          rm_blocking_line_count: number | null
+          rm_costing_status: string | null
+          rm_manual_rate_line_count: number | null
+          rm_review_rate_line_count: number | null
+          rm_stale_purchase_rate_line_count: number | null
+          rm_stock_valuation_fallback_line_count: number | null
+          selected_rate: number | null
+          sku_control_note: string | null
+          sku_control_severity: string | null
+          sku_id: number | null
+          sku_recommended_ui_route: string | null
+          snapshot_refreshed_at: string | null
+          source_line_key: string | null
+          source_pack_size: number | null
+          source_sku_id: number | null
+          source_sku_uom: string | null
+          stock_item_code: string | null
+          stock_item_id: number | null
+          stock_item_name: string | null
+          uom_id: number | null
+          warning_code: string | null
+          warning_text: string | null
+          wastage_pct: number | null
+        }
+        Insert: {
+          action_note?: string | null
+          action_required?: string | null
+          action_severity?: string | null
+          approval_block_flag?: boolean | null
+          bom_source?: string | null
+          drilldown_resolution_type?: string | null
+          first_control_status?: string | null
+          form_conversion_applied?: boolean | null
+          form_conversion_consume_uom_id?: number | null
+          form_conversion_factor?: number | null
+          form_conversion_purchase_uom_id?: number | null
+          ik_margin_amount_before_scheme?: number | null
+          ik_margin_percent_before_scheme?: number | null
+          ik_selling_price?: number | null
+          is_optional?: boolean | null
+          line_no?: number | null
+          material_area?: string | null
+          material_cost_per_sku?: number | null
+          material_costing_status?: string | null
+          material_issue_code?: string | null
+          material_line_status?: string | null
+          mrp_ik?: number | null
+          mrp_ok?: number | null
+          ok_margin_amount_before_scheme?: number | null
+          ok_margin_percent_before_scheme?: number | null
+          ok_selling_price?: number | null
+          pack_size?: number | null
+          pack_uom?: string | null
+          period_start?: string | null
+          pm_blocking_line_count?: number | null
+          pm_costing_status?: string | null
+          pm_manual_rate_line_count?: number | null
+          pm_review_rate_line_count?: number | null
+          pm_stale_purchase_rate_line_count?: number | null
+          pm_stock_valuation_fallback_line_count?: number | null
+          product_hierarchy?: string | null
+          product_id?: number | null
+          product_name?: string | null
+          qty_per_reference_output?: number | null
+          rate_date?: string | null
+          rate_lookup_basis?: string | null
+          rate_resolution_note?: string | null
+          rate_source?: string | null
+          recommended_ui_route?: string | null
+          resolved_rate_stock_item_code?: string | null
+          resolved_rate_stock_item_default_uom_id?: number | null
+          resolved_rate_stock_item_id?: number | null
+          resolved_rate_stock_item_name?: string | null
+          rm_blocking_line_count?: number | null
+          rm_costing_status?: string | null
+          rm_manual_rate_line_count?: number | null
+          rm_review_rate_line_count?: number | null
+          rm_stale_purchase_rate_line_count?: number | null
+          rm_stock_valuation_fallback_line_count?: number | null
+          selected_rate?: number | null
+          sku_control_note?: string | null
+          sku_control_severity?: string | null
+          sku_id?: number | null
+          sku_recommended_ui_route?: string | null
+          snapshot_refreshed_at?: string | null
+          source_line_key?: string | null
+          source_pack_size?: number | null
+          source_sku_id?: number | null
+          source_sku_uom?: string | null
+          stock_item_code?: string | null
+          stock_item_id?: number | null
+          stock_item_name?: string | null
+          uom_id?: number | null
+          warning_code?: string | null
+          warning_text?: string | null
+          wastage_pct?: number | null
+        }
+        Update: {
+          action_note?: string | null
+          action_required?: string | null
+          action_severity?: string | null
+          approval_block_flag?: boolean | null
+          bom_source?: string | null
+          drilldown_resolution_type?: string | null
+          first_control_status?: string | null
+          form_conversion_applied?: boolean | null
+          form_conversion_consume_uom_id?: number | null
+          form_conversion_factor?: number | null
+          form_conversion_purchase_uom_id?: number | null
+          ik_margin_amount_before_scheme?: number | null
+          ik_margin_percent_before_scheme?: number | null
+          ik_selling_price?: number | null
+          is_optional?: boolean | null
+          line_no?: number | null
+          material_area?: string | null
+          material_cost_per_sku?: number | null
+          material_costing_status?: string | null
+          material_issue_code?: string | null
+          material_line_status?: string | null
+          mrp_ik?: number | null
+          mrp_ok?: number | null
+          ok_margin_amount_before_scheme?: number | null
+          ok_margin_percent_before_scheme?: number | null
+          ok_selling_price?: number | null
+          pack_size?: number | null
+          pack_uom?: string | null
+          period_start?: string | null
+          pm_blocking_line_count?: number | null
+          pm_costing_status?: string | null
+          pm_manual_rate_line_count?: number | null
+          pm_review_rate_line_count?: number | null
+          pm_stale_purchase_rate_line_count?: number | null
+          pm_stock_valuation_fallback_line_count?: number | null
+          product_hierarchy?: string | null
+          product_id?: number | null
+          product_name?: string | null
+          qty_per_reference_output?: number | null
+          rate_date?: string | null
+          rate_lookup_basis?: string | null
+          rate_resolution_note?: string | null
+          rate_source?: string | null
+          recommended_ui_route?: string | null
+          resolved_rate_stock_item_code?: string | null
+          resolved_rate_stock_item_default_uom_id?: number | null
+          resolved_rate_stock_item_id?: number | null
+          resolved_rate_stock_item_name?: string | null
+          rm_blocking_line_count?: number | null
+          rm_costing_status?: string | null
+          rm_manual_rate_line_count?: number | null
+          rm_review_rate_line_count?: number | null
+          rm_stale_purchase_rate_line_count?: number | null
+          rm_stock_valuation_fallback_line_count?: number | null
+          selected_rate?: number | null
+          sku_control_note?: string | null
+          sku_control_severity?: string | null
+          sku_id?: number | null
+          sku_recommended_ui_route?: string | null
+          snapshot_refreshed_at?: string | null
+          source_line_key?: string | null
+          source_pack_size?: number | null
+          source_sku_id?: number | null
+          source_sku_uom?: string | null
+          stock_item_code?: string | null
+          stock_item_id?: number | null
+          stock_item_name?: string | null
+          uom_id?: number | null
+          warning_code?: string | null
+          warning_text?: string | null
+          wastage_pct?: number | null
+        }
+        Relationships: []
+      }
+      v_costing_pricing_material_action_queue: {
+        Row: {
+          action_note_summary: string | null
+          action_required_summary: string | null
+          action_severity: string | null
+          affected_line_count: number | null
+          affected_product_count: number | null
+          affected_sku_count: number | null
+          approval_blocking_line_count: number | null
+          approval_blocking_sku_count: number | null
+          bom_sources: string | null
+          has_missing_rate_source: boolean | null
+          has_missing_selected_rate: boolean | null
+          has_optional_lines: boolean | null
+          issue_codes: string | null
+          latest_rate_date: string | null
+          material_area: string | null
+          material_line_statuses: string | null
+          oldest_rate_date: string | null
+          recommended_ui_route: string | null
+          review_line_count: number | null
+          review_sku_count: number | null
+          sample_product_name: string | null
+          sample_sku_id: number | null
+          stock_item_code: string | null
+          stock_item_id: number | null
+          stock_item_name: string | null
+          warning_codes: string | null
+        }
+        Relationships: []
+      }
+      v_costing_pricing_material_action_queue_snapshot: {
+        Row: {
+          action_note_summary: string | null
+          action_required_summary: string | null
+          action_severity: string | null
+          affected_line_count: number | null
+          affected_product_count: number | null
+          affected_sku_count: number | null
+          approval_blocking_line_count: number | null
+          approval_blocking_sku_count: number | null
+          bom_sources: string | null
+          has_missing_rate_source: boolean | null
+          has_missing_selected_rate: boolean | null
+          has_optional_lines: boolean | null
+          issue_codes: string | null
+          latest_rate_date: string | null
+          material_area: string | null
+          material_line_statuses: string | null
+          oldest_rate_date: string | null
+          period_start: string | null
+          recommended_ui_route: string | null
+          review_line_count: number | null
+          review_sku_count: number | null
+          sample_product_name: string | null
+          sample_sku_id: number | null
+          snapshot_refreshed_at: string | null
+          stock_item_code: string | null
+          stock_item_id: number | null
+          stock_item_name: string | null
+          warning_codes: string | null
+        }
+        Insert: {
+          action_note_summary?: string | null
+          action_required_summary?: string | null
+          action_severity?: string | null
+          affected_line_count?: number | null
+          affected_product_count?: number | null
+          affected_sku_count?: number | null
+          approval_blocking_line_count?: number | null
+          approval_blocking_sku_count?: number | null
+          bom_sources?: string | null
+          has_missing_rate_source?: boolean | null
+          has_missing_selected_rate?: boolean | null
+          has_optional_lines?: boolean | null
+          issue_codes?: string | null
+          latest_rate_date?: string | null
+          material_area?: string | null
+          material_line_statuses?: string | null
+          oldest_rate_date?: string | null
+          period_start?: string | null
+          recommended_ui_route?: string | null
+          review_line_count?: number | null
+          review_sku_count?: number | null
+          sample_product_name?: string | null
+          sample_sku_id?: number | null
+          snapshot_refreshed_at?: string | null
+          stock_item_code?: string | null
+          stock_item_id?: number | null
+          stock_item_name?: string | null
+          warning_codes?: string | null
+        }
+        Update: {
+          action_note_summary?: string | null
+          action_required_summary?: string | null
+          action_severity?: string | null
+          affected_line_count?: number | null
+          affected_product_count?: number | null
+          affected_sku_count?: number | null
+          approval_blocking_line_count?: number | null
+          approval_blocking_sku_count?: number | null
+          bom_sources?: string | null
+          has_missing_rate_source?: boolean | null
+          has_missing_selected_rate?: boolean | null
+          has_optional_lines?: boolean | null
+          issue_codes?: string | null
+          latest_rate_date?: string | null
+          material_area?: string | null
+          material_line_statuses?: string | null
+          oldest_rate_date?: string | null
+          period_start?: string | null
+          recommended_ui_route?: string | null
+          review_line_count?: number | null
+          review_sku_count?: number | null
+          sample_product_name?: string | null
+          sample_sku_id?: number | null
+          snapshot_refreshed_at?: string | null
+          stock_item_code?: string | null
+          stock_item_id?: number | null
+          stock_item_name?: string | null
+          warning_codes?: string | null
         }
         Relationships: []
       }
@@ -17377,6 +18888,10 @@ export type Database = {
           action_required: string | null
           approval_block_flag: boolean | null
           bom_source: string | null
+          form_conversion_applied: boolean | null
+          form_conversion_consume_uom_id: number | null
+          form_conversion_factor: number | null
+          form_conversion_purchase_uom_id: number | null
           is_optional: boolean | null
           line_no: number | null
           material_issue_code: string | null
@@ -17387,7 +18902,13 @@ export type Database = {
           product_name: string | null
           qty_per_reference_output: number | null
           rate_date: string | null
+          rate_lookup_basis: string | null
+          rate_resolution_note: string | null
           rate_source: string | null
+          resolved_rate_stock_item_code: string | null
+          resolved_rate_stock_item_default_uom_id: number | null
+          resolved_rate_stock_item_id: number | null
+          resolved_rate_stock_item_name: string | null
           selected_rate: number | null
           sku_id: number | null
           sku_uom: string | null
@@ -17432,42 +18953,26 @@ export type Database = {
         }
         Relationships: []
       }
-      v_costing_pricing_cost_sheet_line_traceability: {
+      v_costing_pricing_printable_cost_sheet_product_summary: {
         Row: {
-          audit_hint: string | null
-          calculation_basis: string | null
-          control_hint: string | null
+          blocked_line_count: number | null
+          category_name: string | null
           cost_sheet_note: string | null
           cost_sheet_status: string | null
-          drill_filter_json: Json | null
-          drill_route_lens_id: string | null
-          drill_route_module_key: string | null
-          evidence_json: Json | null
-          evidence_refreshed_at: string | null
-          is_stale_hint: boolean | null
-          line_description: string | null
-          line_label: string | null
-          line_order: number | null
+          group_name: string | null
+          line_count: number | null
           period_start: string | null
+          product_hierarchy: string | null
           product_id: number | null
           product_name: string | null
-          refresh_stage_code: string | null
+          ready_line_count: number | null
           refreshed_at: string | null
-          section_code: string | null
-          section_title: string | null
-          sku_column_label: string | null
-          sku_id: number | null
-          source_lens_id: string | null
-          source_module_key: string | null
-          source_module_label: string | null
-          source_note: string | null
-          trace_formula: string | null
-          trace_source_snapshot: string | null
-          trace_source_type: string | null
-          trace_summary: string | null
-          value_numeric: number | null
-          value_text: string | null
-          value_type: string | null
+          review_required_line_count: number | null
+          sku_column_labels: string | null
+          sku_count: number | null
+          snapshot_refreshed_at: string | null
+          sub_group_name: string | null
+          subcategory_name: string | null
         }
         Relationships: []
       }
@@ -17490,6 +18995,10 @@ export type Database = {
           action_required: string | null
           approval_block_flag: boolean | null
           bom_source: string | null
+          form_conversion_applied: boolean | null
+          form_conversion_consume_uom_id: number | null
+          form_conversion_factor: number | null
+          form_conversion_purchase_uom_id: number | null
           is_optional: boolean | null
           line_no: number | null
           material_issue_code: string | null
@@ -17500,7 +19009,13 @@ export type Database = {
           product_name: string | null
           qty_per_reference_output: number | null
           rate_date: string | null
+          rate_lookup_basis: string | null
+          rate_resolution_note: string | null
           rate_source: string | null
+          resolved_rate_stock_item_code: string | null
+          resolved_rate_stock_item_default_uom_id: number | null
+          resolved_rate_stock_item_id: number | null
+          resolved_rate_stock_item_name: string | null
           selected_rate: number | null
           sku_id: number | null
           sku_uom: string | null
@@ -17519,6 +19034,10 @@ export type Database = {
           action_required: string | null
           approval_block_flag: boolean | null
           bom_source: string | null
+          form_conversion_applied: boolean | null
+          form_conversion_consume_uom_id: number | null
+          form_conversion_factor: number | null
+          form_conversion_purchase_uom_id: number | null
           is_optional: boolean | null
           line_no: number | null
           material_issue_code: string | null
@@ -17530,7 +19049,13 @@ export type Database = {
           product_name: string | null
           qty_per_reference_output: number | null
           rate_date: string | null
+          rate_lookup_basis: string | null
+          rate_resolution_note: string | null
           rate_source: string | null
+          resolved_rate_stock_item_code: string | null
+          resolved_rate_stock_item_default_uom_id: number | null
+          resolved_rate_stock_item_id: number | null
+          resolved_rate_stock_item_name: string | null
           selected_rate: number | null
           sku_id: number | null
           sku_uom: string | null
@@ -17547,6 +19072,10 @@ export type Database = {
           action_required?: string | null
           approval_block_flag?: boolean | null
           bom_source?: string | null
+          form_conversion_applied?: boolean | null
+          form_conversion_consume_uom_id?: number | null
+          form_conversion_factor?: number | null
+          form_conversion_purchase_uom_id?: number | null
           is_optional?: boolean | null
           line_no?: number | null
           material_issue_code?: string | null
@@ -17558,7 +19087,13 @@ export type Database = {
           product_name?: string | null
           qty_per_reference_output?: number | null
           rate_date?: string | null
+          rate_lookup_basis?: string | null
+          rate_resolution_note?: string | null
           rate_source?: string | null
+          resolved_rate_stock_item_code?: string | null
+          resolved_rate_stock_item_default_uom_id?: number | null
+          resolved_rate_stock_item_id?: number | null
+          resolved_rate_stock_item_name?: string | null
           selected_rate?: number | null
           sku_id?: number | null
           sku_uom?: string | null
@@ -17575,6 +19110,10 @@ export type Database = {
           action_required?: string | null
           approval_block_flag?: boolean | null
           bom_source?: string | null
+          form_conversion_applied?: boolean | null
+          form_conversion_consume_uom_id?: number | null
+          form_conversion_factor?: number | null
+          form_conversion_purchase_uom_id?: number | null
           is_optional?: boolean | null
           line_no?: number | null
           material_issue_code?: string | null
@@ -17586,7 +19125,13 @@ export type Database = {
           product_name?: string | null
           qty_per_reference_output?: number | null
           rate_date?: string | null
+          rate_lookup_basis?: string | null
+          rate_resolution_note?: string | null
           rate_source?: string | null
+          resolved_rate_stock_item_code?: string | null
+          resolved_rate_stock_item_default_uom_id?: number | null
+          resolved_rate_stock_item_id?: number | null
+          resolved_rate_stock_item_name?: string | null
           selected_rate?: number | null
           sku_id?: number | null
           sku_uom?: string | null
@@ -17779,6 +19324,192 @@ export type Database = {
           sub_group_name: string | null
           subcategory_name: string | null
           updated_at: string | null
+        }
+        Relationships: []
+      }
+      v_costing_pricing_sku_control_status: {
+        Row: {
+          admin_overhead_allocation_status: string | null
+          admin_overhead_cost_per_sku: number | null
+          control_note: string | null
+          control_severity: string | null
+          cost_sheet_note: string | null
+          cost_sheet_status: string | null
+          direct_labour_cost_per_sku: number | null
+          finance_admin_overhead_allocation_status: string | null
+          finance_admin_overhead_cost_per_sku: number | null
+          first_control_status: string | null
+          ik_margin_amount_before_scheme: number | null
+          ik_margin_percent_before_scheme: number | null
+          ik_selling_price: number | null
+          internal_loaded_cost_note: string | null
+          internal_loaded_cost_per_sku: number | null
+          internal_loaded_cost_status: string | null
+          manufacturing_cop_note: string | null
+          manufacturing_cop_per_sku: number | null
+          manufacturing_cop_status: string | null
+          marketing_expense_allocation_status: string | null
+          marketing_expense_cost_per_sku: number | null
+          material_calculated_at: string | null
+          material_cost_per_sku: number | null
+          material_costing_note: string | null
+          material_costing_status: string | null
+          mrp_ik: number | null
+          mrp_ok: number | null
+          ok_margin_amount_before_scheme: number | null
+          ok_margin_percent_before_scheme: number | null
+          ok_selling_price: number | null
+          pack_size: number | null
+          pack_uom: string | null
+          period_start: string | null
+          pm_blocking_line_count: number | null
+          pm_blocking_stock_item_count: number | null
+          pm_costing_status: string | null
+          pm_manual_rate_line_count: number | null
+          pm_review_rate_line_count: number | null
+          pm_stale_purchase_rate_line_count: number | null
+          pm_stock_valuation_fallback_line_count: number | null
+          pricing_bridge_note: string | null
+          pricing_bridge_status: string | null
+          pricing_cost_per_sku: number | null
+          prime_cost_per_sku: number | null
+          prime_costing_note: string | null
+          prime_costing_status: string | null
+          product_id: number | null
+          product_name: string | null
+          recommended_ui_route: string | null
+          rm_blocking_line_count: number | null
+          rm_blocking_stock_item_count: number | null
+          rm_costing_status: string | null
+          rm_manual_rate_line_count: number | null
+          rm_review_rate_line_count: number | null
+          rm_stale_purchase_rate_line_count: number | null
+          rm_stock_valuation_fallback_line_count: number | null
+          selling_price_bridge_status: string | null
+          sku_id: number | null
+        }
+        Relationships: []
+      }
+      v_costing_pricing_sku_control_status_snapshot: {
+        Row: {
+          control_note: string | null
+          control_severity: string | null
+          cost_sheet_status: string | null
+          first_control_status: string | null
+          ik_margin_amount_before_scheme: number | null
+          ik_margin_percent_before_scheme: number | null
+          ik_selling_price: number | null
+          internal_loaded_cost_status: string | null
+          manufacturing_cop_status: string | null
+          material_cost_per_sku: number | null
+          material_costing_status: string | null
+          mrp_ik: number | null
+          mrp_ok: number | null
+          ok_margin_amount_before_scheme: number | null
+          ok_margin_percent_before_scheme: number | null
+          ok_selling_price: number | null
+          pack_size: number | null
+          pack_uom: string | null
+          period_start: string | null
+          pm_blocking_line_count: number | null
+          pm_costing_status: string | null
+          pm_manual_rate_line_count: number | null
+          pm_review_rate_line_count: number | null
+          pm_stale_purchase_rate_line_count: number | null
+          pm_stock_valuation_fallback_line_count: number | null
+          pricing_bridge_status: string | null
+          product_id: number | null
+          product_name: string | null
+          recommended_ui_route: string | null
+          rm_blocking_line_count: number | null
+          rm_costing_status: string | null
+          rm_manual_rate_line_count: number | null
+          rm_review_rate_line_count: number | null
+          rm_stale_purchase_rate_line_count: number | null
+          rm_stock_valuation_fallback_line_count: number | null
+          selling_price_bridge_status: string | null
+          sku_id: number | null
+          snapshot_refreshed_at: string | null
+        }
+        Insert: {
+          control_note?: string | null
+          control_severity?: string | null
+          cost_sheet_status?: string | null
+          first_control_status?: string | null
+          ik_margin_amount_before_scheme?: number | null
+          ik_margin_percent_before_scheme?: number | null
+          ik_selling_price?: number | null
+          internal_loaded_cost_status?: string | null
+          manufacturing_cop_status?: string | null
+          material_cost_per_sku?: number | null
+          material_costing_status?: string | null
+          mrp_ik?: number | null
+          mrp_ok?: number | null
+          ok_margin_amount_before_scheme?: number | null
+          ok_margin_percent_before_scheme?: number | null
+          ok_selling_price?: number | null
+          pack_size?: number | null
+          pack_uom?: string | null
+          period_start?: string | null
+          pm_blocking_line_count?: number | null
+          pm_costing_status?: string | null
+          pm_manual_rate_line_count?: number | null
+          pm_review_rate_line_count?: number | null
+          pm_stale_purchase_rate_line_count?: number | null
+          pm_stock_valuation_fallback_line_count?: number | null
+          pricing_bridge_status?: string | null
+          product_id?: number | null
+          product_name?: string | null
+          recommended_ui_route?: string | null
+          rm_blocking_line_count?: number | null
+          rm_costing_status?: string | null
+          rm_manual_rate_line_count?: number | null
+          rm_review_rate_line_count?: number | null
+          rm_stale_purchase_rate_line_count?: number | null
+          rm_stock_valuation_fallback_line_count?: number | null
+          selling_price_bridge_status?: string | null
+          sku_id?: number | null
+          snapshot_refreshed_at?: string | null
+        }
+        Update: {
+          control_note?: string | null
+          control_severity?: string | null
+          cost_sheet_status?: string | null
+          first_control_status?: string | null
+          ik_margin_amount_before_scheme?: number | null
+          ik_margin_percent_before_scheme?: number | null
+          ik_selling_price?: number | null
+          internal_loaded_cost_status?: string | null
+          manufacturing_cop_status?: string | null
+          material_cost_per_sku?: number | null
+          material_costing_status?: string | null
+          mrp_ik?: number | null
+          mrp_ok?: number | null
+          ok_margin_amount_before_scheme?: number | null
+          ok_margin_percent_before_scheme?: number | null
+          ok_selling_price?: number | null
+          pack_size?: number | null
+          pack_uom?: string | null
+          period_start?: string | null
+          pm_blocking_line_count?: number | null
+          pm_costing_status?: string | null
+          pm_manual_rate_line_count?: number | null
+          pm_review_rate_line_count?: number | null
+          pm_stale_purchase_rate_line_count?: number | null
+          pm_stock_valuation_fallback_line_count?: number | null
+          pricing_bridge_status?: string | null
+          product_id?: number | null
+          product_name?: string | null
+          recommended_ui_route?: string | null
+          rm_blocking_line_count?: number | null
+          rm_costing_status?: string | null
+          rm_manual_rate_line_count?: number | null
+          rm_review_rate_line_count?: number | null
+          rm_stale_purchase_rate_line_count?: number | null
+          rm_stock_valuation_fallback_line_count?: number | null
+          selling_price_bridge_status?: string | null
+          sku_id?: number | null
+          snapshot_refreshed_at?: string | null
         }
         Relationships: []
       }
@@ -18034,6 +19765,186 @@ export type Database = {
         }
         Relationships: []
       }
+      v_costing_scheme_master_audit: {
+        Row: {
+          actor_user_id: string | null
+          approval_reference: string | null
+          audit_event_id: number | null
+          event_at: string | null
+          event_type: string | null
+          new_approval_reference: string | null
+          new_free_qty: number | null
+          new_is_active: boolean | null
+          new_paid_qty: number | null
+          new_remarks: string | null
+          new_scheme_name: string | null
+          old_approval_reference: string | null
+          old_free_qty: number | null
+          old_is_active: boolean | null
+          old_paid_qty: number | null
+          old_remarks: string | null
+          old_scheme_name: string | null
+          reason: string | null
+          scheme_id: number | null
+          scheme_name: string | null
+        }
+        Insert: {
+          actor_user_id?: string | null
+          approval_reference?: string | null
+          audit_event_id?: number | null
+          event_at?: string | null
+          event_type?: string | null
+          new_approval_reference?: never
+          new_free_qty?: never
+          new_is_active?: never
+          new_paid_qty?: never
+          new_remarks?: never
+          new_scheme_name?: never
+          old_approval_reference?: never
+          old_free_qty?: never
+          old_is_active?: never
+          old_paid_qty?: never
+          old_remarks?: never
+          old_scheme_name?: never
+          reason?: string | null
+          scheme_id?: number | null
+          scheme_name?: never
+        }
+        Update: {
+          actor_user_id?: string | null
+          approval_reference?: string | null
+          audit_event_id?: number | null
+          event_at?: string | null
+          event_type?: string | null
+          new_approval_reference?: never
+          new_free_qty?: never
+          new_is_active?: never
+          new_paid_qty?: never
+          new_remarks?: never
+          new_scheme_name?: never
+          old_approval_reference?: never
+          old_free_qty?: never
+          old_is_active?: never
+          old_paid_qty?: never
+          old_remarks?: never
+          old_scheme_name?: never
+          reason?: string | null
+          scheme_id?: number | null
+          scheme_name?: never
+        }
+        Relationships: []
+      }
+      v_costing_scheme_master_register: {
+        Row: {
+          active_direct_policy_count: number | null
+          active_hierarchy_rule_count: number | null
+          active_replacement_reference_count: number | null
+          approval_reference: string | null
+          can_deactivate: boolean | null
+          can_edit_metadata: boolean | null
+          can_reactivate: boolean | null
+          created_at: string | null
+          created_by: string | null
+          deactivated_at: string | null
+          deactivated_by: string | null
+          deactivation_reason: string | null
+          direct_policy_count: number | null
+          effective_free_discount_percent: number | null
+          free_per_paid_ratio: number | null
+          free_qty: number | null
+          hierarchy_rule_count: number | null
+          is_active: boolean | null
+          is_system_defined: boolean | null
+          latest_viability_snapshot_period: string | null
+          metadata_update_reason: string | null
+          paid_qty: number | null
+          reactivated_at: string | null
+          reactivated_by: string | null
+          reactivation_reason: string | null
+          remarks: string | null
+          replacement_reference_count: number | null
+          scheme_id: number | null
+          scheme_name: string | null
+          total_qty: number | null
+          updated_at: string | null
+          updated_by: string | null
+          viability_snapshot_count: number | null
+          viability_snapshot_period_count: number | null
+        }
+        Insert: {
+          active_direct_policy_count?: never
+          active_hierarchy_rule_count?: never
+          active_replacement_reference_count?: never
+          approval_reference?: string | null
+          can_deactivate?: never
+          can_edit_metadata?: never
+          can_reactivate?: never
+          created_at?: string | null
+          created_by?: string | null
+          deactivated_at?: string | null
+          deactivated_by?: string | null
+          deactivation_reason?: string | null
+          direct_policy_count?: never
+          effective_free_discount_percent?: never
+          free_per_paid_ratio?: never
+          free_qty?: number | null
+          hierarchy_rule_count?: never
+          is_active?: boolean | null
+          is_system_defined?: boolean | null
+          latest_viability_snapshot_period?: never
+          metadata_update_reason?: string | null
+          paid_qty?: number | null
+          reactivated_at?: string | null
+          reactivated_by?: string | null
+          reactivation_reason?: string | null
+          remarks?: string | null
+          replacement_reference_count?: never
+          scheme_id?: number | null
+          scheme_name?: string | null
+          total_qty?: never
+          updated_at?: string | null
+          updated_by?: string | null
+          viability_snapshot_count?: never
+          viability_snapshot_period_count?: never
+        }
+        Update: {
+          active_direct_policy_count?: never
+          active_hierarchy_rule_count?: never
+          active_replacement_reference_count?: never
+          approval_reference?: string | null
+          can_deactivate?: never
+          can_edit_metadata?: never
+          can_reactivate?: never
+          created_at?: string | null
+          created_by?: string | null
+          deactivated_at?: string | null
+          deactivated_by?: string | null
+          deactivation_reason?: string | null
+          direct_policy_count?: never
+          effective_free_discount_percent?: never
+          free_per_paid_ratio?: never
+          free_qty?: number | null
+          hierarchy_rule_count?: never
+          is_active?: boolean | null
+          is_system_defined?: boolean | null
+          latest_viability_snapshot_period?: never
+          metadata_update_reason?: string | null
+          paid_qty?: number | null
+          reactivated_at?: string | null
+          reactivated_by?: string | null
+          reactivation_reason?: string | null
+          remarks?: string | null
+          replacement_reference_count?: never
+          scheme_id?: number | null
+          scheme_name?: string | null
+          total_qty?: never
+          updated_at?: string | null
+          updated_by?: string | null
+          viability_snapshot_count?: never
+          viability_snapshot_period_count?: never
+        }
+        Relationships: []
+      }
       v_costing_scheme_policy_rule_register: {
         Row: {
           apply_mode: string | null
@@ -18267,6 +20178,102 @@ export type Database = {
             referencedColumns: ["product_id"]
           },
         ]
+      }
+      v_costing_staff_classification_register: {
+        Row: {
+          allocation_pool: string | null
+          allocation_weight: number | null
+          allowance_amount: number | null
+          basic_salary: number | null
+          classification_created_at: string | null
+          classification_id: number | null
+          classification_is_active: boolean | null
+          classification_note: string | null
+          classification_status: string | null
+          classification_updated_at: string | null
+          costing_class: string | null
+          costing_class_label: string | null
+          designation: string | null
+          effective_from: string | null
+          effective_to: string | null
+          employee_code: string | null
+          employer_contribution: number | null
+          latest_salary_period_start: string | null
+          other_salary_cost: number | null
+          remarks: string | null
+          salary_source_note: string | null
+          staff_display_name: string | null
+          staff_id: number | null
+          staff_is_active: boolean | null
+          total_salary_cost: number | null
+        }
+        Relationships: []
+      }
+      v_costing_staff_cost_pool_summary: {
+        Row: {
+          allocation_pool: string | null
+          costing_class: string | null
+          costing_class_label: string | null
+          period_start: string | null
+          pool_amount: number | null
+          pool_status: string | null
+          staff_count: number | null
+          staff_details: Json | null
+        }
+        Relationships: []
+      }
+      v_costing_staff_costing_class_options: {
+        Row: {
+          class_note: string | null
+          costing_class: string | null
+          costing_class_label: string | null
+          default_allocation_pool: string | null
+          sort_order: number | null
+        }
+        Relationships: []
+      }
+      v_costing_unclassified_staff_for_costing: {
+        Row: {
+          allocation_pool: string | null
+          allocation_weight: number | null
+          allowance_amount: number | null
+          basic_salary: number | null
+          classification_created_at: string | null
+          classification_id: number | null
+          classification_is_active: boolean | null
+          classification_note: string | null
+          classification_status: string | null
+          classification_updated_at: string | null
+          costing_class: string | null
+          costing_class_label: string | null
+          designation: string | null
+          effective_from: string | null
+          effective_to: string | null
+          employee_code: string | null
+          employer_contribution: number | null
+          latest_salary_period_start: string | null
+          other_salary_cost: number | null
+          remarks: string | null
+          salary_source_note: string | null
+          staff_display_name: string | null
+          staff_id: number | null
+          staff_is_active: boolean | null
+          total_salary_cost: number | null
+        }
+        Relationships: []
+      }
+      v_costing_unmapped_expense_heads_for_mapping: {
+        Row: {
+          expense_group: string | null
+          first_seen_date: string | null
+          head_name: string | null
+          latest_seen_date: string | null
+          materiality_band: string | null
+          max_seen_value: number | null
+          snapshot_count: number | null
+          suggested_review_note: string | null
+        }
+        Relationships: []
       }
       v_daily_etl_health: {
         Row: {
@@ -22019,6 +24026,15 @@ export type Database = {
         }
         Relationships: []
       }
+      v_module_badges: {
+        Row: {
+          badge_count: number | null
+          badge_label: string | null
+          badge_severity: string | null
+          module_id: string | null
+        }
+        Relationships: []
+      }
       v_mrp_horizon_active: {
         Row: {
           horizon_end: string | null
@@ -23921,6 +25937,195 @@ export type Database = {
             referencedRelation: "inv_class_category"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "inv_stock_item"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_costing_material_manual_rate_review"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_inv_stock_item_with_class"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_item_consumption_consumables_monthly"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_item_consumption_rm_pm_monthly"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_picker_sp_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_purchases_by_item"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_purchases_summary_by_item"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_rm_seasonal_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_rm_stock_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_semiprocess_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_item_picker"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_items_with_semiflag"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "inv_uom"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_picker"
+            referencedColumns: ["uom_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_uom_picker"
+            referencedColumns: ["id"]
+          },
         ]
       }
       v_proc_indent_from_pr_audit: {
@@ -24071,10 +26276,200 @@ export type Database = {
             referencedRelation: "inv_class_category"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "inv_stock_item"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_costing_material_manual_rate_review"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_inv_stock_item_with_class"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_item_consumption_consumables_monthly"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_item_consumption_rm_pm_monthly"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_picker_sp_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_purchases_by_item"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_purchases_summary_by_item"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_rm_seasonal_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_rm_stock_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_semiprocess_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_item_picker"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_items_with_semiflag"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "inv_uom"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_picker"
+            referencedColumns: ["uom_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_uom_picker"
+            referencedColumns: ["id"]
+          },
         ]
       }
       v_proc_indent_line_buylist_base: {
         Row: {
+          actual_vendor_type: string | null
           allocated_qty: number | null
           approved_date: string | null
           assignment_status: string | null
@@ -24101,6 +26496,9 @@ export type Database = {
           stock_item_name: string | null
           uom_code: string | null
           uom_id: number | null
+          vendor_bucket_key: string | null
+          vendor_bucket_name: string | null
+          vendor_bucket_type: string | null
           vendor_id: number | null
           vendor_name: string | null
         }
@@ -24131,6 +26529,195 @@ export type Database = {
             columns: ["material_class_id"]
             isOneToOne: false
             referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "inv_stock_item"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_costing_material_manual_rate_review"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_inv_stock_item_with_class"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_item_consumption_consumables_monthly"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_item_consumption_rm_pm_monthly"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_picker_sp_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_purchases_by_item"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_purchases_summary_by_item"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_rm_seasonal_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_rm_stock_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_semiprocess_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_item_picker"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_items_with_semiflag"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "inv_uom"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_picker"
+            referencedColumns: ["uom_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_uom_picker"
             referencedColumns: ["id"]
           },
         ]
@@ -24212,6 +26799,195 @@ export type Database = {
             referencedRelation: "inv_class_category"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "inv_stock_item"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_costing_material_manual_rate_review"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_inv_stock_item_with_class"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_item_consumption_consumables_monthly"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_item_consumption_rm_pm_monthly"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_picker_sp_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_purchases_by_item"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_purchases_summary_by_item"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_rm_seasonal_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_rm_stock_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_semiprocess_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_item_picker"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_items_with_semiflag"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "inv_uom"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_picker"
+            referencedColumns: ["uom_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_uom_picker"
+            referencedColumns: ["id"]
+          },
         ]
       }
       v_proc_indent_lines_console: {
@@ -24289,6 +27065,558 @@ export type Database = {
             referencedRelation: "proc_vendor"
             referencedColumns: ["vendor_id"]
           },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "inv_stock_item"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_costing_material_manual_rate_review"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_inv_stock_item_with_class"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_item_consumption_consumables_monthly"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_item_consumption_rm_pm_monthly"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_picker_sp_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_purchases_by_item"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_purchases_summary_by_item"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_rm_seasonal_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_rm_stock_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_semiprocess_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_item_picker"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_items_with_semiflag"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "inv_uom"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_picker"
+            referencedColumns: ["uom_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_uom_picker"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_proc_indent_lines_console_ordered: {
+        Row: {
+          allocated_qty: number | null
+          approved_date: string | null
+          code: string | null
+          has_any_vendor: boolean | null
+          has_remaining: boolean | null
+          has_selected_vendor: boolean | null
+          indent_id: number | null
+          indent_line_id: number | null
+          indent_line_sort_key: string | null
+          indent_line_sort_no: number | null
+          indent_number: string | null
+          material_class_code: string | null
+          material_class_id: number | null
+          material_class_label: string | null
+          own_category_code: string | null
+          own_category_id: number | null
+          own_category_label: string | null
+          own_category_sort_order: number | null
+          own_group_code: string | null
+          own_group_id: number | null
+          own_group_label: string | null
+          own_group_sort_order: number | null
+          own_stock_item_code: string | null
+          own_stock_item_master_name: string | null
+          own_subcategory_code: string | null
+          own_subcategory_id: number | null
+          own_subcategory_label: string | null
+          own_subcategory_sort_order: number | null
+          own_subgroup_code: string | null
+          own_subgroup_id: number | null
+          own_subgroup_label: string | null
+          own_subgroup_sort_order: number | null
+          recommended_rate: number | null
+          recommended_vendor_id: number | null
+          recommended_vendor_name: string | null
+          remaining_qty: number | null
+          requested_qty: number | null
+          resolved_rate: number | null
+          resolved_vendor_id: number | null
+          resolved_vendor_name: string | null
+          selected_rate: number | null
+          selected_vendor_id: number | null
+          selected_vendor_name: string | null
+          selection_reason: string | null
+          source_category_label: string | null
+          source_category_sort_order: number | null
+          source_group_label: string | null
+          source_group_sort_order: number | null
+          source_pr_id: number | null
+          source_pr_line_id: number | null
+          source_pr_line_sort_key: string | null
+          source_pr_line_sort_no: number | null
+          source_pr_unmapped_sort: number | null
+          source_stock_item_code: string | null
+          source_subcategory_label: string | null
+          source_subcategory_sort_order: number | null
+          source_subgroup_label: string | null
+          source_subgroup_sort_order: number | null
+          stock_item_code: string | null
+          stock_item_id: number | null
+          stock_item_name: string | null
+          uom_code: string | null
+          uom_id: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inv_stock_item_class_map_category_id_fkey"
+            columns: ["own_category_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_class_map_group_id_fkey"
+            columns: ["own_group_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_group"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_class_map_subcategory_id_fkey"
+            columns: ["own_subcategory_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_subcategory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_class_map_subgroup_id_fkey"
+            columns: ["own_subgroup_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_subgroup"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "proc_indent_header"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_console"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_indent_fk"
+            columns: ["indent_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_header_balance"
+            referencedColumns: ["indent_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_material_class_fk"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_sourcing_decision_rec_fk"
+            columns: ["recommended_vendor_id"]
+            isOneToOne: false
+            referencedRelation: "proc_vendor"
+            referencedColumns: ["vendor_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_sourcing_decision_sel_fk"
+            columns: ["selected_vendor_id"]
+            isOneToOne: false
+            referencedRelation: "proc_vendor"
+            referencedColumns: ["vendor_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "inv_stock_item"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_costing_material_manual_rate_review"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_inv_stock_item_with_class"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_item_consumption_consumables_monthly"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_item_consumption_rm_pm_monthly"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_picker_sp_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_purchases_by_item"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_purchases_summary_by_item"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_rm_seasonal_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_rm_stock_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_semiprocess_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_item_picker"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_items_with_semiflag"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "inv_uom"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_picker"
+            referencedColumns: ["uom_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_uom_picker"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_pr_indent_line_map_pr_id_fkey"
+            columns: ["source_pr_id"]
+            isOneToOne: false
+            referencedRelation: "proc_pr_header"
+            referencedColumns: ["pr_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_indent_line_map_pr_id_fkey"
+            columns: ["source_pr_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_pr_header"
+            referencedColumns: ["pr_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_indent_line_map_pr_line_id_fkey"
+            columns: ["source_pr_line_id"]
+            isOneToOne: false
+            referencedRelation: "proc_pr_line"
+            referencedColumns: ["pr_line_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_indent_line_map_pr_line_id_fkey"
+            columns: ["source_pr_line_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_pr_lines"
+            referencedColumns: ["pr_line_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_indent_line_map_pr_line_id_fkey"
+            columns: ["source_pr_line_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_pr_lines_ordered"
+            referencedColumns: ["pr_line_id"]
+          },
         ]
       }
       v_proc_indent_open_lines: {
@@ -24330,6 +27658,195 @@ export type Database = {
             columns: ["material_class_id"]
             isOneToOne: false
             referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "inv_stock_item"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_costing_material_manual_rate_review"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_inv_stock_item_with_class"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_item_consumption_consumables_monthly"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_item_consumption_rm_pm_monthly"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_picker_sp_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_purchases_by_item"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_purchases_summary_by_item"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_rm_seasonal_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_rm_stock_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_semiprocess_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_item_picker"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_items_with_semiflag"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "inv_uom"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_picker"
+            referencedColumns: ["uom_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_uom_picker"
             referencedColumns: ["id"]
           },
         ]
@@ -24410,6 +27927,195 @@ export type Database = {
             referencedRelation: "inv_class_category"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "inv_stock_item"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_costing_material_manual_rate_review"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_inv_stock_item_with_class"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_item_consumption_consumables_monthly"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_item_consumption_rm_pm_monthly"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_picker_sp_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_purchases_by_item"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_purchases_summary_by_item"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_rm_seasonal_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_rm_stock_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_semiprocess_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_item_picker"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_items_with_semiflag"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "inv_uom"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_picker"
+            referencedColumns: ["uom_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_uom_picker"
+            referencedColumns: ["id"]
+          },
         ]
       }
       v_proc_indent_priority_system: {
@@ -24478,6 +28184,195 @@ export type Database = {
             columns: ["material_class_id"]
             isOneToOne: false
             referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "inv_stock_item"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_costing_material_manual_rate_review"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_inv_stock_item_with_class"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_item_consumption_consumables_monthly"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_item_consumption_rm_pm_monthly"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_picker_sp_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_purchases_by_item"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_purchases_summary_by_item"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_rm_seasonal_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_rm_stock_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_semiprocess_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_item_picker"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_items_with_semiflag"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "inv_uom"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_picker"
+            referencedColumns: ["uom_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_uom_picker"
             referencedColumns: ["id"]
           },
         ]
@@ -24745,6 +28640,110 @@ export type Database = {
           },
         ]
       }
+      v_proc_pr_lines_ordered: {
+        Row: {
+          category_code: string | null
+          category_id: number | null
+          category_label: string | null
+          category_sort_order: number | null
+          category_unmapped_sort: number | null
+          created_at: string | null
+          final_requested_qty: number | null
+          group_code: string | null
+          group_id: number | null
+          group_label: string | null
+          group_sort_order: number | null
+          item_unmapped_sort: number | null
+          line_sort_key: string | null
+          line_sort_no: number | null
+          manual_delta_qty: number | null
+          manual_reason: string | null
+          material_class_code: string | null
+          material_class_id: number | null
+          material_class_label: string | null
+          normalized_class_code: string | null
+          pr_id: number | null
+          pr_line_id: number | null
+          requested_qty: number | null
+          rm_procurement_mode: string | null
+          stock_item_code: string | null
+          stock_item_id: number | null
+          stock_item_master_name: string | null
+          stock_item_name: string | null
+          stock_item_rm_procurement_mode: string | null
+          subcategory_code: string | null
+          subcategory_id: number | null
+          subcategory_label: string | null
+          subcategory_sort_order: number | null
+          subcategory_unmapped_sort: number | null
+          subgroup_code: string | null
+          subgroup_id: number | null
+          subgroup_label: string | null
+          subgroup_sort_order: number | null
+          system_suggested_qty: number | null
+          uom_code: string | null
+          uom_id: number | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inv_stock_item_class_map_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_class_map_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_group"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_class_map_subcategory_id_fkey"
+            columns: ["subcategory_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_subcategory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_stock_item_class_map_subgroup_id_fkey"
+            columns: ["subgroup_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_subgroup"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_pr_line_material_class_fk"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_pr_line_material_class_id_fkey"
+            columns: ["material_class_id"]
+            isOneToOne: false
+            referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_pr_line_pr_id_fkey"
+            columns: ["pr_id"]
+            isOneToOne: false
+            referencedRelation: "proc_pr_header"
+            referencedColumns: ["pr_id"]
+          },
+          {
+            foreignKeyName: "proc_pr_line_pr_id_fkey"
+            columns: ["pr_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_pr_header"
+            referencedColumns: ["pr_id"]
+          },
+        ]
+      }
       v_proc_procurement_action_queue: {
         Row: {
           aging_days: number | null
@@ -24841,6 +28840,195 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "proc_vendor"
             referencedColumns: ["vendor_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "inv_stock_item"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_costing_material_manual_rate_review"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_inv_stock_item_with_class"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_item_consumption_consumables_monthly"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_item_consumption_rm_pm_monthly"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_picker_sp_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_purchases_by_item"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_purchases_summary_by_item"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_rm_seasonal_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_rm_stock_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_semiprocess_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_item_picker"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_items_with_semiflag"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "inv_uom"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_picker"
+            referencedColumns: ["uom_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_uom_picker"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -25192,6 +29380,8 @@ export type Database = {
       }
       v_proc_vendorwise_buylist: {
         Row: {
+          actual_vendor_count: number | null
+          actual_vendor_summary: string | null
           assignment_status: string | null
           has_rate: boolean | null
           has_vendor: boolean | null
@@ -25210,6 +29400,9 @@ export type Database = {
           total_qty_to_buy: number | null
           uom_code: string | null
           uom_id: number | null
+          vendor_bucket_key: string | null
+          vendor_bucket_name: string | null
+          vendor_bucket_type: string | null
           vendor_id: number | null
           vendor_name: string | null
         }
@@ -25219,6 +29412,195 @@ export type Database = {
             columns: ["material_class_id"]
             isOneToOne: false
             referencedRelation: "inv_class_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "inv_stock_item"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_costing_material_manual_rate_review"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_inv_stock_item_with_class"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_item_consumption_consumables_monthly"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_item_consumption_rm_pm_monthly"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_picker_sp_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_excess_acceptance_audit_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_indent_excess_supply_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_avg_last3"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_best_rate_180d"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_history"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_item_vendor_last_purchase"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_excess_console"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_fact_with_vendor"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchase_unallocated_net"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_proc_purchases_for_indent"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_purchases_by_item"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_purchases_summary_by_item"
+            referencedColumns: ["inv_stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_rm_seasonal_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_rm_stock_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_semiprocess_items"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_item_picker"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_stock_item_fk"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_items_with_semiflag"
+            referencedColumns: ["stock_item_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "inv_uom"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_picker"
+            referencedColumns: ["uom_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_uom_fk"
+            columns: ["uom_id"]
+            isOneToOne: false
+            referencedRelation: "v_uom_picker"
             referencedColumns: ["id"]
           },
         ]
@@ -25244,6 +29626,20 @@ export type Database = {
         Row: {
           rm_scope: string | null
           rm_scope_label: string | null
+        }
+        Relationships: []
+      }
+      v_procurement_snapshot_refresh_status: {
+        Row: {
+          age_since_finished: string | null
+          finished_at: string | null
+          indent_balance_count: number | null
+          message: string | null
+          priority_count: number | null
+          run_id: number | null
+          started_at: string | null
+          success: boolean | null
+          vendor_candidate_count: number | null
         }
         Relationships: []
       }
@@ -29514,6 +33910,473 @@ export type Database = {
           sku_id: number | null
         }
         Relationships: []
+      }
+      v_sku_mrp_current: {
+        Row: {
+          approval_reference: string | null
+          calc_mode: string | null
+          created_at: string | null
+          created_by: string | null
+          effective_from: string | null
+          effective_to: string | null
+          mrp_ik: number | null
+          mrp_ok: number | null
+          ok_pct: number | null
+          pack_size: number | null
+          pack_uom: string | null
+          policy_id: number | null
+          previous_policy_id: number | null
+          product_id: number | null
+          product_name: string | null
+          reason: string | null
+          sku_id: number | null
+          sku_is_active: boolean | null
+          source_quality: string | null
+          source_type: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "fg_bulk_stock"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "mv_fg_bulk_rollup"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "mv_wip_rollup"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_bottled_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_bulk_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_storage_residuals"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_wip_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_picker_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_ppq_p2_time_sensitivity_by_product"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_ppq_p3_supply_continuity_by_product"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_bulk_soh"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_sdv_dim_product_hierarchy"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_planning_attrs"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_checker"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_batches"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_expected_output_base"
+            referencedColumns: ["product_id"]
+          },
+        ]
+      }
+      v_sku_mrp_effective: {
+        Row: {
+          approval_reference: string | null
+          calc_mode: string | null
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string | null
+          created_by: string | null
+          effective_from: string | null
+          effective_to: string | null
+          legacy_updated_at: string | null
+          mrp_ik: number | null
+          mrp_ok: number | null
+          ok_pct: number | null
+          pack_size: number | null
+          pack_uom: string | null
+          policy_id: number | null
+          previous_policy_id: number | null
+          product_id: number | null
+          product_name: string | null
+          reason: string | null
+          sku_id: number | null
+          sku_is_active: boolean | null
+          source_quality: string | null
+          source_snapshot: Json | null
+          source_type: string | null
+          status: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "fg_bulk_stock"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "mv_fg_bulk_rollup"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "mv_wip_rollup"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_bottled_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_bulk_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_storage_residuals"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_wip_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_picker_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_ppq_p2_time_sensitivity_by_product"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_ppq_p3_supply_continuity_by_product"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_bulk_soh"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_sdv_dim_product_hierarchy"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_planning_attrs"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_checker"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_batches"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_expected_output_base"
+            referencedColumns: ["product_id"]
+          },
+        ]
+      }
+      v_sku_mrp_policy_history: {
+        Row: {
+          approval_reference: string | null
+          calc_mode: string | null
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string | null
+          created_by: string | null
+          effective_from: string | null
+          effective_to: string | null
+          legacy_updated_at: string | null
+          lifecycle_label: string | null
+          mrp_ik: number | null
+          mrp_ok: number | null
+          ok_pct: number | null
+          pack_size: number | null
+          pack_uom: string | null
+          policy_id: number | null
+          previous_policy_id: number | null
+          product_id: number | null
+          product_name: string | null
+          reason: string | null
+          sku_id: number | null
+          sku_is_active: boolean | null
+          source_quality: string | null
+          source_snapshot: Json | null
+          source_type: string | null
+          status: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "fg_bulk_stock"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "mv_fg_bulk_rollup"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "mv_wip_rollup"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_bottled_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_bulk_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_storage_residuals"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_wip_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_picker_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_ppq_p2_time_sensitivity_by_product"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_ppq_p3_supply_continuity_by_product"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_bulk_soh"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_sdv_dim_product_hierarchy"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_planning_attrs"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_checker"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_batches"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_expected_output_base"
+            referencedColumns: ["product_id"]
+          },
+        ]
       }
       v_sku_pack_format_map_picker: {
         Row: {
@@ -33845,6 +38708,10 @@ export type Database = {
         }[]
       }
       fn_uom_id: { Args: { p_code: string }; Returns: number }
+      force_unlink_plan_batch: {
+        Args: { p_batch_id: number; p_reason: string }
+        Returns: undefined
+      }
       forecast_lock_acquire: { Args: never; Returns: boolean }
       forecast_lock_release: { Args: never; Returns: undefined }
       forecast_run_close: {
@@ -34529,6 +39396,52 @@ export type Database = {
         Args: { p_date: string }
         Returns: string
       }
+      proc_apply_vendor_to_same_item_lines: {
+        Args: {
+          p_include_cleared?: boolean
+          p_material_class_id: number
+          p_rate_value: number
+          p_reason: string
+          p_stock_item_id: number
+          p_uom_id: number
+          p_vendor_id: number
+        }
+        Returns: {
+          affected_indent_count: number
+          affected_line_count: number
+          message: string
+          total_qty: number
+        }[]
+      }
+      proc_clear_vendor_assignment_for_same_item_lines: {
+        Args: {
+          p_include_cleared?: boolean
+          p_material_class_id: number
+          p_reason?: string
+          p_stock_item_id: number
+          p_uom_id: number
+        }
+        Returns: {
+          affected_indent_count: number
+          affected_line_count: number
+          message: string
+          total_qty: number
+        }[]
+      }
+      proc_get_snapshot_refresh_status: {
+        Args: { p_run_id?: number }
+        Returns: {
+          finished_at: string
+          message: string
+          refresh_name: string
+          request_source: string
+          requested_at: string
+          run_id: number
+          stages: Json
+          started_at: string
+          status: string
+        }[]
+      }
       proc_indent_accept_excess: {
         Args: {
           p_accept_qty: number
@@ -34584,6 +39497,14 @@ export type Database = {
       proc_indent_clear_priority_override: {
         Args: { p_indent_line_id: number }
         Returns: undefined
+      }
+      proc_indent_clear_vendor_assignment: {
+        Args: { p_indent_line_id: number }
+        Returns: {
+          cleared: boolean
+          indent_line_id: number
+          message: string
+        }[]
       }
       proc_indent_close_strict: {
         Args: { p_indent_id: number }
@@ -34769,6 +39690,38 @@ export type Database = {
         Args: { p_note?: string; p_pr_id: number; p_status: string }
         Returns: undefined
       }
+      proc_preview_same_item_vendor_action: {
+        Args: {
+          p_include_cleared?: boolean
+          p_material_class_id: number
+          p_stock_item_id: number
+          p_uom_id: number
+        }
+        Returns: {
+          affected_indent_count: number
+          affected_line_count: number
+          affected_lines: Json
+          candidate_vendors: Json
+          current_split: Json
+          material_class_id: number
+          stock_item_id: number
+          stock_item_name: string
+          total_qty: number
+          uom_code: string
+          uom_id: number
+        }[]
+      }
+      proc_process_snapshot_refresh_next_stage: {
+        Args: never
+        Returns: {
+          message: string
+          row_count: number
+          run_id: number
+          run_status: string
+          stage_code: string
+          stage_status: string
+        }[]
+      }
       proc_procurement_action_queue_paged: {
         Args: {
           p_group_mode?: string
@@ -34793,6 +39746,13 @@ export type Database = {
           refreshed_count: number
         }[]
       }
+      proc_refresh_indent_line_priority_snapshot: {
+        Args: { p_indent_id?: number }
+        Returns: {
+          refreshed_at: string
+          refreshed_count: number
+        }[]
+      }
       proc_refresh_vendor_item_candidate_snapshot: {
         Args: never
         Returns: {
@@ -34800,17 +39760,241 @@ export type Database = {
           refreshed_count: number
         }[]
       }
+      proc_request_snapshot_refresh: {
+        Args: { p_request_source?: string }
+        Returns: {
+          message: string
+          run_id: number
+          status: string
+        }[]
+      }
       proc_vendor_alias_sync_from_sources: {
         Args: { p_limit?: number }
         Returns: number
       }
+      proc_vendor_create: {
+        Args: {
+          p_address_line1?: string
+          p_address_line2?: string
+          p_allow_duplicate?: boolean
+          p_city?: string
+          p_display_name: string
+          p_duplicate_reason?: string
+          p_email?: string
+          p_extended_profile_patch?: Json
+          p_gstin?: string
+          p_is_active?: boolean
+          p_notes?: string
+          p_phone?: string
+          p_pincode?: string
+          p_state?: string
+          p_vendor_type: string
+        }
+        Returns: Json
+      }
       proc_vendor_create_and_map_tally_alias: {
-        Args: { p_alias_text: string; p_display_name: string }
-        Returns: number
+        Args: {
+          p_alias_reassignment_reason?: string
+          p_alias_text: string
+          p_allow_alias_reassignment?: boolean
+          p_allow_duplicate?: boolean
+          p_display_name: string
+          p_duplicate_reason?: string
+          p_vendor_type: string
+        }
+        Returns: Json
+      }
+      proc_vendor_directory_paged: {
+        Args: {
+          p_is_active?: boolean
+          p_limit?: number
+          p_offset?: number
+          p_q?: string
+          p_vendor_type?: string
+        }
+        Returns: {
+          address_line1: string
+          address_line2: string
+          city: string
+          country: string
+          created_at: string
+          created_by: string
+          display_name: string
+          district: string
+          email: string
+          gstin: string
+          is_active: boolean
+          legal_name: string
+          meta: Json
+          notes: string
+          pan: string
+          payment_terms: string
+          phone: string
+          pincode: string
+          state: string
+          total_count: number
+          updated_at: string
+          updated_by: string
+          vendor_id: number
+          vendor_type: string
+          website: string
+        }[]
+      }
+      proc_vendor_duplicate_candidates: {
+        Args: {
+          p_display_name: string
+          p_exclude_vendor_id?: number
+          p_limit?: number
+        }
+        Returns: {
+          display_name: string
+          is_active: boolean
+          match_kind: string
+          vendor_id: number
+          vendor_type: string
+        }[]
+      }
+      proc_vendor_identity_action_paged: {
+        Args: {
+          p_action_type?: string
+          p_alias_key?: string
+          p_limit?: number
+          p_offset?: number
+          p_vendor_id?: number
+        }
+        Returns: {
+          action_id: number
+          action_type: string
+          alias_key: string
+          details: Json
+          new_vendor_id: number
+          performed_at: string
+          performed_by: string
+          previous_vendor_id: number
+          reason: string
+          related_vendor_id: number
+          source_system: string
+          total_count: number
+          vendor_id: number
+        }[]
+      }
+      proc_vendor_item_rate_create: {
+        Args: {
+          p_is_active?: boolean
+          p_lead_time_days?: number
+          p_material_class_id?: number
+          p_meta?: Json
+          p_min_order_qty?: number
+          p_rate_value: number
+          p_remarks?: string
+          p_stock_item_id: number
+          p_uom_id?: number
+          p_valid_from?: string
+          p_valid_to?: string
+          p_vendor_id: number
+        }
+        Returns: Json
+      }
+      proc_vendor_item_rate_paged: {
+        Args: {
+          p_is_active?: boolean
+          p_limit?: number
+          p_offset?: number
+          p_q?: string
+          p_vendor_id?: number
+        }
+        Returns: {
+          created_at: string
+          created_by: string
+          is_active: boolean
+          lead_time_days: number
+          material_class_id: number
+          meta: Json
+          min_order_qty: number
+          rate_id: number
+          rate_value: number
+          remarks: string
+          stock_item_code: string
+          stock_item_id: number
+          stock_item_name: string
+          total_count: number
+          uom_code: string
+          uom_id: number
+          updated_at: string
+          updated_by: string
+          valid_from: string
+          valid_to: string
+          vendor_display_name: string
+          vendor_id: number
+          vendor_is_active: boolean
+          vendor_type: string
+        }[]
+      }
+      proc_vendor_item_rate_update: {
+        Args: {
+          p_is_active?: boolean
+          p_lead_time_days?: number
+          p_material_class_id?: number
+          p_meta?: Json
+          p_min_order_qty?: number
+          p_rate_id: number
+          p_rate_value: number
+          p_remarks?: string
+          p_stock_item_id: number
+          p_uom_id?: number
+          p_valid_from?: string
+          p_valid_to?: string
+          p_vendor_id: number
+        }
+        Returns: Json
+      }
+      proc_vendor_lookup: {
+        Args: {
+          p_active_only?: boolean
+          p_limit?: number
+          p_q?: string
+          p_vendor_type?: string
+        }
+        Returns: {
+          city: string
+          display_name: string
+          district: string
+          email: string
+          gstin: string
+          is_active: boolean
+          legal_name: string
+          phone: string
+          state: string
+          vendor_id: number
+          vendor_type: string
+        }[]
       }
       proc_vendor_map_tally_alias: {
-        Args: { p_alias_text: string; p_vendor_id: number }
-        Returns: undefined
+        Args: {
+          p_alias_text: string
+          p_allow_reassignment?: boolean
+          p_reassignment_reason?: string
+          p_vendor_id: number
+        }
+        Returns: Json
+      }
+      proc_vendor_normalize_name: { Args: { p_name: string }; Returns: string }
+      proc_vendor_rate_item_lookup: {
+        Args: { p_limit?: number; p_q?: string }
+        Returns: {
+          default_uom_code: string
+          default_uom_id: number
+          material_class_id: number
+          stock_item_code: string
+          stock_item_id: number
+          stock_item_name: string
+        }[]
+      }
+      proc_vendor_require_edit_permission: { Args: never; Returns: string }
+      proc_vendor_require_read_permission: { Args: never; Returns: string }
+      proc_vendor_set_active: {
+        Args: { p_is_active: boolean; p_reason?: string; p_vendor_id: number }
+        Returns: Json
       }
       proc_vendor_unmapped_alias_count: { Args: never; Returns: number }
       proc_vendor_unmapped_alias_queue: {
@@ -34834,6 +40018,31 @@ export type Database = {
           vendor_id: number
         }[]
       }
+      proc_vendor_update: {
+        Args: {
+          p_address_line1?: string
+          p_address_line2?: string
+          p_allow_duplicate?: boolean
+          p_city?: string
+          p_display_name: string
+          p_duplicate_reason?: string
+          p_email?: string
+          p_extended_profile_patch?: Json
+          p_gstin?: string
+          p_is_active?: boolean
+          p_notes?: string
+          p_phone?: string
+          p_pincode?: string
+          p_state?: string
+          p_vendor_id: number
+          p_vendor_type: string
+        }
+        Returns: Json
+      }
+      proc_vendor_validate_type: {
+        Args: { p_vendor_type: string }
+        Returns: string
+      }
       proc_vendorwise_buylist_filtered: {
         Args: {
           p_assignment_status?: string
@@ -34843,6 +40052,8 @@ export type Database = {
           p_rm_scope?: string
         }
         Returns: {
+          actual_vendor_count: number | null
+          actual_vendor_summary: string | null
           assignment_status: string | null
           has_rate: boolean | null
           has_vendor: boolean | null
@@ -34861,6 +40072,9 @@ export type Database = {
           total_qty_to_buy: number | null
           uom_code: string | null
           uom_id: number | null
+          vendor_bucket_key: string | null
+          vendor_bucket_name: string | null
+          vendor_bucket_type: string | null
           vendor_id: number | null
           vendor_name: string | null
         }[]
@@ -34870,6 +40084,30 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      proc_vendorwise_buylist_split_items: {
+        Args: {
+          p_assignment_status?: string
+          p_material_class_id?: number
+          p_q?: string
+          p_rate_status?: string
+          p_rm_scope?: string
+        }
+        Returns: {
+          assigned_vendor_count: number
+          has_unassigned: boolean
+          material_class_code: string
+          material_class_display: string
+          material_class_id: number
+          material_class_label: string
+          stock_item_id: number
+          stock_item_name: string
+          total_qty_to_buy: number
+          uom_code: string
+          uom_id: number
+          vendor_bucket_count: number
+          vendor_split: Json
+        }[]
       }
       process_supply_rollup_refresh: { Args: never; Returns: undefined }
       promote_all_staging: {
@@ -35000,7 +40238,76 @@ export type Database = {
         Args: { p_from?: string; p_set_id?: number; p_to?: string }
         Returns: number
       }
+      rpc_accept_material_review_action:
+        | {
+            Args: {
+              p_acceptance_note?: string
+              p_acceptance_reason?: string
+              p_action_required_summary?: string
+              p_action_severity?: string
+              p_issue_codes?: string
+              p_material_area?: string
+              p_period_start?: string
+              p_recommended_ui_route?: string
+              p_stock_item_id?: number
+              p_warning_codes?: string
+            }
+            Returns: {
+              acceptance_id: number
+              acceptance_status: string
+              accepted_at: string
+              accepted_by: string
+              action_required_summary: string
+              action_result: string
+              action_severity: string
+              issue_codes: string
+              material_area: string
+              period_start: string
+              recommended_ui_route: string
+              stock_item_id: number
+              stock_item_name: string
+              warning_codes: string
+            }[]
+          }
+        | {
+            Args: {
+              p_acceptance_note?: string
+              p_acceptance_reason?: string
+              p_material_area?: string
+              p_material_issue_code?: string
+              p_period_start?: string
+              p_recommended_ui_route?: string
+              p_stock_item_id?: number
+            }
+            Returns: {
+              acceptance_id: number
+              acceptance_status: string
+              accepted_at: string
+              accepted_by: string
+              action_result: string
+              material_area: string
+              material_issue_code: string
+              period_start: string
+              recommended_ui_route: string
+              stock_item_id: number
+              stock_item_name: string
+            }[]
+          }
       rpc_cancel_jobs: { Args: { p_job_ids: string[] }; Returns: number }
+      rpc_close_expense_head_costing_map: {
+        Args: { p_mapping_id: number; p_remarks?: string }
+        Returns: {
+          allocation_pool: string
+          expense_group: string
+          head_name: string
+          include_in_costing: boolean
+          is_active: boolean
+          mapping_id: number
+          mapping_status: string
+          remarks: string
+          updated_at: string
+        }[]
+      }
       rpc_close_material_manual_rate: {
         Args: {
           p_close_reason?: string
@@ -35016,6 +40323,25 @@ export type Database = {
           reason: string
           status: string
           stock_item_id: number
+        }[]
+      }
+      rpc_close_material_review_acceptance: {
+        Args: { p_acceptance_id: number; p_close_reason?: string }
+        Returns: {
+          acceptance_id: number
+          acceptance_status: string
+          action_required_summary: string
+          action_result: string
+          action_severity: string
+          closed_at: string
+          closed_by: string
+          issue_codes: string
+          material_area: string
+          period_start: string
+          recommended_ui_route: string
+          stock_item_id: number
+          stock_item_name: string
+          warning_codes: string
         }[]
       }
       rpc_close_scheme_policy_rule: {
@@ -35035,6 +40361,27 @@ export type Database = {
           remarks: string
           scheme_id: number
           scheme_name: string
+        }[]
+      }
+      rpc_close_staff_costing_classification: {
+        Args: {
+          p_classification_id: number
+          p_effective_to?: string
+          p_remarks?: string
+        }
+        Returns: {
+          allocation_pool: string
+          allocation_weight: number
+          classification_id: number
+          classification_status: string
+          costing_class: string
+          designation: string
+          effective_from: string
+          effective_to: string
+          employee_code: string
+          remarks: string
+          staff_id: number
+          updated_at: string
         }[]
       }
       rpc_conversion_summary_search: {
@@ -35136,6 +40483,65 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      rpc_create_scheme_master: {
+        Args: {
+          p_approval_reference?: string
+          p_free_qty?: number
+          p_paid_qty: number
+          p_remarks?: string
+          p_scheme_name: string
+        }
+        Returns: {
+          approval_reference: string
+          created_at: string
+          created_by: string
+          effective_free_discount_percent: number
+          free_qty: number
+          is_active: boolean
+          is_system_defined: boolean
+          paid_qty: number
+          remarks: string
+          scheme_id: number
+          scheme_name: string
+          total_qty: number
+        }[]
+      }
+      rpc_deactivate_manual_cost_pool_provision: {
+        Args: { p_provision_id: number; p_remarks?: string }
+        Returns: {
+          allocation_pool: string
+          allocation_pool_label: string
+          created_at: string
+          is_active: boolean
+          period_start: string
+          provision_amount: number
+          provision_id: number
+          provision_key: string
+          provision_label: string
+          provision_note: string
+          provision_status: string
+          provision_type: string
+          provision_type_label: string
+          remarks: string
+          source_reference: string
+          updated_at: string
+        }[]
+      }
+      rpc_deactivate_scheme_master: {
+        Args: {
+          p_approval_reference?: string
+          p_reason: string
+          p_scheme_id: number
+        }
+        Returns: {
+          deactivated_at: string
+          deactivated_by: string
+          deactivation_reason: string
+          is_active: boolean
+          scheme_id: number
+          scheme_name: string
+        }[]
+      }
       rpc_debug_runtime_identity: {
         Args: never
         Returns: {
@@ -35148,6 +40554,104 @@ export type Database = {
       rpc_enqueue_job: {
         Args: { p_job_type: string; p_params: Json; p_priority?: number }
         Returns: string
+      }
+      rpc_enrich_costing_traceability_snapshots: {
+        Args: { p_period_start?: string }
+        Returns: {
+          material_drilldown_rows_updated: number
+          refresh_status: string
+          refreshed_period_start: string
+          review_drilldown_rows_updated: number
+        }[]
+      }
+      rpc_export_material_rate_rm_cost_trace: {
+        Args: {
+          p_bom_source?: string
+          p_has_semi_process?: boolean
+          p_period_start: string
+          p_product_id?: number
+          p_review_state?: string
+          p_search_text?: string
+          p_sku_id?: number
+          p_stock_item_id?: number
+          p_warning_status?: string
+        }
+        Returns: {
+          contribution_share_percent: number
+          expansion_note: string
+          export_total_row_count: number
+          period_start: string
+          product_name: string
+          quantity_uom: string
+          rate_date: string
+          rate_source: string
+          review_state: string
+          rm_line_cost: number
+          selected_rate: number
+          semi_process_source: string
+          sku_column_label: string
+          sku_quantity: number
+          snapshot_refreshed_at: string
+          stock_item_code: string
+          stock_item_name: string
+          warning_code: string
+          warning_text: string
+        }[]
+      }
+      rpc_fg_bulk_internal_transfer_source_by_identity: {
+        Args: {
+          p_area_id: number
+          p_batch_number: string
+          p_plant_id?: number
+          p_product_id: number
+          p_section_id: number
+          p_subsection_id: number
+          p_uom: string
+        }
+        Returns: {
+          area_id: number
+          area_name: string
+          batch_number: string
+          item: string
+          plant_id: number
+          plant_name: string
+          product_id: number
+          qty: number
+          qty_base: number
+          section_id: number
+          section_name: string
+          source_key: string
+          subsection_id: number
+          subsection_name: string
+          uom: string
+        }[]
+      }
+      rpc_fg_bulk_internal_transfer_source_page: {
+        Args: {
+          p_batch_filter?: string
+          p_item_filter?: string
+          p_limit?: number
+          p_offset?: number
+        }
+        Returns: {
+          area_id: number
+          area_name: string
+          batch_number: string
+          item: string
+          plant_id: number
+          plant_name: string
+          product_id: number
+          qty: number
+          qty_base: number
+          row_no: number
+          section_id: number
+          section_name: string
+          source_key: string
+          subsection_id: number
+          subsection_name: string
+          total_count: number
+          uom: string
+        }[]
       }
       rpc_fg_transfer_dwl_rows: {
         Args: { p_batch_code: string; p_log_date: string }
@@ -35939,6 +41443,100 @@ export type Database = {
         }
         Returns: Json
       }
+      rpc_get_cost_sheet_rm_explain_summary: {
+        Args: { p_period_start: string; p_product_id: number; p_sku_id: number }
+        Returns: {
+          blocked_line_count: number
+          calculation_warning_line_count: number
+          confidential_detail_available: boolean
+          contribution_line_count: number
+          largest_contribution_share_percent: number
+          ok_line_count: number
+          period_start: string
+          product_id: number
+          review_line_count: number
+          rm_total: number
+          sku_id: number
+          snapshot_refreshed_at: string
+          summary_status: string
+        }[]
+      }
+      rpc_get_costing_refresh_status: {
+        Args: {
+          p_period_start?: string
+          p_refresh_run_id?: number
+          p_requested_scope?: string
+        }
+        Returns: {
+          current_stage_code: string
+          error_message: string
+          error_stage_code: string
+          final_blocked_count: number
+          final_ready_count: number
+          final_review_required_count: number
+          finished_at: string
+          latest_stage_order: number
+          overall_status: string
+          period_start: string
+          refresh_run_id: number
+          requested_at: string
+          requested_scope: string
+          source_trigger: string
+          stages: Json
+          started_at: string
+        }[]
+      }
+      rpc_get_material_rate_rm_cost_trace: {
+        Args: {
+          p_bom_source?: string
+          p_has_semi_process?: boolean
+          p_limit?: number
+          p_offset?: number
+          p_period_start: string
+          p_product_id?: number
+          p_review_state?: string
+          p_search_text?: string
+          p_sku_id?: number
+          p_stock_item_id?: number
+          p_warning_status?: string
+        }
+        Returns: {
+          action_required: string
+          approval_block_flag: boolean
+          calculation_warning_code: string
+          calculation_warning_flag: boolean
+          contribution_share_percent: number
+          drill_filter_json: Json
+          drill_route_lens_id: string
+          drill_route_module_key: string
+          expansion_note: string
+          period_start: string
+          product_id: number
+          product_name: string
+          quantity_uom: string
+          rate_date: string
+          rate_source: string
+          review_state: string
+          rm_line_cost: number
+          selected_rate: number
+          semi_process_source: string
+          sku_column_label: string
+          sku_id: number
+          sku_quantity: number
+          snapshot_refreshed_at: string
+          stock_item_code: string
+          stock_item_id: number
+          stock_item_name: string
+          total_row_count: number
+          trace_component: string
+          warning_code: string
+          warning_text: string
+        }[]
+      }
+      rpc_get_material_rate_rm_cost_trace_filter_options: {
+        Args: { p_period_start: string; p_product_id?: number }
+        Returns: Json
+      }
       rpc_get_rm_items: {
         Args: never
         Returns: {
@@ -36118,6 +41716,40 @@ export type Database = {
         }
         Returns: number
       }
+      rpc_process_next_costing_refresh_stage: {
+        Args: { p_refresh_run_id?: number }
+        Returns: {
+          action_result: string
+          blocked_count: number
+          inserted_row_count: number
+          next_stage_code: string
+          overall_status: string
+          period_start: string
+          processed_stage_code: string
+          processed_stage_name: string
+          ready_count: number
+          refresh_run_id: number
+          review_required_count: number
+          stage_status: string
+        }[]
+      }
+      rpc_process_pending_costing_refresh_stage: {
+        Args: never
+        Returns: {
+          action_result: string
+          blocked_count: number
+          inserted_row_count: number
+          next_stage_code: string
+          overall_status: string
+          period_start: string
+          processed_stage_code: string
+          processed_stage_name: string
+          ready_count: number
+          refresh_run_id: number
+          review_required_count: number
+          stage_status: string
+        }[]
+      }
       rpc_procurement_plan_search: {
         Args: {
           p_end?: string
@@ -36133,24 +41765,19 @@ export type Database = {
           total_count: number
         }[]
       }
-      rpc_get_costing_refresh_status: {
+      rpc_reactivate_scheme_master: {
         Args: {
-          p_refresh_run_id: number
-          p_period_start: string
-          p_requested_scope: string
+          p_approval_reference?: string
+          p_reason: string
+          p_scheme_id: number
         }
         Returns: {
-          current_stage_code: string | null
-          error_message: string | null
-          error_stage_code: string | null
-          final_blocked_count: number | null
-          final_ready_count: number | null
-          final_review_required_count: number | null
-          finished_at: string | null
-          overall_status: string | null
-          output_json: Json | null
-          refresh_run_id: number | null
-          stages: Json | null
+          is_active: boolean
+          reactivated_at: string
+          reactivated_by: string
+          reactivation_reason: string
+          scheme_id: number
+          scheme_name: string
         }[]
       }
       rpc_refresh_cost_sheet_line_monthly_snapshot: {
@@ -36162,15 +41789,43 @@ export type Database = {
           snapshot_period_start: string
         }[]
       }
-      rpc_refresh_costing_pricing_chain: {
+      rpc_refresh_costing_control_integrity_audit_snapshot: {
         Args: { p_period_start?: string }
         Returns: {
+          audit_rows_inserted: number
+          refresh_status: string
+          refreshed_period_start: string
+        }[]
+      }
+      rpc_refresh_costing_control_maintenance_chain: {
+        Args: { p_period_start?: string }
+        Returns: {
+          audit_rows_inserted: number
+          dashboard_snapshot_rows: number
+          material_drilldown_rows: number
+          material_queue_rows: number
+          material_trace_rows_updated: number
+          refresh_status: string
+          refreshed_period_start: string
+          review_action_rows: number
+          review_drilldown_rows: number
+          review_summary_rows: number
+          review_trace_rows_updated: number
+          sku_control_snapshot_rows: number
+        }[]
+      }
+      rpc_refresh_costing_control_summary_snapshots: {
+        Args: { p_period_start?: string }
+        Returns: {
+          audit_rows_inserted: number
           blocked_count: number
-          inserted_row_count: number
+          dashboard_rows_inserted: number
+          queue_rows_inserted: number
           ready_count: number
           refresh_status: string
           refreshed_period_start: string
           review_required_count: number
+          sku_rows_inserted: number
         }[]
       }
       rpc_refresh_costing_review_action_drilldown_snapshot: {
@@ -36197,16 +41852,71 @@ export type Database = {
           summary_rows_inserted: number
         }[]
       }
-      rpc_request_costing_refresh: {
+      rpc_refresh_costing_review_workbench_snapshot_maintenance: {
+        Args: { p_period_start: string }
+        Returns: {
+          action_rows_inserted: number
+          drilldown_rows_inserted: number
+          period_start: string
+          summary_rows_inserted: number
+        }[]
+      }
+      rpc_refresh_material_action_drilldown_snapshot: {
         Args: {
+          p_action_severity: string
+          p_material_area: string
           p_period_start: string
-          p_requested_scope: string
-          p_request_note: string | null
-          p_source_trigger: string
+          p_recommended_ui_route: string
+          p_stock_item_id: number
         }
         Returns: {
-          overall_status: string | null
-          refresh_run_id: number | null
+          action_severity: string
+          deleted_rows: number
+          inserted_rows: number
+          material_area: string
+          recommended_ui_route: string
+          refresh_status: string
+          refreshed_at: string
+          refreshed_period_start: string
+          stock_item_id: number
+        }[]
+      }
+      rpc_refresh_material_action_snapshots_maintenance: {
+        Args: { p_period_start?: string }
+        Returns: {
+          drilldown_rows_inserted: number
+          queue_rows_inserted: number
+          refresh_status: string
+          refreshed_period_start: string
+        }[]
+      }
+      rpc_request_costing_refresh: {
+        Args: {
+          p_period_start?: string
+          p_request_note?: string
+          p_requested_scope?: string
+          p_source_trigger?: string
+        }
+        Returns: {
+          action_result: string
+          current_stage_code: string
+          overall_status: string
+          period_start: string
+          refresh_run_id: number
+          requested_at: string
+          requested_scope: string
+        }[]
+      }
+      rpc_request_daily_costing_refresh: {
+        Args: never
+        Returns: {
+          action_result: string
+          current_stage_code: string
+          overall_status: string
+          period_start: string
+          refresh_run_id: number
+          requested_at: string
+          requested_scope: string
         }[]
       }
       rpc_retry_failed: {
@@ -36217,14 +41927,64 @@ export type Database = {
         Args: { p_company?: string; p_date: string }
         Returns: string
       }
+      rpc_save_manual_cost_pool_provision: {
+        Args: {
+          p_allocation_pool: string
+          p_period_start: string
+          p_provision_amount: number
+          p_provision_key: string
+          p_provision_label: string
+          p_provision_type: string
+          p_remarks?: string
+          p_source_reference?: string
+        }
+        Returns: {
+          allocation_pool: string
+          allocation_pool_label: string
+          created_at: string
+          is_active: boolean
+          period_start: string
+          provision_amount: number
+          provision_id: number
+          provision_key: string
+          provision_label: string
+          provision_note: string
+          provision_status: string
+          provision_type: string
+          provision_type_label: string
+          remarks: string
+          source_reference: string
+          updated_at: string
+        }[]
+      }
+      rpc_set_expense_head_costing_map: {
+        Args: {
+          p_allocation_pool: string
+          p_expense_group: string
+          p_head_name: string
+          p_include_in_costing?: boolean
+          p_remarks?: string
+        }
+        Returns: {
+          allocation_pool: string
+          expense_group: string
+          head_name: string
+          include_in_costing: boolean
+          is_active: boolean
+          mapping_id: number
+          mapping_status: string
+          remarks: string
+          updated_at: string
+        }[]
+      }
       rpc_set_material_manual_rate: {
         Args: {
           p_effective_from?: string
           p_rate_origin?: string
           p_rate_value: number
           p_reason?: string
-          p_source_vendor_id?: number | null
-          p_source_vendor_rate_id?: number | null
+          p_source_vendor_id?: number
+          p_source_vendor_rate_id?: number
           p_stock_item_id: number
         }
         Returns: {
@@ -36233,11 +41993,13 @@ export type Database = {
           effective_to: string
           last_updated_at: string
           manual_rate_id: number
-          rate_origin: string | null
+          rate_origin: string
+          rate_uom_id: number
           rate_value: number
           reason: string
-          source_vendor_id: number | null
-          source_vendor_rate_id: number | null
+          source_snapshot: Json
+          source_vendor_id: number
+          source_vendor_rate_id: number
           status: string
           stock_item_id: number
         }[]
@@ -36268,6 +42030,33 @@ export type Database = {
           scheme_id: number
           scheme_name: string
           scope_id: number
+        }[]
+      }
+      rpc_set_sku_mrp_policy: {
+        Args: {
+          p_approval_reference?: string
+          p_calc_mode: string
+          p_effective_from: string
+          p_mrp_ik: number
+          p_mrp_ok: number
+          p_ok_pct: number
+          p_reason: string
+          p_sku_id: number
+        }
+        Returns: {
+          approval_reference: string
+          calc_mode: string
+          created_at: string
+          effective_from: string
+          effective_to: string
+          mrp_ik: number
+          mrp_ok: number
+          ok_pct: number
+          policy_id: number
+          previous_policy_id: number
+          reason: string
+          sku_id: number
+          status: string
         }[]
       }
       rpc_set_sku_scheme_policy: {
@@ -36317,6 +42106,30 @@ export type Database = {
           policy_id: number
           remarks: string
           sku_id: number
+        }[]
+      }
+      rpc_set_staff_costing_classification: {
+        Args: {
+          p_allocation_pool?: string
+          p_allocation_weight?: number
+          p_costing_class: string
+          p_effective_from?: string
+          p_remarks?: string
+          p_staff_id: number
+        }
+        Returns: {
+          allocation_pool: string
+          allocation_weight: number
+          classification_id: number
+          classification_status: string
+          costing_class: string
+          designation: string
+          effective_from: string
+          effective_to: string
+          employee_code: string
+          remarks: string
+          staff_id: number
+          updated_at: string
         }[]
       }
       rpc_skus_without_overrides: {
@@ -36467,6 +42280,27 @@ export type Database = {
           daily_work_log_id: number
           inserted_event_sku_count: number
           packaging_event_id: number
+        }[]
+      }
+      rpc_update_scheme_master_metadata: {
+        Args: {
+          p_approval_reference?: string
+          p_reason: string
+          p_remarks: string
+          p_scheme_id: number
+          p_scheme_name: string
+        }
+        Returns: {
+          approval_reference: string
+          free_qty: number
+          is_active: boolean
+          is_system_defined: boolean
+          paid_qty: number
+          remarks: string
+          scheme_id: number
+          scheme_name: string
+          updated_at: string
+          updated_by: string
         }[]
       }
       sdv_zero_revenue_abs: {

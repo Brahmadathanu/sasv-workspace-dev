@@ -167,6 +167,7 @@ const schemePolicyEditModal = $("schemePolicyEditModal");
 const schemePolicyEditCloseBtn = $("schemePolicyEditCloseBtn");
 const schemePolicyEditCancelBtn = $("schemePolicyEditCancelBtn");
 const schemePolicyEditSaveBtn = $("schemePolicyEditSaveBtn");
+const schemePolicyEditSkuLabel = $("schemePolicyEditSkuLabel");
 const schemePolicyEditRegion = $("schemePolicyEditRegion");
 const schemePolicyEditScheme = $("schemePolicyEditScheme");
 const schemePolicyEditEffectiveFrom = $("schemePolicyEditEffectiveFrom");
@@ -192,6 +193,80 @@ const schemeRuleCloseSaveBtn = $("schemeRuleCloseSaveBtn");
 const schemeRuleCloseLabel = $("schemeRuleCloseLabel");
 const schemeRuleCloseEffectiveTo = $("schemeRuleCloseEffectiveTo");
 const schemeRuleCloseRemarks = $("schemeRuleCloseRemarks");
+const schemeMasterCreateModal = $("schemeMasterCreateModal");
+const schemeMasterCreateCloseBtn = $("schemeMasterCreateCloseBtn");
+const schemeMasterCreateCancelBtn = $("schemeMasterCreateCancelBtn");
+const schemeMasterCreateSaveBtn = $("schemeMasterCreateSaveBtn");
+const schemeMasterCreateError = $("schemeMasterCreateError");
+const schemeMasterCreateName = $("schemeMasterCreateName");
+const schemeMasterCreatePaidQty = $("schemeMasterCreatePaidQty");
+const schemeMasterCreateFreeQty = $("schemeMasterCreateFreeQty");
+const schemeMasterCreateRemarks = $("schemeMasterCreateRemarks");
+const schemeMasterCreateApprovalReference = $(
+  "schemeMasterCreateApprovalReference",
+);
+const schemeMasterCreatePreview = $("schemeMasterCreatePreview");
+const schemeMasterMetadataModal = $("schemeMasterMetadataModal");
+const schemeMasterMetadataCloseBtn = $("schemeMasterMetadataCloseBtn");
+const schemeMasterMetadataCancelBtn = $("schemeMasterMetadataCancelBtn");
+const schemeMasterMetadataSaveBtn = $("schemeMasterMetadataSaveBtn");
+const schemeMasterMetadataError = $("schemeMasterMetadataError");
+const schemeMasterMetadataStructure = $("schemeMasterMetadataStructure");
+const schemeMasterMetadataName = $("schemeMasterMetadataName");
+const schemeMasterMetadataRemarks = $("schemeMasterMetadataRemarks");
+const schemeMasterMetadataReason = $("schemeMasterMetadataReason");
+const schemeMasterMetadataApprovalReference = $(
+  "schemeMasterMetadataApprovalReference",
+);
+const schemeMasterDeactivateModal = $("schemeMasterDeactivateModal");
+const schemeMasterDeactivateCloseBtn = $("schemeMasterDeactivateCloseBtn");
+const schemeMasterDeactivateCancelBtn = $("schemeMasterDeactivateCancelBtn");
+const schemeMasterDeactivateSaveBtn = $("schemeMasterDeactivateSaveBtn");
+const schemeMasterDeactivateError = $("schemeMasterDeactivateError");
+const schemeMasterDeactivateIdentity = $("schemeMasterDeactivateIdentity");
+const schemeMasterDeactivateDirectPolicies = $(
+  "schemeMasterDeactivateDirectPolicies",
+);
+const schemeMasterDeactivateHierarchyRules = $(
+  "schemeMasterDeactivateHierarchyRules",
+);
+const schemeMasterDeactivateReplacementRefs = $(
+  "schemeMasterDeactivateReplacementRefs",
+);
+const schemeMasterDeactivateReason = $("schemeMasterDeactivateReason");
+const schemeMasterDeactivateApprovalReference = $(
+  "schemeMasterDeactivateApprovalReference",
+);
+const schemeMasterReactivateModal = $("schemeMasterReactivateModal");
+const schemeMasterReactivateCloseBtn = $("schemeMasterReactivateCloseBtn");
+const schemeMasterReactivateCancelBtn = $("schemeMasterReactivateCancelBtn");
+const schemeMasterReactivateSaveBtn = $("schemeMasterReactivateSaveBtn");
+const schemeMasterReactivateError = $("schemeMasterReactivateError");
+const schemeMasterReactivateIdentity = $("schemeMasterReactivateIdentity");
+const schemeMasterReactivateReason = $("schemeMasterReactivateReason");
+const schemeMasterReactivateApprovalReference = $(
+  "schemeMasterReactivateApprovalReference",
+);
+const schemeMasterHistoryModal = $("schemeMasterHistoryModal");
+const schemeMasterHistoryCloseBtn = $("schemeMasterHistoryCloseBtn");
+const schemeMasterHistoryDismissBtn = $("schemeMasterHistoryDismissBtn");
+const schemeMasterHistoryTitle = $("schemeMasterHistoryTitle");
+const schemeMasterHistoryBody = $("schemeMasterHistoryBody");
+const mrpPolicyEditModal = $("mrpPolicyEditModal");
+const mrpPolicyEditTitle = $("mrpPolicyEditTitle");
+const mrpPolicyEditError = $("mrpPolicyEditError");
+const mrpPolicyEditCloseBtn = $("mrpPolicyEditCloseBtn");
+const mrpPolicyEditCancelBtn = $("mrpPolicyEditCancelBtn");
+const mrpPolicyEditSaveBtn = $("mrpPolicyEditSaveBtn");
+const mrpPolicyEditSkuLabel = $("mrpPolicyEditSkuLabel");
+const mrpPolicyEditCalcMode = $("mrpPolicyEditCalcMode");
+const mrpPolicyEditMrpIk = $("mrpPolicyEditMrpIk");
+const mrpPolicyEditMrpOk = $("mrpPolicyEditMrpOk");
+const mrpPolicyEditOkPct = $("mrpPolicyEditOkPct");
+const mrpPolicyEditEffectiveFrom = $("mrpPolicyEditEffectiveFrom");
+const mrpPolicyEditReason = $("mrpPolicyEditReason");
+const mrpPolicyEditApprovalReference = $("mrpPolicyEditApprovalReference");
+const mrpPolicyEditPreview = $("mrpPolicyEditPreview");
 const manualRateEditModal = $("manualRateEditModal");
 const manualRateEditTitle = $("manualRateEditTitle");
 const manualRateEditCloseBtn = $("manualRateEditCloseBtn");
@@ -1190,6 +1265,10 @@ function canEditMaterialCostActions() {
   return PERM_CAN_EDIT;
 }
 
+function canEditPricingPolicyActions() {
+  return PERM_CAN_EDIT;
+}
+
 const COSTING_REFRESH_DIRTY_KEY = "costing-suite:refresh-dirty";
 let costingRefreshDirty = false;
 let costingRefreshDirtyReason = null;
@@ -1317,6 +1396,11 @@ function applyRouteLaunchParams() {
   const policyTab = qp.get("policyTab")?.trim();
   if (policyTab === "sku-overview") {
     pricingPolicyCtrl.setPolicyManagerTab("sku-overview");
+  } else if (
+    policyTab === "scheme-master" ||
+    policyTab === "scheme-rule-register"
+  ) {
+    pricingPolicyCtrl.setPolicyManagerTab(policyTab);
   }
 
   const queryDrill = normalizeDrillContext({
@@ -3028,6 +3112,8 @@ function getSearchBlob(row) {
     row.rm_costing_status,
     row.pm_costing_status,
     row.scheme_name,
+    row.scheme_type,
+    row.scheme_status,
     row.expense_group,
     row.head_name,
     row.allocation_pool,
@@ -3230,7 +3316,11 @@ function updateSearchPlaceholder() {
       placeholder = "Search stock item, issue code, rate source, or action";
     }
   } else if (CURRENT_LENS === "policy-manager") {
-    placeholder = "Search product, SKU, scheme, policy, or status";
+    if (pricingPolicyCtrl.getPolicyManagerTab() === "scheme-master") {
+      placeholder = "Search scheme name, status, or type";
+    } else {
+      placeholder = "Search product, SKU, scheme, policy, or status";
+    }
   }
 
   searchBox.placeholder = placeholder;
@@ -3579,7 +3669,8 @@ function renderTable() {
 
       if (
         CURRENT_LENS === "policy-manager" &&
-        pricingPolicyCtrl.getPolicyManagerTab() === "scheme-rule-register"
+        (pricingPolicyCtrl.getPolicyManagerTab() === "scheme-rule-register" ||
+          pricingPolicyCtrl.getPolicyManagerTab() === "scheme-master")
       ) {
         return;
       }
@@ -3615,7 +3706,8 @@ function renderTable() {
 
   if (
     CURRENT_LENS === "policy-manager" &&
-    pricingPolicyCtrl.getPolicyManagerTab() === "scheme-rule-register"
+    (pricingPolicyCtrl.getPolicyManagerTab() === "scheme-rule-register" ||
+      pricingPolicyCtrl.getPolicyManagerTab() === "scheme-master")
   ) {
     pricingPolicyCtrl.wirePolicyManagerTableActions(tableBody, (matcher) =>
       VIEW.find(matcher),
@@ -4524,6 +4616,7 @@ const pricingPolicyCtrl = createPricingPolicyController({
     schemePolicyEditCloseBtn,
     schemePolicyEditCancelBtn,
     schemePolicyEditSaveBtn,
+    schemePolicyEditSkuLabel,
     schemePolicyEditRegion,
     schemePolicyEditScheme,
     schemePolicyEditEffectiveFrom,
@@ -4549,6 +4642,66 @@ const pricingPolicyCtrl = createPricingPolicyController({
     schemeRuleCloseLabel,
     schemeRuleCloseEffectiveTo,
     schemeRuleCloseRemarks,
+    schemeMasterCreateModal,
+    schemeMasterCreateCloseBtn,
+    schemeMasterCreateCancelBtn,
+    schemeMasterCreateSaveBtn,
+    schemeMasterCreateError,
+    schemeMasterCreateName,
+    schemeMasterCreatePaidQty,
+    schemeMasterCreateFreeQty,
+    schemeMasterCreateRemarks,
+    schemeMasterCreateApprovalReference,
+    schemeMasterCreatePreview,
+    schemeMasterMetadataModal,
+    schemeMasterMetadataCloseBtn,
+    schemeMasterMetadataCancelBtn,
+    schemeMasterMetadataSaveBtn,
+    schemeMasterMetadataError,
+    schemeMasterMetadataStructure,
+    schemeMasterMetadataName,
+    schemeMasterMetadataRemarks,
+    schemeMasterMetadataReason,
+    schemeMasterMetadataApprovalReference,
+    schemeMasterDeactivateModal,
+    schemeMasterDeactivateCloseBtn,
+    schemeMasterDeactivateCancelBtn,
+    schemeMasterDeactivateSaveBtn,
+    schemeMasterDeactivateError,
+    schemeMasterDeactivateIdentity,
+    schemeMasterDeactivateDirectPolicies,
+    schemeMasterDeactivateHierarchyRules,
+    schemeMasterDeactivateReplacementRefs,
+    schemeMasterDeactivateReason,
+    schemeMasterDeactivateApprovalReference,
+    schemeMasterReactivateModal,
+    schemeMasterReactivateCloseBtn,
+    schemeMasterReactivateCancelBtn,
+    schemeMasterReactivateSaveBtn,
+    schemeMasterReactivateError,
+    schemeMasterReactivateIdentity,
+    schemeMasterReactivateReason,
+    schemeMasterReactivateApprovalReference,
+    schemeMasterHistoryModal,
+    schemeMasterHistoryCloseBtn,
+    schemeMasterHistoryDismissBtn,
+    schemeMasterHistoryTitle,
+    schemeMasterHistoryBody,
+    mrpPolicyEditModal,
+    mrpPolicyEditTitle,
+    mrpPolicyEditError,
+    mrpPolicyEditCloseBtn,
+    mrpPolicyEditCancelBtn,
+    mrpPolicyEditSaveBtn,
+    mrpPolicyEditSkuLabel,
+    mrpPolicyEditCalcMode,
+    mrpPolicyEditMrpIk,
+    mrpPolicyEditMrpOk,
+    mrpPolicyEditOkPct,
+    mrpPolicyEditEffectiveFrom,
+    mrpPolicyEditReason,
+    mrpPolicyEditApprovalReference,
+    mrpPolicyEditPreview,
   },
   costingFrom,
   costingRpc,
@@ -4575,17 +4728,27 @@ const pricingPolicyCtrl = createPricingPolicyController({
   activePeriodIso,
   numberOrNullFromInput,
   numberOrZeroFromInput,
+  formatTodayIsoIst,
   reloadRows: loadRowsForLens,
+  canEditPricingPolicyActions,
   onPolicyDataChanged: async ({ drawerTab, skuId } = {}) => {
     await loadRowsForLens();
-    if (!skuId || !drawerTab) return;
+    if (!skuId) return;
     if (SELECTED_ROW?.sku_id && String(SELECTED_ROW.sku_id) === String(skuId)) {
       const updated = ALL_ROWS.find(
         (r) => String(r.sku_id) === String(skuId),
       );
       if (updated) {
         SELECTED_ROW = updated;
-        await setDrawerTab(drawerTab);
+        const activeTab =
+          drawerTabs?.querySelector(".tab.active")?.dataset?.tab || drawerTab;
+        const nextTab =
+          activeTab === "policy-history"
+            ? "policy-history"
+            : activeTab === "mrp-policy"
+              ? "mrp-policy"
+              : drawerTab;
+        if (nextTab) await setDrawerTab(nextTab);
       }
     }
   },
