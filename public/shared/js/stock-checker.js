@@ -507,6 +507,7 @@ function toggleChip(btn, stateKey) {
     pointerStart: null, // { x, y }
     isDragging: false,
     mobileSelectEnabled: false,
+    mobileRangePending: false,
   };
 
   function scSel_dbg(...args) {
@@ -607,6 +608,7 @@ function toggleChip(btn, stateKey) {
     selectionController.anchor = null;
     selectionController.focusCell = null;
     selectionController.range = null;
+    selectionController.mobileRangePending = false;
     renderSelection();
     scSel_hideCopyBtn();
   }
@@ -1040,9 +1042,10 @@ function toggleChip(btn, stateKey) {
   let scSel_pointerDown = false;
   let scSel_abort = null;
   let scSel_gridInitDone = false;
-  // scSel_touchStart: unused since touch threshold logic was removed (selection is now
-  // strictly gated by mobileSelectEnabled and initiated only in pointerdown).
-  let scSel_touchStart = null; // kept for pointerup/cancel reset compatibility
+  // Mobile Select uses taps for selection while native pan-x/pan-y remains active.
+  // Movement beyond this threshold is treated as scrolling, not a cell tap.
+  const SC_SEL_TOUCH_MOVE_THRESHOLD = 8;
+  let scSel_touchStart = null;
 
   function scSel_cancelLongPress() {
     // no-op: long-press heuristics removed in favor of explicit mobile toggle
@@ -1090,45 +1093,20 @@ function toggleChip(btn, stateKey) {
     const clicked = { r: coord.r, cidx: coord.cidx };
 
     // ── TOUCH GATING ──────────────────────────────────────────────────────────
-    // Touch selection is strictly gated behind the mobile Select toggle.
-    // When Select mode is OFF, do nothing at all — let native browser scrolling
-    // and pan-x pan-y handle the touch event. Do NOT capture the pointer,
-    // do NOT store touchStart, do NOT call preventDefault/stopPropagation.
-    // This is essential for normal PWA/iPhone table scrolling to work.
+    // Touch selection is tap-based. Never capture or suppress touch here:
+    // native horizontal/vertical scrolling must remain available in Select mode.
     const sc_pt = ev.pointerType || (ev.touches ? "touch" : "mouse");
     if (sc_pt === "touch") {
       if (!selectionController.mobileSelectEnabled) {
-        // Select mode OFF: return immediately, preserve native scroll.
         return;
       }
-
-      // Select mode ON: become authoritative — start selection immediately
-      // and suppress row tap/click handlers for this gesture.
-      try {
-        ev.preventDefault();
-        ev.stopPropagation();
-      } catch {}
-      scSel_setSelectingMode(true);
-      scSel_pointerDown = true;
-      selectionController.anchor = { r: coord.r, cidx: coord.cidx };
-      selectionController.focusCell = selectionController.anchor;
-      selectionController.range = scSel_normRange(selectionController.anchor);
-      try {
-        if (td && typeof td.setPointerCapture === "function")
-          td.setPointerCapture(ev.pointerId);
-      } catch {}
-      renderSelection();
-      document.body.style.userSelect = "none";
-      try {
-        __sc_ignoreNextClick = true;
-      } catch {
-        /* ignore */
-      }
-      setTimeout(() => {
-        try {
-          __sc_ignoreNextClick = false;
-        } catch {}
-      }, 350);
+      scSel_touchStart = {
+        pointerId: ev.pointerId,
+        x: ev.clientX,
+        y: ev.clientY,
+        coord: { r: coord.r, cidx: coord.cidx },
+        moved: false,
+      };
       return;
     }
     // ── END TOUCH GATING ──────────────────────────────────────────────────────
@@ -1214,19 +1192,29 @@ function toggleChip(btn, stateKey) {
 
   function scSel_onPointerMove(ev) {
     // ── TOUCH MOVE GATING ─────────────────────────────────────────────────────
-    // For touch events when Select mode is OFF: do nothing — let native scroll
-    // continue. scSel_touchStart is never set when mode is OFF (see pointerdown),
-    // so the old threshold-based path cannot fire either.
     const sc_pt_mv = ev.pointerType || "mouse";
-    if (sc_pt_mv === "touch" && !selectionController.mobileSelectEnabled) {
+    if (sc_pt_mv === "touch") {
+      if (
+        scSel_touchStart &&
+        selectionController.mobileSelectEnabled &&
+        (scSel_touchStart.pointerId == null ||
+          scSel_touchStart.pointerId === ev.pointerId)
+      ) {
+        const dx = ev.clientX - scSel_touchStart.x;
+        const dy = ev.clientY - scSel_touchStart.y;
+        if (
+          Math.hypot(dx, dy) > SC_SEL_TOUCH_MOVE_THRESHOLD
+        ) {
+          scSel_touchStart.moved = true;
+        }
+      }
+      // Never prevent touch movement; the table must pan in both directions.
       return;
     }
-    // ── END TOUCH MOVE GATING ─────────────────────────────────────────────────
 
     // If selection is active, expand range
     if (scSel_pointerDown) {
-      // Only prevent default for touch when Select mode is ON (already gated above)
-      // Always prevent for mouse drags to stop text-selection
+      // Mouse/pen drag selection suppresses native text selection.
       try {
         ev.preventDefault();
       } catch {
@@ -1245,8 +1233,6 @@ function toggleChip(btn, stateKey) {
       });
       return;
     }
-    // scSel_touchStart threshold path removed — selection only starts in pointerdown
-    // when Select mode is ON, making that path obsolete and safe to omit.
   }
 
   function scSel_onPointerUp(ev) {
@@ -1254,38 +1240,52 @@ function toggleChip(btn, stateKey) {
       pointerDown: scSel_pointerDown,
       mobileEnabled: selectionController.mobileSelectEnabled,
     });
-    // If we were not in an active drag, handle tap behavior when mobile-select is enabled
-    if (!scSel_pointerDown) {
+    const sc_pt_up = ev.pointerType || "mouse";
+    if (sc_pt_up === "touch") {
+      const touchStart = scSel_touchStart;
+      scSel_touchStart = null;
+      if (
+        !touchStart ||
+        touchStart.moved ||
+        !selectionController.mobileSelectEnabled
+      ) {
+        return;
+      }
       try {
-        if (scSel_touchStart && selectionController.mobileSelectEnabled) {
-          // treat as tap: collapse selection to tapped cell
-          const td =
-            ev.target?.closest?.("td") ||
-            document.elementFromPoint(ev.clientX, ev.clientY)?.closest?.("td");
-          const coord = td ? scSel_getCoordFromTd(td) : scSel_touchStart.coord;
-          if (coord) {
-            selectionController.anchor = { r: coord.r, cidx: coord.cidx };
-            selectionController.focusCell = selectionController.anchor;
-            selectionController.range = scSel_normRange(
-              selectionController.anchor,
-            );
-            // focus grid wrapper
-            try {
-              const gw =
-                document.getElementById("sc-grid-wrap") ||
-                document.querySelector(".table-wrap");
-              if (gw && typeof gw.focus === "function") gw.focus();
-            } catch {}
-            renderSelection();
-          }
+        const td =
+          ev.target?.closest?.("td") ||
+          document.elementFromPoint(ev.clientX, ev.clientY)?.closest?.("td");
+        const rawCoord = td ? scSel_getCoordFromTd(td) : touchStart.coord;
+        if (!rawCoord) return;
+        const tapped = { r: rawCoord.r, cidx: rawCoord.cidx };
+
+        if (
+          selectionController.mobileRangePending &&
+          selectionController.anchor
+        ) {
+          // Second tap completes a rectangular range from the first tap.
+          scSel_selectRect(selectionController.anchor, tapped);
+          selectionController.mobileRangePending = false;
+        } else {
+          // First tap starts a new range and selects a single cell.
+          selectionController.anchor = tapped;
+          selectionController.focusCell = tapped;
+          selectionController.range = scSel_normRange(tapped);
+          selectionController.mobileRangePending = true;
+          renderSelection();
         }
+        window.__sc_selectingCells = false;
+        __sc_ignoreNextClick = true;
+        setTimeout(() => {
+          __sc_ignoreNextClick = false;
+        }, 350);
       } catch {
         /* ignore */
       }
-      // clear transient touch start
-      scSel_touchStart = null;
       return;
     }
+
+    if (!scSel_pointerDown) return;
 
     // End selection drag
     scSel_pointerDown = false;
@@ -1301,15 +1301,9 @@ function toggleChip(btn, stateKey) {
     } catch {
       /* ignore */
     }
-    // Restore body userSelect; only restore touch-action when Select mode is OFF
+    // Restore native interaction after mouse/pen selection.
     document.body.style.userSelect = "";
-    if (!selectionController.mobileSelectEnabled) {
-      scSel_setSelectingMode(false);
-    } else {
-      // Keep __sc_selectingCells false between gestures so row handlers work,
-      // but leave touch-action as "none" so the next drag is still captured.
-      window.__sc_selectingCells = false;
-    }
+    scSel_setSelectingMode(false);
     // Allow row handlers to work again on next tick
     setTimeout(() => {
       window.__sc_selectingCells = false;
@@ -1322,23 +1316,7 @@ function toggleChip(btn, stateKey) {
     scSel_touchStart = null;
     scSel_cancelLongPress();
     document.body.style.userSelect = "";
-    // When Select mode is still ON (e.g. iOS fires pointercancel mid-drag),
-    // keep touch-action: none so the next gesture is still captured.
-    // Only fully restore scrolling when Select mode is OFF.
-    if (selectionController.mobileSelectEnabled) {
-      // Stay in select-mode — just reset the drag state.
-      window.__sc_selectingCells = false;
-      try {
-        const wrap =
-          document.querySelector(".table-wrap") ||
-          document.getElementById("sc-body");
-        if (wrap && wrap.style) wrap.style.touchAction = "none";
-      } catch {
-        /* ignore */
-      }
-    } else {
-      scSel_setSelectingMode(false);
-    }
+    scSel_setSelectingMode(false);
   }
 
   function scSel_onDocPointerDown(ev) {
@@ -3699,6 +3677,7 @@ async function init() {
     // Attach column header sorting handlers (client-side)
     try {
       attachHeaderSorting();
+      attachMobileSorting();
     } catch {
       void 0;
     }
@@ -5084,6 +5063,7 @@ function attachHeaderSorting() {
       }
       // reset to first page and request server-side sorted results
       page = 1;
+      refreshMobileSortControls();
       runQuery();
       // update visuals for all headers
       ths.forEach((t) => {
@@ -5200,6 +5180,70 @@ function refreshSortHeaderVisuals() {
       if (indEl) indEl.innerHTML = "";
     }
   });
+  refreshMobileSortControls();
+}
+
+function refreshMobileSortControls() {
+  const sortCol = document.getElementById("sc-mobile-sort-col");
+  const sortDir = document.getElementById("sc-mobile-sort-dir");
+  if (!sortCol || !sortDir) return;
+
+  if (sortCol.dataset.optionsReady !== "true" && elTable) {
+    const headers = Array.from(elTable.querySelectorAll("thead th"));
+    headers.forEach((th) => {
+      const col = th.dataset.sortCol || th.dataset.col || "";
+      if (!col) return;
+      const option = document.createElement("option");
+      const labelSource = th.cloneNode(true);
+      labelSource
+        .querySelectorAll?.(".sc-sort-indicator")
+        .forEach((indicator) => indicator.remove());
+      option.value = col;
+      option.textContent = (labelSource.textContent || col)
+        .trim()
+        .replace(/\s+/g, " ");
+      sortCol.appendChild(option);
+    });
+    sortCol.dataset.optionsReady = "true";
+  }
+
+  const activeCol = state.sort?.col || "";
+  const activeDir = state.sort?.dir || "";
+  sortCol.value = activeCol;
+  sortDir.disabled = !activeCol;
+  sortDir.textContent = activeDir === "desc" ? "↓" : "↑";
+  const directionLabel = !activeCol
+    ? "Choose a sort field"
+    : activeDir === "desc"
+      ? "Sort ascending"
+      : "Sort descending";
+  sortDir.setAttribute("aria-label", directionLabel);
+  sortDir.title = directionLabel;
+}
+
+function attachMobileSorting() {
+  const sortCol = document.getElementById("sc-mobile-sort-col");
+  const sortDir = document.getElementById("sc-mobile-sort-dir");
+  if (!sortCol || !sortDir || sortCol.dataset.bound === "true") return;
+
+  sortCol.dataset.bound = "true";
+  refreshMobileSortControls();
+
+  sortCol.addEventListener("change", () => {
+    const col = sortCol.value || "";
+    state.sort = col ? { col, dir: "asc" } : { col: "", dir: "" };
+    page = 1;
+    refreshSortHeaderVisuals();
+    runQuery();
+  });
+
+  sortDir.addEventListener("click", () => {
+    if (!state.sort?.col) return;
+    state.sort.dir = state.sort.dir === "desc" ? "asc" : "desc";
+    page = 1;
+    refreshSortHeaderVisuals();
+    runQuery();
+  });
 }
 
 function onScNarrowMediaChange() {
@@ -5241,7 +5285,8 @@ function setMobileSelectMode(enabled) {
       document.getElementById("sc-body");
     if (wrap) {
       wrap.classList.toggle("sc-mobile-select-active", on);
-      wrap.style.touchAction = on ? "none" : "pan-x pan-y";
+      // Mobile selection is tap-based; scrolling remains available in both modes.
+      wrap.style.touchAction = "pan-x pan-y";
     }
   } catch {
     void 0;

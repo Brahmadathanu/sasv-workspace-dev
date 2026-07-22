@@ -17,12 +17,19 @@ export const COSTING_SUITE_MODULES = [
   {
     id: "pricing-policy",
     label: "Pricing Policy Manager",
-    lensIds: ["policy-manager", "scheme-comparison"],
+    // SC1/SC4: scheme-comparison owned by cost-sheet-review. PPM suite has no
+    // scheme-comparison lens. SC5 redirects legacy PPM Scheme Comparison URLs.
+    lensIds: ["mrp-governance", "policy-manager"],
   },
   {
     id: "cost-sheet-review",
     label: "Cost Sheet Review & Approval",
-    lensIds: ["sku-cost-sheet", "printable-cost-sheet", "cost-comparison"],
+    lensIds: [
+      "sku-cost-sheet",
+      "printable-cost-sheet",
+      "cost-comparison",
+      "scheme-comparison",
+    ],
   },
 ];
 
@@ -77,9 +84,17 @@ export const LENS_REGISTRY = {
     periodScoped: true,
     description: "Manual cost pool provisions and monthly pool impact.",
   },
+  "mrp-governance": {
+    id: "mrp-governance",
+    label: "MRP Governance",
+    suiteId: "pricing-policy",
+    periodScoped: false,
+    description:
+      "Canonical SKU MRP policies, product derivation, proposals, decisions, and application history.",
+  },
   "policy-manager": {
     id: "policy-manager",
-    label: "Policy Manager",
+    label: "Selling & Scheme Policies",
     suiteId: "pricing-policy",
     periodScoped: false,
     description: "SKU selling policy, scheme policy, and scheme rule register.",
@@ -87,7 +102,8 @@ export const LENS_REGISTRY = {
   "scheme-comparison": {
     id: "scheme-comparison",
     label: "Scheme Comparison",
-    suiteId: "pricing-policy",
+    // SC1: canonical suite owner is Cost Sheet Review (period analysis).
+    suiteId: "cost-sheet-review",
     periodScoped: true,
     description: "Scheme viability and margin comparison by SKU.",
   },

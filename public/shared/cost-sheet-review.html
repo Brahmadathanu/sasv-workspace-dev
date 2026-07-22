@@ -760,10 +760,45 @@
         display: none !important;
       }
 
+      .generic-table-meta-actions:not(.hidden) {
+        margin-left: auto;
+      }
+      .generic-table-meta-actions:not(.hidden) + .pagination {
+        margin-left: 0 !important;
+      }
+
       .generic-table-meta-actions .icon-btn {
         width: 30px;
         height: 30px;
         padding: 0;
+        border-radius: 999px;
+      }
+      .generic-table-meta-actions .icon-btn.icon-btn-primary {
+        background: color-mix(in srgb, var(--primary, #2563eb) 16%, #fff);
+        border-color: color-mix(in srgb, var(--primary, #2563eb) 34%, #fff);
+        color: var(--primary, #2563eb);
+      }
+      .generic-table-meta-actions .icon-btn.icon-btn-primary:hover,
+      .generic-table-meta-actions .icon-btn.icon-btn-primary:focus-visible {
+        background: color-mix(in srgb, var(--primary, #2563eb) 24%, #fff);
+        border-color: color-mix(in srgb, var(--primary, #2563eb) 48%, #fff);
+        color: var(--primary, #2563eb);
+      }
+      .generic-table-meta-actions .icon-btn.icon-btn-primary svg {
+        display: block;
+        stroke: currentColor;
+        fill: none;
+      }
+      [data-theme="dark"] .generic-table-meta-actions .icon-btn.icon-btn-primary {
+        background: color-mix(in srgb, var(--primary, #3b82f6) 28%, transparent);
+        border-color: color-mix(in srgb, var(--primary, #3b82f6) 45%, transparent);
+        color: #93c5fd;
+      }
+      [data-theme="dark"] .generic-table-meta-actions .icon-btn.icon-btn-primary:hover,
+      [data-theme="dark"] .generic-table-meta-actions .icon-btn.icon-btn-primary:focus-visible {
+        background: color-mix(in srgb, var(--primary, #3b82f6) 38%, transparent);
+        border-color: color-mix(in srgb, var(--primary, #3b82f6) 58%, transparent);
+        color: #bfdbfe;
       }
 
       #kpiStripWrap.hidden,
@@ -771,6 +806,22 @@
       #genericTableMetaRow.hidden,
       #tableWrap.hidden {
         display: none !important;
+      }
+      .cp-register-empty-row td {
+        border-bottom: none;
+      }
+      .cp-register-empty-cell {
+        padding: 28px 16px;
+        text-align: center;
+        vertical-align: middle;
+      }
+      .cp-register-empty-message {
+        margin: 0 auto;
+        max-width: 520px;
+        font-size: 13px;
+        line-height: 1.45;
+        color: var(--muted, #6b7280);
+        font-weight: var(--cp-fw-label, 500);
       }
       table {
         width: 100%;
@@ -2476,7 +2527,7 @@
           role="dialog"
           aria-label="Costing filters"
         >
-          <div class="peq-filter-section">
+          <div class="peq-filter-section" data-peq-section="status">
             <div class="peq-filter-section-title">Status</div>
             <ul class="peq-filter-checklist">
               <li>
@@ -2521,7 +2572,7 @@
               </li>
             </ul>
           </div>
-          <div class="peq-filter-section">
+          <div class="peq-filter-section" data-peq-section="issue">
             <div class="peq-filter-section-title">Issue / Route</div>
             <ul class="peq-filter-checklist">
               <li>
@@ -2626,7 +2677,7 @@
               </li>
             </ul>
           </div>
-          <div class="peq-filter-section">
+          <div class="peq-filter-section" data-peq-section="source">
             <div class="peq-filter-section-title">Source / Area</div>
             <ul class="peq-filter-checklist">
               <li>
@@ -2797,18 +2848,18 @@
           id="genericTableMetaRow"
           style="
             display: flex;
-            justify-content: space-between;
+            justify-content: flex-start;
             align-items: center;
             gap: 8px;
             margin-bottom: 8px;
           "
         >
-          <div id="genericTableMetaActions" class="generic-table-meta-actions hidden"></div>
           <span
             id="peqRowCount"
             class="peq-row-count"
             style="display: none; margin-left: 0"
           ></span>
+          <div id="genericTableMetaActions" class="generic-table-meta-actions hidden"></div>
           <div
             class="pagination"
             style="

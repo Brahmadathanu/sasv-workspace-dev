@@ -74,8 +74,8 @@ export function createControlCenterController(deps) {
     handleError,
     getActivePeriodStart,
     getSelectedRow,
-    pricingPolicyCtrl,
     drillToLens,
+    drillToPricingPolicyWorkspace,
   } = deps;
 
   let DASHBOARD_SUMMARY = null;
@@ -365,14 +365,13 @@ export function createControlCenterController(deps) {
       }
 
       if (action === "selling-policy") {
-        pricingPolicyCtrl.setPolicyManagerTab("sku-overview");
-        await drillToLens("policy-manager", {
+        await drillToPricingPolicyWorkspace("sku-overview", {
           status: [],
           issue: [],
           source: [],
         });
         showToast(
-          "Policy Manager opened. Use the SKU Policy Overview to review missing selling policy rows.",
+          "Pricing Policy Manager opened. Use SKU Policy Overview to review missing selling policy rows.",
           "info",
           5000,
         );
@@ -380,14 +379,13 @@ export function createControlCenterController(deps) {
       }
 
       if (action === "scheme-policy") {
-        pricingPolicyCtrl.setPolicyManagerTab("sku-overview");
-        await drillToLens("policy-manager", {
+        await drillToPricingPolicyWorkspace("sku-overview", {
           status: [],
           issue: [],
           source: [],
         });
         showToast(
-          "Policy Manager opened. Use the SKU Policy Overview to review missing scheme policy rows.",
+          "Pricing Policy Manager opened. Use SKU Policy Overview to review missing scheme policy rows.",
           "info",
           5000,
         );

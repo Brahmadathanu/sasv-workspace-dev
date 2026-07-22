@@ -14,6 +14,16 @@
         --cp-fw-heading: 600;
         --cp-fw-metric: 600;
         --cp-fw-section: 600;
+        /* PPM-C1H1 compact spacing foundation (page-scoped) */
+        --cp-space-1: 4px;
+        --cp-space-2: 8px;
+        --cp-space-3: 12px;
+        --cp-space-4: 16px;
+        --cp-module-gap: 6px;
+        --cp-section-gap: 8px;
+        --cp-register-gap: 6px;
+        --cp-toolbar-gap: 8px;
+        --cp-control-height: 36px;
       }
       .cp-modal-title {
         font-weight: var(--cp-fw-heading);
@@ -45,7 +55,8 @@
       body {
         display: flex;
         flex-direction: column;
-        padding: 20px;
+        padding: var(--cp-space-4);
+        gap: 0;
       }
       @media (max-width: 1080px) {
         body {
@@ -57,11 +68,18 @@
           padding: 6px;
         }
       }
+      .header-card {
+        padding: var(--cp-space-2) 0;
+        background: transparent;
+        border: none;
+        border-radius: 0;
+        flex-shrink: 0;
+      }
       .page-header {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        gap: 12px;
+        gap: var(--cp-space-3);
       }
       .page-header h1 {
         margin: 0;
@@ -70,13 +88,25 @@
       }
       .page-sub {
         color: var(--muted, #6b7280);
-        font-size: 0.95rem;
+        font-size: 0.9rem;
+        margin-top: var(--cp-space-1);
+        line-height: 1.35;
+      }
+      .page-header > div:last-child {
+        display: flex;
+        align-items: stretch;
+        gap: var(--cp-space-2);
+        flex-shrink: 0;
       }
       .toolbar {
         display: flex;
-        gap: 8px;
+        gap: var(--cp-space-2);
         align-items: center;
-        margin-top: 8px;
+        margin-top: var(--cp-space-1);
+      }
+      .toolbar:empty {
+        display: none;
+        margin: 0;
       }
       .icon-btn {
         display: inline-flex;
@@ -177,7 +207,9 @@
         width: 28px;
         height: 28px;
         padding: 0;
+        margin: 0;
         line-height: 1;
+        vertical-align: middle;
       }
       #prevPage.sc-btn:hover,
       #nextPage.sc-btn:hover {
@@ -188,8 +220,14 @@
         display: block;
       }
       #peqPage {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         min-height: 28px;
-        line-height: 28px;
+        height: 28px;
+        margin: 0;
+        padding: 0;
+        line-height: 1;
       }
       .kpi-strip {
         display: grid;
@@ -314,41 +352,39 @@
       .search-card {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--cp-toolbar-gap);
+        margin-top: var(--cp-module-gap);
+        padding: var(--cp-space-2) 10px;
+        border-radius: 8px;
+        background: var(--panel-bg);
+        border: 1px solid var(--border);
+        flex-shrink: 0;
+        width: 100%;
+        box-sizing: border-box;
       }
       .search-card .filter-item.search {
-        flex: 1;
-        min-width: 160px;
+        flex: 1 1 100%;
+        min-width: 0;
+        width: 100%;
         position: relative;
       }
-      .search-card .cp-period-item {
-        flex: 0 0 auto;
-        display: flex;
+      .cp-pricing-meta-chrome {
+        display: inline-flex;
         align-items: center;
+        gap: 8px;
+        flex: 0 0 auto;
         min-width: 0;
+        margin-left: 0;
       }
-      .search-card .cp-period-select {
-        width: 132px;
-        max-width: 100%;
-        padding: 7px 28px 7px 10px;
-        border-radius: 8px;
-        border: 1px solid var(--border, #e5e7eb);
-        background: var(--panel-bg, #fff);
-        color: var(--text, #0f172a);
-        font-size: 12.5px;
-        font-weight: var(--cp-fw-label);
-        line-height: 1.2;
-        appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 8px center;
-        cursor: pointer;
+      .cp-pricing-meta-chrome #genericTableMetaActions:not(.hidden) {
+        display: inline-flex;
+        align-items: center;
       }
-      .search-card .cp-period-select:disabled {
-        opacity: 0.72;
-        cursor: not-allowed;
-        background-color: #f8fafc;
-        color: var(--muted, #6b7280);
+      .cp-pricing-meta-chrome #peqFilterWrapper {
+        position: relative;
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
       }
       .modal-content .cp-audit-list {
         display: flex;
@@ -394,16 +430,17 @@
       }
       @media (max-width: 640px) {
         .search-card {
-          flex-wrap: wrap;
-        }
-        .search-card .cp-period-item {
-          flex: 1 1 120px;
-        }
-        .search-card .cp-period-select {
-          width: 100%;
+          flex-wrap: nowrap;
         }
         .search-card .filter-item.search {
           flex: 1 1 100%;
+          min-width: 0;
+        }
+        .cp-pricing-meta-chrome {
+          flex-wrap: wrap;
+        }
+        #search {
+          min-width: 0;
         }
       }
       #search {
@@ -525,6 +562,22 @@
       .peq-filter-drawer.open {
         display: block;
       }
+      #peqFilterDrawer.is-mrp-mode {
+        width: min(420px, calc(100vw - 24px));
+        max-width: min(420px, calc(100vw - 24px));
+      }
+      .mrp-filter-drawer-body {
+        min-width: 0;
+      }
+      .mrp-filter-drawer-body .cp-mrp-filter-panel {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px 16px;
+        margin-bottom: 8px;
+      }
+      .mrp-filter-drawer-body .peq-filter-actions {
+        margin-top: 4px;
+      }
       .peq-filter-section {
         margin-bottom: 10px;
       }
@@ -598,11 +651,124 @@
         overflow-x: auto;
         flex-wrap: nowrap;
       }
+      /* PPM-C1H3.3-F2 — desktop/tablet direct workspace strip (>520) */
+      .cp-pricing-workspace-nav-wrap {
+        min-width: 0;
+        width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+      }
+      .cp-pricing-workspace-nav-strip {
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: stretch;
+        gap: 4px;
+        min-width: 0;
+        width: max-content;
+        max-width: none;
+      }
+      .cp-pricing-workspace-group-sep {
+        display: inline-block;
+        width: 1px;
+        height: 22px;
+        margin: 0 6px;
+        align-self: center;
+        flex-shrink: 0;
+        background: var(--erp-border, var(--border, #e5e7eb));
+        pointer-events: none;
+      }
+      .cp-pricing-direct-workspace-tab {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 38px;
+        padding: 8px 12px;
+        margin: 0;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--erp-muted, var(--muted, #6b7280));
+        font-size: 12.5px;
+        font-weight: var(--cp-fw-label);
+        line-height: 1.2;
+        white-space: nowrap;
+        cursor: pointer;
+        transition: all 0.16s ease;
+      }
+      .cp-pricing-direct-workspace-tab:hover {
+        color: var(--erp-text, #0f172a);
+        background: rgba(37, 99, 235, 0.06);
+        border-color: rgba(37, 99, 235, 0.14);
+      }
+      .cp-pricing-direct-workspace-tab:focus-visible {
+        outline: 2px solid var(--primary, #2563eb);
+        outline-offset: 1px;
+      }
+      .cp-pricing-direct-workspace-tab.active,
+      .cp-pricing-direct-workspace-tab[aria-selected="true"] {
+        color: #fff;
+        background: var(--erp-accent, var(--primary, #2563eb));
+        border-color: var(--erp-accent, var(--primary, #2563eb));
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.22);
+        font-weight: var(--cp-fw-heading);
+      }
+      [data-theme="dark"] .cp-pricing-direct-workspace-tab.active,
+      [data-theme="dark"] .cp-pricing-direct-workspace-tab[aria-selected="true"] {
+        color: #fff;
+      }
+      /* ERP purpose tip — above tab so horizontal strip scroll does not clip it */
+      @media (hover: hover) and (pointer: fine) {
+        .cp-pricing-workspace-nav-wrap {
+          overflow-y: visible;
+        }
+        .cp-pricing-direct-workspace-tab[data-tip] {
+          position: relative;
+        }
+        .cp-pricing-direct-workspace-tab[data-tip]::after {
+          content: attr(data-tip);
+          position: absolute;
+          left: 50%;
+          bottom: calc(100% + 8px);
+          transform: translateX(-50%);
+          width: max-content;
+          max-width: min(280px, 70vw);
+          padding: 6px 10px;
+          border-radius: 6px;
+          border: 1px solid var(--erp-border, var(--border, #e5e7eb));
+          background: var(--erp-surface, var(--surface, #fff));
+          color: var(--erp-text, var(--text, #0f172a));
+          font-size: 11.5px;
+          font-weight: var(--cp-fw-body, 400);
+          line-height: 1.35;
+          white-space: normal;
+          text-align: left;
+          box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
+          opacity: 0;
+          visibility: hidden;
+          pointer-events: none;
+          z-index: 400;
+          transition: opacity 0.12s ease, visibility 0.12s ease;
+        }
+        .cp-pricing-direct-workspace-tab[data-tip]:hover::after,
+        .cp-pricing-direct-workspace-tab[data-tip]:focus-visible::after {
+          opacity: 1;
+          visibility: visible;
+        }
+        [data-theme="dark"] .cp-pricing-direct-workspace-tab[data-tip]::after {
+          background: #1e293b;
+          border-color: #334155;
+          color: #e2e8f0;
+          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+        }
+      }
       .cp-lens-suite-label {
         font-size: 12px;
         font-weight: var(--cp-fw-label);
         color: var(--erp-muted, var(--muted, #6b7280));
-        margin-bottom: 6px;
+        margin-bottom: var(--cp-space-1);
         line-height: 1.35;
       }
       .cp-lens-suite-group {
@@ -665,19 +831,28 @@
         .cp-lens-suite-separator {
           display: none;
         }
+        /* Suite path chrome (Pricing Policy Manager → Workspace) */
+        #lensSuiteLabel {
+          display: none;
+        }
         .lens-pills {
           display: none;
         }
-        .tab-select-wrap {
+        /* F3: grouped Workspace select (optgroups) replaces desktop strip ≤520 */
+        #pricingPolicyWorkspaceSelectWrap {
           position: relative;
-          display: inline-block;
+          display: block !important;
           width: 100%;
           margin: 8px 0;
         }
-        .tab-select {
-          display: inline-block;
+        #pricingPolicyWorkspaceSelectWrap .cp-nested-subview-select-label {
+          display: block;
+        }
+        #pricingPolicyWorkspaceSelectWrap .tab-select {
+          display: block;
           width: 100%;
-          padding: 8px 42px 8px 10px;
+          padding: 10px 42px 10px 12px;
+          min-height: 44px;
           border-radius: 8px;
           border: 1px solid var(--erp-accent, #2563eb);
           background: linear-gradient(
@@ -691,11 +866,12 @@
           appearance: none;
           cursor: pointer;
         }
-        .tab-select-icon {
+        #pricingPolicyWorkspaceSelectWrap .tab-select-icon {
           position: absolute;
           right: 12px;
-          top: 50%;
-          transform: translateY(-50%);
+          bottom: 13px;
+          top: auto;
+          transform: none;
           width: 18px;
           height: 18px;
           pointer-events: none;
@@ -716,17 +892,17 @@
         }
       }
       @media (min-width: 521px) {
-        .tab-select,
-        .tab-select-wrap,
-        .tab-select-icon {
-          display: none;
+        /* Desktop: direct workspace strip only; grouped select is narrow-only */
+        #pricingPolicyWorkspaceSelectWrap {
+          display: none !important;
         }
       }
       .main {
         display: flex;
         flex: 1 1 auto;
-        gap: 12px;
+        gap: var(--cp-space-3);
         min-height: 0;
+        margin-top: var(--cp-module-gap);
       }
       .table-card {
         flex: 1 1 0;
@@ -737,8 +913,16 @@
         position: relative;
         border: 1px solid var(--border, #e5e7eb);
         border-radius: 8px;
-        padding: 8px;
+        padding: var(--cp-space-2);
         background: var(--panel-bg);
+      }
+      .tabs-card {
+        margin-top: var(--cp-module-gap);
+        padding: var(--cp-space-2) 10px;
+        border-radius: 8px;
+        background: var(--panel-bg);
+        border: 1px solid var(--border);
+        flex-shrink: 0;
       }
       #tableWrap {
         flex: 1 1 0;
@@ -761,9 +945,37 @@
       }
 
       .generic-table-meta-actions .icon-btn {
-        width: 30px;
-        height: 30px;
+        width: 28px;
+        height: 28px;
         padding: 0;
+        border-radius: 999px;
+      }
+      .generic-table-meta-actions .icon-btn.icon-btn-primary {
+        background: color-mix(in srgb, var(--primary, #2563eb) 16%, #fff);
+        border-color: color-mix(in srgb, var(--primary, #2563eb) 34%, #fff);
+        color: var(--primary, #2563eb);
+      }
+      .generic-table-meta-actions .icon-btn.icon-btn-primary:hover,
+      .generic-table-meta-actions .icon-btn.icon-btn-primary:focus-visible {
+        background: color-mix(in srgb, var(--primary, #2563eb) 24%, #fff);
+        border-color: color-mix(in srgb, var(--primary, #2563eb) 48%, #fff);
+        color: var(--primary, #2563eb);
+      }
+      .generic-table-meta-actions .icon-btn.icon-btn-primary svg {
+        display: block;
+        stroke: currentColor;
+        fill: none;
+      }
+      [data-theme="dark"] .generic-table-meta-actions .icon-btn.icon-btn-primary {
+        background: color-mix(in srgb, var(--primary, #3b82f6) 28%, transparent);
+        border-color: color-mix(in srgb, var(--primary, #3b82f6) 45%, transparent);
+        color: #93c5fd;
+      }
+      [data-theme="dark"] .generic-table-meta-actions .icon-btn.icon-btn-primary:hover,
+      [data-theme="dark"] .generic-table-meta-actions .icon-btn.icon-btn-primary:focus-visible {
+        background: color-mix(in srgb, var(--primary, #3b82f6) 38%, transparent);
+        border-color: color-mix(in srgb, var(--primary, #3b82f6) 58%, transparent);
+        color: #bfdbfe;
       }
 
       #kpiStripWrap.hidden,
@@ -872,6 +1084,116 @@
       .status {
         padding: 12px;
         color: var(--muted, #6b7280);
+      }
+      .view-only-banner {
+        margin: 0 0 var(--cp-register-gap);
+        padding: 8px 12px;
+        border-radius: 8px;
+        border: 1px solid rgba(245, 158, 11, 0.38);
+        background: rgba(251, 191, 36, 0.14);
+        color: #92400e;
+        font-size: 13px;
+        font-weight: 600;
+        flex-shrink: 0;
+      }
+      [data-theme="dark"] .view-only-banner {
+        border-color: rgba(245, 158, 11, 0.45);
+        background: rgba(245, 158, 11, 0.12);
+        color: #fbbf24;
+      }
+      .cp-register-meta-row {
+        display: flex;
+        justify-content: flex-start;
+        align-items: center;
+        gap: var(--cp-toolbar-gap);
+        margin-bottom: var(--cp-register-gap);
+        flex-shrink: 0;
+        flex-wrap: wrap;
+        min-height: 28px;
+      }
+      .cp-register-meta-row .peq-row-count {
+        margin-left: 0;
+        display: inline-flex;
+        align-items: center;
+        height: 28px;
+        min-height: 28px;
+        line-height: 1;
+      }
+      .cp-register-meta-row .pagination {
+        margin-left: auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        align-self: center;
+        height: 28px;
+        min-height: 28px;
+        max-height: 28px;
+        line-height: 1;
+        padding: 0;
+        border: none;
+        background: transparent;
+        transform: translateY(-2px);
+      }
+      .cp-register-meta-row .pagination #peqPage {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 28px;
+        min-height: 28px;
+        max-height: 28px;
+        margin: 0;
+        padding: 0;
+        line-height: 1;
+        font-size: 12.5px;
+        font-weight: var(--cp-fw-label, 500);
+        white-space: nowrap;
+      }
+      .cp-register-meta-row #genericTableMetaActions:not(.hidden) {
+        margin-left: auto;
+        display: inline-flex;
+        align-items: center;
+        align-self: center;
+        height: 28px;
+      }
+      .cp-register-meta-row #genericTableMetaActions:not(.hidden) + .pagination {
+        margin-left: 0 !important;
+      }
+      .cp-register-meta-row .peq-filter-btn,
+      .cp-register-meta-row .generic-table-meta-actions .icon-btn,
+      .cp-register-meta-row #prevPage.sc-btn,
+      .cp-register-meta-row #nextPage.sc-btn {
+        width: 28px;
+        height: 28px;
+        box-sizing: border-box;
+      }
+      .cp-register-meta-row .peq-filter-btn svg,
+      .cp-register-meta-row .generic-table-meta-actions .icon-btn svg,
+      .cp-register-meta-row #prevPage.sc-btn svg,
+      .cp-register-meta-row #nextPage.sc-btn svg {
+        display: block;
+        flex-shrink: 0;
+        width: 14px;
+        height: 14px;
+      }
+      .cp-register-empty-row td {
+        border-bottom: none;
+      }
+      .cp-register-empty-cell {
+        padding: 28px 16px;
+        text-align: center;
+        vertical-align: middle;
+      }
+      .cp-register-empty-message {
+        margin: 0 auto;
+        max-width: 520px;
+        font-size: 13px;
+        line-height: 1.45;
+        color: var(--muted, #6b7280);
+        font-weight: var(--cp-fw-label, 500);
+      }
+      #statusArea.status {
+        margin: 0 0 var(--cp-register-gap);
+        flex-shrink: 0;
       }
       .cp-loading-mask {
         position: absolute;
@@ -1124,19 +1446,6 @@
         gap: 8px;
         margin-bottom: 10px;
       }
-      .cp-policy-manager-tab-bar {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-      }
-
-      .cp-policy-manager-tab-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-      }
 
       .cp-scheme-master-actions {
         display: flex;
@@ -1155,9 +1464,502 @@
         overflow-x: auto;
       }
 
-      .cp-policy-manager-tab-cards {
-        flex: 1 1 220px;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+      /* F3: grouped Workspace select is narrow-only (default hidden; shown ≤520) */
+      #pricingPolicyWorkspaceSelectWrap {
+        display: none;
+        width: 100%;
+        min-width: 0;
+      }
+      /* PPM-C1H2 — compact non-wrapping MRP workspace tabs (wide only) */
+      .cp-mrp-governance-nav {
+        display: flex;
+        flex-direction: column;
+        gap: var(--cp-toolbar-gap);
+        min-width: 0;
+        width: 100%;
+      }
+      .cp-mrp-workspace-tabs-wrap {
+        min-width: 0;
+        width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+      }
+      .cp-mrp-workspace-tabs {
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: stretch;
+        gap: 4px;
+        min-width: 0;
+        width: max-content;
+        max-width: none;
+        padding: 2px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: rgba(15, 23, 42, 0.03);
+      }
+      .cp-mrp-workspace-tab {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: var(--cp-control-height, 36px);
+        padding: 6px 12px;
+        margin: 0;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--muted, #6b7280);
+        font-size: 12.5px;
+        font-weight: var(--cp-fw-label);
+        line-height: 1.2;
+        white-space: nowrap;
+        cursor: pointer;
+      }
+      .cp-mrp-workspace-tab:hover {
+        color: var(--text, #0f172a);
+        background: rgba(37, 99, 235, 0.06);
+        border-color: rgba(37, 99, 235, 0.18);
+      }
+      .cp-mrp-workspace-tab:focus-visible {
+        outline: 2px solid var(--primary, #2563eb);
+        outline-offset: 1px;
+      }
+      .cp-mrp-workspace-tab.active,
+      .cp-mrp-workspace-tab[aria-selected="true"] {
+        color: var(--primary, #2563eb);
+        background: rgba(37, 99, 235, 0.1);
+        border-color: rgba(37, 99, 235, 0.45);
+        font-weight: var(--cp-fw-heading);
+      }
+      [data-theme="dark"] .cp-mrp-workspace-tabs {
+        background: rgba(148, 163, 184, 0.08);
+      }
+      /* N2 Selling secondary strip — same compact pattern as MRP workspaces */
+      .cp-pricing-workspace-nav {
+        display: flex;
+        flex-direction: column;
+        gap: var(--cp-toolbar-gap);
+        min-width: 0;
+        width: 100%;
+      }
+      .cp-pricing-workspace-tabs-wrap {
+        min-width: 0;
+        width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+      }
+      .cp-pricing-workspace-tabs {
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: stretch;
+        gap: 4px;
+        min-width: 0;
+        width: max-content;
+        max-width: none;
+        padding: 2px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: rgba(15, 23, 42, 0.03);
+      }
+      .cp-pricing-workspace-tab {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: var(--cp-control-height, 36px);
+        padding: 6px 12px;
+        margin: 0;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--muted, #6b7280);
+        font-size: 12.5px;
+        font-weight: var(--cp-fw-label);
+        line-height: 1.2;
+        white-space: nowrap;
+        cursor: pointer;
+      }
+      .cp-pricing-workspace-tab:hover {
+        color: var(--text, #0f172a);
+        background: rgba(37, 99, 235, 0.06);
+        border-color: rgba(37, 99, 235, 0.18);
+      }
+      .cp-pricing-workspace-tab:focus-visible {
+        outline: 2px solid var(--primary, #2563eb);
+        outline-offset: 1px;
+      }
+      .cp-pricing-workspace-tab.active,
+      .cp-pricing-workspace-tab[aria-selected="true"] {
+        color: var(--primary, #2563eb);
+        background: rgba(37, 99, 235, 0.1);
+        border-color: rgba(37, 99, 235, 0.45);
+        font-weight: var(--cp-fw-heading);
+      }
+      [data-theme="dark"] .cp-pricing-workspace-tabs {
+        background: rgba(148, 163, 184, 0.08);
+      }
+      /* Tab strip above identity (approved H2 / N2 hierarchy) */
+      .cp-workspace-toolbar--mrp-governance .cp-workspace-toolbar-main,
+      .cp-workspace-toolbar--policy-manager .cp-workspace-toolbar-main {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .cp-workspace-toolbar--mrp-governance .cp-workspace-toolbar-navigation,
+      .cp-workspace-toolbar--policy-manager .cp-workspace-toolbar-navigation {
+        order: 1;
+        flex: 1 1 auto;
+        width: 100%;
+      }
+      .cp-workspace-toolbar--mrp-governance .cp-workspace-toolbar-identity,
+      .cp-workspace-toolbar--policy-manager .cp-workspace-toolbar-identity {
+        order: 2;
+        flex: 1 1 auto;
+        width: 100%;
+        max-width: 100%;
+      }
+      .cp-workspace-toolbar--policy-manager .cp-workspace-toolbar-actions {
+        order: 3;
+        width: 100%;
+        margin-left: 0;
+        justify-content: flex-end;
+      }
+      .cp-mrp-governance-empty-cell {
+        padding: 18px 14px;
+        border: none;
+      }
+      .cp-mrp-governance-empty {
+        max-width: 560px;
+        margin: 8px auto;
+        padding: 16px 18px;
+        border-radius: 8px;
+        border: 1px solid var(--border, #e5e7eb);
+        background: var(--panel-bg, #fff);
+        text-align: left;
+      }
+      .cp-mrp-governance-empty-title {
+        font-size: 15px;
+        font-weight: var(--cp-fw-heading, 600);
+        color: var(--text, #0f172a);
+        margin: 0 0 6px;
+      }
+      .cp-mrp-governance-empty-body {
+        margin: 0 0 8px;
+        font-size: 13px;
+        line-height: 1.45;
+        color: var(--muted, #6b7280);
+      }
+      .cp-mrp-governance-empty-note {
+        margin: 0;
+        font-size: 12px;
+        color: var(--muted, #6b7280);
+      }
+      .cp-nested-subview-nav {
+        margin-top: 8px;
+      }
+      .cp-nested-subview-tabs {
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px;
+        padding: 3px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: rgba(15, 23, 42, 0.02);
+        max-width: 100%;
+      }
+      .cp-nested-subview-tab {
+        appearance: none;
+        border: 0;
+        background: transparent;
+        color: var(--muted, #6b7280);
+        min-height: 32px;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: var(--cp-fw-label, 600);
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .cp-nested-subview-tab:hover {
+        color: var(--text, #0f172a);
+        background: rgba(37, 99, 235, 0.06);
+      }
+      .cp-nested-subview-tab.active {
+        color: #fff;
+        background: var(--erp-accent, var(--primary, #2563eb));
+      }
+      .cp-nested-subview-select-wrap {
+        display: none;
+        width: 100%;
+        position: relative;
+      }
+      .cp-nested-subview-select-label {
+        display: block;
+        font-size: 11px;
+        font-weight: var(--cp-fw-label, 600);
+        color: var(--muted, #6b7280);
+        margin: 0 0 4px;
+        letter-spacing: 0.01em;
+      }
+      .cp-nested-subview-select {
+        display: block;
+        width: 100%;
+        min-height: 44px;
+        padding: 10px 42px 10px 12px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: var(--panel-bg, #fff);
+        color: var(--text, #0f172a);
+        font-size: 14px;
+        font-weight: var(--cp-fw-label, 600);
+        appearance: none;
+        cursor: pointer;
+      }
+      .cp-nested-subview-select-icon {
+        position: absolute;
+        right: 12px;
+        bottom: 13px;
+        width: 18px;
+        height: 18px;
+        color: var(--erp-accent, var(--primary, #2563eb));
+        pointer-events: none;
+      }
+      .cp-mrp-filter-panel {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 14px;
+        align-items: flex-start;
+        margin-top: 0;
+        padding: 10px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: rgba(15, 23, 42, 0.015);
+      }
+      /* PPM-C1H3 — filter disclosure + active chips */
+      .cp-visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      .cp-filter-disclosure {
+        margin-top: var(--cp-section-gap, 8px);
+        min-width: 0;
+      }
+      .cp-filter-disclosure-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+      .cp-filter-disclosure-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: var(--cp-control-height, 36px);
+        padding: 6px 12px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 7px;
+        background: var(--panel-bg, #fff);
+        color: var(--text, #0f172a);
+        font-size: 12.5px;
+        font-weight: var(--cp-fw-label);
+        cursor: pointer;
+      }
+      .cp-filter-disclosure-toggle:hover {
+        border-color: rgba(37, 99, 235, 0.35);
+        background: rgba(37, 99, 235, 0.04);
+      }
+      .cp-filter-disclosure-toggle:focus-visible {
+        outline: 2px solid var(--primary, #2563eb);
+        outline-offset: 1px;
+      }
+      .cp-filter-disclosure-toggle[aria-expanded="true"] {
+        border-color: rgba(37, 99, 235, 0.45);
+        background: rgba(37, 99, 235, 0.08);
+        color: var(--primary, #2563eb);
+      }
+      .cp-filter-disclosure-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 5px;
+        border-radius: 999px;
+        background: var(--primary, #2563eb);
+        color: #fff;
+        font-size: 11px;
+        font-weight: var(--cp-fw-heading);
+        line-height: 1;
+      }
+      .cp-active-filter-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+        flex: 1 1 160px;
+        min-width: 0;
+      }
+      .cp-active-filter-chips:empty {
+        display: none;
+      }
+      .cp-active-filter-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        max-width: 100%;
+        min-height: 28px;
+        padding: 3px 8px;
+        border: 1px solid rgba(37, 99, 235, 0.28);
+        border-radius: 999px;
+        background: rgba(37, 99, 235, 0.08);
+        color: var(--primary, #2563eb);
+        font-size: 11.5px;
+        font-weight: var(--cp-fw-label);
+        line-height: 1.2;
+        cursor: pointer;
+      }
+      .cp-active-filter-chip:hover {
+        background: rgba(37, 99, 235, 0.14);
+        border-color: rgba(37, 99, 235, 0.45);
+      }
+      .cp-active-filter-chip:focus-visible {
+        outline: 2px solid var(--primary, #2563eb);
+        outline-offset: 1px;
+      }
+      .cp-active-filter-chip-label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .cp-active-filter-chip-remove {
+        flex: 0 0 auto;
+        font-size: 14px;
+        line-height: 1;
+        opacity: 0.8;
+      }
+      .cp-filter-clear-all {
+        margin-left: auto;
+        min-height: 28px;
+        padding: 4px 8px;
+        border: none;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--primary, #2563eb);
+        font-size: 12px;
+        font-weight: var(--cp-fw-label);
+        text-decoration: underline;
+        cursor: pointer;
+      }
+      .cp-filter-clear-all:hover {
+        color: #1d4ed8;
+      }
+      .cp-filter-clear-all:focus-visible {
+        outline: 2px solid var(--primary, #2563eb);
+        outline-offset: 1px;
+      }
+      .cp-filter-disclosure-body {
+        margin-top: 8px;
+        min-width: 0;
+      }
+      .cp-filter-disclosure-body:not(.is-open),
+      .cp-filter-disclosure-body[hidden] {
+        display: none;
+      }
+      @media (max-width: 520px) {
+        .cp-filter-disclosure-toolbar {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .cp-filter-disclosure-toggle {
+          width: 100%;
+          justify-content: center;
+          min-height: 40px;
+        }
+        .cp-filter-clear-all {
+          margin-left: 0;
+          width: 100%;
+          text-align: center;
+        }
+        .cp-filter-disclosure-body .cp-mrp-filter-panel {
+          flex-direction: column;
+        }
+        .cp-filter-disclosure-body .cp-mrp-filter-group {
+          flex: 1 1 auto;
+          min-width: 0;
+        }
+      }
+      .cp-mrp-filter-group {
+        min-width: 140px;
+        flex: 1 1 140px;
+      }
+      .cp-mrp-filter-title {
+        font-size: 11px;
+        font-weight: var(--cp-fw-label, 600);
+        color: var(--muted, #6b7280);
+        margin-bottom: 6px;
+      }
+      .cp-mrp-filter-options {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .cp-mrp-filter-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        min-height: 28px;
+        cursor: pointer;
+      }
+      .cp-mrp-snapshot-pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-size: 11px;
+        line-height: 1.4;
+        max-height: 180px;
+        overflow: auto;
+      }
+      .cp-mrp-create-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 8px 12px;
+        margin-top: 10px;
+      }
+      .cp-mrp-create-toolbar .tab-select {
+        min-width: 220px;
+      }
+      @media (max-width: 520px) {
+        .cp-mrp-create-toolbar {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .cp-mrp-create-toolbar .tab-select,
+        .cp-mrp-create-toolbar .icon-btn {
+          width: 100%;
+        }
+      }
+      [data-theme="dark"] .cp-mrp-governance-empty {
+        background: var(--panel-bg, #1e293b);
+      }
+      [data-theme="dark"] .cp-mrp-filter-panel {
+        background: rgba(148, 163, 184, 0.06);
+      }
+      [data-theme="dark"] .cp-nested-subview-tabs {
+        background: rgba(148, 163, 184, 0.08);
       }
       .cp-policy-create-rule-btn {
         flex: 0 0 auto;
@@ -1167,8 +1969,37 @@
         white-space: nowrap;
       }
       @media (max-width: 520px) {
-        .cp-policy-manager-tab-bar {
-          flex-direction: column;
+        .cp-mrp-workspace-tabs-wrap,
+        .cp-pricing-workspace-tabs-wrap {
+          display: none;
+        }
+        /* N3: workspace select is shell-owned; hide empty desktop-only nav wrappers */
+        .cp-mrp-governance-nav,
+        .cp-pricing-workspace-nav,
+        .cp-workspace-toolbar--mrp-governance
+          .cp-workspace-toolbar-navigation,
+        .cp-workspace-toolbar--policy-manager
+          .cp-workspace-toolbar-navigation {
+          display: none;
+        }
+        /* F3: View is the only nested narrow control. */
+        .cp-nested-subview-nav {
+          margin-top: 6px;
+        }
+        .cp-nested-subview-cards {
+          display: none;
+        }
+        .cp-nested-subview-select-wrap {
+          display: block;
+        }
+        .cp-mrp-filter-panel {
+          margin-top: 8px;
+          padding: 8px;
+          gap: 8px 12px;
+        }
+        .cp-workbench-summary {
+          margin-bottom: 6px;
+          padding: 6px;
         }
         .cp-policy-create-rule-btn {
           width: 100%;
@@ -1667,6 +2498,84 @@
         border-top: 1px solid var(--border, #e5e7eb);
         justify-content: flex-end;
       }
+      .cost-sheet-sign-actions .cp-modal-text-btn {
+        width: auto;
+        min-width: 0;
+        min-height: 34px;
+        padding: 6px 12px;
+        font-size: 12px;
+        line-height: 1.2;
+        font-weight: var(--cp-fw-label);
+        white-space: nowrap;
+      }
+      .cost-sheet-sign-panel.cp-confirm-panel {
+        width: min(460px, 100%);
+      }
+      .cp-confirm-message {
+        margin: 0;
+        color: var(--text, #0f172a);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      .cp-policy-date-state {
+        grid-column: 1 / -1;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+        min-width: 0;
+      }
+      .cp-policy-date-warning,
+      .cp-policy-warning {
+        width: 100%;
+        padding: 9px 10px;
+        border: 1px solid #fcd34d;
+        border-radius: 8px;
+        background: #fffbeb;
+        color: #92400e;
+        font-size: 12.5px;
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+      }
+      .cp-policy-date-warning {
+        white-space: pre-line;
+      }
+      .cp-policy-warning {
+        margin-bottom: 10px;
+      }
+      .cp-policy-warning p {
+        margin: 0 0 8px;
+      }
+      .cp-policy-warning p:last-child {
+        margin-bottom: 0;
+      }
+      .cp-policy-inline-error {
+        color: #b91c1c;
+        font-size: 12px;
+        line-height: 1.4;
+      }
+      .cp-policy-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .cp-policy-summary-item {
+        min-width: 0;
+        padding: 8px 9px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: var(--surface, #fff);
+      }
+      .cp-policy-summary-item .cp-card-value {
+        overflow-wrap: anywhere;
+      }
+      [data-theme="dark"] .cp-policy-date-warning,
+      [data-theme="dark"] .cp-policy-warning {
+        background: #451a03;
+        border-color: #92400e;
+        color: #fcd34d;
+      }
       .cost-sheet-sign-body {
         padding: 12px;
       }
@@ -1736,11 +2645,46 @@
         .sign-grid {
           grid-template-columns: 1fr;
         }
+        .cp-policy-workflow-modal {
+          padding: 0;
+          align-items: stretch;
+        }
+        .cp-policy-workflow-modal .cost-sheet-sign-panel {
+          width: 100%;
+          max-height: 100dvh;
+          min-height: 100dvh;
+          border-radius: 0;
+          display: flex;
+          flex-direction: column;
+        }
+        .cp-policy-workflow-modal .cost-sheet-sign-body {
+          min-height: 0;
+          overflow-y: auto;
+        }
+        .cp-policy-workflow-modal .cost-sheet-sign-header,
+        .cp-policy-workflow-modal .cost-sheet-sign-actions {
+          flex: 0 0 auto;
+        }
+        .cp-policy-workflow-modal .cost-sheet-sign-actions {
+          flex-wrap: wrap;
+        }
+        .cp-policy-workflow-modal
+          .cost-sheet-sign-actions
+          .cp-modal-text-btn,
+        .cp-policy-workflow-modal
+          .cost-sheet-sign-actions
+          .cp-danger-text-btn {
+          flex: 1 1 100%;
+          white-space: normal;
+        }
+        .cp-policy-summary-grid {
+          grid-template-columns: 1fr;
+        }
       }
       .cp-workbench-summary {
         display: none;
-        margin: 0 0 8px;
-        padding: 8px;
+        margin: 0 0 var(--cp-register-gap);
+        padding: var(--cp-space-2);
         border: 1px solid var(--border, #e5e7eb);
         border-radius: 8px;
         background: rgba(15, 23, 42, 0.015);
@@ -1749,17 +2693,122 @@
       .cp-workbench-summary.is-visible {
         display: block;
       }
+
+      /* PPM-C1H1 — shared workspace toolbar skeleton */
+      .cp-workspace-toolbar {
+        display: flex;
+        flex-direction: column;
+        gap: var(--cp-toolbar-gap);
+        min-width: 0;
+      }
+      .cp-workspace-toolbar-main,
+      .cp-workspace-toolbar-secondary {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: var(--cp-toolbar-gap);
+        min-width: 0;
+      }
+      .cp-workspace-toolbar-main {
+        justify-content: space-between;
+      }
+      .cp-workspace-toolbar-identity {
+        flex: 0 1 auto;
+        min-width: 0;
+        max-width: 100%;
+      }
+      .cp-workspace-toolbar-title {
+        margin: 0;
+        font-size: 13px;
+        font-weight: var(--cp-fw-heading);
+        color: var(--text, #0f172a);
+        line-height: 1.3;
+      }
+      .cp-workspace-toolbar-description {
+        margin: 2px 0 0;
+        font-size: 11px;
+        font-weight: var(--cp-fw-muted);
+        color: var(--muted, #6b7280);
+        line-height: 1.35;
+      }
+      .cp-workspace-toolbar-navigation {
+        flex: 1 1 220px;
+        min-width: 0;
+      }
+      .cp-workspace-toolbar-actions {
+        flex: 0 0 auto;
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--cp-toolbar-gap);
+        margin-left: auto;
+      }
+      .cp-workspace-toolbar-actions .icon-btn {
+        min-height: var(--cp-control-height);
+      }
+      .cp-workspace-toolbar-search,
+      .cp-workspace-toolbar-filters,
+      .cp-workspace-toolbar-meta {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+      .cp-workspace-toolbar-secondary:empty,
+      .cp-workspace-toolbar-main:empty,
+      .cp-workspace-toolbar-identity:empty,
+      .cp-workspace-toolbar-navigation:empty,
+      .cp-workspace-toolbar-actions:empty,
+      .cp-workspace-toolbar-search:empty,
+      .cp-workspace-toolbar-filters:empty,
+      .cp-workspace-toolbar-meta:empty {
+        display: none;
+        margin: 0;
+        padding: 0;
+      }
+      .cp-workspace-body {
+        margin-top: var(--cp-section-gap);
+        min-width: 0;
+      }
+      .cp-workspace-body:empty {
+        display: none;
+        margin: 0;
+      }
+      .cp-workspace-toolbar + .cp-workspace-body {
+        margin-top: var(--cp-section-gap);
+      }
+      @media (max-width: 900px) {
+        .cp-workspace-toolbar-actions {
+          margin-left: 0;
+        }
+      }
+      @media (max-width: 520px) {
+        .cp-workspace-toolbar-main,
+        .cp-workspace-toolbar-secondary {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .cp-workspace-toolbar-navigation,
+        .cp-workspace-toolbar-actions {
+          flex: 1 1 auto;
+          width: 100%;
+          margin-left: 0;
+        }
+        .cp-workspace-toolbar-actions .icon-btn {
+          width: 100%;
+          justify-content: center;
+        }
+      }
+
       .cp-workbench-compact-summary {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 8px;
+        gap: var(--cp-space-2);
         align-items: stretch;
       }
       .cp-workbench-summary-card {
         border: 1px solid var(--border, #e5e7eb);
         border-radius: 7px;
         background: var(--panel-bg, #fff);
-        padding: 7px 9px;
+        padding: 6px 8px;
         min-width: 0;
       }
       .cp-workbench-summary-card .cp-card-label {
@@ -1796,6 +2845,9 @@
       .cp-manager-tab-card.active .cp-card-label,
       .cp-manager-tab-card.active .cp-card-value {
         color: var(--primary, #2563eb);
+      }
+      .cp-nested-subview-cards {
+        margin: 0;
       }
       #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
         table {
@@ -2098,6 +3150,17 @@
     data-costing-default-lens="policy-manager"
     data-costing-show-kpi="false"
   >
+    <!-- SC4: period control unused on PPM; keep id for shared shell helpers. -->
+    <select
+      id="costingPeriodSelect"
+      class="cp-period-select"
+      hidden
+      disabled
+      aria-hidden="true"
+      tabindex="-1"
+    >
+      <option value=""></option>
+    </select>
     <div
       id="manualProvisionEditModal"
       class="cost-sheet-sign-modal hidden"
@@ -2289,15 +3352,7 @@
       </div>
     </div>
 
-    <div
-      class="header-card"
-      style="
-        padding: 12px;
-        background: transparent;
-        border: none;
-        border-radius: 0;
-      "
-    >
+    <div class="header-card">
       <div class="page-header">
         <div>
           <h1>Pricing Policy Manager</h1>
@@ -2306,7 +3361,7 @@
           </div>
           <div class="toolbar"></div>
         </div>
-        <div style="display: flex; align-items: stretch; gap: 8px">
+        <div>
           <button
             id="refreshBtn"
             type="button"
@@ -2388,21 +3443,101 @@
       <div class="kpi-strip" id="kpiStrip"></div>
     </div>
 
-    <div
-      id="globalSearchCard"
-      class="card search-card"
-      style="
-        margin-top: 8px;
-        padding: 8px 10px;
-        border-radius: 8px;
-        background: var(--panel-bg);
-        border: 1px solid var(--border);
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-        gap: 8px;
-      "
-    >
+    <div id="globalSearchCard" class="card search-card">
+      <div class="filter-item search">
+        <input
+          type="text"
+          id="search"
+          placeholder="Search product, SKU, ID, or material issue item"
+          title="Search product, SKU, ID, or material issue item"
+          aria-label="Search costing rows"
+        />
+        <button
+          id="searchClear"
+          type="button"
+          class="input-clear-btn"
+          title="Clear search"
+          aria-label="Clear search"
+          style="display: none"
+        >
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+            <line
+              x1="18"
+              y1="6"
+              x2="6"
+              y2="18"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            ></line>
+            <line
+              x1="6"
+              y1="6"
+              x2="18"
+              y2="18"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            ></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="card tabs-card">
+      <div id="lensSuiteLabel" class="cp-lens-suite-label">Costing Suite</div>
+      <!-- F3 grouped Workspace select (shown ≤520 only; desktop uses #lensPills) -->
+      <div class="tab-select-wrap" id="pricingPolicyWorkspaceSelectWrap">
+        <label
+          class="cp-nested-subview-select-label"
+          for="pricingPolicyWorkspaceSelect"
+          >Workspace</label
+        >
+        <select
+          id="pricingPolicyWorkspaceSelect"
+          class="tab-select"
+          aria-label="Pricing policy workspace"
+        ></select>
+        <svg
+          class="tab-select-icon"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <polyline
+            points="6 9 12 15 18 9"
+            stroke="currentColor"
+            stroke-width="2"
+            fill="none"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </div>
+      <div class="lens-pills" id="lensPills"></div>
+    </div>
+
+    <div class="main">
+      <div class="table-card">
+        <div id="workbenchSummary" class="cp-workbench-summary"></div>
+        <div
+          id="pricingPolicyViewOnlyBanner"
+          class="view-only-banner"
+          role="status"
+          aria-live="polite"
+          hidden
+        >
+          View-only access — editing actions are unavailable.
+        </div>
+        <div id="statusArea" class="status">Loading...</div>
+        <div id="genericTableMetaRow" class="cp-register-meta-row">
+          <div
+            id="pricingPolicyMetaChrome"
+            class="cp-pricing-meta-chrome"
+            aria-label="Workspace filters and period"
+          >
       <div id="peqFilterWrapper" style="position: relative; flex-shrink: 0">
         <button
           id="peqFilterBtn"
@@ -2433,7 +3568,7 @@
           role="dialog"
           aria-label="Costing filters"
         >
-          <div class="peq-filter-section">
+          <div class="peq-filter-section" data-peq-section="status">
             <div class="peq-filter-section-title">Status</div>
             <ul class="peq-filter-checklist">
               <li>
@@ -2478,7 +3613,7 @@
               </li>
             </ul>
           </div>
-          <div class="peq-filter-section">
+          <div class="peq-filter-section" data-peq-section="issue">
             <div class="peq-filter-section-title">Issue / Route</div>
             <ul class="peq-filter-checklist">
               <li>
@@ -2583,7 +3718,7 @@
               </li>
             </ul>
           </div>
-          <div class="peq-filter-section">
+          <div class="peq-filter-section" data-peq-section="source">
             <div class="peq-filter-section-title">Source / Area</div>
             <ul class="peq-filter-checklist">
               <li>
@@ -2637,9 +3772,10 @@
                 >
               </li>
             </ul>
-            <div class="peq-filter-summary">No filters applied</div>
           </div>
-          <div class="peq-filter-actions">
+          <div id="mrpFilterDrawerBody" class="mrp-filter-drawer-body" hidden></div>
+          <div class="peq-filter-summary" data-peq-footer="summary">No filters applied</div>
+          <div class="peq-filter-actions" data-peq-footer="actions">
             <button
               id="peqFilterSelectAll"
               type="button"
@@ -2657,119 +3793,16 @@
           </div>
         </div>
       </div>
-      <div class="filter-item cp-period-item">
-        <select
-          id="costingPeriodSelect"
-          class="cp-period-select"
-          aria-label="Costing period"
-          title="Select costing period"
-          disabled
-        >
-          <option value="">Loading...</option>
-        </select>
-      </div>
-      <div class="filter-item search">
-        <input
-          type="text"
-          id="search"
-          placeholder="Search product, SKU, ID, or material issue item"
-          title="Search product, SKU, ID, or material issue item"
-          aria-label="Search costing rows"
-        />
-        <button
-          id="searchClear"
-          type="button"
-          class="input-clear-btn"
-          title="Clear search"
-          aria-label="Clear search"
-          style="display: none"
-        >
-          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-            <line
-              x1="18"
-              y1="6"
-              x2="6"
-              y2="18"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-            ></line>
-            <line
-              x1="6"
-              y1="6"
-              x2="18"
-              y2="18"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-            ></line>
-          </svg>
-        </button>
-      </div>
-    </div>
-
-    <div
-      class="card tabs-card"
-      style="
-        margin-top: 6px;
-        padding: 8px 10px;
-        border-radius: 8px;
-        background: var(--panel-bg);
-        border: 1px solid var(--border);
-      "
-    >
-      <div id="lensSuiteLabel" class="cp-lens-suite-label">Costing Suite</div>
-      <div class="tab-select-wrap">
-        <select
-          id="lensSelect"
-          class="tab-select"
-          aria-label="Select lens"
-        ></select>
-        <svg
-          class="tab-select-icon"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-          focusable="false"
-        >
-          <polyline
-            points="6 9 12 15 18 9"
-            stroke="currentColor"
-            stroke-width="2"
-            fill="none"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
-      </div>
-      <div class="lens-pills" id="lensPills"></div>
-    </div>
-
-    <div class="main" style="margin-top: 8px">
-      <div class="table-card">
-        <div id="workbenchSummary" class="cp-workbench-summary"></div>
-        <div id="statusArea" class="status">Loading...</div>
-        <div
-          id="genericTableMetaRow"
-          style="
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 8px;
-          "
-        >
-          <div id="genericTableMetaActions" class="generic-table-meta-actions hidden"></div>
+          </div>
           <span
             id="peqRowCount"
             class="peq-row-count"
-            style="display: none; margin-left: 0"
+            style="display: none"
           ></span>
+          <div id="genericTableMetaActions" class="generic-table-meta-actions hidden"></div>
           <div
             class="pagination"
             style="
-              margin-left: auto;
               display: inline-flex;
               align-items: center;
               gap: 8px;
@@ -2798,9 +3831,7 @@
                 <path d="M15 6l-6 6 6 6" />
               </svg>
             </button>
-            <span id="peqPage" style="display: inline-flex; align-items: center"
-              >Page 1/1</span
-            >
+            <span id="peqPage">Page 1/1</span>
             <button
               id="nextPage"
               class="sc-btn"
@@ -3174,7 +4205,7 @@
 
     <div
       id="mrpPolicyEditModal"
-      class="cost-sheet-sign-modal hidden"
+      class="cost-sheet-sign-modal cp-policy-workflow-modal hidden"
       aria-hidden="true"
     >
       <div class="cost-sheet-sign-panel">
@@ -3200,18 +4231,36 @@
           ></div>
 
           <div class="cp-card scheme-policy-sku-card">
-            <div class="cp-card-label">SKU</div>
+            <div class="cp-card-label">SKU / Product / Pack</div>
             <div id="mrpPolicyEditSkuLabel" class="cp-card-value">--</div>
           </div>
 
           <div
+            id="mrpPolicyEditGovernanceNote"
             class="cp-muted-text"
             style="margin-bottom: 10px; line-height: 1.45"
           >
-            MRP OK and OK uplift are automatically synchronized.
+            This creates a new governed canonical SKU MRP revision. It does not
+            modify or apply a Product MRP Proposal.
           </div>
 
           <div class="sign-grid">
+            <label>
+              Calculation mode
+              <select id="mrpPolicyEditCalcMode" aria-label="Calculation mode">
+                <option value="AUTO">Automatic OK calculation</option>
+                <option value="MANUAL">Manual IK and OK values</option>
+              </select>
+            </label>
+
+            <div
+              id="mrpPolicyEditModeHint"
+              class="cp-muted-text"
+              style="grid-column: 1 / -1; line-height: 1.45"
+            >
+              Automatic OK calculation uses IK MRP and OK uplift.
+            </div>
+
             <label>
               MRP IK (₹)
               <input
@@ -3222,7 +4271,7 @@
               />
             </label>
 
-            <label>
+            <label id="mrpPolicyEditMrpOkWrap">
               MRP OK (₹)
               <input
                 id="mrpPolicyEditMrpOk"
@@ -3232,7 +4281,7 @@
               />
             </label>
 
-            <label>
+            <label id="mrpPolicyEditOkPctWrap">
               OK Uplift %
               <input
                 id="mrpPolicyEditOkPct"
@@ -3244,12 +4293,34 @@
             </label>
 
             <label>
-              Effective From
+              Effective from
               <input id="mrpPolicyEditEffectiveFrom" type="date" />
             </label>
 
+            <div
+              id="mrpPolicyEffectiveDateState"
+              class="cp-policy-date-state"
+              aria-live="polite"
+            >
+              <span
+                id="mrpPolicyEffectiveDateChip"
+                class="status-chip gray"
+              >--</span>
+              <div
+                id="mrpPolicyEffectiveDateWarning"
+                class="cp-policy-date-warning"
+                hidden
+              ></div>
+              <div
+                id="mrpPolicyEffectiveDateError"
+                class="cp-policy-inline-error"
+                hidden
+                role="alert"
+              ></div>
+            </div>
+
             <label style="grid-column: 1 / -1">
-              Reason
+              Reason for revision
               <input
                 id="mrpPolicyEditReason"
                 type="text"
@@ -3258,7 +4329,7 @@
             </label>
 
             <label style="grid-column: 1 / -1">
-              Approval Reference
+              Approval reference
               <input
                 id="mrpPolicyEditApprovalReference"
                 type="text"
@@ -3302,23 +4373,893 @@
           <button
             id="mrpPolicyEditSaveBtn"
             type="button"
-            class="icon-btn icon-btn-primary"
+            class="icon-btn icon-btn-primary cp-modal-text-btn"
             title="Save MRP Policy"
             aria-label="Save MRP Policy"
           >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.3"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
+            Save Policy
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="derivationPolicyEditModal"
+      class="cost-sheet-sign-modal cp-policy-workflow-modal hidden"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel">
+        <div class="cost-sheet-sign-header">
+          <span id="derivationPolicyEditTitle" class="cp-modal-title"
+            >Create Derivation Policy</span
+          >
+          <button
+            id="derivationPolicyEditCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Close"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="cost-sheet-sign-body">
+          <div
+            id="derivationPolicyEditError"
+            class="cp-modal-error"
+            hidden
+            role="alert"
+          ></div>
+
+          <div
+            id="derivationPolicyEditProductLabelWrap"
+            class="cp-card scheme-policy-sku-card"
+            hidden
+          >
+            <div class="cp-card-label">Product</div>
+            <div id="derivationPolicyEditProductLabel" class="cp-card-value">
+              --
+            </div>
+          </div>
+
+          <div
+            id="derivationPolicyEditGovernanceNote"
+            class="cp-muted-text"
+            style="margin-bottom: 10px; line-height: 1.45"
+          >
+            This creates a new Product MRP Derivation Policy revision. Newly
+            generated proposals will use the applicable policy revision. Existing
+            proposals remain unchanged.
+          </div>
+
+          <div class="sign-grid">
+            <label id="derivationPolicyEditProductWrap" style="grid-column: 1 / -1">
+              Product
+              <select
+                id="derivationPolicyEditProduct"
+                aria-label="Select product"
+              >
+                <option value="">Select product</option>
+              </select>
+            </label>
+
+            <label style="grid-column: 1 / -1">
+              Reference Pack SKU
+              <select
+                id="derivationPolicyEditReferenceSku"
+                aria-label="Select Reference Pack SKU"
+              >
+                <option value="">Select Reference Pack SKU</option>
+              </select>
+            </label>
+
+            <div
+              id="derivationPolicyEditRefMrpDisplay"
+              class="cp-mrp-preview"
+              style="grid-column: 1 / -1"
+              aria-live="polite"
             >
-              <path d="M20 6 9 17l-5-5"></path>
-            </svg>
+              <div class="cp-muted-text">
+                Select a Reference Pack SKU to view its current MRP.
+              </div>
+            </div>
+
+            <label>
+              Smaller pack adjustment %
+              <input
+                id="derivationPolicyEditSmallerPct"
+                type="number"
+                step="0.01"
+                placeholder="e.g. 5 for 5%"
+              />
+            </label>
+
+            <label>
+              Larger pack adjustment %
+              <input
+                id="derivationPolicyEditLargerPct"
+                type="number"
+                step="0.01"
+                placeholder="e.g. -5 for -5%"
+              />
+            </label>
+
+            <label>
+              Ceiling increment (₹)
+              <input
+                id="derivationPolicyEditCeiling"
+                type="number"
+                step="0.01"
+                min="0"
+              />
+            </label>
+
+            <label>
+              Effective from
+              <input id="derivationPolicyEditEffectiveFrom" type="date" />
+            </label>
+
+            <div
+              id="derivationPolicyEffectiveDateState"
+              class="cp-policy-date-state"
+              aria-live="polite"
+            >
+              <span
+                id="derivationPolicyEffectiveDateChip"
+                class="status-chip gray"
+              >--</span>
+              <div
+                id="derivationPolicyEffectiveDateWarning"
+                class="cp-policy-date-warning"
+                hidden
+              ></div>
+              <div
+                id="derivationPolicyEffectiveDateError"
+                class="cp-policy-inline-error"
+                hidden
+                role="alert"
+              ></div>
+            </div>
+
+            <label style="grid-column: 1 / -1">
+              Reason
+              <input
+                id="derivationPolicyEditReason"
+                type="text"
+                placeholder="Required reason for this derivation policy"
+              />
+            </label>
+
+            <label style="grid-column: 1 / -1">
+              Approval reference
+              <input
+                id="derivationPolicyEditApprovalReference"
+                type="text"
+                placeholder="Optional approval reference"
+              />
+            </label>
+          </div>
+
+          <div class="cp-muted-text" style="margin-top: 10px; line-height: 1.45">
+            Reference MRP is resolved by the server from the selected Reference
+            Pack SKU. Confirming a policy establishes the Reference Pack for
+            future proposals and does not change canonical SKU MRP immediately.
+          </div>
+        </div>
+
+        <div class="cost-sheet-sign-actions">
+          <button
+            id="derivationPolicyEditCancelBtn"
+            type="button"
+            class="icon-btn cp-modal-text-btn"
+            title="Cancel"
+            aria-label="Cancel"
+          >
+            Cancel
+          </button>
+          <button
+            id="derivationPolicyEditDraftBtn"
+            type="button"
+            class="icon-btn cp-modal-text-btn"
+            title="Save as Draft"
+            aria-label="Save as Draft"
+          >
+            Save as Draft
+          </button>
+          <button
+            id="derivationPolicyEditConfirmBtn"
+            type="button"
+            class="icon-btn icon-btn-primary cp-modal-text-btn"
+            title="Confirm Policy"
+            aria-label="Confirm Policy"
+          >
+            Confirm Policy
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="derivationPolicyConfirmModal"
+      class="cost-sheet-sign-modal cp-policy-workflow-modal hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="derivationPolicyConfirmTitle"
+      aria-describedby="derivationPolicyConfirmMessage"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel cp-confirm-panel">
+        <div class="cost-sheet-sign-header">
+          <span id="derivationPolicyConfirmTitle" class="cp-modal-title"
+            >Confirm Derivation Policy</span
+          >
+          <button
+            id="derivationPolicyConfirmCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Close"
+            aria-label="Close confirmation"
+          >
+            ×
+          </button>
+        </div>
+        <div class="cost-sheet-sign-body">
+          <p id="derivationPolicyConfirmMessage" class="cp-confirm-message">
+            Confirming this policy establishes the governed Reference Pack and
+            derivation basis for applicable future Product MRP Proposals.
+            Canonical SKU MRP values are not changed by this action. Continue?
+          </p>
+        </div>
+        <div class="cost-sheet-sign-actions">
+          <button
+            id="derivationPolicyConfirmCancelBtn"
+            type="button"
+            class="icon-btn cp-modal-text-btn"
+          >
+            Cancel
+          </button>
+          <button
+            id="derivationPolicyConfirmProceedBtn"
+            type="button"
+            class="icon-btn icon-btn-primary cp-modal-text-btn"
+          >
+            Confirm Policy
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="futurePolicyConfirmModal"
+      class="cost-sheet-sign-modal cp-policy-workflow-modal hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="futurePolicyConfirmTitle"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel">
+        <div class="cost-sheet-sign-header">
+          <span id="futurePolicyConfirmTitle" class="cp-modal-title"
+            >Schedule Policy</span
+          >
+          <button
+            id="futurePolicyConfirmCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Review Date"
+            aria-label="Review Date"
+          >
+            ×
+          </button>
+        </div>
+        <div class="cost-sheet-sign-body">
+          <div
+            id="futurePolicyConfirmSummary"
+            class="cp-policy-summary-grid"
+          ></div>
+          <div class="cp-policy-warning">
+            <p>You selected a future effective date.</p>
+            <p>
+              This will create a scheduled policy rather than a policy effective
+              today. The current policy will remain active until the scheduled
+              policy takes effect.
+            </p>
+          </div>
+        </div>
+        <div class="cost-sheet-sign-actions">
+          <button
+            id="futurePolicyConfirmReviewBtn"
+            type="button"
+            class="icon-btn cp-modal-text-btn"
+          >
+            Review Date
+          </button>
+          <button
+            id="futurePolicyConfirmProceedBtn"
+            type="button"
+            class="icon-btn icon-btn-primary cp-modal-text-btn"
+          >
+            Schedule Policy
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="scheduledPolicyCancelModal"
+      class="cost-sheet-sign-modal cp-policy-workflow-modal hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="scheduledPolicyCancelTitle"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel">
+        <div class="cost-sheet-sign-header">
+          <span id="scheduledPolicyCancelTitle" class="cp-modal-title"
+            >Cancel Scheduled Policy</span
+          >
+          <button
+            id="scheduledPolicyCancelCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Close"
+            aria-label="Close cancellation"
+          >
+            ×
+          </button>
+        </div>
+        <div class="cost-sheet-sign-body">
+          <div
+            id="scheduledPolicyCancelError"
+            class="cp-modal-error"
+            hidden
+            role="alert"
+          ></div>
+          <div
+            id="scheduledPolicyCancelSummary"
+            class="cp-policy-summary-grid"
+          ></div>
+          <div class="cp-policy-warning">
+            <p>
+              This action cancels a future-dated policy before it becomes
+              effective.
+            </p>
+            <p>
+              Where permitted by the server, the immediately preceding policy
+              will be restored as the current policy. The cancelled policy will
+              remain visible in history with its cancellation evidence.
+            </p>
+            <p>
+              This action does not delete history and cannot be undone from this
+              screen.
+            </p>
+          </div>
+          <div class="sign-grid">
+            <label style="grid-column: 1 / -1">
+              Cancellation reason
+              <textarea
+                id="scheduledPolicyCancelReason"
+                placeholder="Required reason for cancelling this scheduled policy"
+              ></textarea>
+              <span
+                id="scheduledPolicyCancelReasonError"
+                class="cp-policy-inline-error"
+                hidden
+              >Cancellation reason is required.</span>
+            </label>
+            <label style="grid-column: 1 / -1">
+              Approval reference
+              <input
+                id="scheduledPolicyCancelApprovalReference"
+                type="text"
+                placeholder="Approval note, internal reference or correction ticket"
+              />
+            </label>
+          </div>
+        </div>
+        <div class="cost-sheet-sign-actions">
+          <button
+            id="scheduledPolicyCancelKeepBtn"
+            type="button"
+            class="icon-btn cp-modal-text-btn"
+          >
+            Keep Scheduled Policy
+          </button>
+          <button
+            id="scheduledPolicyCancelProceedBtn"
+            type="button"
+            class="icon-btn cp-danger-text-btn"
+            disabled
+          >
+            Cancel Scheduled Policy
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="mrpProposalGenerateModal"
+      class="cost-sheet-sign-modal hidden"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel">
+        <div class="cost-sheet-sign-header">
+          <span class="cp-modal-title">Generate Product MRP Proposal</span>
+          <button
+            id="mrpProposalGenerateCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Close"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+        <div class="cost-sheet-sign-body">
+          <div
+            id="mrpProposalGenerateError"
+            class="cp-modal-error"
+            hidden
+            role="alert"
+          ></div>
+          <div class="cp-muted-text" style="margin-bottom: 10px; line-height: 1.45">
+            Generates a draft proposal from the selected Confirmed Product
+            Derivation Policy. Proposal lines are calculated by the server.
+          </div>
+          <div class="sign-grid">
+            <label style="grid-column: 1 / -1">
+              Product
+              <select
+                id="mrpProposalGenerateProduct"
+                aria-label="Select product derivation policy"
+              >
+                <option value="">Select product</option>
+              </select>
+            </label>
+            <div
+              id="mrpProposalGenerateContext"
+              class="cp-mrp-preview"
+              style="grid-column: 1 / -1"
+              aria-live="polite"
+            >
+              <div class="cp-muted-text">
+                Select a product with a current derivation policy.
+              </div>
+            </div>
+            <label>
+              Effective from
+              <input id="mrpProposalGenerateEffectiveFrom" type="date" />
+            </label>
+            <label style="grid-column: 1 / -1">
+              Reason
+              <input
+                id="mrpProposalGenerateReason"
+                type="text"
+                placeholder="Required reason for this proposal"
+              />
+            </label>
+            <label style="grid-column: 1 / -1">
+              Approval reference
+              <input
+                id="mrpProposalGenerateApprovalReference"
+                type="text"
+                placeholder="Optional approval reference"
+              />
+            </label>
+          </div>
+        </div>
+        <div class="cost-sheet-sign-actions">
+          <button
+            id="mrpProposalGenerateCancelBtn"
+            type="button"
+            class="icon-btn"
+            title="Cancel"
+            aria-label="Cancel"
+          >
+            Cancel
+          </button>
+          <button
+            id="mrpProposalGenerateSaveBtn"
+            type="button"
+            class="icon-btn icon-btn-primary"
+            title="Generate Proposal"
+            aria-label="Generate Proposal"
+          >
+            Generate Proposal
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="mrpProposalAdjustModal"
+      class="cost-sheet-sign-modal hidden"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel">
+        <div class="cost-sheet-sign-header">
+          <span class="cp-modal-title">Adjust Proposal Line</span>
+          <button
+            id="mrpProposalAdjustCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Close"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+        <div class="cost-sheet-sign-body">
+          <div
+            id="mrpProposalAdjustError"
+            class="cp-modal-error"
+            hidden
+            role="alert"
+          ></div>
+          <div
+            id="mrpProposalAdjustContext"
+            class="cp-mrp-preview"
+            style="margin-bottom: 10px"
+            aria-live="polite"
+          ></div>
+          <div class="sign-grid">
+            <label>
+              Calculation mode
+              <select id="mrpProposalAdjustCalcMode" aria-label="Calculation mode">
+                <option value="AUTO">Automatic OK calculation</option>
+                <option value="MANUAL">Manual IK and OK values</option>
+              </select>
+            </label>
+            <div
+              id="mrpProposalAdjustModeHint"
+              class="cp-muted-text"
+              style="grid-column: 1 / -1; line-height: 1.45"
+            ></div>
+            <label>
+              Proposed MRP IK (₹)
+              <input
+                id="mrpProposalAdjustMrpIk"
+                type="number"
+                step="0.01"
+                min="0"
+              />
+            </label>
+            <label id="mrpProposalAdjustMrpOkWrap">
+              Proposed MRP OK (₹)
+              <input
+                id="mrpProposalAdjustMrpOk"
+                type="number"
+                step="0.01"
+                min="0"
+              />
+            </label>
+            <label id="mrpProposalAdjustOkPctWrap">
+              OK Uplift % (optional)
+              <input
+                id="mrpProposalAdjustOkPct"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="Leave blank for Reference Pack uplift"
+              />
+            </label>
+            <label style="grid-column: 1 / -1">
+              Reason
+              <input
+                id="mrpProposalAdjustReason"
+                type="text"
+                placeholder="Required adjustment reason"
+              />
+            </label>
+          </div>
+          <div
+            id="mrpProposalAdjustPreview"
+            class="cp-mrp-preview"
+            style="margin-top: 10px"
+            aria-live="polite"
+          ></div>
+        </div>
+        <div class="cost-sheet-sign-actions">
+          <button
+            id="mrpProposalAdjustCancelBtn"
+            type="button"
+            class="icon-btn"
+            title="Cancel"
+            aria-label="Cancel"
+          >
+            Cancel
+          </button>
+          <button
+            id="mrpProposalAdjustSaveBtn"
+            type="button"
+            class="icon-btn icon-btn-primary"
+            title="Save Adjustment"
+            aria-label="Save Adjustment"
+          >
+            Save Adjustment
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="mrpProposalResetModal"
+      class="cost-sheet-sign-modal hidden"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel">
+        <div class="cost-sheet-sign-header">
+          <span class="cp-modal-title">Reset to Calculated Values</span>
+          <button
+            id="mrpProposalResetCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Close"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+        <div class="cost-sheet-sign-body">
+          <div
+            id="mrpProposalResetError"
+            class="cp-modal-error"
+            hidden
+            role="alert"
+          ></div>
+          <div id="mrpProposalResetContext" class="cp-card-value" style="margin-bottom: 8px">
+            --
+          </div>
+          <div class="cp-muted-text" style="margin-bottom: 10px; line-height: 1.45">
+            Reset will restore calculated IK/OK/uplift, restore the calculated
+            calculation mode, and remove manual-adjustment evidence. The server
+            recomputes calculation status.
+          </div>
+          <div class="sign-grid">
+            <label style="grid-column: 1 / -1">
+              Reason
+              <input
+                id="mrpProposalResetReason"
+                type="text"
+                placeholder="Required reset reason"
+              />
+            </label>
+          </div>
+        </div>
+        <div class="cost-sheet-sign-actions">
+          <button
+            id="mrpProposalResetCancelBtn"
+            type="button"
+            class="icon-btn"
+            title="Cancel"
+            aria-label="Cancel"
+          >
+            Cancel
+          </button>
+          <button
+            id="mrpProposalResetSaveBtn"
+            type="button"
+            class="icon-btn icon-btn-primary"
+            title="Reset Line"
+            aria-label="Reset Line"
+          >
+            Reset Line
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="mrpProposalSubmitModal"
+      class="cost-sheet-sign-modal hidden"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel">
+        <div class="cost-sheet-sign-header">
+          <span class="cp-modal-title">Submit for Decision</span>
+          <button
+            id="mrpProposalSubmitCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Close"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+        <div class="cost-sheet-sign-body">
+          <div
+            id="mrpProposalSubmitError"
+            class="cp-modal-error"
+            hidden
+            role="alert"
+          ></div>
+          <div id="mrpProposalSubmitIdentity" class="cp-card-value" style="margin-bottom: 8px">
+            --
+          </div>
+          <div class="cp-muted-text" style="margin-bottom: 10px; line-height: 1.45">
+            Submission locks proposal preparation and sends proposal lines into
+            the governed decision workflow. Further proposal-line adjustments
+            will no longer be available. This does not approve the proposal.
+          </div>
+          <div class="sign-grid">
+            <label style="grid-column: 1 / -1">
+              Submission reason
+              <input
+                id="mrpProposalSubmitNote"
+                type="text"
+                placeholder="Required submission note"
+              />
+            </label>
+          </div>
+        </div>
+        <div class="cost-sheet-sign-actions">
+          <button
+            id="mrpProposalSubmitCancelBtn"
+            type="button"
+            class="icon-btn"
+            title="Cancel"
+            aria-label="Cancel"
+          >
+            Cancel
+          </button>
+          <button
+            id="mrpProposalSubmitSaveBtn"
+            type="button"
+            class="icon-btn icon-btn-primary"
+            title="Submit for Decision"
+            aria-label="Submit for Decision"
+          >
+            Submit for Decision
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="mrpDecisionLineModal"
+      class="cost-sheet-sign-modal hidden"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel">
+        <div class="cost-sheet-sign-header">
+          <span id="mrpDecisionLineModalTitle" class="cp-modal-title"
+            >Approve Line</span
+          >
+          <button
+            id="mrpDecisionLineModalCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Close"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+        <div class="cost-sheet-sign-body">
+          <div
+            id="mrpDecisionLineModalError"
+            class="cp-modal-error"
+            hidden
+            role="alert"
+          ></div>
+          <div
+            id="mrpDecisionLineModalNote"
+            class="cp-muted-text"
+            style="margin-bottom: 10px; line-height: 1.45"
+          >
+            Approving this line marks it eligible for later canonical MRP
+            application. It does not change the canonical SKU MRP immediately.
+          </div>
+          <div
+            id="mrpDecisionLineModalContext"
+            class="cp-mrp-preview"
+            style="margin-bottom: 10px"
+            aria-live="polite"
+          ></div>
+          <div class="sign-grid">
+            <label style="grid-column: 1 / -1">
+              Decision reason
+              <input
+                id="mrpDecisionLineModalReason"
+                type="text"
+                placeholder="Required decision reason"
+              />
+            </label>
+          </div>
+        </div>
+        <div class="cost-sheet-sign-actions">
+          <button
+            id="mrpDecisionLineModalCancelBtn"
+            type="button"
+            class="icon-btn"
+            title="Cancel"
+            aria-label="Cancel"
+          >
+            Cancel
+          </button>
+          <button
+            id="mrpDecisionLineModalSaveBtn"
+            type="button"
+            class="icon-btn icon-btn-primary"
+            title="Approve Line"
+            aria-label="Approve Line"
+          >
+            Approve Line
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="mrpApplicationApplyModal"
+      class="cost-sheet-sign-modal hidden"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel">
+        <div class="cost-sheet-sign-header">
+          <span class="cp-modal-title">Apply Approved MRP Policies</span>
+          <button
+            id="mrpApplicationApplyCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Close"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+        <div class="cost-sheet-sign-body">
+          <div
+            id="mrpApplicationApplyError"
+            class="cp-modal-error"
+            hidden
+            role="alert"
+          ></div>
+          <div
+            id="mrpApplicationApplyIdentity"
+            class="cp-mrp-preview"
+            style="margin-bottom: 10px"
+            aria-live="polite"
+          ></div>
+          <div class="cp-muted-text" style="margin-bottom: 10px; line-height: 1.45">
+            This operation will atomically create canonical SKU MRP policy
+            revisions for all eligible approved proposal lines. Rejected and
+            blocked lines will not be applied. If any canonical validation fails,
+            the entire application will be rolled back and no partial MRP update
+            will be retained. This action does not modify the Product MRP
+            Derivation Policy or the original proposal calculations.
+          </div>
+          <div class="sign-grid">
+            <label style="grid-column: 1 / -1">
+              Application note
+              <input
+                id="mrpApplicationApplyNote"
+                type="text"
+                placeholder="Optional application note"
+              />
+            </label>
+          </div>
+        </div>
+        <div class="cost-sheet-sign-actions">
+          <button
+            id="mrpApplicationApplyCancelBtn"
+            type="button"
+            class="icon-btn"
+            title="Cancel"
+            aria-label="Cancel"
+          >
+            Cancel
+          </button>
+          <button
+            id="mrpApplicationApplySaveBtn"
+            type="button"
+            class="icon-btn icon-btn-primary"
+            title="Apply Approved MRP Policies"
+            aria-label="Apply Approved MRP Policies"
+          >
+            Apply Approved MRP Policies
           </button>
         </div>
       </div>

@@ -12,8 +12,26 @@ import {
   isCostSheetLens,
 } from "./costing-suite-cost-sheet.js";
 import {
+  createSchemeComparisonController,
+  isSchemeComparisonLens,
+  SCHEME_COMPARISON_VIEW,
+} from "./costing-suite-scheme-comparison.js";
+import {
   createPricingPolicyController,
   isPricingPolicyLens,
+  workspaceSupportsPeq,
+  workspaceSupportsSearch,
+  workspaceSupportsPeriod,
+  PRICING_POLICY_NAV_GROUPS,
+  PRICING_POLICY_AREA_IDS,
+  PRICING_POLICY_DEFAULT_WORKSPACE,
+  PRICING_POLICY_WORKSPACES,
+  getLegacyLensForPricingPolicyWorkspace,
+  getPricingPolicyGroupForWorkspace,
+  getPricingPolicyWorkspaceMeta,
+  resolveActivePricingPolicyDirectWorkspaceId,
+  resolvePricingPolicyLaunchNavigation,
+  toCanonicalPricingPolicyRouteParams,
 } from "./costing-suite-pricing-policy.js";
 import {
   createCostBuildController,
@@ -34,6 +52,8 @@ import {
   getModuleKeyForLens,
   normalizeCostingRouteModuleKey,
   resolveActiveRouteConfig,
+  resolveRelocatedPricingPolicyTarget,
+  buildSchemeComparisonRedirectParams,
 } from "./costing-route-config.js";
 
 let ACTIVE_ROUTE_CONFIG = null;
@@ -91,9 +111,11 @@ async function bootstrapCostingSuite(routeModuleKey = null) {
   }
 }
 
-let PERM_CAN_VIEW = true;
+let PERM_CAN_VIEW = false;
 let PERM_CAN_EDIT = false;
 let PERM_CONTROL_CENTER_EDIT = false;
+/** True when permission RPC/fallback could not resolve a trustworthy result. */
+let PERMISSIONS_LOAD_ERROR = false;
 
 /** @type {"RM"|null} */
 let CURRENT_TRACE_COMPONENT = "RM";
@@ -119,6 +141,8 @@ const globalSearchCard =
 const costingPeriodSelect = $("costingPeriodSelect");
 const lensPills = $("lensPills");
 const lensSelect = $("lensSelect");
+const pricingPolicyWorkspaceSelect = $("pricingPolicyWorkspaceSelect");
+const pricingPolicyWorkspaceSelectWrap = $("pricingPolicyWorkspaceSelectWrap");
 const lensSuiteLabel = $("lensSuiteLabel");
 const drawerClose = $("drawerClose");
 const drawerTabs = $("drawerTabs");
@@ -264,9 +288,120 @@ const mrpPolicyEditMrpIk = $("mrpPolicyEditMrpIk");
 const mrpPolicyEditMrpOk = $("mrpPolicyEditMrpOk");
 const mrpPolicyEditOkPct = $("mrpPolicyEditOkPct");
 const mrpPolicyEditEffectiveFrom = $("mrpPolicyEditEffectiveFrom");
+const mrpPolicyEffectiveDateChip = $("mrpPolicyEffectiveDateChip");
+const mrpPolicyEffectiveDateWarning = $("mrpPolicyEffectiveDateWarning");
+const mrpPolicyEffectiveDateError = $("mrpPolicyEffectiveDateError");
 const mrpPolicyEditReason = $("mrpPolicyEditReason");
 const mrpPolicyEditApprovalReference = $("mrpPolicyEditApprovalReference");
 const mrpPolicyEditPreview = $("mrpPolicyEditPreview");
+const derivationPolicyEditModal = $("derivationPolicyEditModal");
+const derivationPolicyEditTitle = $("derivationPolicyEditTitle");
+const derivationPolicyEditError = $("derivationPolicyEditError");
+const derivationPolicyEditCloseBtn = $("derivationPolicyEditCloseBtn");
+const derivationPolicyEditCancelBtn = $("derivationPolicyEditCancelBtn");
+const derivationPolicyEditDraftBtn = $("derivationPolicyEditDraftBtn");
+const derivationPolicyEditConfirmBtn = $("derivationPolicyEditConfirmBtn");
+const derivationPolicyConfirmModal = $("derivationPolicyConfirmModal");
+const derivationPolicyConfirmCloseBtn = $("derivationPolicyConfirmCloseBtn");
+const derivationPolicyConfirmCancelBtn = $("derivationPolicyConfirmCancelBtn");
+const derivationPolicyConfirmProceedBtn = $("derivationPolicyConfirmProceedBtn");
+const derivationPolicyEditProductWrap = $("derivationPolicyEditProductWrap");
+const derivationPolicyEditProduct = $("derivationPolicyEditProduct");
+const derivationPolicyEditProductLabelWrap = $(
+  "derivationPolicyEditProductLabelWrap",
+);
+const derivationPolicyEditProductLabel = $("derivationPolicyEditProductLabel");
+const derivationPolicyEditGovernanceNote = $(
+  "derivationPolicyEditGovernanceNote",
+);
+const derivationPolicyEditReferenceSku = $("derivationPolicyEditReferenceSku");
+const derivationPolicyEditRefMrpDisplay = $("derivationPolicyEditRefMrpDisplay");
+const derivationPolicyEditSmallerPct = $("derivationPolicyEditSmallerPct");
+const derivationPolicyEditLargerPct = $("derivationPolicyEditLargerPct");
+const derivationPolicyEditCeiling = $("derivationPolicyEditCeiling");
+const derivationPolicyEditEffectiveFrom = $("derivationPolicyEditEffectiveFrom");
+const derivationPolicyEffectiveDateChip = $("derivationPolicyEffectiveDateChip");
+const derivationPolicyEffectiveDateWarning = $(
+  "derivationPolicyEffectiveDateWarning",
+);
+const derivationPolicyEffectiveDateError = $("derivationPolicyEffectiveDateError");
+const derivationPolicyEditReason = $("derivationPolicyEditReason");
+const derivationPolicyEditApprovalReference = $(
+  "derivationPolicyEditApprovalReference",
+);
+const futurePolicyConfirmModal = $("futurePolicyConfirmModal");
+const futurePolicyConfirmCloseBtn = $("futurePolicyConfirmCloseBtn");
+const futurePolicyConfirmSummary = $("futurePolicyConfirmSummary");
+const futurePolicyConfirmReviewBtn = $("futurePolicyConfirmReviewBtn");
+const futurePolicyConfirmProceedBtn = $("futurePolicyConfirmProceedBtn");
+const scheduledPolicyCancelModal = $("scheduledPolicyCancelModal");
+const scheduledPolicyCancelCloseBtn = $("scheduledPolicyCancelCloseBtn");
+const scheduledPolicyCancelError = $("scheduledPolicyCancelError");
+const scheduledPolicyCancelSummary = $("scheduledPolicyCancelSummary");
+const scheduledPolicyCancelReason = $("scheduledPolicyCancelReason");
+const scheduledPolicyCancelReasonError = $("scheduledPolicyCancelReasonError");
+const scheduledPolicyCancelApprovalReference = $(
+  "scheduledPolicyCancelApprovalReference",
+);
+const scheduledPolicyCancelKeepBtn = $("scheduledPolicyCancelKeepBtn");
+const scheduledPolicyCancelProceedBtn = $("scheduledPolicyCancelProceedBtn");
+const mrpProposalGenerateModal = $("mrpProposalGenerateModal");
+const mrpProposalGenerateError = $("mrpProposalGenerateError");
+const mrpProposalGenerateCloseBtn = $("mrpProposalGenerateCloseBtn");
+const mrpProposalGenerateCancelBtn = $("mrpProposalGenerateCancelBtn");
+const mrpProposalGenerateSaveBtn = $("mrpProposalGenerateSaveBtn");
+const mrpProposalGenerateProduct = $("mrpProposalGenerateProduct");
+const mrpProposalGenerateContext = $("mrpProposalGenerateContext");
+const mrpProposalGenerateEffectiveFrom = $("mrpProposalGenerateEffectiveFrom");
+const mrpProposalGenerateReason = $("mrpProposalGenerateReason");
+const mrpProposalGenerateApprovalReference = $(
+  "mrpProposalGenerateApprovalReference",
+);
+const mrpProposalAdjustModal = $("mrpProposalAdjustModal");
+const mrpProposalAdjustError = $("mrpProposalAdjustError");
+const mrpProposalAdjustCloseBtn = $("mrpProposalAdjustCloseBtn");
+const mrpProposalAdjustCancelBtn = $("mrpProposalAdjustCancelBtn");
+const mrpProposalAdjustSaveBtn = $("mrpProposalAdjustSaveBtn");
+const mrpProposalAdjustContext = $("mrpProposalAdjustContext");
+const mrpProposalAdjustCalcMode = $("mrpProposalAdjustCalcMode");
+const mrpProposalAdjustModeHint = $("mrpProposalAdjustModeHint");
+const mrpProposalAdjustMrpIk = $("mrpProposalAdjustMrpIk");
+const mrpProposalAdjustMrpOk = $("mrpProposalAdjustMrpOk");
+const mrpProposalAdjustMrpOkWrap = $("mrpProposalAdjustMrpOkWrap");
+const mrpProposalAdjustOkPct = $("mrpProposalAdjustOkPct");
+const mrpProposalAdjustOkPctWrap = $("mrpProposalAdjustOkPctWrap");
+const mrpProposalAdjustReason = $("mrpProposalAdjustReason");
+const mrpProposalAdjustPreview = $("mrpProposalAdjustPreview");
+const mrpProposalResetModal = $("mrpProposalResetModal");
+const mrpProposalResetError = $("mrpProposalResetError");
+const mrpProposalResetCloseBtn = $("mrpProposalResetCloseBtn");
+const mrpProposalResetCancelBtn = $("mrpProposalResetCancelBtn");
+const mrpProposalResetSaveBtn = $("mrpProposalResetSaveBtn");
+const mrpProposalResetContext = $("mrpProposalResetContext");
+const mrpProposalResetReason = $("mrpProposalResetReason");
+const mrpProposalSubmitModal = $("mrpProposalSubmitModal");
+const mrpProposalSubmitError = $("mrpProposalSubmitError");
+const mrpProposalSubmitCloseBtn = $("mrpProposalSubmitCloseBtn");
+const mrpProposalSubmitCancelBtn = $("mrpProposalSubmitCancelBtn");
+const mrpProposalSubmitSaveBtn = $("mrpProposalSubmitSaveBtn");
+const mrpProposalSubmitIdentity = $("mrpProposalSubmitIdentity");
+const mrpProposalSubmitNote = $("mrpProposalSubmitNote");
+const mrpDecisionLineModal = $("mrpDecisionLineModal");
+const mrpDecisionLineModalTitle = $("mrpDecisionLineModalTitle");
+const mrpDecisionLineModalError = $("mrpDecisionLineModalError");
+const mrpDecisionLineModalCloseBtn = $("mrpDecisionLineModalCloseBtn");
+const mrpDecisionLineModalCancelBtn = $("mrpDecisionLineModalCancelBtn");
+const mrpDecisionLineModalSaveBtn = $("mrpDecisionLineModalSaveBtn");
+const mrpDecisionLineModalNote = $("mrpDecisionLineModalNote");
+const mrpDecisionLineModalContext = $("mrpDecisionLineModalContext");
+const mrpDecisionLineModalReason = $("mrpDecisionLineModalReason");
+const mrpApplicationApplyModal = $("mrpApplicationApplyModal");
+const mrpApplicationApplyError = $("mrpApplicationApplyError");
+const mrpApplicationApplyCloseBtn = $("mrpApplicationApplyCloseBtn");
+const mrpApplicationApplyCancelBtn = $("mrpApplicationApplyCancelBtn");
+const mrpApplicationApplySaveBtn = $("mrpApplicationApplySaveBtn");
+const mrpApplicationApplyIdentity = $("mrpApplicationApplyIdentity");
+const mrpApplicationApplyNote = $("mrpApplicationApplyNote");
 const manualRateEditModal = $("manualRateEditModal");
 const manualRateEditTitle = $("manualRateEditTitle");
 const manualRateEditCloseBtn = $("manualRateEditCloseBtn");
@@ -461,8 +596,11 @@ function normalizeDrillContext(raw = {}) {
     status: drillFilterValueArray(payload.status),
     issue: drillFilterValueArray(payload.issue),
     source: drillFilterValueArray(payload.source),
+    workspace:
+      String(payload.workspace || "").trim() || null,
     policyTab:
       String(payload.policyTab || payload.policy_tab || "").trim() || null,
+    mrpTab: String(payload.mrpTab || payload.mrp_tab || "").trim() || null,
     managerTab:
       String(payload.manager_tab || payload.managerTab || "").trim() || null,
     traceComponent:
@@ -547,7 +685,9 @@ function stashPendingDrillContext(filters) {
   }
   if (normalized.materialArea) pending.materialArea = normalized.materialArea;
   if (normalized.periodStart) pending.periodStart = normalized.periodStart;
+  if (normalized.workspace) pending.workspace = normalized.workspace;
   if (normalized.policyTab) pending.policyTab = normalized.policyTab;
+  if (normalized.mrpTab) pending.mrpTab = normalized.mrpTab;
   if (normalized.status?.length) pending.status = normalized.status;
   if (normalized.issue?.length) pending.issue = normalized.issue;
   if (normalized.source?.length) pending.source = normalized.source;
@@ -1165,7 +1305,75 @@ function getActiveSuiteModules() {
 }
 
 function isLensAllowedForRoute(lensId) {
-  return getAllowedLensIds().includes(lensId);
+  if (getAllowedLensIds().includes(lensId)) return true;
+  if (!isPricingPolicyManagerRoute()) return false;
+  if (PRICING_POLICY_AREA_IDS.includes(lensId)) return true;
+  const legacy = getLegacyLensForPricingPolicyWorkspace(
+    getDefaultWorkspaceForCompatLens(lensId),
+  );
+  return !!legacy && getAllowedLensIds().includes(legacy);
+}
+
+function getDefaultWorkspaceForCompatLens(lensId) {
+  const id = String(lensId || "").trim();
+  if (id === "mrp-workflow") return "mrp-proposals";
+  if (
+    id === "mrp-policies" ||
+    id === "mrp-governance" ||
+    id === "mrp-policy-setup" ||
+    id === "mrp-change-workflow"
+  ) {
+    return "sku-mrp-policies";
+  }
+  if (
+    id === "selling-schemes" ||
+    id === "policy-manager"
+  ) {
+    return "sku-overview";
+  }
+  return PRICING_POLICY_DEFAULT_WORKSPACE;
+}
+
+/**
+ * F4 — write canonical ?workspace= PPM navigation with replaceState.
+ * Existing non-navigation query state remains unchanged.
+ */
+function replacePricingPolicyUrl() {
+  if (!isPricingPolicyManagerRoute()) return;
+  try {
+    const workspaceId =
+      pricingPolicyCtrl.getPricingPolicyWorkspace?.() ||
+      PRICING_POLICY_DEFAULT_WORKSPACE;
+    const url = new URL(window.location.href);
+    const qs = new URLSearchParams(url.search);
+    qs.set("workspace", workspaceId);
+    qs.delete("lens");
+    qs.delete("mrpTab");
+    qs.delete("policyTab");
+    qs.delete("mrp_tab");
+    qs.delete("policy_tab");
+    qs.delete("area");
+    qs.delete("group");
+    const next = `${url.pathname}?${qs.toString()}${url.hash || ""}`;
+    const current = `${url.pathname}${url.search}${url.hash || ""}`;
+    if (next !== current) {
+      window.history.replaceState({}, "", next);
+    }
+  } catch (_err) {
+    /* ignore history failures */
+  }
+}
+
+function applyPricingPolicyLaunchNavigation(resolved) {
+  const nav = pricingPolicyCtrl.setPricingPolicyWorkspace?.(
+    resolved.workspaceId,
+  );
+  CURRENT_LENS =
+    nav?.legacyLensId ||
+    resolved.legacyLensId ||
+    getLegacyLensForPricingPolicyWorkspace(resolved.workspaceId);
+  replacePricingPolicyUrl();
+  return nav;
 }
 
 function getCostingClientKey() {
@@ -1204,10 +1412,12 @@ function resolveCostingRouteHref(routePath, clientKey) {
 function buildCostingRouteQuery(params = {}) {
   const qs = new URLSearchParams();
   if (params.lens) qs.set("lens", params.lens);
+  if (params.workspace) qs.set("workspace", params.workspace);
   if (params.status?.length) qs.set("status", params.status.join(","));
   if (params.issue?.length) qs.set("issue", params.issue.join(","));
   if (params.source?.length) qs.set("source", params.source.join(","));
-  if (params.policyTab) qs.set("policyTab", params.policyTab);
+  // PPM canonicalization happens before this shared builder. Legacy PPM tab
+  // keys are inbound-only and are never emitted here.
   if (params.managerTab || params.manager_tab) {
     qs.set("manager_tab", params.managerTab || params.manager_tab);
   }
@@ -1239,16 +1449,58 @@ function buildCostingRouteQuery(params = {}) {
   return query ? `?${query}` : "";
 }
 
-function navigateToCostingRoute(moduleKey, params = {}) {
+function navigateToCostingRoute(moduleKey, params = {}, options = {}) {
   const config = COSTING_ROUTE_CONFIG[moduleKey];
   if (!config?.routePath) {
     showToast(`Route is not configured for ${moduleKey}.`, "error");
-    return;
+    return false;
   }
 
   const clientKey = getCostingClientKey();
-  const href = `${resolveCostingRouteHref(config.routePath, clientKey)}${buildCostingRouteQuery(params)}`;
-  window.location.href = href;
+  const routeParams =
+    moduleKey === "pricing-policy-manager"
+      ? toCanonicalPricingPolicyRouteParams(params)
+      : params;
+  const href = `${resolveCostingRouteHref(config.routePath, clientKey)}${buildCostingRouteQuery(routeParams)}`;
+  if (options.replace === true) {
+    window.location.replace(href);
+  } else {
+    window.location.href = href;
+  }
+  return true;
+}
+
+/**
+ * SC5: when booting Pricing Policy Manager with a relocated Scheme Comparison
+ * target, leave PPM before workspace fallback / first data load.
+ * Module-scoped: only runs on pricing-policy-manager pages.
+ * @returns {boolean} true when navigation was started (caller must abort init)
+ */
+function redirectRelocatedSchemeComparisonFromPpmIfNeeded() {
+  if (!isPricingPolicyManagerRoute()) return false;
+  if (isCostSheetReviewRoute()) return false;
+
+  const qp = new URLSearchParams(window.location.search);
+  const relocated = resolveRelocatedPricingPolicyTarget({
+    lens: qp.get("lens"),
+    workspace: qp.get("workspace"),
+    mrpTab: qp.get("mrpTab"),
+    policyTab: qp.get("policyTab"),
+  });
+  if (!relocated?.relocated) return false;
+
+  const params = buildSchemeComparisonRedirectParams(qp);
+  const started = navigateToCostingRoute("cost-sheet-review", params, {
+    replace: true,
+  });
+  if (!started) {
+    showToast(
+      "Scheme Comparison is now available under Cost Sheet Review & Approval.",
+      "warning",
+      5200,
+    );
+  }
+  return true;
 }
 
 function canUserTriggerCostingRefresh() {
@@ -1266,7 +1518,32 @@ function canEditMaterialCostActions() {
 }
 
 function canEditPricingPolicyActions() {
-  return PERM_CAN_EDIT;
+  return PERM_CAN_EDIT === true;
+}
+
+function isPricingPolicyManagerRoute() {
+  return MODULE_ID === "pricing-policy-manager";
+}
+
+function isCostSheetReviewRoute() {
+  return MODULE_ID === "cost-sheet-review";
+}
+
+/** Authoritative Pricing Policy Manager module entry: view OR edit. */
+function canAccessPricingPolicyModule() {
+  return PERM_CAN_VIEW === true || PERM_CAN_EDIT === true;
+}
+
+/**
+ * View-only banner for Pricing Policy Manager.
+ * Visible only when can_view && !can_edit (not for edit-only or denied).
+ */
+function syncPricingPolicyPermissionUi() {
+  if (!isPricingPolicyManagerRoute()) return;
+  const banner = $("pricingPolicyViewOnlyBanner");
+  const viewOnly = PERM_CAN_VIEW === true && PERM_CAN_EDIT !== true;
+  if (banner) banner.hidden = !viewOnly;
+  document.body.classList.toggle("pricing-policy-view-only", viewOnly);
 }
 
 const COSTING_REFRESH_DIRTY_KEY = "costing-suite:refresh-dirty";
@@ -1394,14 +1671,8 @@ function applyRouteLaunchParams() {
   }
 
   const policyTab = qp.get("policyTab")?.trim();
-  if (policyTab === "sku-overview") {
-    pricingPolicyCtrl.setPolicyManagerTab("sku-overview");
-  } else if (
-    policyTab === "scheme-master" ||
-    policyTab === "scheme-rule-register"
-  ) {
-    pricingPolicyCtrl.setPolicyManagerTab(policyTab);
-  }
+  const mrpTab = qp.get("mrpTab")?.trim();
+  const workspace = qp.get("workspace")?.trim();
 
   const queryDrill = normalizeDrillContext({
     manager_tab: qp.get("manager_tab"),
@@ -1412,6 +1683,7 @@ function applyRouteLaunchParams() {
     sku_id: qp.get("sku_id"),
     stock_item_id: qp.get("stock_item_id"),
     policyTab,
+    workspace,
   });
   LAUNCH_DRILL_CONTEXT = mergeDrillContext(LAUNCH_DRILL_CONTEXT, queryDrill);
   applyPendingDrillContext();
@@ -1420,13 +1692,51 @@ function applyRouteLaunchParams() {
     materialCostCtrl.setManualRateManagerTab(LAUNCH_DRILL_CONTEXT.managerTab);
   }
 
+  // F4: resolve once with workspace ownership, derive compatibility state, then
+  // replace legacy/N4 input with the workspace-only canonical URL.
+  if (isPricingPolicyManagerRoute()) {
+    const resolved = resolvePricingPolicyLaunchNavigation({
+      lens,
+      workspace,
+      mrpTab,
+      policyTab,
+    });
+    const rawLensInvalid =
+      !!lens &&
+      !getPricingPolicyWorkspaceMeta(workspace) &&
+      !PRICING_POLICY_AREA_IDS.includes(lens) &&
+      lens !== "mrp-governance" &&
+      lens !== "policy-manager";
+    if (rawLensInvalid) {
+      showToast(
+        `Lens "${lens}" is not available on this route. Showing the default view instead.`,
+        "warning",
+        4200,
+      );
+    } else if (
+      workspace !== null &&
+      workspace !== undefined &&
+      !getPricingPolicyWorkspaceMeta(workspace)
+    ) {
+      showToast(
+        `Workspace "${workspace || "(blank)"}" is not available. Showing SKU Policy Overview instead.`,
+        "warning",
+        4200,
+      );
+    }
+    applyPricingPolicyLaunchNavigation(resolved);
+    return;
+  }
+
   if (!lens) {
     CURRENT_LENS = ACTIVE_ROUTE_CONFIG.defaultLens;
+    pricingPolicyCtrl.syncNavigationFromLegacyLens?.(CURRENT_LENS);
     return;
   }
 
   if (isLensAllowedForRoute(lens)) {
     CURRENT_LENS = lens;
+    pricingPolicyCtrl.syncNavigationFromLegacyLens?.(CURRENT_LENS);
     return;
   }
 
@@ -1436,6 +1746,7 @@ function applyRouteLaunchParams() {
     4200,
   );
   CURRENT_LENS = ACTIVE_ROUTE_CONFIG.defaultLens;
+  pricingPolicyCtrl.syncNavigationFromLegacyLens?.(CURRENT_LENS);
 }
 
 function paramsFromQuery(qp, key) {
@@ -1458,15 +1769,10 @@ async function drillToCostingTarget(moduleKey, lensId, filters = {}) {
       status: normalizedFilters.status,
       issue: normalizedFilters.issue,
       source: normalizedFilters.source,
+      workspace: normalizedFilters.workspace,
+      policyTab: normalizedFilters.policyTab,
+      mrpTab: normalizedFilters.mrpTab,
     };
-    if (normalizedFilters.policyTab) {
-      params.policyTab = normalizedFilters.policyTab;
-    } else if (
-      moduleKey === "pricing-policy-manager" &&
-      (lensId === "policy-manager" || lensId === "scheme-comparison")
-    ) {
-      params.policyTab = "sku-overview";
-    }
     if (normalizedFilters.managerTab) {
       params.managerTab = normalizedFilters.managerTab;
     }
@@ -1499,12 +1805,24 @@ async function drillToCostingTarget(moduleKey, lensId, filters = {}) {
   };
   syncFilterCheckboxes();
 
-  if (moduleKey === "pricing-policy-manager" && lensId === "policy-manager") {
-    if (normalizedFilters.policyTab) {
-      pricingPolicyCtrl.setPolicyManagerTab(normalizedFilters.policyTab);
-    } else {
-      pricingPolicyCtrl.setPolicyManagerTab("sku-overview");
+  if (moduleKey === "pricing-policy-manager") {
+    const resolved = resolvePricingPolicyLaunchNavigation({
+      lens: lensId,
+      workspace: normalizedFilters.workspace,
+      policyTab: normalizedFilters.policyTab,
+      mrpTab: normalizedFilters.mrpTab,
+    });
+    applyPricingPolicyLaunchNavigation(resolved);
+    renderLensPills();
+    syncPricingPolicyLensChrome();
+    closeDetails();
+    try {
+      await loadRowsForLens();
+    } catch (err) {
+      handleError("Failed to open Pricing Policy Manager drill", err);
     }
+    searchBox?.focus();
+    return;
   }
 
   if (moduleKey === "material-cost-manager") {
@@ -1538,7 +1856,7 @@ const VIEW_BY_LENS = {
   "printable-cost-sheet": "v_costing_pricing_printable_cost_sheet_lines",
   "cost-comparison": "v_cost_sheet_snapshot_sku_monthly_comparison",
   "policy-manager": "v_costing_policy_manager_sku_overview",
-  "scheme-comparison": "v_costing_pricing_sku_scheme_comparison",
+  "scheme-comparison": SCHEME_COMPARISON_VIEW,
   "cost-governance": "v_costing_unmapped_expense_heads_for_mapping",
   "staff-governance": "v_costing_unclassified_staff_for_costing",
   "manual-provisions": "v_costing_manual_cost_pool_provision_register",
@@ -2347,6 +2665,7 @@ function statusClass(status) {
   if (
     s === "BLOCKER" ||
     s === "BLOCKED" ||
+    s === "CANCELLED" ||
     s === "FAILED" ||
     s === "ERROR" ||
     s === "COMPLETE_MISSING_COST_DATA" ||
@@ -2419,6 +2738,22 @@ function clearStatus() {
   if (statusArea) statusArea.style.display = "none";
 }
 
+function renderRegisterEmptyTableMessage(message) {
+  clearStatus();
+  tableWrap?.classList.remove("hidden");
+  tableWrap?.classList.add("tw-visible");
+  const colCount = Math.max(
+    1,
+    tableHead?.querySelectorAll("th").length || 0,
+  );
+  tableBody.innerHTML = `
+    <tr class="cp-register-empty-row">
+      <td class="cp-register-empty-cell" colspan="${colCount}">
+        <div class="cp-register-empty-message" role="status">${escapeHtml(message)}</div>
+      </td>
+    </tr>`;
+}
+
 function setLoadingMask(visible, message = "Loading...") {
   if (!costingLoadingMask) return;
   if (costingLoadingText) costingLoadingText.textContent = message;
@@ -2477,12 +2812,15 @@ function getCurrentMonthStart() {
 }
 
 async function loadPermissions(sessionUserId) {
-  PERM_CAN_VIEW = true;
+  // Fail closed before resolution — never retain prior/optimistic grants.
+  PERM_CAN_VIEW = false;
   PERM_CAN_EDIT = false;
   PERM_CONTROL_CENTER_EDIT = false;
+  PERMISSIONS_LOAD_ERROR = false;
   CAN_VIEW_TRACE = false;
   CAN_EXPORT_TRACE = false;
   TRACE_PERMISSIONS_RESOLVED = false;
+  syncPricingPolicyPermissionUi();
 
   try {
     const { data: perms, error } = await supabase.rpc("get_user_permissions", {
@@ -2493,11 +2831,16 @@ async function loadPermissions(sessionUserId) {
       TRACE_PERMISSIONS_RESOLVED = true;
       syncRefreshButtonDisabled();
       syncTraceExportButtonState();
+      syncPricingPolicyPermissionUi();
       return;
     }
-    if (error) console.warn("[costing-suite] permission RPC failed", error);
+    if (error) {
+      console.warn("[costing-suite] permission RPC failed", error);
+      PERMISSIONS_LOAD_ERROR = true;
+    }
   } catch (err) {
     console.warn("[costing-suite] permission RPC exception", err);
+    PERMISSIONS_LOAD_ERROR = true;
   }
 
   try {
@@ -2508,16 +2851,19 @@ async function loadPermissions(sessionUserId) {
       .eq("module_id", MODULE_ID)
       .limit(1);
     if (Array.isArray(data) && data.length) {
-      PERM_CAN_VIEW = !!data[0].can_view;
-      PERM_CAN_EDIT = !!data[0].can_edit;
+      PERM_CAN_VIEW = data[0].can_view === true;
+      PERM_CAN_EDIT = data[0].can_edit === true;
+      PERMISSIONS_LOAD_ERROR = false;
     }
   } catch (err) {
     console.warn("[costing-suite] permission fallback failed", err);
+    PERMISSIONS_LOAD_ERROR = true;
   }
 
   TRACE_PERMISSIONS_RESOLVED = true;
   syncRefreshButtonDisabled();
   syncTraceExportButtonState();
+  syncPricingPolicyPermissionUi();
 }
 
 function applyPermissionEntriesFromRpc(perms) {
@@ -2527,12 +2873,17 @@ function applyPermissionEntriesFromRpc(perms) {
 
   const routeEntry = byTarget.get(ACTIVE_ROUTE_CONFIG.permissionTarget);
   if (routeEntry) {
-    PERM_CAN_VIEW = !!routeEntry.can_view;
-    PERM_CAN_EDIT = !!routeEntry.can_edit;
+    // Malformed / non-boolean truthy values must not grant access.
+    PERM_CAN_VIEW = routeEntry.can_view === true;
+    PERM_CAN_EDIT = routeEntry.can_edit === true;
+  } else {
+    // Missing module permission row → deny both.
+    PERM_CAN_VIEW = false;
+    PERM_CAN_EDIT = false;
   }
 
   const controlCenterEntry = byTarget.get("module:costing-control-center");
-  PERM_CONTROL_CENTER_EDIT = !!controlCenterEntry?.can_edit;
+  PERM_CONTROL_CENTER_EDIT = controlCenterEntry?.can_edit === true;
 
   const traceViewEntry = byTarget.get("role:material-cost-rm-trace");
   CAN_VIEW_TRACE = traceViewEntry?.can_view === true;
@@ -2582,6 +2933,14 @@ function isRmCostTraceLensActive() {
 }
 
 function isPeriodScopedLens() {
+  if (isPricingPolicyManagerRoute()) {
+    // F5: PPM has no period-capable workspace.
+    const workspaceId =
+      pricingPolicyCtrl.getPricingPolicyWorkspace?.() ||
+      PRICING_POLICY_DEFAULT_WORKSPACE;
+    if (workspaceSupportsPeriod(workspaceId)) return true;
+    return false;
+  }
   if (isLensPeriodScoped(CURRENT_LENS)) return true;
   if (
     CURRENT_LENS === "cost-governance" &&
@@ -2642,6 +3001,271 @@ function renderCostingPeriodOptions() {
     .join("");
 
   if (active) costingPeriodSelect.value = active;
+}
+
+function relocatePricingPolicyChromeHosts() {
+  if (!isPricingPolicyManagerRoute()) return;
+  const host = $("pricingPolicyMetaChrome");
+  if (!host) return;
+
+  const peqWrapper = $("peqFilterWrapper");
+
+  // Filter button lives in meta row (period control is CSR-only after SC4).
+  if (peqWrapper && peqWrapper.parentElement !== host) {
+    host.appendChild(peqWrapper);
+  }
+}
+
+function syncPricingPolicyLensChrome() {
+  if (!isPricingPolicyManagerRoute()) return;
+
+  relocatePricingPolicyChromeHosts();
+
+  // F5: capability flags from flat workspace metadata.
+  const workspaceId =
+    pricingPolicyCtrl.getPricingPolicyWorkspace?.() ||
+    getPricingPolicyActiveDirectWorkspaceId() ||
+    PRICING_POLICY_DEFAULT_WORKSPACE;
+  const legacyLensId = getLegacyLensForPricingPolicyWorkspace(workspaceId);
+  const isMrpWorkspace = legacyLensId === "mrp-governance";
+  const supportsPeq = workspaceSupportsPeq(workspaceId);
+  const supportsSearch = workspaceSupportsSearch(workspaceId);
+  const isSkuMrpRegister =
+    isMrpWorkspace &&
+    (pricingPolicyCtrl.isSkuMrpPoliciesTabActive?.() ||
+      pricingPolicyCtrl.isProductDerivationPoliciesTabActive?.() ||
+      pricingPolicyCtrl.isMrpProposalsTabActive?.() ||
+      pricingPolicyCtrl.isMrpDecisionsTabActive?.() ||
+      pricingPolicyCtrl.isMrpApplicationTabActive?.() ||
+      pricingPolicyCtrl.isMrpAppliedHistoryTabActive?.());
+  const showMetaFilter = supportsPeq || isSkuMrpRegister;
+  const filterWrapper = $("peqFilterWrapper");
+  const filterBtn = $("peqFilterBtn");
+  const filterDrawer = $("peqFilterDrawer");
+  const mrpFilterBody = $("mrpFilterDrawerBody");
+  const peqFooterSummary = document.querySelector(
+    '#peqFilterDrawer [data-peq-footer="summary"]',
+  );
+  const peqFooterActions = document.querySelector(
+    '#peqFilterDrawer [data-peq-footer="actions"]',
+  );
+
+  // Selling PEQ or MRP workspace filters — funnel in meta row.
+  if (filterWrapper) setVisible(filterWrapper, showMetaFilter);
+  if (filterBtn) {
+    filterBtn.disabled = !showMetaFilter;
+    if (!showMetaFilter) {
+      filterBtn.classList.remove("peq-filter-btn--active");
+      const badge = filterBtn.querySelector(".peq-filter-badge");
+      if (badge) badge.style.display = "none";
+      closeFilterDrawer();
+    }
+  }
+
+  const metaChrome = $("pricingPolicyMetaChrome");
+  if (metaChrome) setVisible(metaChrome, showMetaFilter, "inline-flex");
+
+  if (isSkuMrpRegister) {
+    document
+      .querySelectorAll("#peqFilterDrawer [data-peq-section]")
+      .forEach((section) => setVisible(section, false));
+    if (peqFooterSummary) setVisible(peqFooterSummary, false);
+    if (peqFooterActions) setVisible(peqFooterActions, false);
+    filterDrawer?.classList.add("is-mrp-mode");
+    if (mrpFilterBody) {
+      mrpFilterBody.hidden = false;
+      mrpFilterBody.removeAttribute("hidden");
+      const content = pricingPolicyCtrl.getActiveMrpFilterDrawerContent?.();
+      if (content?.html) {
+        mrpFilterBody.innerHTML = content.html;
+        updateMrpFilterButtonBadge(content.activeCount || 0);
+        pricingPolicyCtrl.wireActiveMrpFilterDrawer?.(mrpFilterBody);
+      } else {
+        mrpFilterBody.innerHTML = `<div class="peq-filter-summary">No filters for this view.</div>`;
+        updateMrpFilterButtonBadge(0);
+      }
+    }
+  } else {
+    filterDrawer?.classList.remove("is-mrp-mode");
+    if (mrpFilterBody) {
+      mrpFilterBody.innerHTML = "";
+      mrpFilterBody.hidden = true;
+      mrpFilterBody.setAttribute("hidden", "");
+    }
+    if (peqFooterSummary) setVisible(peqFooterSummary, true);
+    if (peqFooterActions) setVisible(peqFooterActions, true);
+
+    // Status for Selling; no PPM period section after SC4.
+    // Issue/Source stay hidden on PPM (material-cost leftovers).
+    document
+      .querySelectorAll("#peqFilterDrawer [data-peq-section]")
+      .forEach((section) => {
+        const key = section.getAttribute("data-peq-section");
+        let show = false;
+        if (key === "status") show = supportsPeq;
+        setVisible(section, show);
+      });
+    if (supportsPeq) {
+      sanitizeActiveFiltersToVisibleOptions();
+      syncFilterCheckboxes();
+    } else if (
+      ACTIVE_FILTERS.issue?.length ||
+      ACTIVE_FILTERS.source?.length ||
+      ACTIVE_FILTERS.status?.length
+    ) {
+      // Leaving Selling: do not keep PEQ selections bleeding into MRP workspaces.
+      ACTIVE_FILTERS = { status: [], issue: [], source: [] };
+    }
+  }
+
+  if (searchBox) {
+    const effectiveDisable = isMrpWorkspace
+      ? !isSkuMrpRegister
+      : !supportsSearch;
+    searchBox.disabled = effectiveDisable;
+    searchBox.readOnly = effectiveDisable;
+  }
+  if (searchClear && isMrpWorkspace && !isSkuMrpRegister) {
+    searchClear.style.display = "none";
+  }
+}
+
+function updateMrpFilterButtonBadge(activeCount) {
+  const btn = $("peqFilterBtn");
+  if (!btn) return;
+  const count = Number(activeCount) || 0;
+  btn.classList.toggle("peq-filter-btn--active", count > 0);
+  const badge = btn.querySelector(".peq-filter-badge");
+  if (badge) {
+    badge.textContent = count || "";
+    badge.style.display = count ? "" : "none";
+  }
+}
+
+/** Original CSR Status checklist HTML (restored when leaving Scheme Comparison). */
+let _csrStatusChecklistHtml = null;
+
+/**
+ * SC3: Cost Sheet Review chrome for Scheme Comparison.
+ * Period → #costingPeriodSelect / ACTIVE_PERIOD_START (via syncPeriodControlState).
+ * PEQ → Status only (scheme_viability_status); Issue/Source hidden.
+ * Workbench → cleared like Cost Comparison.
+ */
+function syncCostSheetReviewLensChrome() {
+  if (!isCostSheetReviewRoute()) return;
+
+  const filterWrapper = $("peqFilterWrapper");
+  const filterBtn = $("peqFilterBtn");
+  const isScheme = isSchemeComparisonLens(CURRENT_LENS);
+
+  if (filterWrapper) setVisible(filterWrapper, true);
+  if (filterBtn) {
+    filterBtn.disabled = false;
+    updateFilterButtonState();
+  }
+
+  document
+    .querySelectorAll("#peqFilterDrawer [data-peq-section]")
+    .forEach((section) => {
+      const key = section.getAttribute("data-peq-section");
+      if (key === "period") {
+        setVisible(section, false);
+        return;
+      }
+      if (isScheme) {
+        setVisible(
+          section,
+          !!schemeComparisonCtrl.supportsPeqGroup?.(key),
+        );
+      } else {
+        setVisible(section, true);
+      }
+    });
+
+  if (isScheme) {
+    const deferredStatusRebuild = refreshSchemeComparisonStatusPeqOptions();
+    ACTIVE_FILTERS.issue = [];
+    ACTIVE_FILTERS.source = [];
+    // When Status rebuild is deferred (prior-lens rows still loaded), do not
+    // sanitize Status against a stale/empty checklist — that would wipe drill/URL filters.
+    if (!deferredStatusRebuild) {
+      sanitizeActiveFiltersToVisibleOptions();
+    }
+  } else {
+    restoreCsrStatusPeqOptions();
+    sanitizeActiveFiltersToVisibleOptions();
+  }
+
+  syncFilterCheckboxes();
+
+  if (searchBox) {
+    searchBox.disabled = false;
+    searchBox.readOnly = false;
+  }
+}
+
+function refreshSchemeComparisonStatusPeqOptions() {
+  const statusSection = document.querySelector(
+    '#peqFilterDrawer [data-peq-section="status"]',
+  );
+  const list = statusSection?.querySelector(".peq-filter-checklist");
+  if (!list) return false;
+
+  if (_csrStatusChecklistHtml == null) {
+    _csrStatusChecklistHtml = list.innerHTML;
+  }
+
+  // Defer rebuild while prior-lens rows are still in ALL_ROWS (switchLens runs
+  // chrome sync before loadRows). Avoid wiping Status filters set by drills/URL.
+  const hasSchemeStatusField = (ALL_ROWS || []).some(
+    (row) =>
+      row != null &&
+      Object.prototype.hasOwnProperty.call(row, "scheme_viability_status"),
+  );
+  if ((ALL_ROWS || []).length > 0 && !hasSchemeStatusField) {
+    return true;
+  }
+
+  const values = [
+    ...new Set(
+      ALL_ROWS.map((row) => String(row.scheme_viability_status || "").trim()).filter(
+        Boolean,
+      ),
+    ),
+  ].sort((a, b) => a.localeCompare(b));
+
+  const valid = new Set(values.map((value) => normalizeStatus(value)));
+  ACTIVE_FILTERS.status = ACTIVE_FILTERS.status.filter((value) =>
+    valid.has(normalizeStatus(value)),
+  );
+
+  list.innerHTML = values.length
+    ? values
+        .map(
+          (value) => `<li>
+                <label
+                  ><input
+                    type="checkbox"
+                    data-filter-group="status"
+                    value="${escapeHtml(value)}"
+                  />
+                  ${escapeHtml(value)}</label
+                >
+              </li>`,
+        )
+        .join("")
+    : "";
+  return false;
+}
+
+function restoreCsrStatusPeqOptions() {
+  if (_csrStatusChecklistHtml == null) return;
+  const statusSection = document.querySelector(
+    '#peqFilterDrawer [data-peq-section="status"]',
+  );
+  const list = statusSection?.querySelector(".peq-filter-checklist");
+  if (!list) return;
+  list.innerHTML = _csrStatusChecklistHtml;
 }
 
 function syncPeriodControlState() {
@@ -2788,7 +3412,8 @@ async function loadRowsForLens({ preservePage = false } = {}) {
       CURRENT_LENS === "staff-governance" ||
       CURRENT_LENS === "manual-rate-manager" ||
       CURRENT_LENS === "rm-cost-trace" ||
-      CURRENT_LENS === "printable-cost-sheet"
+      CURRENT_LENS === "printable-cost-sheet" ||
+      CURRENT_LENS === "mrp-governance"
     ) {
       SKU_STATUS_DIAGNOSIS = [];
       DIAGNOSIS_BY_SKU_ID = new Map();
@@ -2816,11 +3441,51 @@ async function loadRowsForLens({ preservePage = false } = {}) {
       return;
     }
 
-    if (CURRENT_LENS === "scheme-comparison") {
-      ALL_ROWS = await pricingPolicyCtrl.loadSchemeComparisonRows(
-        ACTIVE_PERIOD_START,
-      );
+    // Scheme Comparison owned by schemeComparisonCtrl (CSR only after SC4).
+    if (isSchemeComparisonLens(CURRENT_LENS)) {
+      if (isPricingPolicyManagerRoute()) {
+        ALL_ROWS = [];
+        VIEW = [];
+        CURRENT_PAGE = 1;
+        applyFilters();
+        LAST_REFRESH_TIME = new Date();
+        updateFreshnessIndicator();
+        return;
+      }
+      ALL_ROWS = await schemeComparisonCtrl.loadRows(ACTIVE_PERIOD_START);
       applyFilters();
+      LAST_REFRESH_TIME = new Date();
+      updateFreshnessIndicator();
+      return;
+    }
+
+    if (CURRENT_LENS === "mrp-governance") {
+      if (pricingPolicyCtrl.isSkuMrpPoliciesTabActive()) {
+        ALL_ROWS = await pricingPolicyCtrl.loadSkuMrpPolicyRows();
+        applyFilters();
+      } else if (pricingPolicyCtrl.isProductDerivationPoliciesTabActive()) {
+        ALL_ROWS = await pricingPolicyCtrl.loadProductDerivationPolicyRows();
+        applyFilters();
+      } else if (pricingPolicyCtrl.isMrpProposalsTabActive()) {
+        ALL_ROWS = await pricingPolicyCtrl.loadMrpProposalRows();
+        applyFilters();
+      } else if (pricingPolicyCtrl.isMrpDecisionsTabActive()) {
+        ALL_ROWS = await pricingPolicyCtrl.loadMrpDecisionRows();
+        applyFilters();
+      } else if (pricingPolicyCtrl.isMrpApplicationTabActive()) {
+        ALL_ROWS = await pricingPolicyCtrl.loadMrpApplicationRows();
+        applyFilters();
+      } else if (pricingPolicyCtrl.isMrpAppliedHistoryTabActive()) {
+        ALL_ROWS = await pricingPolicyCtrl.loadMrpAppliedHistoryRows();
+        applyFilters();
+      } else {
+        ALL_ROWS = [];
+        VIEW = [];
+        CURRENT_PAGE = 1;
+        SELECTED_ROW = null;
+        closeDetails();
+        applyFilters();
+      }
       LAST_REFRESH_TIME = new Date();
       updateFreshnessIndicator();
       return;
@@ -2902,8 +3567,6 @@ async function loadRowsForLens({ preservePage = false } = {}) {
       query = query
         .order("product_name", { ascending: true })
         .order("sku_column_label", { ascending: true });
-    if (CURRENT_LENS === "scheme-comparison")
-      query = query.order("sku_display_name", { ascending: true });
     if (CURRENT_LENS === "costing-review-workbench") {
       query = query
         .order("priority_sort", { ascending: true })
@@ -2935,17 +3598,89 @@ function uniqueValues(rows, key) {
 function updateLensSuiteLabel() {
   if (!lensSuiteLabel) return;
 
+  if (isPricingPolicyManagerRoute()) {
+    const workspaceId =
+      pricingPolicyCtrl.getPricingPolicyWorkspace?.() ||
+      getPricingPolicyActiveDirectWorkspaceId();
+    const workspaceMeta = workspaceId
+      ? getPricingPolicyWorkspaceMeta(workspaceId)
+      : null;
+    if (workspaceMeta) {
+      const groupMeta = getPricingPolicyGroupForWorkspace(workspaceMeta.id)
+        ? PRICING_POLICY_NAV_GROUPS.find(
+            (g) => g.id === workspaceMeta.groupId,
+          )
+        : null;
+      const groupLabel = groupMeta?.label || "";
+      lensSuiteLabel.textContent = groupLabel
+        ? `${ACTIVE_ROUTE_CONFIG.title} → ${groupLabel} → ${workspaceMeta.label}`
+        : `${ACTIVE_ROUTE_CONFIG.title} → ${workspaceMeta.label}`;
+      lensSuiteLabel.title = workspaceMeta.purpose || workspaceMeta.label;
+      return;
+    }
+  }
+
   const suite = getSuiteForLens(CURRENT_LENS);
   const lens = getLensMeta(CURRENT_LENS);
 
   if (suite && lens) {
     lensSuiteLabel.textContent = `${ACTIVE_ROUTE_CONFIG.title} → ${lens.label}`;
-    lensSuiteLabel.title = lens.description || suite.label;
+    lensSuiteLabel.title =
+      isSchemeComparisonLens(CURRENT_LENS) && isCostSheetReviewRoute()
+        ? schemeComparisonCtrl.getDescription?.() ||
+          lens.description ||
+          suite.label
+        : lens.description || suite.label;
     return;
   }
 
   lensSuiteLabel.textContent = ACTIVE_ROUTE_CONFIG.title;
   lensSuiteLabel.title = ACTIVE_ROUTE_CONFIG.subtitle || "";
+}
+
+function renderPricingPolicyNarrowSelects() {
+  const select =
+    pricingPolicyWorkspaceSelect || $("pricingPolicyWorkspaceSelect");
+  const wrap =
+    pricingPolicyWorkspaceSelectWrap || $("pricingPolicyWorkspaceSelectWrap");
+  if (!select || !wrap) return;
+
+  // F3 narrow UX: one direct Workspace dropdown. Groups are presentation-only.
+  const workspaceId = getPricingPolicyActiveDirectWorkspaceId();
+  const workspaces = PRICING_POLICY_WORKSPACES || [];
+  const groups = PRICING_POLICY_NAV_GROUPS || [];
+
+  wrap.hidden = false;
+  wrap.removeAttribute("hidden");
+  wrap.removeAttribute("aria-hidden");
+  select.disabled = false;
+  select.innerHTML = groups
+    .map((group) => {
+      const options = workspaces
+        .filter((workspace) => workspace.groupId === group.id)
+        .map((workspace) => {
+          const purpose = String(
+            workspace.purpose || workspace.label || "",
+          ).trim();
+          return `<option value="${text(workspace.id)}" title="${text(purpose)}" ${
+            workspaceId === workspace.id ? "selected" : ""
+          }>${text(workspace.label)}</option>`;
+        })
+        .join("");
+      if (!options) return "";
+      return `<optgroup label="${text(group.label)}">${options}</optgroup>`;
+    })
+    .join("");
+
+  const activeWs =
+    workspaces.find((ws) => ws.id === workspaceId) || workspaces[0];
+  if (activeWs?.id) select.value = activeWs.id;
+  const activePurpose = String(
+    activeWs?.purpose || activeWs?.label || "",
+  ).trim();
+  select.title = activePurpose;
+  select.setAttribute("aria-description", activePurpose);
+  select.setAttribute("aria-label", "Pricing policy workspace");
 }
 
 function renderLensPillButton(lensId) {
@@ -2956,25 +3691,106 @@ function renderLensPillButton(lensId) {
   return `<button type="button" class="pill${activeClass}" data-lens="${meta.id}">${text(meta.label)}</button>`;
 }
 
+/**
+ * PPM-C1H3.3-F2 — desktop/tablet (>520) direct workspace strip in #lensPills.
+ * Narrow ≤520 uses the F3 grouped direct Workspace select.
+ * Group separators are not interactive.
+ */
+function renderPricingPolicyDirectWorkspaceStripHtml(activeWorkspaceId) {
+  const parts = [];
+  let lastGroupId = null;
+  for (const ws of PRICING_POLICY_WORKSPACES) {
+    if (lastGroupId && lastGroupId !== ws.groupId) {
+      parts.push(
+        `<span class="cp-pricing-workspace-group-sep" aria-hidden="true"></span>`,
+      );
+    }
+    lastGroupId = ws.groupId;
+    const active = activeWorkspaceId === ws.id;
+    const purpose = String(ws.purpose || ws.label || "").trim();
+    parts.push(`
+      <button
+        type="button"
+        class="cp-pricing-direct-workspace-tab ${active ? "active" : ""}"
+        data-pricing-policy-workspace="${text(ws.id)}"
+        role="tab"
+        aria-selected="${active ? "true" : "false"}"
+        aria-label="${text(ws.label)}"
+        title="${text(purpose)}"
+        data-tip="${text(purpose)}"
+      >
+        ${text(ws.label)}
+      </button>`);
+  }
+  return `
+    <div
+      class="cp-pricing-workspace-nav-wrap"
+      id="pricingPolicyWorkspaceTabsWrap"
+    >
+      <div
+        class="cp-pricing-workspace-nav-strip"
+        role="tablist"
+        aria-label="Pricing policy workspaces"
+      >
+        ${parts.join("")}
+      </div>
+    </div>`;
+}
+
+function getPricingPolicyActiveDirectWorkspaceId() {
+  return (
+    pricingPolicyCtrl.getActiveDirectWorkspaceId?.() ||
+    resolveActivePricingPolicyDirectWorkspaceId(
+      pricingPolicyCtrl.getPricingPolicyWorkspace?.() ?? null,
+    )
+  );
+}
+
 function renderLensPills() {
   LENSES = buildActiveLenses();
   const activeSuites = getActiveSuiteModules();
 
   if (lensPills) {
-    lensPills.innerHTML = activeSuites
-      .map((suite) => {
-        const pills = suite.lensIds.map(renderLensPillButton).join("");
-        if (!pills) return "";
-        return `<div class="cp-lens-suite-group" data-suite-id="${text(suite.id)}">${pills}</div>`;
-      })
-      .join("");
+    if (isPricingPolicyManagerRoute()) {
+      const activeWorkspaceId = getPricingPolicyActiveDirectWorkspaceId();
+      lensPills.innerHTML =
+        renderPricingPolicyDirectWorkspaceStripHtml(activeWorkspaceId);
+      lensPills
+        .querySelectorAll("[data-pricing-policy-workspace]")
+        .forEach((btn) => {
+          btn.addEventListener("click", () => {
+            void switchPricingPolicyWorkspace(btn.dataset.pricingPolicyWorkspace);
+          });
+        });
+      requestAnimationFrame(() => {
+        const activeTab = lensPills.querySelector(
+          ".cp-pricing-direct-workspace-tab.active, .cp-pricing-direct-workspace-tab[aria-selected='true']",
+        );
+        if (activeTab?.scrollIntoView) {
+          try {
+            activeTab.scrollIntoView({ block: "nearest", inline: "nearest" });
+          } catch (_err) {
+            activeTab.scrollIntoView();
+          }
+        }
+      });
+      renderPricingPolicyNarrowSelects();
+    } else {
+      lensPills.innerHTML = activeSuites
+        .map((suite) => {
+          const pills = suite.lensIds.map(renderLensPillButton).join("");
+          if (!pills) return "";
+          return `<div class="cp-lens-suite-group" data-suite-id="${text(suite.id)}">${pills}</div>`;
+        })
+        .join("");
 
-    lensPills.querySelectorAll(".pill").forEach((btn) => {
-      btn.addEventListener("click", () => switchLens(btn.dataset.lens));
-    });
+      lensPills.querySelectorAll(".pill").forEach((btn) => {
+        btn.addEventListener("click", () => switchLens(btn.dataset.lens));
+      });
+    }
   }
 
-  if (lensSelect) {
+  if (lensSelect && !isPricingPolicyManagerRoute()) {
     lensSelect.innerHTML = activeSuites
       .map((suite) => {
         const options = suite.lensIds
@@ -2996,6 +3812,44 @@ function renderLensPills() {
   updateLensSuiteLabel();
 }
 
+/**
+ * Direct workspace switch (F2 desktop strip + narrow Workspace select).
+ * Derives legacy loader lens from workspace metadata; one reload.
+ */
+async function switchPricingPolicyWorkspace(workspaceId) {
+  if (!isPricingPolicyManagerRoute() || !workspaceId) return;
+  const activeDirect = getPricingPolicyActiveDirectWorkspaceId();
+  if (activeDirect === workspaceId) return;
+
+  const nav = pricingPolicyCtrl.setPricingPolicyWorkspace?.(workspaceId);
+  const legacyLensId =
+    nav?.legacyLensId ||
+    getLegacyLensForPricingPolicyWorkspace(nav?.workspaceId || workspaceId);
+
+  if (!legacyLensId) return;
+
+  const lensChanged = CURRENT_LENS !== legacyLensId;
+  if (lensChanged) {
+    costSheetCtrl.onLensSwitch();
+    CURRENT_LENS = legacyLensId;
+    if (legacyLensId === "mrp-governance") {
+      closeFilterDrawer();
+    }
+  }
+
+  SELECTED_ROW = null;
+  CURRENT_PAGE = 1;
+  replacePricingPolicyUrl();
+  renderLensPills();
+  syncPricingPolicyLensChrome();
+  closeDetails();
+  try {
+    await loadRowsForLens();
+  } catch (err) {
+    handleError("Failed to load selected Pricing Policy workspace", err);
+  }
+}
+
 async function switchLens(lensId) {
   if (!lensId || lensId === CURRENT_LENS) return;
   if (!isLensAllowedForRoute(lensId)) {
@@ -3008,6 +3862,7 @@ async function switchLens(lensId) {
   }
   costSheetCtrl.onLensSwitch();
   CURRENT_LENS = lensId;
+  pricingPolicyCtrl.syncNavigationFromLegacyLens?.(CURRENT_LENS);
   SELECTED_ROW = null;
   if (
     CURRENT_LENS === "cost-governance" ||
@@ -3016,7 +3871,12 @@ async function switchLens(lensId) {
     ACTIVE_FILTERS = { status: [], issue: [], source: [] };
     syncFilterCheckboxes();
   }
+  if (CURRENT_LENS === "mrp-governance") {
+    closeFilterDrawer();
+  }
   renderLensPills();
+  syncPricingPolicyLensChrome();
+  syncCostSheetReviewLensChrome();
   closeDetails();
   try {
     await loadRowsForLens();
@@ -3047,6 +3907,134 @@ function getRowStatus(row) {
     row.latest_refresh_status ||
     ""
   );
+}
+
+function isSkuMrpPoliciesLensActive() {
+  return (
+    CURRENT_LENS === "mrp-governance" &&
+    !!pricingPolicyCtrl.isSkuMrpPoliciesTabActive?.()
+  );
+}
+
+function isProductDerivationPoliciesLensActive() {
+  return (
+    CURRENT_LENS === "mrp-governance" &&
+    !!pricingPolicyCtrl.isProductDerivationPoliciesTabActive?.()
+  );
+}
+
+function isMrpProposalsLensActive() {
+  return (
+    CURRENT_LENS === "mrp-governance" &&
+    !!pricingPolicyCtrl.isMrpProposalsTabActive?.()
+  );
+}
+
+function isMrpDecisionsLensActive() {
+  return (
+    CURRENT_LENS === "mrp-governance" &&
+    !!pricingPolicyCtrl.isMrpDecisionsTabActive?.()
+  );
+}
+
+function isMrpApplicationLensActive() {
+  return (
+    CURRENT_LENS === "mrp-governance" &&
+    !!pricingPolicyCtrl.isMrpApplicationTabActive?.()
+  );
+}
+
+function isMrpAppliedHistoryLensActive() {
+  return (
+    CURRENT_LENS === "mrp-governance" &&
+    !!pricingPolicyCtrl.isMrpAppliedHistoryTabActive?.()
+  );
+}
+
+/** True when an implemented MRP register is active. */
+function isMrpRegisterLensActive() {
+  return (
+    isSkuMrpPoliciesLensActive() ||
+    isProductDerivationPoliciesLensActive() ||
+    isMrpProposalsLensActive() ||
+    isMrpDecisionsLensActive() ||
+    isMrpApplicationLensActive() ||
+    isMrpAppliedHistoryLensActive()
+  );
+}
+
+function skuMrpEmptyStatusMessage() {
+  const view = pricingPolicyCtrl.getSkuMrpPolicyView?.();
+  return view === "history"
+    ? "No approved SKU MRP policy history is available."
+    : "No currently effective canonical SKU MRP policies are available.";
+}
+
+function productDerivationEmptyStatusMessage() {
+  const view = pricingPolicyCtrl.getProductDerivationPolicyView?.();
+  return view === "history"
+    ? "No product MRP derivation policy history is available."
+    : "No currently effective product MRP derivation policies are available.";
+}
+
+function mrpRegisterEmptyStatusMessage() {
+  if (isMrpAppliedHistoryLensActive()) {
+    return (
+      pricingPolicyCtrl.getMrpAppliedHistoryEmptyStatusMessage?.() ||
+      "No applied proposals exist yet."
+    );
+  }
+  if (isMrpApplicationLensActive()) {
+    return (
+      pricingPolicyCtrl.getMrpApplicationEmptyStatusMessage?.() ||
+      "No proposals are awaiting canonical MRP application."
+    );
+  }
+  if (isMrpDecisionsLensActive()) {
+    return (
+      pricingPolicyCtrl.getMrpDecisionEmptyStatusMessage?.() ||
+      "No proposals are awaiting decision."
+    );
+  }
+  if (isMrpProposalsLensActive()) {
+    return (
+      pricingPolicyCtrl.getMrpProposalEmptyStatusMessage?.() ||
+      "No Product MRP Proposals are available yet."
+    );
+  }
+  return isProductDerivationPoliciesLensActive()
+    ? productDerivationEmptyStatusMessage()
+    : skuMrpEmptyStatusMessage();
+}
+
+function mrpRegisterNoMatchMessage() {
+  if (isMrpAppliedHistoryLensActive()) {
+    return (
+      pricingPolicyCtrl.getMrpAppliedHistoryNoMatchMessage?.() ||
+      "No applied proposals match the current filters."
+    );
+  }
+  if (isMrpApplicationLensActive()) {
+    return (
+      pricingPolicyCtrl.getMrpApplicationNoMatchMessage?.() ||
+      "No proposals match the current application filters."
+    );
+  }
+  if (isMrpDecisionsLensActive()) {
+    return (
+      pricingPolicyCtrl.getMrpDecisionNoMatchMessage?.() ||
+      "No proposals match the current decision filters."
+    );
+  }
+  if (isMrpProposalsLensActive()) {
+    return (
+      pricingPolicyCtrl.getMrpProposalNoMatchMessage?.() ||
+      "No proposals match the current search or filters."
+    );
+  }
+  return isProductDerivationPoliciesLensActive()
+    ? "No product MRP derivation policies match the current search or filters."
+    : "No SKU MRP policies match the current search or filters.";
 }
 
 function getSearchBlob(row) {
@@ -3114,6 +4102,8 @@ function getSearchBlob(row) {
     row.scheme_name,
     row.scheme_type,
     row.scheme_status,
+    row.scheme_viability_status,
+    row.scheme_viability_note,
     row.expense_group,
     row.head_name,
     row.allocation_pool,
@@ -3149,6 +4139,37 @@ function getSearchBlob(row) {
     row.rm_costing_status,
     row.pm_costing_status,
     row.scheme_name,
+    row.pack_size,
+    row.pack_uom,
+    row.policy_id,
+    row.approval_reference,
+    row.lifecycle_label,
+    row.source_type,
+    row.source_quality,
+    row.calc_mode,
+    row.previous_policy_id,
+    row.derivation_policy_id,
+    row.reference_sku_id,
+    row.reference_pack_size,
+    row.reference_pack_uom,
+    row.reference_selection_source,
+    row.reference_mrp_policy_id,
+    row.status,
+    row.product_status,
+    row.readiness_status,
+    row.blocker_code,
+    row.proposal_id,
+    row.proposal_number,
+    row.proposal_line_id,
+    row.line_number,
+    row.review_summary_status,
+    row.submission_note,
+    row.warning_code,
+    row.eligibility_status,
+    row.calculation_status,
+    row.pack_direction,
+    row.decision,
+    row.__search_blob,
   ]
     .filter(Boolean)
     .join(" ")
@@ -3157,6 +4178,23 @@ function getSearchBlob(row) {
 
 function filterMatch(row, group, selected) {
   if (!selected.length) return true;
+
+  // SC3: Issue/Source have no columns on scheme comparison — never apply them.
+  if (
+    isSchemeComparisonLens(CURRENT_LENS) &&
+    (group === "issue" || group === "source")
+  ) {
+    return true;
+  }
+
+  // SC3: Status maps only to scheme_viability_status on this lens.
+  if (isSchemeComparisonLens(CURRENT_LENS) && group === "status") {
+    const entry = normalizeStatus(row.scheme_viability_status);
+    return selected.some((choice) => {
+      const wanted = normalizeStatus(choice);
+      return statusTokenMatches(entry, wanted);
+    });
+  }
 
   const issueFlags = [];
   const issueText = [
@@ -3321,6 +4359,40 @@ function updateSearchPlaceholder() {
     } else {
       placeholder = "Search product, SKU, scheme, policy, or status";
     }
+  } else if (CURRENT_LENS === "mrp-governance") {
+    if (pricingPolicyCtrl.isSkuMrpPoliciesTabActive()) {
+      placeholder =
+        "Search product, SKU, pack, policy ID, or approval reference";
+    } else if (pricingPolicyCtrl.isProductDerivationPoliciesTabActive()) {
+      placeholder =
+        "Search product, Reference Pack, policy ID, or approval reference";
+    } else if (pricingPolicyCtrl.isMrpProposalsTabActive()) {
+      placeholder =
+        pricingPolicyCtrl.getMrpProposalView?.() === "workspace"
+          ? "Search SKU, pack, line, warning, or blocker"
+          : "Search proposal number, product, Reference Pack, reason, or approval";
+    } else if (pricingPolicyCtrl.isMrpDecisionsTabActive()) {
+      placeholder =
+        pricingPolicyCtrl.getMrpDecisionView?.() === "workspace"
+          ? "Search SKU, pack, line, decision, warning, or blocker"
+          : "Search proposal, product, submission note, or review summary";
+    } else if (pricingPolicyCtrl.isMrpApplicationTabActive()) {
+      placeholder =
+        pricingPolicyCtrl.getMrpApplicationView?.() === "workspace"
+          ? "Search SKU, pack, decision, outcome, or applied policy ID"
+          : "Search proposal, product, Reference Pack, or approval reference";
+    } else if (pricingPolicyCtrl.isMrpAppliedHistoryTabActive()) {
+      placeholder =
+        pricingPolicyCtrl.getMrpAppliedHistoryView?.() === "workspace"
+          ? "Search SKU, pack, applied policy ID, previous policy, or outcome"
+          : "Search applied proposal, product, applied by, or note";
+    } else {
+      placeholder = "Search is unavailable until this MRP workspace is implemented";
+    }
+  } else if (isSchemeComparisonLens(CURRENT_LENS)) {
+    placeholder =
+      schemeComparisonCtrl.getSearchPlaceholder?.() ||
+      "Search product, SKU, scheme or status";
   }
 
   searchBox.placeholder = placeholder;
@@ -3329,6 +4401,20 @@ function updateSearchPlaceholder() {
 }
 
 function renderTableHeaderForLens() {
+  if (CURRENT_LENS === "mrp-governance") {
+    if (
+      !pricingPolicyCtrl.isSkuMrpPoliciesTabActive() &&
+      !pricingPolicyCtrl.isProductDerivationPoliciesTabActive() &&
+      !pricingPolicyCtrl.isMrpProposalsTabActive() &&
+      !pricingPolicyCtrl.isMrpDecisionsTabActive() &&
+      !pricingPolicyCtrl.isMrpApplicationTabActive() &&
+      !pricingPolicyCtrl.isMrpAppliedHistoryTabActive()
+    ) {
+      tableHead.innerHTML = "";
+      return;
+    }
+  }
+
   if (isCostBuildLens(CURRENT_LENS)) {
     const buildHeaders = costBuildCtrl.getTableHeaders(CURRENT_LENS);
     const buildAlignments = costBuildCtrl.getTableAlignments(CURRENT_LENS);
@@ -3352,6 +4438,20 @@ function renderTableHeaderForLens() {
         .map((h, i) => {
           const classes = [materialAlignments[i] || "c-left"];
           if (i === 0 && h === "") classes.push("lane-col");
+          return `<th class="${classes.join(" ")}">${text(h, "")}</th>`;
+        })
+        .join("")}</tr>`;
+      return;
+    }
+  }
+
+  if (isSchemeComparisonLens(CURRENT_LENS)) {
+    const schemeHeaders = schemeComparisonCtrl.getTableHeaders();
+    const schemeAlignments = schemeComparisonCtrl.getTableAlignments();
+    if (schemeHeaders && schemeAlignments) {
+      tableHead.innerHTML = `<tr>${schemeHeaders
+        .map((h, i) => {
+          const classes = [schemeAlignments[i] || "c-left"];
           return `<th class="${classes.join(" ")}">${text(h, "")}</th>`;
         })
         .join("")}</tr>`;
@@ -3501,6 +4601,10 @@ function renderRowForLens(row, idx) {
     const rowHtml = costSheetCtrl.renderTableRow(CURRENT_LENS, row, trAttrs);
     if (rowHtml) return rowHtml;
   }
+  if (isSchemeComparisonLens(CURRENT_LENS)) {
+    const rowHtml = schemeComparisonCtrl.renderTableRow(row, trAttrs);
+    if (rowHtml) return rowHtml;
+  }
   if (isPricingPolicyLens(CURRENT_LENS)) {
     const rowHtml = pricingPolicyCtrl.renderTableRow(CURRENT_LENS, row, trAttrs);
     if (rowHtml) return rowHtml;
@@ -3522,11 +4626,19 @@ function renderRowForLens(row, idx) {
 function renderTable() {
   costBuildCtrl.syncManualProvisionLayout();
   syncPeriodControlState();
+  syncPricingPolicyLensChrome();
+  syncCostSheetReviewLensChrome();
+  if (isPricingPolicyManagerRoute()) {
+    renderPricingPolicyNarrowSelects();
+  }
+  updateLensSuiteLabel();
   updateSearchPlaceholder();
   if (CURRENT_LENS === "manual-provisions") {
     costBuildCtrl.syncManualProvisionMetaActions();
   } else if (CURRENT_LENS === "manual-rate-manager") {
     materialCostCtrl.syncRegisterMetaActions();
+  } else if (isPricingPolicyManagerRoute()) {
+    pricingPolicyCtrl.syncPricingPolicyMetaActions?.();
   } else if (genericTableMetaActions) {
     genericTableMetaActions.innerHTML = "";
     setVisible(genericTableMetaActions, false);
@@ -3548,8 +4660,10 @@ function renderTable() {
             : CURRENT_LENS === "staff-governance"
               ? costBuildCtrl.getStaffGovernanceTab()
               : CURRENT_LENS === "policy-manager"
-              ? pricingPolicyCtrl.getPolicyManagerTab()
-              : "";
+                ? pricingPolicyCtrl.getPolicyManagerTab()
+                : CURRENT_LENS === "mrp-governance"
+                  ? pricingPolicyCtrl.getMrpGovernanceTab()
+                  : "";
   }
 
   if (CURRENT_LENS === "manual-rate-manager") {
@@ -3561,15 +4675,74 @@ function renderTable() {
         handleError("Failed to load Manual Rate Manager tab", err);
       }
     });
+  } else if (CURRENT_LENS === "mrp-governance") {
+    const reloadMrpLens = async () => {
+      CURRENT_PAGE = 1;
+      SELECTED_ROW = null;
+      closeDetails();
+      // Sync legacy CURRENT_LENS from active workspace (loader compatibility only).
+      const legacyLensId =
+        getLegacyLensForPricingPolicyWorkspace(
+          pricingPolicyCtrl.getPricingPolicyWorkspace?.(),
+        ) || CURRENT_LENS;
+      if (legacyLensId && CURRENT_LENS !== legacyLensId) {
+        CURRENT_LENS = legacyLensId;
+      }
+      replacePricingPolicyUrl();
+      renderLensPills();
+      syncPricingPolicyLensChrome();
+      try {
+        await loadRowsForLens();
+      } catch (err) {
+        handleError("Failed to load MRP Governance tab", err);
+      }
+    };
+    pricingPolicyCtrl.renderMrpGovernanceTabs(
+      workbenchSummary,
+      reloadMrpLens,
+      async (reason) => {
+        CURRENT_PAGE = 1;
+        SELECTED_ROW = null;
+        closeDetails();
+        try {
+          if (reason === "filter") {
+            ALL_ROWS = isMrpAppliedHistoryLensActive()
+              ? pricingPolicyCtrl.getMrpAppliedHistoryFilteredRows()
+              : isMrpApplicationLensActive()
+                ? pricingPolicyCtrl.getMrpApplicationFilteredRows()
+                : isMrpDecisionsLensActive()
+                  ? pricingPolicyCtrl.getMrpDecisionFilteredRows()
+                  : isMrpProposalsLensActive()
+                    ? pricingPolicyCtrl.getMrpProposalFilteredRows()
+                    : isProductDerivationPoliciesLensActive()
+                      ? pricingPolicyCtrl.getProductDerivationFilteredRows()
+                      : pricingPolicyCtrl.getSkuMrpFilteredRows();
+            applyFilters();
+            return;
+          }
+          await loadRowsForLens();
+        } catch (err) {
+          handleError("Failed to update MRP Governance register view", err);
+        }
+      },
+    );
+    // Drawer content + filter wiring needs the local-change handler set above.
+    syncPricingPolicyLensChrome();
   } else if (CURRENT_LENS === "policy-manager") {
     pricingPolicyCtrl.renderPolicyManagerTabs(workbenchSummary, async () => {
       CURRENT_PAGE = 1;
+      SELECTED_ROW = null;
+      closeDetails();
+      replacePricingPolicyUrl();
+      renderLensPills();
+      syncPricingPolicyLensChrome();
       try {
         await loadRowsForLens();
       } catch (err) {
         handleError("Failed to load Policy Manager tab", err);
       }
     });
+    pricingPolicyCtrl.syncPricingPolicyMetaActions();
   } else if (CURRENT_LENS === "manual-provisions") {
     costBuildCtrl.renderManualProvisionTabs(workbenchSummary, async () => {
       CURRENT_PAGE = 1;
@@ -3634,6 +4807,47 @@ function renderTable() {
         "Unable to load RM Cost Trace.",
       "error",
     );
+  } else if (CURRENT_LENS === "mrp-governance") {
+    if (!isMrpRegisterLensActive()) {
+      clearStatus();
+      tableHead.innerHTML = "";
+      tableWrap?.classList.remove("hidden");
+      tableWrap?.classList.add("tw-visible");
+      tableBody.innerHTML = `
+      <tr class="cp-mrp-governance-empty-row">
+        <td class="cp-mrp-governance-empty-cell">
+          ${pricingPolicyCtrl.renderMrpGovernanceEmptyStateHtml()}
+        </td>
+      </tr>`;
+    } else if (!VIEW.length) {
+      renderRegisterEmptyTableMessage(
+        searchBox?.value?.trim()
+          ? mrpRegisterNoMatchMessage()
+          : mrpRegisterEmptyStatusMessage(),
+      );
+    } else {
+      clearStatus();
+      tableWrap?.classList.remove("hidden");
+      tableWrap?.classList.add("tw-visible");
+      tableBody.innerHTML = pageRows
+        .map((row, idx) => renderRowForLens(row, start + idx))
+        .join("");
+    }
+  } else if (CURRENT_LENS === "policy-manager" && !VIEW.length) {
+    const managerTab = pricingPolicyCtrl.getPolicyManagerTab?.();
+    renderRegisterEmptyTableMessage(
+      searchBox?.value?.trim()
+        ? "No selling / scheme rows match the current filters."
+        : managerTab === "scheme-master"
+          ? "No schemes exist yet."
+          : managerTab === "scheme-rule-register"
+            ? "No scheme rules are available for this view."
+            : "No policy overview rows are available yet.",
+    );
+  } else if (isSchemeComparisonLens(CURRENT_LENS) && !VIEW.length) {
+    renderRegisterEmptyTableMessage(
+      schemeComparisonCtrl.getEmptyStateMessage(),
+    );
   } else if (!VIEW.length) {
     tableBody.innerHTML = "";
     tableWrap?.classList.remove("tw-visible");
@@ -3662,17 +4876,57 @@ function renderTable() {
         return;
       }
 
+      if (CURRENT_LENS === "mrp-governance") {
+        if (!isMrpRegisterLensActive()) return;
+        if (isMrpProposalsLensActive()) {
+          openDetails(
+            row,
+            row.proposal_line_id != null ? "line-identity" : "proposal-summary",
+          );
+          return;
+        }
+        if (isMrpDecisionsLensActive()) {
+          openDetails(
+            row,
+            row.proposal_line_id != null ? "line-decision" : "proposal-summary",
+          );
+          return;
+        }
+        if (isMrpApplicationLensActive()) {
+          openDetails(
+            row,
+            row.proposal_line_id != null
+              ? "line-application"
+              : "proposal-summary",
+          );
+          return;
+        }
+        if (isMrpAppliedHistoryLensActive()) {
+          openDetails(
+            row,
+            row.proposal_line_id != null ? "line-audit" : "proposal-summary",
+          );
+          return;
+        }
+        openDetails(row, "policy-detail");
+        return;
+      }
+
       if (isCostBuildLens(CURRENT_LENS)) {
         costBuildCtrl.handleCostBuildRowClick(CURRENT_LENS, row, tr);
         return;
       }
 
-      if (
-        CURRENT_LENS === "policy-manager" &&
-        (pricingPolicyCtrl.getPolicyManagerTab() === "scheme-rule-register" ||
-          pricingPolicyCtrl.getPolicyManagerTab() === "scheme-master")
-      ) {
-        return;
+      if (CURRENT_LENS === "policy-manager") {
+        const managerTab = pricingPolicyCtrl.getPolicyManagerTab();
+        if (managerTab === "scheme-master") {
+          openDetails(row, "scheme-detail");
+          return;
+        }
+        if (managerTab === "scheme-rule-register") {
+          openDetails(row, "rule-detail");
+          return;
+        }
       }
 
       if (CURRENT_LENS === "printable-cost-sheet") {
@@ -3681,7 +4935,9 @@ function renderTable() {
       }
 
       let preferred;
-      if (CURRENT_LENS === "scheme-comparison") preferred = "scheme";
+      if (isSchemeComparisonLens(CURRENT_LENS)) {
+        preferred = schemeComparisonCtrl.getPreferredDrawerTab?.() || "scheme";
+      }
 
       if (CURRENT_LENS === "manual-rate-manager") {
         const managerTab = materialCostCtrl.getManualRateManagerTab();
@@ -3704,31 +4960,71 @@ function renderTable() {
     );
   }
 
-  if (
-    CURRENT_LENS === "policy-manager" &&
-    (pricingPolicyCtrl.getPolicyManagerTab() === "scheme-rule-register" ||
-      pricingPolicyCtrl.getPolicyManagerTab() === "scheme-master")
-  ) {
-    pricingPolicyCtrl.wirePolicyManagerTableActions(tableBody, (matcher) =>
+  if (isSkuMrpPoliciesLensActive()) {
+    pricingPolicyCtrl.wireSkuMrpTableActions(tableBody, (matcher) =>
+      VIEW.find(matcher),
+    );
+  }
+
+  if (isProductDerivationPoliciesLensActive()) {
+    pricingPolicyCtrl.wireProductDerivationTableActions(tableBody, (matcher) =>
+      VIEW.find(matcher),
+    );
+  }
+
+  if (isMrpProposalsLensActive()) {
+    pricingPolicyCtrl.wireMrpProposalTableActions(tableBody, (matcher) =>
+      VIEW.find(matcher),
+    );
+  }
+
+  if (isMrpDecisionsLensActive()) {
+    pricingPolicyCtrl.wireMrpDecisionTableActions(tableBody, (matcher) =>
+      VIEW.find(matcher),
+    );
+  }
+
+  if (isMrpApplicationLensActive()) {
+    pricingPolicyCtrl.wireMrpApplicationTableActions(tableBody, (matcher) =>
+      VIEW.find(matcher),
+    );
+  }
+
+  if (isMrpAppliedHistoryLensActive()) {
+    pricingPolicyCtrl.wireMrpAppliedHistoryTableActions(tableBody, (matcher) =>
       VIEW.find(matcher),
     );
   }
 
   if (rowCount) {
-    rowCount.style.display = "";
-    rowCount.textContent = `${totalCount.toLocaleString("en-IN")} row${totalCount === 1 ? "" : "s"}`;
+    if (CURRENT_LENS === "mrp-governance" && !isMrpRegisterLensActive()) {
+      rowCount.style.display = "none";
+      rowCount.textContent = "";
+    } else {
+      rowCount.style.display = "";
+      rowCount.textContent = `${totalCount.toLocaleString("en-IN")} row${totalCount === 1 ? "" : "s"}`;
+    }
   }
   if (pageLabel) {
-    const pageForLabel = rmTraceActive
-      ? materialCostCtrl.getTracePage()
-      : CURRENT_PAGE;
-    pageLabel.textContent = `Page ${pageForLabel}/${totalPages}`;
+    if (CURRENT_LENS === "mrp-governance" && !isMrpRegisterLensActive()) {
+      pageLabel.textContent = "";
+    } else {
+      const pageForLabel = rmTraceActive
+        ? materialCostCtrl.getTracePage()
+        : CURRENT_PAGE;
+      pageLabel.textContent = `Page ${pageForLabel}/${totalPages}`;
+    }
   }
-  if (prevPage) prevPage.disabled = (rmTraceActive ? materialCostCtrl.getTracePage() : CURRENT_PAGE) <= 1;
+  if (prevPage) {
+    prevPage.disabled =
+      (CURRENT_LENS === "mrp-governance" && !isMrpRegisterLensActive()) ||
+      (rmTraceActive ? materialCostCtrl.getTracePage() : CURRENT_PAGE) <= 1;
+  }
   if (nextPage) {
     nextPage.disabled =
+      (CURRENT_LENS === "mrp-governance" && !isMrpRegisterLensActive()) ||
       (rmTraceActive ? materialCostCtrl.getTracePage() : CURRENT_PAGE) >=
-      totalPages;
+        totalPages;
   }
 }
 
@@ -3804,9 +5100,7 @@ async function fetchSkuDetail(row) {
 
 async function fetchSkuSchemes(row) {
   if (!row.sku_id) return [];
-  const { data, error } = await costingFrom(
-    "v_costing_pricing_sku_scheme_comparison",
-  )
+  const { data, error } = await costingFrom(SCHEME_COMPARISON_VIEW)
     .select("*")
     .eq("period_start", ACTIVE_PERIOD_START)
     .eq("sku_id", row.sku_id)
@@ -4054,6 +5348,40 @@ async function setDrawerTab(tabId) {
       drawerContent.innerHTML =
         await pricingPolicyCtrl.renderPolicyManagerDrawerTab(tabId, SELECTED_ROW);
       pricingPolicyCtrl.wirePolicyManagerDrawerActions(tabId, SELECTED_ROW);
+    } else if (isSkuMrpPoliciesLensActive()) {
+      drawerContent.innerHTML = pricingPolicyCtrl.renderSkuMrpDrawerTab(
+        tabId,
+        SELECTED_ROW,
+      );
+      pricingPolicyCtrl.wireSkuMrpDrawerActions?.(tabId, SELECTED_ROW);
+    } else if (isProductDerivationPoliciesLensActive()) {
+      drawerContent.innerHTML = pricingPolicyCtrl.renderProductDerivationDrawerTab(
+        tabId,
+        SELECTED_ROW,
+      );
+      pricingPolicyCtrl.wireProductDerivationDrawerActions?.(tabId, SELECTED_ROW);
+    } else if (isMrpProposalsLensActive()) {
+      drawerContent.innerHTML = pricingPolicyCtrl.renderMrpProposalDrawerTab(
+        tabId,
+        SELECTED_ROW,
+      );
+      pricingPolicyCtrl.wireMrpProposalDrawerActions?.(tabId, SELECTED_ROW);
+    } else if (isMrpDecisionsLensActive()) {
+      drawerContent.innerHTML = pricingPolicyCtrl.renderMrpDecisionDrawerTab(
+        tabId,
+        SELECTED_ROW,
+      );
+      pricingPolicyCtrl.wireMrpDecisionDrawerActions?.(tabId, SELECTED_ROW);
+    } else if (isMrpApplicationLensActive()) {
+      drawerContent.innerHTML = pricingPolicyCtrl.renderMrpApplicationDrawerTab(
+        tabId,
+        SELECTED_ROW,
+      );
+      pricingPolicyCtrl.wireMrpApplicationDrawerActions?.(tabId, SELECTED_ROW);
+    } else if (isMrpAppliedHistoryLensActive()) {
+      drawerContent.innerHTML =
+        pricingPolicyCtrl.renderMrpAppliedHistoryDrawerTab(tabId, SELECTED_ROW);
+      pricingPolicyCtrl.wireMrpAppliedHistoryDrawerActions?.(tabId, SELECTED_ROW);
     } else {
       drawerContent.innerHTML = await renderSkuTab(tabId);
     }
@@ -4063,6 +5391,9 @@ async function setDrawerTab(tabId) {
 }
 
 function openDetails(row, preferredTab) {
+  if (CURRENT_LENS === "mrp-governance" && !isMrpRegisterLensActive()) {
+    return;
+  }
   DETAILS_RETURN_FOCUS = document.activeElement;
   SELECTED_ROW = row;
   if (!detailsModal) return;
@@ -4102,6 +5433,57 @@ function openDetails(row, preferredTab) {
     setDrawerTab(config.activeTab);
   } else if (CURRENT_LENS === "policy-manager") {
     const config = pricingPolicyCtrl.getPolicyManagerDrawerConfig(
+      row,
+      preferredTab,
+    );
+    title.textContent = config.title;
+    subtitle.textContent = config.subtitle;
+    setModalTabs(config.tabs, config.activeTab);
+    setDrawerTab(config.activeTab);
+  } else if (isSkuMrpPoliciesLensActive()) {
+    const config = pricingPolicyCtrl.getSkuMrpDrawerConfig(row, preferredTab);
+    title.textContent = config.title;
+    subtitle.textContent = config.subtitle;
+    setModalTabs(config.tabs, config.activeTab);
+    setDrawerTab(config.activeTab);
+  } else if (isProductDerivationPoliciesLensActive()) {
+    const config = pricingPolicyCtrl.getProductDerivationDrawerConfig(
+      row,
+      preferredTab,
+    );
+    title.textContent = config.title;
+    subtitle.textContent = config.subtitle;
+    setModalTabs(config.tabs, config.activeTab);
+    setDrawerTab(config.activeTab);
+  } else if (isMrpProposalsLensActive()) {
+    const config = pricingPolicyCtrl.getMrpProposalDrawerConfig(
+      row,
+      preferredTab,
+    );
+    title.textContent = config.title;
+    subtitle.textContent = config.subtitle;
+    setModalTabs(config.tabs, config.activeTab);
+    setDrawerTab(config.activeTab);
+  } else if (isMrpDecisionsLensActive()) {
+    const config = pricingPolicyCtrl.getMrpDecisionDrawerConfig(
+      row,
+      preferredTab,
+    );
+    title.textContent = config.title;
+    subtitle.textContent = config.subtitle;
+    setModalTabs(config.tabs, config.activeTab);
+    setDrawerTab(config.activeTab);
+  } else if (isMrpApplicationLensActive()) {
+    const config = pricingPolicyCtrl.getMrpApplicationDrawerConfig(
+      row,
+      preferredTab,
+    );
+    title.textContent = config.title;
+    subtitle.textContent = config.subtitle;
+    setModalTabs(config.tabs, config.activeTab);
+    setDrawerTab(config.activeTab);
+  } else if (isMrpAppliedHistoryLensActive()) {
+    const config = pricingPolicyCtrl.getMrpAppliedHistoryDrawerConfig(
       row,
       preferredTab,
     );
@@ -4171,10 +5553,34 @@ async function refreshOpenDrawerIfNeeded() {
     const updated = controlCenterCtrl.syncSelectedDashboardRow(SELECTED_ROW);
     if (updated) SELECTED_ROW = updated;
   } else {
-    const key = SELECTED_ROW.stock_item_id;
-    if (key != null) {
+    const policyKey = SELECTED_ROW.policy_id;
+    const skuKey = SELECTED_ROW.sku_id;
+    const stockKey = SELECTED_ROW.stock_item_id;
+    const schemeKey = SELECTED_ROW.scheme_id;
+    const policyRuleKey = SELECTED_ROW.policy_rule_id;
+    if (policyKey != null) {
       const updated = ALL_ROWS.find(
-        (row) => String(row.stock_item_id) === String(key),
+        (row) => String(row.policy_id) === String(policyKey),
+      );
+      if (updated) SELECTED_ROW = updated;
+    } else if (policyRuleKey != null) {
+      const updated = ALL_ROWS.find(
+        (row) => String(row.policy_rule_id) === String(policyRuleKey),
+      );
+      if (updated) SELECTED_ROW = updated;
+    } else if (schemeKey != null) {
+      const updated = ALL_ROWS.find(
+        (row) => String(row.scheme_id) === String(schemeKey),
+      );
+      if (updated) SELECTED_ROW = updated;
+    } else if (skuKey != null) {
+      const updated = ALL_ROWS.find(
+        (row) => String(row.sku_id) === String(skuKey),
+      );
+      if (updated) SELECTED_ROW = updated;
+    } else if (stockKey != null) {
+      const updated = ALL_ROWS.find(
+        (row) => String(row.stock_item_id) === String(stockKey),
       );
       if (updated) SELECTED_ROW = updated;
     }
@@ -4366,14 +5772,27 @@ function showToast(message, type = "info", duration = 3200, multiline = false) {
   }, duration);
 }
 
+function isPeqFilterCheckboxInteractable(cb) {
+  if (!(cb instanceof HTMLInputElement)) return false;
+  const section = cb.closest("[data-peq-section]");
+  if (!section) return true;
+  if (section.classList.contains("hidden")) return false;
+  if (section.style.display === "none") return false;
+  return true;
+}
+
+function getInteractablePeqFilterCheckboxes() {
+  return [
+    ...document.querySelectorAll("#peqFilterDrawer input[data-filter-group]"),
+  ].filter(isPeqFilterCheckboxInteractable);
+}
+
 function sanitizeActiveFiltersToVisibleOptions() {
   ["status", "issue", "source"].forEach((group) => {
     const visibleValues = new Set(
-      [
-        ...document.querySelectorAll(
-          `#peqFilterDrawer input[data-filter-group="${group}"]`,
-        ),
-      ].map((cb) => normalizeStatus(cb.value)),
+      getInteractablePeqFilterCheckboxes()
+        .filter((cb) => cb.dataset.filterGroup === group)
+        .map((cb) => normalizeStatus(cb.value)),
     );
     ACTIVE_FILTERS[group] = ACTIVE_FILTERS[group].filter((value) =>
       visibleValues.has(normalizeStatus(value)),
@@ -4384,8 +5803,8 @@ function sanitizeActiveFiltersToVisibleOptions() {
 function updateFilterButtonState() {
   const btn = $("peqFilterBtn");
   if (!btn) return;
-  const count = document.querySelectorAll(
-    "#peqFilterDrawer input[data-filter-group]:checked",
+  const count = getInteractablePeqFilterCheckboxes().filter(
+    (cb) => cb.checked,
   ).length;
   btn.classList.toggle("peq-filter-btn--active", count > 0);
   const badge = btn.querySelector(".peq-filter-badge");
@@ -4448,14 +5867,12 @@ function wireFilterDrawer() {
     applyFilters();
   });
   $("peqFilterSelectAll")?.addEventListener("click", () => {
-    document
-      .querySelectorAll("#peqFilterDrawer input[data-filter-group]")
-      .forEach((cb) => {
-        const group = cb.dataset.filterGroup;
-        const value = normalizeStatus(cb.value);
-        if (!ACTIVE_FILTERS[group].includes(value))
-          ACTIVE_FILTERS[group].push(value);
-      });
+    getInteractablePeqFilterCheckboxes().forEach((cb) => {
+      const group = cb.dataset.filterGroup;
+      const value = normalizeStatus(cb.value);
+      if (!ACTIVE_FILTERS[group].includes(value))
+        ACTIVE_FILTERS[group].push(value);
+    });
     syncFilterCheckboxes();
     applyFilters();
   });
@@ -4596,6 +6013,16 @@ const costSheetCtrl = createCostSheetController({
   costingRpc,
 });
 
+const schemeComparisonCtrl = createSchemeComparisonController({
+  costingFrom,
+  fetchAllRows,
+  text,
+  formatMoney,
+  formatPercent,
+  compactStatusText,
+  productSkuLabel,
+});
+
 const pricingPolicyCtrl = createPricingPolicyController({
   dom: {
     drawerClose,
@@ -4699,9 +6126,108 @@ const pricingPolicyCtrl = createPricingPolicyController({
     mrpPolicyEditMrpOk,
     mrpPolicyEditOkPct,
     mrpPolicyEditEffectiveFrom,
+    mrpPolicyEffectiveDateChip,
+    mrpPolicyEffectiveDateWarning,
+    mrpPolicyEffectiveDateError,
     mrpPolicyEditReason,
     mrpPolicyEditApprovalReference,
     mrpPolicyEditPreview,
+    derivationPolicyEditModal,
+    derivationPolicyEditTitle,
+    derivationPolicyEditError,
+    derivationPolicyEditCloseBtn,
+    derivationPolicyEditCancelBtn,
+    derivationPolicyEditDraftBtn,
+    derivationPolicyEditConfirmBtn,
+    derivationPolicyConfirmModal,
+    derivationPolicyConfirmCloseBtn,
+    derivationPolicyConfirmCancelBtn,
+    derivationPolicyConfirmProceedBtn,
+    derivationPolicyEditProductWrap,
+    derivationPolicyEditProduct,
+    derivationPolicyEditProductLabelWrap,
+    derivationPolicyEditProductLabel,
+    derivationPolicyEditGovernanceNote,
+    derivationPolicyEditReferenceSku,
+    derivationPolicyEditRefMrpDisplay,
+    derivationPolicyEditSmallerPct,
+    derivationPolicyEditLargerPct,
+    derivationPolicyEditCeiling,
+    derivationPolicyEditEffectiveFrom,
+    derivationPolicyEffectiveDateChip,
+    derivationPolicyEffectiveDateWarning,
+    derivationPolicyEffectiveDateError,
+    derivationPolicyEditReason,
+    derivationPolicyEditApprovalReference,
+    futurePolicyConfirmModal,
+    futurePolicyConfirmCloseBtn,
+    futurePolicyConfirmSummary,
+    futurePolicyConfirmReviewBtn,
+    futurePolicyConfirmProceedBtn,
+    scheduledPolicyCancelModal,
+    scheduledPolicyCancelCloseBtn,
+    scheduledPolicyCancelError,
+    scheduledPolicyCancelSummary,
+    scheduledPolicyCancelReason,
+    scheduledPolicyCancelReasonError,
+    scheduledPolicyCancelApprovalReference,
+    scheduledPolicyCancelKeepBtn,
+    scheduledPolicyCancelProceedBtn,
+    mrpProposalGenerateModal,
+    mrpProposalGenerateError,
+    mrpProposalGenerateCloseBtn,
+    mrpProposalGenerateCancelBtn,
+    mrpProposalGenerateSaveBtn,
+    mrpProposalGenerateProduct,
+    mrpProposalGenerateContext,
+    mrpProposalGenerateEffectiveFrom,
+    mrpProposalGenerateReason,
+    mrpProposalGenerateApprovalReference,
+    mrpProposalAdjustModal,
+    mrpProposalAdjustError,
+    mrpProposalAdjustCloseBtn,
+    mrpProposalAdjustCancelBtn,
+    mrpProposalAdjustSaveBtn,
+    mrpProposalAdjustContext,
+    mrpProposalAdjustCalcMode,
+    mrpProposalAdjustModeHint,
+    mrpProposalAdjustMrpIk,
+    mrpProposalAdjustMrpOk,
+    mrpProposalAdjustMrpOkWrap,
+    mrpProposalAdjustOkPct,
+    mrpProposalAdjustOkPctWrap,
+    mrpProposalAdjustReason,
+    mrpProposalAdjustPreview,
+    mrpProposalResetModal,
+    mrpProposalResetError,
+    mrpProposalResetCloseBtn,
+    mrpProposalResetCancelBtn,
+    mrpProposalResetSaveBtn,
+    mrpProposalResetContext,
+    mrpProposalResetReason,
+    mrpProposalSubmitModal,
+    mrpProposalSubmitError,
+    mrpProposalSubmitCloseBtn,
+    mrpProposalSubmitCancelBtn,
+    mrpProposalSubmitSaveBtn,
+    mrpProposalSubmitIdentity,
+    mrpProposalSubmitNote,
+    mrpDecisionLineModal,
+    mrpDecisionLineModalTitle,
+    mrpDecisionLineModalError,
+    mrpDecisionLineModalCloseBtn,
+    mrpDecisionLineModalCancelBtn,
+    mrpDecisionLineModalSaveBtn,
+    mrpDecisionLineModalNote,
+    mrpDecisionLineModalContext,
+    mrpDecisionLineModalReason,
+    mrpApplicationApplyModal,
+    mrpApplicationApplyError,
+    mrpApplicationApplyCloseBtn,
+    mrpApplicationApplyCancelBtn,
+    mrpApplicationApplySaveBtn,
+    mrpApplicationApplyIdentity,
+    mrpApplicationApplyNote,
   },
   costingFrom,
   costingRpc,
@@ -4731,13 +6257,51 @@ const pricingPolicyCtrl = createPricingPolicyController({
   formatTodayIsoIst,
   reloadRows: loadRowsForLens,
   canEditPricingPolicyActions,
-  onPolicyDataChanged: async ({ drawerTab, skuId } = {}) => {
+  genericTableMetaActions,
+  setVisible,
+  onPolicyDataChanged: async ({ drawerTab, skuId, productId } = {}) => {
     await loadRowsForLens();
+
+    if (
+      productId != null &&
+      SELECTED_ROW?.product_id != null &&
+      String(SELECTED_ROW.product_id) === String(productId)
+    ) {
+      const updated =
+        SELECTED_ROW.derivation_policy_id != null
+          ? ALL_ROWS.find(
+              (r) =>
+                String(r.derivation_policy_id) ===
+                  String(SELECTED_ROW.derivation_policy_id) ||
+                String(r.product_id) === String(productId),
+            )
+          : ALL_ROWS.find((r) => String(r.product_id) === String(productId));
+      if (updated) {
+        SELECTED_ROW = updated;
+        const activeTab =
+          drawerTabs?.querySelector(".tab.active")?.dataset?.tab || drawerTab;
+        const nextTab =
+          activeTab === "policy-detail" ||
+          activeTab === "reference-pack" ||
+          activeTab === "configuration" ||
+          activeTab === "evidence"
+            ? activeTab
+            : drawerTab || "policy-detail";
+        if (nextTab) await setDrawerTab(nextTab);
+      }
+      return;
+    }
+
     if (!skuId) return;
     if (SELECTED_ROW?.sku_id && String(SELECTED_ROW.sku_id) === String(skuId)) {
-      const updated = ALL_ROWS.find(
-        (r) => String(r.sku_id) === String(skuId),
-      );
+      const updated =
+        SELECTED_ROW.policy_id != null
+          ? ALL_ROWS.find(
+              (r) =>
+                String(r.policy_id) === String(SELECTED_ROW.policy_id) ||
+                String(r.sku_id) === String(skuId),
+            )
+          : ALL_ROWS.find((r) => String(r.sku_id) === String(skuId));
       if (updated) {
         SELECTED_ROW = updated;
         const activeTab =
@@ -4747,11 +6311,15 @@ const pricingPolicyCtrl = createPricingPolicyController({
             ? "policy-history"
             : activeTab === "mrp-policy"
               ? "mrp-policy"
-              : drawerTab;
+              : activeTab === "policy-detail" || activeTab === "provenance"
+                ? activeTab
+                : drawerTab;
         if (nextTab) await setDrawerTab(nextTab);
       }
     }
   },
+  closeDetails,
+  refreshOpenDrawerIfNeeded,
   getCurrentLens: () => CURRENT_LENS,
   getSelectedSkuId: () => SELECTED_ROW?.sku_id ?? null,
 });
@@ -4875,11 +6443,16 @@ const controlCenterCtrl = createControlCenterController({
   handleError,
   getActivePeriodStart: () => ACTIVE_PERIOD_START,
   getSelectedRow: () => SELECTED_ROW,
-  pricingPolicyCtrl,
   drillToLens: async (lensId, filters) => {
     const moduleKey =
       getModuleKeyForLens(lensId) || ACTIVE_ROUTE_CONFIG.moduleKey;
     await drillToCostingTarget(moduleKey, lensId, filters);
+  },
+  drillToPricingPolicyWorkspace: async (workspaceId, filters = {}) => {
+    await drillToCostingTarget("pricing-policy-manager", null, {
+      ...filters,
+      workspace: workspaceId,
+    });
   },
 });
 
@@ -5004,7 +6577,36 @@ async function init() {
     }
 
     await loadPermissions(userId);
-    if (!PERM_CAN_VIEW) {
+
+    // SC5: relocate legacy PPM Scheme Comparison URLs before PPM access gate /
+    // workspace fallback / first data load. CSR enforces its own permission gate.
+    if (redirectRelocatedSchemeComparisonFromPpmIfNeeded()) {
+      return;
+    }
+
+    if (isPricingPolicyManagerRoute()) {
+      if (!canAccessPricingPolicyModule()) {
+        ALL_ROWS = [];
+        VIEW = [];
+        if (tableHead) tableHead.innerHTML = "";
+        if (tableBody) tableBody.innerHTML = "";
+        const peqRowCount = $("peqRowCount");
+        if (peqRowCount) {
+          peqRowCount.style.display = "none";
+          peqRowCount.textContent = "";
+        }
+        setStatus(
+          PERMISSIONS_LOAD_ERROR
+            ? "Unable to verify module permissions. Access denied."
+            : "You do not have permission to access this module.",
+          "error",
+        );
+        syncPricingPolicyPermissionUi();
+        pricingPolicyCtrl.syncPricingPolicyWriteUi?.();
+        return;
+      }
+      syncPricingPolicyPermissionUi();
+    } else if (!PERM_CAN_VIEW) {
       setStatus("You do not have permission to view this module.", "error");
       return;
     }
@@ -5041,9 +6643,12 @@ async function init() {
     renderLensPills();
     syncFilterCheckboxes();
     wireFilterDrawer();
+    syncPricingPolicyLensChrome();
     costSheetCtrl.bindEvents();
     await pricingPolicyCtrl.loadOptions();
     pricingPolicyCtrl.bindEvents();
+    pricingPolicyCtrl.syncPricingPolicyWriteUi?.();
+    syncPricingPolicyPermissionUi();
     await costBuildCtrl.loadOptions();
     costBuildCtrl.bindEvents();
     materialCostCtrl.bindEvents();
@@ -5083,6 +6688,9 @@ searchClear?.addEventListener("click", () => {
   searchBox.focus();
 });
 lensSelect?.addEventListener("change", () => switchLens(lensSelect.value));
+pricingPolicyWorkspaceSelect?.addEventListener("change", () => {
+  void switchPricingPolicyWorkspace(pricingPolicyWorkspaceSelect.value);
+});
 prevPage?.addEventListener("click", () => {
   if (isRmCostTraceLensActive()) {
     const page = materialCostCtrl.getTracePage();

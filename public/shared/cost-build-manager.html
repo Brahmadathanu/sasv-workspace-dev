@@ -760,10 +760,45 @@
         display: none !important;
       }
 
+      .generic-table-meta-actions:not(.hidden) {
+        margin-left: auto;
+      }
+      .generic-table-meta-actions:not(.hidden) + .pagination {
+        margin-left: 0 !important;
+      }
+
       .generic-table-meta-actions .icon-btn {
         width: 30px;
         height: 30px;
         padding: 0;
+        border-radius: 999px;
+      }
+      .generic-table-meta-actions .icon-btn.icon-btn-primary {
+        background: color-mix(in srgb, var(--primary, #2563eb) 16%, #fff);
+        border-color: color-mix(in srgb, var(--primary, #2563eb) 34%, #fff);
+        color: var(--primary, #2563eb);
+      }
+      .generic-table-meta-actions .icon-btn.icon-btn-primary:hover,
+      .generic-table-meta-actions .icon-btn.icon-btn-primary:focus-visible {
+        background: color-mix(in srgb, var(--primary, #2563eb) 24%, #fff);
+        border-color: color-mix(in srgb, var(--primary, #2563eb) 48%, #fff);
+        color: var(--primary, #2563eb);
+      }
+      .generic-table-meta-actions .icon-btn.icon-btn-primary svg {
+        display: block;
+        stroke: currentColor;
+        fill: none;
+      }
+      [data-theme="dark"] .generic-table-meta-actions .icon-btn.icon-btn-primary {
+        background: color-mix(in srgb, var(--primary, #3b82f6) 28%, transparent);
+        border-color: color-mix(in srgb, var(--primary, #3b82f6) 45%, transparent);
+        color: #93c5fd;
+      }
+      [data-theme="dark"] .generic-table-meta-actions .icon-btn.icon-btn-primary:hover,
+      [data-theme="dark"] .generic-table-meta-actions .icon-btn.icon-btn-primary:focus-visible {
+        background: color-mix(in srgb, var(--primary, #3b82f6) 38%, transparent);
+        border-color: color-mix(in srgb, var(--primary, #3b82f6) 58%, transparent);
+        color: #bfdbfe;
       }
 
       #kpiStripWrap.hidden,
@@ -2640,18 +2675,18 @@
           id="genericTableMetaRow"
           style="
             display: flex;
-            justify-content: space-between;
+            justify-content: flex-start;
             align-items: center;
             gap: 8px;
             margin-bottom: 8px;
           "
         >
-          <div id="genericTableMetaActions" class="generic-table-meta-actions hidden"></div>
           <span
             id="peqRowCount"
             class="peq-row-count"
             style="display: none; margin-left: 0"
           ></span>
+          <div id="genericTableMetaActions" class="generic-table-meta-actions hidden"></div>
           <div
             class="pagination"
             style="

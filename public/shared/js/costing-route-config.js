@@ -44,12 +44,16 @@ export const COSTING_ROUTE_CONFIG = {
     moduleKey: "pricing-policy-manager",
     permissionTarget: "module:pricing-policy-manager",
     suiteId: "pricing-policy",
+    // Internal legacy default for CURRENT_LENS / loaders. F4/F5 canonical URLs
+    // use workspace only; the business landing remains workspace=sku-overview.
     defaultLens: "policy-manager",
     title: "Pricing Policy Manager",
     subtitle:
       "Selling price policy, scheme policy, and scheme viability review",
     routePath: "public/shared/pricing-policy-manager.html",
-    allowedLensIds: ["policy-manager", "scheme-comparison"],
+    // SC1/SC4: scheme-comparison is not a PPM allowed lens. SC5 redirects
+    // legacy PPM Scheme Comparison URLs to cost-sheet-review before first load.
+    allowedLensIds: ["mrp-governance", "policy-manager"],
   },
   "cost-sheet-review": {
     moduleKey: "cost-sheet-review",
@@ -58,12 +62,13 @@ export const COSTING_ROUTE_CONFIG = {
     defaultLens: "sku-cost-sheet",
     title: "Cost Sheet Review & Approval",
     subtitle:
-      "SKU cost details, printable cost sheets, monthly comparison, and approval support",
+      "SKU cost details, printable cost sheets, snapshot comparison, and scheme viability",
     routePath: "public/shared/cost-sheet-review.html",
     allowedLensIds: [
       "sku-cost-sheet",
       "printable-cost-sheet",
       "cost-comparison",
+      "scheme-comparison",
     ],
   },
 };
@@ -104,8 +109,68 @@ export function getAllowedLensIdsForRoute(config) {
 }
 
 export function getModuleKeyForLens(lensId) {
+  const id = String(lensId || "").trim();
+  // Pricing Policy compatibility areas / legacy lenses still map to PPM.
+  // SC1: scheme-comparison is owned by cost-sheet-review (resolved via allowedLensIds).
+  if (
+    id === "mrp-policies" ||
+    id === "mrp-workflow" ||
+    id === "selling-schemes" ||
+    id === "mrp-governance" ||
+    id === "policy-manager"
+  ) {
+    return "pricing-policy-manager";
+  }
   for (const [moduleKey, config] of Object.entries(COSTING_ROUTE_CONFIG)) {
     if (config.allowedLensIds?.includes(lensId)) return moduleKey;
   }
   return null;
+}
+
+/**
+ * SC5: detect legacy Pricing Policy Manager Scheme Comparison targets that
+ * must redirect to Cost Sheet Review. Does not treat unknown tokens as relocated.
+ */
+export function resolveRelocatedPricingPolicyTarget({
+  lens = null,
+  workspace = null,
+  mrpTab = null,
+  policyTab = null,
+} = {}) {
+  const tokens = [lens, workspace, mrpTab, policyTab]
+    .map((value) => String(value || "").trim().toLowerCase())
+    .filter(Boolean);
+
+  if (!tokens.includes("scheme-comparison")) {
+    return { relocated: false };
+  }
+
+  return {
+    relocated: true,
+    moduleKey: "cost-sheet-review",
+    lens: "scheme-comparison",
+  };
+}
+
+/**
+ * SC5: build CSR Scheme Comparison redirect query params from a PPM URLSearchParams.
+ * Preserves status + period_start only. Drops Issue/Source and obsolete PPM nav keys.
+ */
+export function buildSchemeComparisonRedirectParams(qp) {
+  const params = { lens: "scheme-comparison" };
+  if (!qp || typeof qp.get !== "function") return params;
+
+  const statusRaw = String(qp.get("status") || "").trim();
+  if (statusRaw) {
+    const status = statusRaw
+      .split(",")
+      .map((value) => String(value || "").trim().toUpperCase())
+      .filter(Boolean);
+    if (status.length) params.status = status;
+  }
+
+  const periodStart = String(qp.get("period_start") || "").trim();
+  if (periodStart) params.period_start = periodStart;
+
+  return params;
 }

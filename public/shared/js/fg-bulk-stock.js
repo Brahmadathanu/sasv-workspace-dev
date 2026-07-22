@@ -19,6 +19,10 @@ const tbody = document.getElementById("fgBulkTableBody");
 /* ─── STATE ----------------------------------------------------- */
 let allRows = [];
 
+const PAGE_SIZE = 1000;
+const FG_BULK_SELECT =
+  "item,bn,qty_on_hand,on_hand_qty_uom,category_name,subcategory,product_group,subgroup,last_updated";
+
 /* ─── HELPERS --------------------------------------------------- */
 const todayStamp = () => {
   const d = new Date();
@@ -34,18 +38,37 @@ const fillSelect = (el, arr, ph) => {
 };
 
 /* ─── DATA LOAD ------------------------------------------------- */
+async function fetchAllFgBulkStock() {
+  let all = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from("fg_bulk_stock")
+      .select(FG_BULK_SELECT)
+      .order("item", { ascending: true })
+      .order("bn", { ascending: true, nullsFirst: false })
+      .range(from, from + PAGE_SIZE - 1);
+
+    if (error) throw error;
+    if (!data?.length) break;
+
+    all = all.concat(data);
+    if (data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+
+  return all;
+}
+
 async function fetchData() {
-  const { data, error } = await supabase
-    .from("fg_bulk_stock")
-    .select(
-      "item,bn,qty_on_hand,on_hand_qty_uom,category_name,subcategory,product_group,subgroup,last_updated"
-    );
-  if (error) {
+  try {
+    const data = await fetchAllFgBulkStock();
+    allRows = data.filter((r) => r.qty_on_hand !== 0);
+  } catch (error) {
     console.error(error);
     tbody.innerHTML = `<tr class="no-data"><td colspan="9">Failed to load data</td></tr>`;
-    return;
   }
-  allRows = (data || []).filter((r) => r.qty_on_hand !== 0);
 }
 
 /* ─── POPULATE CASCADE ----------------------------------------- */

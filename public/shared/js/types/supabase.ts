@@ -844,6 +844,20 @@ export type Database = {
             foreignKeyName: "fk_bmr_product"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fk_bmr_product"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fk_bmr_product"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -909,6 +923,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_product_details"
             referencedColumns: ["product_id", "uom_base"]
+          },
+          {
+            foreignKeyName: "fk_bmr_product_uom"
+            columns: ["product_id", "uom"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id", "product_base_uom"]
           },
         ]
       }
@@ -1241,6 +1262,13 @@ export type Database = {
             foreignKeyName: "event_skus_sku_id_fkey"
             columns: ["sku_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["target_sku_id"]
+          },
+          {
+            foreignKeyName: "event_skus_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
             referencedRelation: "v_product_sku_share_current_month"
             referencedColumns: ["sku_id"]
           },
@@ -1534,6 +1562,20 @@ export type Database = {
             foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -1775,6 +1817,20 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
             referencedColumns: ["product_id"]
           },
           {
@@ -3984,6 +4040,20 @@ export type Database = {
             foreignKeyName: "manual_plan_lines_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "manual_plan_lines_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "manual_plan_lines_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -4507,6 +4577,20 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "mrp_rm_overlay_season_detail_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
             referencedColumns: ["product_id"]
           },
           {
@@ -5208,6 +5292,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "v_mrp_plm_issue_monthly_enriched"
             referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "plm_bom_header_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: true
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["target_sku_id"]
           },
           {
             foreignKeyName: "plm_bom_header_sku_id_fkey"
@@ -6153,6 +6244,13 @@ export type Database = {
             foreignKeyName: "plm_sku_pack_map_sku_id_fkey"
             columns: ["sku_id"]
             isOneToOne: true
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["target_sku_id"]
+          },
+          {
+            foreignKeyName: "plm_sku_pack_map_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: true
             referencedRelation: "v_product_sku_share_current_month"
             referencedColumns: ["sku_id"]
           },
@@ -6311,6 +6409,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_mrp_plm_issue_monthly_enriched"
             referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "plm_sku_plm_override_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["target_sku_id"]
           },
           {
             foreignKeyName: "plm_sku_plm_override_sku_id_fkey"
@@ -9183,6 +9288,20 @@ export type Database = {
             foreignKeyName: "product_references_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_references_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_references_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -9329,6 +9448,20 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_season_override_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_season_override_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
             referencedColumns: ["product_id"]
           },
           {
@@ -9525,6 +9658,20 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
             referencedColumns: ["product_id"]
           },
           {
@@ -9734,6 +9881,20 @@ export type Database = {
             foreignKeyName: "production_batch_overrides_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "production_batch_overrides_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "production_batch_overrides_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -9931,6 +10092,20 @@ export type Database = {
             foreignKeyName: "production_batch_overrides_staging_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "production_batch_overrides_staging_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "production_batch_overrides_staging_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -10097,6 +10272,20 @@ export type Database = {
             foreignKeyName: "production_batch_size_ref_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "production_batch_size_ref_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "production_batch_size_ref_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -10251,6 +10440,20 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fk_pos_product"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fk_pos_product"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
             referencedColumns: ["product_id"]
           },
           {
@@ -10414,6 +10617,20 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fk_pqo_product"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fk_pqo_product"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
             referencedColumns: ["product_id"]
           },
           {
@@ -10832,6 +11049,20 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: true
             referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "rm_bom_header_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "rm_bom_header_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "v_product_mrp_reference_readiness"
             referencedColumns: ["product_id"]
           },
           {
@@ -11569,6 +11800,13 @@ export type Database = {
             foreignKeyName: "sku_aliases_sku_id_fkey"
             columns: ["sku_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["target_sku_id"]
+          },
+          {
+            foreignKeyName: "sku_aliases_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
             referencedRelation: "v_product_sku_share_current_month"
             referencedColumns: ["sku_id"]
           },
@@ -11868,6 +12106,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_mrp_plm_issue_monthly_enriched"
             referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "sku_stock_snapshot_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["target_sku_id"]
           },
           {
             foreignKeyName: "sku_stock_snapshot_sku_id_fkey"
@@ -14216,6 +14461,20 @@ export type Database = {
             foreignKeyName: "fk_bmr_product"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fk_bmr_product"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fk_bmr_product"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -14282,6 +14541,13 @@ export type Database = {
             referencedRelation: "v_product_details"
             referencedColumns: ["product_id", "uom_base"]
           },
+          {
+            foreignKeyName: "fk_bmr_product_uom"
+            columns: ["product_id", "uom"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id", "product_base_uom"]
+          },
         ]
       }
       bottled_stock_on_hand: {
@@ -14334,6 +14600,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_mrp_plm_issue_monthly_enriched"
             referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "event_skus_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["target_sku_id"]
           },
           {
             foreignKeyName: "event_skus_sku_id_fkey"
@@ -14531,6 +14804,20 @@ export type Database = {
             foreignKeyName: "fk_bmr_product"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fk_bmr_product"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fk_bmr_product"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -14660,6 +14947,20 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
             referencedColumns: ["product_id"]
           },
           {
@@ -15037,6 +15338,20 @@ export type Database = {
             foreignKeyName: "product_skus_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -15102,6 +15417,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_mrp_plm_issue_monthly_enriched"
             referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "sku_aliases_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["target_sku_id"]
           },
           {
             foreignKeyName: "sku_aliases_sku_id_fkey"
@@ -15459,6 +15781,20 @@ export type Database = {
             foreignKeyName: "production_batch_overrides_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "production_batch_overrides_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "production_batch_overrides_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -15656,6 +15992,20 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "production_batch_overrides_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "production_batch_overrides_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
             referencedColumns: ["product_id"]
           },
           {
@@ -16947,6 +17297,20 @@ export type Database = {
             foreignKeyName: "product_skus_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -17095,6 +17459,20 @@ export type Database = {
             foreignKeyName: "fk_bmr_product"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fk_bmr_product"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fk_bmr_product"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -17160,6 +17538,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_product_details"
             referencedColumns: ["product_id", "uom_base"]
+          },
+          {
+            foreignKeyName: "fk_bmr_product_uom"
+            columns: ["product_id", "uom"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id", "product_base_uom"]
           },
         ]
       }
@@ -17293,6 +17678,20 @@ export type Database = {
             foreignKeyName: "fk_bmr_product"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fk_bmr_product"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fk_bmr_product"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -17358,6 +17757,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_product_details"
             referencedColumns: ["product_id", "uom_base"]
+          },
+          {
+            foreignKeyName: "fk_bmr_product_uom"
+            columns: ["product_id", "uom"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id", "product_base_uom"]
           },
         ]
       }
@@ -20146,6 +20552,20 @@ export type Database = {
             foreignKeyName: "product_skus_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -20416,6 +20836,20 @@ export type Database = {
             foreignKeyName: "product_skus_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -20550,6 +20984,20 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
             referencedColumns: ["product_id"]
           },
           {
@@ -20700,6 +21148,20 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
             referencedColumns: ["product_id"]
           },
           {
@@ -20905,6 +21367,20 @@ export type Database = {
             foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -21059,6 +21535,20 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
             referencedColumns: ["product_id"]
           },
           {
@@ -21233,6 +21723,20 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
             referencedColumns: ["product_id"]
           },
           {
@@ -21442,6 +21946,20 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "fg_bulk_internal_transfer_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
             referencedColumns: ["product_id"]
           },
           {
@@ -21668,6 +22186,20 @@ export type Database = {
             foreignKeyName: "product_skus_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -21832,6 +22364,20 @@ export type Database = {
             foreignKeyName: "product_skus_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -21990,6 +22536,20 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
             referencedColumns: ["product_id"]
           },
           {
@@ -22161,6 +22721,20 @@ export type Database = {
             foreignKeyName: "product_skus_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -22226,6 +22800,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_mrp_plm_issue_monthly_enriched"
             referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "sku_stock_snapshot_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["target_sku_id"]
           },
           {
             foreignKeyName: "sku_stock_snapshot_sku_id_fkey"
@@ -22431,6 +23012,20 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
             referencedColumns: ["product_id"]
           },
           {
@@ -22720,6 +23315,20 @@ export type Database = {
             foreignKeyName: "product_skus_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -22863,6 +23472,20 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
             referencedColumns: ["product_id"]
           },
           {
@@ -25684,6 +26307,20 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
             referencedColumns: ["product_id"]
           },
           {
@@ -29854,6 +30491,20 @@ export type Database = {
             foreignKeyName: "product_skus_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -29908,6 +30559,297 @@ export type Database = {
           sub_group_name: string | null
           subcategory_name: string | null
           uom_base: string | null
+        }
+        Relationships: []
+      }
+      v_product_mrp_adjustment_evidence: {
+        Row: {
+          derivation_policy_id: number | null
+          derivation_policy_status: string | null
+          evidence_status: string | null
+          implied_adjustment_pct_ik: number | null
+          pack_direction: string | null
+          pack_multiple: number | null
+          product_id: number | null
+          product_name: string | null
+          proportional_mrp_ik: number | null
+          reference_mrp_ik: number | null
+          reference_mrp_ok: number | null
+          reference_mrp_policy_id: number | null
+          reference_ok_pct: number | null
+          reference_pack_size: number | null
+          reference_pack_uom: string | null
+          reference_selection_source: string | null
+          reference_sku_id: number | null
+          target_current_mrp_ik: number | null
+          target_current_mrp_ok: number | null
+          target_current_mrp_policy_id: number | null
+          target_current_ok_pct: number | null
+          target_pack_size: number | null
+          target_pack_uom: string | null
+          target_sku_id: number | null
+          warning_code: string | null
+        }
+        Relationships: []
+      }
+      v_product_mrp_derivation_current: {
+        Row: {
+          approval_reference: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          ceiling_increment: number | null
+          closed_at: string | null
+          closed_by: string | null
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string | null
+          created_by: string | null
+          derivation_policy_id: number | null
+          effective_from: string | null
+          effective_to: string | null
+          larger_pack_adjustment_pct: number | null
+          previous_policy_id: number | null
+          product_base_uom: string | null
+          product_id: number | null
+          product_name: string | null
+          product_status: string | null
+          reason: string | null
+          reference_mrp_ik: number | null
+          reference_mrp_ok: number | null
+          reference_mrp_policy_id: number | null
+          reference_ok_pct: number | null
+          reference_pack_size: number | null
+          reference_pack_uom: string | null
+          reference_selection_source: string | null
+          reference_sku_id: number | null
+          reference_sku_is_active: boolean | null
+          reference_sku_is_sample: boolean | null
+          smaller_pack_adjustment_pct: number | null
+          source_quality: string | null
+          source_snapshot: Json | null
+          source_type: string | null
+          status: string | null
+        }
+        Relationships: []
+      }
+      v_product_mrp_derivation_history: {
+        Row: {
+          approval_reference: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          ceiling_increment: number | null
+          closed_at: string | null
+          closed_by: string | null
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string | null
+          created_by: string | null
+          derivation_policy_id: number | null
+          effective_from: string | null
+          effective_to: string | null
+          larger_pack_adjustment_pct: number | null
+          previous_policy_id: number | null
+          product_base_uom: string | null
+          product_id: number | null
+          product_name: string | null
+          product_status: string | null
+          reason: string | null
+          reference_mrp_ik: number | null
+          reference_mrp_ok: number | null
+          reference_mrp_policy_id: number | null
+          reference_ok_pct: number | null
+          reference_pack_size: number | null
+          reference_pack_uom: string | null
+          reference_selection_source: string | null
+          reference_sku_id: number | null
+          reference_sku_is_active: boolean | null
+          reference_sku_is_sample: boolean | null
+          smaller_pack_adjustment_pct: number | null
+          source_quality: string | null
+          source_snapshot: Json | null
+          source_type: string | null
+          status: string | null
+        }
+        Relationships: []
+      }
+      v_product_mrp_proposal_lines: {
+        Row: {
+          adjusted_mrp_ik: number | null
+          applied_adjustment_pct: number | null
+          applied_at: string | null
+          applied_by: string | null
+          applied_mrp_policy_id: number | null
+          approval_reference: string | null
+          approved_at: string | null
+          approved_by: string | null
+          blocker_code: string | null
+          calculated_calc_mode: string | null
+          calculated_mrp_ik: number | null
+          calculated_mrp_ok: number | null
+          calculated_ok_pct: number | null
+          calculation_status: string | null
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          ceiling_increment: number | null
+          changes_current_mrp: boolean | null
+          current_mrp_ik: number | null
+          current_mrp_ok: number | null
+          current_mrp_policy_id: number | null
+          current_ok_pct: number | null
+          decided_at: string | null
+          decided_by: string | null
+          decision: string | null
+          decision_reason: string | null
+          derivation_policy_id: number | null
+          eligibility_status: string | null
+          is_manually_adjusted: boolean | null
+          is_reference_pack: boolean | null
+          larger_pack_adjustment_pct: number | null
+          line_created_at: string | null
+          line_number: number | null
+          manual_adjustment_reason: string | null
+          manually_adjusted_at: string | null
+          manually_adjusted_by: string | null
+          pack_direction: string | null
+          pack_multiple: number | null
+          pack_size: number | null
+          pack_uom: string | null
+          product_id: number | null
+          product_name: string | null
+          proportional_mrp_ik: number | null
+          proposal_created_at: string | null
+          proposal_created_by: string | null
+          proposal_id: number | null
+          proposal_line_id: number | null
+          proposal_number: string | null
+          proposal_reason: string | null
+          proposal_status: string | null
+          proposed_calc_mode: string | null
+          proposed_effective_from: string | null
+          proposed_ik_variance_amount: number | null
+          proposed_ik_variance_pct: number | null
+          proposed_mrp_ik: number | null
+          proposed_mrp_ok: number | null
+          proposed_ok_pct: number | null
+          proposed_ok_variance_amount: number | null
+          proposed_ok_variance_pct: number | null
+          reference_mrp_ik: number | null
+          reference_mrp_ok: number | null
+          reference_mrp_policy_id: number | null
+          reference_ok_pct: number | null
+          reference_sku_id: number | null
+          rejected_at: string | null
+          rejected_by: string | null
+          sku_id: number | null
+          smaller_pack_adjustment_pct: number | null
+          submitted_at: string | null
+          submitted_by: string | null
+          warning_code: string | null
+        }
+        Relationships: []
+      }
+      v_product_mrp_proposal_register: {
+        Row: {
+          aggregate_ik_variance_amount: number | null
+          aggregate_ok_variance_amount: number | null
+          applied_at: string | null
+          applied_by: string | null
+          approval_reference: string | null
+          approved_at: string | null
+          approved_by: string | null
+          approved_line_count: number | null
+          blocked_line_count: number | null
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          ceiling_increment: number | null
+          changed_mrp_line_count: number | null
+          created_at: string | null
+          created_by: string | null
+          current_derivation_policy_status: string | null
+          current_mrp_ik_sum: number | null
+          current_mrp_ok_sum: number | null
+          derivation_policy_effective_from: string | null
+          derivation_policy_effective_to: string | null
+          derivation_policy_id: number | null
+          eligible_line_count: number | null
+          large_pack_warning_count: number | null
+          larger_pack_adjustment_pct: number | null
+          manually_adjusted_line_count: number | null
+          maximum_proposed_mrp_ik: number | null
+          minimum_proposed_mrp_ik: number | null
+          missing_target_mrp_warning_count: number | null
+          no_change_line_count: number | null
+          pending_line_count: number | null
+          product_base_uom: string | null
+          product_id: number | null
+          product_name: string | null
+          product_status: string | null
+          proposal_id: number | null
+          proposal_number: string | null
+          proposed_effective_from: string | null
+          proposed_mrp_ik_sum: number | null
+          proposed_mrp_ok_sum: number | null
+          reason: string | null
+          reference_mrp_ik: number | null
+          reference_mrp_ok: number | null
+          reference_mrp_policy_id: number | null
+          reference_ok_pct: number | null
+          reference_pack_line_count: number | null
+          reference_pack_size: number | null
+          reference_pack_uom: string | null
+          reference_sku_id: number | null
+          rejected_at: string | null
+          rejected_by: string | null
+          rejected_line_count: number | null
+          review_summary_status: string | null
+          smaller_pack_adjustment_pct: number | null
+          source_snapshot: Json | null
+          status: string | null
+          submission_note: string | null
+          submitted_at: string | null
+          submitted_by: string | null
+          total_line_count: number | null
+          very_large_pack_warning_count: number | null
+          warning_line_count: number | null
+        }
+        Relationships: []
+      }
+      v_product_mrp_reference_readiness: {
+        Row: {
+          active_non_sample_sku_count: number | null
+          blocker_code: string | null
+          ceiling_increment: number | null
+          current_derivation_policy_id: number | null
+          current_reference_mrp_ik: number | null
+          current_reference_mrp_ok: number | null
+          current_reference_mrp_policy_id: number | null
+          current_reference_ok_pct: number | null
+          current_reference_pack_size: number | null
+          current_reference_pack_uom: string | null
+          current_reference_sku_id: number | null
+          derivation_effective_from: string | null
+          derivation_effective_to: string | null
+          derivation_policy_status: string | null
+          larger_pack_adjustment_pct: number | null
+          priced_active_non_sample_sku_count: number | null
+          product_base_uom: string | null
+          product_id: number | null
+          product_name: string | null
+          product_status: string | null
+          readiness_status: string | null
+          reference_selection_source: string | null
+          smaller_pack_adjustment_pct: number | null
+          source_quality: string | null
+          source_type: string | null
+          system_reference_mrp_ik: number | null
+          system_reference_mrp_ok: number | null
+          system_reference_mrp_policy_id: number | null
+          system_reference_ok_pct: number | null
+          system_reference_pack_size: number | null
+          system_reference_pack_uom: string | null
+          system_reference_sku_id: number | null
         }
         Relationships: []
       }
@@ -30006,6 +30948,20 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
             referencedColumns: ["product_id"]
           },
           {
@@ -30210,6 +31166,20 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
             referencedColumns: ["product_id"]
           },
           {
@@ -31849,6 +32819,20 @@ export type Database = {
             foreignKeyName: "product_skus_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -31914,6 +32898,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_mrp_plm_issue_monthly_enriched"
             referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "sku_aliases_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["target_sku_id"]
           },
           {
             foreignKeyName: "sku_aliases_sku_id_fkey"
@@ -32162,6 +33153,20 @@ export type Database = {
             foreignKeyName: "product_skus_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -32227,6 +33232,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_mrp_plm_issue_monthly_enriched"
             referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "sku_aliases_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["target_sku_id"]
           },
           {
             foreignKeyName: "sku_aliases_sku_id_fkey"
@@ -32478,6 +33490,20 @@ export type Database = {
             foreignKeyName: "product_skus_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -32543,6 +33569,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_mrp_plm_issue_monthly_enriched"
             referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "sku_aliases_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["target_sku_id"]
           },
           {
             foreignKeyName: "sku_aliases_sku_id_fkey"
@@ -32788,6 +33821,20 @@ export type Database = {
             foreignKeyName: "product_skus_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -32923,6 +33970,20 @@ export type Database = {
             foreignKeyName: "product_skus_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -32988,6 +34049,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_mrp_plm_issue_monthly_enriched"
             referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "sku_aliases_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["target_sku_id"]
           },
           {
             foreignKeyName: "sku_aliases_sku_id_fkey"
@@ -33267,6 +34335,20 @@ export type Database = {
             foreignKeyName: "product_skus_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -33332,6 +34414,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_mrp_plm_issue_monthly_enriched"
             referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "sku_aliases_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["target_sku_id"]
           },
           {
             foreignKeyName: "sku_aliases_sku_id_fkey"
@@ -33576,6 +34665,20 @@ export type Database = {
             foreignKeyName: "product_skus_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -33641,6 +34744,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_mrp_plm_issue_monthly_enriched"
             referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "sku_aliases_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["target_sku_id"]
           },
           {
             foreignKeyName: "sku_aliases_sku_id_fkey"
@@ -33870,6 +34980,20 @@ export type Database = {
             foreignKeyName: "product_skus_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -34030,6 +35154,20 @@ export type Database = {
             foreignKeyName: "product_skus_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -34181,6 +35319,20 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
             referencedColumns: ["product_id"]
           },
           {
@@ -34345,6 +35497,20 @@ export type Database = {
             foreignKeyName: "product_skus_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -34432,6 +35598,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "v_mrp_plm_issue_monthly_enriched"
             referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "plm_sku_pack_map_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: true
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["target_sku_id"]
           },
           {
             foreignKeyName: "plm_sku_pack_map_sku_id_fkey"
@@ -34640,6 +35813,20 @@ export type Database = {
             foreignKeyName: "product_skus_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -34773,6 +35960,20 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
             referencedColumns: ["product_id"]
           },
           {
@@ -34938,6 +36139,20 @@ export type Database = {
             foreignKeyName: "product_skus_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -35076,6 +36291,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_mrp_plm_issue_monthly_enriched"
             referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "sku_aliases_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["target_sku_id"]
           },
           {
             foreignKeyName: "sku_aliases_sku_id_fkey"
@@ -35243,6 +36465,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_mrp_plm_issue_monthly_enriched"
             referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "sku_stock_snapshot_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["target_sku_id"]
           },
           {
             foreignKeyName: "sku_stock_snapshot_sku_id_fkey"
@@ -35429,6 +36658,20 @@ export type Database = {
             foreignKeyName: "product_skus_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -35560,6 +36803,20 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
             referencedColumns: ["product_id"]
           },
           {
@@ -35952,6 +37209,13 @@ export type Database = {
             foreignKeyName: "sku_aliases_sku_id_fkey"
             columns: ["sku_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["target_sku_id"]
+          },
+          {
+            foreignKeyName: "sku_aliases_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
             referencedRelation: "v_product_sku_share_current_month"
             referencedColumns: ["sku_id"]
           },
@@ -36164,6 +37428,20 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "manual_plan_lines_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "manual_plan_lines_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
             referencedColumns: ["product_id"]
           },
           {
@@ -36399,6 +37677,20 @@ export type Database = {
             foreignKeyName: "product_skus_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -36464,6 +37756,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_mrp_plm_issue_monthly_enriched"
             referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "sku_aliases_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["target_sku_id"]
           },
           {
             foreignKeyName: "sku_aliases_sku_id_fkey"
@@ -36681,6 +37980,20 @@ export type Database = {
             foreignKeyName: "product_skus_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -36841,6 +38154,20 @@ export type Database = {
             foreignKeyName: "product_skus_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -36988,6 +38315,20 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
             referencedColumns: ["product_id"]
           },
           {
@@ -37195,6 +38536,20 @@ export type Database = {
             foreignKeyName: "product_skus_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -37260,6 +38615,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_mrp_plm_issue_monthly_enriched"
             referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "sku_aliases_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["target_sku_id"]
           },
           {
             foreignKeyName: "sku_aliases_sku_id_fkey"
@@ -37519,6 +38881,20 @@ export type Database = {
             foreignKeyName: "product_skus_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_sdv_dim_product_hierarchy"
             referencedColumns: ["product_id"]
           },
@@ -37584,6 +38960,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_mrp_plm_issue_monthly_enriched"
             referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "sku_aliases_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["target_sku_id"]
           },
           {
             foreignKeyName: "sku_aliases_sku_id_fkey"
@@ -40293,6 +41676,114 @@ export type Database = {
               stock_item_name: string
             }[]
           }
+      rpc_adjust_product_mrp_proposal_line: {
+        Args: {
+          p_action: string
+          p_proposal_line_id: number
+          p_proposed_mrp_ik?: number
+          p_proposed_mrp_ok?: number
+          p_proposed_ok_pct?: number
+          p_reason?: string
+        }
+        Returns: {
+          calculated_calc_mode: string
+          calculated_mrp_ik: number
+          calculated_mrp_ok: number
+          calculated_ok_pct: number
+          calculation_status: string
+          decision: string
+          line_number: number
+          manual_adjustment_reason: string
+          manually_adjusted_at: string
+          manually_adjusted_by: string
+          pack_direction: string
+          pack_size: number
+          pack_uom: string
+          product_id: number
+          product_name: string
+          proposal_id: number
+          proposal_line_id: number
+          proposal_number: string
+          proposed_calc_mode: string
+          proposed_mrp_ik: number
+          proposed_mrp_ok: number
+          proposed_ok_pct: number
+          sku_id: number
+        }[]
+      }
+      rpc_apply_product_mrp_proposal: {
+        Args: { p_application_note?: string; p_proposal_id: number }
+        Returns: {
+          aggregate_ik_variance_amount: number | null
+          aggregate_ok_variance_amount: number | null
+          applied_at: string | null
+          applied_by: string | null
+          approval_reference: string | null
+          approved_at: string | null
+          approved_by: string | null
+          approved_line_count: number | null
+          blocked_line_count: number | null
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          ceiling_increment: number | null
+          changed_mrp_line_count: number | null
+          created_at: string | null
+          created_by: string | null
+          current_derivation_policy_status: string | null
+          current_mrp_ik_sum: number | null
+          current_mrp_ok_sum: number | null
+          derivation_policy_effective_from: string | null
+          derivation_policy_effective_to: string | null
+          derivation_policy_id: number | null
+          eligible_line_count: number | null
+          large_pack_warning_count: number | null
+          larger_pack_adjustment_pct: number | null
+          manually_adjusted_line_count: number | null
+          maximum_proposed_mrp_ik: number | null
+          minimum_proposed_mrp_ik: number | null
+          missing_target_mrp_warning_count: number | null
+          no_change_line_count: number | null
+          pending_line_count: number | null
+          product_base_uom: string | null
+          product_id: number | null
+          product_name: string | null
+          product_status: string | null
+          proposal_id: number | null
+          proposal_number: string | null
+          proposed_effective_from: string | null
+          proposed_mrp_ik_sum: number | null
+          proposed_mrp_ok_sum: number | null
+          reason: string | null
+          reference_mrp_ik: number | null
+          reference_mrp_ok: number | null
+          reference_mrp_policy_id: number | null
+          reference_ok_pct: number | null
+          reference_pack_line_count: number | null
+          reference_pack_size: number | null
+          reference_pack_uom: string | null
+          reference_sku_id: number | null
+          rejected_at: string | null
+          rejected_by: string | null
+          rejected_line_count: number | null
+          review_summary_status: string | null
+          smaller_pack_adjustment_pct: number | null
+          source_snapshot: Json | null
+          status: string | null
+          submission_note: string | null
+          submitted_at: string | null
+          submitted_by: string | null
+          total_line_count: number | null
+          very_large_pack_warning_count: number | null
+          warning_line_count: number | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "v_product_mrp_proposal_register"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       rpc_cancel_jobs: { Args: { p_job_ids: string[] }; Returns: number }
       rpc_close_expense_head_costing_map: {
         Args: { p_mapping_id: number; p_remarks?: string }
@@ -40550,6 +42041,93 @@ export type Database = {
           jwt_role: string
           session_user_email: string
         }[]
+      }
+      rpc_decide_product_mrp_proposal_line: {
+        Args: {
+          p_decision: string
+          p_decision_reason: string
+          p_proposal_line_id: number
+        }
+        Returns: {
+          adjusted_mrp_ik: number | null
+          applied_adjustment_pct: number | null
+          applied_at: string | null
+          applied_by: string | null
+          applied_mrp_policy_id: number | null
+          approval_reference: string | null
+          approved_at: string | null
+          approved_by: string | null
+          blocker_code: string | null
+          calculated_calc_mode: string | null
+          calculated_mrp_ik: number | null
+          calculated_mrp_ok: number | null
+          calculated_ok_pct: number | null
+          calculation_status: string | null
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          ceiling_increment: number | null
+          changes_current_mrp: boolean | null
+          current_mrp_ik: number | null
+          current_mrp_ok: number | null
+          current_mrp_policy_id: number | null
+          current_ok_pct: number | null
+          decided_at: string | null
+          decided_by: string | null
+          decision: string | null
+          decision_reason: string | null
+          derivation_policy_id: number | null
+          eligibility_status: string | null
+          is_manually_adjusted: boolean | null
+          is_reference_pack: boolean | null
+          larger_pack_adjustment_pct: number | null
+          line_created_at: string | null
+          line_number: number | null
+          manual_adjustment_reason: string | null
+          manually_adjusted_at: string | null
+          manually_adjusted_by: string | null
+          pack_direction: string | null
+          pack_multiple: number | null
+          pack_size: number | null
+          pack_uom: string | null
+          product_id: number | null
+          product_name: string | null
+          proportional_mrp_ik: number | null
+          proposal_created_at: string | null
+          proposal_created_by: string | null
+          proposal_id: number | null
+          proposal_line_id: number | null
+          proposal_number: string | null
+          proposal_reason: string | null
+          proposal_status: string | null
+          proposed_calc_mode: string | null
+          proposed_effective_from: string | null
+          proposed_ik_variance_amount: number | null
+          proposed_ik_variance_pct: number | null
+          proposed_mrp_ik: number | null
+          proposed_mrp_ok: number | null
+          proposed_ok_pct: number | null
+          proposed_ok_variance_amount: number | null
+          proposed_ok_variance_pct: number | null
+          reference_mrp_ik: number | null
+          reference_mrp_ok: number | null
+          reference_mrp_policy_id: number | null
+          reference_ok_pct: number | null
+          reference_sku_id: number | null
+          rejected_at: string | null
+          rejected_by: string | null
+          sku_id: number | null
+          smaller_pack_adjustment_pct: number | null
+          submitted_at: string | null
+          submitted_by: string | null
+          warning_code: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "v_product_mrp_proposal_lines"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       rpc_enqueue_job: {
         Args: { p_job_type: string; p_params: Json; p_priority?: number }
@@ -41443,6 +43021,29 @@ export type Database = {
         }
         Returns: Json
       }
+      rpc_generate_product_mrp_proposal: {
+        Args: {
+          p_approval_reference?: string
+          p_derivation_policy_id: number
+          p_proposed_effective_from: string
+          p_reason: string
+        }
+        Returns: {
+          blocked_line_count: number
+          changed_mrp_line_count: number
+          derivation_policy_id: number
+          eligible_line_count: number
+          product_id: number
+          product_name: string
+          proposal_id: number
+          proposal_number: string
+          proposal_status: string
+          proposed_effective_from: string
+          review_summary_status: string
+          total_line_count: number
+          warning_line_count: number
+        }[]
+      }
       rpc_get_cost_sheet_rm_explain_summary: {
         Args: { p_period_start: string; p_product_id: number; p_sku_id: number }
         Returns: {
@@ -42004,6 +43605,42 @@ export type Database = {
           stock_item_id: number
         }[]
       }
+      rpc_set_product_mrp_derivation_policy: {
+        Args: {
+          p_approval_reference?: string
+          p_ceiling_increment: number
+          p_confirm_policy?: boolean
+          p_effective_from: string
+          p_larger_pack_adjustment_pct: number
+          p_product_id: number
+          p_reason: string
+          p_reference_sku_id: number
+          p_smaller_pack_adjustment_pct: number
+        }
+        Returns: {
+          ceiling_increment: number
+          confirmed_at: string
+          confirmed_by: string
+          created_at: string
+          created_by: string
+          derivation_policy_id: number
+          effective_from: string
+          effective_to: string
+          larger_pack_adjustment_pct: number
+          policy_status: string
+          previous_policy_id: number
+          product_id: number
+          reference_mrp_ik: number
+          reference_mrp_ok: number
+          reference_mrp_policy_id: number
+          reference_ok_pct: number
+          reference_selection_source: string
+          reference_sku_id: number
+          smaller_pack_adjustment_pct: number
+          source_quality: string
+          source_type: string
+        }[]
+      }
       rpc_set_scheme_policy_rule: {
         Args: {
           p_apply_mode?: string
@@ -42199,6 +43836,28 @@ export type Database = {
           p_wastage_pct?: number
         }
         Returns: undefined
+      }
+      rpc_submit_product_mrp_proposal: {
+        Args: { p_proposal_id: number; p_submission_note: string }
+        Returns: {
+          blocked_line_count: number
+          changed_mrp_line_count: number
+          derivation_policy_id: number
+          eligible_line_count: number
+          pending_line_count: number
+          product_id: number
+          product_name: string
+          proposal_id: number
+          proposal_number: string
+          proposed_effective_from: string
+          review_summary_status: string
+          status: string
+          submission_note: string
+          submitted_at: string
+          submitted_by: string
+          total_line_count: number
+          warning_line_count: number
+        }[]
       }
       rpc_trace_log_pipeline: {
         Args: { p_batch_number: string; p_item?: string }
