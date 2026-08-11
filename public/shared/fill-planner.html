@@ -6,7 +6,7 @@
     <title>SASV WORKSPACE | Fill Planner</title>
     <link rel="stylesheet" href="../shared/css/style.css" />
     <link rel="stylesheet" href="../shared/css/sasv-fill-planner.css" />
-    <link rel="manifest" href="/utilities-hub/manifest.webmanifest" />
+    <link rel="manifest" href="../utilities-hub/manifest.webmanifest" />
     <link
       rel="icon"
       href="/shared/assets/branding/derived/favicon.ico"
@@ -62,7 +62,6 @@
     <div class="fp-main">
       <div class="fp-controls">
         <label class="fp-product-field">
-          Product&nbsp;
           <!-- Native select remains authoritative; searchable UI via enhanceSearchableSelect -->
           <select
             id="fp-product"
@@ -75,47 +74,66 @@
           </select>
         </label>
 
-        <label>
-          Bulk&nbsp;
-          <input id="fp-bulk" type="number" step="0.01" inputmode="decimal" />
-          <span id="fp-uom">(base&nbsp;UOM)</span>
-        </label>
+        <div class="fp-bulk-row">
+          <label>
+            <input
+              id="fp-bulk"
+              type="number"
+              step="0.01"
+              inputmode="decimal"
+              placeholder="Bulk qty"
+              aria-label="Bulk quantity"
+            />
+            <span id="fp-uom"></span>
+          </label>
 
-        <label>
-          <input id="fp-overshoot" type="checkbox" /> allow&nbsp;overshoot
-        </label>
+          <label>
+            <input id="fp-overshoot" type="checkbox" /> allow&nbsp;overshoot
+          </label>
+        </div>
       </div>
 
-      <!-- ─── SKU Metrics table (appears after product pick) ───────────── -->
-      <div
-        id="fp-metrics-header"
-        class="fp-metrics-header"
+      <!-- SKU Metrics: collapsible drawer; table desktop / cards ≤520px -->
+      <details
+        id="fp-metrics-drawer"
+        class="fp-drawer fp-metrics-drawer"
         style="display: none"
       >
-        <h3 class="fp-subtitle" id="fp-metrics-title">SKU Metrics</h3>
-      </div>
+        <summary id="fp-metrics-header" class="fp-drawer-summary">
+          <h3 class="fp-subtitle" id="fp-metrics-title">SKU Metrics</h3>
+        </summary>
+        <table id="fp-metrics-table" style="display: none">
+          <thead id="fp-metrics-head"></thead>
+          <tbody id="fp-metrics-body"></tbody>
+        </table>
+        <div id="fp-metrics-cards" class="fp-cards-wrap" hidden>
+          <div id="fp-metrics-cards-list" class="fp-cards-list"></div>
+        </div>
+      </details>
 
-      <table id="fp-metrics-table" style="display: none">
-        <thead id="fp-metrics-head"></thead>
-        <tbody id="fp-metrics-body"></tbody>
-      </table>
-
-      <!-- Urgent / ad-hoc orders ----------------------------------------->
-      <h3 id="fp-emg-title" class="fp-subtitle" style="display: none">
-        Urgent Orders (optional)
-      </h3>
-
-      <table id="fp-emg-table" style="display: none; margin-bottom: 0.6rem">
-        <thead>
-          <tr>
-            <th style="text-align: left">SKU</th>
-            <th>Qty&nbsp;(Nos)</th>
-          </tr>
-        </thead>
-        <tbody id="fp-emg-body">
-          <!-- rows injected by JS -->
-        </tbody>
-      </table>
+      <!-- Urgent / ad-hoc orders: same drawer chrome as SKU Metrics -->
+      <details
+        id="fp-emg-drawer"
+        class="fp-drawer fp-emg-drawer"
+        style="display: none"
+      >
+        <summary id="fp-emg-header" class="fp-drawer-summary">
+          <h3 id="fp-emg-title" class="fp-subtitle">
+            Urgent Orders (optional)
+          </h3>
+        </summary>
+        <table id="fp-emg-table" style="display: none; margin-bottom: 0.6rem">
+          <thead>
+            <tr>
+              <th style="text-align: left">SKU</th>
+              <th>Qty&nbsp;(Nos)</th>
+            </tr>
+          </thead>
+          <tbody id="fp-emg-body">
+            <!-- rows injected by JS -->
+          </tbody>
+        </table>
+      </details>
 
       <div id="fp-run-wrap" class="fp-run-wrap" style="display: none">
         <button type="button" id="fp-run" class="btn primary">Calculate</button>
@@ -139,6 +157,9 @@
         </thead>
         <tbody id="fp-body"></tbody>
       </table>
+      <div id="fp-plan-cards" class="fp-cards-wrap" hidden>
+        <div id="fp-plan-cards-list" class="fp-cards-list"></div>
+      </div>
 
       <details id="fp-workings" style="display: none; margin-top: 16px">
         <summary>Calculation Workings</summary>

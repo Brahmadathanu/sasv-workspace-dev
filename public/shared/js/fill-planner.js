@@ -142,6 +142,7 @@ const elHead = $("fp-head");
 const elBody = $("fp-body");
 const homeBtn = $("homeBtn");
 const emgTitle = $("fp-emg-title");
+const emgDrawer = $("fp-emg-drawer");
 const runWrap = $("fp-run-wrap");
 const fpTitle = $("fp-title");
 const emgBody = $("fp-emg-body");
@@ -151,57 +152,26 @@ const metricsTable = $("fp-metrics-table");
 const metricsHead = $("fp-metrics-head");
 const metricsBody = $("fp-metrics-body");
 const metricsHeader = $("fp-metrics-header");
+const metricsDrawer = $("fp-metrics-drawer");
+const metricsCardsWrap = $("fp-metrics-cards");
+const metricsCardsList = $("fp-metrics-cards-list");
+const planCardsWrap = $("fp-plan-cards");
+const planCardsList = $("fp-plan-cards-list");
 const elUpdated = $("fp-updated");
 const elStatusDetail = $("fp-status-detail");
 const metricsWrap = wrapTable(metricsTable); // SKU Metrics
 const emgWrap = wrapTable(emgTable); // Urgent Orders
 const planWrap = wrapTable(elTable); // Fill Plan
+if (metricsWrap) metricsWrap.classList.add("fp-dual-table");
+if (planWrap) planWrap.classList.add("fp-dual-table");
+if (emgWrap) emgWrap.classList.add("fp-emg-wrap");
+
+metricsDrawer?.addEventListener("toggle", fitVisibleWraps);
+emgDrawer?.addEventListener("toggle", fitVisibleWraps);
 
 // copy summary button and cached data
 let copyPlanBtn = null;
 let latestSummaryData = null;
-
-// Create an inline toggle button for the "Urgent Orders" drawer (keeps HTML unchanged)
-let emgToggleBtn = null;
-function updateEmgToggle() {
-  if (!emgToggleBtn || !emgWrap) return;
-  const visible =
-    getComputedStyle(emgWrap).display !== "none" &&
-    emgWrap.offsetParent !== null;
-  // accessibility
-  emgToggleBtn.setAttribute("aria-pressed", visible ? "true" : "false");
-  emgToggleBtn.title = visible ? "Hide urgent orders" : "Show urgent orders";
-  emgToggleBtn.setAttribute(
-    "aria-label",
-    visible ? "Hide urgent orders" : "Show urgent orders",
-  );
-  // rotate the SVG to indicate open/closed
-  const svg = emgToggleBtn.querySelector("svg");
-  if (svg) svg.style.transform = visible ? "rotate(180deg)" : "rotate(0deg)";
-}
-
-if (emgTitle) {
-  emgToggleBtn = document.createElement("button");
-  emgToggleBtn.type = "button";
-  emgToggleBtn.id = "fp-emg-toggle";
-  emgToggleBtn.className = "fp-small-toggle";
-  // Presentation: sasv-fill-planner.css (.fp-small-toggle)
-  emgToggleBtn.innerHTML = `
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>`;
-  emgToggleBtn.addEventListener("click", () => {
-    if (!emgWrap) return;
-    const currentlyVisible =
-      getComputedStyle(emgWrap).display !== "none" &&
-      emgWrap.offsetParent !== null;
-    emgWrap.style.display = currentlyVisible ? "none" : "";
-    updateEmgToggle();
-    fitVisibleWraps();
-  });
-  emgTitle.appendChild(emgToggleBtn);
-  updateEmgToggle();
-}
 
 // Create a small SVG-only copy button next to the Fill Plan title (hidden until a plan is generated)
 if (fpTitle) {
@@ -288,7 +258,7 @@ elBulk?.addEventListener("keydown", (e) => {
  */
 function applyProductClearedSideEffects() {
   if (elBulk) elBulk.value = "";
-  if (elUom) elUom.textContent = "(base UOM)";
+  if (elUom) elUom.textContent = "";
   if (elRunBtn) elRunBtn.disabled = true;
   latestSummaryData = null;
   if (copyPlanBtn) copyPlanBtn.style.display = "none";
@@ -307,6 +277,79 @@ function wrapTable(el) {
   // keep wrapper hidden initially (tables already start hidden)
   wrap.style.display = "none";
   return wrap;
+}
+
+function collapseMetricsDrawer() {
+  if (metricsDrawer) metricsDrawer.open = false;
+}
+
+function renderMetricsCards(
+  skus,
+  priceMap,
+  stockIK,
+  stockKKD,
+  stockOK,
+  forecastIK,
+  forecastKKD,
+  forecastOK,
+  fmtMOS,
+) {
+  if (!metricsCardsList) return;
+  metricsCardsList.innerHTML = skus
+    .map((s, i) => {
+      const p = priceMap[s.id] || {};
+      const stIK = stockIK[s.id] || 0;
+      const stKKD = stockKKD[s.id] || 0;
+      const stOK = stockOK[s.id] || 0;
+      const fIK = forecastIK[s.id] || 0;
+      const fKKD = forecastKKD[s.id] || 0;
+      const fOK = forecastOK[s.id] || 0;
+      const mosIK = fIK ? stIK / fIK : NaN;
+      const mosKKD = fKKD ? stKKD / fKKD : NaN;
+      const mosOK = fOK ? stOK / fOK : NaN;
+      const alt = i % 2 === 1 ? " fp-result-card--alt" : "";
+      const label = `${s.pack_size} ${s.uom}`;
+      return `<article class="fp-result-card fp-result-card--static${alt}">
+    <div class="fp-result-card-line1"><span class="fp-result-card-name">${escapeHtml(label)}</span></div>
+    <div class="fp-result-card-depot"><span class="fp-result-card-k">IK:</span> Stock ${stIK} · Forecast ${fIK || "—"} · MOS ${fmtMOS(mosIK)}</div>
+    <div class="fp-result-card-depot"><span class="fp-result-card-k">KKD:</span> Stock ${stKKD} · Forecast ${fKKD || "—"} · MOS ${fmtMOS(mosKKD)}</div>
+    <div class="fp-result-card-depot"><span class="fp-result-card-k">OK:</span> Stock ${stOK} · Forecast ${fOK || "—"} · MOS ${fmtMOS(mosOK)}</div>
+    <div class="fp-result-card-mrp"><span class="fp-result-card-k">MRP:</span> IK: ${p.ik ?? "—"} | OK: ${p.ok ?? "—"}</div>
+  </article>`;
+    })
+    .join("");
+}
+
+function renderPlanCards(byRegion, cols, achievedByRegion) {
+  if (!planCardsList) return;
+  const entries = Object.entries(byRegion);
+  planCardsList.innerHTML = entries
+    .map(([region, skuRows], i) => {
+      const mos = Object.values(skuRows)[0]?.mos;
+      const achieved = achievedByRegion[region] || 0;
+      const alt = i % 2 === 1 ? " fp-result-card--alt" : "";
+      const skuLines = cols
+        .map((c) => {
+          const row = skuRows[c.id];
+          const qty = row ? row.units_to_fill : "—";
+          return `<div class="fp-result-card-metric"><span class="fp-result-card-k">${escapeHtml(c.label)}:</span> ${qty}</div>`;
+        })
+        .join("");
+      const targetMos =
+        typeof mos === "number" && Number.isFinite(mos) ? mos.toFixed(2) : "—";
+      const achievedMos =
+        typeof achieved === "number" && Number.isFinite(achieved)
+          ? achieved.toFixed(2)
+          : "—";
+      return `<article class="fp-result-card fp-result-card--static${alt}">
+    <div class="fp-result-card-line1"><span class="fp-result-card-name">${escapeHtml(region)}</span></div>
+    ${skuLines}
+    <div class="fp-result-card-metric fp-result-card-metric--rule"><span class="fp-result-card-k">Target MOS:</span> ${targetMos}</div>
+    <div class="fp-result-card-metric"><span class="fp-result-card-k">Achieved MOS:</span> ${achievedMos}</div>
+  </article>`;
+    })
+    .join("");
+  if (planCardsWrap) planCardsWrap.hidden = false;
 }
 
 // Load ALL products once and enhance native select as searchable single-select
@@ -343,7 +386,7 @@ async function initProductList() {
     syncSearchableSelect(elProd);
   } else {
     productSearchApi = enhanceSearchableSelect(elProd, {
-      placeholder: "Type to select…",
+      placeholder: "Select product…",
       allowEmptyOption: true,
       debounceMs: 220,
       clearSelectedOnBackspace: true,
@@ -401,11 +444,15 @@ async function onProductSelect() {
   }
   if (!rec) {
     // hide all downstream, as before (UOM text handled by applyProductClearedSideEffects)
-    emgTitle.style.display =
-      runWrap.style.display =
-      metricsHeader.style.display =
-      fpTitle.style.display =
-        "none";
+    runWrap.style.display = fpTitle.style.display = "none";
+    if (metricsDrawer) {
+      metricsDrawer.style.display = "none";
+      metricsDrawer.open = false;
+    }
+    if (emgDrawer) {
+      emgDrawer.style.display = "none";
+      emgDrawer.open = false;
+    }
     emgTable.style.display =
       metricsTable.style.display =
       elTable.style.display =
@@ -414,15 +461,13 @@ async function onProductSelect() {
       metricsWrap.style.display =
       planWrap.style.display =
         "none";
-    // keep toggle label in sync
-    try {
-      updateEmgToggle();
-    } catch {
-      void 0;
-    }
+    if (metricsCardsWrap) metricsCardsWrap.hidden = true;
+    if (metricsCardsList) metricsCardsList.innerHTML = "";
+    if (planCardsWrap) planCardsWrap.hidden = true;
+    if (planCardsList) planCardsList.innerHTML = "";
     return;
   }
-  elUom.textContent = rec.uom;
+  if (elUom) elUom.textContent = rec.uom || "";
   await loadForProduct(prodId);
 }
 
@@ -454,15 +499,12 @@ async function loadForProduct(productId) {
     )
     .join("");
 
-  emgTitle.style.display = "";
-  emgTable.style.display = "";
-  // keep urgent-orders drawer closed by default; user may open via the Show button
-  emgWrap.style.display = "none";
-  try {
-    updateEmgToggle();
-  } catch {
-    void 0;
+  if (emgDrawer) {
+    emgDrawer.style.display = "";
+    emgDrawer.open = false;
   }
+  emgTable.style.display = "";
+  emgWrap.style.display = "";
   runWrap.style.display = "";
   fitVisibleWraps();
 
@@ -545,8 +587,14 @@ async function fetchProductConv(productId) {
 async function loadMetrics(skus, productId) {
   const ids = skus.map((s) => s.id);
   if (!ids.length) {
-    metricsTitle.style.display = "none";
+    if (metricsDrawer) {
+      metricsDrawer.style.display = "none";
+      metricsDrawer.open = false;
+    }
     metricsTable.style.display = "none";
+    if (metricsWrap) metricsWrap.style.display = "none";
+    if (metricsCardsWrap) metricsCardsWrap.hidden = true;
+    if (metricsCardsList) metricsCardsList.innerHTML = "";
     return;
   }
 
@@ -699,6 +747,8 @@ async function loadMetrics(skus, productId) {
     })
     .join("");
 
+  renderMetricsCards(skus, priceMap, stockIK, stockKKD, stockOK, forecastIK, forecastKKD, forecastOK, fmtMOS);
+
   // fetch the most‑recent as_of_date for any of these SKUs
   const { data: luRows, error: luErr } = await supabase
     .from("sku_stock_snapshot")
@@ -723,9 +773,13 @@ async function loadMetrics(skus, productId) {
     updateStockSnapshotLabel();
   }
 
-  metricsHeader.style.display = "";
+  if (metricsDrawer) {
+    metricsDrawer.style.display = "";
+    metricsDrawer.open = true;
+  }
   metricsTable.style.display = "";
   metricsWrap.style.display = "";
+  if (metricsCardsWrap) metricsCardsWrap.hidden = false;
   fitVisibleWraps();
 }
 
@@ -734,6 +788,8 @@ elRunBtn.addEventListener("click", async () => {
   elMsg.textContent = "";
   elBody.innerHTML = "";
   elTable.style.display = "none";
+  if (planCardsList) planCardsList.innerHTML = "";
+  if (planCardsWrap) planCardsWrap.hidden = true;
   wClear();
   wShow();
 
@@ -1301,6 +1357,13 @@ elRunBtn.addEventListener("click", async () => {
       .join("");
 
     elTable.style.display = "";
+    renderPlanCards(byRegion, cols, achievedByRegion);
+    collapseMetricsDrawer();
+    try {
+      fpTitle?.scrollIntoView({ block: "start", behavior: "smooth" });
+    } catch {
+      void 0;
+    }
 
     // Cache a simplified summary for the clipboard copy button
     try {
@@ -1430,33 +1493,87 @@ async function updateStockSnapshotLabel() {
 function wireFreshnessChip() {
   if (!elUpdated) return;
 
+  const margin = 8;
+  const MIN_WIDTH = 160;
+  const PREFERRED_MIN = 180;
+  const MAX_WIDTH = 420;
+
   function hideStatusDetail(detail) {
     if (!detail) return;
     detail.style.display = "none";
     detail.style.position = "";
+    detail.style.left = "";
+    detail.style.top = "";
+    detail.style.width = "";
+    detail.style.maxWidth = "";
+    detail.style.boxSizing = "";
+    detail.style.zIndex = "";
   }
 
   function positionStatusDetail(statusDetail) {
     try {
-      const rect = elUpdated.getBoundingClientRect();
-      const scrollX = window.scrollX || window.pageXOffset;
-      const scrollY = window.scrollY || window.pageYOffset;
-      const margin = 8;
-      const MAX_WIDTH = 360;
-      const vw = window.innerWidth;
-      let width = Math.min(MAX_WIDTH, Math.max(220, rect.width * 2));
-      let left = rect.left + scrollX;
-      if (left + width > vw + scrollX - margin)
-        left = vw + scrollX - width - margin;
-      if (left < scrollX + margin) left = scrollX + margin;
-      const top = rect.bottom + scrollY + 6;
-      statusDetail.style.position = "absolute";
+      if (!statusDetail || !elUpdated) return;
+      if (statusDetail.parentElement !== document.body)
+        document.body.appendChild(statusDetail);
       statusDetail.style.display = "block";
+      statusDetail.style.position = "absolute";
+      statusDetail.style.boxSizing = "border-box";
+      statusDetail.style.zIndex = "9999";
+
+      const rect = elUpdated.getBoundingClientRect();
+      const vw = Math.max(
+        document.documentElement.clientWidth || 0,
+        window.innerWidth || 0,
+      );
+      const scrollX = window.scrollX || window.pageXOffset || 0;
+      const scrollY = window.scrollY || window.pageYOffset || 0;
+
+      const availableRight = Math.max(0, vw - rect.right - margin);
+      const availableLeft = Math.max(0, rect.left - margin);
+
+      let side = "right";
+      if (availableRight < PREFERRED_MIN && availableLeft >= PREFERRED_MIN)
+        side = "left";
+      else if (availableRight < MIN_WIDTH && availableLeft >= MIN_WIDTH)
+        side = "left";
+      else if (availableRight < MIN_WIDTH && availableLeft < MIN_WIDTH)
+        side = availableLeft > availableRight ? "left" : "right";
+
+      const avail = side === "right" ? availableRight : availableLeft;
+      statusDetail.style.width = "auto";
+      const natural = Math.ceil(
+        Math.max(
+          statusDetail.scrollWidth || 0,
+          statusDetail.getBoundingClientRect().width || 0,
+        ),
+      );
+      const cap = Math.min(MAX_WIDTH, vw - margin * 2);
+      let width;
+      if (natural && natural <= cap && (!avail || natural <= avail)) {
+        width = natural;
+      } else {
+        width = Math.min(cap, Math.max(PREFERRED_MIN, avail || PREFERRED_MIN));
+        if (avail && avail < PREFERRED_MIN) width = Math.max(MIN_WIDTH, avail);
+        width = Math.min(width, cap);
+      }
+
+      let left;
+      if (side === "right") {
+        left = rect.left + scrollX;
+        if (left + width > vw + scrollX - margin)
+          left = vw + scrollX - width - margin;
+        if (left < margin + scrollX) left = margin + scrollX;
+      } else {
+        left = rect.right + scrollX - width;
+        if (left < margin + scrollX) left = margin + scrollX;
+        if (left + width > vw + scrollX - margin)
+          left = vw + scrollX - width - margin;
+      }
+
       statusDetail.style.left = left + "px";
-      statusDetail.style.top = top + "px";
+      statusDetail.style.top = rect.bottom + scrollY + 6 + "px";
       statusDetail.style.width = width + "px";
       statusDetail.style.maxWidth = Math.min(MAX_WIDTH, vw - margin * 2) + "px";
-      statusDetail.style.zIndex = "1200";
     } catch {
       try {
         statusDetail.style.position = "";
@@ -1489,13 +1606,29 @@ function wireFreshnessChip() {
 
   document.addEventListener("click", (ev) => {
     try {
-      if (!elUpdated.contains(ev.target)) {
-        elUpdated.classList.remove("sc-status-expanded");
-        elUpdated.setAttribute("aria-expanded", "false");
-        hideStatusDetail(elStatusDetail);
-      }
+      if (elUpdated.contains(ev.target)) return;
+      if (elStatusDetail && elStatusDetail.contains(ev.target)) return;
+      if (!elUpdated.classList.contains("sc-status-expanded")) return;
+      elUpdated.classList.remove("sc-status-expanded");
+      elUpdated.setAttribute("aria-expanded", "false");
+      hideStatusDetail(elStatusDetail);
     } catch {
       void 0;
     }
   });
+
+  let repositionTimer = null;
+  const repositionIfOpen = () => {
+    if (repositionTimer) clearTimeout(repositionTimer);
+    repositionTimer = setTimeout(() => {
+      if (
+        elStatusDetail &&
+        elUpdated.classList.contains("sc-status-expanded")
+      ) {
+        positionStatusDetail(elStatusDetail);
+      }
+    }, 120);
+  };
+  window.addEventListener("resize", repositionIfOpen);
+  window.addEventListener("scroll", repositionIfOpen, { passive: true });
 }

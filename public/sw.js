@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v271"; // PRM family route editor header density (C.3E.2C)
+const CACHE_NAME = "hub-cache-v272"; // Fill Planner cards, drawers, manifest path
 
 const PRECACHE = [
   // Hub shell
